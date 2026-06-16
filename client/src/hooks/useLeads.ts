@@ -68,3 +68,15 @@ export function useConvertLeadToClient() {
     },
   });
 }
+
+export function useUpdateLeadStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation<Lead, Error, { id: string; status: Lead["status"] }>({
+    mutationFn: ({ id, status }) => leadsApi.updateLeadStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      toast.success("Lead status updated successfully");
+    },
+  });
+}

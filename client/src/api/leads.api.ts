@@ -32,4 +32,9 @@ export const leadsApi = {
     const response = await apiClient.post<ApiResponse<Client>>(`/leads/${id}/convert`);
     return response.data.data;
   },
+
+  updateLeadStatus: async (id: string, status: Lead["status"]): Promise<Lead> => {
+    const response = await apiClient.patch<ApiResponse<Lead>>(`/leads/${id}`, { status });
+    return response.data.data;
+  },
 };
