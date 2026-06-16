@@ -1,0 +1,88 @@
+.indicator {
+  width: 100%;
+  transform-origin: left center;
+}
+
+.value0 {
+  transform: translateX(-100%);
+}
+
+.value5 {
+  transform: translateX(-95%);
+}
+
+.value10 {
+  transform: translateX(-90%);
+}
+
+.value15 {
+  transform: translateX(-85%);
+}
+
+.value20 {
+  transform: translateX(-80%);
+}
+
+.value25 {
+  transform: translateX(-75%);
+}
+
+.value30 {
+  transform: translateX(-70%);
+}
+
+.value35 {
+  transform: translateX(-65%);
+}
+
+.value40 {
+  transform: translateX(-60%);
+}
+
+.value45 {
+  transform: translateX(-55%);
+}
+
+.value50 {
+  transform: translateX(-50%);
+}
+
+.value55 {
+  transform: translateX(-45%);
+}
+
+.value60 {
+  transform: translateX(-40%);
+}
+
+.value65 {
+  transform: translateX(-35%);
+}
+
+.value70 {
+  transform: translateX(-30%);
+}
+
+.value75 {
+  transform: translateX(-25%);
+}
+
+.value80 {
+  transform: translateX(-20%);
+}
+
+.value85 {
+  transform: translateX(-15%);
+}
+
+.value90 {
+  transform: translateX(-10%);
+}
+
+.value95 {
+  transform: translateX(-5%);
+}
+
+.value100 {
+  transform: translateX(0%);
+}
