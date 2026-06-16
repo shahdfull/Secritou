@@ -1,0 +1,272 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Role definitions
+enum Role {
+  ADMIN
+  CLIENT
+  FREELANCER
+}
+
+// Project status options
+enum ProjectStatus {
+  PLANNING
+  IN_PROGRESS
+  REVIEW
+  COMPLETED
+}
+
+// Task status options
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  DONE
+}
+
+// Lead status options for sales pipeline
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPOSAL
+  WON
+  LOST
+}
+
+// Contact request status options
+enum ContactStatus {
+  NEW
+  READ
+  ARCHIVED
+}
+
+// Mission status options for freelancer marketplace
+enum MissionStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// Service request status options
+enum ServiceRequestStatus {
+  NEW
+  IN_PROGRESS
+  DONE
+}
+
+// Multi-tenant Company model
+model Company {
+  id        String                @id @default(uuid())
+  name      String                @db.VarChar(255)
+  website   String?               @db.VarChar(255)
+  users     User[]
+  leads     Lead[]
+  clients   Client[]
+  projects  Project[]
+  missions  FreelancerMission[]
+  createdAt DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime              @updatedAt @db.Timestamptz(6)
+
+  // Indexes for faster queries
+  @@index([name])
+}
+
+// User model for all platform users
+model User {
+  id                  String               @id @default(uuid())
+  email               String               @unique @db.VarChar(255)
+  name                String               @db.VarChar(255)
+  passwordHash        String               @db.VarChar(255)
+  role                Role                 @default(CLIENT)
+  companyId           String?
+  company             Company?             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientId            String?
+  client              Client?              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tasks               Task[]               @relation("AssignedTasks")
+  refreshTokens       RefreshToken[]
+  freelancerProfile FreelancerProfile?
+  createdAt           DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime             @updatedAt @db.Timestamptz(6)
+
+  // Indexes for faster queries
+  @@index([companyId])
+  @@index([clientId])
+  @@index([email])
+}
+
+// Lead model for potential clients/sales pipeline
+model Lead {
+  id          String     @id @default(uuid())
+  name        String     @db.VarChar(255)
+  email       String?    @db.VarChar(255)
+  phone       String?    @db.VarChar(50)
+  source      String?    @db.VarChar(100)
+  status      LeadStatus @default(NEW)
+  notes       String?    @db.Text
+  companyId   String
+  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime   @updatedAt @db.Timestamptz(6)
+
+  // Indexes for faster queries
+  @@index([companyId, status])
+  @@index([email])
+}
+
+// Client model for paying/active clients
+model Client {
+  id               String           @id @default(uuid())
+  name             String           @db.VarChar(255)
+  email            String?          @db.VarChar(255)
+  phone            String?          @db.VarChar(50)
+  companyId        String
+  company          Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projects         Project[]
+  users            User[]
+  serviceRequests  ServiceRequest[]
+  createdAt        DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @db.Timestamptz(6)
+
+  // Indexes for faster queries
+  @@index([companyId])
+  @@index([email])
+}
+
+// ServiceRequest model for client service requests
+model ServiceRequest {
+  id          String               @id @default(uuid())
+  title       String               @db.VarChar(255)
+  description String?              @db.Text
+  status      ServiceRequestStatus @default(NEW)
+  clientId    String
+  client      Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime             @updatedAt @db.Timestamptz(6)
+
+  @@index([clientId])
+  @@index([companyId, status])
+}
+
+// Project model for client work
+model Project {
+  id          String                @id @default(uuid())
+  name        String                @db.VarChar(255)
+  description String?               @db.Text
+  status      ProjectStatus         @default(PLANNING)
+  companyId   String
+  company     Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientId    String?
+  client      Client?               @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  tasks       Task[]
+  missions    FreelancerMission[]
+  createdAt   DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime              @updatedAt @db.Timestamptz(6)
+
+  // Indexes for faster queries
+  @@index([companyId, status])
+  @@index([clientId])
+}
+
+// Task model for project tasks
+model Task {
+  id          String      @id @default(uuid())
+  title       String      @db.VarChar(255)
+  description String?     @db.Text
+  status      TaskStatus  @default(TODO)
+  dueDate     DateTime?   @db.Timestamptz(6)
+  projectId   String
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assigneeId  String?
+  assignee    User?       @relation("AssignedTasks", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdAt   DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @db.Timestamptz(6)
+
+  // Indexes for faster queries
+  @@index([projectId, status])
+  @@index([assigneeId])
+}
+
+// ContactRequest model for contact form submissions
+model ContactRequest {
+  id          String        @id @default(uuid())
+  name        String        @db.VarChar(255)
+  email       String        @db.VarChar(255)
+  phone       String?       @db.VarChar(50)
+  serviceType String        @db.VarChar(255)
+  budget      String?       @db.VarChar(255)
+  company     String        @db.VarChar(255)
+  message     String        @db.Text
+  status      ContactStatus @default(NEW)
+  createdAt   DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @db.Timestamptz(6)
+
+  // Indexes for faster queries
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Skill model for freelancer skills
+model Skill {
+  id           String               @id @default(uuid())
+  name         String               @unique @db.VarChar(100)
+  freelancers  FreelancerProfile[]
+}
+
+// FreelancerProfile model for freelancer details
+model FreelancerProfile {
+  id          String               @id @default(uuid())
+  userId      String               @unique
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio         String?              @db.Text
+  hourlyRate  Decimal?             @db.Decimal(10, 2)
+  availability Boolean             @default(true)
+  skills      Skill[]
+  missions    FreelancerMission[]
+  createdAt   DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime             @updatedAt @db.Timestamptz(6)
+
+  // Indexes for faster queries
+  @@index([userId])
+}
+
+// FreelancerMission model for marketplace missions
+model FreelancerMission {
+  id          String               @id @default(uuid())
+  title       String               @db.VarChar(255)
+  description String?              @db.Text
+  budget      Decimal?             @db.Decimal(10, 2)
+  status      MissionStatus        @default(OPEN)
+  companyId   String
+  company     Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  freelancerId String?
+  freelancer  FreelancerProfile?   @relation(fields: [freelancerId], references: [id], onDelete: SetNull)
+  projectId   String?
+  project     Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdAt   DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime             @updatedAt @db.Timestamptz(6)
+
+  // Indexes for faster queries
+  @@index([companyId, status])
+  @@index([freelancerId])
+}
+
+// Refresh token model for authentication persistence
+model RefreshToken {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique @db.VarChar(64)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime  @db.Timestamptz(6)
+  revokedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+}
