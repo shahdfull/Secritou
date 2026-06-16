@@ -1,0 +1,452 @@
+{
+  "nav": {
+    "services": "Services",
+    "solutions": "Solutions",
+    "caseStudies": "Case Studies",
+    "contact": "Contact",
+    "login": "Login",
+    "joinUs": "Join Us",
+    "bookConsultation": "Book a Consultation",
+    "bookFreeConsultation": "Book a Free Consultation",
+    "discoverSolutions": "Discover Our Solutions",
+    "scheduleFreeConsultation": "Schedule a Free Consultation"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "resetPassword": "Reset password",
+    "createAccount": "Create account",
+    "fullName": "Full name",
+    "companyName": "Company name",
+    "accessWorkspace": "Access your workspace, projects, reports and AI assistant.",
+    "getStarted": "Get started with your growth and digital transformation platform.",
+    "dontHaveAccount": "Don't have an account?",
+    "alreadyHaveAccount": "Already have an account?",
+    "signingIn": "Signing in...",
+    "creatingAccount": "Creating account...",
+    "validEmail": "Please enter a valid email",
+    "passwordMinLength": "Password must be at least 6 characters",
+    "nameMinLength": "Name must be at least 2 characters",
+    "companyNameMinLength": "Company name must be at least 2 characters"
+  },
+  "services": {
+    "title": "One partner. Multiple growth solutions.",
+    "subtitle": "Here's how we solve them",
+    "seeFullCapabilities": "See full capabilities",
+    "businessPerformance": {
+      "title": "Business Performance",
+      "body": "KPI tracking, dashboards, objectives and business analytics — finally one place for the numbers that matter.",
+      "items": ["KPI tracking", "Dashboards", "Objectives", "Business analytics"]
+    },
+    "digitalGrowth": {
+      "title": "Digital Growth",
+      "body": "Social media, content, SEO and paid acquisition — coordinated to compound, not to spread thin.",
+      "items": ["Social media", "Content creation", "SEO", "Paid advertising"]
+    },
+    "technologySolutions": {
+      "title": "Technology Solutions",
+      "body": "Websites, e-commerce, inventory systems and the digital tools you need to operate at the next level.",
+      "items": ["Websites", "E-commerce", "Inventory systems", "Digital tools"]
+    },
+    "aiAutomation": {
+      "title": "AI & Automation",
+      "body": "AI chatbots, workflow automation and AI assistants that compress hours of busywork into seconds.",
+      "items": ["AI chatbots", "Workflow automation", "AI assistants", "Process optimization"]
+    },
+    "other": "Other"
+  },
+  "contact": {
+    "title": "Let's talk about your growth.",
+    "subtitle": "30 minutes. No slides, no pitch. Just a conversation about where you are, where you want to be, and what's standing in the way.",
+    "name": "Your name",
+    "email": "Email",
+    "phone": "Phone number",
+    "serviceType": "Service type",
+    "message": "Tell us about your situation",
+    "budget": "Budget",
+    "send": "Send & schedule",
+    "sending": "Sending...",
+    "successMessage": "Thank you! We'll be in touch soon.",
+    "replyTime": "We typically reply within one business day.",
+    "emailInfo": "hello@secritou.com",
+    "bookCall": "30-minute discovery call, free of charge.",
+    "whereWeWork": "Remote-first · Europe & worldwide.",
+    "pleaseEnterName": "Please enter your name.",
+    "pleaseEnterEmail": "Please enter a valid email address.",
+    "pleaseEnterServiceType": "Please select a service type.",
+    "pleaseEnterMessage": "Please add a little more context (at least 20 characters).",
+    "invalidPhone": "Please enter a valid phone number.",
+    "unableToSend": "Unable to send your message.",
+    "budgets": {
+      "lessThan1000": "< 1 000 DT",
+      "1000To5000": "1 000–5 000 DT",
+      "5000To15000": "5 000–15 000 DT",
+      "moreThan15000": "+15 000 DT"
+    }
+  },
+  "home": {
+    "hero": {
+      "tagline": "Strategy · Technology · Data",
+      "title": {
+        "0": "Your external growth &",
+        "1": "digital transformation",
+        "2": "partner."
+      },
+      "description": "We help SMEs, entrepreneurs and creators organize, digitize and grow — through strategy, technology, marketing and data-driven decision making.",
+      "features": ["Data-driven decisions", "Digital transformation", "Business growth", "Process optimization"]
+    },
+    "problems": {
+      "subtitle": "Common business challenges",
+      "title": "Sound familiar?",
+      "description": "These are the four bottlenecks we see in nearly every growing business. None of them are solved by buying another tool.",
+      "items": [
+        {
+          "title": "No visibility on performance",
+          "body": "Decisions are made on instinct because KPIs are scattered across spreadsheets and tools."
+        },
+        {
+          "title": "Scattered operations",
+          "body": "Teams, vendors and processes live in silos — nothing connects, nothing scales."
+        },
+        {
+          "title": "Weak digital presence",
+          "body": "An outdated website, inconsistent content and channels that don't convert."
+        },
+        {
+          "title": "Time-consuming manual tasks",
+          "body": "Hours lost every week on reporting, follow-ups and admin that could be automated."
+        }
+      ]
+    },
+    "services": {
+      "subtitle": "Here's how we solve them",
+      "title": "One partner. Multiple growth solutions.",
+      "seeFullCapabilities": "See full capabilities",
+      "items": [
+        {
+          "title": "Business Performance",
+          "body": "KPI tracking, dashboards, objectives and business analytics — finally one place for the numbers that matter.",
+          "items": ["KPI tracking", "Dashboards", "Objectives", "Business analytics"]
+        },
+        {
+          "title": "Digital Growth",
+          "body": "Social media, content, SEO and paid acquisition — coordinated to compound, not to spread thin.",
+          "items": ["Social media", "Content creation", "SEO", "Paid advertising"]
+        },
+        {
+          "title": "Technology Solutions",
+          "body": "Websites, e-commerce, inventory systems and the digital tools you need to operate at the next level.",
+          "items": ["Websites", "E-commerce", "Inventory systems", "Digital tools"]
+        },
+        {
+          "title": "AI & Automation",
+          "body": "AI chatbots, workflow automation and AI assistants that compress hours of busywork into seconds.",
+          "items": ["AI chatbots", "Workflow automation", "AI assistants", "Process optimization"]
+        }
+      ]
+    },
+    "howItWorks": {
+      "title": "A clear path from chaos to compounding growth.",
+      "subtitle": "How it works",
+      "steps": [
+        {
+          "title": "Business Assessment",
+          "body": "We dig into your goals, your numbers and your blockers no fluff, no generic audit deck."
+        },
+        {
+          "title": "Strategy Design",
+          "body": "A custom action plan with priorities, owners, timelines and the KPIs we'll move."
+        },
+        {
+          "title": "Execution",
+          "body": "We deploy the right experts strategy, marketing, tech, AI coordinated as one team."
+        },
+        {
+          "title": "Performance Tracking",
+          "body": "Live dashboards, monthly reviews, continuous optimization measurable progress, always."
+        }
+      ]
+    },
+    "faq": {
+      "title": "Questions, answered.",
+      "subtitle": "FAQ",
+      "description": "Still unsure? Book a free 30-minute consultation and we'll talk through your situation — no pitch, no obligation.",
+      "questions": [
+        {
+          "q": "What types of businesses do you support?",
+          "a": "SMEs, entrepreneurs and content creators across industries — retail, professional services, healthcare, education and digital-first brands. If you have revenue and ambition, we can probably help."
+        },
+        {
+          "q": "Can I choose only one service?",
+          "a": "Yes. You can engage us for a single workstream — say, KPI dashboards or paid acquisition — or as your end-to-end growth partner. We adapt to your scope, not the other way around."
+        },
+        {
+          "q": "Do you work with startups?",
+          "a": "Absolutely. We work with early-stage teams that need to move fast without rebuilding the foundations every quarter. We bring the structure most startups skip."
+        },
+        {
+          "q": "Do you offer custom solutions?",
+          "a": "Every engagement is built around your specific goals. We don't sell templated retainers — we co-design a plan, with KPIs and milestones we agree on upfront."
+        },
+        {
+          "q": "Can you help automate my business?",
+          "a": "Yes. From AI assistants to workflow automation and internal tools, automation is one of our core practices. We start by finding the highest-leverage processes and remove busywork from there."
+        }
+      ]
+    },
+    "finalCta": {
+      "subtitle": "Ready when you are",
+      "title": "Ready to accelerate your growth?",
+      "description": "30 minutes. No slides, no pitch. Just a conversation about where you are, where you want to be, and what's standing in the way.",
+      "seeResults": "See the results"
+    },
+    "footer": {
+      "description": "Your external growth & digital transformation partner — building the future operating system for SMEs, entrepreneurs, and creators.",
+      "services": "Services",
+      "solutions": "Solutions",
+      "industries": "Industries",
+      "company": "Company",
+      "forSmes": "For SMEs",
+      "forEntrepreneurs": "For Entrepreneurs",
+      "forCreators": "For Creators",
+      "industries": {
+        "healthcare": "Healthcare",
+        "education": "Education",
+        "professionalServices": "Professional Services",
+        "retail": "Retail",
+        "startups": "Startups"
+      },
+      "copyright": "© {year} Secritou. All rights reserved.",
+      "builtFor": "Built for businesses that take growth seriously."
+    }
+  },
+  "dashboard": {
+    "welcome": "Welcome back! Here's what's happening today.",
+    "overview": "Dashboard Overview",
+    "totalLeads": "Total Leads",
+    "activeClients": "Active Clients",
+    "ongoingProjects": "Ongoing Projects",
+    "completedTasks": "Completed Tasks",
+    "fromLastMonth": "From last month",
+    "leadsSemester": "Leads this semester",
+    "leadsByMonth": "New leads per month for the last 6 months",
+    "leadsOverview": "Leads Overview",
+    "projectStatus": "Project Status Distribution",
+    "projectStatusBreakdown": "Breakdown of current projects by status"
+  },
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "search": "Search",
+    "new": "New",
+    "create": "Create",
+    "name": "Name",
+    "description": "Description",
+    "status": "Status",
+    "client": "Client",
+    "budget": "Budget",
+    "title": "Title",
+    "task": "Task",
+    "project": "Project",
+    "dueDate": "Due Date",
+    "selectPlaceholder": "Select...",
+    "noDescription": "No description provided",
+    "areYouSureDelete": "Are you sure you want to delete {name}?"
+  },
+  "solutionsPage": {
+    "title": "Built around who you are — and where you're going.",
+    "subtitle": "Same team. Same expertise. Different playbook depending on what your business actually needs.",
+    "sections": {
+      "smes": {
+        "tag": "For SMEs",
+        "title": "Run a tighter, more profitable business.",
+        "needs": [
+          {"h": "Better management", "b": "Replace gut feel with a clear operating rhythm — weekly numbers, monthly reviews."},
+          {"h": "Better KPIs", "b": "One dashboard that tells you, in 60 seconds, if the month is on track."},
+          {"h": "Better organization", "b": "Roles, processes and tools that scale beyond the founder's inbox."}
+        ],
+        "outcome": "From scattered ops to a calm, measurable business."
+      },
+      "entrepreneurs": {
+        "tag": "For Entrepreneurs",
+        "title": "Move fast, without burning out.",
+        "needs": [
+          {"h": "Growth", "b": "A repeatable acquisition engine, not a tactic-of-the-month."},
+          {"h": "Automation", "b": "AI and workflows that buy you back 10+ hours a week."},
+          {"h": "Visibility", "b": "A clean read on what's working — and what to stop doing."}
+        ],
+        "outcome": "More leverage per founder hour."
+      },
+      "creators": {
+        "tag": "For Creators",
+        "title": "Turn your audience into a real business.",
+        "needs": [
+          {"h": "Revenue growth", "b": "Productized offers, sponsorship strategy and funnel optimization."},
+          {"h": "Brand development", "b": "A positioning that compounds beyond a single platform."},
+          {"h": "Performance tracking", "b": "Creator-grade analytics across audience, revenue and engagement."}
+        ],
+        "outcome": "A creator business with the numbers of a SaaS."
+      }
+    }
+  },
+  "caseStudiesPage": {
+    "title": "Real businesses. Measurable outcomes.",
+    "subtitle": "A selection of recent engagements across industries — each starts with a problem and ends with numbers that moved.",
+    "industry": "Industry",
+    "challenge": "Challenge",
+    "outcome": "Outcome",
+    "metricLabel": "90 days"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The page you're looking for doesn't exist or has been moved.",
+    "goHome": "Go back home"
+  },
+  "projectsPage": {
+    "title": "Projects",
+    "subtitle": "Manage your client projects",
+    "newProject": "New Project",
+    "createProject": "Create Project",
+    "createProjectDesc": "Add a new project to your list",
+    "editProject": "Edit Project",
+    "editProjectDesc": "Update project information",
+    "searchProjects": "Search projects...",
+    "nameRequired": "Name is required",
+    "selectStatus": "Select status",
+    "selectClient": "Select client",
+    "name": "Project name",
+    "description": "Project description",
+    "statuses": {
+      "planning": "Planning",
+      "inProgress": "In Progress",
+      "review": "Review",
+      "completed": "Completed"
+    }
+  },
+  "tasksPage": {
+    "title": "Tasks",
+    "subtitle": "Manage and track your project tasks",
+    "newTask": "New Task",
+    "createTask": "Create Task",
+    "createTaskDesc": "Add a new task to your project",
+    "editTask": "Edit Task",
+    "editTaskDesc": "Update task information",
+    "searchTasks": "Search tasks...",
+    "filterByStatus": "Filter by status",
+    "allStatuses": "All Statuses",
+    "titleRequired": "Title is required",
+    "projectRequired": "Project is required",
+    "selectProject": "Select project",
+    "selectStatus": "Select status",
+    "title": "Task title",
+    "description": "Task description",
+    "statuses": {
+      "todo": "To Do",
+      "inProgress": "In Progress",
+      "review": "Review",
+      "done": "Done"
+    },
+    "titleLabel": "Title",
+    "projectLabel": "Project",
+    "dueDateLabel": "Due Date"
+  },
+  "missionsPage": {
+    "title": "Missions",
+    "subtitle": "Find or publish missions for freelancers",
+    "newMission": "New Mission",
+    "createMission": "Create Mission",
+    "createMissionDesc": "Publish a mission to find a freelancer",
+    "editMission": "Edit Mission",
+    "editMissionDesc": "Update mission information",
+    "searchMissions": "Search missions...",
+    "titleRequired": "Title is required",
+    "titlePlaceholder": "React app development",
+    "descriptionPlaceholder": "Describe the expectations and context of the mission...",
+    "budgetPlaceholder": "1000",
+    "budgetLabel": "Budget (TND)",
+    "selectStatus": "Select a status",
+    "apply": "Apply",
+    "publishedOn": "Published on",
+    "noDescription": "No description",
+    "areYouSureDelete": "Are you sure you want to delete \"{title}\"?",
+    "statuses": {
+      "open": "Open",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    }
+  },
+  "clientsPage": {
+    "title": "Clients",
+    "subtitle": "Manage your client relationships",
+    "addClient": "Add Client",
+    "createClient": "Create Client",
+    "createClientDesc": "Add a new client to your list",
+    "editClient": "Edit Client",
+    "editClientDesc": "Update client information",
+    "searchClients": "Search clients...",
+    "nameRequired": "Name is required",
+    "invalidEmail": "Invalid email",
+    "namePlaceholder": "Client Name",
+    "emailPlaceholder": "client@example.com",
+    "phonePlaceholder": "+1234567890",
+    "emailLabel": "Email",
+    "phoneLabel": "Phone",
+    "areYouSureDelete": "Are you sure you want to delete {name}?"
+  },
+  "settingsPage": {
+    "title": "Settings",
+    "description": "Configure your company, users, billing and access controls."
+  },
+  "clientPortal": {
+    "nav": {
+      "projects": "My Projects",
+      "requests": "My Requests",
+      "profile": "My Profile"
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "stats": {
+        "projects": "Projects",
+        "requests": "Requests"
+      }
+    },
+    "projects": {
+      "title": "My Projects",
+      "progress": "Progress",
+      "totalTasks": "tasks",
+      "completedTasks": "completed",
+      "statuses": {
+        "planning": "Planning",
+        "inProgress": "In Progress",
+        "review": "Review",
+        "completed": "Completed"
+      }
+    },
+    "serviceRequests": {
+      "title": "My Requests",
+      "newRequest": "New Request",
+      "newRequestDesc": "Describe your need, we'll get back to you quickly.",
+      "noRequests": "You don't have any service requests yet.",
+      "title": "Title",
+      "titlePlaceholder": "Request title",
+      "descriptionPlaceholder": "Describe your request in detail...",
+      "send": "Send Request",
+      "sending": "Sending...",
+      "createdOn": "Created on",
+      "statuses": {
+        "new": "New",
+        "inProgress": "In Progress",
+        "done": "Done"
+      }
+    }
+  }
+}

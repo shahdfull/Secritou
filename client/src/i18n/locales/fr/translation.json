@@ -1,0 +1,452 @@
+{
+  "nav": {
+    "services": "Services",
+    "solutions": "Solutions",
+    "caseStudies": "Études de cas",
+    "contact": "Contact",
+    "login": "Connexion",
+    "joinUs": "Nous rejoindre",
+    "bookConsultation": "Réserver une consultation",
+    "bookFreeConsultation": "Réserver une consultation gratuite",
+    "discoverSolutions": "Découvrir nos solutions",
+    "scheduleFreeConsultation": "Planifier une consultation gratuite"
+  },
+  "auth": {
+    "signIn": "Se connecter",
+    "signUp": "S'inscrire",
+    "email": "Email",
+    "password": "Mot de passe",
+    "forgotPassword": "Mot de passe oublié ?",
+    "resetPassword": "Réinitialiser le mot de passe",
+    "createAccount": "Créer un compte",
+    "fullName": "Nom complet",
+    "companyName": "Nom de l'entreprise",
+    "accessWorkspace": "Accédez à votre espace de travail, vos projets, vos rapports et votre assistant IA.",
+    "getStarted": "Commencez avec votre plateforme de croissance et de transformation numérique.",
+    "dontHaveAccount": "Vous n'avez pas de compte ?",
+    "alreadyHaveAccount": "Vous avez déjà un compte ?",
+    "signingIn": "Connexion en cours...",
+    "creatingAccount": "Création du compte...",
+    "validEmail": "Veuillez saisir un email valide",
+    "passwordMinLength": "Le mot de passe doit contenir au moins 6 caractères",
+    "nameMinLength": "Le nom doit contenir au moins 2 caractères",
+    "companyNameMinLength": "Le nom de l'entreprise doit contenir au moins 2 caractères"
+  },
+  "services": {
+    "title": "Un partenaire. Plusieurs solutions de croissance.",
+    "subtitle": "Voici comment nous résolvons les problèmes",
+    "seeFullCapabilities": "Voir toutes les capacités",
+    "businessPerformance": {
+      "title": "Performance commerciale",
+      "body": "Suivi des KPI, tableaux de bord, objectifs et analyses commerciales — enfin un seul endroit pour les chiffres qui comptent.",
+      "items": ["Suivi des KPI", "Tableaux de bord", "Objectifs", "Analyses commerciales"]
+    },
+    "digitalGrowth": {
+      "title": "Croissance digitale",
+      "body": "Réseaux sociaux, contenu, SEO et acquisition payante — coordonnés pour se cumuler, pas pour s'éparpiller.",
+      "items": ["Réseaux sociaux", "Création de contenu", "SEO", "Publicité payante"]
+    },
+    "technologySolutions": {
+      "title": "Solutions technologiques",
+      "body": "Sites web, e-commerce, systèmes d'inventaire et les outils digitaux dont vous avez besoin pour opérer au niveau supérieur.",
+      "items": ["Sites web", "E-commerce", "Systèmes d'inventaire", "Outils digitaux"]
+    },
+    "aiAutomation": {
+      "title": "IA & Automatisation",
+      "body": "Chatbots IA, automatisation des flux de travail et assistants IA qui compressent des heures de travail fastidieux en quelques secondes.",
+      "items": ["Chatbots IA", "Automatisation des flux", "Assistants IA", "Optimisation des processus"]
+    },
+    "other": "Autre"
+  },
+  "contact": {
+    "title": "Parlons de votre croissance.",
+    "subtitle": "30 minutes. Pas de slides, pas de pitch. Juste une conversation sur où vous en êtes, où vous voulez aller, et ce qui vous en empêche.",
+    "name": "Votre nom",
+    "email": "Email",
+    "phone": "Numéro de téléphone",
+    "serviceType": "Type de service",
+    "message": "Parlez-nous de votre situation",
+    "budget": "Budget",
+    "send": "Envoyer et planifier",
+    "sending": "Envoi en cours...",
+    "successMessage": "Merci ! Nous vous recontacterons bientôt.",
+    "replyTime": "Nous répondons généralement dans un délai d'un jour ouvrable.",
+    "emailInfo": "hello@secritou.com",
+    "bookCall": "Appel de découverte de 30 minutes, gratuit.",
+    "whereWeWork": "Travail à distance prioritaire · Europe et monde entier.",
+    "pleaseEnterName": "Veuillez saisir votre nom.",
+    "pleaseEnterEmail": "Veuillez saisir une adresse email valide.",
+    "pleaseEnterServiceType": "Veuillez sélectionner un type de service.",
+    "pleaseEnterMessage": "Veuillez ajouter un peu plus de contexte (au moins 20 caractères).",
+    "invalidPhone": "Veuillez saisir un numéro de téléphone valide.",
+    "unableToSend": "Impossible d'envoyer votre message.",
+    "budgets": {
+      "lessThan1000": "< 1 000 DT",
+      "1000To5000": "1 000–5 000 DT",
+      "5000To15000": "5 000–15 000 DT",
+      "moreThan15000": "+15 000 DT"
+    }
+  },
+  "home": {
+    "hero": {
+      "tagline": "Stratégie · Technologie · Données",
+      "title": {
+        "0": "Votre partenaire croissance externe &",
+        "1": "transformation digitale",
+        "2": "partenaire."
+      },
+      "description": "Nous aidons les PME, les entrepreneurs et les créateurs à s'organiser, à se digitaliser et à croître — grâce à la stratégie, la technologie, le marketing et la prise de décision basée sur les données.",
+      "features": ["Décisions basées sur les données", "Transformation digitale", "Croissance commerciale", "Optimisation des processus"]
+    },
+    "problems": {
+      "subtitle": "Défis courants des entreprises",
+      "title": "Ça vous dit quelque chose ?",
+      "description": "Ce sont les quatre blocages que nous voyons dans presque toutes les entreprises en croissance. Aucun d'entre eux ne se résout en achetant un autre outil.",
+      "items": [
+        {
+          "title": "Pas de visibilité sur la performance",
+          "body": "Les décisions sont prises sur l'instinct parce que les KPI sont éparpillés dans des feuilles de calcul et des outils."
+        },
+        {
+          "title": "Opérations éparses",
+          "body": "Équipes, fournisseurs et processus vivent en silos — rien ne se connecte, rien ne s'adapte."
+        },
+        {
+          "title": "Faible présence digitale",
+          "body": "Un site web obsolète, un contenu incohérent et des canaux qui ne convertissent pas."
+        },
+        {
+          "title": "Tâches manuelles chronophages",
+          "body": "Des heures perdues chaque semaine sur le reporting, les suivis et l'administration qui pourraient être automatisés."
+        }
+      ]
+    },
+    "services": {
+      "subtitle": "Voici comment nous résolvons les problèmes",
+      "title": "Un partenaire. Plusieurs solutions de croissance.",
+      "seeFullCapabilities": "Voir toutes les capacités",
+      "items": [
+        {
+          "title": "Performance commerciale",
+          "body": "Suivi des KPI, tableaux de bord, objectifs et analyses commerciales — enfin un seul endroit pour les chiffres qui comptent.",
+          "items": ["Suivi des KPI", "Tableaux de bord", "Objectifs", "Analyses commerciales"]
+        },
+        {
+          "title": "Croissance digitale",
+          "body": "Réseaux sociaux, contenu, SEO et acquisition payante — coordonnés pour se cumuler, pas pour s'éparpiller.",
+          "items": ["Réseaux sociaux", "Création de contenu", "SEO", "Publicité payante"]
+        },
+        {
+          "title": "Solutions technologiques",
+          "body": "Sites web, e-commerce, systèmes d'inventaire et les outils digitaux dont vous avez besoin pour opérer au niveau supérieur.",
+          "items": ["Sites web", "E-commerce", "Systèmes d'inventaire", "Outils digitaux"]
+        },
+        {
+          "title": "IA & Automatisation",
+          "body": "Chatbots IA, automatisation des flux de travail et assistants IA qui compressent des heures de travail fastidieux en quelques secondes.",
+          "items": ["Chatbots IA", "Automatisation des flux", "Assistants IA", "Optimisation des processus"]
+        }
+      ]
+    },
+    "howItWorks": {
+      "title": "Un chemin clair du chaos à la croissance composée.",
+      "subtitle": "Comment ça marche",
+      "steps": [
+        {
+          "title": "Évaluation commerciale",
+          "body": "Nous creusons dans vos objectifs, vos chiffres et vos blocages sans fioritures, pas de deck d'audit générique."
+        },
+        {
+          "title": "Conception de stratégie",
+          "body": "Un plan d'action personnalisé avec des priorités, des responsables, des délais et les KPI que nous allons faire évoluer."
+        },
+        {
+          "title": "Exécution",
+          "body": "Nous déployons les bons experts stratégie, marketing, tech, IA coordonnés en une seule équipe."
+        },
+        {
+          "title": "Suivi de performance",
+          "body": "Tableaux de bord en direct, revues mensuelles, optimisation continue progrès mesurable, toujours."
+        }
+      ]
+    },
+    "faq": {
+      "title": "Questions, réponses.",
+      "subtitle": "FAQ",
+      "description": "Toujours incertain ? Réservez une consultation gratuite de 30 minutes et nous discuterons de votre situation — pas de pitch, pas d'obligation.",
+      "questions": [
+        {
+          "q": "Quels types d'entreprises prenez-vous en charge ?",
+          "a": "Les PME, les entrepreneurs et les créateurs de contenu dans tous les secteurs — commerce de détail, services professionnels, santé, éducation et marques numériques. Si vous avez des revenus et de l'ambition, nous pouvons probablement vous aider."
+        },
+        {
+          "q": "Puis-je choisir seulement un service ?",
+          "a": "Oui. Vous pouvez nous engager pour un seul flux de travail — disons, les tableaux de bord KPI ou l'acquisition payante — ou comme votre partenaire de croissance de bout en bout. Nous nous adaptons à votre périmètre, pas l'inverse."
+        },
+        {
+          "q": "Travaillez-vous avec les startups ?",
+          "a": "Absolument. Nous travaillons avec des équipes en démarrage qui ont besoin d'avancer vite sans reconstruire les fondations chaque trimestre. Nous apportons la structure que la plupart des startups négligent."
+        },
+        {
+          "q": "Proposez-vous des solutions personnalisées ?",
+          "a": "Chaque engagement est construit autour de vos objectifs spécifiques. Nous ne vendons pas de forfaits modèles — nous co-concevons un plan, avec des KPI et des jalons sur lesquels nous nous accordons d'avance."
+        },
+        {
+          "q": "Pouvez-vous aider à automatiser mon entreprise ?",
+          "a": "Oui. Des assistants IA à l'automatisation des flux de travail et aux outils internes, l'automatisation est l'une de nos pratiques fondamentales. Nous commençons par trouver les processus à plus fort impact et éliminons le travail fastidieux à partir de là."
+        }
+      ]
+    },
+    "finalCta": {
+      "subtitle": "Prêt quand vous êtes",
+      "title": "Prêt à accélérer votre croissance ?",
+      "description": "30 minutes. Pas de slides, pas de pitch. Juste une conversation sur où vous en êtes, où vous voulez aller, et ce qui vous en empêche.",
+      "seeResults": "Voir les résultats"
+    },
+    "footer": {
+      "description": "Votre partenaire croissance externe et transformation digitale — construisant le système d'exploitation futur pour les PME, les entrepreneurs et les créateurs.",
+      "services": "Services",
+      "solutions": "Solutions",
+      "industries": "Secteurs",
+      "company": "Entreprise",
+      "forSmes": "Pour les PME",
+      "forEntrepreneurs": "Pour les entrepreneurs",
+      "forCreators": "Pour les créateurs",
+      "industries": {
+        "healthcare": "Santé",
+        "education": "Éducation",
+        "professionalServices": "Services professionnels",
+        "retail": "Commerce de détail",
+        "startups": "Startups"
+      },
+      "copyright": "© {year} Secritou. Tous droits réservés.",
+      "builtFor": "Conçu pour les entreprises qui prennent la croissance au sérieux."
+    }
+  },
+  "dashboard": {
+    "welcome": "Bon retour ! Voici ce qui se passe aujourd'hui.",
+    "overview": "Aperçu du tableau de bord",
+    "totalLeads": "Total des leads",
+    "activeClients": "Clients actifs",
+    "ongoingProjects": "Projets en cours",
+    "completedTasks": "Tâches terminées",
+    "fromLastMonth": "Par rapport au mois dernier",
+    "leadsSemester": "Leads ce semestre",
+    "leadsByMonth": "Nouveaux leads par mois sur les 6 derniers mois",
+    "leadsOverview": "Aperçu des leads",
+    "projectStatus": "Répartition des statuts de projet",
+    "projectStatusBreakdown": "Répartition des projets actuels par statut"
+  },
+  "common": {
+    "loading": "Chargement...",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "back": "Retour",
+    "search": "Rechercher",
+    "new": "Nouveau",
+    "create": "Créer",
+    "name": "Nom",
+    "description": "Description",
+    "status": "Statut",
+    "client": "Client",
+    "budget": "Budget",
+    "title": "Titre",
+    "task": "Tâche",
+    "project": "Projet",
+    "dueDate": "Date d'échéance",
+    "selectPlaceholder": "Sélectionnez...",
+    "noDescription": "Aucune description fournie",
+    "areYouSureDelete": "Êtes-vous sûr de vouloir supprimer {name}?"
+  },
+  "solutionsPage": {
+    "title": "Construit autour de qui vous êtes — et où vous allez.",
+    "subtitle": "Même équipe. Même expertise. Différent playbook selon ce dont votre entreprise a réellement besoin.",
+    "sections": {
+      "smes": {
+        "tag": "Pour les PME",
+        "title": "Dirigez une entreprise plus rentable.",
+        "needs": [
+          {"h": "Meilleure gestion", "b": "Remplacez l'instinct par un rythme opérationnel clair — chiffres hebdomadaires, revues mensuelles."},
+          {"h": "Meilleurs KPI", "b": "Un tableau de bord unique qui vous dit, en 60 secondes, si le mois est sur la bonne voie."},
+          {"h": "Meilleure organisation", "b": "Rôles, processus et outils qui évoluent au-delà de la boîte mail du fondateur."}
+        ],
+        "outcome": "D'opérations éparses à une entreprise calme et mesurable."
+      },
+      "entrepreneurs": {
+        "tag": "Pour les entrepreneurs",
+        "title": "Avancez vite, sans vous épuiser.",
+        "needs": [
+          {"h": "Croissance", "b": "Un moteur d'acquisition répétable, pas une tactique du mois."},
+          {"h": "Automatisation", "b": "IA et flux de travail qui vous rendent plus de 10 heures par semaine."},
+          {"h": "Visibilité", "b": "Une lecture claire de ce qui fonctionne — et ce qu'il faut arrêter de faire."}
+        ],
+        "outcome": "Plus de levier par heure de fondateur."
+      },
+      "creators": {
+        "tag": "Pour les créateurs",
+        "title": "Transformez votre audience en une vraie entreprise.",
+        "needs": [
+          {"h": "Croissance des revenus", "b": "Offres produitisées, stratégie de sponsoring et optimisation du funnel."},
+          {"h": "Développement de marque", "b": "Un positionnement qui se compose au-delà d'une seule plateforme."},
+          {"h": "Suivi de performance", "b": "Analytique de niveau créateur à travers audience, revenus et engagement."}
+        ],
+        "outcome": "Une entreprise de créateur avec les chiffres d'un SaaS."
+      }
+    }
+  },
+  "caseStudiesPage": {
+    "title": "Vraies entreprises. Résultats mesurables.",
+    "subtitle": "Une sélection d'engagements récents à travers les secteurs — chacun commence par un problème et se termine par des chiffres qui ont bougé.",
+    "industry": "Secteur",
+    "challenge": "Défi",
+    "outcome": "Résultat",
+    "metricLabel": "Sur 90 jours"
+  },
+  "notFound": {
+    "title": "Page non trouvée",
+    "description": "La page que vous recherchez n'existe pas ou a été déplacée.",
+    "goHome": "Retour à l'accueil"
+  },
+  "projectsPage": {
+    "title": "Projets",
+    "subtitle": "Gérez vos projets clients",
+    "newProject": "Nouveau projet",
+    "createProject": "Créer un projet",
+    "createProjectDesc": "Ajoutez un nouveau projet à votre liste",
+    "editProject": "Modifier le projet",
+    "editProjectDesc": "Mettez à jour les informations du projet",
+    "searchProjects": "Rechercher des projets...",
+    "nameRequired": "Le nom est requis",
+    "selectStatus": "Sélectionnez le statut",
+    "selectClient": "Sélectionnez le client",
+    "name": "Nom du projet",
+    "description": "Description du projet",
+    "statuses": {
+      "planning": "Planification",
+      "inProgress": "En cours",
+      "review": "En revue",
+      "completed": "Terminé"
+    }
+  },
+  "tasksPage": {
+    "title": "Tâches",
+    "subtitle": "Gérez et suivez les tâches de vos projets",
+    "newTask": "Nouvelle tâche",
+    "createTask": "Créer une tâche",
+    "createTaskDesc": "Ajoutez une nouvelle tâche à votre projet",
+    "editTask": "Modifier la tâche",
+    "editTaskDesc": "Mettez à jour les informations de la tâche",
+    "searchTasks": "Rechercher des tâches...",
+    "filterByStatus": "Filtrer par statut",
+    "allStatuses": "Tous les statuts",
+    "titleRequired": "Le titre est requis",
+    "projectRequired": "Le projet est requis",
+    "selectProject": "Sélectionnez le projet",
+    "selectStatus": "Sélectionnez le statut",
+    "title": "Titre de la tâche",
+    "description": "Description de la tâche",
+    "statuses": {
+      "todo": "À faire",
+      "inProgress": "En cours",
+      "review": "En revue",
+      "done": "Terminé"
+    },
+    "titleLabel": "Titre",
+    "projectLabel": "Projet",
+    "dueDateLabel": "Date d'échéance"
+  },
+  "missionsPage": {
+    "title": "Missions",
+    "subtitle": "Trouvez ou publiez des missions pour les freelancers",
+    "newMission": "Nouvelle mission",
+    "createMission": "Créer une mission",
+    "createMissionDesc": "Publiez une mission pour trouver un freelancer",
+    "editMission": "Modifier la mission",
+    "editMissionDesc": "Mettez à jour les informations de la mission",
+    "searchMissions": "Rechercher des missions...",
+    "titleRequired": "Titre requis",
+    "titlePlaceholder": "Développement d'une application React",
+    "descriptionPlaceholder": "Décrivez les attentes et le contexte de la mission...",
+    "budgetPlaceholder": "1000",
+    "budgetLabel": "Budget (TND)",
+    "selectStatus": "Sélectionnez un statut",
+    "apply": "Candidater",
+    "publishedOn": "Publié le",
+    "noDescription": "Aucune description",
+    "areYouSureDelete": "Êtes-vous sûr de vouloir supprimer \"{title}\"?",
+    "statuses": {
+      "open": "Ouverte",
+      "inProgress": "En cours",
+      "completed": "Terminée",
+      "cancelled": "Annulée"
+    }
+  },
+  "clientsPage": {
+    "title": "Clients",
+    "subtitle": "Gérez vos relations clients",
+    "addClient": "Ajouter un client",
+    "createClient": "Créer un client",
+    "createClientDesc": "Ajoutez un nouveau client à votre liste",
+    "editClient": "Modifier le client",
+    "editClientDesc": "Mettez à jour les informations du client",
+    "searchClients": "Rechercher des clients...",
+    "nameRequired": "Le nom est requis",
+    "invalidEmail": "Email invalide",
+    "namePlaceholder": "Nom du client",
+    "emailPlaceholder": "client@example.com",
+    "phonePlaceholder": "+1234567890",
+    "emailLabel": "Email",
+    "phoneLabel": "Téléphone",
+    "areYouSureDelete": "Êtes-vous sûr de vouloir supprimer {name}?"
+  },
+  "settingsPage": {
+    "title": "Paramètres",
+    "description": "Configurez votre entreprise, vos utilisateurs, la facturation et les contrôles d'accès."
+  },
+  "clientPortal": {
+    "nav": {
+      "projects": "Mes projets",
+      "requests": "Mes demandes",
+      "profile": "Mon profil"
+    },
+    "dashboard": {
+      "title": "Tableau de bord",
+      "stats": {
+        "projects": "Projets",
+        "requests": "Demandes"
+      }
+    },
+    "projects": {
+      "title": "Mes Projets",
+      "progress": "Progression",
+      "totalTasks": "tâches",
+      "completedTasks": "terminées",
+      "statuses": {
+        "planning": "Planification",
+        "inProgress": "En cours",
+        "review": "En revue",
+        "completed": "Terminé"
+      }
+    },
+    "serviceRequests": {
+      "title": "Mes Demandes",
+      "newRequest": "Nouvelle Demande",
+      "newRequestDesc": "Décrivez votre besoin, nous vous répondrons rapidement.",
+      "noRequests": "Vous n'avez pas encore de demande de service.",
+      "title": "Titre",
+      "titlePlaceholder": "Titre de la demande",
+      "descriptionPlaceholder": "Décrivez votre demande en détail...",
+      "send": "Envoyer la demande",
+      "sending": "Envoi en cours...",
+      "createdOn": "Créée le",
+      "statuses": {
+        "new": "Nouveau",
+        "inProgress": "En cours",
+        "done": "Terminé"
+      }
+    }
+  }
+}
