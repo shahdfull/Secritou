@@ -3,7 +3,7 @@ export interface Lead {
   name: string;
   email?: string;
   phone?: string;
-  source?: string;
+  source?: "Site web" | "LinkedIn" | "Recommandation" | "Email" | "Appel entrant" | "Autre";
   status: "NEW" | "CONTACTED" | "QUALIFIED" | "PROPOSAL" | "WON" | "LOST";
   notes?: string;
   companyId: string;
@@ -15,7 +15,7 @@ export interface CreateLeadInput {
   name: string;
   email?: string;
   phone?: string;
-  source?: string;
+  source?: Lead["source"];
   status?: Lead["status"];
   notes?: string;
 }

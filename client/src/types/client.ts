@@ -1,3 +1,5 @@
+import type { Project } from "./project";
+
 export interface Client {
   id: string;
   name: string;
@@ -6,6 +8,7 @@ export interface Client {
   companyId: string;
   createdAt: string;
   updatedAt: string;
+  projects?: Project[];
 }
 
 export interface CreateClientInput {

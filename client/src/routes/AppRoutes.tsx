@@ -20,6 +20,7 @@ const DashboardPage = lazy(() => import("@/features/dashboard/DashboardPage").th
 const LeadsPage = lazy(() => import("@/features/leads/LeadsPage").then(m => ({ default: m.LeadsPage })));
 const AnalyticsPage = lazy(() => import("@/features/analytics/AnalyticsPage").then(m => ({ default: m.AnalyticsPage })));
 const ClientsPage = lazy(() => import("@/features/clients/ClientsPage").then(m => ({ default: m.ClientsPage })));
+const ClientDetailPage = lazy(() => import("@/features/clients/ClientDetailPage").then(m => ({ default: m.ClientDetailPage })));
 const FreelancersPage = lazy(() => import("@/features/freelancers/FreelancersPage").then(m => ({ default: m.FreelancersPage })));
 const MissionsPage = lazy(() => import("@/features/missions/MissionsPage").then(m => ({ default: m.MissionsPage })));
 const ProjectsPage = lazy(() => import("@/features/projects/ProjectsPage").then(m => ({ default: m.ProjectsPage })));
@@ -80,6 +81,7 @@ export function AppRoutes() {
           <Route index element={<DashboardPage />} />
           <Route path="leads" element={<LeadsPage />} />
           <Route path="clients" element={<ClientsPage />} />
+          <Route path="clients/:id" element={<ClientDetailPage />} />
           <Route path="freelancers" element={<FreelancersPage />} />
           <Route path="missions" element={<MissionsPage />} />
           <Route path="projects" element={<ProjectsPage />} />
