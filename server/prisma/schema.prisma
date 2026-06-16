@@ -72,6 +72,7 @@ model Company {
   clients   Client[]
   projects  Project[]
   missions  FreelancerMission[]
+  serviceRequests ServiceRequest[]
   createdAt DateTime              @default(now()) @db.Timestamptz(6)
   updatedAt DateTime              @updatedAt @db.Timestamptz(6)
 
@@ -93,6 +94,8 @@ model User {
   tasks               Task[]               @relation("AssignedTasks")
   refreshTokens       RefreshToken[]
   freelancerProfile FreelancerProfile?
+  resetToken String? @db.VarChar(255)
+  resetTokenExpiry DateTime? @db.Timestamptz(6)
   createdAt           DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt           DateTime             @updatedAt @db.Timestamptz(6)
 

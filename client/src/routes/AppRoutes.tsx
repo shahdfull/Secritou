@@ -14,6 +14,8 @@ const CaseStudiesPage = lazy(() => import("@/features/landing/pages/CaseStudiesP
 const ContactPage = lazy(() => import("@/features/landing/pages/ContactPage").then(m => ({ default: m.ContactPage })));
 const LoginPage = lazy(() => import("@/features/auth/LoginPage").then(m => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import("@/features/auth/RegisterPage").then(m => ({ default: m.RegisterPage })));
+const ForgotPasswordPage = lazy(() => import("@/features/auth/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
+const ResetPasswordPage = lazy(() => import("@/features/auth/ResetPasswordPage").then(m => ({ default: m.ResetPasswordPage })));
 const DashboardPage = lazy(() => import("@/features/dashboard/DashboardPage").then(m => ({ default: m.DashboardPage })));
 const LeadsPage = lazy(() => import("@/features/leads/LeadsPage").then(m => ({ default: m.LeadsPage })));
 const AnalyticsPage = lazy(() => import("@/features/analytics/AnalyticsPage").then(m => ({ default: m.AnalyticsPage })));
@@ -63,6 +65,8 @@ export function AppRoutes() {
           <Route path="contact" element={<ContactPage />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
+          <Route path="forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="reset-password" element={<ResetPasswordPage />} />
         </Route>
 
         <Route

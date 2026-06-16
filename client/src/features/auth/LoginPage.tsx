@@ -77,6 +77,12 @@ export function LoginPage() {
           </div>
         </div>
 
+        <div className="text-right text-sm">
+          <Link to="/forgot-password" className="text-primary font-semibold hover:underline">
+            Forgot password?
+          </Link>
+        </div>
+
         <Button className="mt-6 w-full rounded-full" type="submit" disabled={isPending}>
           {isPending ? (
             <>

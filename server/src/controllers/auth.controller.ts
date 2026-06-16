@@ -47,3 +47,21 @@ export const logout: RequestHandler = async (req, res, next) => {
     next(error);
   }
 };
+
+export const forgotPassword: RequestHandler = async (req, res, next) => {
+  try {
+    await authService.requestPasswordReset(req.body.email);
+    res.json({ message: "Password reset email sent" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resetPassword: RequestHandler = async (req, res, next) => {
+  try {
+    await authService.resetPassword(req.body.token, req.body.newPassword);
+    res.json({ message: "Password reset successfully" });
+  } catch (error) {
+    next(error);
+  }
+};

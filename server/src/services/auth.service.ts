@@ -1,7 +1,7 @@
 import type { Role, User } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import jwt, { type SignOptions } from "jsonwebtoken";
-import { createHash } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
 import { AuthRepository } from "../repositories/auth.repository.js";
@@ -98,6 +98,44 @@ export class AuthService {
     if (stored) {
       await authRepository.revokeRefreshToken(stored.id);
     }
+  }
+
+  async requestPasswordReset(email: string) {
+    const user = await authRepository.findUserByEmail(email);
+    // Always return success, even if user doesn't exist to prevent email enumeration
+    if (!user) return;
+
+    // Generate random token
+    const resetToken = randomBytes(32).toString("hex");
+    const resetTokenHash = hashToken(resetToken);
+    const resetTokenExpiry = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { resetToken: resetTokenHash, resetTokenExpiry },
+    });
+
+    console.log(`Password reset token for ${email}: ${resetToken}`);
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    const tokenHash = hashToken(token);
+    const user = await prisma.user.findFirst({
+      where: {
+        resetToken: tokenHash,
+        resetTokenExpiry: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      throw new HttpError(400, "Invalid or expired reset token");
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, resetToken: null, resetTokenExpiry: null },
+    });
   }
 
   private async issueTokens(user: Pick<User, "id" | "email" | "name" | "role" | "companyId">) {
