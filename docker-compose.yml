@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: secritou-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: secritou
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: secritou-api
+    depends_on:
+      - postgres
+    env_file:
+      - ./server/.env.example
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/secritou?schema=public
+      CLIENT_ORIGIN: http://localhost:5173
+    ports:
+      - "5000:5000"
+
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    container_name: secritou-client
+    depends_on:
+      - server
+    ports:
+      - "5173:80"
+
+volumes:
+  postgres-data:
