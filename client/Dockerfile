@@ -14,6 +14,7 @@ COPY package.json package-lock.json ./
 RUN npm run build --workspace shared && npm run build --workspace client
 
 FROM nginx:1.27-alpine
+COPY client/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/client/dist /usr/share/nginx/html
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
