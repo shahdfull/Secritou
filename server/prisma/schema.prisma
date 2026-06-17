@@ -10,6 +10,7 @@ datasource db {
 // Role definitions
 enum Role {
   ADMIN
+  MANAGER
   CLIENT
   FREELANCER
 }
@@ -50,9 +51,52 @@ enum ContactStatus {
 // Mission status options for freelancer marketplace
 enum MissionStatus {
   OPEN
+  ASSIGNED
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+// Mission Application status
+enum MissionApplicationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+// Freelancer Application status
+enum ApplicationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+// Client Onboarding Step Status
+enum OnboardingStepStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+// Contract Status
+enum ContractStatus {
+  PENDING
+  SIGNED
+}
+
+// Payment Status
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+}
+
+// Specification Approval Status
+enum SpecApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 // Service request status options
@@ -62,17 +106,27 @@ enum ServiceRequestStatus {
   DONE
 }
 
+// Document type options
+enum DocumentType {
+  INVOICE
+  CONTRACT
+  OTHER
+}
+
 // Multi-tenant Company model
 model Company {
   id        String                @id @default(uuid())
   name      String                @db.VarChar(255)
   website   String?               @db.VarChar(255)
+  logoUrl   String?               @db.VarChar(255)
+  primaryColor String?            @db.VarChar(20)
   users     User[]
   leads     Lead[]
   clients   Client[]
   projects  Project[]
   missions  FreelancerMission[]
   serviceRequests ServiceRequest[]
+  documents Document[]
   createdAt DateTime              @default(now()) @db.Timestamptz(6)
   updatedAt DateTime              @updatedAt @db.Timestamptz(6)
 
@@ -87,13 +141,16 @@ model User {
   name                String               @db.VarChar(255)
   passwordHash        String               @db.VarChar(255)
   role                Role                 @default(CLIENT)
+  mustChangePassword  Boolean              @default(false)
   companyId           String?
   company             Company?             @relation(fields: [companyId], references: [id], onDelete: Cascade)
   clientId            String?
   client              Client?              @relation(fields: [clientId], references: [id], onDelete: Cascade)
   tasks               Task[]               @relation("AssignedTasks")
+  comments            Comment[]
   refreshTokens       RefreshToken[]
   freelancerProfile FreelancerProfile?
+  notifications Notification[]
   resetToken String? @db.VarChar(255)
   resetTokenExpiry DateTime? @db.Timestamptz(6)
   createdAt           DateTime             @default(now()) @db.Timestamptz(6)
@@ -103,25 +160,33 @@ model User {
   @@index([companyId])
   @@index([clientId])
   @@index([email])
+  @@index([companyId, role])
+  @@index([resetToken])
+  @@index([companyId, createdAt])
 }
 
 // Lead model for potential clients/sales pipeline
 model Lead {
-  id          String     @id @default(uuid())
-  name        String     @db.VarChar(255)
-  email       String?    @db.VarChar(255)
-  phone       String?    @db.VarChar(50)
-  source      String?    @db.VarChar(100)
-  status      LeadStatus @default(NEW)
-  notes       String?    @db.Text
-  companyId   String
-  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdAt   DateTime   @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime   @updatedAt @db.Timestamptz(6)
+  id                String     @id @default(uuid())
+  name              String     @db.VarChar(255)
+  email             String?    @db.VarChar(255)
+  phone             String?    @db.VarChar(50)
+  source            String?    @db.VarChar(100)
+  status            LeadStatus @default(NEW)
+  notes             String?    @db.Text
+  companyId         String
+  company           Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  convertedClientId String?
+  archivedAt        DateTime?  @db.Timestamptz(6)
+  createdAt         DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime   @updatedAt @db.Timestamptz(6)
 
-  // Indexes for faster queries
+  @@unique([companyId, email])
   @@index([companyId, status])
+  @@index([companyId, createdAt])
+  @@index([companyId, status, createdAt])
   @@index([email])
+  @@index([archivedAt])
 }
 
 // Client model for paying/active clients
@@ -135,15 +200,15 @@ model Client {
   projects         Project[]
   users            User[]
   serviceRequests  ServiceRequest[]
+  documents        Document[]
   createdAt        DateTime         @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime         @updatedAt @db.Timestamptz(6)
 
-  // Indexes for faster queries
+  @@unique([companyId, email])
   @@index([companyId])
+  @@index([companyId, createdAt])
   @@index([email])
 }
-
-// ServiceRequest model for client service requests
 model ServiceRequest {
   id          String               @id @default(uuid())
   title       String               @db.VarChar(255)
@@ -158,9 +223,9 @@ model ServiceRequest {
 
   @@index([clientId])
   @@index([companyId, status])
+  @@index([companyId, createdAt])
+  @@index([companyId, status, createdAt])
 }
-
-// Project model for client work
 model Project {
   id          String                @id @default(uuid())
   name        String                @db.VarChar(255)
@@ -172,15 +237,16 @@ model Project {
   client      Client?               @relation(fields: [clientId], references: [id], onDelete: SetNull)
   tasks       Task[]
   missions    FreelancerMission[]
+  documents   Document[]
   createdAt   DateTime              @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime              @updatedAt @db.Timestamptz(6)
 
   // Indexes for faster queries
   @@index([companyId, status])
+  @@index([companyId, status, updatedAt])
+  @@index([companyId, createdAt])
   @@index([clientId])
 }
-
-// Task model for project tasks
 model Task {
   id          String      @id @default(uuid())
   title       String      @db.VarChar(255)
@@ -191,12 +257,28 @@ model Task {
   project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   assigneeId  String?
   assignee    User?       @relation("AssignedTasks", fields: [assigneeId], references: [id], onDelete: SetNull)
+  comments    Comment[]
   createdAt   DateTime    @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime    @updatedAt @db.Timestamptz(6)
 
   // Indexes for faster queries
   @@index([projectId, status])
+  @@index([projectId, createdAt])
+  @@index([projectId, assigneeId])
   @@index([assigneeId])
+  @@index([dueDate, status])
+}
+model Comment {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([taskId])
+  @@index([authorId])
 }
 
 // ContactRequest model for contact form submissions
@@ -216,9 +298,8 @@ model ContactRequest {
   // Indexes for faster queries
   @@index([status])
   @@index([createdAt])
+  @@index([status, createdAt])
 }
-
-// Skill model for freelancer skills
 model Skill {
   id           String               @id @default(uuid())
   name         String               @unique @db.VarChar(100)
@@ -233,13 +314,18 @@ model FreelancerProfile {
   bio         String?              @db.Text
   hourlyRate  Decimal?             @db.Decimal(10, 2)
   availability Boolean             @default(true)
+  rating      Decimal?             @db.Decimal(2, 1) // Average rating (1-5)
+  reviewCount Int                  @default(0)
   skills      Skill[]
   missions    FreelancerMission[]
+  portfolio   PortfolioItem[]
+  applications MissionApplication[]
   createdAt   DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime             @updatedAt @db.Timestamptz(6)
 
   // Indexes for faster queries
   @@index([userId])
+  @@index([userId, createdAt])
 }
 
 // FreelancerMission model for marketplace missions
@@ -255,15 +341,80 @@ model FreelancerMission {
   freelancer  FreelancerProfile?   @relation(fields: [freelancerId], references: [id], onDelete: SetNull)
   projectId   String?
   project     Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  applications MissionApplication[]
   createdAt   DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime             @updatedAt @db.Timestamptz(6)
 
   // Indexes for faster queries
   @@index([companyId, status])
+  @@index([companyId, status, updatedAt])
+  @@index([companyId, createdAt])
+  @@index([freelancerId])
+}
+model MissionApplication {
+  id          String                 @id @default(uuid())
+  missionId   String
+  mission     FreelancerMission      @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  freelancerId String
+  freelancer  FreelancerProfile      @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  status      MissionApplicationStatus @default(PENDING)
+  createdAt   DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime               @updatedAt @db.Timestamptz(6)
+
+  @@unique([missionId, freelancerId])
+  @@index([missionId])
+  @@index([freelancerId])
+  @@index([missionId, status])
+  @@index([missionId, createdAt])
+}
+model PortfolioItem {
+  id          String         @id @default(uuid())
+  title       String         @db.VarChar(255)
+  description String?        @db.Text
+  url         String?        @db.VarChar(255)
+  imageUrl    String?        @db.VarChar(255)
+  freelancerId String
+  freelancer  FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  createdAt   DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime       @updatedAt @db.Timestamptz(6)
+
   @@index([freelancerId])
 }
 
-// Refresh token model for authentication persistence
+// Notification model for user notifications
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String   @db.VarChar(255)
+  message   String   @db.Text
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([userId, read])
+  @@index([userId, createdAt])
+}
+model Document {
+  id        String       @id @default(uuid())
+  name      String       @db.VarChar(255)
+  type      DocumentType @default(OTHER)
+  url       String       @db.VarChar(500)
+  projectId String?
+  project   Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  clientId  String?
+  client    Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  companyId String
+  company   Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime     @updatedAt @db.Timestamptz(6)
+
+  @@index([companyId])
+  @@index([companyId, createdAt])
+  @@index([clientId])
+  @@index([projectId])
+}
 model RefreshToken {
   id        String    @id @default(uuid())
   tokenHash String    @unique @db.VarChar(64)
@@ -272,4 +423,171 @@ model RefreshToken {
   expiresAt DateTime  @db.Timestamptz(6)
   revokedAt DateTime? @db.Timestamptz(6)
   createdAt DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// Freelancer Application model for join us requests
+model FreelancerApplication {
+  id              String            @id @default(uuid())
+  firstName       String            @db.VarChar(255)
+  lastName        String            @db.VarChar(255)
+  email           String            @db.VarChar(255)
+  phone           String?           @db.VarChar(50)
+  position        String            @db.VarChar(255)
+  cvUrl           String            @db.VarChar(500)
+  portfolioUrl    String            @db.VarChar(500)
+  status          ApplicationStatus @default(PENDING)
+  rejectionReason String?           @db.Text
+  userId          String?
+  user            User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime          @updatedAt @db.Timestamptz(6)
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+  @@index([status, createdAt])
+}
+
+// Client Onboarding model
+model ClientOnboarding {
+  id            String           @id @default(uuid())
+  projectId     String           @unique
+  project       Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  clientId      String
+  client        Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  companyId     String
+  company       Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedUserId String?
+  assignedUser  User?            @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  steps         OnboardingStep[]
+  createdAt     DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime         @updatedAt @db.Timestamptz(6)
+
+  @@index([projectId])
+  @@index([clientId])
+  @@index([companyId])
+}
+
+// Onboarding Step model
+model OnboardingStep {
+  id               String               @id @default(uuid())
+  onboardingId     String
+  onboarding       ClientOnboarding     @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+  stepType         String               @db.VarChar(100)
+  title            String               @db.VarChar(255)
+  description      String?              @db.Text
+  status           OnboardingStepStatus @default(PENDING)
+  orderIndex       Int                  @default(0)
+  deadline         DateTime?            @db.Timestamptz(6)
+  completedAt      DateTime?            @db.Timestamptz(6)
+  contract         Contract?
+  payment          Payment?
+  questionnaire    Questionnaire?
+  specifications   Specifications?
+  kickoff          KickoffMeeting?
+  production       ProductionProgress?
+  delivery         Delivery?
+  createdAt        DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime             @updatedAt @db.Timestamptz(6)
+
+  @@index([onboardingId])
+  @@index([onboardingId, orderIndex])
+}
+
+// Contract model
+model Contract {
+  id               String           @id @default(uuid())
+  onboardingStepId String           @unique
+  onboardingStep   OnboardingStep   @relation(fields: [onboardingStepId], references: [id], onDelete: Cascade)
+  contractUrl      String?          @db.VarChar(500)
+  status           ContractStatus   @default(PENDING)
+  signedAt         DateTime?        @db.Timestamptz(6)
+  createdAt        DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @db.Timestamptz(6)
+}
+
+// Payment model
+model Payment {
+  id               String           @id @default(uuid())
+  onboardingStepId String           @unique
+  onboardingStep   OnboardingStep   @relation(fields: [onboardingStepId], references: [id], onDelete: Cascade)
+  amount           Decimal?         @db.Decimal(10, 2)
+  amountPaid       Decimal?         @db.Decimal(10, 2)
+  status           PaymentStatus    @default(UNPAID)
+  deadline         DateTime?        @db.Timestamptz(6)
+  paidAt           DateTime?        @db.Timestamptz(6)
+  createdAt        DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @db.Timestamptz(6)
+}
+
+// Questionnaire model
+model Questionnaire {
+  id               String       @id @default(uuid())
+  onboardingStepId String       @unique
+  onboardingStep   OnboardingStep @relation(fields: [onboardingStepId], references: [id], onDelete: Cascade)
+  serviceType      String       @db.VarChar(100)
+  data             Json?
+  isDraft          Boolean      @default(true)
+  submittedAt      DateTime?    @db.Timestamptz(6)
+  createdAt        DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime     @updatedAt @db.Timestamptz(6)
+}
+
+// Specifications model
+model Specifications {
+  id               String               @id @default(uuid())
+  onboardingStepId String               @unique
+  onboardingStep   OnboardingStep       @relation(fields: [onboardingStepId], references: [id], onDelete: Cascade)
+  requirements     String?              @db.Text
+  objectives       String?              @db.Text
+  features         String?              @db.Text
+  deliverables     String?              @db.Text
+  timeline         String?              @db.Text
+  approvalStatus   SpecApprovalStatus   @default(PENDING)
+  feedback         String?              @db.Text
+  approvedAt       DateTime?            @db.Timestamptz(6)
+  createdAt        DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime             @updatedAt @db.Timestamptz(6)
+}
+
+// Kickoff Meeting model
+model KickoffMeeting {
+  id               String       @id @default(uuid())
+  onboardingStepId String       @unique
+  onboardingStep   OnboardingStep @relation(fields: [onboardingStepId], references: [id], onDelete: Cascade)
+  meetingDate      DateTime?    @db.Timestamptz(6)
+  participants     String?      @db.Text
+  meetingLink      String?      @db.VarChar(500)
+  createdAt        DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime     @updatedAt @db.Timestamptz(6)
+}
+
+// Production Progress model
+model ProductionProgress {
+  id               String       @id @default(uuid())
+  onboardingStepId String       @unique
+  onboardingStep   OnboardingStep @relation(fields: [onboardingStepId], references: [id], onDelete: Cascade)
+  analysis         Int          @default(0)
+  design           Int          @default(0)
+  development      Int          @default(0)
+  testing          Int          @default(0)
+  deployment       Int          @default(0)
+  createdAt        DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime     @updatedAt @db.Timestamptz(6)
+}
+
+// Delivery model
+model Delivery {
+  id               String       @id @default(uuid())
+  onboardingStepId String       @unique
+  onboardingStep   OnboardingStep @relation(fields: [onboardingStepId], references: [id], onDelete: Cascade)
+  deliverables     String?      @db.Text
+  documentation    String?      @db.VarChar(500)
+  accessDetails    String?      @db.Text
+  userGuides       String?      @db.VarChar(500)
+  createdAt        DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime     @updatedAt @db.Timestamptz(6)
 }
