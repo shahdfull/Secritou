@@ -1,6 +1,6 @@
 // Freelancer & Mission Validators - Validation schemas
 import { z } from "zod";
-import { MissionStatus } from "@prisma/client";
+import { MissionStatus, MissionApplicationStatus } from "@prisma/client";
 
 const freelancerProfileBaseSchema = z.object({
   bio: z.string().optional(),
@@ -38,5 +38,15 @@ export const updateMissionSchema = z.object({
   }),
   params: z.object({
     id: z.string(),
+  }),
+});
+
+export const updateApplicationStatusSchema = z.object({
+  body: z.object({
+    status: z.nativeEnum(MissionApplicationStatus),
+  }),
+  params: z.object({
+    id: z.string(),
+    applicationId: z.string(),
   }),
 });

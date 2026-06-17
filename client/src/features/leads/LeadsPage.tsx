@@ -58,7 +58,7 @@ import {
   List,
   KanbanSquare,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -71,6 +71,9 @@ import {
 } from "@/hooks/useLeads";
 import type { Lead } from "@/types/lead";
 import { LeadsKanban } from "./LeadsKanban";
+import { DataTablePagination } from "@/components/common/DataTablePagination";
+import { SortableTableHead } from "@/components/common/SortableTableHead";
+import { useListParams } from "@/hooks/useListParams";
 
 const createLeadSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -87,26 +90,38 @@ type CreateLeadForm = z.infer<typeof createLeadSchema>;
 type UpdateLeadForm = z.infer<typeof updateLeadSchema>;
 
 export function LeadsPage() {
-  const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [view, setView] = useState<"list" | "kanban">("list");
 
-  const { data: leads, isLoading } = useLeads();
+  const { page, pageSize, orderBy, orderDir, search, params, setPage, setSearch, setSort, updateParams } = useListParams(10);
+
+  useEffect(() => {
+    updateParams({ status: statusFilter === "All" ? undefined : statusFilter, page: 1 });
+  }, [statusFilter, updateParams]);
+
+  const listParams = useMemo(
+    () => ({
+      ...params,
+      pageSize: view === "kanban" ? 200 : pageSize,
+      page: view === "kanban" ? 1 : page,
+      orderBy: orderBy ?? "createdAt",
+      orderDir,
+      search,
+      status: statusFilter === "All" ? undefined : statusFilter,
+    }),
+    [params, view, pageSize, page, orderBy, orderDir, search, statusFilter],
+  );
+
+  const { data: leadsResult, isLoading } = useLeads(listParams);
+  const filteredLeads = leadsResult?.data ?? [];
+  const total = leadsResult?.total ?? 0;
   const { mutate: createLead, isPending: isCreating } = useCreateLead();
   const { mutate: updateLead, isPending: isUpdating } = useUpdateLead();
   const { mutate: deleteLead, isPending: isDeleting } = useDeleteLead();
   const { mutate: convertLead, isPending: isConverting } = useConvertLeadToClient();
-
-  const filteredLeads = leads?.filter((lead) => {
-    const matchesSearch =
-      lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (lead.email?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
-    const matchesStatus = statusFilter === "All" || lead.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  }) || [];
 
   const createForm = useForm<CreateLeadForm>({
     resolver: zodResolver(createLeadSchema) as any,
@@ -122,22 +137,22 @@ export function LeadsPage() {
     resolver: zodResolver(updateLeadSchema) as any,
   });
 
-  const handleCreate = async (data: CreateLeadForm) => {
+  const handleCreate = useCallback(async (data: CreateLeadForm) => {
     createLead(data, {
       onSuccess: () => {
         setCreateDialogOpen(false);
         createForm.reset();
       },
     });
-  };
+  }, [createForm, createLead]);
 
-  const handleEdit = (lead: Lead) => {
+  const handleEdit = useCallback((lead: Lead) => {
     setEditingLead(lead);
     editForm.reset(lead);
     setEditDialogOpen(true);
-  };
+  }, [editForm]);
 
-  const handleUpdate = async (data: UpdateLeadForm) => {
+  const handleUpdate = useCallback(async (data: UpdateLeadForm) => {
     if (!editingLead) return;
     updateLead(
       { id: editingLead.id, data },
@@ -148,19 +163,19 @@ export function LeadsPage() {
         },
       }
     );
-  };
+  }, [editingLead, updateLead]);
 
-  const handleDelete = (lead: Lead) => {
+  const handleDelete = useCallback((lead: Lead) => {
     if (confirm(`Are you sure you want to delete ${lead.name}?`)) {
       deleteLead(lead.id);
     }
-  };
+  }, [deleteLead]);
 
-  const handleConvert = (lead: Lead) => {
+  const handleConvert = useCallback((lead: Lead) => {
     if (confirm(`Are you sure you want to convert ${lead.name} to a client?`)) {
       convertLead(lead.id);
     }
-  };
+  }, [convertLead]);
 
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
@@ -349,8 +364,8 @@ export function LeadsPage() {
               <Input
                 type="search"
                 placeholder="Search leads..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={search ?? ""}
+                onChange={(e) => setSearch(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -389,11 +404,11 @@ export function LeadsPage() {
             <Table>
               <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
+                <SortableTableHead column="name" label="Name" sortBy={orderBy ?? "createdAt"} sortOrder={orderDir} onSort={(col) => setSort(col, orderBy ?? "createdAt", orderDir)} />
+                <SortableTableHead column="email" label="Email" sortBy={orderBy ?? "createdAt"} sortOrder={orderDir} onSort={(col) => setSort(col, orderBy ?? "createdAt", orderDir)} />
                 <TableHead>Phone</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>Status</TableHead>
+                <SortableTableHead column="source" label="Source" sortBy={orderBy ?? "createdAt"} sortOrder={orderDir} onSort={(col) => setSort(col, orderBy ?? "createdAt", orderDir)} />
+                <SortableTableHead column="status" label="Status" sortBy={orderBy ?? "createdAt"} sortOrder={orderDir} onSort={(col) => setSort(col, orderBy ?? "createdAt", orderDir)} />
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -450,6 +465,14 @@ export function LeadsPage() {
             </Table>
           ) : (
             <LeadsKanban filteredLeads={filteredLeads} />
+          )}
+          {view === "list" && (
+            <DataTablePagination
+              page={page}
+              pageSize={pageSize}
+              total={total}
+              onPageChange={setPage}
+            />
           )}
         </CardContent>
       </Card>

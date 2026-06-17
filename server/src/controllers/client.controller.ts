@@ -1,12 +1,14 @@
 // Client Controller - HTTP request handlers
 import type { RequestHandler } from "express";
 import { clientService } from "../services/client.service.js";
+import { parseListQuery } from "../utils/listQuery.js";
 
 export const getClients: RequestHandler = async (req, res, next) => {
   try {
     const companyId = req.user?.companyId!;
-    const clients = await clientService.getClients(companyId);
-    res.json({ data: clients });
+    const options = parseListQuery(req.query as Record<string, unknown>);
+    const result = await clientService.getClients(companyId, options);
+    res.json(result);
   } catch (error) {
     next(error);
   }

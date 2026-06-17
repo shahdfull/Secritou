@@ -14,7 +14,15 @@ export const authenticate: RequestHandler = (req, _res, next) => {
   }
 
   try {
-    req.user = jwt.verify(token, env.JWT_ACCESS_SECRET) as JwtPayload;
+    req.user = jwt.verify(token, env.JWT_ACCESS_SECRET, {
+      issuer: env.JWT_ISSUER,
+      audience: env.JWT_AUDIENCE,
+      algorithms: ["HS256"],
+      maxAge: env.JWT_ACCESS_EXPIRES_IN,
+    }) as JwtPayload;
+    if (req.user.tokenType !== "access") {
+      throw new Error("Invalid token type");
+    }
     next();
   } catch {
     next(new HttpError(401, "Invalid or expired token"));

@@ -15,7 +15,6 @@ export function Header() {
     { to: "/solutions", label: t("nav.solutions") },
     { to: "/case-studies", label: t("nav.caseStudies") },
     { to: "/contact", label: t("nav.contact") },
-    { to: "/rejoindre", label: t("nav.joinUs") },
   ] as const;
 
   // Close menu when pressing Escape
@@ -84,6 +83,12 @@ export function Header() {
           >
             EN
           </button>
+          <Link
+            to="/rejoindre"
+            className="ml-2 inline-flex items-center rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-ink/90"
+          >
+            {t("nav.joinUs")}
+          </Link>
         </div>
 
         <button
@@ -125,6 +130,13 @@ export function Header() {
               className="py-2.5 text-base font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg"
             >
               {t("auth.signIn")}
+            </Link>
+            <Link
+              to="/rejoindre"
+              onClick={() => setOpen(false)}
+              className="mt-2 inline-flex items-center justify-center rounded-full bg-ink px-4 py-2.5 text-base font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            >
+              {t("nav.joinUs")}
             </Link>
             <div className="pt-4 mt-2 border-t border-border flex items-center justify-center gap-3">
               <button

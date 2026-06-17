@@ -1,11 +1,12 @@
 import apiClient from "./axios";
 import type { Client, CreateClientInput, UpdateClientInput } from "../types/client";
 import type { ApiResponse } from "../types/auth";
+import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 
 export const clientsApi = {
-  getAll: async (): Promise<Client[]> => {
-    const response = await apiClient.get<ApiResponse<Client[]>>("/clients");
-    return response.data.data;
+  getAll: async (params: ListQueryParams = {}): Promise<PaginatedResponse<Client>> => {
+    const response = await apiClient.get<PaginatedResponse<Client>>("/clients", { params });
+    return response.data;
   },
 
   getById: async (id: string): Promise<Client> => {

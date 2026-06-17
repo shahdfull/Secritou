@@ -3,8 +3,10 @@ import { authApi } from "../api/auth.api";
 import { useAuthStore } from "../store/auth.store";
 import type { LoginCredentials, RegisterCredentials, User } from "../types/auth";
 import { toast } from "sonner";
+import i18n from "@/i18n";
 
 export function useMe() {
+  const accessToken = useAuthStore((state) => state.accessToken);
   const setUser = useAuthStore((state) => state.setUser);
   return useQuery<User>({
     queryKey: ["me"],
@@ -13,6 +15,7 @@ export function useMe() {
       setUser(user);
       return user;
     },
+    enabled: !!accessToken,
   });
 }
 
@@ -22,14 +25,12 @@ export function useLogin() {
   const setUser = useAuthStore((state) => state.setUser);
 
   return useMutation({
-    mutationFn: async (credentials: LoginCredentials) => {
-      return await authApi.login(credentials);
-    },
+    mutationFn: async (credentials: LoginCredentials) => authApi.login(credentials),
     onSuccess: async (data) => {
       setToken(data.tokens.accessToken);
       setUser(data.user);
       queryClient.setQueryData(["me"], data.user);
-      toast.success("Login successful");
+      toast.success(i18n.t("toasts.loginSuccess"));
     },
   });
 }
@@ -52,33 +53,50 @@ export function useRegister() {
   const setUser = useAuthStore((state) => state.setUser);
 
   return useMutation({
-    mutationFn: async (credentials: RegisterCredentials) => {
-      return await authApi.register(credentials);
-    },
+    mutationFn: async (credentials: RegisterCredentials) => authApi.register(credentials),
     onSuccess: async (data) => {
       setToken(data.tokens.accessToken);
       setUser(data.user);
       queryClient.setQueryData(["me"], data.user);
-      toast.success("Registration successful");
+      toast.success(i18n.t("toasts.registrationSuccess"));
     },
   });
 }
 
 export function useLogout() {
   const logoutStore = useAuthStore((state) => state.logout);
-  const refreshToken = useAuthStore((state) => state.accessToken);
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async () => {
-      if (refreshToken) {
-        await authApi.logout(refreshToken);
-      }
-    },
+    mutationFn: async () => authApi.logout(),
     onSuccess: () => {
       logoutStore();
       queryClient.clear();
-      toast.success("Logout successful");
+      toast.success(i18n.t("toasts.logoutSuccess"));
+    },
+  });
+}
+
+export function useChangePassword() {
+  const setUser = useAuthStore((state) => state.setUser);
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      currentPassword,
+      newPassword,
+    }: {
+      currentPassword: string;
+      newPassword: string;
+    }) => authApi.changePassword(currentPassword, newPassword),
+    onSuccess: (_, __, context) => {
+      const user = useAuthStore.getState().user;
+      if (user) {
+        const updatedUser = { ...user, mustChangePassword: false };
+        setUser(updatedUser);
+        queryClient.setQueryData(["me"], updatedUser);
+      }
+      toast.success(i18n.t("auth.passwordChanged"));
     },
   });
 }

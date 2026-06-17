@@ -13,11 +13,13 @@ import {
   Edit,
   Trash2,
   Loader2,
+  Users,
 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   useMissions,
   useCreateMission,
@@ -25,7 +27,7 @@ import {
   useApplyToMission,
   useDeleteMission,
 } from "@/hooks/useMissions";
-import type { FreelancerMission } from "@/types/freelancer";
+import type { FreelancerMission, MissionApplication } from "@/types/freelancer";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +37,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   Form,
   FormControl,
@@ -57,8 +66,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
+import { Avatar } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { useListParams } from "@/hooks/useListParams";
+import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { useAuthStore } from "@/store/auth.store";
 import { useTranslation } from "react-i18next";
+import { missionsApi } from "@/api/missions.api";
 
 const createMissionSchema = z.object({
   title: z.string().min(1, "Title required"),
@@ -68,7 +82,7 @@ const createMissionSchema = z.object({
 
 const updateMissionSchema = createMissionSchema.extend({
   status: z
-    .enum(["OPEN", "IN_PROGRESS", "COMPLETED", "CANCELLED"])
+    .enum(["OPEN", "ASSIGNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"])
     .optional(),
 });
 
@@ -80,30 +94,48 @@ export function MissionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editingMission, setEditingMission] =
-    useState<FreelancerMission | null>(null);
+  const [applicationsSheetOpen, setApplicationsSheetOpen] = useState(false);
+  const [editingMission, setEditingMission] = useState<FreelancerMission | null>(null);
+  const [selectedMissionForApplications, setSelectedMissionForApplications] = useState<FreelancerMission | null>(null);
+  const queryClient = useQueryClient();
 
-  const { data: missions, isLoading } = useMissions();
+  const { page, pageSize, orderBy, orderDir, params, setPage, updateParams } = useListParams(10);
+  const { data: missionsResult, isLoading } = useMissions(params);
+  const missions = missionsResult?.data ?? [];
+  const total = missionsResult?.total ?? 0;
+  const { data: applications } = useQuery({
+    queryKey: ["missionApplications", selectedMissionForApplications?.id],
+    queryFn: () => selectedMissionForApplications ? missionsApi.getApplications(selectedMissionForApplications.id) : Promise.resolve([]),
+    enabled: !!selectedMissionForApplications,
+  });
   const { mutate: createMission, isPending: isCreating } = useCreateMission();
   const { mutate: updateMission, isPending: isUpdating } = useUpdateMission();
-  const { mutate: applyToMission, isPending: isApplying } =
-    useApplyToMission();
+  const { mutate: applyToMission, isPending: isApplying } = useApplyToMission();
   const { mutate: deleteMission, isPending: isDeleting } = useDeleteMission();
+  const updateApplicationStatusMutation = useMutation({
+    mutationFn: (data: { missionId: string; applicationId: string; status: "PENDING" | "ACCEPTED" | "REJECTED" }) =>
+      missionsApi.updateApplicationStatus(data.missionId, data.applicationId, data.status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["missionApplications", selectedMissionForApplications?.id] });
+      queryClient.invalidateQueries({ queryKey: ["missions"] });
+    },
+  });
   const { user } = useAuthStore();
 
   const isFreelancer = user?.role === "FREELANCER";
   const isAdminOrClient = ["ADMIN", "CLIENT"].includes(user?.role || "");
   const userCompanyId = user?.companyId;
 
-  const filteredMissions =
-    missions?.filter((mission) =>
-      mission.title.toLowerCase().includes(searchQuery.toLowerCase())
-    ) || [];
+  const filteredMissions = missions.filter((mission) =>
+    mission.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case "OPEN":
         return "bg-green-100 text-green-800";
+      case "ASSIGNED":
+        return "bg-purple-100 text-purple-800";
       case "IN_PROGRESS":
         return "bg-blue-100 text-blue-800";
       case "COMPLETED":
@@ -119,6 +151,8 @@ export function MissionsPage() {
     switch (status) {
       case "OPEN":
         return t("missionsPage.statuses.open");
+      case "ASSIGNED":
+        return "Assigned";
       case "IN_PROGRESS":
         return t("missionsPage.statuses.inProgress");
       case "COMPLETED":
@@ -179,6 +213,11 @@ export function MissionsPage() {
 
   const handleApply = (missionId: string) => {
     applyToMission(missionId);
+  };
+
+  const handleViewApplications = (mission: FreelancerMission) => {
+    setSelectedMissionForApplications(mission);
+    setApplicationsSheetOpen(true);
   };
 
   if (isLoading) {
@@ -284,16 +323,35 @@ export function MissionsPage() {
         )}
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="search"
-          placeholder={t("missionsPage.searchMissions")}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+      {/* Search & Sort */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative max-w-md flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder={t("missionsPage.searchMissions")}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Select
+          value={`${orderBy ?? "createdAt"}-${orderDir}`}
+          onValueChange={(v) => {
+            const [col, dir] = v.split("-") as [string, "asc" | "desc"];
+            updateParams({ orderBy: col, orderDir: dir, page: 1 });
+          }}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Trier par" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="title-asc">Titre (A-Z)</SelectItem>
+            <SelectItem value="title-desc">Titre (Z-A)</SelectItem>
+            <SelectItem value="status-asc">Statut</SelectItem>
+            <SelectItem value="createdAt-desc">Plus récentes</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Missions List */}
@@ -324,6 +382,12 @@ export function MissionsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        {mission.status === "OPEN" && (
+                          <DropdownMenuItem onClick={() => handleViewApplications(mission)}>
+                            <Users className="h-4 w-4 mr-2" />
+                            Voir candidatures ({mission._count?.applications || 0})
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => handleEdit(mission)}>
                           <Edit className="h-4 w-4 mr-2" />
                           {t("common.edit")}
@@ -363,6 +427,15 @@ export function MissionsPage() {
                     {new Date(mission.createdAt).toLocaleDateString()}
                   </span>
                 </div>
+                {isAdminOrClient && mission.status === "OPEN" && mission._count?.applications !== undefined && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleViewApplications(mission)}
+                  >
+                    <Users className="h-4 w-4 mr-2" />
+                    Voir candidatures ({mission._count.applications})
+                  </Button>
+                )}
                 {canApply && (
                   <Button
                     className="w-full mt-2"
@@ -380,6 +453,84 @@ export function MissionsPage() {
           );
         })}
       </div>
+
+      <DataTablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} />
+
+      {/* Applications Sheet */}
+      {selectedMissionForApplications && (
+        <Sheet open={applicationsSheetOpen} onOpenChange={setApplicationsSheetOpen}>
+          <SheetContent className="w-full sm:max-w-lg">
+            <SheetHeader>
+              <SheetTitle>Candidatures - {selectedMissionForApplications.title}</SheetTitle>
+              <SheetDescription>
+                Tous les freelancers qui ont postulé à cette mission.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="mt-6 space-y-4">
+              {applications && applications.length > 0 ? (
+                applications.map((application) => (
+                  <Card key={application.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10 text-sm">
+                            <span>
+                              {application.freelancer.user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
+                            </span>
+                          </Avatar>
+                          <div>
+                            <h4 className="font-medium">{application.freelancer.user.name}</h4>
+                            <p className="text-sm text-muted-foreground">{application.freelancer.user.email}</p>
+                            {application.freelancer.hourlyRate && (
+                              <p className="text-sm mt-1">Taux horaire: {application.freelancer.hourlyRate} TND</p>
+                            )}
+                          </div>
+                        </div>
+                        <Badge
+                          variant={application.status === "PENDING" ? "secondary" : application.status === "ACCEPTED" ? "default" : "destructive"}
+                        >
+                          {application.status === "PENDING" ? "En attente" : application.status === "ACCEPTED" ? "Accepté" : "Refusé"}
+                        </Badge>
+                      </div>
+                      {application.status === "PENDING" && (
+                        <div className="flex gap-2 mt-4">
+                          <Button
+                            size="sm"
+                            onClick={() => updateApplicationStatusMutation.mutate({
+                              missionId: selectedMissionForApplications.id,
+                              applicationId: application.id,
+                              status: "ACCEPTED",
+                            })}
+                            disabled={updateApplicationStatusMutation.isPending}
+                          >
+                            Accepter
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => updateApplicationStatusMutation.mutate({
+                              missionId: selectedMissionForApplications.id,
+                              applicationId: application.id,
+                              status: "REJECTED",
+                            })}
+                            disabled={updateApplicationStatusMutation.isPending}
+                          >
+                            Refuser
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <p className="text-center text-muted-foreground">
+                  Aucune candidature pour l'instant.
+                </p>
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
 
       {/* Edit Dialog */}
       {editingMission && (
@@ -452,6 +603,7 @@ export function MissionsPage() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="OPEN">{t("missionsPage.statuses.open")}</SelectItem>
+                          <SelectItem value="ASSIGNED">Assigned</SelectItem>
                           <SelectItem value="IN_PROGRESS">{t("missionsPage.statuses.inProgress")}</SelectItem>
                           <SelectItem value="COMPLETED">{t("missionsPage.statuses.completed")}</SelectItem>
                           <SelectItem value="CANCELLED">{t("missionsPage.statuses.cancelled")}</SelectItem>

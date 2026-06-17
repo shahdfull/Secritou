@@ -6,40 +6,28 @@ import {
   updateFreelancerProfileSchema,
   createMissionSchema,
   updateMissionSchema,
+  updateApplicationStatusSchema,
 } from "../validators/freelancer.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
 
 const router = Router();
 
-// Public freelancer routes
-router.get("/", freelancerController.getPublicFreelancers);
-router.get("/:id", freelancerController.getFreelancerById);
-
-// Protected freelancer routes (FREELANCER only)
-router.post(
-  "/me",
-  authenticate,
-  authorize("FREELANCER"),
-  validate(createFreelancerProfileSchema),
-  freelancerController.createMyProfile
-);
-router.put(
-  "/me",
-  authenticate,
-  authorize("FREELANCER"),
-  validate(updateFreelancerProfileSchema),
-  freelancerController.updateMyProfile
-);
-router.delete(
-  "/me",
-  authenticate,
-  authorize("FREELANCER"),
-  freelancerController.deleteMyProfile
-);
-
-// Mission routes
+// Mission routes (before /:id to avoid route conflict)
 router.get("/missions", authenticate, freelancerController.getMissions);
+router.get(
+  "/missions/:id/applications",
+  authenticate,
+  authorize("ADMIN", "CLIENT"),
+  freelancerController.getMissionApplications
+);
+router.patch(
+  "/missions/:id/applications/:applicationId",
+  authenticate,
+  authorize("ADMIN", "CLIENT"),
+  validate(updateApplicationStatusSchema),
+  freelancerController.updateApplicationStatus
+);
 router.post(
   "/missions",
   authenticate,
@@ -65,6 +53,32 @@ router.delete(
   authenticate,
   authorize("ADMIN", "CLIENT"),
   freelancerController.deleteMission
+);
+
+// Public freelancer routes
+router.get("/", freelancerController.getPublicFreelancers);
+router.get("/:id", freelancerController.getFreelancerById);
+
+// Protected freelancer routes (FREELANCER only)
+router.post(
+  "/me",
+  authenticate,
+  authorize("FREELANCER"),
+  validate(createFreelancerProfileSchema),
+  freelancerController.createMyProfile
+);
+router.put(
+  "/me",
+  authenticate,
+  authorize("FREELANCER"),
+  validate(updateFreelancerProfileSchema),
+  freelancerController.updateMyProfile
+);
+router.delete(
+  "/me",
+  authenticate,
+  authorize("FREELANCER"),
+  freelancerController.deleteMyProfile
 );
 
 export default router;

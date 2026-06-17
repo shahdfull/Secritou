@@ -1,12 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { projectsApi } from "../api/projects.api";
 import type { Project, CreateProjectInput, UpdateProjectInput } from "../types/project";
+import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 import { toast } from "sonner";
+import i18n from "@/i18n";
 
-export function useProjects() {
-  return useQuery<Project[]>({
-    queryKey: ["projects"],
-    queryFn: () => projectsApi.getAll(),
+export function useProjects(params: ListQueryParams = {}) {
+  return useQuery<PaginatedResponse<Project>>({
+    queryKey: ["projects", params],
+    queryFn: () => projectsApi.getAll(params),
+    placeholderData: (prev) => prev,
+    staleTime: 60_000,
+    gcTime: 20 * 60_000,
   });
 }
 
@@ -15,6 +20,7 @@ export function useProject(id: string) {
     queryKey: ["project", id],
     queryFn: () => projectsApi.getById(id),
     enabled: !!id,
+    staleTime: 60_000,
   });
 }
 
@@ -25,7 +31,7 @@ export function useCreateProject() {
     mutationFn: (data) => projectsApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
-      toast.success("Project created successfully");
+      toast.success(i18n.t("toasts.projectCreated"));
     },
   });
 }
@@ -38,7 +44,7 @@ export function useUpdateProject() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       queryClient.invalidateQueries({ queryKey: ["project", data.id] });
-      toast.success("Project updated successfully");
+      toast.success(i18n.t("toasts.projectUpdated"));
     },
   });
 }
@@ -50,7 +56,7 @@ export function useDeleteProject() {
     mutationFn: (id) => projectsApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
-      toast.success("Project deleted successfully");
+      toast.success(i18n.t("toasts.projectDeleted"));
     },
   });
 }

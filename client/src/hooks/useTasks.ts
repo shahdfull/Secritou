@@ -1,12 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { tasksApi } from "../api/tasks.api";
 import type { Task, CreateTaskInput, UpdateTaskInput } from "../types/task";
+import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 import { toast } from "sonner";
+import i18n from "@/i18n";
 
-export function useTasks(projectId?: string) {
-  return useQuery<Task[]>({
-    queryKey: ["tasks", projectId],
-    queryFn: () => tasksApi.getAll(projectId),
+export function useTasks(params: ListQueryParams = {}, projectId?: string) {
+  return useQuery<PaginatedResponse<Task>>({
+    queryKey: ["tasks", params, projectId],
+    queryFn: () => tasksApi.getAll(params, projectId),
+    placeholderData: (prev) => prev,
+    staleTime: 30_000,
+    gcTime: 10 * 60_000,
   });
 }
 
@@ -25,7 +30,7 @@ export function useCreateTask() {
     mutationFn: (data) => tasksApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      toast.success("Task created successfully");
+      toast.success(i18n.t("toasts.taskCreated"));
     },
   });
 }
@@ -38,7 +43,7 @@ export function useUpdateTask() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["task", data.id] });
-      toast.success("Task updated successfully");
+      toast.success(i18n.t("toasts.taskUpdated"));
     },
   });
 }
@@ -50,7 +55,7 @@ export function useDeleteTask() {
     mutationFn: (id) => tasksApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      toast.success("Task deleted successfully");
+      toast.success(i18n.t("toasts.taskDeleted"));
     },
   });
 }

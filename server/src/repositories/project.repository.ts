@@ -1,57 +1,128 @@
 // Project Repository - Data access layer
-import { prisma } from "../config/prisma.js";
+import { prismaRead as prisma } from "../config/prisma.js";
 import type { Project, ProjectStatus, Role } from "@prisma/client";
+import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
+import { buildOrderBy, buildTextSearchFilter } from "../utils/listQuery.js";
+import { getProgressByProjectIds, getProgressForProject } from "../utils/projectProgress.js";
+import { clientBriefSelect } from "../utils/prismaSelects.js";
+
+type ProjectWithProgress = Project & {
+  client?: { id: string; name: string; email: string | null; phone: string | null } | null;
+  progress: number;
+};
+
+const SORTABLE_FIELDS = ["name", "status", "createdAt"];
+
+function buildWhere(companyId: string, userId: string, userRole: Role, options: ListQueryOptions, clientId?: string) {
+  const searchFilter = buildTextSearchFilter(options.search, ["name", "description"]);
+  const statusFilter = options.status ? { status: options.status as ProjectStatus } : {};
+
+  if (userRole === "ADMIN" || userRole === "MANAGER") {
+    return { companyId, ...statusFilter, ...searchFilter };
+  }
+  if (userRole === "FREELANCER") {
+    return { companyId, tasks: { some: { assigneeId: userId } }, ...statusFilter, ...searchFilter };
+  }
+  return { companyId, clientId, ...statusFilter, ...searchFilter };
+}
+
+const projectListSelect = {
+  id: true,
+  name: true,
+  description: true,
+  status: true,
+  clientId: true,
+  companyId: true,
+  createdAt: true,
+  updatedAt: true,
+  client: { select: clientBriefSelect },
+} as const;
 
 export const projectRepository = {
-  async findAll(companyId: string, userId: string, userRole: Role, clientId?: string): Promise<Project[]> {
-    if (userRole === "ADMIN") {
-      return prisma.project.findMany({
-        where: { companyId },
-        include: { client: true, tasks: true },
-      });
-    } else if (userRole === "FREELANCER") {
-      return prisma.project.findMany({
-        where: { 
-          companyId,
-          tasks: { some: { assigneeId: userId } }
-        },
-        include: { client: true, tasks: true },
-      });
-    } else { // CLIENT
-      return prisma.project.findMany({
-        where: { companyId, clientId },
-        include: { client: true, tasks: true },
-      });
-    }
+  async findAll(
+    companyId: string,
+    userId: string,
+    userRole: Role,
+    options: ListQueryOptions,
+    clientId?: string
+  ): Promise<PaginatedResult<ProjectWithProgress>> {
+    const where = buildWhere(companyId, userId, userRole, options, clientId);
+    const skip = (options.page - 1) * options.pageSize;
+    const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
+
+    const [projects, total] = await Promise.all([
+      prisma.project.findMany({
+        where,
+        select: projectListSelect,
+        orderBy,
+        skip,
+        take: options.pageSize,
+      }),
+      prisma.project.count({ where }),
+    ]);
+
+    const progressMap = await getProgressByProjectIds(projects.map((p) => p.id));
+    const data = projects.map((project) => ({
+      ...project,
+      progress: progressMap.get(project.id) ?? 0,
+    }));
+
+    return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(id: string, companyId: string, userId: string, userRole: Role, clientId?: string): Promise<Project | null> {
-    if (userRole === "ADMIN") {
-      return prisma.project.findUnique({
+  async findById(
+    id: string,
+    companyId: string,
+    userId: string,
+    userRole: Role,
+    clientId?: string
+  ): Promise<ProjectWithProgress | null> {
+    const baseSelect = {
+      ...projectListSelect,
+      client: { select: clientBriefSelect },
+    };
+
+    let project: (Project & { client?: ProjectWithProgress["client"] }) | null;
+
+    if (userRole === "ADMIN" || userRole === "MANAGER") {
+      project = await prisma.project.findUnique({
         where: { id, companyId },
-        include: { client: true, tasks: true },
+        select: baseSelect,
       });
     } else if (userRole === "FREELANCER") {
-      return prisma.project.findFirst({
-        where: { 
-          id, 
-          companyId, 
-          tasks: { some: { assigneeId: userId } }
+      project = await prisma.project.findFirst({
+        where: {
+          id,
+          companyId,
+          tasks: { some: { assigneeId: userId } },
         },
-        include: { client: true, tasks: true },
+        select: baseSelect,
       });
-    } else { // CLIENT
-      return prisma.project.findUnique({
+    } else {
+      project = await prisma.project.findUnique({
         where: { id, companyId, clientId },
-        include: { client: true, tasks: true },
+        select: baseSelect,
       });
     }
+
+    if (!project) return null;
+
+    return {
+      ...project,
+      progress: await getProgressForProject(project.id),
+    };
   },
 
-  async findByIdAdmin(id: string, companyId: string): Promise<Project | null> {
+  async findByIdAdmin(id: string, companyId: string) {
     return prisma.project.findUnique({
       where: { id, companyId },
-      include: { client: true, tasks: true },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        clientId: true,
+        companyId: true,
+      },
     });
   },
 
@@ -62,16 +133,27 @@ export const projectRepository = {
     clientId?: string;
     companyId: string;
   }): Promise<Project> {
-    return prisma.project.create({ data, include: { client: true } });
+    return prisma.project.create({
+      data,
+      include: { client: { select: clientBriefSelect } },
+    });
   },
 
-  async update(id: string, companyId: string, data: Partial<{
-    name?: string;
-    description?: string;
-    status?: ProjectStatus;
-    clientId?: string;
-  }>): Promise<Project> {
-    return prisma.project.update({ where: { id, companyId }, data, include: { client: true } });
+  async update(
+    id: string,
+    companyId: string,
+    data: Partial<{
+      name?: string;
+      description?: string;
+      status?: ProjectStatus;
+      clientId?: string;
+    }>
+  ): Promise<Project> {
+    return prisma.project.update({
+      where: { id, companyId },
+      data,
+      include: { client: { select: clientBriefSelect } },
+    });
   },
 
   async delete(id: string, companyId: string): Promise<Project> {

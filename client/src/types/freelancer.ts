@@ -3,13 +3,26 @@ export interface Skill {
   name: string;
 }
 
+export interface PortfolioItem {
+  id: string;
+  title: string;
+  description?: string;
+  url?: string;
+  imageUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface FreelancerProfile {
   id: string;
   userId: string;
   bio?: string;
   hourlyRate?: number;
   availability: boolean;
+  rating?: number;
+  reviewCount: number;
   skills: Skill[];
+  portfolio: PortfolioItem[];
   createdAt: string;
   updatedAt: string;
   user: {
@@ -24,12 +37,23 @@ export interface FreelancerMission {
   title: string;
   description?: string;
   budget?: number;
-  status: "OPEN" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  status: "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   companyId: string;
   freelancerId?: string;
   projectId?: string;
   createdAt: string;
   updatedAt: string;
+  _count?: { applications: number };
+}
+
+export interface MissionApplication {
+  id: string;
+  missionId: string;
+  freelancerId: string;
+  status: "PENDING" | "ACCEPTED" | "REJECTED";
+  createdAt: string;
+  updatedAt: string;
+  freelancer: FreelancerProfile;
 }
 
 export interface CreateFreelancerProfileInput {
@@ -56,6 +80,6 @@ export interface UpdateMissionInput {
   title?: string;
   description?: string;
   budget?: number;
-  status?: "OPEN" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  status?: "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   freelancerId?: string;
 }

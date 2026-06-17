@@ -4,10 +4,12 @@ import { validate } from "../middlewares/validate.middleware.js";
 import { createLeadSchema, updateLeadSchema } from "../validators/lead.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
+import { requireCompanyTenant } from "../middlewares/tenant.middleware.js";
 
 const router = Router();
 router.use(authenticate);
 router.use(authorize("ADMIN"));
+router.use(requireCompanyTenant());
 
 router.get("/", leadController.getLeads);
 router.get("/:id", leadController.getLead);

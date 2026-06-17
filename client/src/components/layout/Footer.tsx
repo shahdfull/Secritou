@@ -25,7 +25,7 @@ export function Footer() {
       ],
     },
     {
-      titleKey: "home.footer.industries",
+      titleKey: "home.footer.industriesTitle",
       links: [
         { labelKey: "home.footer.industries.healthcare", to: "/solutions" },
         { labelKey: "home.footer.industries.education", to: "/solutions" },
@@ -92,7 +92,7 @@ export function Footer() {
 
         <div className="mt-14 flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} Secritou. {t("home.footer.copyright").split(' ')[2]} {t("home.footer.copyright").split(' ')[3]}
+            {t("home.footer.copyright", { year: new Date().getFullYear() })}
           </p>
           <p className="text-xs text-muted-foreground">
             {t("home.footer.builtFor")}

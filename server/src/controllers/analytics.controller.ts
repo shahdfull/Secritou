@@ -8,7 +8,9 @@ export const getSummary: RequestHandler = async (req, res, next) => {
     if (!companyId) {
       throw new HttpError(400, "No company associated");
     }
-    const result = await analyticsService.getSummary(companyId);
+    const from = req.query.from ? new Date(req.query.from as string) : undefined;
+    const to = req.query.to ? new Date(req.query.to as string) : undefined;
+    const result = await analyticsService.getSummary(companyId, from, to);
     res.json({ data: result });
   } catch (error) {
     next(error);

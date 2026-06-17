@@ -11,7 +11,7 @@ export const authApi = {
   login: async (credentials: LoginCredentials): Promise<{ user: User; tokens: AuthTokens }> => {
     const response = await apiClient.post<ApiResponse<{ user: User; tokens: AuthTokens }>>(
       "/auth/login",
-      credentials
+      credentials,
     );
     return response.data.data;
   },
@@ -19,21 +19,18 @@ export const authApi = {
   register: async (credentials: RegisterCredentials): Promise<{ user: User; tokens: AuthTokens }> => {
     const response = await apiClient.post<ApiResponse<{ user: User; tokens: AuthTokens }>>(
       "/auth/register",
-      credentials
+      credentials,
     );
     return response.data.data;
   },
 
-  refresh: async (refreshToken: string): Promise<{ tokens: AuthTokens }> => {
-    const response = await apiClient.post<ApiResponse<{ tokens: AuthTokens }>>(
-      "/auth/refresh",
-      { refreshToken }
-    );
+  refresh: async (): Promise<{ tokens: AuthTokens }> => {
+    const response = await apiClient.post<ApiResponse<{ tokens: AuthTokens }>>("/auth/refresh", {});
     return response.data.data;
   },
 
-  logout: async (refreshToken: string): Promise<void> => {
-    await apiClient.post("/auth/logout", { refreshToken });
+  logout: async (): Promise<void> => {
+    await apiClient.post("/auth/logout", {});
   },
 
   getMe: async (): Promise<User> => {
@@ -47,5 +44,9 @@ export const authApi = {
 
   resetPassword: async (token: string, newPassword: string): Promise<void> => {
     await apiClient.post("/auth/reset-password", { token, newPassword });
+  },
+
+  changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
+    await apiClient.post("/auth/change-password", { currentPassword, newPassword });
   },
 };

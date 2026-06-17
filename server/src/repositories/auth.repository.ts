@@ -1,7 +1,16 @@
-import type { PrismaClient } from "@prisma/client";
+import type { ExtendedPrismaClient } from "../config/prisma.js";
+
+const userPublicSelect = {
+  id: true,
+  email: true,
+  name: true,
+  role: true,
+  companyId: true,
+  clientId: true,
+} as const;
 
 export class AuthRepository {
-  constructor(private readonly db: PrismaClient) {}
+  constructor(private readonly db: ExtendedPrismaClient | any) {}
 
   findUserByEmail(email: string) {
     return this.db.user.findUnique({ where: { email } });
@@ -24,7 +33,7 @@ export class AuthRepository {
           },
         },
       },
-      include: { users: true },
+      include: { users: { select: userPublicSelect } },
     });
   }
 
@@ -33,7 +42,10 @@ export class AuthRepository {
   }
 
   findRefreshToken(tokenHash: string) {
-    return this.db.refreshToken.findUnique({ where: { tokenHash }, include: { user: true } });
+    return this.db.refreshToken.findUnique({
+      where: { tokenHash },
+      include: { user: { select: userPublicSelect } },
+    });
   }
 
   revokeRefreshToken(id: string) {

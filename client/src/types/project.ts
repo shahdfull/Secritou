@@ -12,6 +12,7 @@ export interface Project {
   updatedAt: string;
   client?: Client;
   tasks?: Task[];
+  progress: number;
 }
 
 export interface CreateProjectInput {

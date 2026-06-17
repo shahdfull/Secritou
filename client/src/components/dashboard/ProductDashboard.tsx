@@ -1,4 +1,4 @@
-import { motion } from "motion/react";
+﻿import { motion } from "motion/react";
 import {
   LayoutDashboard,
   BarChart3,
@@ -8,30 +8,33 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
-const navItems = [
-  { icon: LayoutDashboard, label: "Overview", active: true },
-  { icon: BarChart3, label: "Analytics" },
-  { icon: Users, label: "Customers" },
-  { icon: Zap, label: "Automations" },
-  { icon: Settings, label: "Settings" },
-];
+const navItems: Array<{ icon: typeof LayoutDashboard; labelKey: string; active?: boolean }> = [
+  { icon: LayoutDashboard, labelKey: "dashboardProduct.nav.overview", active: true },
+  { icon: BarChart3, labelKey: "dashboardProduct.nav.analytics" },
+  { icon: Users, labelKey: "dashboardProduct.nav.customers" },
+  { icon: Zap, labelKey: "dashboardProduct.nav.automations" },
+  { icon: Settings, labelKey: "dashboardProduct.nav.settings" },
+] as const;
 
 const kpis = [
-  { label: "MRR", value: "€42,180", delta: "+12.4%", up: true },
-  { label: "Active customers", value: "1,284", delta: "+8.1%", up: true },
-  { label: "Churn", value: "1.8%", delta: "-0.3pt", up: false, invert: true },
-  { label: "NPS", value: "62", delta: "+4", up: true },
+  { labelKey: "dashboardProduct.kpis.mrr", value: "€42,180", delta: "+12.4%", up: true },
+  { labelKey: "dashboardProduct.kpis.activeCustomers", value: "1,284", delta: "+8.1%", up: true },
+  { labelKey: "dashboardProduct.kpis.churn", value: "1.8%", delta: "-0.3pt", up: false, invert: true },
+  { labelKey: "dashboardProduct.kpis.nps", value: "62", delta: "+4", up: true },
 ];
 
 const channels = [
-  { name: "Organic", value: 64, color: "bg-primary" },
-  { name: "Paid", value: 42, color: "bg-accent" },
-  { name: "Referral", value: 28, color: "bg-ink" },
-  { name: "Direct", value: 36, color: "bg-primary-soft" },
+  { nameKey: "dashboardProduct.channels.organic", value: 64, color: "bg-primary" },
+  { nameKey: "dashboardProduct.channels.paid", value: 42, color: "bg-accent" },
+  { nameKey: "dashboardProduct.channels.referral", value: 28, color: "bg-ink" },
+  { nameKey: "dashboardProduct.channels.direct", value: 36, color: "bg-primary-soft" },
 ];
 
 export function ProductDashboard() {
+  const { t } = useTranslation();
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 40 }}
@@ -40,23 +43,21 @@ export function ProductDashboard() {
       transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
       className="overflow-hidden rounded-3xl border border-border bg-card shadow-lift"
     >
-      {/* Browser chrome */}
       <div className="flex items-center gap-2 border-b border-border bg-surface px-4 py-3">
         <span className="h-2.5 w-2.5 rounded-full bg-[#ff605c]" />
         <span className="h-2.5 w-2.5 rounded-full bg-[#ffbd44]" />
         <span className="h-2.5 w-2.5 rounded-full bg-[#00ca4e]" />
-        <div className="ml-3 hidden sm:block flex-1">
+        <div className="ml-3 hidden flex-1 sm:block">
           <div className="mx-auto max-w-sm rounded-md bg-background px-3 py-1 text-center text-[11px] font-medium text-muted-foreground">
-            app.secritou.com / growth-os
+            {t("dashboardProduct.browserUrl")}
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-12">
-        {/* Sidebar */}
-        <aside className="hidden lg:flex col-span-2 flex-col gap-1 border-r border-border bg-surface/60 p-4">
+        <aside className="hidden flex-col gap-1 border-r border-border bg-surface/60 p-4 lg:col-span-2 lg:flex">
           <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Workspace
+            {t("dashboardProduct.workspace")}
           </p>
           {navItems.map((item, i) => (
             <div
@@ -68,39 +69,36 @@ export function ProductDashboard() {
               }`}
             >
               <item.icon className="h-4 w-4" />
-              {item.label}
+              {t(item.labelKey)}
             </div>
           ))}
         </aside>
 
-        {/* Main */}
-        <div className="col-span-12 lg:col-span-10 p-4 sm:p-6 space-y-5">
-          {/* Header row */}
+        <div className="col-span-12 space-y-5 p-4 sm:p-6 lg:col-span-10">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Overview � Last 30 days
+                {t("dashboardProduct.header")}
               </p>
-              <h3 className="mt-1 font-display text-xl sm:text-2xl font-bold text-ink">
-                Your growth at a glance
+              <h3 className="mt-1 font-display text-xl font-bold text-ink sm:text-2xl">
+                {t("dashboardProduct.title")}
               </h3>
             </div>
             <div className="flex gap-2">
               <span className="rounded-full bg-surface px-3 py-1 text-xs font-medium text-muted-foreground">
-                30D
+                {t("dashboardProduct.period")}
               </span>
               <span className="rounded-full bg-ink px-3 py-1 text-xs font-medium text-white">
-                Live
+                {t("dashboardProduct.live")}
               </span>
             </div>
           </div>
 
-          {/* KPIs */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {kpis.map((k, i) => (
               <div key={i} className="rounded-2xl border border-border bg-background p-4">
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                  {k.label}
+                  {t(k.labelKey)}
                 </p>
                 <p className="mt-2 font-display text-xl font-bold text-ink">{k.value}</p>
                 <p
@@ -110,45 +108,37 @@ export function ProductDashboard() {
                       : "text-accent-foreground"
                   }`}
                 >
-                  {k.up ? (
-                    <ArrowUpRight className="h-3 w-3" />
-                  ) : (
-                    <ArrowDownRight className="h-3 w-3" />
-                  )}
+                  {k.up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                   {k.delta}
                 </p>
               </div>
             ))}
           </div>
 
-          {/* Big chart + channels */}
           <div className="grid gap-3 lg:grid-cols-3">
-            <div className="lg:col-span-2 rounded-2xl border border-border bg-background p-4 sm:p-5">
+            <div className="rounded-2xl border border-border bg-background p-4 sm:col-span-2 sm:p-5 lg:col-span-2">
               <div className="flex items-center justify-between">
                 <p className="font-display text-sm font-semibold text-ink">
-                  Revenue & customers
+                  {t("dashboardProduct.revenueCustomers")}
                 </p>
-                <span className="text-[11px] text-muted-foreground">Weekly</span>
+                <span className="text-[11px] text-muted-foreground">{t("dashboardProduct.weekly")}</span>
               </div>
               <BarSeries />
             </div>
 
             <div className="rounded-2xl border border-border bg-background p-4 sm:p-5">
               <p className="font-display text-sm font-semibold text-ink">
-                Acquisition channels
+                {t("dashboardProduct.channelsTitle")}
               </p>
               <ul className="mt-4 space-y-3">
                 {channels.map((c) => (
-                  <li key={c.name}>
+                  <li key={c.nameKey}>
                     <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">{c.name}</span>
+                      <span className="text-muted-foreground">{t(c.nameKey)}</span>
                       <span className="font-semibold text-ink">{c.value}%</span>
                     </div>
                     <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-surface">
-                      <div
-                        className={`h-full rounded-full ${c.color}`}
-                        style={{ width: `${c.value}%` }}
-                      />
+                      <div className={`h-full rounded-full ${c.color}`} style={{ width: `${c.value}%` }} />
                     </div>
                   </li>
                 ))}
@@ -156,19 +146,18 @@ export function ProductDashboard() {
             </div>
           </div>
 
-          {/* Customer table */}
-          <div className="rounded-2xl border border-border bg-background overflow-hidden">
-            <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-border">
-              <p className="font-display text-sm font-semibold text-ink">Top accounts</p>
-              <span className="text-[11px] text-muted-foreground">Updated 2m ago</span>
+          <div className="overflow-hidden rounded-2xl border border-border bg-background">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-5">
+              <p className="font-display text-sm font-semibold text-ink">{t("dashboardProduct.topAccounts")}</p>
+              <span className="text-[11px] text-muted-foreground">{t("dashboardProduct.updatedAgo")}</span>
             </div>
             <table className="w-full text-xs sm:text-sm">
               <thead className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                 <tr>
-                  <th className="px-4 sm:px-5 py-2.5 font-medium">Account</th>
-                  <th className="px-4 py-2.5 font-medium hidden sm:table-cell">Plan</th>
-                  <th className="px-4 py-2.5 font-medium">MRR</th>
-                  <th className="px-4 sm:px-5 py-2.5 font-medium text-right">Health</th>
+                  <th className="px-4 py-2.5 font-medium sm:px-5">{t("dashboardProduct.account")}</th>
+                  <th className="hidden px-4 py-2.5 font-medium sm:table-cell">{t("dashboardProduct.plan")}</th>
+                  <th className="px-4 py-2.5 font-medium">{t("dashboardProduct.mrr")}</th>
+                  <th className="px-4 py-2.5 font-medium text-right sm:px-5">{t("dashboardProduct.health")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -179,20 +168,12 @@ export function ProductDashboard() {
                   { n: "Verra Retail", p: "Starter", m: "€1,210", h: "Healthy", color: "primary" },
                 ].map((r, i) => (
                   <tr key={i} className="border-t border-border">
-                    <td className="px-4 sm:px-5 py-2.5 font-medium text-ink">{r.n}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground hidden sm:table-cell">
-                      {r.p}
-                    </td>
+                    <td className="px-4 py-2.5 font-medium text-ink sm:px-5">{r.n}</td>
+                    <td className="hidden px-4 py-2.5 text-muted-foreground sm:table-cell">{r.p}</td>
                     <td className="px-4 py-2.5 font-semibold text-ink">{r.m}</td>
-                    <td className="px-4 sm:px-5 py-2.5 text-right">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                          r.color === "primary"
-                            ? "bg-primary-soft text-primary"
-                            : "bg-accent-soft text-accent-foreground"
-                        }`}
-                      >
-                        {r.h}
+                    <td className="px-4 py-2.5 text-right sm:px-5">
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${r.color === "primary" ? "bg-primary-soft text-primary" : "bg-accent-soft text-accent-foreground"}`}>
+                        {t(`dashboardProduct.healthLabels.${r.h === "Healthy" ? "healthy" : "atRisk"}`)}
                       </span>
                     </td>
                   </tr>
@@ -222,14 +203,8 @@ function BarSeries() {
     <div className="mt-4 flex h-40 items-end gap-2 sm:gap-3">
       {data.map((d, i) => (
         <div key={i} className="flex flex-1 items-end gap-1">
-          <div
-            className="flex-1 rounded-t-md bg-primary"
-            style={{ height: `${(d.rev / max) * 100}%` }}
-          />
-          <div
-            className="flex-1 rounded-t-md bg-accent"
-            style={{ height: `${(d.cust / max) * 100}%` }}
-          />
+          <div className="flex-1 rounded-t-md bg-primary" style={{ height: `${(d.rev / max) * 100}%` }} />
+          <div className="flex-1 rounded-t-md bg-accent" style={{ height: `${(d.cust / max) * 100}%` }} />
         </div>
       ))}
     </div>

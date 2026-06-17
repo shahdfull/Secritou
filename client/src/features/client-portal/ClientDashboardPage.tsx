@@ -2,14 +2,29 @@ import { useTranslation } from "react-i18next";
 import { useProjects } from "@/hooks/useProjects";
 import { useClientServiceRequests } from "@/hooks/useServiceRequests";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Briefcase, MessageSquare } from "lucide-react";
+import { Briefcase, MessageSquare, FileText, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { documentsApi, type Document } from "@/api/documents.api";
+import { useAuthStore } from "@/store/auth.store";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 export function ClientDashboardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { data: projects } = useProjects();
+  const user = useAuthStore((state) => state.user);
+  const { data: projectsResult } = useProjects({ page: 1, pageSize: 100 });
+  const projects = projectsResult?.data ?? [];
   const { data: requests } = useClientServiceRequests();
+  const { data: documents } = useQuery({
+    queryKey: ["clientDocuments", user?.clientId],
+    queryFn: () => user?.clientId ? documentsApi.getClientDocuments(user.clientId) : Promise.resolve([]),
+    enabled: !!user?.clientId,
+  });
 
   const stats = [
     {
@@ -26,13 +41,27 @@ export function ClientDashboardPage() {
       color: "bg-purple-50 text-purple-600",
       onClick: () => navigate("/client/requests"),
     },
+    {
+      title: "Documents",
+      value: documents?.length || 0,
+      icon: FileText,
+      color: "bg-green-50 text-green-600",
+    },
   ];
 
-  return (
-    <div className="container-page max-w-6xl mx-auto py-8">
-      <h1 className="text-3xl font-bold text-ink mb-8">Tableau de bord</h1>
+  const getDocumentTypeLabel = (type: Document['type']) => {
+    switch (type) {
+      case 'INVOICE': return 'Facture';
+      case 'CONTRACT': return 'Contrat';
+      case 'OTHER': return 'Autre';
+    }
+  };
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+  return (
+    <div className="container-page max-w-6xl mx-auto py-8 space-y-8">
+      <h1 className="text-3xl font-bold text-ink">Tableau de bord</h1>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {stats.map((stat, idx) => {
           const Icon = stat.icon;
           return (
@@ -50,6 +79,43 @@ export function ClientDashboardPage() {
           );
         })}
       </div>
+
+      {documents && documents.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Mes documents</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nom</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {documents.map((doc) => (
+                  <TableRow key={doc.id}>
+                    <TableCell className="font-medium">{doc.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{getDocumentTypeLabel(doc.type)}</Badge>
+                    </TableCell>
+                    <TableCell>{format(new Date(doc.createdAt), 'dd/MM/yyyy', { locale: fr })}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" onClick={() => window.open(doc.url, '_blank')}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Télécharger
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

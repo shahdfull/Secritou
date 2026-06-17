@@ -1,13 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { leadsApi } from "../api/leads.api";
 import type { Lead, CreateLeadInput, UpdateLeadInput } from "../types/lead";
+import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 import { toast } from "sonner";
 import type { Client } from "../types/client";
+import i18n from "@/i18n";
 
-export function useLeads() {
-  return useQuery<Lead[]>({
-    queryKey: ["leads"],
-    queryFn: () => leadsApi.getAll(),
+export function useLeads(params: ListQueryParams = {}) {
+  return useQuery<PaginatedResponse<Lead>>({
+    queryKey: ["leads", params],
+    queryFn: () => leadsApi.getAll(params),
+    placeholderData: (prev) => prev,
+    staleTime: 30_000,
+    gcTime: 10 * 60_000,
   });
 }
 
@@ -24,9 +29,9 @@ export function useCreateLead() {
 
   return useMutation<Lead, Error, CreateLeadInput>({
     mutationFn: (data) => leadsApi.create(data),
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
-      toast.success("Lead created successfully");
+      toast.success(i18n.t("toasts.leadCreated"));
     },
   });
 }
@@ -39,7 +44,7 @@ export function useUpdateLead() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       queryClient.invalidateQueries({ queryKey: ["lead", data.id] });
-      toast.success("Lead updated successfully");
+      toast.success(i18n.t("toasts.leadUpdated"));
     },
   });
 }
@@ -51,7 +56,7 @@ export function useDeleteLead() {
     mutationFn: (id) => leadsApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
-      toast.success("Lead deleted successfully");
+      toast.success(i18n.t("toasts.leadDeleted"));
     },
   });
 }
@@ -64,7 +69,7 @@ export function useConvertLeadToClient() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       queryClient.invalidateQueries({ queryKey: ["clients"] });
-      toast.success("Lead converted to client successfully");
+      toast.success(i18n.t("toasts.leadConverted"));
     },
   });
 }
@@ -76,7 +81,7 @@ export function useUpdateLeadStatus() {
     mutationFn: ({ id, status }) => leadsApi.updateLeadStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
-      toast.success("Lead status updated successfully");
+      toast.success(i18n.t("toasts.leadStatusUpdated"));
     },
   });
 }

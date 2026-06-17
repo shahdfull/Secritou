@@ -4,9 +4,10 @@ import type { ServiceRequest, CreateServiceRequestInput } from "../types/service
 import { toast } from "sonner";
 
 export function useClientServiceRequests() {
-  return useQuery<ServiceRequest[]>({
+  return useQuery({
     queryKey: ["client-service-requests"],
     queryFn: () => serviceRequestsApi.getClientRequests(),
+    select: (result) => result.data,
   });
 }
 

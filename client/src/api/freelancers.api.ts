@@ -5,13 +5,14 @@ import type {
   UpdateFreelancerProfileInput,
 } from "../types/freelancer";
 import type { ApiResponse } from "../types/auth";
+import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 
 export const freelancersApi = {
-  getAll: async (): Promise<FreelancerProfile[]> => {
-    const response = await apiClient.get<ApiResponse<FreelancerProfile[]>>(
-      "/freelancers"
-    );
-    return response.data.data;
+  getAll: async (params: ListQueryParams = {}): Promise<PaginatedResponse<FreelancerProfile>> => {
+    const response = await apiClient.get<PaginatedResponse<FreelancerProfile>>("/freelancers", {
+      params,
+    });
+    return response.data;
   },
 
   getById: async (id: string): Promise<FreelancerProfile> => {

@@ -207,6 +207,7 @@
       "description": "Votre partenaire croissance externe et transformation digitale — construisant le système d'exploitation futur pour les PME, les entrepreneurs et les créateurs.",
       "services": "Services",
       "solutions": "Solutions",
+      "industriesTitle": "Secteurs",
       "industries": "Secteurs",
       "company": "Entreprise",
       "forSmes": "Pour les PME",
@@ -447,6 +448,443 @@
         "inProgress": "En cours",
         "done": "Terminé"
       }
+    }
+  },
+  "dashboardHero": {
+    "browserUrl": "app.secritou.com / avenir",
+    "revenueTrend": "Tendance du revenu",
+    "last12Months": "12 derniers mois",
+    "revenue": "Revenu",
+    "forecast": "Prévision",
+    "aiAssistant": "Assistant IA",
+    "youLabel": "Vous :",
+    "growthQuestion": "Quelle est notre meilleure opportunité de croissance ?",
+    "aiLabel": "IA Secritou :",
+    "growthAnswer": "Concentrez-vous sur les campagnes email : elles génèrent 42 % des conversions !",
+    "joinWaitlist": "Rejoindre la liste d'attente",
+    "futureVision": "Vision future",
+    "comingSoon": "Bientôt disponible",
+    "kpis": {
+      "revenue": "Revenu",
+      "newLeads": "Nouveaux leads",
+      "conversion": "Conversion"
+    },
+    "features": {
+      "kpi": {
+        "title": "Tableau de bord KPI",
+        "description": "Métriques en temps réel, tableaux de bord et suivi des objectifs au même endroit"
+      },
+      "ai": {
+        "title": "Assistant IA",
+        "description": "Chatbot alimenté par l'IA qui répond instantanément à vos questions métier"
+      },
+      "recommendations": {
+        "title": "Recommandations de croissance",
+        "description": "Suggestions personnalisées et pilotées par les données pour la croissance"
+      },
+      "insights": {
+        "title": "Insights métier",
+        "description": "Analyses approfondies et intelligence métier actionnable"
+      },
+      "team": {
+        "title": "Performance d'équipe",
+        "description": "Suivez et optimisez la productivité de votre équipe"
+      }
+    }
+  },
+  "dashboardProduct": {
+    "browserUrl": "app.secritou.com / growth-os",
+    "workspace": "Espace de travail",
+    "header": "Vue d'ensemble · 30 derniers jours",
+    "title": "Votre croissance en un coup d'œil",
+    "period": "30J",
+    "live": "En direct",
+    "revenueCustomers": "Revenus et clients",
+    "weekly": "Hebdomadaire",
+    "channelsTitle": "Canaux d'acquisition",
+    "topAccounts": "Principaux comptes",
+    "updatedAgo": "Mis à jour il y a 2 min",
+    "account": "Compte",
+    "plan": "Offre",
+    "mrr": "MRR",
+    "health": "Santé",
+    "nav": {
+      "overview": "Vue d'ensemble",
+      "analytics": "Analytique",
+      "customers": "Clients",
+      "automations": "Automatisations",
+      "settings": "Paramètres"
+    },
+    "kpis": {
+      "mrr": "MRR",
+      "activeCustomers": "Clients actifs",
+      "churn": "Attrition",
+      "nps": "NPS"
+    },
+    "channels": {
+      "organic": "Organique",
+      "paid": "Payant",
+      "referral": "Parrainage",
+      "direct": "Direct"
+    },
+    "healthLabels": {
+      "healthy": "Sain",
+      "atRisk": "À risque"
+    }
+  },
+  "futureProduct": {
+    "badge": "Vision du futur produit",
+    "title": "Le système d'exploitation du futur pour les entreprises en croissance.",
+    "description": "Aujourd'hui, nous le livrons comme un service coordonné. Demain, ce sera une plateforme - vos revenus, KPI, marketing, tâches et automatisations réunis au même endroit."
+  },
+  "solutionsTeaser": {
+    "subtitle": "Construit autour de qui vous êtes",
+    "title": "Des solutions pour chaque étape.",
+    "seeAll": "Voir toutes les solutions",
+    "explore": "Explorer",
+    "segments": {
+      "smes": {
+        "tag": "Pour les PME",
+        "title": "Dirigez une entreprise plus efficace.",
+        "needs": {
+          "0": "Meilleure gestion",
+          "1": "Meilleurs KPI",
+          "2": "Meilleure organisation"
+        }
+      },
+      "entrepreneurs": {
+        "tag": "Pour les entrepreneurs",
+        "title": "Avancez plus vite, sans vous épuiser.",
+        "needs": {
+          "0": "Croissance",
+          "1": "Automatisation",
+          "2": "Visibilité"
+        }
+      },
+      "creators": {
+        "tag": "Pour les créateurs",
+        "title": "Transformez votre audience en vraie entreprise.",
+        "needs": {
+          "0": "Croissance des revenus",
+          "1": "Développement de marque",
+          "2": "Suivi de performance"
+        }
+      }
+    }
+  },
+  "differentiators": {
+    "subtitle": "Ce qui différencie Secritou",
+    "title": "Plus qu'un prestataire de services.",
+    "items": {
+      "strategy": {
+        "title": "La stratégie d'abord",
+        "body": "Nous n'exécutons pas à l'aveugle. Chaque initiative commence par une thèse claire et un résultat mesurable."
+      },
+      "data": {
+        "title": "Piloté par la donnée",
+        "body": "Chaque décision est mesurée. Si nous ne pouvons pas la suivre, nous ne la livrons pas."
+      },
+      "team": {
+        "title": "Une équipe coordonnée",
+        "body": "Un seul partenaire au lieu de cinq prestataires - stratégie, marketing, tech et IA sous le même toit."
+      }
+    }
+  },
+  "businessImpact": {
+    "subtitle": "Impact business",
+    "title": "Des résultats mesurables sur lesquels vous pouvez compter",
+    "description": "Voyez précisément comment notre plateforme génère une croissance réelle pour votre entreprise.",
+    "items": {
+      "visibility": {
+        "title": "Meilleure visibilité",
+        "description": "Une transparence totale sur tous les indicateurs clés et la performance dans un tableau de bord centralisé.",
+        "label": "Visibilité améliorée"
+      },
+      "speed": {
+        "title": "Décision plus rapide",
+        "description": "Des insights en temps réel qui réduisent le temps de décision de moitié.",
+        "label": "Vitesse de décision"
+      },
+      "productivity": {
+        "title": "Productivité renforcée",
+        "description": "Les workflows automatisés libèrent votre équipe pour se concentrer sur les tâches à fort impact.",
+        "label": "Gain de productivité"
+      },
+      "growth": {
+        "title": "Suivi de croissance",
+        "description": "Suivez, prévoyez et optimisez la croissance avec des KPI clairs.",
+        "label": "Précision de croissance"
+      }
+    }
+  },
+  "caseStudiesSection": {
+    "subtitle": "Études de cas",
+    "title": "Des résultats, pas des abonnements.",
+    "seeAll": "Toutes les études de cas",
+    "challenge": "Défi",
+    "outcome": "Résultat",
+    "cases": {
+      "0": {
+        "industry": "Commerce de détail",
+        "challenge": "Des opérations dispersées sur 4 sites et aucune visibilité temps réel sur le revenu.",
+        "outcome": "Tableau de bord KPI unifié, reporting automatisé et stratégie menu digital-first.",
+        "metricLabel": "Revenu en 6 mois"
+      },
+      "1": {
+        "industry": "Services professionnels",
+        "challenge": "Un portfolio solide, mais peu d'inbound - dépendance totale au bouche-à-oreille.",
+        "outcome": "Fondation SEO, moteur de contenu et acquisition payante calibrée pour des acheteurs à forte intention.",
+        "metricLabel": "Leads qualifiés / mois"
+      },
+      "2": {
+        "industry": "Économie des créateurs",
+        "challenge": "Une audience de 180k mais des revenus plafonnés sur un seul canal de sponsoring.",
+        "outcome": "Offres packagées, tunnels automatisés et stack analytique orientée créateurs.",
+        "metricLabel": "Nouveau MRR en 90 jours"
+      }
+    }
+  },
+  "joinUs": {
+    "title": "Rejoignez notre équipe",
+    "subtitle": "Déposez votre candidature pour rejoindre Secritou comme freelancer ou manager.",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "role": "Type de profil",
+    "rolePlaceholder": "Choisissez un profil",
+    "freelancer": "Freelancer",
+    "manager": "Manager",
+    "cv": "CV (PDF, max 10MB)",
+    "cvRequired": "Le CV est obligatoire",
+    "cvInvalid": "Le CV doit être un fichier PDF de maximum 10MB",
+    "portfolio": "Portfolio (PDF ou ZIP, max 20MB)",
+    "portfolioRequired": "Le portfolio est obligatoire",
+    "portfolioInvalid": "Le portfolio doit être un fichier PDF ou ZIP de maximum 20MB",
+    "bio": "Parlez-nous de votre expérience",
+    "submit": "Envoyer la candidature",
+    "success": "Votre demande a été envoyée avec succès.",
+    "bioMinLength": "Veuillez décrire votre expérience en au moins 20 caractères."
+  },
+  "applications": {
+    "title": "Candidatures",
+    "subtitle": "Gérez les candidatures des freelances et managers.",
+    "empty": "Aucune candidature pour le moment.",
+    "search": "Rechercher une candidature...",
+    "filterByStatus": "Filtrer par statut",
+    "allStatuses": "Tous les statuts",
+    "name": "Nom",
+    "email": "Email",
+    "phone": "Téléphone",
+    "position": "Poste",
+    "date": "Date",
+    "status": "Statut",
+    "cv": "CV",
+    "portfolio": "Portfolio",
+    "actions": "Actions",
+    "view": "Voir",
+    "downloadCv": "Télécharger CV",
+    "downloadPortfolio": "Télécharger Portfolio",
+    "accept": "Accepter",
+    "reject": "Refuser",
+    "statuses": {
+      "pending": "En attente",
+      "accepted": "Acceptée",
+      "rejected": "Refusée"
+    },
+    "rejectModal": {
+      "title": "Refuser la candidature",
+      "description": "Veuillez indiquer le motif du refus (ceci créera un brouillon Gmail).",
+      "reason": "Motif du refus",
+      "reasonPlaceholder": "Nous avons retenu un autre profil...",
+      "cancel": "Annuler",
+      "confirm": "Refuser"
+    },
+    "acceptModal": {
+      "title": "Accepter la candidature",
+      "description": "Créez un compte pour ce candidat (ceci créera un brouillon Gmail).",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "email": "Email",
+      "phone": "Téléphone",
+      "username": "Nom d'utilisateur",
+      "role": "Rôle",
+      "password": "Mot de passe temporaire",
+      "copyPassword": "Copier le mot de passe",
+      "cancel": "Annuler",
+      "confirm": "Accepter et créer le compte"
+    },
+    "rejected": "Candidature refusée avec succès",
+    "accepted": "Candidature acceptée et compte créé avec succès"
+  },
+  "auth": {
+    "signIn": "Se connecter",
+    "signUp": "S'inscrire",
+    "email": "Email",
+    "password": "Mot de passe",
+    "forgotPassword": "Mot de passe oublié ?",
+    "resetPassword": "Réinitialiser le mot de passe",
+    "createAccount": "Créer un compte",
+    "fullName": "Nom complet",
+    "companyName": "Nom de l'entreprise",
+    "accessWorkspace": "Accédez à votre espace de travail, vos projets, vos rapports et votre assistant IA.",
+    "getStarted": "Commencez avec votre plateforme de croissance et de transformation numérique.",
+    "dontHaveAccount": "Vous n'avez pas de compte ?",
+    "alreadyHaveAccount": "Vous avez déjà un compte ?",
+    "signingIn": "Connexion en cours...",
+    "creatingAccount": "Création du compte...",
+    "validEmail": "Veuillez saisir un email valide",
+    "passwordMinLength": "Le mot de passe doit contenir au moins 6 caractères",
+    "nameMinLength": "Le nom doit contenir au moins 2 caractères",
+    "companyNameMinLength": "Le nom de l'entreprise doit contenir au moins 2 caractères",
+    "changePassword": "Changer de mot de passe",
+    "changePasswordRequired": "Vous devez changer votre mot de passe avant de continuer.",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le nouveau mot de passe",
+    "passwordMismatch": "Les mots de passe ne correspondent pas",
+    "passwordChanged": "Mot de passe changé avec succès"
+  },
+  "onboarding": {
+    "title": "Onboarding Client",
+    "subtitle": "Guidez vos clients de la signature du contrat au lancement du projet.",
+    "welcome": {
+      "title": "Bienvenue !",
+      "subtitle": "Nous sommes ravis de collaborer avec vous. Nous avons hâte de commencer ce projet avec vous.",
+      "projectSummary": "Résumé du projet",
+      "assignedTo": "Assigné à",
+      "responseTime": "Délai moyen de réponse",
+      "nextSteps": "Prochaines étapes",
+      "startOnboarding": "Commencer l'onboarding"
+    },
+    "timeline": {
+      "title": "Étapes de l'onboarding",
+      "stepConfirmed": "Projet confirmé",
+      "stepContract": "Contrat",
+      "stepPayment": "Paiement",
+      "stepQuestionnaire": "Questionnaire",
+      "stepSpecifications": "Cahier des charges",
+      "stepKickoff": "Réunion Kickoff",
+      "stepProduction": "Production",
+      "stepDelivery": "Livraison",
+      "statuses": {
+        "pending": "En attente",
+        "inProgress": "En cours",
+        "completed": "Complété",
+        "rejected": "Rejeté"
+      }
+    },
+    "contract": {
+      "title": "Contrat",
+      "subtitle": "Téléchargez et signezz le contrat pour commencer.",
+      "uploadContract": "Télécharger le contrat",
+      "viewContract": "Voir le contrat",
+      "downloadContract": "Télécharger le contrat",
+      "signContract": "Signer le contrat",
+      "status": {
+        "pending": "En attente",
+        "signed": "Signé"
+      }
+    },
+    "payment": {
+      "title": "Paiement",
+      "subtitle": "Réglez votre acompte ou paiement complet.",
+      "amount": "Montant",
+      "amountPaid": "Montant payé",
+      "deadline": "Date limite",
+      "status": {
+        "unpaid": "En attente",
+        "partial": "Partiellement payé",
+        "paid": "Payé"
+      },
+      "payNow": "Payer maintenant"
+    },
+    "questionnaire": {
+      "title": "Questionnaire",
+      "subtitle": "Remplissez le questionnaire pour nous aider à comprendre vos besoins.",
+      "saveDraft": "Sauvegarder brouillon",
+      "submit": "Soumettre le questionnaire",
+      "serviceType": "Type de service",
+      "services": {
+        "website": "Site web",
+        "marketing": "Marketing",
+        "analytics": "Analytics"
+      },
+      "website": {
+        "companyName": "Nom de l'entreprise",
+        "logo": "Logo",
+        "colors": "Couleurs",
+        "references": "Références",
+        "pages": "Pages souhaitées",
+        "documents": "Documents"
+      },
+      "marketing": {
+        "socialMedia": "Réseaux sociaux",
+        "budget": "Budget",
+        "competitors": "Concurrents",
+        "objectives": "Objectifs"
+      },
+      "analytics": {
+        "kpis": "KPI",
+        "tools": "Outils",
+        "dataSources": "Sources de données"
+      }
+    },
+    "specifications": {
+      "title": "Cahier des charges",
+      "subtitle": "Vérifiez le cahier des charges et donnez votre approbation.",
+      "requirements": "Besoins",
+      "objectives": "Objectifs",
+      "features": "Fonctionnalités",
+      "deliverables": "Livrables",
+      "timeline": "Échéances",
+      "feedback": "Demandes de modifications",
+      "status": {
+        "pending": "En attente d'approbation",
+        "approved": "Approuvé",
+        "rejected": "Demande de modifications"
+      },
+      "approve": "Approuver",
+      "requestChanges": "Demander des modifications"
+    },
+    "kickoff": {
+      "title": "Réunion Kickoff",
+      "subtitle": "Préparez-vous pour notre réunion de lancement.",
+      "meetingDate": "Date de la réunion",
+      "participants": "Participants",
+      "meetingLink": "Lien de réunion",
+      "joinMeeting": "Rejoindre la réunion"
+    },
+    "production": {
+      "title": "Production",
+      "subtitle": "Suivez l'avancement du projet en temps réel.",
+      "analysis": "Analyse",
+      "design": "Design",
+      "development": "Développement",
+      "testing": "Tests",
+      "deployment": "Déploiement"
+    },
+    "delivery": {
+      "title": "Livraison",
+      "subtitle": "Récupérez les livrables, la documentation et les accès.",
+      "deliverables": "Livrables",
+      "documentation": "Documentation",
+      "accessDetails": "Accès",
+      "userGuides": "Guides utilisateur",
+      "download": "Télécharger"
+    },
+    "admin": {
+      "title": "Onboardings",
+      "subtitle": "Gérez les onboardings de vos clients.",
+      "createOnboarding": "Créer un onboarding",
+      "searchOnboardings": "Rechercher des onboardings...",
+      "empty": "Aucun onboarding pour le moment.",
+      "client": "Client",
+      "project": "Projet",
+      "status": "Statut",
+      "progress": "Progression",
+      "createdAt": "Date de création",
+      "actions": "Actions",
+      "view": "Voir",
+      "edit": "Modifier",
+      "delete": "Supprimer"
     }
   }
 }

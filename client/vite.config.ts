@@ -1,10 +1,11 @@
 import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig, type PluginOption } from "vite";
+import { defineConfig } from "vite";
 
 export default defineConfig(({ mode }) => {
   const isDevelopment = mode === "development";
+  const isProduction = mode === "production";
 
   const securityHeaders = {
     "Content-Security-Policy": isDevelopment
@@ -24,6 +25,7 @@ export default defineConfig(({ mode }) => {
         "@": path.resolve(__dirname, "./src"),
         "@shared": path.resolve(__dirname, "../shared/src"),
       },
+      dedupe: ["react", "react-dom"],
     },
     server: {
       port: 5173,
@@ -32,13 +34,18 @@ export default defineConfig(({ mode }) => {
     preview: {
       headers: securityHeaders,
     },
+    esbuild: isProduction ? { drop: ["console", "debugger"] } : undefined,
     build: {
+      target: "es2022",
+      cssCodeSplit: true,
       rollupOptions: {
         output: {
           manualChunks: {
             vendor: ["react", "react-dom", "react-router-dom"],
             charts: ["recharts"],
-            motion: ["motion/react"],
+            motion: ["motion"],
+            exports: ["jspdf", "jspdf-autotable", "xlsx"],
+            dnd: ["@dnd-kit/core", "@dnd-kit/sortable", "@dnd-kit/utilities"],
           },
         },
       },

@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import {
   MoreHorizontal,
   Search,
@@ -14,7 +15,7 @@ import {
   Trash2,
   Loader2,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -56,6 +57,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useClients } from "@/hooks/useClients";
+import { useListParams } from "@/hooks/useListParams";
+import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { Textarea } from "@/components/ui/textarea";
 import { useTranslation } from "react-i18next";
 
@@ -73,21 +76,33 @@ type UpdateProjectForm = z.infer<typeof updateProjectSchema>;
 
 export function ProjectsPage() {
   const { t } = useTranslation();
-  const [searchQuery, setSearchQuery] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
 
-  const { data: projects, isLoading: projectsLoading } = useProjects();
-  const { data: clients, isLoading: clientsLoading } = useClients();
+  const { page, pageSize, orderBy, orderDir, search, params, setPage, setSearch, updateParams } = useListParams(12);
+  const { data: projectsResult, isLoading: projectsLoading } = useProjects({ ...params, search });
+  const { data: clientsResult, isLoading: clientsLoading } = useClients({ page: 1, pageSize: 100 });
+  const [searchInput, setSearchInput] = useState(search ?? "");
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchInput), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput, setSearch]);
+
+  const projects = projectsResult?.data ?? [];
+  const total = projectsResult?.total ?? 0;
+  const clients = clientsResult?.data ?? [];
   const { mutate: createProject, isPending: isCreating } = useCreateProject();
   const { mutate: updateProject, isPending: isUpdating } = useUpdateProject();
   const { mutate: deleteProject, isPending: isDeleting } = useDeleteProject();
 
-  const filteredProjects = projects?.filter((project) =>
-    project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (project.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
-  ) || [];
+  const clientById = useMemo(() => {
+    const map = new Map<string, (typeof clients)[number]>();
+    for (const c of clients) map.set(c.id, c);
+    return map;
+  }, [clients]);
+
+  const filteredProjects = projects;
 
   const createForm = useForm<CreateProjectForm>({
     resolver: zodResolver(createProjectSchema) as any,
@@ -103,25 +118,25 @@ export function ProjectsPage() {
     resolver: zodResolver(updateProjectSchema) as any,
   });
 
-  const handleCreate = async (data: CreateProjectForm) => {
+  const handleCreate = useCallback(async (data: CreateProjectForm) => {
     createProject(data, {
       onSuccess: () => {
         setCreateDialogOpen(false);
         createForm.reset();
       },
     });
-  };
+  }, [createForm, createProject]);
 
-  const handleEdit = (project: Project) => {
+  const handleEdit = useCallback((project: Project) => {
     setEditingProject(project);
     editForm.reset({
       ...project,
       clientId: project.clientId || "",
     });
     setEditDialogOpen(true);
-  };
+  }, [editForm]);
 
-  const handleUpdate = async (data: UpdateProjectForm) => {
+  const handleUpdate = useCallback(async (data: UpdateProjectForm) => {
     if (!editingProject) return;
     updateProject(
       { id: editingProject.id, data },
@@ -132,13 +147,13 @@ export function ProjectsPage() {
         },
       }
     );
-  };
+  }, [editingProject, updateProject]);
 
-  const handleDelete = (project: Project) => {
+  const handleDelete = useCallback((project: Project) => {
     if (confirm(`Are you sure you want to delete ${project.name}?`)) {
       deleteProject(project.id);
     }
-  };
+  }, [deleteProject]);
 
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
@@ -282,22 +297,41 @@ export function ProjectsPage() {
         </Dialog>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="search"
-          placeholder={t("projectsPage.searchProjects")}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+      {/* Search & Sort */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative max-w-md flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder={t("projectsPage.searchProjects")}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Select
+          value={`${orderBy ?? "createdAt"}-${orderDir}`}
+          onValueChange={(v) => {
+            const [col, dir] = v.split("-") as [string, "asc" | "desc"];
+            updateParams({ orderBy: col, orderDir: dir, page: 1 });
+          }}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Trier par" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="name-asc">Nom (A-Z)</SelectItem>
+            <SelectItem value="name-desc">Nom (Z-A)</SelectItem>
+            <SelectItem value="status-asc">Statut (A-Z)</SelectItem>
+            <SelectItem value="createdAt-desc">Plus récents</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Projects Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {filteredProjects.map((project) => {
-          const client = clients?.find((c) => c.id === project.clientId);
+          const client = project.clientId ? clientById.get(project.clientId) : undefined;
 
           return (
             <Card key={project.id} className="hover:shadow-md transition-shadow">
@@ -328,18 +362,24 @@ export function ProjectsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">{project.description || t("common.noDescription")}</p>
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadgeClass(project.status)}`}
-                  >
-                    {getStatusLabel(project.status)}
-                  </span>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadgeClass(project.status)}`}
+                    >
+                      {getStatusLabel(project.status)}
+                    </span>
+                    <span className="text-sm font-medium">{project.progress}%</span>
+                  </div>
+                  <Progress value={project.progress} className="h-2" />
                 </div>
               </CardContent>
             </Card>
           );
         })}
       </div>
+
+      <DataTablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} />
 
       {/* Edit Dialog */}
       {editingProject && (

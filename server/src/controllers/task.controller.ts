@@ -1,6 +1,7 @@
 // Controller for Tasks - HTTP request handlers
 import type { RequestHandler } from "express";
 import { taskService } from "../services/task.service.js";
+import { parseListQuery } from "../utils/listQuery.js";
 
 export const getAllTasks: RequestHandler = async (req, res, next) => {
   try {
@@ -8,8 +9,9 @@ export const getAllTasks: RequestHandler = async (req, res, next) => {
     const userId = req.user?.sub!;
     const userRole = req.user?.role!;
     const projectId = req.query.projectId as string | undefined;
-    const tasks = await taskService.getAllTasks(projectId, companyId, userId, userRole);
-    res.json({ data: tasks });
+    const options = parseListQuery(req.query as Record<string, unknown>);
+    const result = await taskService.getAllTasks(projectId, companyId, userId, userRole, options);
+    res.json(result);
   } catch (error) {
     next(error);
   }

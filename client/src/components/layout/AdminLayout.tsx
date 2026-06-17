@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo, useCallback, useMemo } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -21,16 +21,17 @@ import {
   FolderOpen,
   CheckSquare,
   BarChart3,
+  FileText,
   Settings,
-  Search,
-  Bell,
   LogOut,
   Briefcase,
   ClipboardList,
+  Bot,
+  UserCheck,
+  Rocket,
 } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,9 +41,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { useAuthStore } from "@/store/auth.store";
 import { useLogout } from "@/hooks/useAuth";
+import { NotificationBell } from "@/components/NotificationBell";
+import { GlobalSearch } from "@/components/common/GlobalSearch";
+import { routePrefetch } from "@/routes/routePrefetch";
 
 const menuItems = [
   {
@@ -59,6 +62,16 @@ const menuItems = [
     title: "Clients",
     url: "/app/clients",
     icon: Users,
+  },
+  {
+    title: "Applications",
+    url: "/app/applications",
+    icon: UserCheck,
+  },
+  {
+    title: "Onboarding",
+    url: "/app/client-onboardings",
+    icon: Rocket,
   },
   {
     title: "Freelancers",
@@ -81,9 +94,19 @@ const menuItems = [
     icon: CheckSquare,
   },
   {
+    title: "AI Assistant",
+    url: "/app/ai",
+    icon: Bot,
+  },
+  {
     title: "Analytics",
     url: "/app/analytics",
     icon: BarChart3,
+  },
+  {
+    title: "Rapports",
+    url: "/app/reports",
+    icon: FileText,
   },
   {
     title: "Settings",
@@ -92,27 +115,71 @@ const menuItems = [
   },
 ];
 
-export function AdminLayout() {
+export const AdminLayout = memo(function AdminLayout() {
   const user = useAuthStore((state) => state.user);
   const { mutate: logout, isPending } = useLogout();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     logout(undefined, {
       onSuccess: () => {
         navigate("/login");
       },
     });
-  };
+  }, [logout, navigate]);
 
-  const initials = user?.name
-    ? user.name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
-    : "U";
+  const initials = useMemo(() => {
+    if (!user?.name) return "U";
+    return user.name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  }, [user?.name]);
+
+  const handlePrefetch = useCallback((url: string) => {
+    switch (url) {
+      case "/app":
+        routePrefetch.dashboard();
+        break;
+      case "/app/leads":
+        routePrefetch.leads();
+        break;
+      case "/app/clients":
+        routePrefetch.clients();
+        break;
+      case "/app/applications":
+        routePrefetch.applications?.();
+        break;
+      case "/app/freelancers":
+        routePrefetch.freelancers();
+        break;
+      case "/app/missions":
+        routePrefetch.missions();
+        break;
+      case "/app/projects":
+        routePrefetch.projects();
+        break;
+      case "/app/tasks":
+        routePrefetch.tasks();
+        break;
+      case "/app/ai":
+        routePrefetch.ai();
+        break;
+      case "/app/analytics":
+        routePrefetch.analytics();
+        break;
+      case "/app/reports":
+        routePrefetch.reports();
+        break;
+      case "/app/settings":
+        routePrefetch.settings();
+        break;
+      default:
+        break;
+    }
+  }, []);
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -135,6 +202,8 @@ export function AdminLayout() {
                         <NavLink
                           to={item.url}
                           end={item.url === "/app"}
+                          onMouseEnter={() => handlePrefetch(item.url)}
+                          onFocus={() => handlePrefetch(item.url)}
                           className={({ isActive }) =>
                             isActive ? "data-[active=true]" : ""
                           }
@@ -169,22 +238,10 @@ export function AdminLayout() {
           <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background px-6">
             <SidebarTrigger className="md:hidden" />
             <div className="flex items-center gap-4 flex-1">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search..."
-                  className="pl-10 bg-muted/50 border-muted-foreground/20"
-                />
-              </div>
+              <GlobalSearch />
             </div>
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center">
-                  3
-                </Badge>
-              </Button>
+              <NotificationBell />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
@@ -220,4 +277,4 @@ export function AdminLayout() {
       </div>
     </SidebarProvider>
   );
-}
+});

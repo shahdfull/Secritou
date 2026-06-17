@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: secritou_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/secritou_test?schema=public
+      JWT_ACCESS_SECRET: ci-access-secret-at-least-32-characters-long
+      JWT_REFRESH_SECRET: ci-refresh-secret-at-least-32-characters-long
+      CLIENT_ORIGIN: http://localhost:5173
+      REDIS_URL: redis://localhost:6379
+      CACHE_ENABLED: "true"
+      JOBS_ENABLED: "false"
+      METRICS_ENABLED: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Prisma migrate deploy
+        run: npm run prisma:migrate:deploy --workspace server
+
+      - name: Prisma seed
+        run: npm run prisma:seed --workspace server
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test:unit --workspace server
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E Auth tests
+        run: npm run test:e2e

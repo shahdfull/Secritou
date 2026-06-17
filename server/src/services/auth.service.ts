@@ -6,14 +6,15 @@ import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
 import { AuthRepository } from "../repositories/auth.repository.js";
 import { HttpError } from "../utils/httpError.js";
+import { parseDurationToDate } from "../utils/parseDuration.js";
 
-const authRepository = new AuthRepository(prisma);
+const authRepository = new AuthRepository(prisma as any);
 
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
-function toAuthUser(user: Pick<User, "id" | "email" | "name" | "role" | "companyId" | "clientId">) {
+function toAuthUser(user: Pick<User, "id" | "email" | "name" | "role" | "companyId" | "clientId" | "mustChangePassword">) {
   return {
     id: user.id,
     email: user.email,
@@ -21,27 +22,37 @@ function toAuthUser(user: Pick<User, "id" | "email" | "name" | "role" | "company
     role: user.role,
     companyId: user.companyId,
     clientId: user.clientId,
+    mustChangePassword: user.mustChangePassword,
   };
 }
 
 function signAccessToken(user: Pick<User, "id" | "email" | "role" | "companyId" | "clientId">) {
   return jwt.sign(
-    { sub: user.id, email: user.email, role: user.role, companyId: user.companyId, clientId: user.clientId },
+    {
+      id: user.id,
+      sub: user.id,
+      tokenType: "access" as const,
+      email: user.email,
+      role: user.role,
+      companyId: user.companyId,
+      clientId: user.clientId,
+    },
     env.JWT_ACCESS_SECRET,
-    { expiresIn: env.JWT_ACCESS_EXPIRES_IN as SignOptions["expiresIn"] },
+    {
+      expiresIn: env.JWT_ACCESS_EXPIRES_IN as SignOptions["expiresIn"],
+      issuer: env.JWT_ISSUER,
+      audience: env.JWT_AUDIENCE,
+    },
   );
 }
 
 function signRefreshToken(userId: string) {
-  return jwt.sign({ sub: userId }, env.JWT_REFRESH_SECRET, {
+  return jwt.sign({ sub: userId, tokenType: "refresh" as const }, env.JWT_REFRESH_SECRET, {
     expiresIn: env.JWT_REFRESH_EXPIRES_IN as SignOptions["expiresIn"],
+    issuer: env.JWT_ISSUER,
+    audience: env.JWT_AUDIENCE,
+    jwtid: randomBytes(16).toString("hex"),
   });
-}
-
-function refreshExpiryDate() {
-  const date = new Date();
-  date.setDate(date.getDate() + 7);
-  return date;
 }
 
 export class AuthService {
@@ -72,7 +83,15 @@ export class AuthService {
 
   async refresh(refreshToken: string) {
     try {
-      jwt.verify(refreshToken, env.JWT_REFRESH_SECRET);
+      const decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET, {
+        issuer: env.JWT_ISSUER,
+        audience: env.JWT_AUDIENCE,
+        algorithms: ["HS256"],
+      }) as jwt.JwtPayload & { tokenType?: string };
+
+      if (decoded.tokenType !== "refresh" || typeof decoded.sub !== "string") {
+        throw new Error("Invalid token type");
+      }
     } catch {
       throw new HttpError(401, "Invalid refresh token");
     }
@@ -102,20 +121,20 @@ export class AuthService {
 
   async requestPasswordReset(email: string) {
     const user = await authRepository.findUserByEmail(email);
-    // Always return success, even if user doesn't exist to prevent email enumeration
     if (!user) return;
 
-    // Generate random token
     const resetToken = randomBytes(32).toString("hex");
     const resetTokenHash = hashToken(resetToken);
-    const resetTokenExpiry = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
+    const resetTokenExpiry = new Date(Date.now() + 1000 * 60 * 60);
 
     await prisma.user.update({
       where: { id: user.id },
       data: { resetToken: resetTokenHash, resetTokenExpiry },
     });
 
-    console.log(`Password reset token for ${email}: ${resetToken}`);
+    if (env.NODE_ENV === "development" && env.SMTP_HOST) {
+      // Email would be sent via SMTP in production
+    }
   }
 
   async resetPassword(token: string, newPassword: string) {
@@ -136,19 +155,35 @@ export class AuthService {
       where: { id: user.id },
       data: { passwordHash, resetToken: null, resetTokenExpiry: null },
     });
+    await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
   }
 
-  private async issueTokens(user: Pick<User, "id" | "email" | "name" | "role" | "companyId">) {
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await authRepository.findUserById(userId);
+    if (!user) throw new HttpError(404, "User not found");
+
+    const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isValid) throw new HttpError(401, "Invalid current password");
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, mustChangePassword: false },
+    });
+    await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+  }
+
+  private async issueTokens(user: Pick<User, "id" | "email" | "name" | "role" | "companyId" | "clientId">) {
     const accessToken = signAccessToken(user);
     const refreshToken = signRefreshToken(user.id);
     await authRepository.createRefreshToken({
       tokenHash: hashToken(refreshToken),
       userId: user.id,
-      expiresAt: refreshExpiryDate(),
+      expiresAt: parseDurationToDate(env.JWT_REFRESH_EXPIRES_IN),
     });
 
     return {
-      user: toAuthUser({ ...user, role: user.role as Role }),
+      user: toAuthUser(user),
       tokens: { accessToken, refreshToken },
     };
   }

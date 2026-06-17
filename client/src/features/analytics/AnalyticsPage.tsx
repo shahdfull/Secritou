@@ -1,3 +1,4 @@
+import { Suspense, lazy, useMemo, useState } from "react";
 import {
   Card,
   CardContent,
@@ -5,20 +6,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 import {
   TrendingUp,
   Users,
@@ -28,9 +15,29 @@ import {
 } from "lucide-react";
 import { useAnalyticsSummary } from "@/hooks/useAnalytics";
 import { Badge } from "@/components/ui/badge";
+import { DateFilter, DateRange } from "@/components/DateFilter";
+
+const AnalyticsCharts = lazy(() =>
+  import("./AnalyticsCharts").then((m) => ({ default: m.AnalyticsCharts }))
+);
 
 export function AnalyticsPage() {
-  const { data, isLoading, isError } = useAnalyticsSummary();
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    return { from: thirtyDaysAgo, to: today };
+  });
+
+  const { data, isLoading, isError } = useAnalyticsSummary(dateRange.from, dateRange.to);
+
+  const taskDonePct = useMemo(() => {
+    const total = data?.tasks.total ?? 0;
+    if (!total) return 0;
+    return Math.round(((data?.tasks.doneCount ?? 0) / total) * 100);
+  }, [data?.tasks.doneCount, data?.tasks.total]);
+
+  const overdueCount = data?.tasks?.overdueCount ?? 0;
 
   if (isLoading) {
     return (
@@ -48,13 +55,21 @@ export function AnalyticsPage() {
     );
   }
 
+  const leadsByMonth = data?.leadsByMonth ?? [];
+  const revenueByMonth = data?.revenueByMonth ?? [];
+  const leadsByStatus = data?.leads.byStatus ?? [];
+  const projectsByStatus = data?.projectsByStatus ?? [];
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-ink">Analytics</h1>
-        <p className="text-muted-foreground">
-          Key metrics and performance indicators
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-ink">Analytics</h1>
+          <p className="text-muted-foreground">
+            Key metrics and performance indicators
+          </p>
+        </div>
+        <DateFilter value={dateRange} onChange={setDateRange} />
       </div>
 
       {/* KPI Cards */}
@@ -132,157 +147,53 @@ export function AnalyticsPage() {
           <CardContent>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-bold">
-                {data?.tasks.total
-                  ? Math.round((data.tasks.doneCount / data.tasks.total) * 100)
-                  : 0}
-                %
+                {taskDonePct}%
               </span>
               <span className="flex items-center text-sm text-green-600">
                 <ArrowUpRight className="h-4 w-4" />
                 15%
               </span>
             </div>
-            {(() => {
-              const overdue = data?.tasks?.overdueCount;
-              return (
-                <CardDescription className="text-xs flex items-center gap-2">
-                  {overdue ?? 0} en retard
-                  {overdue != null && overdue > 0 && (
-                    <Badge variant="destructive">{overdue}</Badge>
-                  )}
-                </CardDescription>
-              );
-            })()}
+            <CardDescription className="text-xs flex items-center gap-2">
+              {overdueCount} en retard
+              {overdueCount > 0 && <Badge variant="destructive">{overdueCount}</Badge>}
+            </CardDescription>
           </CardContent>
         </Card>
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Leads by Month Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Leads par mois</CardTitle>
-            <CardDescription>Nouveaux leads par mois</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data?.leadsByMonth ?? []}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    className="stroke-muted"
-                  />
-                  <XAxis
-                    dataKey="month"
-                    tickLine={false}
-                    axisLine={false}
-                    className="text-xs"
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    className="text-xs"
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--background))",
-                      border: "1px solid hsl(var(--border))",
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="count"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    dot={{ fill: "hsl(var(--primary))" }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Leads by Status Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Leads par statut</CardTitle>
-            <CardDescription>Répartition des leads par statut</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data?.leads.byStatus ?? []}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    className="stroke-muted"
-                  />
-                  <XAxis
-                    dataKey="status"
-                    tickLine={false}
-                    axisLine={false}
-                    className="text-xs"
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    className="text-xs"
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--background))",
-                      border: "1px solid hsl(var(--border))",
-                    }}
-                  />
-                  <Bar
-                    dataKey="count"
-                    fill="hsl(var(--primary))"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Project Status Pie Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Répartition des projets</CardTitle>
-          <CardDescription>État des projets</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={data?.projectsByStatus ?? []}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ status, percent }) =>
-                    `${status} ${(percent * 100).toFixed(0)}%`
-                  }
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="count"
-                >
-                  {(data?.projectsByStatus ?? []).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--background))",
-                    border: "1px solid hsl(var(--border))",
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+      <Suspense
+        fallback={
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Chargement des graphiques…</CardTitle>
+                <CardDescription>Préparation des visualisations</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80 animate-pulse rounded-md bg-muted" />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Chargement des graphiques…</CardTitle>
+                <CardDescription>Préparation des visualisations</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80 animate-pulse rounded-md bg-muted" />
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+        }
+      >
+        <AnalyticsCharts
+          leadsByMonth={leadsByMonth}
+          revenueByMonth={revenueByMonth}
+          leadsByStatus={leadsByStatus}
+          projectsByStatus={projectsByStatus}
+        />
+      </Suspense>
     </div>
   );
 }

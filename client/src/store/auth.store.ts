@@ -35,6 +35,7 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: "secritou-auth-storage",
-    }
-  )
+      partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
+    },
+  ),
 );

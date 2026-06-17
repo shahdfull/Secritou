@@ -2,11 +2,12 @@ import apiClient from "./axios";
 import type { Lead, CreateLeadInput, UpdateLeadInput } from "../types/lead";
 import type { ApiResponse } from "../types/auth";
 import type { Client } from "../types/client";
+import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 
 export const leadsApi = {
-  getAll: async (): Promise<Lead[]> => {
-    const response = await apiClient.get<ApiResponse<Lead[]>>("/leads");
-    return response.data.data;
+  getAll: async (params: ListQueryParams = {}): Promise<PaginatedResponse<Lead>> => {
+    const response = await apiClient.get<PaginatedResponse<Lead>>("/leads", { params });
+    return response.data;
   },
 
   getById: async (id: string): Promise<Lead> => {

@@ -4,14 +4,15 @@ import { validate } from "../middlewares/validate.middleware.js";
 import { createServiceRequestSchema, updateServiceRequestSchema } from "../validators/serviceRequest.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
+import { requireClientTenant, requireCompanyTenant } from "../middlewares/tenant.middleware.js";
 
 const router = Router();
 
 router.use(authenticate);
 
-router.get("/client", authorize("CLIENT"), getClientServiceRequests);
-router.post("/client", validate(createServiceRequestSchema), authorize("CLIENT"), createClientServiceRequest);
-router.get("/company", authorize("ADMIN"), getCompanyServiceRequests);
-router.put("/:id", validate(updateServiceRequestSchema), authorize("ADMIN"), updateServiceRequest);
+router.get("/client", authorize("CLIENT"), requireClientTenant(), getClientServiceRequests);
+router.post("/client", authorize("CLIENT"), requireClientTenant(), validate(createServiceRequestSchema), createClientServiceRequest);
+router.get("/company", authorize("ADMIN"), requireCompanyTenant(), getCompanyServiceRequests);
+router.put("/:id", authorize("ADMIN"), requireCompanyTenant(), validate(updateServiceRequestSchema), updateServiceRequest);
 
 export default router;

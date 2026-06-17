@@ -5,12 +5,15 @@ import type {
   CreateFreelancerProfileInput,
   UpdateFreelancerProfileInput,
 } from "../types/freelancer";
+import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 import { toast } from "sonner";
 
-export function useFreelancers() {
-  return useQuery<FreelancerProfile[]>({
-    queryKey: ["freelancers"],
-    queryFn: () => freelancersApi.getAll(),
+export function useFreelancers(params: ListQueryParams = {}) {
+  return useQuery<PaginatedResponse<FreelancerProfile>>({
+    queryKey: ["freelancers", params],
+    queryFn: () => freelancersApi.getAll(params),
+    placeholderData: (prev) => prev,
+    staleTime: 60_000,
   });
 }
 
@@ -19,6 +22,7 @@ export function useFreelancer(id: string) {
     queryKey: ["freelancer", id],
     queryFn: () => freelancersApi.getById(id),
     enabled: !!id,
+    staleTime: 60_000,
   });
 }
 

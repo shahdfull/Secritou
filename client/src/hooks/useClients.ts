@@ -1,12 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { clientsApi } from "../api/clients.api";
 import type { Client, CreateClientInput, UpdateClientInput } from "../types/client";
+import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 import { toast } from "sonner";
+import i18n from "@/i18n";
 
-export function useClients() {
-  return useQuery<Client[]>({
-    queryKey: ["clients"],
-    queryFn: () => clientsApi.getAll(),
+export function useClients(params: ListQueryParams = {}) {
+  return useQuery<PaginatedResponse<Client>>({
+    queryKey: ["clients", params],
+    queryFn: () => clientsApi.getAll(params),
+    placeholderData: (prev) => prev,
+    staleTime: 60_000,
   });
 }
 
@@ -15,6 +19,7 @@ export function useClient(id: string) {
     queryKey: ["client", id],
     queryFn: () => clientsApi.getById(id),
     enabled: !!id,
+    staleTime: 60_000,
   });
 }
 
@@ -25,7 +30,7 @@ export function useCreateClient() {
     mutationFn: (data) => clientsApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
-      toast.success("Client created successfully");
+      toast.success(i18n.t("toasts.clientCreated"));
     },
   });
 }
@@ -38,7 +43,7 @@ export function useUpdateClient() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       queryClient.invalidateQueries({ queryKey: ["client", data.id] });
-      toast.success("Client updated successfully");
+      toast.success(i18n.t("toasts.clientUpdated"));
     },
   });
 }
@@ -50,7 +55,7 @@ export function useDeleteClient() {
     mutationFn: (id) => clientsApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
-      toast.success("Client deleted successfully");
+      toast.success(i18n.t("toasts.clientDeleted"));
     },
   });
 }

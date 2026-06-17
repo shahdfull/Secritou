@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState, type CSSProperties } from "react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragOverlay, DragStartEvent, DragEndEvent } from "@dnd-kit/core";
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useLeads, useUpdateLeadStatus } from "@/hooks/useLeads";
+import { useUpdateLeadStatus } from "@/hooks/useLeads";
 import type { Lead } from "@/types/lead";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 interface StatusConfig {
   label: string;
@@ -71,12 +72,21 @@ function SortableLeadCard({ lead }: SortableLeadCardProps) {
 interface KanbanColumnProps {
   status: Lead["status"];
   leads: Lead[];
+  isDragging: boolean;
 }
 
-function KanbanColumn({ status, leads }: KanbanColumnProps) {
+function KanbanColumn({ status, leads, isDragging }: KanbanColumnProps) {
   const config = STATUS_CONFIG[status];
-  const ids = leads.map((lead) => lead.id);
+  const ids = useMemo(() => leads.map((lead) => lead.id), [leads]);
   const columnBg = status === "WON" ? "bg-green-50/50" : status === "LOST" ? "bg-red-50/50" : "bg-card";
+  const parentRef = useRef<HTMLDivElement | null>(null);
+  const shouldVirtualize = !isDragging && leads.length > 40;
+  const virtualizer = useVirtualizer({
+    count: leads.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 92,
+    overscan: 10,
+  });
 
   return (
     <div className="flex-1 min-w-[280px] max-w-[320px]">
@@ -86,18 +96,48 @@ function KanbanColumn({ status, leads }: KanbanColumnProps) {
           {leads.length}
         </span>
       </div>
-      <div className={`p-2 min-h-[400px] rounded-b-lg border border-t-0 space-y-2 ${columnBg}`}>
+      <div
+        ref={parentRef}
+        className={`p-2 min-h-[400px] max-h-[70vh] overflow-auto rounded-b-lg border border-t-0 ${columnBg}`}
+        style={{ contentVisibility: "auto" } as CSSProperties}
+      >
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-          {leads.map((lead) => (
-            <SortableLeadCard key={lead.id} lead={lead} />
-          ))}
+          {shouldVirtualize ? (
+            <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+              {virtualizer.getVirtualItems().map((virtualRow) => {
+                const lead = leads[virtualRow.index];
+                if (!lead) return null;
+                return (
+                  <div
+                    key={lead.id}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                    className="pb-2"
+                  >
+                    <SortableLeadCard lead={lead} />
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {leads.map((lead) => (
+                <SortableLeadCard key={lead.id} lead={lead} />
+              ))}
+            </div>
+          )}
         </SortableContext>
       </div>
     </div>
   );
 }
 
-export function LeadsKanban({ filteredLeads }: { filteredLeads: Lead[] }) {
+export const LeadsKanban = memo(function LeadsKanban({ filteredLeads }: { filteredLeads: Lead[] }) {
   const queryClient = useQueryClient();
   const { mutate: updateLeadStatus } = useUpdateLeadStatus();
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -107,7 +147,7 @@ export function LeadsKanban({ filteredLeads }: { filteredLeads: Lead[] }) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const groupLeadsByStatus = () => {
+  const { groupedLeads, leadIdToStatus } = useMemo(() => {
     const groups: Record<Lead["status"], Lead[]> = {
       NEW: [],
       CONTACTED: [],
@@ -116,35 +156,26 @@ export function LeadsKanban({ filteredLeads }: { filteredLeads: Lead[] }) {
       WON: [],
       LOST: [],
     };
-    filteredLeads.forEach((lead) => {
+    const map = new Map<string, Lead["status"]>();
+    for (const lead of filteredLeads) {
       groups[lead.status].push(lead);
-    });
-    return groups;
-  };
-
-  const groupedLeads = groupLeadsByStatus();
-
-  const getStatusFromId = (id: string) => {
-    for (const status of COLUMN_STATUSES) {
-      if (groupedLeads[status].some((lead) => lead.id === id)) {
-        return status;
-      }
+      map.set(lead.id, lead.status);
     }
-    return null;
-  };
+    return { groupedLeads: groups, leadIdToStatus: map };
+  }, [filteredLeads]);
 
-  const handleDragStart = (event: DragStartEvent) => {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id as string);
-  };
+  }, []);
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
 
     const activeId = active.id as string;
-    const activeStatus = getStatusFromId(activeId);
+    const activeStatus = leadIdToStatus.get(activeId) ?? null;
     const overId = over.id as string;
-    let overStatus = getStatusFromId(overId);
+    let overStatus = leadIdToStatus.get(overId) ?? null;
 
     if (!activeStatus) return;
 
@@ -155,13 +186,31 @@ export function LeadsKanban({ filteredLeads }: { filteredLeads: Lead[] }) {
     if (!overStatus) return;
 
     if (activeStatus !== overStatus) {
-      const originalLeads = queryClient.getQueryData<Lead[]>(["leads"]);
-
       // Optimistic update
-      queryClient.setQueryData<Lead[]>(["leads"], (oldLeads) =>
-        oldLeads?.map((lead) =>
-          lead.id === activeId ? { ...lead, status: overStatus } : lead
-        )
+      const snapshots = queryClient.getQueriesData({ queryKey: ["leads"], exact: false });
+      queryClient.setQueriesData(
+        { queryKey: ["leads"], exact: false },
+        (old: unknown) => {
+          if (!old) return old;
+          if (Array.isArray(old)) {
+            return old.map((lead) => (lead?.id === activeId ? { ...lead, status: overStatus } : lead));
+          }
+          if (typeof old === "object" && old !== null && "data" in old) {
+            const o = old as { data?: unknown };
+            if (Array.isArray(o.data)) {
+              return {
+                ...(old as object),
+                data: o.data.map((lead) => {
+                  if (typeof lead === "object" && lead !== null && "id" in lead && (lead as { id?: unknown }).id === activeId) {
+                    return { ...(lead as object), status: overStatus };
+                  }
+                  return lead;
+                }),
+              };
+            }
+          }
+          return old;
+        }
       );
 
       updateLeadStatus(
@@ -169,7 +218,9 @@ export function LeadsKanban({ filteredLeads }: { filteredLeads: Lead[] }) {
         {
           onError: () => {
             // Rollback
-            queryClient.setQueryData(["leads"], originalLeads);
+            for (const [key, data] of snapshots) {
+              queryClient.setQueryData(key, data);
+            }
             toast.error("Failed to update lead status");
           },
         }
@@ -177,9 +228,12 @@ export function LeadsKanban({ filteredLeads }: { filteredLeads: Lead[] }) {
     }
 
     setActiveId(null);
-  };
+  }, [leadIdToStatus, queryClient, updateLeadStatus]);
 
-  const activeLead = activeId ? filteredLeads.find((lead) => lead.id === activeId) : null;
+  const activeLead = useMemo(
+    () => (activeId ? filteredLeads.find((lead) => lead.id === activeId) ?? null : null),
+    [activeId, filteredLeads]
+  );
 
   return (
     <div className="overflow-x-auto pb-4">
@@ -195,6 +249,7 @@ export function LeadsKanban({ filteredLeads }: { filteredLeads: Lead[] }) {
               key={status}
               status={status}
               leads={groupedLeads[status]}
+              isDragging={!!activeId}
             />
           ))}
         </div>
@@ -219,4 +274,4 @@ export function LeadsKanban({ filteredLeads }: { filteredLeads: Lead[] }) {
       </DndContext>
     </div>
   );
-}
+});

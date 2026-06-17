@@ -2,11 +2,13 @@
 import type { RequestHandler } from "express";
 import { freelancerService } from "../services/freelancer.service.js";
 import { missionService } from "../services/mission.service.js";
+import { parseListQuery } from "../utils/listQuery.js";
 
 export const getPublicFreelancers: RequestHandler = async (req, res, next) => {
   try {
-    const freelancers = await freelancerService.getPublicProfiles();
-    res.json({ data: freelancers });
+    const options = parseListQuery(req.query as Record<string, unknown>);
+    const result = await freelancerService.getPublicProfiles(options);
+    res.json(result);
   } catch (error) {
     next(error);
   }
@@ -69,12 +71,41 @@ export const getMissions: RequestHandler = async (req, res, next) => {
     const userId = req.user?.sub!;
     const userRole = req.user?.role!;
     const companyId = req.user?.companyId ?? undefined;
-    const missions = await missionService.getMissionsForUser(
+    const options = parseListQuery(req.query as Record<string, unknown>);
+    const result = await missionService.getMissionsForUser(
       userId,
       userRole,
+      companyId,
+      options
+    );
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMissionApplications: RequestHandler = async (req, res, next) => {
+  try {
+    const companyId = req.user?.companyId!;
+    const applications = await missionService.getMissionApplications(
+      req.params.id as string,
       companyId
     );
-    res.json({ data: missions });
+    res.json({ data: applications });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateApplicationStatus: RequestHandler = async (req, res, next) => {
+  try {
+    const companyId = req.user?.companyId!;
+    const application = await missionService.updateApplicationStatus(
+      req.params.applicationId as string,
+      req.body.status,
+      companyId
+    );
+    res.json({ data: application });
   } catch (error) {
     next(error);
   }

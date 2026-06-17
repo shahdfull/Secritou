@@ -5,12 +5,15 @@ import type {
   CreateMissionInput,
   UpdateMissionInput,
 } from "../types/freelancer";
+import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 import { toast } from "sonner";
+import i18n from "@/i18n";
 
-export function useMissions() {
-  return useQuery<FreelancerMission[]>({
-    queryKey: ["missions"],
-    queryFn: () => missionsApi.getAll(),
+export function useMissions(params: ListQueryParams = {}) {
+  return useQuery<PaginatedResponse<FreelancerMission>>({
+    queryKey: ["missions", params],
+    queryFn: () => missionsApi.getAll(params),
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -25,7 +28,7 @@ export function useCreateMission() {
     mutationFn: (data) => missionsApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["missions"] });
-      toast.success("Mission créée");
+      toast.success(i18n.t("toasts.missionCreated"));
     },
   });
 }
@@ -39,9 +42,9 @@ export function useUpdateMission() {
     { id: string; data: UpdateMissionInput }
   >({
     mutationFn: ({ id, data }) => missionsApi.update(id, data),
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["missions"] });
-      toast.success("Mission mise à jour");
+      toast.success(i18n.t("toasts.missionUpdated"));
     },
   });
 }
@@ -50,14 +53,14 @@ export function useApplyToMission() {
   const queryClient = useQueryClient();
 
   return useMutation<
-    FreelancerMission,
+    unknown,
     Error,
     string
   >({
     mutationFn: (id) => missionsApi.apply(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["missions"] });
-      toast.success("Candidature envoyée");
+      toast.success(i18n.t("toasts.missionApplied"));
     },
   });
 }
@@ -69,7 +72,7 @@ export function useDeleteMission() {
     mutationFn: (id) => missionsApi.remove(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["missions"] });
-      toast.success("Mission supprimée");
+      toast.success(i18n.t("toasts.missionDeleted"));
     },
   });
 }

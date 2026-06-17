@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo, useCallback } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -8,19 +8,43 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { LogOut, Briefcase, MessageSquare, User } from "lucide-react";
 import logoAsset from "@/assets/secritou-logo.png";
 import { Link } from "react-router-dom";
+import { NotificationBell } from "@/components/NotificationBell";
+import { routePrefetch } from "@/routes/routePrefetch";
 
-export function ClientLayout() {
+const NAV_ITEMS = [
+  { title: "Mes projets", to: "/client/projects", icon: Briefcase },
+  { title: "Mes demandes", to: "/client/requests", icon: MessageSquare },
+  { title: "Mon profil", to: "/client/profile", icon: User },
+] as const;
+
+export const ClientLayout = memo(function ClientLayout() {
   const user = useAuthStore((state) => state.user);
   const { mutate: logout, isPending } = useLogout();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     logout(undefined, {
       onSuccess: () => {
         navigate("/");
       },
     });
-  };
+  }, [logout, navigate]);
+
+  const handlePrefetch = useCallback((to: string) => {
+    switch (to) {
+      case "/client/projects":
+        routePrefetch.clientProjects();
+        break;
+      case "/client/requests":
+        routePrefetch.clientRequests();
+        break;
+      case "/client/profile":
+        routePrefetch.clientProfile();
+        break;
+      default:
+        break;
+    }
+  }, []);
 
   const initials = user?.name
     ? user.name
@@ -31,24 +55,6 @@ export function ClientLayout() {
         .slice(0, 2)
     : "U";
 
-  const navItems = [
-    {
-      title: "Mes projets",
-      to: "/client/projects",
-      icon: Briefcase,
-    },
-    {
-      title: "Mes demandes",
-      to: "/client/requests",
-      icon: MessageSquare,
-    },
-    {
-      title: "Mon profil",
-      to: "/client/profile",
-      icon: User,
-    },
-  ];
-
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background px-6">
@@ -58,11 +64,12 @@ export function ClientLayout() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-1">
-          {navItems.map((item) => (
+          {NAV_ITEMS.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.to === "/client"}
+              onMouseEnter={() => handlePrefetch(item.to)}
+              onFocus={() => handlePrefetch(item.to)}
               className={({ isActive }) =>
                 isActive
                   ? "px-4 py-2 text-sm font-semibold text-ink rounded-full bg-primary/10"
@@ -75,6 +82,7 @@ export function ClientLayout() {
         </nav>
 
         <div className="flex items-center gap-4">
+          <NotificationBell />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full">
@@ -103,4 +111,4 @@ export function ClientLayout() {
       </main>
     </div>
   );
-}
+});

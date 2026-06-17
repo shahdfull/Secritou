@@ -1,11 +1,12 @@
 import apiClient from "./axios";
 import type { Project, CreateProjectInput, UpdateProjectInput } from "../types/project";
 import type { ApiResponse } from "../types/auth";
+import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 
 export const projectsApi = {
-  getAll: async (): Promise<Project[]> => {
-    const response = await apiClient.get<ApiResponse<Project[]>>("/projects");
-    return response.data.data;
+  getAll: async (params: ListQueryParams = {}): Promise<PaginatedResponse<Project>> => {
+    const response = await apiClient.get<PaginatedResponse<Project>>("/projects", { params });
+    return response.data;
   },
 
   getById: async (id: string): Promise<Project> => {

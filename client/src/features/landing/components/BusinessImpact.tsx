@@ -1,55 +1,60 @@
-import { TrendingUp, Zap, Target, BarChart3, ArrowUpRight } from "lucide-react";
+﻿import { TrendingUp, Zap, Target, BarChart3 } from "lucide-react";
 import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 
 const businessImpactItems = [
   {
     icon: TrendingUp,
-    title: "Better Visibility",
-    description: "Full transparency into all key metrics and performance in one centralized dashboard.",
+    titleKey: "businessImpact.items.visibility.title",
+    descriptionKey: "businessImpact.items.visibility.description",
     metric: "+42%",
-    label: "Improved visibility",
+    labelKey: "businessImpact.items.visibility.label",
   },
   {
     icon: Zap,
-    title: "Faster Decision Making",
-    description: "Real-time insights that cut decision time in half.",
+    titleKey: "businessImpact.items.speed.title",
+    descriptionKey: "businessImpact.items.speed.description",
     metric: "-50%",
-    label: "Decision speed",
+    labelKey: "businessImpact.items.speed.label",
   },
   {
     icon: Target,
-    title: "Increased Productivity",
-    description: "Automated workflows free up your team to focus on high-impact work.",
+    titleKey: "businessImpact.items.productivity.title",
+    descriptionKey: "businessImpact.items.productivity.description",
     metric: "+35%",
-    label: "Productivity gain",
+    labelKey: "businessImpact.items.productivity.label",
   },
   {
     icon: BarChart3,
-    title: "Growth Tracking",
-    description: "Track, forecast, and optimize growth with clear KPIs.",
+    titleKey: "businessImpact.items.growth.title",
+    descriptionKey: "businessImpact.items.growth.description",
     metric: "+68%",
-    label: "Growth accuracy",
+    labelKey: "businessImpact.items.growth.label",
   },
 ];
 
 export function BusinessImpact() {
+  const { t } = useTranslation();
+
   return (
     <section className="bg-background py-20 sm:py-28">
       <div className="container-page">
-        <div className="text-center max-w-2xl mx-auto mb-12">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Business Impact</p>
+        <div className="mx-auto mb-12 max-w-2xl text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+            {t("businessImpact.subtitle")}
+          </p>
           <h2 className="mt-3 font-display text-3xl font-bold text-ink sm:text-4xl lg:text-5xl">
-            Measurable outcomes you can trust
+            {t("businessImpact.title")}
           </h2>
           <p className="mt-5 text-base text-muted-foreground sm:text-lg">
-            See exactly how our platform drives real growth for your business.
+            {t("businessImpact.description")}
           </p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {businessImpactItems.map((item, index) => (
             <motion.div
-              key={item.title}
+              key={item.titleKey}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-60px" }}
@@ -62,11 +67,11 @@ export function BusinessImpact() {
                 </div>
                 <div className="text-right">
                   <p className="font-display text-xl font-bold text-primary">{item.metric}</p>
-                  <p className="text-xs text-muted-foreground">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{t(item.labelKey)}</p>
                 </div>
               </div>
-              <h3 className="mt-4 font-display text-lg font-bold text-ink">{item.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.description}</p>
+              <h3 className="mt-4 font-display text-lg font-bold text-ink">{t(item.titleKey)}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{t(item.descriptionKey)}</p>
             </motion.div>
           ))}
         </div>

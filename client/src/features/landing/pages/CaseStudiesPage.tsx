@@ -1,4 +1,4 @@
-import { ArrowUpRight } from "lucide-react";
+﻿import { ArrowUpRight } from "lucide-react";
 import { FinalCTA } from "@/features/landing/components/FinalCTA";
 import { useTranslation } from "react-i18next";
 

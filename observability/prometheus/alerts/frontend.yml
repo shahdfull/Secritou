@@ -1,0 +1,95 @@
+groups:
+  - name: web_vitals
+    rules:
+      - alert: PoorLCP
+        expr: |
+          histogram_quantile(0.75,
+            sum(rate(web_vital_value_bucket{name="LCP"}[10m])) by (le, route)
+          ) > 2500
+        for: 10m
+        labels:
+          severity: warning
+          team: frontend
+        annotations:
+          summary: "LCP dégradé (p75 > 2.5s)"
+          description: "La route {{ $labels.route }} a un LCP médiocre. Les utilisateurs perçoivent un chargement lent."
+
+      - alert: CriticalLCP
+        expr: |
+          histogram_quantile(0.75,
+            sum(rate(web_vital_value_bucket{name="LCP"}[10m])) by (le, route)
+          ) > 4000
+        for: 5m
+        labels:
+          severity: critical
+          team: frontend
+        annotations:
+          summary: "LCP critique (p75 > 4s)"
+          description: "Expérience utilisateur fortement dégradée sur {{ $labels.route }}."
+
+      - alert: PoorINP
+        expr: |
+          histogram_quantile(0.75,
+            sum(rate(web_vital_value_bucket{name="INP"}[10m])) by (le, route)
+          ) > 200
+        for: 10m
+        labels:
+          severity: warning
+          team: frontend
+        annotations:
+          summary: "INP dégradé (p75 > 200ms)"
+          description: "Les interactions sur {{ $labels.route }} sont lentes."
+
+      - alert: CriticalINP
+        expr: |
+          histogram_quantile(0.75,
+            sum(rate(web_vital_value_bucket{name="INP"}[10m])) by (le, route)
+          ) > 500
+        for: 5m
+        labels:
+          severity: critical
+          team: frontend
+        annotations:
+          summary: "INP critique (p75 > 500ms)"
+          description: "Réactivité très dégradée sur {{ $labels.route }}."
+
+      - alert: PoorCLS
+        expr: |
+          histogram_quantile(0.75,
+            sum(rate(web_vital_value_bucket{name="CLS"}[10m])) by (le, route)
+          ) > 100
+        for: 10m
+        labels:
+          severity: warning
+          team: frontend
+        annotations:
+          summary: "CLS dégradé (p75 > 0.1)"
+          description: "Décalages de mise en page sur {{ $labels.route }}."
+
+      - alert: PoorTTFB
+        expr: |
+          histogram_quantile(0.75,
+            sum(rate(web_vital_value_bucket{name="TTFB"}[10m])) by (le, route)
+          ) > 800
+        for: 10m
+        labels:
+          severity: warning
+          team: frontend
+        annotations:
+          summary: "TTFB dégradé (p75 > 800ms)"
+          description: "Le serveur met trop de temps à répondre pour {{ $labels.route }}."
+
+      - alert: WebVitalsPoorRatio
+        expr: |
+          (
+            sum(rate(web_vitals_total{rating="poor"}[15m])) by (name)
+            /
+            sum(rate(web_vitals_total[15m])) by (name)
+          ) > 0.25
+        for: 15m
+        labels:
+          severity: warning
+          team: frontend
+        annotations:
+          summary: "> 25% des Web Vitals {{ $labels.name }} sont 'poor'"
+          description: "Dégradation perceptible avant que les utilisateurs ne signalent le problème."

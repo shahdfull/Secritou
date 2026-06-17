@@ -37,7 +37,8 @@ const statusOrder = ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED"];
 
 export function ProjectsClientPage() {
   const { t } = useTranslation();
-  const { data: projects, isLoading } = useProjects();
+  const { data: projectsResult, isLoading } = useProjects({ page: 1, pageSize: 100 });
+  const projects = projectsResult?.data ?? [];
 
   if (isLoading) {
     return (
@@ -53,9 +54,7 @@ export function ProjectsClientPage() {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {projects?.map((project) => {
-          const totalTasks = project.tasks?.length || 0;
-          const completedTasks = project.tasks?.filter((task) => task.status === "DONE").length || 0;
-          const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+          const progress = project.progress ?? 0;
 
           return (
             <Card key={project.id} className="rounded-3xl border border-border shadow-soft">
@@ -99,7 +98,7 @@ export function ProjectsClientPage() {
                 </div>
 
                 <div className="mt-4 text-sm text-muted-foreground">
-                  {totalTasks} tâches • {completedTasks} terminées
+                  Progression globale : {progress}%
                 </div>
               </CardContent>
             </Card>

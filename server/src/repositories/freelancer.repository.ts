@@ -1,33 +1,65 @@
 // Freelancer Repository - Data access layer
-import { prisma } from "../config/prisma.js";
-import type { FreelancerProfile, Skill } from "@prisma/client";
+import { prisma, prismaRead } from "../config/prisma.js";
+import type { FreelancerProfile, Skill, PortfolioItem } from "@prisma/client";
+import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
+
+type FreelancerWithRelations = FreelancerProfile & {
+  user: { id: string; name: string; email: string };
+  skills: Skill[];
+  portfolio?: PortfolioItem[];
+};
+
+function buildOrderBy(orderBy: string | undefined, orderDir: "asc" | "desc") {
+  if (orderBy === "name") {
+    return { user: { name: orderDir } };
+  }
+  if (orderBy === "email") {
+    return { user: { email: orderDir } };
+  }
+  const allowed = ["hourlyRate", "createdAt"];
+  const field = orderBy && allowed.includes(orderBy) ? orderBy : "createdAt";
+  return { [field]: orderDir };
+}
 
 export const freelancerRepository = {
-  async findAllPublic(): Promise<(FreelancerProfile & { user: { id: string; name: string; email: string }; skills: Skill[] })[]> {
-    return prisma.freelancerProfile.findMany({
-      include: {
-        user: { select: { id: true, name: true, email: true } },
-        skills: true,
-      },
-    });
+  async findAllPublic(options: ListQueryOptions): Promise<PaginatedResult<FreelancerWithRelations>> {
+    const skip = (options.page - 1) * options.pageSize;
+    const orderBy = buildOrderBy(options.orderBy, options.orderDir);
+
+    const [data, total] = await Promise.all([
+      prismaRead.freelancerProfile.findMany({
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          skills: true,
+        },
+        orderBy,
+        skip,
+        take: options.pageSize,
+      }),
+      prismaRead.freelancerProfile.count(),
+    ]);
+
+    return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(id: string): Promise<(FreelancerProfile & { user: { id: string; name: string; email: string }; skills: Skill[] }) | null> {
-    return prisma.freelancerProfile.findUnique({
+  async findById(id: string): Promise<FreelancerWithRelations | null> {
+    return prismaRead.freelancerProfile.findUnique({
       where: { id },
       include: {
         user: { select: { id: true, name: true, email: true } },
         skills: true,
+        portfolio: true,
       },
     });
   },
 
-  async findByUserId(userId: string): Promise<(FreelancerProfile & { user: { id: string; name: string; email: string }; skills: Skill[] }) | null> {
-    return prisma.freelancerProfile.findUnique({
+  async findByUserId(userId: string): Promise<FreelancerWithRelations | null> {
+    return prismaRead.freelancerProfile.findUnique({
       where: { userId },
       include: {
         user: { select: { id: true, name: true, email: true } },
         skills: true,
+        portfolio: true,
       },
     });
   },
@@ -60,7 +92,7 @@ export const freelancerRepository = {
       skillIds?: string[];
     }
   ): Promise<FreelancerProfile & { skills: Skill[] }> {
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       bio: data.bio,
       hourlyRate: data.hourlyRate ? String(data.hourlyRate) : undefined,
       availability: data.availability,

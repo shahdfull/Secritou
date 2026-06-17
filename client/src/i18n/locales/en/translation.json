@@ -30,7 +30,28 @@
     "validEmail": "Please enter a valid email",
     "passwordMinLength": "Password must be at least 6 characters",
     "nameMinLength": "Name must be at least 2 characters",
-    "companyNameMinLength": "Company name must be at least 2 characters"
+    "companyNameMinLength": "Company name must be at least 2 characters",
+    "passwordResetLinkSent": "Password reset link sent to your email",
+    "checkYourEmail": "Check your email",
+    "passwordResetSent": "If an account exists for that email, we've sent a link to reset your password.",
+    "backToLogin": "Back to sign in",
+    "resetPasswordInstructions": "Enter your email and we'll send you a link to reset your password.",
+    "sendResetLink": "Send reset link",
+    "rememberPassword": "Remember your password?",
+    "sending": "Sending...",
+    "passwordMismatch": "Passwords do not match",
+    "passwordResetSuccess": "Password reset successfully",
+    "invalidResetLink": "Invalid reset link",
+    "invalidResetLinkDesc": "This password reset link is invalid or has expired.",
+    "requestNewResetLink": "Request a new reset link",
+    "passwordReset": "Password reset",
+    "passwordResetDone": "Your password has been successfully reset.",
+    "signInWithNewPassword": "Sign in with your new password",
+    "setNewPassword": "Set new password",
+    "setNewPasswordInstructions": "Enter your new password.",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "resetting": "Resetting..."
   },
   "services": {
     "title": "One partner. Multiple growth solutions.",
@@ -259,7 +280,257 @@
     "dueDate": "Due Date",
     "selectPlaceholder": "Select...",
     "noDescription": "No description provided",
-    "areYouSureDelete": "Are you sure you want to delete {name}?"
+    "areYouSureDelete": "Are you sure you want to delete {name}?",
+    "actions": "Actions"
+  },
+  "toasts": {
+    "loginSuccess": "Logged in successfully",
+    "registrationSuccess": "Account created successfully",
+    "logoutSuccess": "Logged out successfully",
+    "sessionExpired": "Your session expired. Please sign in again.",
+    "genericError": "An error occurred",
+    "companyUpdated": "Company updated successfully",
+    "companySettingsSaved": "Company settings saved",
+    "clientCreated": "Client created successfully",
+    "clientUpdated": "Client updated successfully",
+    "clientDeleted": "Client deleted successfully",
+    "projectCreated": "Project created successfully",
+    "projectUpdated": "Project updated successfully",
+    "projectDeleted": "Project deleted successfully",
+    "taskCreated": "Task created successfully",
+    "taskUpdated": "Task updated successfully",
+    "taskDeleted": "Task deleted successfully",
+    "missionCreated": "Mission created successfully",
+    "missionUpdated": "Mission updated successfully",
+    "missionApplied": "Application submitted successfully",
+    "missionDeleted": "Mission deleted successfully",
+    "leadCreated": "Lead created successfully",
+    "leadUpdated": "Lead updated successfully",
+    "leadDeleted": "Lead deleted successfully",
+    "leadConverted": "Lead converted to client successfully",
+    "leadStatusUpdated": "Lead status updated successfully",
+    "userInvited": "User invited successfully",
+    "userUpdated": "User updated successfully",
+    "userDeleted": "User deleted successfully",
+    "notificationsMarkedRead": "All notifications marked as read",
+    "profileUpdated": "Profile updated successfully",
+    "passwordUpdated": "Password updated successfully",
+    "documentAdded": "Document added successfully"
+  },
+  "aiAssistant": {
+    "title": "AI Assistant",
+    "subtitle": "Ask about projects, leads, clients, and performance.",
+    "emptyTitle": "How can I help you today?",
+    "emptyExample": "Example: \"Which leads are qualified this week?\"",
+    "thinking": "Thinking...",
+    "placeholder": "Write your message...",
+    "send": "Send",
+    "errors": {
+      "unavailable": "Unable to contact the AI assistant. Please check the API key."
+    }
+  },
+  "notifications": {
+    "open": "Open notifications",
+    "title": "Notifications",
+    "markAllRead": "Mark all read",
+    "empty": "No notifications"
+  },
+  "joinUs": {
+    "title": "Join our team",
+    "subtitle": "Apply to join Secritou as a freelancer or manager.",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "role": "Profile type",
+    "rolePlaceholder": "Choose a profile",
+    "freelancer": "Freelancer",
+    "manager": "Manager",
+    "cv": "CV (PDF, max 10MB)",
+    "cvRequired": "CV is required",
+    "cvInvalid": "CV must be a PDF file with maximum 10MB",
+    "portfolio": "Portfolio (PDF or ZIP, max 20MB)",
+    "portfolioRequired": "Portfolio is required",
+    "portfolioInvalid": "Portfolio must be a PDF or ZIP file with maximum 20MB",
+    "bio": "Tell us about your experience",
+    "submit": "Submit application",
+    "success": "Your request has been sent successfully.",
+    "bioMinLength": "Please describe your experience in at least 20 characters."
+  },
+  "applications": {
+    "title": "Applications",
+    "subtitle": "Manage freelancer and manager applications.",
+    "empty": "No applications yet.",
+    "search": "Search applications...",
+    "filterByStatus": "Filter by status",
+    "allStatuses": "All statuses",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "position": "Position",
+    "date": "Date",
+    "status": "Status",
+    "cv": "CV",
+    "portfolio": "Portfolio",
+    "actions": "Actions",
+    "view": "View",
+    "downloadCv": "Download CV",
+    "downloadPortfolio": "Download Portfolio",
+    "accept": "Accept",
+    "reject": "Reject",
+    "statuses": {
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "rejected": "Rejected"
+    },
+    "rejectModal": {
+      "title": "Reject application",
+      "description": "Please provide a reason for rejection (this will create a Gmail draft).",
+      "reason": "Reason for rejection",
+      "reasonPlaceholder": "We have selected another profile...",
+      "cancel": "Cancel",
+      "confirm": "Reject"
+    },
+    "acceptModal": {
+      "title": "Accept application",
+      "description": "Create an account for this candidate (this will create a Gmail draft).",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "email": "Email",
+      "phone": "Phone",
+      "username": "Username",
+      "role": "Role",
+      "password": "Temporary password",
+      "copyPassword": "Copy password",
+      "cancel": "Cancel",
+      "confirm": "Accept and create account"
+    },
+    "rejected": "Application rejected successfully",
+    "accepted": "Application accepted and account created successfully"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "resetPassword": "Reset password",
+    "createAccount": "Create account",
+    "fullName": "Full name",
+    "companyName": "Company name",
+    "accessWorkspace": "Access your workspace, projects, reports and AI assistant.",
+    "getStarted": "Get started with your growth and digital transformation platform.",
+    "dontHaveAccount": "Don't have an account?",
+    "alreadyHaveAccount": "Already have an account?",
+    "signingIn": "Signing in...",
+    "creatingAccount": "Creating account...",
+    "validEmail": "Please enter a valid email",
+    "passwordMinLength": "Password must be at least 6 characters",
+    "nameMinLength": "Name must be at least 2 characters",
+    "companyNameMinLength": "Company name must be at least 2 characters",
+    "changePassword": "Change password",
+    "changePasswordRequired": "You must change your password before continuing.",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "passwordMismatch": "Passwords do not match",
+    "passwordChanged": "Password changed successfully"
+  },
+  "joinRequests": {
+    "title": "Join requests",
+    "description": "Review applications before creating an account for the candidate.",
+    "empty": "No join requests yet.",
+    "review": "Review",
+    "reviewTitle": "Review application",
+    "reviewDescription": "Edit the candidate details before creating the account.",
+    "role": "Account role",
+    "rolePlaceholder": "Choose a role",
+    "createAccount": "Create account",
+    "accountCreated": "Account created from the join request."
+  },
+  "dashboardHero": {
+    "browserUrl": "app.secritou.com / future",
+    "revenueTrend": "Revenue trend",
+    "last12Months": "Last 12 months",
+    "revenue": "Revenue",
+    "forecast": "Forecast",
+    "aiAssistant": "AI Assistant",
+    "youLabel": "You:",
+    "growthQuestion": "What's our top growth opportunity?",
+    "aiLabel": "Secritou AI:",
+    "growthAnswer": "Focus on email campaigns - they drive 42% of conversions!",
+    "joinWaitlist": "Join the Waitlist",
+    "futureVision": "Future Vision",
+    "comingSoon": "Coming Soon",
+    "kpis": {
+      "revenue": "Revenue",
+      "newLeads": "New Leads",
+      "conversion": "Conversion"
+    },
+    "features": {
+      "kpi": {
+        "title": "KPI Dashboard",
+        "description": "Real-time metrics, dashboards and objectives tracking in one place"
+      },
+      "ai": {
+        "title": "AI Assistant",
+        "description": "AI-powered chatbot that answers your business questions instantly"
+      },
+      "recommendations": {
+        "title": "Growth Recommendations",
+        "description": "Personalized, data-driven suggestions for growth"
+      },
+      "insights": {
+        "title": "Business Insights",
+        "description": "Deep analytics and actionable business intelligence"
+      },
+      "team": {
+        "title": "Team Performance",
+        "description": "Track and optimize your team's productivity"
+      }
+    }
+  },
+  "dashboardProduct": {
+    "browserUrl": "app.secritou.com / growth-os",
+    "workspace": "Workspace",
+    "header": "Overview · Last 30 days",
+    "title": "Your growth at a glance",
+    "period": "30D",
+    "live": "Live",
+    "revenueCustomers": "Revenue & customers",
+    "weekly": "Weekly",
+    "channelsTitle": "Acquisition channels",
+    "topAccounts": "Top accounts",
+    "updatedAgo": "Updated 2m ago",
+    "account": "Account",
+    "plan": "Plan",
+    "mrr": "MRR",
+    "health": "Health",
+    "nav": {
+      "overview": "Overview",
+      "analytics": "Analytics",
+      "customers": "Customers",
+      "automations": "Automations",
+      "settings": "Settings"
+    },
+    "kpis": {
+      "mrr": "MRR",
+      "activeCustomers": "Active customers",
+      "churn": "Churn",
+      "nps": "NPS"
+    },
+    "channels": {
+      "organic": "Organic",
+      "paid": "Paid",
+      "referral": "Referral",
+      "direct": "Direct"
+    },
+    "healthLabels": {
+      "healthy": "Healthy",
+      "atRisk": "At risk"
+    }
+  },
+  "futureProduct": {
+    "badge": "Future product vision",
+    "title": "The future operating system for growing businesses.",
+    "description": "Today we deliver this as a coordinated service. Tomorrow, it's a platform - your revenue, KPIs, marketing, tasks and automations, unified in one place."
   },
   "solutionsPage": {
     "title": "Built around who you are — and where you're going.",
@@ -402,9 +673,127 @@
     "phoneLabel": "Phone",
     "areYouSureDelete": "Are you sure you want to delete {name}?"
   },
+  "settings": {
+    "title": "Settings",
+    "description": "Configure your profile, company, users and appearance."
+  },
+  "settingsTabs": {
+    "profile": "Profile",
+    "company": "Company",
+    "users": "Users",
+    "requests": "Join requests",
+    "appearance": "Appearance"
+  },
   "settingsPage": {
     "title": "Settings",
     "description": "Configure your company, users, billing and access controls."
+  },
+  "solutionsTeaser": {
+    "subtitle": "Built around who you are",
+    "title": "Solutions for every stage.",
+    "seeAll": "See all solutions",
+    "explore": "Explore",
+    "segments": {
+      "smes": {
+        "tag": "For SMEs",
+        "title": "Run a tighter ship.",
+        "needs": {
+          "0": "Better management",
+          "1": "Better KPIs",
+          "2": "Better organization"
+        }
+      },
+      "entrepreneurs": {
+        "tag": "For Entrepreneurs",
+        "title": "Move faster, without burning out.",
+        "needs": {
+          "0": "Growth",
+          "1": "Automation",
+          "2": "Visibility"
+        }
+      },
+      "creators": {
+        "tag": "For Creators",
+        "title": "Turn audience into a real business.",
+        "needs": {
+          "0": "Revenue growth",
+          "1": "Brand development",
+          "2": "Performance tracking"
+        }
+      }
+    }
+  },
+  "differentiators": {
+    "subtitle": "What makes Secritou different",
+    "title": "More than a service provider.",
+    "items": {
+      "strategy": {
+        "title": "Strategy First",
+        "body": "We don't execute blindly. Every initiative starts with a clear thesis and a measurable outcome."
+      },
+      "data": {
+        "title": "Data Driven",
+        "body": "Every decision is measured. If we can't track it, we don't ship it."
+      },
+      "team": {
+        "title": "One Coordinated Team",
+        "body": "One partner instead of five vendors - strategy, marketing, tech and AI under one roof."
+      }
+    }
+  },
+  "businessImpact": {
+    "subtitle": "Business Impact",
+    "title": "Measurable outcomes you can trust",
+    "description": "See exactly how our platform drives real growth for your business.",
+    "items": {
+      "visibility": {
+        "title": "Better Visibility",
+        "description": "Full transparency into all key metrics and performance in one centralized dashboard.",
+        "label": "Improved visibility"
+      },
+      "speed": {
+        "title": "Faster Decision Making",
+        "description": "Real-time insights that cut decision time in half.",
+        "label": "Decision speed"
+      },
+      "productivity": {
+        "title": "Increased Productivity",
+        "description": "Automated workflows free up your team to focus on high-impact work.",
+        "label": "Productivity gain"
+      },
+      "growth": {
+        "title": "Growth Tracking",
+        "description": "Track, forecast, and optimize growth with clear KPIs.",
+        "label": "Growth accuracy"
+      }
+    }
+  },
+  "caseStudiesSection": {
+    "subtitle": "Case studies",
+    "title": "Results, not retainers.",
+    "seeAll": "All case studies",
+    "challenge": "Challenge",
+    "outcome": "Outcome",
+    "cases": {
+      "0": {
+        "industry": "Retail",
+        "challenge": "Disconnected ops across 4 locations and no real-time revenue view.",
+        "outcome": "Unified KPI dashboard, automated reporting, and a digital-first menu strategy.",
+        "metricLabel": "Revenue in 6 months"
+      },
+      "1": {
+        "industry": "Professional Services",
+        "challenge": "Strong portfolio, weak inbound - relying entirely on word of mouth.",
+        "outcome": "SEO foundation, content engine and paid acquisition tuned to high-intent buyers.",
+        "metricLabel": "Qualified leads / month"
+      },
+      "2": {
+        "industry": "Creator Economy",
+        "challenge": "Audience of 180k but revenue plateauing on a single sponsorship channel.",
+        "outcome": "Productized offers, automated funnels, and a creator-first analytics stack.",
+        "metricLabel": "New MRR in 90 days"
+      }
+    }
   },
   "clientPortal": {
     "nav": {
@@ -447,6 +836,151 @@
         "inProgress": "In Progress",
         "done": "Done"
       }
+    }
+  },
+  "onboarding": {
+    "title": "Client Onboarding",
+    "subtitle": "Guide your clients from contract signing to project launch.",
+    "welcome": {
+      "title": "Welcome!",
+      "subtitle": "We're excited to collaborate with you. We can't wait to start this project.",
+      "projectSummary": "Project Summary",
+      "assignedTo": "Assigned to",
+      "responseTime": "Average Response Time",
+      "nextSteps": "Next Steps",
+      "startOnboarding": "Start Onboarding"
+    },
+    "timeline": {
+      "title": "Onboarding Steps",
+      "stepConfirmed": "Project Confirmed",
+      "stepContract": "Contract",
+      "stepPayment": "Payment",
+      "stepQuestionnaire": "Questionnaire",
+      "stepSpecifications": "Specifications",
+      "stepKickoff": "Kickoff Meeting",
+      "stepProduction": "Production",
+      "stepDelivery": "Delivery",
+      "statuses": {
+        "pending": "Pending",
+        "inProgress": "In Progress",
+        "completed": "Completed",
+        "rejected": "Rejected"
+      }
+    },
+    "contract": {
+      "title": "Contract",
+      "subtitle": "Download and sign the contract to get started.",
+      "uploadContract": "Upload Contract",
+      "viewContract": "View Contract",
+      "downloadContract": "Download Contract",
+      "signContract": "Sign Contract",
+      "status": {
+        "pending": "Pending",
+        "signed": "Signed"
+      }
+    },
+    "payment": {
+      "title": "Payment",
+      "subtitle": "Pay your deposit or full amount.",
+      "amount": "Amount",
+      "amountPaid": "Amount Paid",
+      "deadline": "Deadline",
+      "status": {
+        "unpaid": "Unpaid",
+        "partial": "Partially Paid",
+        "paid": "Paid"
+      },
+      "payNow": "Pay Now"
+    },
+    "questionnaire": {
+      "title": "Questionnaire",
+      "subtitle": "Fill out the questionnaire to help us understand your needs.",
+      "saveDraft": "Save Draft",
+      "submit": "Submit Questionnaire",
+      "serviceType": "Service Type",
+      "services": {
+        "website": "Website",
+        "marketing": "Marketing",
+        "analytics": "Analytics"
+      },
+      "website": {
+        "companyName": "Company Name",
+        "logo": "Logo",
+        "colors": "Colors",
+        "references": "References",
+        "pages": "Desired Pages",
+        "documents": "Documents"
+      },
+      "marketing": {
+        "socialMedia": "Social Media",
+        "budget": "Budget",
+        "competitors": "Competitors",
+        "objectives": "Objectives"
+      },
+      "analytics": {
+        "kpis": "KPIs",
+        "tools": "Tools",
+        "dataSources": "Data Sources"
+      }
+    },
+    "specifications": {
+      "title": "Specifications",
+      "subtitle": "Review the specifications and give your approval.",
+      "requirements": "Requirements",
+      "objectives": "Objectives",
+      "features": "Features",
+      "deliverables": "Deliverables",
+      "timeline": "Timeline",
+      "feedback": "Change Requests",
+      "status": {
+        "pending": "Pending Approval",
+        "approved": "Approved",
+        "rejected": "Changes Requested"
+      },
+      "approve": "Approve",
+      "requestChanges": "Request Changes"
+    },
+    "kickoff": {
+      "title": "Kickoff Meeting",
+      "subtitle": "Get ready for our launch meeting.",
+      "meetingDate": "Meeting Date",
+      "participants": "Participants",
+      "meetingLink": "Meeting Link",
+      "joinMeeting": "Join Meeting"
+    },
+    "production": {
+      "title": "Production",
+      "subtitle": "Track real-time project progress.",
+      "analysis": "Analysis",
+      "design": "Design",
+      "development": "Development",
+      "testing": "Testing",
+      "deployment": "Deployment"
+    },
+    "delivery": {
+      "title": "Delivery",
+      "subtitle": "Get deliverables, documentation, and access.",
+      "deliverables": "Deliverables",
+      "documentation": "Documentation",
+      "accessDetails": "Access Details",
+      "userGuides": "User Guides",
+      "download": "Download"
+    },
+    "admin": {
+      "title": "Onboardings",
+      "subtitle": "Manage your client onboardings.",
+      "createOnboarding": "Create Onboarding",
+      "searchOnboardings": "Search onboardings...",
+      "empty": "No onboardings yet.",
+      "client": "Client",
+      "project": "Project",
+      "status": "Status",
+      "progress": "Progress",
+      "createdAt": "Created At",
+      "actions": "Actions",
+      "view": "View",
+      "edit": "Edit",
+      "delete": "Delete"
     }
   }
 }

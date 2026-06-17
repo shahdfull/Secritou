@@ -1,12 +1,14 @@
 // Lead Controller - HTTP request handlers
 import type { RequestHandler } from "express";
 import { leadService } from "../services/lead.service.js";
+import { parseListQuery } from "../utils/listQuery.js";
 
 export const getLeads: RequestHandler = async (req, res, next) => {
   try {
     const companyId = req.user?.companyId!;
-    const leads = await leadService.getLeads(companyId);
-    res.json({ data: leads });
+    const options = parseListQuery(req.query as Record<string, unknown>);
+    const result = await leadService.getLeads(companyId, options);
+    res.json(result);
   } catch (error) {
     next(error);
   }

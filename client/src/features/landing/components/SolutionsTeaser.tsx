@@ -1,46 +1,61 @@
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
 import { Building2, Compass, Mic2, ArrowRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const segments = [
   {
     icon: Building2,
-    tag: "For SMEs",
-    title: "Run a tighter ship.",
-    needs: ["Better management", "Better KPIs", "Better organization"],
+    tagKey: "solutionsTeaser.segments.smes.tag",
+    titleKey: "solutionsTeaser.segments.smes.title",
+    needsKeys: [
+      "solutionsTeaser.segments.smes.needs.0",
+      "solutionsTeaser.segments.smes.needs.1",
+      "solutionsTeaser.segments.smes.needs.2",
+    ],
   },
   {
     icon: Compass,
-    tag: "For Entrepreneurs",
-    title: "Move faster, without burning out.",
-    needs: ["Growth", "Automation", "Visibility"],
+    tagKey: "solutionsTeaser.segments.entrepreneurs.tag",
+    titleKey: "solutionsTeaser.segments.entrepreneurs.title",
+    needsKeys: [
+      "solutionsTeaser.segments.entrepreneurs.needs.0",
+      "solutionsTeaser.segments.entrepreneurs.needs.1",
+      "solutionsTeaser.segments.entrepreneurs.needs.2",
+    ],
   },
   {
     icon: Mic2,
-    tag: "For Creators",
-    title: "Turn audience into a real business.",
-    needs: ["Revenue growth", "Brand development", "Performance tracking"],
+    tagKey: "solutionsTeaser.segments.creators.tag",
+    titleKey: "solutionsTeaser.segments.creators.title",
+    needsKeys: [
+      "solutionsTeaser.segments.creators.needs.0",
+      "solutionsTeaser.segments.creators.needs.1",
+      "solutionsTeaser.segments.creators.needs.2",
+    ],
   },
 ];
 
 export function SolutionsTeaser() {
+  const { t } = useTranslation();
+
   return (
     <section className="bg-surface-warm/40 py-20 sm:py-28">
       <div className="container-page">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-              Built around who you are
+              {t("solutionsTeaser.subtitle")}
             </p>
             <h2 className="mt-3 font-display text-3xl font-bold text-ink sm:text-4xl lg:text-5xl">
-              Solutions for every stage.
+              {t("solutionsTeaser.title")}
             </h2>
           </div>
           <Link
             to="/solutions"
-            className="group inline-flex items-center gap-2 text-sm font-semibold text-ink"
-          >
-            See all solutions
+          className="group inline-flex items-center gap-2 text-sm font-semibold text-ink"
+        >
+            {t("solutionsTeaser.seeAll")}
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>
@@ -48,7 +63,7 @@ export function SolutionsTeaser() {
         <div className="mt-12 grid gap-4 lg:grid-cols-3">
           {segments.map((s, i) => (
             <motion.div
-              key={s.tag}
+              key={s.tagKey}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-60px" }}
@@ -59,16 +74,16 @@ export function SolutionsTeaser() {
                 <s.icon className="h-5 w-5" />
               </div>
               <p className="mt-5 text-xs font-semibold uppercase tracking-wider text-primary">
-                {s.tag}
+                {t(s.tagKey)}
               </p>
-              <h3 className="mt-2 font-display text-xl font-bold text-ink">{s.title}</h3>
+              <h3 className="mt-2 font-display text-xl font-bold text-ink">{t(s.titleKey)}</h3>
               <ul className="mt-5 space-y-2 text-sm text-ink">
-                {s.needs.map((n) => (
+                {s.needsKeys.map((n) => (
                   <li key={n} className="flex items-center gap-2">
                     <span className="grid h-4 w-4 place-items-center rounded-full bg-primary text-[9px] text-primary-foreground">
-                      ?
+                      ✓
                     </span>
-                    {n}
+                    {t(n)}
                   </li>
                 ))}
               </ul>
@@ -76,7 +91,7 @@ export function SolutionsTeaser() {
                 to="/solutions"
                 className="mt-7 inline-flex items-center gap-1.5 text-sm font-semibold text-ink hover:text-primary"
               >
-                Explore <ArrowRight className="h-4 w-4" />
+                {t("solutionsTeaser.explore")} <ArrowRight className="h-4 w-4" />
               </Link>
             </motion.div>
           ))}

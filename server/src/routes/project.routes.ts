@@ -4,11 +4,13 @@ import { validate } from "../middlewares/validate.middleware.js";
 import { createProjectSchema, updateProjectSchema } from "../validators/project.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
+import { requireCompanyTenant } from "../middlewares/tenant.middleware.js";
 
 const router = Router();
 
 // Apply auth middleware to all project routes
 router.use(authenticate);
+router.use(requireCompanyTenant());
 
 // Project routes
 router.get("/", getAllProjects);

@@ -1,40 +1,102 @@
 // Mission Repository - Data access layer
-import { prisma } from "../config/prisma.js";
+import { prismaRead as prisma } from "../config/prisma.js";
 import type { FreelancerMission } from "@prisma/client";
+import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
+import { buildOrderBy } from "../utils/listQuery.js";
+
+const SORTABLE_FIELDS = ["title", "status", "budget", "createdAt"];
+
+const missionCompanySelect = {
+  id: true,
+  name: true,
+} as const;
+
+const missionFreelancerSelect = {
+  id: true,
+  user: { select: { id: true, name: true, email: true } },
+} as const;
+
+const missionProjectSelect = {
+  id: true,
+  name: true,
+} as const;
+
+const missionListSelect = {
+  id: true,
+  title: true,
+  description: true,
+  budget: true,
+  status: true,
+  companyId: true,
+  freelancerId: true,
+  projectId: true,
+  createdAt: true,
+  updatedAt: true,
+  freelancer: { select: missionFreelancerSelect },
+  project: { select: missionProjectSelect },
+  _count: { select: { applications: true } },
+} as const;
+
+const missionPublicSelect = {
+  id: true,
+  title: true,
+  description: true,
+  budget: true,
+  status: true,
+  companyId: true,
+  freelancerId: true,
+  projectId: true,
+  createdAt: true,
+  updatedAt: true,
+  company: { select: missionCompanySelect },
+  freelancer: { select: missionFreelancerSelect },
+  project: { select: missionProjectSelect },
+  _count: { select: { applications: true } },
+} as const;
 
 export const missionRepository = {
-  async findAllByCompany(companyId: string): Promise<any[]> {
-    return prisma.freelancerMission.findMany({
-      where: { companyId },
-      include: {
-        freelancer: {
-          include: { user: { select: { id: true, name: true, email: true } } },
-        },
-        project: { select: { id: true, name: true } },
-      },
-    });
+  async findAllByCompany(companyId: string, options: ListQueryOptions): Promise<PaginatedResult<any>> {
+    const where = { companyId };
+    const skip = (options.page - 1) * options.pageSize;
+    const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
+
+    const [data, total] = await Promise.all([
+      prisma.freelancerMission.findMany({
+        where,
+        select: missionListSelect,
+        orderBy,
+        skip,
+        take: options.pageSize,
+      }),
+      prisma.freelancerMission.count({ where }),
+    ]);
+
+    return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findAllOpen(): Promise<any[]> {
-    return prisma.freelancerMission.findMany({
-      where: { status: "OPEN" },
-      include: {
-        company: { select: { id: true, name: true } },
-        project: { select: { id: true, name: true } },
-      },
-    });
+  async findAllOpen(options: ListQueryOptions): Promise<PaginatedResult<any>> {
+    const where = { status: "OPEN" as const };
+    const skip = (options.page - 1) * options.pageSize;
+    const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
+
+    const [data, total] = await Promise.all([
+      prisma.freelancerMission.findMany({
+        where,
+        select: missionPublicSelect,
+        orderBy,
+        skip,
+        take: options.pageSize,
+      }),
+      prisma.freelancerMission.count({ where }),
+    ]);
+
+    return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
   async findById(id: string): Promise<any | null> {
     return prisma.freelancerMission.findUnique({
       where: { id },
-      include: {
-        company: { select: { id: true, name: true } },
-        freelancer: {
-          include: { user: { select: { id: true, name: true, email: true } } },
-        },
-        project: { select: { id: true, name: true } },
-      },
+      select: missionPublicSelect,
     });
   },
 

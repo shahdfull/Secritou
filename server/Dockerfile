@@ -21,5 +21,5 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/server/dist ./dist
 COPY --from=build /app/server/prisma ./prisma
 COPY server/package.json ./package.json
-EXPOSE 4000
+EXPOSE 5000
 CMD ["node", "dist/index.js"]

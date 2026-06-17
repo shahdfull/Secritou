@@ -14,7 +14,7 @@ import {
   Trash2,
   Loader2,
 } from "lucide-react";
-import { useState } from "react";
+import { memo, useCallback, useDeferredValue, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -49,7 +49,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useTranslation } from "react-i18next";
+import { useListParams } from "@/hooks/useListParams";
+import { DataTablePagination } from "@/components/common/DataTablePagination";
 
 const createClientSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -66,19 +75,29 @@ export function ClientsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
 
-  const { data: clients, isLoading: clientsLoading } = useClients();
+  const { page, pageSize, orderBy, orderDir, params, setPage, updateParams } = useListParams(12);
+  const { data: clientsResult, isLoading: clientsLoading } = useClients(params);
+  const clients = clientsResult?.data ?? [];
+  const total = clientsResult?.total ?? 0;
   const { mutate: createClient, isPending: isCreating } = useCreateClient();
   const { mutate: updateClient, isPending: isUpdating } = useUpdateClient();
   const { mutate: deleteClient, isPending: isDeleting } = useDeleteClient();
 
-  const filteredClients = clients?.filter((client) =>
-    client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (client.email?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
-  ) || [];
+  const filteredClients = useMemo(() => {
+    const q = deferredSearchQuery.trim().toLowerCase();
+    if (!q) return clients;
+    return clients.filter((client) => {
+      return (
+        client.name.toLowerCase().includes(q) ||
+        (client.email?.toLowerCase().includes(q) ?? false)
+      );
+    });
+  }, [clients, deferredSearchQuery]);
 
   const createForm = useForm<CreateClientForm>({
     resolver: zodResolver(createClientSchema) as any,
@@ -93,22 +112,22 @@ export function ClientsPage() {
     resolver: zodResolver(updateClientSchema) as any,
   });
 
-  const handleCreate = async (data: CreateClientForm) => {
+  const handleCreate = useCallback(async (data: CreateClientForm) => {
     createClient(data, {
       onSuccess: () => {
         setCreateDialogOpen(false);
         createForm.reset();
       },
     });
-  };
+  }, [createClient, createForm]);
 
-  const handleEdit = (client: Client) => {
+  const handleEdit = useCallback((client: Client) => {
     setEditingClient(client);
     editForm.reset(client);
     setEditDialogOpen(true);
-  };
+  }, [editForm]);
 
-  const handleUpdate = async (data: UpdateClientForm) => {
+  const handleUpdate = useCallback(async (data: UpdateClientForm) => {
     if (!editingClient) return;
     updateClient(
       { id: editingClient.id, data },
@@ -119,13 +138,17 @@ export function ClientsPage() {
         },
       }
     );
-  };
+  }, [editingClient, updateClient]);
 
-  const handleDelete = (client: Client) => {
+  const handleDelete = useCallback((client: Client) => {
     if (confirm(`Are you sure you want to delete ${client.name}?`)) {
       deleteClient(client.id);
     }
-  };
+  }, [deleteClient]);
+
+  const handleOpenClient = useCallback((id: string) => {
+    navigate(`/app/clients/${id}`);
+  }, [navigate]);
 
   if (clientsLoading) {
     return (
@@ -207,22 +230,45 @@ export function ClientsPage() {
         </Dialog>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="search"
-          placeholder={t("clientsPage.searchClients")}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+      {/* Search & Sort */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative max-w-md flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder={t("clientsPage.searchClients")}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Select
+          value={`${orderBy ?? "createdAt"}-${orderDir}`}
+          onValueChange={(v) => {
+            const [col, dir] = v.split("-") as [string, "asc" | "desc"];
+            updateParams({ orderBy: col, orderDir: dir, page: 1 });
+          }}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Trier par" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="name-asc">Nom (A-Z)</SelectItem>
+            <SelectItem value="name-desc">Nom (Z-A)</SelectItem>
+            <SelectItem value="createdAt-desc">Plus récents</SelectItem>
+            <SelectItem value="createdAt-asc">Plus anciens</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Clients Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredClients.map((client) => (
-          <Card key={client.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate(`/app/clients/${client.id}`)}>
+          <Card
+            key={client.id}
+            className="hover:shadow-md transition-shadow cursor-pointer"
+            onClick={() => handleOpenClient(client.id)}
+          >
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div>
@@ -235,11 +281,23 @@ export function ClientsPage() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleEdit(client)}>
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(client);
+                      }}
+                    >
                       <Edit className="h-4 w-4 mr-2" />
                       {t("common.edit")}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDelete(client)} disabled={isDeleting} className="text-red-600">
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(client);
+                      }}
+                      disabled={isDeleting}
+                      className="text-red-600"
+                    >
                       <Trash2 className="h-4 w-4 mr-2" />
                       {t("common.delete")}
                     </DropdownMenuItem>
@@ -262,6 +320,8 @@ export function ClientsPage() {
           </Card>
         ))}
       </div>
+
+      <DataTablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} />
 
       {/* Edit Dialog */}
       {editingClient && (

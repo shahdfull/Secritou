@@ -1,12 +1,33 @@
 import type { RequestHandler } from "express";
 import { AuthService } from "../services/auth.service.js";
+import {
+  clearRefreshTokenCookie,
+  getRefreshTokenFromRequest,
+  setRefreshTokenCookie,
+} from "../utils/authCookies.js";
+import { cacheDel } from "../cache/cacheService.js";
+import { cacheKeys } from "../cache/cacheKeys.js";
 
 const authService = new AuthService();
+
+function sendAuthResponse(
+  res: Parameters<RequestHandler>[1],
+  data: Awaited<ReturnType<AuthService["login"]>>,
+  status = 200,
+) {
+  setRefreshTokenCookie(res, data.tokens.refreshToken);
+  res.status(status).json({
+    data: {
+      user: data.user,
+      tokens: { accessToken: data.tokens.accessToken },
+    },
+  });
+}
 
 export const register: RequestHandler = async (req, res, next) => {
   try {
     const data = await authService.register(req.body);
-    res.status(201).json({ data });
+    sendAuthResponse(res, data, 201);
   } catch (error) {
     next(error);
   }
@@ -15,7 +36,7 @@ export const register: RequestHandler = async (req, res, next) => {
 export const login: RequestHandler = async (req, res, next) => {
   try {
     const data = await authService.login(req.body);
-    res.json({ data });
+    sendAuthResponse(res, data);
   } catch (error) {
     next(error);
   }
@@ -23,9 +44,15 @@ export const login: RequestHandler = async (req, res, next) => {
 
 export const refresh: RequestHandler = async (req, res, next) => {
   try {
-    const data = await authService.refresh(req.body.refreshToken);
-    res.json({ data });
+    const refreshToken = getRefreshTokenFromRequest(req);
+    if (!refreshToken) {
+      res.status(401).json({ message: "Refresh token required" });
+      return;
+    }
+    const data = await authService.refresh(refreshToken);
+    sendAuthResponse(res, data);
   } catch (error) {
+    clearRefreshTokenCookie(res);
     next(error);
   }
 };
@@ -41,7 +68,14 @@ export const me: RequestHandler = async (req, res, next) => {
 
 export const logout: RequestHandler = async (req, res, next) => {
   try {
-    await authService.logout(req.body.refreshToken);
+    const refreshToken = getRefreshTokenFromRequest(req);
+    if (refreshToken) {
+      await authService.logout(refreshToken);
+    }
+    if (req.user?.sub) {
+      await cacheDel(cacheKeys.authMe(req.user.sub));
+    }
+    clearRefreshTokenCookie(res);
     res.status(204).send();
   } catch (error) {
     next(error);
@@ -51,7 +85,7 @@ export const logout: RequestHandler = async (req, res, next) => {
 export const forgotPassword: RequestHandler = async (req, res, next) => {
   try {
     await authService.requestPasswordReset(req.body.email);
-    res.json({ message: "Password reset email sent" });
+    res.json({ message: "If an account exists, a reset email has been sent" });
   } catch (error) {
     next(error);
   }
@@ -61,6 +95,19 @@ export const resetPassword: RequestHandler = async (req, res, next) => {
   try {
     await authService.resetPassword(req.body.token, req.body.newPassword);
     res.json({ message: "Password reset successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const changePassword: RequestHandler = async (req, res, next) => {
+  try {
+    await authService.changePassword(
+      req.user!.sub,
+      req.body.currentPassword,
+      req.body.newPassword
+    );
+    res.json({ message: "Password changed successfully" });
   } catch (error) {
     next(error);
   }

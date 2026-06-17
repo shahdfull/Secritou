@@ -2,14 +2,16 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: "ADMIN" | "CLIENT" | "FREELANCER";
+  role: "ADMIN" | "MANAGER" | "CLIENT" | "FREELANCER";
   companyId?: string;
   clientId?: string;
+  mustChangePassword?: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AuthTokens {
   accessToken: string;
-  refreshToken: string;
 }
 
 export interface LoginCredentials {

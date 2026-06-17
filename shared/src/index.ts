@@ -1,4 +1,4 @@
-export const roles = ["OWNER", "ADMIN", "MANAGER", "MEMBER", "VIEWER"] as const;
+export const roles = ["ADMIN", "MANAGER", "CLIENT", "FREELANCER"] as const;
 export type Role = (typeof roles)[number];
 
 export type ApiResponse<T> = {
@@ -8,7 +8,6 @@ export type ApiResponse<T> = {
 
 export type AuthTokens = {
   accessToken: string;
-  refreshToken: string;
 };
 
 export type AuthUser = {
@@ -17,4 +16,28 @@ export type AuthUser = {
   name: string;
   role: Role;
   companyId: string | null;
+  clientId: string | null;
+};
+
+export type ListQueryParams = {
+  page?: number;
+  pageSize?: number;
+  orderBy?: string;
+  orderDir?: "asc" | "desc";
+  search?: string;
+  status?: string;
+};
+
+export type PaginatedResponse<T> = {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export type DashboardSummary = {
+  totalLeads: number;
+  activeClients: number;
+  ongoingProjects: number;
+  completedTasks: number;
 };

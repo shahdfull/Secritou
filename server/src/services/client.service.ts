@@ -2,10 +2,11 @@
 import type { CreateClientDTO } from "../types/entities.js";
 import { clientRepository } from "../repositories/client.repository.js";
 import { HttpError } from "../utils/httpError.js";
+import type { ListQueryOptions } from "../utils/listQuery.js";
 
 export const clientService = {
-  async getClients(companyId: string) {
-    return clientRepository.findAll(companyId);
+  async getClients(companyId: string, options: ListQueryOptions) {
+    return clientRepository.findAll(companyId, options);
   },
 
   async getClient(id: string, companyId: string) {

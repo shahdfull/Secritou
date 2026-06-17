@@ -6,10 +6,11 @@ import type {
 import { freelancerRepository } from "../repositories/freelancer.repository.js";
 import { HttpError } from "../utils/httpError.js";
 import type { Role } from "@prisma/client";
+import type { ListQueryOptions } from "../utils/listQuery.js";
 
 export const freelancerService = {
-  async getPublicProfiles() {
-    return freelancerRepository.findAllPublic();
+  async getPublicProfiles(options: ListQueryOptions) {
+    return freelancerRepository.findAllPublic(options);
   },
 
   async getProfile(id: string) {
