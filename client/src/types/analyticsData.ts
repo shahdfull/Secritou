@@ -28,6 +28,11 @@ export interface MonthlyCount {
   count: number;
 }
 
+export interface MonthlyRevenue {
+  month: string;
+  revenue: number;
+}
+
 export interface ProjectStatusCount {
   status: string;
   count: number;
@@ -41,4 +46,5 @@ export interface AnalyticsSummary {
   tasks: TaskStats;
   leadsByMonth: MonthlyCount[];
   projectsByStatus: ProjectStatusCount[];
+  revenueByMonth: MonthlyRevenue[];
 }
