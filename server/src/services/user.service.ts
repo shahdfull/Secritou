@@ -1,0 +1,65 @@
+import { userRepository } from "../repositories/user.repository.js";
+import { HttpError } from "../utils/httpError.js";
+import type { Role } from "@prisma/client";
+import type { ListQueryOptions } from "../utils/listQuery.js";
+import bcrypt from "bcryptjs";
+
+function generateRandomPassword() {
+  return Math.random().toString(36).slice(-12);
+}
+
+export const userService = {
+  async getUsersByCompany(companyId: string, options: ListQueryOptions) {
+    return userRepository.findByCompanyId(companyId, options);
+  },
+
+  async inviteUser(companyId: string, email: string, name: string, role: Role) {
+    const existingUser = await userRepository.findByEmail(email);
+    if (existingUser) throw new HttpError(409, "User with that email already exists");
+
+    const tempPassword = generateRandomPassword();
+    const hashedPassword = await bcrypt.hash(tempPassword, 12);
+
+    return userRepository.create({
+      name,
+      email,
+      passwordHash: hashedPassword,
+      role,
+      companyId,
+    });
+  },
+
+  async updateUser(id: string, companyId: string, name?: string, role?: Role) {
+    const user = await userRepository.findById(id);
+    if (!user) throw new HttpError(404, "User not found");
+    if (user.companyId !== companyId) throw new HttpError(403, "You cannot update this user");
+
+    return userRepository.update(id, { name, role });
+  },
+
+  async deleteUser(id: string, companyId: string) {
+    const user = await userRepository.findById(id);
+    if (!user) throw new HttpError(404, "User not found");
+    if (user.companyId !== companyId) throw new HttpError(403, "You cannot delete this user");
+
+    return userRepository.delete(id);
+  },
+};
+
+export const permissionsMatrix = {
+  ADMIN: [
+    "manage_users", "manage_companies", "manage_clients", "manage_leads",
+    "manage_projects", "manage_tasks", "manage_missions", "view_analytics",
+    "view_documents", "view_settings",
+  ],
+  MANAGER: [
+    "manage_projects", "manage_tasks", "view_clients", "view_leads",
+    "view_analytics", "view_documents",
+  ],
+  FREELANCER: [
+    "view_missions", "update_my_missions", "view_projects",
+  ],
+  CLIENT: [
+    "view_my_projects", "view_my_service_requests", "view_my_documents",
+  ],
+};
