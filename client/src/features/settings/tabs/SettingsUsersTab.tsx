@@ -69,9 +69,14 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
   const [editingUser, setEditingUser] = useState<{ id: string; name: string; role: string } | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<string | null>(null);
 
+  // Filter to only internal collaborators (ADMIN and MANAGER)
+  const filteredUsers = useMemo(() => {
+    return users?.filter(user => user.role === "ADMIN" || user.role === "MANAGER") ?? [];
+  }, [users]);
+
   const parentRef = useRef<HTMLDivElement | null>(null);
   const rowVirtualizer = useVirtualizer({
-    count: users?.length ?? 0,
+    count: filteredUsers.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 52,
     overscan: 10,
@@ -147,8 +152,6 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
                   <SelectContent>
                     <SelectItem value="ADMIN">Admin</SelectItem>
                     <SelectItem value="MANAGER">Manager</SelectItem>
-                    <SelectItem value="CLIENT">Client</SelectItem>
-                    <SelectItem value="FREELANCER">Freelancer</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -189,7 +192,7 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
                     <td colSpan={5} style={{ height: `${totalSize}px`, position: "relative" }} />
                   </tr>
                   {virtualItems.map((v) => {
-                    const u = users?.[v.index];
+                    const u = filteredUsers[v.index];
                     if (!u) return null;
                     return (
                       <TableRow
@@ -243,11 +246,9 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
                                         <SelectValue placeholder="Select role" />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        <SelectItem value="ADMIN">Admin</SelectItem>
-                                        <SelectItem value="MANAGER">Manager</SelectItem>
-                                        <SelectItem value="CLIENT">Client</SelectItem>
-                                        <SelectItem value="FREELANCER">Freelancer</SelectItem>
-                                      </SelectContent>
+                                      <SelectItem value="ADMIN">Admin</SelectItem>
+                                      <SelectItem value="MANAGER">Manager</SelectItem>
+                                    </SelectContent>
                                     </Select>
                                   </div>
                                   <DialogFooter>

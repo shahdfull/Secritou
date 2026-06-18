@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, Edit, Trash2, Plus, Download } from "lucide-react";
+import { Loader2, Edit, Trash2, Plus, Download, Star } from "lucide-react";
 import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { documentsApi, type Document } from "@/api/documents.api";
@@ -149,6 +149,13 @@ export function ClientDetailPage() {
           <p className="text-muted-foreground">Client details</p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => navigate(`/app/client-success/${client.id}`)}
+          >
+            <Star className="h-4 w-4 mr-2" />
+            Client Success
+          </Button>
           <Button
             variant="outline"
             onClick={() => navigate(`/app/clients/${client.id}/edit`)}

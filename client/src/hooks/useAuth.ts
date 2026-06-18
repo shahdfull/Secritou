@@ -94,6 +94,7 @@ export function getRedirectPathForRole(role: string) {
     case "FREELANCER":
       return "/app/missions";
     case "ADMIN":
+    case "MANAGER":
     default:
       return "/app";
   }

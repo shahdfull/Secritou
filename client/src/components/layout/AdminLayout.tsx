@@ -136,11 +136,6 @@ const menuItems = [
     icon: BarChart3,
   },
   {
-    key: "reports",
-    url: "/app/reports",
-    icon: File,
-  },
-  {
     key: "settings",
     url: "/app/settings",
     icon: Settings,
@@ -152,6 +147,37 @@ export const AdminLayout = memo(function AdminLayout() {
   const { mutate: logout, isPending } = useLogout();
   const navigate = useNavigate();
   const { t } = useTranslation();
+
+  const filteredMenuItems = useMemo(() => {
+    const role = user?.role ?? "ADMIN";
+    
+    const allowedKeysByRole: Record<string, string[]> = {
+      ADMIN: menuItems.map((item) => item.key),
+      MANAGER: [
+        "dashboard",
+        "clients",
+        "serviceRequests",
+        "proposals",
+        "approvals",
+        "invoices",
+        "documents",
+        "projects",
+        "tasks",
+        "aiAssistant",
+        "settings",
+      ],
+      FREELANCER: [
+        "dashboard",
+        "missions",
+        "tasks",
+        "aiAssistant",
+        "settings",
+      ],
+    };
+
+    const allowedKeys = allowedKeysByRole[role] ?? allowedKeysByRole.ADMIN;
+    return menuItems.filter((item) => allowedKeys.includes(item.key));
+  }, [user?.role]);
 
   const handleLogout = useCallback(() => {
     logout(undefined, {
@@ -244,7 +270,7 @@ export const AdminLayout = memo(function AdminLayout() {
               <SidebarGroupLabel>{t("sidebar.title")}</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {menuItems.map((item) => (
+                  {filteredMenuItems.map((item) => (
                     <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton asChild isActive={false}>
                         <NavLink
@@ -301,8 +327,7 @@ export const AdminLayout = memo(function AdminLayout() {
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>{t("userMenu.myAccount")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>{t("userMenu.profile")}</DropdownMenuItem>
-                  <DropdownMenuItem>{t("userMenu.settings")}</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/app/settings")}>{t("userMenu.settings")}</DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleLogout}

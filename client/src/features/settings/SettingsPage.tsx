@@ -38,7 +38,6 @@ const SettingsJoinRequestsTab = lazy(() =>
   import("./tabs/SettingsJoinRequestsTab").then((m) => ({ default: m.SettingsJoinRequestsTab }))
 );
 import { SettingsProfileTab } from "./tabs/SettingsProfileTab";
-import { SettingsCompanyTab, type CompanyFormState } from "./tabs/SettingsCompanyTab";
 import { SettingsAppearanceTab } from "./tabs/SettingsAppearanceTab";
 
 export function SettingsPage() {
@@ -50,12 +49,7 @@ export function SettingsPage() {
   // Company state
   const { data: company, isLoading: loadingCompany } = useCompany();
   const { mutate: updateCompany, isPending: updatingCompany } = useUpdateCompany();
-  const [companyForm, setCompanyForm] = useState<CompanyFormState>({
-    name: "",
-    website: "",
-    logoUrl: "",
-    primaryColor: "",
-  });
+  const [primaryColor, setPrimaryColor] = useState("");
 
   // Users state
   const { data: users, isLoading: loadingUsers } = useUsers();
@@ -65,26 +59,19 @@ export function SettingsPage() {
   const { data: permissions } = usePermissions();
 
   useEffect(() => {
-    if (company) {
-      setCompanyForm({
-        name: company.name || "",
-        website: company.website || "",
-        logoUrl: company.logoUrl || "",
-        primaryColor: company.primaryColor || "",
-      });
+    if (company?.primaryColor) {
+      setPrimaryColor(company.primaryColor);
     }
   }, [company]);
 
-  const handleSaveCompany = useCallback(() => {
-    updateCompany(companyForm, {
+  const handleSavePrimaryColor = useCallback((color: string) => {
+    updateCompany({ primaryColor: color }, {
       onSuccess: () => {
-        if (companyForm.primaryColor) {
-          localStorage.setItem("companyColor", companyForm.primaryColor);
-        }
-        toast.success("Company settings saved");
+        localStorage.setItem("companyColor", color);
+        toast.success("Platform color saved");
       },
     });
-  }, [companyForm, updateCompany]);
+  }, [updateCompany]);
 
   const handleLangChange = useCallback((newLang: string) => {
     setLang(newLang);
@@ -94,10 +81,6 @@ export function SettingsPage() {
 
   const isAdmin = user?.role === "ADMIN";
   const currentUserId = user?.id ?? "";
-
-  const handleCompanyChange = useCallback((next: CompanyFormState) => {
-    setCompanyForm(next);
-  }, []);
 
   if (loadingCompany) {
     return (
@@ -115,11 +98,10 @@ export function SettingsPage() {
       </div>
 
       <Tabs defaultValue="profile">
-        <TabsList className="grid w-full grid-cols-4 md:grid-cols-5">
+        <TabsList className="grid w-full grid-cols-3 md:grid-cols-4">
           <TabsTrigger value="profile">{t("settingsTabs.profile")}</TabsTrigger>
           {isAdmin && (
             <>
-              <TabsTrigger value="company">{t("settingsTabs.company")}</TabsTrigger>
               <TabsTrigger value="users">{t("settingsTabs.users")}</TabsTrigger>
               <TabsTrigger value="requests">{t("settingsTabs.requests")}</TabsTrigger>
             </>
@@ -131,18 +113,6 @@ export function SettingsPage() {
         <TabsContent value="profile" className="space-y-4">
           <SettingsProfileTab name={user?.name} email={user?.email} />
         </TabsContent>
-
-        {/* Company Tab (ADMIN only) */}
-        {isAdmin && (
-          <TabsContent value="company" className="space-y-4">
-            <SettingsCompanyTab
-              value={companyForm}
-              onChange={handleCompanyChange}
-              onSave={handleSaveCompany}
-              isSaving={updatingCompany}
-            />
-          </TabsContent>
-        )}
 
         {/* Users Tab (ADMIN only) */}
         {isAdmin && (
@@ -195,6 +165,10 @@ export function SettingsPage() {
             setTheme={setTheme}
             lang={lang}
             onLangChange={handleLangChange}
+            primaryColor={primaryColor}
+            onPrimaryColorChange={setPrimaryColor}
+            onSavePrimaryColor={handleSavePrimaryColor}
+            isSavingPrimaryColor={updatingCompany}
           />
         </TabsContent>
       </Tabs>
