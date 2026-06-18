@@ -1,5 +1,5 @@
 import { lazy, memo } from "react";
-import { Outlet, Route, Routes } from "react-router-dom";
+import { Outlet, Route, Routes, Navigate } from "react-router-dom";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
 import { AdminLayout } from "@/components/layout/AdminLayout";
@@ -44,6 +44,7 @@ import {
   importEnhancedDocumentsPage,
   importClientSuccessPage,
   importServiceRequestsAdminPage,
+  importCommercialPage,
 } from "./routePrefetch";
 
 // Lazy load route components for code splitting (handle named exports)
@@ -84,6 +85,9 @@ const EnhancedDocumentsPage = lazy(() => importEnhancedDocumentsPage().then((m) 
 const ClientSuccessPage = lazy(() => importClientSuccessPage().then((m) => ({ default: m.ClientSuccessPage })));
 const ServiceRequestsAdminPage = lazy(() =>
   importServiceRequestsAdminPage().then((m) => ({ default: m.ServiceRequestsAdminPage }))
+);
+const CommercialPage = lazy(() =>
+  importCommercialPage().then((m) => ({ default: m.CommercialPage }))
 );
 
 function PageLoader() {
@@ -151,14 +155,15 @@ export function AppRoutes() {
               <Route path="analytics" element={withBoundary(<AnalyticsPage />)} />
               <Route path="reports" element={withBoundary(<ReportsPage />)} />
               <Route path="applications" element={withBoundary(<ApplicationsPage />)} />
-              <Route path="proposals" element={withBoundary(<ProposalsPage />)} />
+              <Route path="commercial" element={withBoundary(<CommercialPage />)} />
+              <Route path="service-requests" element={<Navigate to="/app/commercial" replace />} />
+              <Route path="proposals" element={<Navigate to="/app/commercial" replace />} />
               <Route path="approvals" element={withBoundary(<ApprovalsPage />)} />
               <Route path="invoices" element={withBoundary(<InvoicesPage />)} />
               <Route path="documents" element={withBoundary(<EnhancedDocumentsPage />)} />
               <Route path="client-success/:clientId" element={withBoundary(<ClientSuccessPage />)} />
               <Route path="client-onboardings" element={withBoundary(<AdminOnboardingPage />)} />
               <Route path="client-onboarding/:id" element={withBoundary(<ClientOnboardingPage />)} />
-              <Route path="service-requests" element={withBoundary(<ServiceRequestsAdminPage />)} />
               <Route path="settings" element={withBoundary(<SettingsPage />)} />
         </Route>
 

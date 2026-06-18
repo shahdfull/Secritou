@@ -35,6 +35,7 @@ export const importInvoicesPage = () => import("@/features/invoices/InvoicesPage
 export const importEnhancedDocumentsPage = () => import("@/features/enhanced-documents/EnhancedDocumentsPage");
 export const importClientSuccessPage = () => import("@/features/client-success/ClientSuccessPage");
 export const importServiceRequestsAdminPage = () => import("@/features/service-requests/ServiceRequestsAdminPage");
+export const importCommercialPage = () => import("@/features/commercial/CommercialPage");
 
 export const routePrefetch = {
   home: () => void importHomePage(),
@@ -69,4 +70,5 @@ export const routePrefetch = {
   enhancedDocuments: () => void importEnhancedDocumentsPage(),
   clientSuccess: () => void importClientSuccessPage(),
   serviceRequests: () => void importServiceRequestsAdminPage(),
+  commercial: () => void importCommercialPage(),
 };
