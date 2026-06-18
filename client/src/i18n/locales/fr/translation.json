@@ -309,7 +309,10 @@
     "actions": "Actions",
     "saving": "Enregistrement...",
     "optional": "optionnel",
-    "error": "Une erreur s'est produite."
+    "error": "Une erreur s'est produite.",
+    "email": "Email",
+    "phone": "Téléphone",
+    "notes": "Notes"
   },
   "search": {
     "placeholder": "Rechercher les leads, clients, projets...",
@@ -696,6 +699,7 @@
     "phonePlaceholder": "+216 00 000 000",
     "notesPlaceholder": "Ajoutez des notes...",
     "convertToClient": "Convertir en client",
+    "source": "Source",
     "sourceLabel": "Source",
     "status": {
       "new": "Nouveau",

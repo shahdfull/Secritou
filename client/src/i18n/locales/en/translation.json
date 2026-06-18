@@ -309,7 +309,10 @@
     "actions": "Actions",
     "saving": "Saving...",
     "optional": "optional",
-    "error": "An error occurred."
+    "error": "An error occurred.",
+    "email": "Email",
+    "phone": "Phone",
+    "notes": "Notes"
   },
   "search": {
     "placeholder": "Search leads, clients, projects...",
@@ -697,6 +700,7 @@
     "phonePlaceholder": "+1234567890",
     "notesPlaceholder": "Add notes...",
     "convertToClient": "Convert to client",
+    "source": "Source",
     "sourceLabel": "Source",
     "status": {
       "new": "New",
