@@ -7,6 +7,7 @@ const userPublicSelect = {
   role: true,
   companyId: true,
   clientId: true,
+  mustChangePassword: true,
 } as const;
 
 export class AuthRepository {
@@ -37,7 +38,7 @@ export class AuthRepository {
     });
   }
 
-  createRefreshToken(input: { tokenHash: string; userId: string; expiresAt: Date }) {
+  createRefreshToken(input: { tokenHash: string; userId: string; familyId: string; expiresAt: Date }) {
     return this.db.refreshToken.create({ data: input });
   }
 
@@ -50,5 +51,12 @@ export class AuthRepository {
 
   revokeRefreshToken(id: string) {
     return this.db.refreshToken.update({ where: { id }, data: { revokedAt: new Date() } });
+  }
+
+  revokeTokenFamily(familyId: string) {
+    return this.db.refreshToken.updateMany({
+      where: { familyId },
+      data: { revokedAt: new Date() },
+    });
   }
 }

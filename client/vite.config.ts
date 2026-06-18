@@ -2,10 +2,12 @@ import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { visualizer } from "rollup-plugin-visualizer";
 
 export default defineConfig(({ mode }) => {
   const isDevelopment = mode === "development";
   const isProduction = mode === "production";
+  const analyze = process.env.ANALYZE === "true";
 
   const securityHeaders = {
     "Content-Security-Policy": isDevelopment
@@ -19,11 +21,17 @@ export default defineConfig(({ mode }) => {
   };
 
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      analyze ? visualizer({
+        open: true,
+        filename: "dist/stats.html",
+      }) : undefined,
+    ].filter(Boolean),
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
-        "@shared": path.resolve(__dirname, "../shared/src"),
       },
       dedupe: ["react", "react-dom"],
     },
@@ -42,9 +50,7 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks: {
             vendor: ["react", "react-dom", "react-router-dom"],
-            charts: ["recharts"],
             motion: ["motion"],
-            exports: ["jspdf", "jspdf-autotable", "xlsx"],
             dnd: ["@dnd-kit/core", "@dnd-kit/sortable", "@dnd-kit/utilities"],
           },
         },

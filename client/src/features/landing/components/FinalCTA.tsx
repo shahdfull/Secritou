@@ -31,18 +31,18 @@ export function FinalCTA() {
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Link
                 to="/contact"
-                onClick={() => trackCtaClick({ cta: t("nav.scheduleFreeConsultation"), location: "Final CTA" })}
+                onClick={() => trackCtaClick({ cta: t("home.cta.primary"), location: "Final CTA" })}
                 className="group inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-ink transition-transform hover:-translate-y-0.5"
               >
-                {t("nav.scheduleFreeConsultation")}
+                {t("home.cta.primary")}
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
               <Link
-                to="/case-studies"
-                onClick={() => trackCtaClick({ cta: t("home.finalCta.seeResults"), location: "Final CTA" })}
+                to="/services"
+                onClick={() => trackCtaClick({ cta: t("home.cta.secondary"), location: "Final CTA" })}
                 className="inline-flex h-12 items-center justify-center rounded-full border border-white/20 px-6 text-sm font-semibold text-white transition-colors hover:bg-white/10"
               >
-                {t("home.finalCta.seeResults")}
+                {t("home.cta.secondary")}
               </Link>
             </div>
           </div>

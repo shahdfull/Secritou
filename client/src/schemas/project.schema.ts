@@ -1,0 +1,13 @@
+import { z } from "zod";
+
+export const createProjectSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  description: z.string().optional(),
+  status: z.enum(["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED"]).default("PLANNING"),
+  clientId: z.string().optional(),
+});
+
+export const updateProjectSchema = createProjectSchema.partial();
+
+export type CreateProjectForm = z.input<typeof createProjectSchema>;
+export type UpdateProjectForm = z.input<typeof updateProjectSchema>;

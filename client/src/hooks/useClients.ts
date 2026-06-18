@@ -4,10 +4,11 @@ import type { Client, CreateClientInput, UpdateClientInput } from "../types/clie
 import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 import { toast } from "sonner";
 import i18n from "@/i18n";
+import { queryKeys } from "@/lib/query-keys";
 
 export function useClients(params: ListQueryParams = {}) {
   return useQuery<PaginatedResponse<Client>>({
-    queryKey: ["clients", params],
+    queryKey: queryKeys.clients(params),
     queryFn: () => clientsApi.getAll(params),
     placeholderData: (prev) => prev,
     staleTime: 60_000,
@@ -16,7 +17,7 @@ export function useClients(params: ListQueryParams = {}) {
 
 export function useClient(id: string) {
   return useQuery<Client>({
-    queryKey: ["client", id],
+    queryKey: queryKeys.client(id),
     queryFn: () => clientsApi.getById(id),
     enabled: !!id,
     staleTime: 60_000,
@@ -29,7 +30,7 @@ export function useCreateClient() {
   return useMutation<Client, Error, CreateClientInput>({
     mutationFn: (data) => clientsApi.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["clients"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.clients() });
       toast.success(i18n.t("toasts.clientCreated"));
     },
   });
@@ -41,8 +42,8 @@ export function useUpdateClient() {
   return useMutation<Client, Error, { id: string; data: Omit<UpdateClientInput, "id"> }>({
     mutationFn: ({ id, data }) => clientsApi.update(id, data),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["clients"] });
-      queryClient.invalidateQueries({ queryKey: ["client", data.id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.clients() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.client(data.id) });
       toast.success(i18n.t("toasts.clientUpdated"));
     },
   });
@@ -54,7 +55,7 @@ export function useDeleteClient() {
   return useMutation<void, Error, string>({
     mutationFn: (id) => clientsApi.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["clients"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.clients() });
       toast.success(i18n.t("toasts.clientDeleted"));
     },
   });

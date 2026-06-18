@@ -1,24 +1,5 @@
 {
-  "name": "secritou-platform",
-  "private": true,
-  "type": "module",
-  "workspaces": [
-    "client",
-    "server",
-    "shared"
-  ],
-  "scripts": {
-    "dev": "concurrently \"npm:dev --workspace client\" \"npm:dev --workspace server\"",
-    "build": "npm run build --workspace shared && npm run build --workspace client && npm run build --workspace server",
-    "typecheck": "npm run typecheck --workspace client && npm run typecheck --workspace server && npm run typecheck --workspace shared",
-    "lint": "npm run lint --workspace client && npm run lint --workspace server",
-    "prisma:generate": "npm run prisma:generate --workspace server",
-    "prisma:migrate": "npm run prisma:migrate --workspace server",
-    "prisma:migrate:deploy": "npm run prisma:migrate:deploy --workspace server",
-    "test:e2e": "playwright test"
-  },
-  "devDependencies": {
-    "@playwright/test": "^1.51.0",
-    "concurrently": "^9.1.2"
+  "dependencies": {
+    "docx": "^9.7.1"
   }
 }

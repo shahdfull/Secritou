@@ -37,7 +37,6 @@ export function Footer() {
     {
       titleKey: "home.footer.company",
       links: [
-        { labelKey: "nav.caseStudies", to: "/case-studies" },
         { labelKey: "nav.contact", to: "/contact" },
       ],
     },

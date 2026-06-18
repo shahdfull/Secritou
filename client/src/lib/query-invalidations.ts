@@ -2,6 +2,9 @@ import { type QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "./query-keys";
 
 export const queryInvalidations = {
+  invalidateByPrefix: (queryClient: QueryClient, key: readonly unknown[]) => {
+    queryClient.invalidateQueries({ queryKey: key });
+  },
   // Tasks
   invalidateTasks: (queryClient: QueryClient) => {
     queryClient.invalidateQueries({ queryKey: queryKeys.tasks() });
@@ -89,5 +92,16 @@ export const queryInvalidations = {
   // Onboarding
   invalidateClientOnboarding: (queryClient: QueryClient, projectId: string) => {
     queryClient.invalidateQueries({ queryKey: queryKeys.clientOnboarding(projectId) });
+  },
+
+  // Service Requests (admin)
+  invalidateAdminServiceRequests: (queryClient: QueryClient) => {
+    queryClient.invalidateQueries({ queryKey: ["admin-service-requests"] });
+  },
+  invalidateAdminServiceRequest: (queryClient: QueryClient, id: string) => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.adminServiceRequest(id) });
+  },
+  invalidateClientServiceRequests: (queryClient: QueryClient) => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.clientServiceRequests() });
   },
 } as const;

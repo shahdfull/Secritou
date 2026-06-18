@@ -8,13 +8,15 @@ import { AuthRepository } from "../repositories/auth.repository.js";
 import { HttpError } from "../utils/httpError.js";
 import { parseDurationToDate } from "../utils/parseDuration.js";
 
-const authRepository = new AuthRepository(prisma as any);
+const authRepository = new AuthRepository(prisma);
 
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
-function toAuthUser(user: Pick<User, "id" | "email" | "name" | "role" | "companyId" | "clientId" | "mustChangePassword">) {
+function toAuthUser(
+  user: Pick<User, "id" | "email" | "name" | "role" | "companyId" | "clientId" | "mustChangePassword">
+) {
   return {
     id: user.id,
     email: user.email,
@@ -26,7 +28,9 @@ function toAuthUser(user: Pick<User, "id" | "email" | "name" | "role" | "company
   };
 }
 
-function signAccessToken(user: Pick<User, "id" | "email" | "role" | "companyId" | "clientId">) {
+function signAccessToken(
+  user: Pick<User, "id" | "email" | "role" | "companyId" | "clientId">
+) {
   return jwt.sign(
     {
       id: user.id,
@@ -82,12 +86,13 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string) {
+    let decoded: jwt.JwtPayload & { tokenType?: string; jti?: string };
     try {
-      const decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET, {
+      decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET, {
         issuer: env.JWT_ISSUER,
         audience: env.JWT_AUDIENCE,
         algorithms: ["HS256"],
-      }) as jwt.JwtPayload & { tokenType?: string };
+      }) as jwt.JwtPayload & { tokenType?: string; jti?: string };
 
       if (decoded.tokenType !== "refresh" || typeof decoded.sub !== "string") {
         throw new Error("Invalid token type");
@@ -96,13 +101,26 @@ export class AuthService {
       throw new HttpError(401, "Invalid refresh token");
     }
 
-    const stored = await authRepository.findRefreshToken(hashToken(refreshToken));
-    if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
+    const tokenHash = hashToken(refreshToken);
+    const stored = await authRepository.findRefreshToken(tokenHash);
+
+    if (!stored) {
+      // Reuse detected - revoke entire family!
+      if (decoded.jti) {
+        await authRepository.revokeTokenFamily(decoded.jti);
+      }
       throw new HttpError(401, "Refresh token is no longer valid");
     }
 
+    if (stored.revokedAt || stored.expiresAt < new Date()) {
+      // Token was revoked or expired
+      await authRepository.revokeTokenFamily(stored.familyId);
+      throw new HttpError(401, "Refresh token is no longer valid");
+    }
+
+    // Revoke old token and issue new one
     await authRepository.revokeRefreshToken(stored.id);
-    return this.issueTokens(stored.user);
+    return this.issueTokens(stored.user, stored.familyId);
   }
 
   async me(userId: string) {
@@ -115,7 +133,7 @@ export class AuthService {
     const tokenHash = hashToken(refreshToken);
     const stored = await authRepository.findRefreshToken(tokenHash);
     if (stored) {
-      await authRepository.revokeRefreshToken(stored.id);
+      await authRepository.revokeTokenFamily(stored.familyId);
     }
   }
 
@@ -173,12 +191,18 @@ export class AuthService {
     await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
   }
 
-  private async issueTokens(user: Pick<User, "id" | "email" | "name" | "role" | "companyId" | "clientId">) {
+  private async issueTokens(
+    user: Pick<User, "id" | "email" | "name" | "role" | "companyId" | "clientId" | "mustChangePassword">,
+    existingFamilyId?: string
+  ) {
     const accessToken = signAccessToken(user);
     const refreshToken = signRefreshToken(user.id);
+    const familyId = existingFamilyId || randomBytes(16).toString("hex");
+
     await authRepository.createRefreshToken({
       tokenHash: hashToken(refreshToken),
       userId: user.id,
+      familyId,
       expiresAt: parseDurationToDate(env.JWT_REFRESH_EXPIRES_IN),
     });
 

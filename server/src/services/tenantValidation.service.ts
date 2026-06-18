@@ -42,4 +42,46 @@ export const tenantValidation = {
     if (!request) throw new HttpError(404, "Service request not found");
     return request;
   },
+
+  // Premium module validations
+  async assertProposalInCompany(proposalId: string, companyId: string) {
+    const proposal = await prisma.proposal.findFirst({
+      where: { id: proposalId, companyId },
+      select: { id: true, companyId: true },
+    });
+    if (!proposal) throw new HttpError(404, "Proposal not found");
+    return proposal;
+  },
+
+  async assertApprovalInCompany(approvalId: string, companyId: string) {
+    const approval = await prisma.approval.findFirst({
+      where: { id: approvalId, companyId },
+      select: { id: true, companyId: true },
+    });
+    if (!approval) throw new HttpError(404, "Approval not found");
+    return approval;
+  },
+
+  async assertInvoiceInCompany(invoiceId: string, companyId: string) {
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
+      select: { id: true, companyId: true },
+    });
+    if (!invoice) throw new HttpError(404, "Invoice not found");
+    return invoice;
+  },
+
+  async assertEnhancedDocumentInCompany(docId: string, companyId: string) {
+    const doc = await prisma.enhancedDocument.findFirst({
+      where: { id: docId, companyId },
+      select: { id: true, companyId: true },
+    });
+    if (!doc) throw new HttpError(404, "Document not found");
+    return doc;
+  },
+
+  async assertClientSuccessInCompany(clientId: string, companyId: string) {
+    const client = await this.assertClientInCompany(clientId, companyId);
+    return client;
+  },
 };

@@ -1,16 +1,30 @@
-import {
-  Card,
-  CardContent,
-  CardHeader,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Layout, KanbanSquare, Plus, UserCheck, MoreHorizontal } from "lucide-react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from "@/hooks/useTasks";
+import type { Task } from "@/types/task";
+import { useProjects } from "@/hooks/useProjects";
+import { useListParams } from "@/hooks/useListParams";
+import { DataTablePagination } from "@/components/common/DataTablePagination";
+import { SortableTableHead } from "@/components/common/SortableTableHead";
+import { useTranslation } from "react-i18next";
+import { TasksKanban } from "./TasksKanban";
+import { companyApi } from "@/api/company.api";
+import { commentsApi } from "@/api/comments.api";
+import type { User } from "@/types/auth";
+import type { Comment } from "@/types/comment";
+import { format, isPast, formatDistanceToNow } from "date-fns";
+import { fr } from "date-fns/locale";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { useAuthStore } from "@/store/auth.store";
+import { Avatar } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -19,42 +33,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Avatar,
-} from "@/components/ui/avatar";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
-  ScrollArea,
-} from "@/components/ui/scroll-area";
-import {
-  MoreHorizontal,
-  Search,
-  Plus,
-  Edit,
-  Trash2,
-  Loader2,
-  Layout,
-  KanbanSquare,
-  Eye,
-  Send,
-} from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  useTasks,
-  useCreateTask,
-  useUpdateTask,
-  useDeleteTask,
-} from "@/hooks/useTasks";
-import type { Task } from "@/types/task";
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -65,59 +52,35 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useProjects } from "@/hooks/useProjects";
-import { useListParams } from "@/hooks/useListParams";
-import { DataTablePagination } from "@/components/common/DataTablePagination";
-import { SortableTableHead } from "@/components/common/SortableTableHead";
-import { Textarea } from "@/components/ui/textarea";
-import { useTranslation } from "react-i18next";
-import { TasksKanban } from "./TasksKanban";
-import { companyApi } from "@/api/company.api";
-import { commentsApi } from "@/api/comments.api";
-import type { User } from "@/types/auth";
-import type { Comment } from "@/types/comment";
-import { format, isPast, formatDistanceToNow } from "date-fns";
-import { fr } from "date-fns/locale";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import { useAuthStore } from "@/store/auth.store";
-
-const createTaskSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().optional(),
-  status: z.enum(["TODO", "IN_PROGRESS", "REVIEW", "DONE"]),
-  projectId: z.string().min(1, "Project is required"),
-  assigneeId: z.string().optional(),
-  dueDate: z.string().optional(),
-});
-
-const updateTaskSchema = createTaskSchema.partial();
-
-const commentFormSchema = z.object({
-  content: z.string().min(1, "Commentaire requis"),
-});
-
-type CreateTaskForm = z.infer<typeof createTaskSchema>;
-type UpdateTaskForm = z.infer<typeof updateTaskSchema>;
-type CommentForm = z.infer<typeof commentFormSchema>;
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Search, Edit, Trash2, Eye, Send, Loader2 } from "lucide-react";
+import {
+  createTaskSchema,
+  updateTaskSchema,
+  commentFormSchema,
+  type CreateTaskForm,
+  type UpdateTaskForm,
+  type CommentForm,
+} from "@/schemas/task.schema";
+import { useDebouncedValue } from "@/hooks/shared/useDebouncedValue";
+import { useCrudDialogState } from "@/hooks/shared/useCrudDialogState";
 
 const CommentForm = memo(function CommentForm({
-  onCreateComment, 
-  createCommentMutation 
-}: { 
+  onCreateComment,
+  createCommentMutation,
+}: {
   onCreateComment: (content: string) => void;
   createCommentMutation: { isPending: boolean };
 }) {
@@ -126,10 +89,13 @@ const CommentForm = memo(function CommentForm({
     defaultValues: { content: "" },
   });
 
-  const onSubmit = useCallback((data: CommentForm) => {
-    onCreateComment(data.content);
-    commentForm.reset();
-  }, [commentForm, onCreateComment]);
+  const onSubmit = useCallback(
+    (data: CommentForm) => {
+      onCreateComment(data.content);
+      commentForm.reset();
+    },
+    [commentForm, onCreateComment]
+  );
 
   return (
     <Form {...commentForm}>
@@ -171,6 +137,8 @@ function getInitials(name: string) {
     .slice(0, 2);
 }
 
+const STATUS_OPTIONS: Task["status"][] = ["TODO", "IN_PROGRESS", "REVIEW", "DONE"];
+
 export function TasksPage() {
   const { t } = useTranslation();
   const currentUser = useAuthStore((s) => s.user);
@@ -178,20 +146,17 @@ export function TasksPage() {
   const [isViewTransitionPending, startViewTransition] = useTransition();
   const [searchInput, setSearchInput] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const selectedTaskId = selectedTask?.id ?? null;
   const queryClient = useQueryClient();
 
   const { page, pageSize, orderBy, orderDir, search, params, setPage, setSearch, setSort } = useListParams(10);
+  const debouncedSearch = useDebouncedValue(searchInput, 300);
 
   useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchInput), 300);
-    return () => clearTimeout(timer);
-  }, [searchInput, setSearch]);
+    setSearch(debouncedSearch);
+  }, [debouncedSearch, setSearch]);
 
   const listParams = useMemo(
     () => ({
@@ -203,7 +168,7 @@ export function TasksPage() {
       search,
       status: statusFilter === "All" ? undefined : statusFilter,
     }),
-    [params, viewMode, pageSize, page, orderBy, orderDir, search, statusFilter],
+    [params, viewMode, pageSize, page, orderBy, orderDir, search, statusFilter]
   );
 
   const { data: tasksResult, isLoading: tasksLoading } = useTasks(listParams);
@@ -217,7 +182,7 @@ export function TasksPage() {
       const result = await companyApi.getUsers();
       return result.data;
     },
-    staleTime: 5 * 60_000,
+    staleTime: 5 * 60 * 1000,
   });
   const { data: comments } = useQuery<Comment[]>({
     queryKey: ["taskComments", selectedTaskId],
@@ -226,8 +191,8 @@ export function TasksPage() {
       return commentsApi.getByTaskId(selectedTaskId);
     },
     enabled: !!selectedTaskId,
-    staleTime: 15_000,
-    gcTime: 10 * 60_000,
+    staleTime: 15 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
   const { mutate: createTask, isPending: isCreating } = useCreateTask();
   const { mutate: updateTask, isPending: isUpdating } = useUpdateTask();
@@ -268,6 +233,16 @@ export function TasksPage() {
     },
   });
 
+  const {
+    createDialogOpen,
+    editDialogOpen,
+    editingEntity: editingTask,
+    openCreateDialog,
+    closeCreateDialog,
+    openEditDialog,
+    closeEditDialog,
+  } = useCrudDialogState<Task>();
+
   const projectNameById = useMemo(() => {
     const map = new Map<string, string>();
     for (const p of projects) map.set(p.id, p.name);
@@ -297,60 +272,76 @@ export function TasksPage() {
     resolver: zodResolver(updateTaskSchema),
   });
 
-  const handleCreate = useCallback(async (data: CreateTaskForm) => {
-    createTask(data, {
-      onSuccess: () => {
-        setCreateDialogOpen(false);
-        createForm.reset();
-      },
-    });
-  }, [createForm, createTask]);
-
-  const handleEdit = useCallback((task: Task) => {
-    setEditingTask(task);
-    editForm.reset({
-      ...task,
-      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : "",
-    });
-    setEditDialogOpen(true);
-  }, [editForm]);
-
-  const handleUpdate = useCallback(async (data: UpdateTaskForm) => {
-    if (!editingTask) return;
-    updateTask(
-      { id: editingTask.id, data },
-      {
+  const handleCreate = useCallback(
+    (data: CreateTaskForm) => {
+      createTask(data, {
         onSuccess: () => {
-          setEditDialogOpen(false);
-          setEditingTask(null);
+          closeCreateDialog();
+          createForm.reset();
         },
-      }
-    );
-  }, [editingTask, updateTask]);
+      });
+    },
+    [createForm, createTask, closeCreateDialog]
+  );
 
-  const handleDelete = useCallback((task: Task) => {
-    if (confirm(`Are you sure you want to delete "${task.title}"?`)) {
-      deleteTask(task.id);
-    }
-  }, [deleteTask]);
+  const handleEditTask = useCallback(
+    (task: Task) => {
+      openEditDialog(task);
+      editForm.reset({
+        ...task,
+        dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split("T")[0] : "",
+      });
+    },
+    [editForm, openEditDialog]
+  );
+
+  const handleUpdate = useCallback(
+    (data: UpdateTaskForm) => {
+      if (!editingTask) return;
+      updateTask(
+        { id: editingTask.id, data },
+        {
+          onSuccess: () => {
+            closeEditDialog();
+          },
+        }
+      );
+    },
+    [editingTask, updateTask, closeEditDialog]
+  );
+
+  const handleDelete = useCallback(
+    (task: Task) => {
+      if (confirm(`Are you sure you want to delete "${task.title}"?`)) {
+        deleteTask(task.id);
+      }
+    },
+    [deleteTask]
+  );
 
   const handleView = useCallback((task: Task) => {
     setSelectedTask(task);
     setDetailSheetOpen(true);
   }, []);
 
-  const handleAddComment = useCallback((content: string) => {
-    if (!selectedTaskId || !content.trim()) return;
-    createCommentMutation.mutate({
-      taskId: selectedTaskId,
-      content
-    });
-  }, [createCommentMutation, selectedTaskId]);
+  const handleAddComment = useCallback(
+    (content: string) => {
+      if (!selectedTaskId || !content.trim()) return;
+      createCommentMutation.mutate({
+        taskId: selectedTaskId,
+        content,
+      });
+    },
+    [createCommentMutation, selectedTaskId]
+  );
 
-  const handleViewModeChange = useCallback((v: string) => {
-    if (!v) return;
-    startViewTransition(() => setViewMode(v as "list" | "kanban"));
-  }, []);
+  const handleViewModeChange = useCallback(
+    (v: string) => {
+      if (!v) return;
+      startViewTransition(() => setViewMode(v as "list" | "kanban"));
+    },
+    []
+  );
 
   const handleSort = useCallback(
     (col: string) => {
@@ -359,10 +350,10 @@ export function TasksPage() {
     [orderBy, orderDir, setSort]
   );
 
-  const tableScrollRef = useRef<HTMLDivElement | null>(null);
-  const rowVirtualizer = useVirtualizer({
+  const tableScrollElementRef = useRef<HTMLDivElement>(null);
+  const tableVirtualizer = useVirtualizer({
     count: filteredTasks.length,
-    getScrollElement: () => tableScrollRef.current,
+    getScrollElement: () => tableScrollElementRef.current,
     estimateSize: () => 56,
     overscan: 12,
   });
@@ -376,7 +367,7 @@ export function TasksPage() {
     overscan: 8,
   });
 
-  const getStatusBadgeClass = (status: string) => {
+  const getStatusBadgeClass = (status: Task["status"]) => {
     switch (status) {
       case "TODO":
         return "bg-gray-100 text-gray-800";
@@ -391,7 +382,7 @@ export function TasksPage() {
     }
   };
 
-  const getStatusLabel = (status: string) => {
+  const getStatusLabel = (status: Task["status"]) => {
     switch (status) {
       case "TODO":
         return t("tasksPage.statuses.todo");
@@ -408,7 +399,7 @@ export function TasksPage() {
 
   if (tasksLoading || projectsLoading || usersLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center min-h-[65vh]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
@@ -430,7 +421,7 @@ export function TasksPage() {
               <KanbanSquare className="h-4 w-4" />
             </ToggleGroupItem>
           </ToggleGroup>
-          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+          <Dialog open={createDialogOpen} onOpenChange={closeCreateDialog}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
@@ -483,10 +474,11 @@ export function TasksPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="TODO">{t("tasksPage.statuses.todo")}</SelectItem>
-                            <SelectItem value="IN_PROGRESS">{t("tasksPage.statuses.inProgress")}</SelectItem>
-                            <SelectItem value="REVIEW">{t("tasksPage.statuses.review")}</SelectItem>
-                            <SelectItem value="DONE">{t("tasksPage.statuses.done")}</SelectItem>
+                            {STATUS_OPTIONS.map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {getStatusLabel(status)}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -507,7 +499,9 @@ export function TasksPage() {
                           </FormControl>
                           <SelectContent>
                             {projects?.map((project) => (
-                              <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                              <SelectItem key={project.id} value={project.id}>
+                                {project.name}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -592,10 +586,11 @@ export function TasksPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All">{t("tasksPage.allStatuses")}</SelectItem>
-                  <SelectItem value="TODO">{t("tasksPage.statuses.todo")}</SelectItem>
-                  <SelectItem value="IN_PROGRESS">{t("tasksPage.statuses.inProgress")}</SelectItem>
-                  <SelectItem value="REVIEW">{t("tasksPage.statuses.review")}</SelectItem>
-                  <SelectItem value="DONE">{t("tasksPage.statuses.done")}</SelectItem>
+                  {STATUS_OPTIONS.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {getStatusLabel(status)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -604,22 +599,46 @@ export function TasksPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <SortableTableHead column="title" label={t("common.title")} sortBy={orderBy ?? "createdAt"} sortOrder={orderDir} onSort={handleSort} />
-                  <SortableTableHead column="project" label={t("common.project")} sortBy={orderBy ?? "createdAt"} sortOrder={orderDir} onSort={handleSort} />
-                  <SortableTableHead column="status" label={t("common.status")} sortBy={orderBy ?? "createdAt"} sortOrder={orderDir} onSort={handleSort} />
+                  <SortableTableHead
+                    column="title"
+                    label={t("common.title")}
+                    sortBy={orderBy ?? "createdAt"}
+                    sortOrder={orderDir}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHead
+                    column="project"
+                    label={t("common.project")}
+                    sortBy={orderBy ?? "createdAt"}
+                    sortOrder={orderDir}
+                    onSort={handleSort}
+                  />
+                  <SortableTableHead
+                    column="status"
+                    label={t("common.status")}
+                    sortBy={orderBy ?? "createdAt"}
+                    sortOrder={orderDir}
+                    onSort={handleSort}
+                  />
                   <TableHead>Assigné à</TableHead>
-                  <SortableTableHead column="dueDate" label={t("common.dueDate")} sortBy={orderBy ?? "createdAt"} sortOrder={orderDir} onSort={handleSort} />
+                  <SortableTableHead
+                    column="dueDate"
+                    label={t("common.dueDate")}
+                    sortBy={orderBy ?? "createdAt"}
+                    sortOrder={orderDir}
+                    onSort={handleSort}
+                  />
                   <TableHead className="text-right">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
             </Table>
             <div
-              ref={tableScrollRef}
+              ref={tableScrollElementRef}
               className="max-h-[65vh] overflow-auto border-t"
               style={{ contentVisibility: "auto" } as React.CSSProperties}
             >
-              <div style={{ height: rowVirtualizer.getTotalSize(), position: "relative" }}>
-                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              <div style={{ height: tableVirtualizer.getTotalSize(), position: "relative" }}>
+                {tableVirtualizer.getVirtualItems().map((virtualRow) => {
                   const task = filteredTasks[virtualRow.index];
                   if (!task) return null;
 
@@ -642,11 +661,11 @@ export function TasksPage() {
                       <div className="border-b">
                         <div className="grid grid-cols-[minmax(220px,2fr)_minmax(180px,1.2fr)_140px_220px_160px_90px] items-center gap-0 px-4 h-14">
                           <div className="font-medium truncate pr-4">{task.title}</div>
-                          <div className="truncate pr-4">{projectName || "-"}</div>
+                          <div className="truncate pr-4">{projectName ?? "-"}</div>
                           <div>
-                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadgeClass(task.status)}`}>
+                            <Badge className={getStatusBadgeClass(task.status)}>
                               {getStatusLabel(task.status)}
-                            </span>
+                            </Badge>
                           </div>
                           <div>
                             {assignee ? (
@@ -675,11 +694,15 @@ export function TasksPage() {
                                   <Eye className="h-4 w-4 mr-2" />
                                   Voir
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleEdit(task)}>
+                                <DropdownMenuItem onClick={() => handleEditTask(task)}>
                                   <Edit className="h-4 w-4 mr-2" />
                                   {t("common.edit")}
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleDelete(task)} disabled={isDeleting} className="text-red-600">
+                                <DropdownMenuItem
+                                  onClick={() => handleDelete(task)}
+                                  disabled={isDeleting}
+                                  className="text-red-600"
+                                >
                                   <Trash2 className="h-4 w-4 mr-2" />
                                   {t("common.delete")}
                                 </DropdownMenuItem>
@@ -702,7 +725,7 @@ export function TasksPage() {
 
       {/* Edit Dialog */}
       {editingTask && (
-        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <Dialog open={editDialogOpen} onOpenChange={closeEditDialog}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{t("tasksPage.editTask")}</DialogTitle>
@@ -749,10 +772,11 @@ export function TasksPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="TODO">{t("tasksPage.statuses.todo")}</SelectItem>
-                          <SelectItem value="IN_PROGRESS">{t("tasksPage.statuses.inProgress")}</SelectItem>
-                          <SelectItem value="REVIEW">{t("tasksPage.statuses.review")}</SelectItem>
-                          <SelectItem value="DONE">{t("tasksPage.statuses.done")}</SelectItem>
+                          {STATUS_OPTIONS.map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {getStatusLabel(status)}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -773,7 +797,9 @@ export function TasksPage() {
                         </FormControl>
                         <SelectContent>
                           {projects?.map((project) => (
-                            <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                            <SelectItem key={project.id} value={project.id}>
+                              {project.name}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -842,22 +868,20 @@ export function TasksPage() {
             <SheetHeader>
               <SheetTitle>{selectedTask.title}</SheetTitle>
               <SheetDescription>
-                {selectedTask.description || "Pas de description"}
+                {selectedTask.description ?? "Pas de description"}
               </SheetDescription>
             </SheetHeader>
             <div className="mt-6 space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Statut</p>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadgeClass(selectedTask.status)}`}
-                  >
+                  <Badge className={getStatusBadgeClass(selectedTask.status)}>
                     {getStatusLabel(selectedTask.status)}
-                  </span>
+                  </Badge>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Projet</p>
-                  <p>{projectNameById.get(selectedTask.projectId) || "-"}</p>
+                  <p>{projectNameById.get(selectedTask.projectId) ?? "-"}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Assigné à</p>
@@ -882,7 +906,9 @@ export function TasksPage() {
                     <p className={isPast(new Date(selectedTask.dueDate)) ? "text-red-600 font-medium" : ""}>
                       {format(new Date(selectedTask.dueDate), "dd MMM yyyy")}
                     </p>
-                  ) : "-"}
+                  ) : (
+                    "-"
+                  )}
                 </div>
               </div>
 
@@ -932,7 +958,10 @@ export function TasksPage() {
                     )}
                   </div>
                 </ScrollArea>
-                <CommentForm onCreateComment={handleAddComment} createCommentMutation={createCommentMutation} />
+                <CommentForm
+                  onCreateComment={handleAddComment}
+                  createCommentMutation={createCommentMutation}
+                />
               </div>
             </div>
           </SheetContent>

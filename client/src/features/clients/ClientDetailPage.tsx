@@ -3,27 +3,55 @@ import { useClient, useDeleteClient } from "@/hooks/useClients";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Loader2, Edit, Trash2, Plus, Download } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { documentsApi, type Document } from "@/api/documents.api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { FileUploadField } from "@/components/common/FileUploadField";
+import type { UploadResult } from "@/api/upload.api";
 
 const documentSchema = z.object({
   name: z.string().min(1, "Le nom est requis"),
   type: z.enum(["INVOICE", "CONTRACT", "OTHER"]),
-  url: z.string().url("URL invalide"),
 });
 
 type DocumentForm = z.infer<typeof documentSchema>;
@@ -32,14 +60,16 @@ export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: client, isLoading } = useClient(id || "");
+  const { data: client, isLoading } = useClient(id ?? "");
   const { mutate: deleteClient, isPending: isDeleting } = useDeleteClient();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [addDocumentDialogOpen, setAddDocumentDialogOpen] = useState(false);
 
+  const uploadedFile = useRef<UploadResult | null>(null);
+
   const { data: documents } = useQuery({
     queryKey: ["clientDocuments", id],
-    queryFn: () => id ? documentsApi.getClientDocuments(id) : Promise.resolve([]),
+    queryFn: () => (id ? documentsApi.getClientDocuments(id) : Promise.resolve([])),
     enabled: !!id,
   });
 
@@ -51,37 +81,44 @@ export function ClientDetailPage() {
       toast.success("Document ajouté avec succès");
       setAddDocumentDialogOpen(false);
       documentForm.reset();
+      uploadedFile.current = null;
     },
   });
 
   const documentForm = useForm<DocumentForm>({
     resolver: zodResolver(documentSchema),
-    defaultValues: {
-      name: "",
-      type: "OTHER",
-      url: "",
-    },
+    defaultValues: { name: "", type: "OTHER" },
   });
 
   const handleDelete = () => {
     if (id) {
       deleteClient(id, {
-        onSuccess: () => {
-          navigate("/app/clients");
-        },
+        onSuccess: () => navigate("/app/clients"),
       });
     }
   };
 
   const handleAddDocument = (data: DocumentForm) => {
-    addDocumentMutation.mutate(data);
+    if (!uploadedFile.current) {
+      toast.error("Veuillez d'abord uploader un fichier");
+      return;
+    }
+    addDocumentMutation.mutate({
+      name: data.name,
+      type: data.type,
+      url: uploadedFile.current.url,
+      clientId: id,
+    });
   };
 
-  const getDocumentTypeLabel = (type: Document['type']) => {
+  const getDocumentTypeLabel = (type: Document["type"]) => {
     switch (type) {
-      case 'INVOICE': return 'Facture';
-      case 'CONTRACT': return 'Contrat';
-      case 'OTHER': return 'Autre';
+      case "INVOICE":
+        return "Facture";
+      case "CONTRACT":
+        return "Contrat";
+      case "OTHER":
+        return "Autre";
     }
   };
 
@@ -112,7 +149,10 @@ export function ClientDetailPage() {
           <p className="text-muted-foreground">Client details</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate(`/app/clients/${client.id}/edit`)}>
+          <Button
+            variant="outline"
+            onClick={() => navigate(`/app/clients/${client.id}/edit`)}
+          >
             <Edit className="h-4 w-4 mr-2" />
             Modifier
           </Button>
@@ -149,9 +189,7 @@ export function ClientDetailPage() {
               {client.projects.map((project) => (
                 <div key={project.id} className="p-3 border rounded-md">
                   <div className="font-medium">{project.name}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {project.status}
-                  </div>
+                  <div className="text-sm text-muted-foreground">{project.status}</div>
                 </div>
               ))}
             </div>
@@ -187,9 +225,15 @@ export function ClientDetailPage() {
                     <TableCell>
                       <Badge variant="outline">{getDocumentTypeLabel(doc.type)}</Badge>
                     </TableCell>
-                    <TableCell>{format(new Date(doc.createdAt), 'dd/MM/yyyy', { locale: fr })}</TableCell>
+                    <TableCell>
+                      {format(new Date(doc.createdAt), "dd/MM/yyyy", { locale: fr })}
+                    </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => window.open(doc.url, '_blank')}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.open(doc.url, "_blank")}
+                      >
                         <Download className="h-4 w-4 mr-2" />
                         Télécharger
                       </Button>
@@ -204,16 +248,27 @@ export function ClientDetailPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={addDocumentDialogOpen} onOpenChange={setAddDocumentDialogOpen}>
+      {/* Add document dialog */}
+      <Dialog
+        open={addDocumentDialogOpen}
+        onOpenChange={(open) => {
+          setAddDocumentDialogOpen(open);
+          if (!open) {
+            documentForm.reset();
+            uploadedFile.current = null;
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Ajouter un document</DialogTitle>
-            <DialogDescription>
-              Ajoutez un document pour ce client
-            </DialogDescription>
+            <DialogDescription>Ajoutez un document pour ce client</DialogDescription>
           </DialogHeader>
           <Form {...documentForm}>
-            <form onSubmit={documentForm.handleSubmit(handleAddDocument)} className="space-y-4">
+            <form
+              onSubmit={documentForm.handleSubmit(handleAddDocument)}
+              className="space-y-4"
+            >
               <FormField
                 control={documentForm.control}
                 name="name"
@@ -249,22 +304,29 @@ export function ClientDetailPage() {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={documentForm.control}
-                name="url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>URL du document</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://example.com/document.pdf" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+
+              {/* File upload — replaces the plain URL input */}
+              <FormItem>
+                <FormLabel>Fichier</FormLabel>
+                <FileUploadField
+                  context="document"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt"
+                  label="Cliquez pour uploader un fichier"
+                  uploadImmediately={true}
+                  onUploaded={(result) => {
+                    uploadedFile.current = result;
+                  }}
+                />
+              </FormItem>
+
               <DialogFooter>
-                <Button type="submit" disabled={addDocumentMutation.isPending}>
-                  {addDocumentMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                <Button
+                  type="submit"
+                  disabled={addDocumentMutation.isPending}
+                >
+                  {addDocumentMutation.isPending && (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  )}
                   Ajouter
                 </Button>
               </DialogFooter>
@@ -273,6 +335,7 @@ export function ClientDetailPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Delete client dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>

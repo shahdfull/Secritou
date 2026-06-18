@@ -4,10 +4,11 @@ import type { Task, CreateTaskInput, UpdateTaskInput } from "../types/task";
 import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 import { toast } from "sonner";
 import i18n from "@/i18n";
+import { queryKeys } from "@/lib/query-keys";
 
 export function useTasks(params: ListQueryParams = {}, projectId?: string) {
   return useQuery<PaginatedResponse<Task>>({
-    queryKey: ["tasks", params, projectId],
+    queryKey: queryKeys.tasks({ ...params, projectId }),
     queryFn: () => tasksApi.getAll(params, projectId),
     placeholderData: (prev) => prev,
     staleTime: 30_000,
@@ -17,7 +18,7 @@ export function useTasks(params: ListQueryParams = {}, projectId?: string) {
 
 export function useTask(id: string) {
   return useQuery<Task>({
-    queryKey: ["task", id],
+    queryKey: queryKeys.task(id),
     queryFn: () => tasksApi.getById(id),
     enabled: !!id,
   });
@@ -29,7 +30,7 @@ export function useCreateTask() {
   return useMutation<Task, Error, CreateTaskInput>({
     mutationFn: (data) => tasksApi.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks() });
       toast.success(i18n.t("toasts.taskCreated"));
     },
   });
@@ -41,8 +42,8 @@ export function useUpdateTask() {
   return useMutation<Task, Error, { id: string; data: Omit<UpdateTaskInput, "id"> }>({
     mutationFn: ({ id, data }) => tasksApi.update(id, data),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["task", data.id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.task(data.id) });
       toast.success(i18n.t("toasts.taskUpdated"));
     },
   });
@@ -54,7 +55,7 @@ export function useDeleteTask() {
   return useMutation<void, Error, string>({
     mutationFn: (id) => tasksApi.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks() });
       toast.success(i18n.t("toasts.taskDeleted"));
     },
   });

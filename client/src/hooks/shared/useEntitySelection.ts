@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 export function useEntitySelection<T extends string | number>(initialSelected: Set<T> = new Set()) {
   const [selected, setSelected] = useState<Set<T>>(initialSelected);
@@ -23,10 +23,9 @@ export function useEntitySelection<T extends string | number>(initialSelected: S
     setSelected(new Set());
   }, []);
 
-  const isSelected = useCallback((id: T) => selected.has(id), [selected]);
-
   const selectedCount = selected.size;
-  const isAllSelected = selectedCount > 0;
+  const isAllSelected = useMemo(() => selectedCount > 0, [selectedCount]);
+  const isSelected = useCallback((id: T) => selected.has(id), [selected]);
 
   return {
     selected,

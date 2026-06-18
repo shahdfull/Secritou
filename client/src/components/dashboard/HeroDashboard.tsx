@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { ArrowRight, Bot, Lightbulb, BarChart3, Users, TrendingUp, Zap } from "lucide-react";
+import { ArrowRight, Bot, BarChart3, Lightbulb, Users, TrendingUp, Zap } from "lucide-react";
 import { trackCtaClick } from "@/services/analytics.service";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -24,13 +24,13 @@ export function HeroDashboard() {
           <span className="h-2.5 w-2.5 rounded-full bg-[#00ca4e]" />
           <div className="ml-3 hidden flex-1 sm:block">
             <div className="mx-auto max-w-xs rounded-md bg-background px-3 py-1 text-center text-[11px] font-medium text-muted-foreground">
-              {t("dashboardHero.browserUrl")}
+              dashboard.secritou.local
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-12 gap-3 p-4 sm:p-5">
-          <KpiTile label={t("dashboardHero.kpis.revenue")} value="€128,450" delta="+18.4%" tone="primary" delay={0.1} />
+          <KpiTile label={t("dashboardHero.kpis.revenue")} value="DT 128 450" delta="+18.4%" tone="primary" delay={0.1} />
           <KpiTile label={t("dashboardHero.kpis.newLeads")} value="2,847" delta="+12.1%" tone="ink" delay={0.18} />
           <KpiTile label={t("dashboardHero.kpis.conversion")} value="4.62%" delta="+0.8pt" tone="accent" delay={0.26} />
 
@@ -89,23 +89,13 @@ export function HeroDashboard() {
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.9 }}>
         <Link
           to="/contact"
-          onClick={() => trackCtaClick({ cta: t("dashboardHero.joinWaitlist"), location: t("dashboardHero.futureVision") })}
+          onClick={() => trackCtaClick({ cta: t("home.cta.primary"), location: "Hero dashboard" })}
           className="group flex w-full items-center justify-center gap-2 rounded-full bg-ink px-6 py-3 text-sm font-semibold text-white shadow-soft transition-transform hover:-translate-y-0.5"
         >
           <Zap className="h-4 w-4" />
-          {t("dashboardHero.joinWaitlist")}
+          {t("home.cta.primary")}
           <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
         </Link>
-      </motion.div>
-
-      <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.6, delay: 1 }} className="absolute -top-5 -right-3 hidden items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-card md:flex">
-        <div className="grid h-10 w-10 place-items-center rounded-xl bg-accent-soft">
-          <Lightbulb className="h-5 w-5 text-ink" />
-        </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("dashboardHero.futureVision")}</p>
-          <p className="font-display text-base font-bold text-ink">{t("dashboardHero.comingSoon")}</p>
-        </div>
       </motion.div>
     </div>
   );

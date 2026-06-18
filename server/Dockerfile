@@ -1,25 +1,17 @@
-FROM node:24-alpine AS deps
+FROM node:22-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
-COPY server/package.json ./server/package.json
-COPY shared/package.json ./shared/package.json
-COPY server/prisma ./server/prisma
-RUN npm install
+RUN npm ci
+COPY . .
+RUN npm run prisma:generate && npm run build
 
-FROM node:24-alpine AS build
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY server ./server
-COPY shared ./shared
-COPY package.json package-lock.json ./
-RUN npm run prisma:generate --workspace server && npm run build --workspace shared && npm run build --workspace server
-
-FROM node:24-alpine
+FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/server/dist ./dist
-COPY --from=build /app/server/prisma ./prisma
-COPY server/package.json ./package.json
+COPY --from=builder --chown=node:node /app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /app/dist ./dist
+COPY --from=builder --chown=node:node /app/prisma ./prisma
+COPY --chown=node:node package.json ./
+USER node
 EXPOSE 5000
 CMD ["node", "dist/index.js"]

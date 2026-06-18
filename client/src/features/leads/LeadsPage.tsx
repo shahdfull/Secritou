@@ -61,7 +61,6 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import {
   useLeads,
   useCreateLead,
@@ -74,32 +73,35 @@ import { LeadsKanban } from "./LeadsKanban";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { SortableTableHead } from "@/components/common/SortableTableHead";
 import { useListParams } from "@/hooks/useListParams";
+import {
+  createLeadSchema,
+  updateLeadSchema,
+  type CreateLeadForm,
+  type UpdateLeadForm,
+} from "@/schemas/lead.schema";
+import { useDebouncedValue } from "@/hooks/shared/useDebouncedValue";
+import { useCrudDialogState } from "@/hooks/shared/useCrudDialogState";
+import { useTranslation } from "react-i18next";
 
-const createLeadSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email").optional().or(z.literal("")),
-  phone: z.string().optional(),
-  source: z.enum(["Site web", "LinkedIn", "Recommandation", "Email", "Appel entrant", "Autre"]).optional(),
-  notes: z.string().optional(),
-  status: z.enum(["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "WON", "LOST"]).default("NEW"),
-});
-
-const updateLeadSchema = createLeadSchema.partial();
-
-type CreateLeadForm = z.infer<typeof createLeadSchema>;
-type UpdateLeadForm = z.infer<typeof updateLeadSchema>;
+const STATUS_OPTIONS = ["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "WON", "LOST"] as const;
+const SOURCE_OPTIONS = ["Website", "LinkedIn", "Referral", "Email", "Inbound Call", "Other"] as const;
+const ALL_STATUSES_VALUE = "__all__";
 
 export function LeadsPage() {
-  const [statusFilter, setStatusFilter] = useState<string>("All");
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const { t } = useTranslation();
+  const [statusFilter, setStatusFilter] = useState<string>(ALL_STATUSES_VALUE);
+  const [searchInput, setSearchInput] = useState("");
   const [view, setView] = useState<"list" | "kanban">("list");
 
   const { page, pageSize, orderBy, orderDir, search, params, setPage, setSearch, setSort, updateParams } = useListParams(10);
+  const debouncedSearch = useDebouncedValue(searchInput, 300);
 
   useEffect(() => {
-    updateParams({ status: statusFilter === "All" ? undefined : statusFilter, page: 1 });
+    setSearch(debouncedSearch);
+  }, [debouncedSearch, setSearch]);
+
+  useEffect(() => {
+    updateParams({ status: statusFilter === ALL_STATUSES_VALUE ? undefined : statusFilter, page: 1 });
   }, [statusFilter, updateParams]);
 
   const listParams = useMemo(
@@ -110,7 +112,7 @@ export function LeadsPage() {
       orderBy: orderBy ?? "createdAt",
       orderDir,
       search,
-      status: statusFilter === "All" ? undefined : statusFilter,
+      status: statusFilter === ALL_STATUSES_VALUE ? undefined : statusFilter,
     }),
     [params, view, pageSize, page, orderBy, orderDir, search, statusFilter],
   );
@@ -123,8 +125,18 @@ export function LeadsPage() {
   const { mutate: deleteLead, isPending: isDeleting } = useDeleteLead();
   const { mutate: convertLead, isPending: isConverting } = useConvertLeadToClient();
 
+  const {
+    createDialogOpen,
+    editDialogOpen,
+    editingEntity: editingLead,
+    openCreateDialog,
+    closeCreateDialog,
+    openEditDialog,
+    closeEditDialog,
+  } = useCrudDialogState<Lead>();
+
   const createForm = useForm<CreateLeadForm>({
-    resolver: zodResolver(createLeadSchema) as any,
+    resolver: zodResolver(createLeadSchema),
     defaultValues: {
       name: "",
       email: "",
@@ -134,23 +146,22 @@ export function LeadsPage() {
   });
 
   const editForm = useForm<UpdateLeadForm>({
-    resolver: zodResolver(updateLeadSchema) as any,
+    resolver: zodResolver(updateLeadSchema),
   });
 
   const handleCreate = useCallback(async (data: CreateLeadForm) => {
     createLead(data, {
       onSuccess: () => {
-        setCreateDialogOpen(false);
+        closeCreateDialog();
         createForm.reset();
       },
     });
-  }, [createForm, createLead]);
+  }, [createForm, createLead, closeCreateDialog]);
 
   const handleEdit = useCallback((lead: Lead) => {
-    setEditingLead(lead);
+    openEditDialog(lead);
     editForm.reset(lead);
-    setEditDialogOpen(true);
-  }, [editForm]);
+  }, [editForm, openEditDialog]);
 
   const handleUpdate = useCallback(async (data: UpdateLeadForm) => {
     if (!editingLead) return;
@@ -158,12 +169,11 @@ export function LeadsPage() {
       { id: editingLead.id, data },
       {
         onSuccess: () => {
-          setEditDialogOpen(false);
-          setEditingLead(null);
+          closeEditDialog();
         },
       }
     );
-  }, [editingLead, updateLead]);
+  }, [editingLead, updateLead, closeEditDialog]);
 
   const handleDelete = useCallback((lead: Lead) => {
     if (confirm(`Are you sure you want to delete ${lead.name}?`)) {
@@ -196,21 +206,45 @@ export function LeadsPage() {
 
   const getSourceBadgeClass = (source: string) => {
     switch (source) {
-      case "Site web":
+      case "Website":
         return "bg-cyan-100 text-cyan-800";
       case "LinkedIn":
         return "bg-blue-100 text-blue-800";
-      case "Recommandation":
+      case "Referral":
         return "bg-green-100 text-green-800";
       case "Email":
         return "bg-pink-100 text-pink-800";
-      case "Appel entrant":
+      case "Inbound Call":
         return "bg-orange-100 text-orange-800";
-      case "Autre":
+      case "Other":
         return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
+  };
+
+  const getSourceLabel = (source: string) => {
+    const labels: Record<string, string> = {
+      Website: t('leadsPage.sources.website'),
+      LinkedIn: t('leadsPage.sources.linkedin'),
+      Referral: t('leadsPage.sources.referral'),
+      Email: t('leadsPage.sources.email'),
+      "Inbound Call": t('leadsPage.sources.inboundCall'),
+      Other: t('leadsPage.sources.other'),
+    };
+    return labels[source] || source;
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      NEW: t('leadsPage.status.new'),
+      CONTACTED: t('leadsPage.status.contacted'),
+      QUALIFIED: t('leadsPage.status.qualified'),
+      PROPOSAL: t('leadsPage.status.proposal'),
+      WON: t('leadsPage.status.won'),
+      LOST: t('leadsPage.status.lost'),
+    };
+    return labels[status] || status;
   };
 
   if (isLoading) {
@@ -225,20 +259,20 @@ export function LeadsPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold text-ink">Leads</h1>
-          <p className="text-muted-foreground">Manage and track your sales leads</p>
+          <h1 className="font-display text-2xl font-bold text-ink">{t('leadsPage.title')}</h1>
+          <p className="text-muted-foreground">{t('leadsPage.subtitle')}</p>
         </div>
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <Dialog open={createDialogOpen} onOpenChange={closeCreateDialog}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
-              Add Lead
+              {t('leadsPage.addLead')}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create Lead</DialogTitle>
-              <DialogDescription>Add a new lead to your pipeline</DialogDescription>
+              <DialogTitle>{t('leadsPage.createLead')}</DialogTitle>
+              <DialogDescription>{t('leadsPage.createLeadDesc')}</DialogDescription>
             </DialogHeader>
             <Form {...createForm}>
               <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-4">
@@ -247,9 +281,9 @@ export function LeadsPage() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Name</FormLabel>
+                      <FormLabel>{t('common.name')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="John Doe" {...field} />
+                        <Input placeholder={t('leadsPage.namePlaceholder')} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -260,9 +294,9 @@ export function LeadsPage() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>{t('common.email')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="john@example.com" type="email" {...field} />
+                        <Input placeholder={t('leadsPage.emailPlaceholder')} type="email" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -273,9 +307,9 @@ export function LeadsPage() {
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone</FormLabel>
+                      <FormLabel>{t('common.phone')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="+1234567890" {...field} />
+                        <Input placeholder={t('leadsPage.phonePlaceholder')} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -286,20 +320,19 @@ export function LeadsPage() {
                   name="source"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Source</FormLabel>
+                      <FormLabel>{t('leadsPage.source')}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select source" />
+                            <SelectValue placeholder={t('leadsPage.selectSource')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="Site web">Site web</SelectItem>
-                          <SelectItem value="LinkedIn">LinkedIn</SelectItem>
-                          <SelectItem value="Recommandation">Recommandation</SelectItem>
-                          <SelectItem value="Email">Email</SelectItem>
-                          <SelectItem value="Appel entrant">Appel entrant</SelectItem>
-                          <SelectItem value="Autre">Autre</SelectItem>
+                          {SOURCE_OPTIONS.map((source) => (
+                            <SelectItem key={source} value={source}>
+                              {getSourceLabel(source)}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -311,9 +344,9 @@ export function LeadsPage() {
                   name="notes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Notes</FormLabel>
+                      <FormLabel>{t('common.notes')}</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Notes internes..." {...field} />
+                        <Textarea placeholder={t('leadsPage.notesPlaceholder')} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -324,20 +357,19 @@ export function LeadsPage() {
                   name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Status</FormLabel>
+                      <FormLabel>{t('common.status')}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
+                            <SelectValue placeholder={t('leadsPage.selectStatus')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="NEW">New</SelectItem>
-                          <SelectItem value="CONTACTED">Contacted</SelectItem>
-                          <SelectItem value="QUALIFIED">Qualified</SelectItem>
-                          <SelectItem value="PROPOSAL">Proposal</SelectItem>
-                          <SelectItem value="WON">Won</SelectItem>
-                          <SelectItem value="LOST">Lost</SelectItem>
+                          {STATUS_OPTIONS.map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {status}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -347,7 +379,7 @@ export function LeadsPage() {
                 <DialogFooter>
                   <Button type="submit" disabled={isCreating}>
                     {isCreating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Create
+                    {t('common.create')}
                   </Button>
                 </DialogFooter>
               </form>
@@ -363,9 +395,9 @@ export function LeadsPage() {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search leads..."
-                value={search ?? ""}
-                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t('leadsPage.searchLeads')}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -374,26 +406,26 @@ export function LeadsPage() {
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[180px]">
                 <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Filter by status" />
+                <SelectValue placeholder={t('leadsPage.filterByStatus')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="All">All Statuses</SelectItem>
-                <SelectItem value="NEW">New</SelectItem>
-                <SelectItem value="CONTACTED">Contacted</SelectItem>
-                <SelectItem value="QUALIFIED">Qualified</SelectItem>
-                <SelectItem value="WON">Won</SelectItem>
-                <SelectItem value="LOST">Lost</SelectItem>
+                <SelectItem value={ALL_STATUSES_VALUE}>{t('leadsPage.allStatuses')}</SelectItem>
+                {STATUS_OPTIONS.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {getStatusLabel(status)}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Tabs value={view} onValueChange={(v) => setView(v as "list" | "kanban")}>
               <TabsList>
                 <TabsTrigger value="list" className="flex items-center gap-2">
                   <List className="h-4 w-4" />
-                  Liste
+                  {t('leadsPage.viewList')}
                 </TabsTrigger>
                 <TabsTrigger value="kanban" className="flex items-center gap-2">
                   <KanbanSquare className="h-4 w-4" />
-                  Kanban
+                  {t('leadsPage.viewKanban')}
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -403,15 +435,39 @@ export function LeadsPage() {
           {view === "list" ? (
             <Table>
               <TableHeader>
-              <TableRow>
-                <SortableTableHead column="name" label="Name" sortBy={orderBy ?? "createdAt"} sortOrder={orderDir} onSort={(col) => setSort(col, orderBy ?? "createdAt", orderDir)} />
-                <SortableTableHead column="email" label="Email" sortBy={orderBy ?? "createdAt"} sortOrder={orderDir} onSort={(col) => setSort(col, orderBy ?? "createdAt", orderDir)} />
-                <TableHead>Phone</TableHead>
-                <SortableTableHead column="source" label="Source" sortBy={orderBy ?? "createdAt"} sortOrder={orderDir} onSort={(col) => setSort(col, orderBy ?? "createdAt", orderDir)} />
-                <SortableTableHead column="status" label="Status" sortBy={orderBy ?? "createdAt"} sortOrder={orderDir} onSort={(col) => setSort(col, orderBy ?? "createdAt", orderDir)} />
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
+                <TableRow>
+                  <SortableTableHead
+                    column="name"
+                    label={t('common.name')}
+                    sortBy={orderBy ?? "createdAt"}
+                    sortOrder={orderDir}
+                    onSort={(col) => setSort(col, orderBy ?? "createdAt", orderDir)}
+                  />
+                  <SortableTableHead
+                    column="email"
+                    label={t('common.email')}
+                    sortBy={orderBy ?? "createdAt"}
+                    sortOrder={orderDir}
+                    onSort={(col) => setSort(col, orderBy ?? "createdAt", orderDir)}
+                  />
+                  <TableHead>{t('common.phone')}</TableHead>
+                  <SortableTableHead
+                    column="source"
+                    label={t('leadsPage.sourceLabel')}
+                    sortBy={orderBy ?? "createdAt"}
+                    sortOrder={orderDir}
+                    onSort={(col) => setSort(col, orderBy ?? "createdAt", orderDir)}
+                  />
+                  <SortableTableHead
+                    column="status"
+                    label={t('common.status')}
+                    sortBy={orderBy ?? "createdAt"}
+                    sortOrder={orderDir}
+                    onSort={(col) => setSort(col, orderBy ?? "createdAt", orderDir)}
+                  />
+                  <TableHead className="text-right">{t('common.actions')}</TableHead>
+                </TableRow>
+              </TableHeader>
               <TableBody>
                 {filteredLeads.map((lead) => (
                   <TableRow key={lead.id}>
@@ -421,7 +477,7 @@ export function LeadsPage() {
                     <TableCell>
                       {lead.source ? (
                         <Badge className={getSourceBadgeClass(lead.source)}>
-                          {lead.source}
+                          {getSourceLabel(lead.source)}
                         </Badge>
                       ) : (
                         "-"
@@ -433,7 +489,7 @@ export function LeadsPage() {
                           lead.status
                         )}`}
                       >
-                        {lead.status}
+                        {getStatusLabel(lead.status)}
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
@@ -446,15 +502,15 @@ export function LeadsPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => handleEdit(lead)}>
                             <Edit className="h-4 w-4 mr-2" />
-                            Edit
+                            {t('common.edit')}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleConvert(lead)} disabled={isConverting}>
                             <UserCheck className="h-4 w-4 mr-2" />
-                            Convert to Client
+                            {t('leadsPage.convertToClient')}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleDelete(lead)} disabled={isDeleting} className="text-red-600">
                             <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
+                            {t('common.delete')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -479,11 +535,11 @@ export function LeadsPage() {
 
       {/* Edit Dialog */}
       {editingLead && (
-        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <Dialog open={editDialogOpen} onOpenChange={closeEditDialog}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Edit Lead</DialogTitle>
-              <DialogDescription>Update lead information</DialogDescription>
+              <DialogTitle>{t('leadsPage.editLead')}</DialogTitle>
+              <DialogDescription>{t('leadsPage.editLeadDesc')}</DialogDescription>
             </DialogHeader>
             <Form {...editForm}>
               <form onSubmit={editForm.handleSubmit(handleUpdate)} className="space-y-4">
@@ -492,7 +548,7 @@ export function LeadsPage() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Name</FormLabel>
+                      <FormLabel>{t('common.name')}</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -505,7 +561,7 @@ export function LeadsPage() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>{t('common.email')}</FormLabel>
                       <FormControl>
                         <Input type="email" {...field} />
                       </FormControl>
@@ -518,7 +574,7 @@ export function LeadsPage() {
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone</FormLabel>
+                      <FormLabel>{t('common.phone')}</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -531,20 +587,19 @@ export function LeadsPage() {
                   name="source"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Source</FormLabel>
+                      <FormLabel>{t('leadsPage.source')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select source" />
+                            <SelectValue placeholder={t('leadsPage.selectSource')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="Site web">Site web</SelectItem>
-                          <SelectItem value="LinkedIn">LinkedIn</SelectItem>
-                          <SelectItem value="Recommandation">Recommandation</SelectItem>
-                          <SelectItem value="Email">Email</SelectItem>
-                          <SelectItem value="Appel entrant">Appel entrant</SelectItem>
-                          <SelectItem value="Autre">Autre</SelectItem>
+                          {SOURCE_OPTIONS.map((source) => (
+                            <SelectItem key={source} value={source}>
+                              {source}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -556,9 +611,9 @@ export function LeadsPage() {
                   name="notes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Notes</FormLabel>
+                      <FormLabel>{t('common.notes')}</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Notes internes..." {...field} />
+                        <Textarea placeholder={t('leadsPage.notesPlaceholder')} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -569,20 +624,19 @@ export function LeadsPage() {
                   name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Status</FormLabel>
+                      <FormLabel>{t('common.status')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
+                            <SelectValue placeholder={t('leadsPage.selectStatus')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="NEW">New</SelectItem>
-                          <SelectItem value="CONTACTED">Contacted</SelectItem>
-                          <SelectItem value="QUALIFIED">Qualified</SelectItem>
-                          <SelectItem value="PROPOSAL">Proposal</SelectItem>
-                          <SelectItem value="WON">Won</SelectItem>
-                          <SelectItem value="LOST">Lost</SelectItem>
+                          {STATUS_OPTIONS.map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {status}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -592,7 +646,7 @@ export function LeadsPage() {
                 <DialogFooter>
                   <Button type="submit" disabled={isUpdating}>
                     {isUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Save
+                    {t('common.save')}
                   </Button>
                 </DialogFooter>
               </form>

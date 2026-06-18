@@ -9,6 +9,28 @@ function generateRandomPassword() {
 }
 
 export const userService = {
+  async getMe(userId: string) {
+    const user = await userRepository.findById(userId);
+    if (!user) throw new HttpError(404, "User not found");
+    return user;
+  },
+
+  async updateMe(
+    userId: string,
+    data: { name?: string; email?: string; phone?: string }
+  ) {
+    const user = await userRepository.findById(userId);
+    if (!user) throw new HttpError(404, "User not found");
+
+    if (data.email && data.email !== user.email) {
+      const conflict = await userRepository.findByEmailExcluding(data.email, userId);
+      if (conflict) throw new HttpError(409, "Email is already in use");
+    }
+
+    return userRepository.updateMe(userId, data);
+  },
+
+
   async getUsersByCompany(companyId: string, options: ListQueryOptions) {
     return userRepository.findByCompanyId(companyId, options);
   },

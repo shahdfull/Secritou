@@ -28,7 +28,7 @@ export const searchRepository = {
         take: SEARCH_LIMIT,
       }),
       prisma.freelancerProfile.findMany({
-        where: { user: { name: contains } },
+        where: { companyId, user: { name: contains } },
         select: {
           id: true,
           user: { select: { id: true, name: true, email: true } },

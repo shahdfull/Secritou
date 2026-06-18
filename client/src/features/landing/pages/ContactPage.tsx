@@ -9,13 +9,14 @@ import { z } from "zod";
 import { submitContactRequest, type ServiceType, type BudgetOption } from "@/services/contact.service";
 import { trackContactFormSubmitted, trackContactFormFailed } from "@/services/analytics.service";
 
-const serviceTypes: ServiceType[] = [
-  "Business Performance",
+// Updated to use canonical names (will be mapped from translations)
+const CANONICAL_SERVICE_TYPES = [
+  "Management & Performance",
   "Digital Growth",
-  "Technology Solutions",
+  "Technology",
   "AI & Automation",
   "Other"
-];
+] as const;
 
 const budgetOptions: BudgetOption[] = [
   "< 1 000 DT",
@@ -33,7 +34,7 @@ export function ContactPage() {
     name: z.string().trim().min(2, t("contact.pleaseEnterName")),
     email: z.string().trim().email(t("contact.pleaseEnterEmail")),
     phone: z.string().optional(),
-    serviceType: z.enum(["Business Performance", "Digital Growth", "Technology Solutions", "AI & Automation", "Other"] as const, {
+    serviceType: z.enum(CANONICAL_SERVICE_TYPES, {
       required_error: t("contact.pleaseEnterServiceType")
     }),
     budget: z.enum(["< 1 000 DT", "1 000–5 000 DT", "5 000–15 000 DT", "+15 000 DT"] as const).optional(),
@@ -56,7 +57,7 @@ export function ContactPage() {
       name: "",
       email: "",
       phone: "",
-      serviceType: selectedService || "Business Performance",
+      serviceType: (selectedService as any) || "Management & Performance",
       budget: undefined,
       company: "",
       message: "",
@@ -132,7 +133,7 @@ export function ContactPage() {
                   {...register("serviceType")}
                   className="mt-2 h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-ink outline-none transition-shadow focus:border-primary focus:shadow-soft"
                 >
-                  {serviceTypes.map((type) => (
+                  {CANONICAL_SERVICE_TYPES.map((type) => (
                     <option key={type} value={type}>
                       {type}
                     </option>
@@ -160,7 +161,7 @@ export function ContactPage() {
                   {...register("budget")}
                   className="mt-2 h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-ink outline-none transition-shadow focus:border-primary focus:shadow-soft"
                 >
-                  <option value="">Select budget</option>
+                  <option value="">{t("contact.budget")}</option>
                   {budgetOptions.map((budget) => (
                     <option key={budget} value={budget}>
                       {budget}

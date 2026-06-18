@@ -18,7 +18,24 @@ export interface UpdateUserInput {
   role?: "ADMIN" | "MANAGER" | "CLIENT" | "FREELANCER";
 }
 
+export interface UpdateMeInput {
+  name?: string;
+  email?: string;
+  phone?: string | null;
+}
+
 export const usersApi = {
+  getMe: async (): Promise<User> => {
+    const response = await apiClient.get<ApiResponse<User>>("/users/me");
+    return response.data.data;
+  },
+
+  updateMe: async (data: UpdateMeInput): Promise<User> => {
+    const response = await apiClient.patch<ApiResponse<User>>("/users/me", data);
+    return response.data.data;
+  },
+
+
   getUsers: async (params: ListQueryParams = { page: 1, pageSize: 100 }): Promise<PaginatedResponse<User>> => {
     const response = await apiClient.get<PaginatedResponse<User>>("/users", { params });
     return response.data;

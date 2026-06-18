@@ -4,6 +4,7 @@ import { Search, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { searchApi, type SearchResults } from "@/api/search.api";
+import { useTranslation } from "react-i18next";
 
 const EMPTY_RESULTS: SearchResults = {
   leads: [],
@@ -21,6 +22,8 @@ export function GlobalSearch() {
   const [results, setResults] = useState<SearchResults>(EMPTY_RESULTS);
   const [isLoading, setIsLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     debounceRef.current = setTimeout(() => setDebouncedQuery(query), 300);
@@ -41,7 +44,8 @@ export function GlobalSearch() {
       .then((data) => {
         if (!cancelled) setResults(data);
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error("Global search error:", error);
         if (!cancelled) setResults(EMPTY_RESULTS);
       })
       .finally(() => {
@@ -52,6 +56,23 @@ export function GlobalSearch() {
       cancelled = true;
     };
   }, [debouncedQuery]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setOpen(true);
+        inputRef.current?.focus();
+      }
+      if (e.key === "Escape" && open) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
 
   const hasResults =
     results.leads.length > 0 ||
@@ -69,93 +90,103 @@ export function GlobalSearch() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <div className="relative flex-1 max-w-md" onClick={() => {
+          setOpen(true);
+          inputRef.current?.focus();
+        }}>
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <Input
+            ref={inputRef}
             type="search"
-            placeholder="Rechercher leads, clients, projets..."
-            className="pl-10 bg-muted/50 border-muted-foreground/20"
+            placeholder={t("search.placeholder")}
+            className="pl-10 bg-muted/50 border-muted-foreground/20 cursor-pointer"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
-              setOpen(true);
+              if (e.target.value.length > 0) {
+                setOpen(true);
+              }
             }}
-            onFocus={() => setOpen(true)}
+            onFocus={() => {
+              if (query.length > 0) {
+                setOpen(true);
+              }
+            }}
           />
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-96 p-0" align="start">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : debouncedQuery.length < 2 ? (
-          <p className="p-4 text-sm text-muted-foreground">Tapez au moins 2 caractères</p>
-        ) : !hasResults ? (
-          <p className="p-4 text-sm text-muted-foreground">Aucun résultat</p>
-        ) : (
-          <div className="max-h-80 overflow-y-auto p-2">
-            {results.leads.length > 0 && (
-              <ResultGroup
-                title={`Leads (${results.leads.length})`}
-                items={results.leads.map((l) => ({
-                  id: l.id,
-                  label: l.name ?? "",
-                  sub: l.email,
-                  path: `/app/leads`,
-                }))}
-                onNavigate={handleNavigate}
-              />
-            )}
-            {results.clients.length > 0 && (
-              <ResultGroup
-                title={`Clients (${results.clients.length})`}
-                items={results.clients.map((c) => ({
-                  id: c.id,
-                  label: c.name ?? "",
-                  sub: c.email,
-                  path: `/app/clients/${c.id}`,
-                }))}
-                onNavigate={handleNavigate}
-              />
-            )}
-            {results.projects.length > 0 && (
-              <ResultGroup
-                title={`Projets (${results.projects.length})`}
-                items={results.projects.map((p) => ({
-                  id: p.id,
-                  label: p.name ?? "",
-                  path: `/app/projects`,
-                }))}
-                onNavigate={handleNavigate}
-              />
-            )}
-            {results.tasks.length > 0 && (
-              <ResultGroup
-                title={`Tâches (${results.tasks.length})`}
-                items={results.tasks.map((t) => ({
-                  id: t.id,
-                  label: t.title ?? "",
-                  path: `/app/tasks`,
-                }))}
-                onNavigate={handleNavigate}
-              />
-            )}
-            {results.freelancers.length > 0 && (
-              <ResultGroup
-                title={`Freelancers (${results.freelancers.length})`}
-                items={results.freelancers.map((f) => ({
-                  id: f.id,
-                  label: f.user?.name ?? "",
-                  sub: f.user?.email,
-                  path: `/app/freelancers`,
-                }))}
-                onNavigate={handleNavigate}
-              />
-            )}
-          </div>
-        )}
-      </PopoverContent>
+      {debouncedQuery.length >= 2 && (
+        <PopoverContent className="w-96 p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : !hasResults ? (
+            <p className="p-4 text-sm text-muted-foreground">{t("search.noResults")}</p>
+          ) : (
+            <div className="max-h-80 overflow-y-auto p-2">
+              {results.leads.length > 0 && (
+                <ResultGroup
+                  title={`${t("search.leads")} (${results.leads.length})`}
+                  items={results.leads.map((l) => ({
+                    id: l.id,
+                    label: l.name ?? "",
+                    sub: l.email,
+                    path: `/app/leads`,
+                  }))}
+                  onNavigate={handleNavigate}
+                />
+              )}
+              {results.clients.length > 0 && (
+                <ResultGroup
+                  title={`${t("search.clients")} (${results.clients.length})`}
+                  items={results.clients.map((c) => ({
+                    id: c.id,
+                    label: c.name ?? "",
+                    sub: c.email,
+                    path: `/app/clients/${c.id}`,
+                  }))}
+                  onNavigate={handleNavigate}
+                />
+              )}
+              {results.projects.length > 0 && (
+                <ResultGroup
+                  title={`${t("search.projects")} (${results.projects.length})`}
+                  items={results.projects.map((p) => ({
+                    id: p.id,
+                    label: p.name ?? "",
+                    path: `/app/projects`,
+                  }))}
+                  onNavigate={handleNavigate}
+                />
+              )}
+              {results.tasks.length > 0 && (
+                <ResultGroup
+                  title={`${t("search.tasks")} (${results.tasks.length})`}
+                  items={results.tasks.map((t) => ({
+                    id: t.id,
+                    label: t.title ?? "",
+                    path: `/app/tasks`,
+                  }))}
+                  onNavigate={handleNavigate}
+                />
+              )}
+              {results.freelancers.length > 0 && (
+                <ResultGroup
+                  title={`${t("search.freelancers")} (${results.freelancers.length})`}
+                  items={results.freelancers.map((f) => ({
+                    id: f.id,
+                    label: f.user?.name ?? "",
+                    sub: f.user?.email,
+                    path: `/app/freelancers`,
+                  }))}
+                  onNavigate={handleNavigate}
+                />
+              )}
+            </div>
+          )}
+        </PopoverContent>
+      )}
     </Popover>
   );
 }

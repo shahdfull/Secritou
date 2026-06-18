@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 export interface ListFilters {
   search?: string;
@@ -33,9 +33,10 @@ export function useListFilters(initialFilters: ListFilters = {}) {
     setFilters({});
   }, []);
 
-  const hasActiveFilters = useMemo(() => {
-    return Object.values(filters).some((value) => value !== undefined && value !== "");
-  }, [filters]);
+  const hasActiveFilters = useMemo(
+    () => Object.values(filters).some((value) => value !== undefined && value !== ""),
+    [filters],
+  );
 
   return {
     filters,

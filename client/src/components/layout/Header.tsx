@@ -13,8 +13,8 @@ export function Header() {
   const nav = [
     { to: "/services", label: t("nav.services") },
     { to: "/solutions", label: t("nav.solutions") },
-    { to: "/case-studies", label: t("nav.caseStudies") },
     { to: "/contact", label: t("nav.contact") },
+    { to: "/rejoindre", label: t("nav.joinUs") },
   ] as const;
 
   // Close menu when pressing Escape
@@ -84,10 +84,10 @@ export function Header() {
             EN
           </button>
           <Link
-            to="/rejoindre"
-            className="ml-2 inline-flex items-center rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-ink/90"
+            to="/contact"
+            className="ml-4 inline-flex items-center rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-ink/90"
           >
-            {t("nav.joinUs")}
+            {t("nav.scheduleCall")}
           </Link>
         </div>
 
@@ -132,11 +132,11 @@ export function Header() {
               {t("auth.signIn")}
             </Link>
             <Link
-              to="/rejoindre"
+              to="/contact"
               onClick={() => setOpen(false)}
-              className="mt-2 inline-flex items-center justify-center rounded-full bg-ink px-4 py-2.5 text-base font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              className="mt-2 inline-flex items-center justify-center rounded-full bg-ink px-4 py-2.5 text-base font-semibold text-white transition-colors hover:bg-ink/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
-              {t("nav.joinUs")}
+              {t("nav.scheduleCall")}
             </Link>
             <div className="pt-4 mt-2 border-t border-border flex items-center justify-center gap-3">
               <button

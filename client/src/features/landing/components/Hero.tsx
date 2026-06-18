@@ -16,7 +16,7 @@ export function Hero() {
   ];
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-surface-warm/70 via-background to-background pt-4 pb-16 lg:pt-8 lg:pb-20">
+    <section className="relative overflow-hidden bg-gradient-to-b from-surface-warm/70 via-background to-background pt-4 pb-12 lg:pt-6 lg:pb-16">
       {/* Decorative blur */}
       <div
         aria-hidden
@@ -27,7 +27,7 @@ export function Hero() {
         className="absolute top-40 -left-20 h-[320px] w-[320px] rounded-full bg-accent-soft opacity-60 blur-3xl"
       />
 
-      <div className="container-page relative grid items-start gap-14 lg:grid-cols-[1.05fr_1fr] lg:gap-10">
+      <div className="container-page relative grid items-start gap-8 lg:grid-cols-[1.05fr_1fr] lg:gap-8">
         <div>
           <motion.div
             initial={{ opacity: 0, y: 12 }}
@@ -43,7 +43,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.05 }}
-            className="mt-5 font-display text-[40px] leading-[1.05] font-bold tracking-tight text-ink sm:text-5xl lg:text-[64px]"
+            className="mt-4 font-display text-[32px] leading-[1.1] font-bold tracking-tight text-ink sm:text-4xl lg:text-[56px]"
           >
             {t("home.hero.title.0")}
             <span className="relative inline-block">
@@ -60,7 +60,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.15 }}
-            className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg"
+            className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base"
           >
             {t("home.hero.description")}
           </motion.p>
@@ -69,22 +69,22 @@ export function Hero() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.25 }}
-            className="mt-8 flex flex-wrap items-center gap-3"
+            className="mt-6 flex flex-wrap items-center gap-3"
           >
             <Link
               to="/contact"
-              onClick={() => trackCtaClick({ cta: t("nav.bookFreeConsultation"), location: "Hero" })}
+              onClick={() => trackCtaClick({ cta: t("home.cta.primary"), location: "Hero" })}
               className="group inline-flex h-12 items-center justify-center gap-2 rounded-full bg-ink px-6 text-sm font-semibold text-white shadow-soft transition-transform hover:-translate-y-0.5"
             >
-              {t("nav.bookFreeConsultation")}
+              {t("home.cta.primary")}
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
             <Link
               to="/services"
-              onClick={() => trackCtaClick({ cta: t("nav.discoverSolutions"), location: "Hero" })}
+              onClick={() => trackCtaClick({ cta: t("home.cta.secondary"), location: "Hero" })}
               className="inline-flex h-12 items-center justify-center rounded-full border border-border bg-background px-6 text-sm font-semibold text-ink transition-colors hover:bg-surface"
             >
-              {t("nav.discoverSolutions")}
+              {t("home.cta.secondary")}
             </Link>
           </motion.div>
 
@@ -92,7 +92,7 @@ export function Hero() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.4 }}
-            className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-medium text-muted-foreground"
+            className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-medium text-muted-foreground sm:gap-x-6 sm:text-xs"
           >
             {features.map((item) => (
               <span key={item} className="inline-flex items-center gap-1.5">

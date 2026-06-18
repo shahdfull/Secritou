@@ -31,7 +31,8 @@ export const getOnboardings: RequestHandler = async (req, res, next) => {
 export const getOnboardingById: RequestHandler = async (req, res, next) => {
   try {
     const onboarding = await clientOnboardingService.getOnboardingById(
-      req.params.id as string
+      req.params.id as string,
+      req.user?.companyId as string
     );
     res.json({ data: onboarding });
   } catch (error) {
@@ -42,7 +43,8 @@ export const getOnboardingById: RequestHandler = async (req, res, next) => {
 export const getOnboardingByProjectId: RequestHandler = async (req, res, next) => {
   try {
     const onboarding = await clientOnboardingService.getOnboardingByProjectId(
-      req.params.projectId as string
+      req.params.projectId as string,
+      req.user?.companyId as string
     );
     res.json({ data: onboarding });
   } catch (error) {
@@ -50,7 +52,7 @@ export const getOnboardingByProjectId: RequestHandler = async (req, res, next) =
   }
 };
 
-export const createOnboarding: RequestHandler = [
+export const createOnboarding: RequestHandler[] = [
   validate(createOnboardingValidator),
   async (req, res, next) => {
     try {
@@ -65,12 +67,13 @@ export const createOnboarding: RequestHandler = [
   },
 ];
 
-export const updateOnboarding: RequestHandler = [
+export const updateOnboarding: RequestHandler[] = [
   validate(updateOnboardingValidator),
   async (req, res, next) => {
     try {
       const onboarding = await clientOnboardingService.updateOnboarding(
         req.params.id as string,
+        req.user?.companyId as string,
         req.body
       );
       res.json({ data: onboarding });
@@ -82,7 +85,10 @@ export const updateOnboarding: RequestHandler = [
 
 export const deleteOnboarding: RequestHandler = async (req, res, next) => {
   try {
-    await clientOnboardingService.deleteOnboarding(req.params.id as string);
+    await clientOnboardingService.deleteOnboarding(
+      req.params.id as string,
+      req.user?.companyId as string
+    );
     res.status(204).send();
   } catch (error) {
     next(error);
@@ -90,12 +96,13 @@ export const deleteOnboarding: RequestHandler = async (req, res, next) => {
 };
 
 // Step operations
-export const updateStep: RequestHandler = [
+export const updateStep: RequestHandler[] = [
   validate(updateStepValidator),
   async (req, res, next) => {
     try {
       const step = await clientOnboardingService.updateStep(
         req.params.stepId as string,
+        req.user?.companyId as string,
         req.body
       );
       res.json({ data: step });
@@ -106,12 +113,13 @@ export const updateStep: RequestHandler = [
 ];
 
 // Contract operations
-export const createContract: RequestHandler = [
+export const createContract: RequestHandler[] = [
   validate(updateContractValidator),
   async (req, res, next) => {
     try {
       const contract = await clientOnboardingService.createContract(
         req.params.stepId as string,
+        req.user?.companyId as string,
         req.body
       );
       res.status(201).json({ data: contract });
@@ -121,12 +129,13 @@ export const createContract: RequestHandler = [
   },
 ];
 
-export const updateContract: RequestHandler = [
+export const updateContract: RequestHandler[] = [
   validate(updateContractValidator),
   async (req, res, next) => {
     try {
       const contract = await clientOnboardingService.updateContract(
         req.params.contractId as string,
+        req.user?.companyId as string,
         req.body
       );
       res.json({ data: contract });
@@ -137,12 +146,13 @@ export const updateContract: RequestHandler = [
 ];
 
 // Payment operations
-export const createPayment: RequestHandler = [
+export const createPayment: RequestHandler[] = [
   validate(updatePaymentValidator),
   async (req, res, next) => {
     try {
       const payment = await clientOnboardingService.createPayment(
         req.params.stepId as string,
+        req.user?.companyId as string,
         req.body
       );
       res.status(201).json({ data: payment });
@@ -152,12 +162,13 @@ export const createPayment: RequestHandler = [
   },
 ];
 
-export const updatePayment: RequestHandler = [
+export const updatePayment: RequestHandler[] = [
   validate(updatePaymentValidator),
   async (req, res, next) => {
     try {
       const payment = await clientOnboardingService.updatePayment(
         req.params.paymentId as string,
+        req.user?.companyId as string,
         req.body
       );
       res.json({ data: payment });
@@ -168,12 +179,13 @@ export const updatePayment: RequestHandler = [
 ];
 
 // Questionnaire operations
-export const createQuestionnaire: RequestHandler = [
+export const createQuestionnaire: RequestHandler[] = [
   validate(updateQuestionnaireValidator),
   async (req, res, next) => {
     try {
       const questionnaire = await clientOnboardingService.createQuestionnaire(
         req.params.stepId as string,
+        req.user?.companyId as string,
         req.body
       );
       res.status(201).json({ data: questionnaire });
@@ -183,12 +195,13 @@ export const createQuestionnaire: RequestHandler = [
   },
 ];
 
-export const updateQuestionnaire: RequestHandler = [
+export const updateQuestionnaire: RequestHandler[] = [
   validate(updateQuestionnaireValidator),
   async (req, res, next) => {
     try {
       const questionnaire = await clientOnboardingService.updateQuestionnaire(
         req.params.questionnaireId as string,
+        req.user?.companyId as string,
         req.body
       );
       res.json({ data: questionnaire });
@@ -199,12 +212,13 @@ export const updateQuestionnaire: RequestHandler = [
 ];
 
 // Specifications operations
-export const createSpecifications: RequestHandler = [
+export const createSpecifications: RequestHandler[] = [
   validate(updateSpecificationsValidator),
   async (req, res, next) => {
     try {
       const specifications = await clientOnboardingService.createSpecifications(
         req.params.stepId as string,
+        req.user?.companyId as string,
         req.body
       );
       res.status(201).json({ data: specifications });
@@ -214,12 +228,13 @@ export const createSpecifications: RequestHandler = [
   },
 ];
 
-export const updateSpecifications: RequestHandler = [
+export const updateSpecifications: RequestHandler[] = [
   validate(updateSpecificationsValidator),
   async (req, res, next) => {
     try {
       const specifications = await clientOnboardingService.updateSpecifications(
         req.params.specificationsId as string,
+        req.user?.companyId as string,
         req.body
       );
       res.json({ data: specifications });
@@ -230,12 +245,13 @@ export const updateSpecifications: RequestHandler = [
 ];
 
 // Kickoff operations
-export const createKickoff: RequestHandler = [
+export const createKickoff: RequestHandler[] = [
   validate(updateKickoffValidator),
   async (req, res, next) => {
     try {
       const kickoff = await clientOnboardingService.createKickoff(
         req.params.stepId as string,
+        req.user?.companyId as string,
         req.body
       );
       res.status(201).json({ data: kickoff });
@@ -245,12 +261,13 @@ export const createKickoff: RequestHandler = [
   },
 ];
 
-export const updateKickoff: RequestHandler = [
+export const updateKickoff: RequestHandler[] = [
   validate(updateKickoffValidator),
   async (req, res, next) => {
     try {
       const kickoff = await clientOnboardingService.updateKickoff(
         req.params.kickoffId as string,
+        req.user?.companyId as string,
         req.body
       );
       res.json({ data: kickoff });
@@ -261,12 +278,13 @@ export const updateKickoff: RequestHandler = [
 ];
 
 // Production operations
-export const createProduction: RequestHandler = [
+export const createProduction: RequestHandler[] = [
   validate(updateProductionValidator),
   async (req, res, next) => {
     try {
       const production = await clientOnboardingService.createProduction(
         req.params.stepId as string,
+        req.user?.companyId as string,
         req.body
       );
       res.status(201).json({ data: production });
@@ -276,12 +294,13 @@ export const createProduction: RequestHandler = [
   },
 ];
 
-export const updateProduction: RequestHandler = [
+export const updateProduction: RequestHandler[] = [
   validate(updateProductionValidator),
   async (req, res, next) => {
     try {
       const production = await clientOnboardingService.updateProduction(
         req.params.productionId as string,
+        req.user?.companyId as string,
         req.body
       );
       res.json({ data: production });
@@ -292,12 +311,13 @@ export const updateProduction: RequestHandler = [
 ];
 
 // Delivery operations
-export const createDelivery: RequestHandler = [
+export const createDelivery: RequestHandler[] = [
   validate(updateDeliveryValidator),
   async (req, res, next) => {
     try {
       const delivery = await clientOnboardingService.createDelivery(
         req.params.stepId as string,
+        req.user?.companyId as string,
         req.body
       );
       res.status(201).json({ data: delivery });
@@ -307,12 +327,13 @@ export const createDelivery: RequestHandler = [
   },
 ];
 
-export const updateDelivery: RequestHandler = [
+export const updateDelivery: RequestHandler[] = [
   validate(updateDeliveryValidator),
   async (req, res, next) => {
     try {
       const delivery = await clientOnboardingService.updateDelivery(
         req.params.deliveryId as string,
+        req.user?.companyId as string,
         req.body
       );
       res.json({ data: delivery });

@@ -19,7 +19,7 @@ const navItems: Array<{ icon: typeof LayoutDashboard; labelKey: string; active?:
 ] as const;
 
 const kpis = [
-  { labelKey: "dashboardProduct.kpis.mrr", value: "€42,180", delta: "+12.4%", up: true },
+  { labelKey: "dashboardProduct.kpis.mrr", value: "42 180 DT", delta: "+12.4%", up: true },
   { labelKey: "dashboardProduct.kpis.activeCustomers", value: "1,284", delta: "+8.1%", up: true },
   { labelKey: "dashboardProduct.kpis.churn", value: "1.8%", delta: "-0.3pt", up: false, invert: true },
   { labelKey: "dashboardProduct.kpis.nps", value: "62", delta: "+4", up: true },
@@ -162,10 +162,10 @@ export function ProductDashboard() {
               </thead>
               <tbody>
                 {[
-                  { n: "Atlas Studio", p: "Growth", m: "€3,200", h: "Healthy", color: "primary" },
-                  { n: "Nordic Bistro", p: "Scale", m: "€2,480", h: "At risk", color: "accent" },
-                  { n: "Helix Labs", p: "Growth", m: "€1,940", h: "Healthy", color: "primary" },
-                  { n: "Verra Retail", p: "Starter", m: "€1,210", h: "Healthy", color: "primary" },
+                  { n: "Atlas Studio", p: "Growth", m: "3 200 DT", h: "Healthy", color: "primary" },
+                  { n: "Nordic Bistro", p: "Scale", m: "2 480 DT", h: "At risk", color: "accent" },
+                  { n: "Helix Labs", p: "Growth", m: "1 940 DT", h: "Healthy", color: "primary" },
+                  { n: "Verra Retail", p: "Starter", m: "1 210 DT", h: "Healthy", color: "primary" },
                 ].map((r, i) => (
                   <tr key={i} className="border-t border-border">
                     <td className="px-4 py-2.5 font-medium text-ink sm:px-5">{r.n}</td>

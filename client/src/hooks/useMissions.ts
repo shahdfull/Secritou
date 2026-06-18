@@ -8,10 +8,11 @@ import type {
 import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 import { toast } from "sonner";
 import i18n from "@/i18n";
+import { queryKeys } from "@/lib/query-keys";
 
 export function useMissions(params: ListQueryParams = {}) {
   return useQuery<PaginatedResponse<FreelancerMission>>({
-    queryKey: ["missions", params],
+    queryKey: queryKeys.missions(params),
     queryFn: () => missionsApi.getAll(params),
     placeholderData: (prev) => prev,
   });
@@ -27,7 +28,7 @@ export function useCreateMission() {
   >({
     mutationFn: (data) => missionsApi.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["missions"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.missions() });
       toast.success(i18n.t("toasts.missionCreated"));
     },
   });
@@ -43,7 +44,7 @@ export function useUpdateMission() {
   >({
     mutationFn: ({ id, data }) => missionsApi.update(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["missions"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.missions() });
       toast.success(i18n.t("toasts.missionUpdated"));
     },
   });
@@ -59,7 +60,7 @@ export function useApplyToMission() {
   >({
     mutationFn: (id) => missionsApi.apply(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["missions"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.missions() });
       toast.success(i18n.t("toasts.missionApplied"));
     },
   });
@@ -71,7 +72,7 @@ export function useDeleteMission() {
   return useMutation<void, Error, string>({
     mutationFn: (id) => missionsApi.remove(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["missions"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.missions() });
       toast.success(i18n.t("toasts.missionDeleted"));
     },
   });

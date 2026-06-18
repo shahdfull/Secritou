@@ -2,14 +2,12 @@
   "nav": {
     "services": "Services",
     "solutions": "Solutions",
-    "caseStudies": "Études de cas",
     "contact": "Contact",
     "login": "Connexion",
     "joinUs": "Nous rejoindre",
-    "bookConsultation": "Réserver une consultation",
-    "bookFreeConsultation": "Réserver une consultation gratuite",
-    "discoverSolutions": "Découvrir nos solutions",
-    "scheduleFreeConsultation": "Planifier une consultation gratuite"
+    "scheduleCall": "Prendre rendez-vous",
+    "bookConsultation": "Réserver une consultation gratuite",
+    "caseStudies": "Études de cas"
   },
   "auth": {
     "signIn": "Se connecter",
@@ -30,14 +28,44 @@
     "validEmail": "Veuillez saisir un email valide",
     "passwordMinLength": "Le mot de passe doit contenir au moins 6 caractères",
     "nameMinLength": "Le nom doit contenir au moins 2 caractères",
-    "companyNameMinLength": "Le nom de l'entreprise doit contenir au moins 2 caractères"
+    "companyNameMinLength": "Le nom de l'entreprise doit contenir au moins 2 caractères",
+    "passwordResetLinkSent": "Lien de réinitialisation du mot de passe envoyé à votre email",
+    "checkYourEmail": "Vérifiez votre email",
+    "passwordResetSent": "Si un compte existe pour cet email, nous vous avons envoyé un lien pour réinitialiser votre mot de passe.",
+    "backToLogin": "Retour à la connexion",
+    "resetPasswordInstructions": "Entrez votre email et nous vous enverrons un lien pour réinitialiser votre mot de passe.",
+    "sendResetLink": "Envoyer le lien de réinitialisation",
+    "rememberPassword": "Vous vous souvenez de votre mot de passe ?",
+    "sending": "Envoi en cours...",
+    "passwordMismatch": "Les mots de passe ne correspondent pas",
+    "passwordResetSuccess": "Mot de passe réinitialisé avec succès",
+    "invalidResetLink": "Lien de réinitialisation invalide",
+    "invalidResetLinkDesc": "Ce lien de réinitialisation du mot de passe est invalide ou a expiré.",
+    "requestNewResetLink": "Demander un nouveau lien de réinitialisation",
+    "passwordReset": "Réinitialisation du mot de passe",
+    "passwordResetDone": "Votre mot de passe a été réinitialisé avec succès.",
+    "signInWithNewPassword": "Se connecter avec votre nouveau mot de passe",
+    "setNewPassword": "Définir un nouveau mot de passe",
+    "setNewPasswordInstructions": "Entrez votre nouveau mot de passe.",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le nouveau mot de passe",
+    "resetting": "Réinitialisation...",
+    "changePassword": "Changer de mot de passe",
+    "changePasswordRequired": "Vous devez changer votre mot de passe avant de continuer.",
+    "passwordChanged": "Mot de passe changé avec succès"
   },
   "services": {
     "title": "Un partenaire. Plusieurs solutions de croissance.",
     "subtitle": "Voici comment nous résolvons les problèmes",
     "seeFullCapabilities": "Voir toutes les capacités",
+    "highlights": [
+      "Management & Performance",
+      "Croissance digitale",
+      "Solutions technologiques",
+      "IA & Automatisation"
+    ],
     "businessPerformance": {
-      "title": "Performance commerciale",
+      "title": "Management & Performance",
       "body": "Suivi des KPI, tableaux de bord, objectifs et analyses commerciales — enfin un seul endroit pour les chiffres qui comptent.",
       "items": ["Suivi des KPI", "Tableaux de bord", "Objectifs", "Analyses commerciales"]
     },
@@ -47,7 +75,7 @@
       "items": ["Réseaux sociaux", "Création de contenu", "SEO", "Publicité payante"]
     },
     "technologySolutions": {
-      "title": "Solutions technologiques",
+      "title": "Technologie",
       "body": "Sites web, e-commerce, systèmes d'inventaire et les outils digitaux dont vous avez besoin pour opérer au niveau supérieur.",
       "items": ["Sites web", "E-commerce", "Systèmes d'inventaire", "Outils digitaux"]
     },
@@ -73,7 +101,7 @@
     "replyTime": "Nous répondons généralement dans un délai d'un jour ouvrable.",
     "emailInfo": "hello@secritou.com",
     "bookCall": "Appel de découverte de 30 minutes, gratuit.",
-    "whereWeWork": "Travail à distance prioritaire · Europe et monde entier.",
+    "whereWeWork": "Tunis · À distance partout en Tunisie.",
     "pleaseEnterName": "Veuillez saisir votre nom.",
     "pleaseEnterEmail": "Veuillez saisir une adresse email valide.",
     "pleaseEnterServiceType": "Veuillez sélectionner un type de service.",
@@ -89,11 +117,11 @@
   },
   "home": {
     "hero": {
-      "tagline": "Stratégie · Technologie · Données",
+      "tagline": "Management · Marketing · Technologie",
       "title": {
-        "0": "Votre partenaire croissance externe &",
-        "1": "transformation digitale",
-        "2": "partenaire."
+        "0": "Le partenaire qui",
+        "1": "structure, digitalise et fait grandir",
+        "2": "votre entreprise."
       },
       "description": "Nous aidons les PME, les entrepreneurs et les créateurs à s'organiser, à se digitaliser et à croître — grâce à la stratégie, la technologie, le marketing et la prise de décision basée sur les données.",
       "features": ["Décisions basées sur les données", "Transformation digitale", "Croissance commerciale", "Optimisation des processus"]
@@ -125,9 +153,15 @@
       "subtitle": "Voici comment nous résolvons les problèmes",
       "title": "Un partenaire. Plusieurs solutions de croissance.",
       "seeFullCapabilities": "Voir toutes les capacités",
+      "highlights": [
+        "Management & Performance",
+        "Croissance digitale",
+        "Technologie",
+        "IA & Automatisation"
+      ],
       "items": [
         {
-          "title": "Performance commerciale",
+          "title": "Management & Performance",
           "body": "Suivi des KPI, tableaux de bord, objectifs et analyses commerciales — enfin un seul endroit pour les chiffres qui comptent.",
           "items": ["Suivi des KPI", "Tableaux de bord", "Objectifs", "Analyses commerciales"]
         },
@@ -137,7 +171,7 @@
           "items": ["Réseaux sociaux", "Création de contenu", "SEO", "Publicité payante"]
         },
         {
-          "title": "Solutions technologiques",
+          "title": "Technologie",
           "body": "Sites web, e-commerce, systèmes d'inventaire et les outils digitaux dont vous avez besoin pour opérer au niveau supérieur.",
           "items": ["Sites web", "E-commerce", "Systèmes d'inventaire", "Outils digitaux"]
         },
@@ -200,14 +234,25 @@
     "finalCta": {
       "subtitle": "Prêt quand vous êtes",
       "title": "Prêt à accélérer votre croissance ?",
-      "description": "30 minutes. Pas de slides, pas de pitch. Juste une conversation sur où vous en êtes, où vous voulez aller, et ce qui vous en empêche.",
-      "seeResults": "Voir les résultats"
+      "description": "30 minutes. Pas de slides, pas de pitch. Juste une conversation sur où vous en êtes, où vous voulez aller, et ce qui vous en empêche."
+    },
+    "socialProof": {
+      "trustedBy": "Ils nous font confiance",
+      "impact": "Impact moyen",
+      "revenueGrowth": "+20 à 30 % de CA",
+      "averageFirstYear": "dès la 1re année",
+      "testimonial": "Secritou nous a aidés à remettre de l'ordre dans notre croissance. En quelques mois, nos décisions sont devenues plus claires et notre organisation beaucoup plus fluide.",
+      "testimonialAuthor": "Nadia Ben Salah",
+      "testimonialRole": "Fondatrice, Boutique de marque"
+    },
+    "cta": {
+      "primary": "Réserver une consultation gratuite",
+      "secondary": "Voir nos services"
     },
     "footer": {
-      "description": "Votre partenaire croissance externe et transformation digitale — construisant le système d'exploitation futur pour les PME, les entrepreneurs et les créateurs.",
+      "description": "Agence tunisienne B2B qui aide les PME, entrepreneurs et créateurs à s'organiser, se digitaliser et croître.",
       "services": "Services",
       "solutions": "Solutions",
-      "industriesTitle": "Secteurs",
       "industries": "Secteurs",
       "company": "Entreprise",
       "forSmes": "Pour les PME",
@@ -221,7 +266,7 @@
         "startups": "Startups"
       },
       "copyright": "© {year} Secritou. Tous droits réservés.",
-      "builtFor": "Conçu pour les entreprises qui prennent la croissance au sérieux."
+      "builtFor": "Une approche claire, mesurable et pensée pour convertir."
     }
   },
   "dashboard": {
@@ -260,7 +305,307 @@
     "dueDate": "Date d'échéance",
     "selectPlaceholder": "Sélectionnez...",
     "noDescription": "Aucune description fournie",
-    "areYouSureDelete": "Êtes-vous sûr de vouloir supprimer {name}?"
+    "areYouSureDelete": "Êtes-vous sûr de vouloir supprimer {name}?",
+    "actions": "Actions",
+    "saving": "Enregistrement...",
+    "optional": "optionnel",
+    "error": "Une erreur s'est produite."
+  },
+  "search": {
+    "placeholder": "Rechercher les leads, clients, projets...",
+    "minCharacters": "Tapez au moins 2 caractères",
+    "noResults": "Aucun résultat",
+    "leads": "Leads",
+    "clients": "Clients",
+    "projects": "Projets",
+    "tasks": "Tâches",
+    "freelancers": "Freelancers"
+  },
+  "settingsUsersTab": {
+    "title": "Utilisateurs",
+    "inviteUserButton": "Inviter un utilisateur",
+    "inviteDialogTitle": "Inviter un nouvel utilisateur",
+    "inviteDialogDesc": "Envoyer une invitation à un nouvel utilisateur",
+    "nameLabel": "Nom",
+    "emailLabel": "Email",
+    "roleLabel": "Rôle",
+    "selectRolePlaceholder": "Sélectionnez un rôle",
+    "admin": "Admin",
+    "manager": "Manager",
+    "client": "Client",
+    "freelancer": "Freelancer",
+    "cancel": "Annuler",
+    "sendInvitation": "Envoyer l'invitation",
+    "createdAt": "Créé le",
+    "actions": "Actions",
+    "editUser": "Modifier l'utilisateur",
+    "updateUserInfo": "Mettre à jour les informations de l'utilisateur",
+    "save": "Enregistrer",
+    "deleteUser": "Supprimer l'utilisateur",
+    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
+    "delete": "Supprimer",
+    "permissionsMatrix": "Matrice des permissions",
+    "permissionsPerRole": "Permissions par rôle",
+    "role": "Rôle",
+    "permissions": "Permissions"
+  },
+  "sidebar": {
+    "title": "Navigation",
+    "dashboard": "Tableau de bord",
+    "leads": "Prospects",
+    "clients": "Clients",
+    "applications": "Candidatures",
+    "onboarding": "Onboarding",
+    "freelancers": "Freelancers",
+    "missions": "Missions",
+    "projects": "Projets",
+    "tasks": "Tâches",
+    "aiAssistant": "Assistant IA",
+    "analytics": "Analytiques",
+    "reports": "Rapports",
+    "settings": "Paramètres",
+    "serviceRequests": "Demandes de service",
+    "proposals": "Propositions",
+    "approvals": "Approbations",
+    "invoices": "Factures",
+    "documents": "Documents",
+    "clientSuccess": "Succès Client"
+  },
+  "userMenu": {
+    "myAccount": "Mon compte",
+    "profile": "Profil",
+    "settings": "Paramètres",
+    "logout": "Déconnexion",
+    "loggingOut": "Déconnexion en cours..."
+  },
+  "toasts": {
+    "loginSuccess": "Connecté avec succès",
+    "registrationSuccess": "Compte créé avec succès",
+    "logoutSuccess": "Déconnecté avec succès",
+    "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
+    "genericError": "Une erreur s'est produite",
+    "companyUpdated": "Entreprise mise à jour avec succès",
+    "companySettingsSaved": "Paramètres de l'entreprise enregistrés",
+    "clientCreated": "Client créé avec succès",
+    "clientUpdated": "Client mis à jour avec succès",
+    "clientDeleted": "Client supprimé avec succès",
+    "projectCreated": "Projet créé avec succès",
+    "projectUpdated": "Projet mis à jour avec succès",
+    "projectDeleted": "Projet supprimé avec succès",
+    "taskCreated": "Tâche créée avec succès",
+    "taskUpdated": "Tâche mise à jour avec succès",
+    "taskDeleted": "Tâche supprimée avec succès",
+    "missionCreated": "Mission créée avec succès",
+    "missionUpdated": "Mission mise à jour avec succès",
+    "missionApplied": "Candidature envoyée avec succès",
+    "missionDeleted": "Mission supprimée avec succès",
+    "leadCreated": "Lead créé avec succès",
+    "leadUpdated": "Lead mis à jour avec succès",
+    "leadDeleted": "Lead supprimé avec succès",
+    "leadConverted": "Lead converti en client avec succès",
+    "leadStatusUpdated": "Statut du lead mis à jour avec succès",
+    "userInvited": "Utilisateur invité avec succès",
+    "userUpdated": "Utilisateur mis à jour avec succès",
+    "userDeleted": "Utilisateur supprimé avec succès",
+    "notificationsMarkedRead": "Toutes les notifications ont été marquées comme lues",
+    "profileUpdated": "Profil mis à jour avec succès",
+    "passwordUpdated": "Mot de passe mis à jour avec succès",
+    "documentAdded": "Document ajouté avec succès"
+  },
+  "aiAssistant": {
+    "title": "Assistant IA",
+    "subtitle": "Posez des questions sur les projets, les prospects, les clients et les performances.",
+    "emptyTitle": "Comment puis-je vous aider aujourd'hui ?",
+    "emptyExample": "Exemple : \"Quels sont les prospects qualifiés cette semaine ?\"",
+    "thinking": "Réflexion...",
+    "placeholder": "Écrivez votre message...",
+    "send": "Envoyer",
+    "errors": {
+      "unavailable": "Impossible de contacter l'assistant IA. Veuillez vérifier la clé API."
+    }
+  },
+  "notifications": {
+    "open": "Ouvrir les notifications",
+    "title": "Notifications",
+    "markAllRead": "Tout marquer comme lu",
+    "empty": "Aucune notification"
+  },
+  "joinUs": {
+    "title": "Rejoignez notre équipe",
+    "subtitle": "Déposez votre candidature pour rejoindre Secritou comme freelancer ou manager.",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "role": "Type de profil",
+    "rolePlaceholder": "Choisissez un profil",
+    "freelancer": "Freelancer",
+    "manager": "Manager",
+    "cv": "CV (PDF, max 10MB)",
+    "cvRequired": "Le CV est obligatoire",
+    "cvInvalid": "Le CV doit être un fichier PDF de maximum 10MB",
+    "portfolio": "Portfolio (PDF ou ZIP, max 20MB)",
+    "portfolioRequired": "Le portfolio est obligatoire",
+    "portfolioInvalid": "Le portfolio doit être un fichier PDF ou ZIP de maximum 20MB",
+    "bio": "Parlez-nous de votre expérience",
+    "submit": "Envoyer la candidature",
+    "success": "Votre demande a été envoyée avec succès.",
+    "bioMinLength": "Veuillez décrire votre expérience en au moins 20 caractères.",
+    "uploadCv": "Cliquez pour télécharger le CV",
+    "uploadPortfolio": "Cliquez pour télécharger le portfolio (PDF ou ZIP)",
+    "motivations": "Vos motivations",
+    "motivationsPlaceholder": "Pourquoi souhaitez-vous rejoindre notre équipe? Quels sont vos objectifs et ce qui vous motive?",
+    "successTitle": "Merci pour votre candidature !",
+    "successDescription": "Nous avons bien reçu votre demande. Notre équipe examinera votre profil et vous contactera très bientôt.",
+    "successSubtext": "Nous vous répondrons dans les 3 à 5 jours ouvrables."
+  },
+  "applications": {
+    "title": "Candidatures",
+    "subtitle": "Gérez les candidatures des freelancers et managers.",
+    "empty": "Aucune candidature pour le moment.",
+    "search": "Rechercher une candidature...",
+    "filterByStatus": "Filtrer par statut",
+    "allStatuses": "Tous les statuts",
+    "name": "Nom",
+    "email": "Email",
+    "phone": "Téléphone",
+    "position": "Poste",
+    "date": "Date",
+    "status": "Statut",
+    "cv": "CV",
+    "portfolio": "Portfolio",
+    "actions": "Actions",
+    "view": "Voir",
+    "downloadCv": "Télécharger CV",
+    "downloadPortfolio": "Télécharger Portfolio",
+    "accept": "Accepter",
+    "reject": "Refuser",
+    "statuses": {
+      "pending": "En attente",
+      "accepted": "Acceptée",
+      "rejected": "Refusée"
+    },
+    "rejectModal": {
+      "title": "Refuser la candidature",
+      "description": "Veuillez indiquer le motif du refus (ceci créera un brouillon Gmail).",
+      "reason": "Motif du refus",
+      "reasonPlaceholder": "Nous avons retenu un autre profil...",
+      "cancel": "Annuler",
+      "confirm": "Refuser"
+    },
+    "acceptModal": {
+      "title": "Accepter la candidature",
+      "description": "Créez un compte pour ce candidat (ceci créera un brouillon Gmail).",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "email": "Email",
+      "phone": "Téléphone",
+      "username": "Nom d'utilisateur",
+      "role": "Rôle",
+      "password": "Mot de passe temporaire",
+      "copyPassword": "Copier le mot de passe",
+      "cancel": "Annuler",
+      "confirm": "Accepter et créer le compte"
+    },
+    "rejected": "Candidature refusée avec succès",
+    "accepted": "Candidature acceptée et compte créé avec succès"
+  },
+  "joinRequests": {
+    "title": "Demandes d'adhésion",
+    "description": "Examinez les candidatures avant de créer un compte pour le candidat.",
+    "empty": "Aucune demande d'adhésion pour le moment.",
+    "review": "Examiner",
+    "reviewTitle": "Examiner la candidature",
+    "reviewDescription": "Modifier les détails du candidat avant de créer le compte.",
+    "role": "Rôle du compte",
+    "rolePlaceholder": "Choisissez un rôle",
+    "createAccount": "Créer un compte",
+    "accountCreated": "Compte créé à partir de la demande d'adhésion."
+  },
+  "dashboardHero": {
+    "browserUrl": "app.secritou.com / avenir",
+    "revenueTrend": "Tendance du revenu",
+    "last12Months": "12 derniers mois",
+    "revenue": "Revenu",
+    "forecast": "Prévision",
+    "aiAssistant": "Assistant IA",
+    "youLabel": "Vous :",
+    "growthQuestion": "Quelle est notre meilleure opportunité de croissance ?",
+    "aiLabel": "IA Secritou :",
+    "growthAnswer": "Concentrez-vous sur les campagnes email : elles génèrent 42 % des conversions !",
+    "joinWaitlist": "Réserver une consultation gratuite",
+    "futureVision": "Réserver une consultation",
+    "comingSoon": "Parlons de votre croissance",
+    "kpis": {
+      "revenue": "Revenu",
+      "newLeads": "Nouveaux leads",
+      "conversion": "Conversion"
+    },
+    "features": {
+      "kpi": {
+        "title": "Tableau de bord KPI",
+        "description": "Métriques en temps réel, tableaux de bord et suivi des objectifs au même endroit"
+      },
+      "ai": {
+        "title": "Assistant IA",
+        "description": "Chatbot alimenté par l'IA qui répond instantanément à vos questions métier"
+      },
+      "recommendations": {
+        "title": "Recommandations de croissance",
+        "description": "Suggestions personnalisées et pilotées par les données pour la croissance"
+      },
+      "insights": {
+        "title": "Insights métier",
+        "description": "Analyses approfondies et intelligence métier actionnable"
+      },
+      "team": {
+        "title": "Performance d'équipe",
+        "description": "Suivez et optimisez la productivité de votre équipe"
+      }
+    }
+  },
+  "dashboardProduct": {
+    "browserUrl": "app.secritou.com / growth-os",
+    "workspace": "Espace de travail",
+    "header": "Vue d'ensemble · 30 derniers jours",
+    "title": "Votre croissance en un coup d'œil",
+    "period": "30J",
+    "live": "En direct",
+    "revenueCustomers": "Revenus et clients",
+    "weekly": "Hebdomadaire",
+    "channelsTitle": "Canaux d'acquisition",
+    "topAccounts": "Principaux comptes",
+    "updatedAgo": "Mis à jour il y a 2 min",
+    "account": "Compte",
+    "plan": "Offre",
+    "mrr": "MRR",
+    "health": "Santé",
+    "nav": {
+      "overview": "Vue d'ensemble",
+      "analytics": "Analytique",
+      "customers": "Clients",
+      "automations": "Automatisations",
+      "settings": "Paramètres"
+    },
+    "kpis": {
+      "mrr": "MRR",
+      "activeCustomers": "Clients actifs",
+      "churn": "Attrition",
+      "nps": "NPS"
+    },
+    "channels": {
+      "organic": "Organique",
+      "paid": "Payant",
+      "referral": "Parrainage",
+      "direct": "Direct"
+    },
+    "healthLabels": {
+      "healthy": "Sain",
+      "atRisk": "À risque"
+    }
+  },
+  "futureProduct": {
+    "badge": "Notre vision",
+    "title": "Un partenaire de croissance coordonné pour votre entreprise.",
+    "description": "Aujourd'hui, nous vous aidons à structurer, digitaliser et développer votre activité avec des services pratiques, mesurables et orientés résultats."
   },
   "solutionsPage": {
     "title": "Construit autour de qui vous êtes — et où vous allez.",
@@ -332,6 +677,44 @@
       "completed": "Terminé"
     }
   },
+  "leadsPage": {
+    "title": "Prospects",
+    "subtitle": "Gérez vos prospects et suivez leur progression",
+    "addLead": "Ajouter un prospect",
+    "createLead": "Créer un prospect",
+    "createLeadDesc": "Ajoutez un nouveau prospect à votre liste",
+    "editLead": "Modifier le prospect",
+    "editLeadDesc": "Mettez à jour les informations du prospect",
+    "searchLeads": "Rechercher des prospects...",
+    "filterByStatus": "Filtrer par statut",
+    "allStatuses": "Tous les statuts",
+    "viewList": "Vue liste",
+    "viewKanban": "Vue kanban",
+    "selectSource": "Sélectionnez la source",
+    "selectStatus": "Sélectionnez le statut",
+    "namePlaceholder": "Nom du prospect",
+    "emailPlaceholder": "prospect@exemple.com",
+    "phonePlaceholder": "+216 00 000 000",
+    "notesPlaceholder": "Ajoutez des notes...",
+    "convertToClient": "Convertir en client",
+    "sourceLabel": "Source",
+    "status": {
+      "new": "Nouveau",
+      "contacted": "Contacté",
+      "qualified": "Qualifié",
+      "proposal": "Proposition",
+      "won": "Gagné",
+      "lost": "Perdu"
+    },
+    "sources": {
+      "website": "Site web",
+      "linkedin": "LinkedIn",
+      "referral": "Recommandation",
+      "email": "Email",
+      "inboundCall": "Appel entrant",
+      "other": "Autre"
+    }
+  },
   "tasksPage": {
     "title": "Tâches",
     "subtitle": "Gérez et suivez les tâches de vos projets",
@@ -347,7 +730,7 @@
     "projectRequired": "Le projet est requis",
     "selectProject": "Sélectionnez le projet",
     "selectStatus": "Sélectionnez le statut",
-    "title": "Titre de la tâche",
+    "taskTitle": "Titre de la tâche",
     "description": "Description de la tâche",
     "statuses": {
       "todo": "À faire",
@@ -403,139 +786,20 @@
     "phoneLabel": "Téléphone",
     "areYouSureDelete": "Êtes-vous sûr de vouloir supprimer {name}?"
   },
+  "settings": {
+    "title": "Paramètres",
+    "description": "Configurez votre profil, entreprise, utilisateurs et apparence."
+  },
+  "settingsTabs": {
+    "profile": "Profil",
+    "company": "Entreprise",
+    "users": "Utilisateurs",
+    "requests": "Demandes d'adhésion",
+    "appearance": "Apparence"
+  },
   "settingsPage": {
     "title": "Paramètres",
-    "description": "Configurez votre entreprise, vos utilisateurs, la facturation et les contrôles d'accès."
-  },
-  "clientPortal": {
-    "nav": {
-      "projects": "Mes projets",
-      "requests": "Mes demandes",
-      "profile": "Mon profil"
-    },
-    "dashboard": {
-      "title": "Tableau de bord",
-      "stats": {
-        "projects": "Projets",
-        "requests": "Demandes"
-      }
-    },
-    "projects": {
-      "title": "Mes Projets",
-      "progress": "Progression",
-      "totalTasks": "tâches",
-      "completedTasks": "terminées",
-      "statuses": {
-        "planning": "Planification",
-        "inProgress": "En cours",
-        "review": "En revue",
-        "completed": "Terminé"
-      }
-    },
-    "serviceRequests": {
-      "title": "Mes Demandes",
-      "newRequest": "Nouvelle Demande",
-      "newRequestDesc": "Décrivez votre besoin, nous vous répondrons rapidement.",
-      "noRequests": "Vous n'avez pas encore de demande de service.",
-      "title": "Titre",
-      "titlePlaceholder": "Titre de la demande",
-      "descriptionPlaceholder": "Décrivez votre demande en détail...",
-      "send": "Envoyer la demande",
-      "sending": "Envoi en cours...",
-      "createdOn": "Créée le",
-      "statuses": {
-        "new": "Nouveau",
-        "inProgress": "En cours",
-        "done": "Terminé"
-      }
-    }
-  },
-  "dashboardHero": {
-    "browserUrl": "app.secritou.com / avenir",
-    "revenueTrend": "Tendance du revenu",
-    "last12Months": "12 derniers mois",
-    "revenue": "Revenu",
-    "forecast": "Prévision",
-    "aiAssistant": "Assistant IA",
-    "youLabel": "Vous :",
-    "growthQuestion": "Quelle est notre meilleure opportunité de croissance ?",
-    "aiLabel": "IA Secritou :",
-    "growthAnswer": "Concentrez-vous sur les campagnes email : elles génèrent 42 % des conversions !",
-    "joinWaitlist": "Rejoindre la liste d'attente",
-    "futureVision": "Vision future",
-    "comingSoon": "Bientôt disponible",
-    "kpis": {
-      "revenue": "Revenu",
-      "newLeads": "Nouveaux leads",
-      "conversion": "Conversion"
-    },
-    "features": {
-      "kpi": {
-        "title": "Tableau de bord KPI",
-        "description": "Métriques en temps réel, tableaux de bord et suivi des objectifs au même endroit"
-      },
-      "ai": {
-        "title": "Assistant IA",
-        "description": "Chatbot alimenté par l'IA qui répond instantanément à vos questions métier"
-      },
-      "recommendations": {
-        "title": "Recommandations de croissance",
-        "description": "Suggestions personnalisées et pilotées par les données pour la croissance"
-      },
-      "insights": {
-        "title": "Insights métier",
-        "description": "Analyses approfondies et intelligence métier actionnable"
-      },
-      "team": {
-        "title": "Performance d'équipe",
-        "description": "Suivez et optimisez la productivité de votre équipe"
-      }
-    }
-  },
-  "dashboardProduct": {
-    "browserUrl": "app.secritou.com / growth-os",
-    "workspace": "Espace de travail",
-    "header": "Vue d'ensemble · 30 derniers jours",
-    "title": "Votre croissance en un coup d'œil",
-    "period": "30J",
-    "live": "En direct",
-    "revenueCustomers": "Revenus et clients",
-    "weekly": "Hebdomadaire",
-    "channelsTitle": "Canaux d'acquisition",
-    "topAccounts": "Principaux comptes",
-    "updatedAgo": "Mis à jour il y a 2 min",
-    "account": "Compte",
-    "plan": "Offre",
-    "mrr": "MRR",
-    "health": "Santé",
-    "nav": {
-      "overview": "Vue d'ensemble",
-      "analytics": "Analytique",
-      "customers": "Clients",
-      "automations": "Automatisations",
-      "settings": "Paramètres"
-    },
-    "kpis": {
-      "mrr": "MRR",
-      "activeCustomers": "Clients actifs",
-      "churn": "Attrition",
-      "nps": "NPS"
-    },
-    "channels": {
-      "organic": "Organique",
-      "paid": "Payant",
-      "referral": "Parrainage",
-      "direct": "Direct"
-    },
-    "healthLabels": {
-      "healthy": "Sain",
-      "atRisk": "À risque"
-    }
-  },
-  "futureProduct": {
-    "badge": "Vision du futur produit",
-    "title": "Le système d'exploitation du futur pour les entreprises en croissance.",
-    "description": "Aujourd'hui, nous le livrons comme un service coordonné. Demain, ce sera une plateforme - vos revenus, KPI, marketing, tâches et automatisations réunis au même endroit."
+    "description": "Configurez votre entreprise, utilisateurs, facturation et contrôles d'accès."
   },
   "solutionsTeaser": {
     "subtitle": "Construit autour de qui vous êtes",
@@ -644,103 +908,48 @@
       }
     }
   },
-  "joinUs": {
-    "title": "Rejoignez notre équipe",
-    "subtitle": "Déposez votre candidature pour rejoindre Secritou comme freelancer ou manager.",
-    "firstName": "Prénom",
-    "lastName": "Nom",
-    "role": "Type de profil",
-    "rolePlaceholder": "Choisissez un profil",
-    "freelancer": "Freelancer",
-    "manager": "Manager",
-    "cv": "CV (PDF, max 10MB)",
-    "cvRequired": "Le CV est obligatoire",
-    "cvInvalid": "Le CV doit être un fichier PDF de maximum 10MB",
-    "portfolio": "Portfolio (PDF ou ZIP, max 20MB)",
-    "portfolioRequired": "Le portfolio est obligatoire",
-    "portfolioInvalid": "Le portfolio doit être un fichier PDF ou ZIP de maximum 20MB",
-    "bio": "Parlez-nous de votre expérience",
-    "submit": "Envoyer la candidature",
-    "success": "Votre demande a été envoyée avec succès.",
-    "bioMinLength": "Veuillez décrire votre expérience en au moins 20 caractères."
-  },
-  "applications": {
-    "title": "Candidatures",
-    "subtitle": "Gérez les candidatures des freelances et managers.",
-    "empty": "Aucune candidature pour le moment.",
-    "search": "Rechercher une candidature...",
-    "filterByStatus": "Filtrer par statut",
-    "allStatuses": "Tous les statuts",
-    "name": "Nom",
-    "email": "Email",
-    "phone": "Téléphone",
-    "position": "Poste",
-    "date": "Date",
-    "status": "Statut",
-    "cv": "CV",
-    "portfolio": "Portfolio",
-    "actions": "Actions",
-    "view": "Voir",
-    "downloadCv": "Télécharger CV",
-    "downloadPortfolio": "Télécharger Portfolio",
-    "accept": "Accepter",
-    "reject": "Refuser",
-    "statuses": {
-      "pending": "En attente",
-      "accepted": "Acceptée",
-      "rejected": "Refusée"
+  "clientPortal": {
+    "nav": {
+      "projects": "Mes projets",
+      "requests": "Mes demandes",
+      "profile": "Mon profil"
     },
-    "rejectModal": {
-      "title": "Refuser la candidature",
-      "description": "Veuillez indiquer le motif du refus (ceci créera un brouillon Gmail).",
-      "reason": "Motif du refus",
-      "reasonPlaceholder": "Nous avons retenu un autre profil...",
-      "cancel": "Annuler",
-      "confirm": "Refuser"
+    "dashboard": {
+      "title": "Tableau de bord",
+      "stats": {
+        "projects": "Projets",
+        "requests": "Demandes"
+      }
     },
-    "acceptModal": {
-      "title": "Accepter la candidature",
-      "description": "Créez un compte pour ce candidat (ceci créera un brouillon Gmail).",
-      "firstName": "Prénom",
-      "lastName": "Nom",
-      "email": "Email",
-      "phone": "Téléphone",
-      "username": "Nom d'utilisateur",
-      "role": "Rôle",
-      "password": "Mot de passe temporaire",
-      "copyPassword": "Copier le mot de passe",
-      "cancel": "Annuler",
-      "confirm": "Accepter et créer le compte"
+    "projects": {
+      "title": "Mes Projets",
+      "progress": "Progression",
+      "totalTasks": "tâches",
+      "completedTasks": "terminées",
+      "statuses": {
+        "planning": "Planification",
+        "inProgress": "En cours",
+        "review": "En revue",
+        "completed": "Terminé"
+      }
     },
-    "rejected": "Candidature refusée avec succès",
-    "accepted": "Candidature acceptée et compte créé avec succès"
-  },
-  "auth": {
-    "signIn": "Se connecter",
-    "signUp": "S'inscrire",
-    "email": "Email",
-    "password": "Mot de passe",
-    "forgotPassword": "Mot de passe oublié ?",
-    "resetPassword": "Réinitialiser le mot de passe",
-    "createAccount": "Créer un compte",
-    "fullName": "Nom complet",
-    "companyName": "Nom de l'entreprise",
-    "accessWorkspace": "Accédez à votre espace de travail, vos projets, vos rapports et votre assistant IA.",
-    "getStarted": "Commencez avec votre plateforme de croissance et de transformation numérique.",
-    "dontHaveAccount": "Vous n'avez pas de compte ?",
-    "alreadyHaveAccount": "Vous avez déjà un compte ?",
-    "signingIn": "Connexion en cours...",
-    "creatingAccount": "Création du compte...",
-    "validEmail": "Veuillez saisir un email valide",
-    "passwordMinLength": "Le mot de passe doit contenir au moins 6 caractères",
-    "nameMinLength": "Le nom doit contenir au moins 2 caractères",
-    "companyNameMinLength": "Le nom de l'entreprise doit contenir au moins 2 caractères",
-    "changePassword": "Changer de mot de passe",
-    "changePasswordRequired": "Vous devez changer votre mot de passe avant de continuer.",
-    "newPassword": "Nouveau mot de passe",
-    "confirmPassword": "Confirmer le nouveau mot de passe",
-    "passwordMismatch": "Les mots de passe ne correspondent pas",
-    "passwordChanged": "Mot de passe changé avec succès"
+    "serviceRequests": {
+      "title": "Mes Demandes",
+      "newRequest": "Nouvelle Demande",
+      "newRequestDesc": "Décrivez votre besoin, nous vous répondrons rapidement.",
+      "noRequests": "Vous n'avez pas encore de demande de service.",
+      "requestTitle": "Titre",
+      "titlePlaceholder": "Titre de la demande",
+      "descriptionPlaceholder": "Décrivez votre demande en détail...",
+      "send": "Envoyer la demande",
+      "sending": "Envoi en cours...",
+      "createdOn": "Créée le",
+      "statuses": {
+        "new": "Nouveau",
+        "inProgress": "En cours",
+        "done": "Terminé"
+      }
+    }
   },
   "onboarding": {
     "title": "Onboarding Client",
@@ -773,7 +982,7 @@
     },
     "contract": {
       "title": "Contrat",
-      "subtitle": "Téléchargez et signezz le contrat pour commencer.",
+      "subtitle": "Téléchargez et signez le contrat pour commencer.",
       "uploadContract": "Télécharger le contrat",
       "viewContract": "Voir le contrat",
       "downloadContract": "Télécharger le contrat",
@@ -886,5 +1095,212 @@
       "edit": "Modifier",
       "delete": "Supprimer"
     }
+  },
+  "proposals": {
+    "title": "Propositions",
+    "subtitle": "Gérez les propositions commerciales pour vos clients.",
+    "empty": "Aucune proposition pour le moment.",
+    "search": "Rechercher des propositions...",
+    "filterByStatus": "Filtrer par statut",
+    "allStatuses": "Tous les statuts",
+    "proposalTitle": "Titre",
+    "client": "Client",
+    "amount": "Montant",
+    "date": "Date",
+    "status": "Statut",
+    "actions": "Actions",
+    "view": "Voir",
+    "download": "Télécharger",
+    "send": "Envoyer",
+    "accept": "Accepter",
+    "reject": "Refuser",
+    "delete": "Supprimer",
+    "statuses": {
+      "draft": "Brouillon",
+      "sent": "Envoyée",
+      "viewed": "Vue",
+      "accepted": "Acceptée",
+      "rejected": "Refusée",
+      "expired": "Expirée"
+    },
+    "rejectModal": {
+      "title": "Refuser la proposition",
+      "description": "Veuillez indiquer le motif du refus (ceci créera un brouillon Gmail).",
+      "reasonPlaceholder": "Nous avons décidé de choisir un autre prestataire...",
+      "cancel": "Annuler",
+      "confirm": "Refuser"
+    },
+    "created": "Proposition créée avec succès",
+    "updated": "Proposition mise à jour avec succès",
+    "deleted": "Proposition supprimée avec succès",
+    "sent": "Proposition envoyée avec succès",
+    "accepted": "Proposition acceptée avec succès",
+    "rejected": "Proposition refusée avec succès"
+  },
+  "approvals": {
+    "title": "Approbations",
+    "subtitle": "Gérez les approbations de livrables pour vos clients.",
+    "empty": "Aucune approbation pour le moment.",
+    "search": "Rechercher des approbations...",
+    "filterByStatus": "Filtrer par statut",
+    "allStatuses": "Tous les statuts",
+    "approvalTitle": "Titre",
+    "client": "Client",
+    "dueDate": "Date d'échéance",
+    "status": "Statut",
+    "actions": "Actions",
+    "view": "Voir",
+    "approve": "Approuver",
+    "reject": "Refuser",
+    "comment": "Commenter",
+    "delete": "Supprimer",
+    "statuses": {
+      "pending": "En attente",
+      "approved": "Approuvée",
+      "rejected": "Refusée",
+      "commented": "Commentée"
+    },
+    "commentPlaceholder": "Ajoutez vos commentaires...",
+    "created": "Approbation créée avec succès",
+    "updated": "Approbation mise à jour avec succès",
+    "deleted": "Approbation supprimée avec succès",
+    "approved": "Approbation approuvée avec succès",
+    "rejected": "Approbation refusée avec succès",
+    "commented": "Commentaire ajouté avec succès"
+  },
+  "invoices": {
+    "title": "Factures",
+    "subtitle": "Gérez les factures pour vos clients.",
+    "empty": "Aucune facture pour le moment.",
+    "search": "Rechercher des factures...",
+    "filterByStatus": "Filtrer par statut",
+    "allStatuses": "Tous les statuts",
+    "number": "Numéro",
+    "client": "Client",
+    "amount": "Montant",
+    "amountPaid": "Montant payé",
+    "dueDate": "Date d'échéance",
+    "status": "Statut",
+    "actions": "Actions",
+    "view": "Voir",
+    "download": "Télécharger",
+    "send": "Envoyer",
+    "addPayment": "Ajouter un paiement",
+    "delete": "Supprimer",
+    "statuses": {
+      "draft": "Brouillon",
+      "sent": "Envoyée",
+      "paid": "Payée",
+      "partial": "Partiellement payée",
+      "overdue": "En retard",
+      "cancelled": "Annulée"
+    },
+    "created": "Facture créée avec succès",
+    "updated": "Facture mise à jour avec succès",
+    "deleted": "Facture supprimée avec succès",
+    "sent": "Facture envoyée avec succès",
+    "paymentAdded": "Paiement ajouté avec succès"
+  },
+  "enhancedDocuments": {
+    "title": "Documents",
+    "subtitle": "Gérez les contrats, livrables, guides et rapports.",
+    "empty": "Aucun document pour le moment.",
+    "search": "Rechercher des documents...",
+    "filterByType": "Filtrer par type",
+    "allTypes": "Tous les types",
+    "add": "Ajouter un document",
+    "addTitle": "Ajouter un nouveau document",
+    "addDescription": "Téléchargez un nouveau document dans votre bibliothèque",
+    "file": "Fichier",
+    "uploadFile": "Cliquez pour télécharger un fichier",
+    "name": "Nom",
+    "descriptionLabel": "Description",
+    "client": "Client",
+    "type": "Type",
+    "version": "Version",
+    "tags": "Tags",
+    "tagsLabel": "Tags (séparés par des virgules)",
+    "accessLevel": "Niveau d'accès",
+    "date": "Date",
+    "actions": "Actions",
+    "view": "Voir",
+    "download": "Télécharger",
+    "uploadNewVersion": "Télécharger une nouvelle version",
+    "delete": "Supprimer",
+    "types": {
+      "contract": "Contrat",
+      "deliverable": "Livrable",
+      "guide": "Guide",
+      "report": "Rapport",
+      "invoice": "Facture",
+      "other": "Autre"
+    },
+    "created": "Document téléchargé avec succès",
+    "updated": "Document mis à jour avec succès",
+    "deleted": "Document supprimé avec succès",
+    "versionCreated": "Nouvelle version téléchargée avec succès"
+  },
+  "clientSuccess": {
+    "title": "Succès Client",
+    "subtitle": "Suivez les métriques, objectifs et timeline de succès des clients.",
+    "score": "Score de succès",
+    "objectives": "Objectifs",
+    "metrics": "Métriques",
+    "recommendations": "Recommandations",
+    "timeline": "Timeline",
+    "addObjective": "Ajouter un objectif",
+    "editObjective": "Modifier l'objectif",
+    "deleteObjective": "Supprimer l'objectif",
+    "addMetric": "Ajouter une métrique",
+    "editMetric": "Modifier la métrique",
+    "deleteMetric": "Supprimer la métrique",
+    "addRecommendation": "Ajouter une recommandation",
+    "editRecommendation": "Modifier la recommandation",
+    "deleteRecommendation": "Supprimer la recommandation",
+    "addTimelineEntry": "Ajouter une entrée timeline",
+    "deleteTimelineEntry": "Supprimer l'entrée timeline",
+    "calculateScore": "Calculer le score",
+    "scoreCalculated": "Score de succès calculé avec succès",
+    "objectiveAdded": "Objectif ajouté avec succès",
+    "objectiveUpdated": "Objectif mis à jour avec succès",
+    "objectiveDeleted": "Objectif supprimé avec succès",
+    "metricAdded": "Métrique ajoutée avec succès",
+    "metricUpdated": "Métrique mise à jour avec succès",
+    "metricDeleted": "Métrique supprimée avec succès",
+    "recommendationAdded": "Recommandation ajoutée avec succès",
+    "recommendationUpdated": "Recommandation mise à jour avec succès",
+    "recommendationDeleted": "Recommandation supprimée avec succès",
+    "timelineAdded": "Entrée timeline ajoutée avec succès",
+    "timelineDeleted": "Entrée timeline supprimée avec succès"
+  },
+  "ratings": {
+    "title": "Avis",
+    "writeReview": "Écrire un avis",
+    "submitReview": "Soumettre l'avis",
+    "updateReview": "Mettre à jour",
+    "editReview": "Modifier l'avis",
+    "noReviews": "Aucun avis pour l'instant.",
+    "reviewCount_one": "{{count}} avis",
+    "reviewCount_other": "{{count}} avis",
+    "reviews": "avis",
+    "forMission": "Mission",
+    "score": "Note",
+    "comment": "Commentaire",
+    "commentPlaceholder": "Partagez votre expérience avec ce freelancer...",
+    "created": "Avis soumis avec succès.",
+    "updated": "Avis mis à jour.",
+    "deleted": "Avis supprimé.",
+    "scoreLabel": {
+      "1": "Insuffisant",
+      "2": "Passable",
+      "3": "Bien",
+      "4": "Très bien",
+      "5": "Excellent"
+    }
+  },
+  "freelancers": {
+    "available": "Disponible",
+    "busy": "Occupé",
+    "notFound": "Freelancer introuvable."
   }
 }

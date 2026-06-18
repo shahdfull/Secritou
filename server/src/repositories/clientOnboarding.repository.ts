@@ -67,9 +67,9 @@ export const clientOnboardingRepository = {
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(id: string): Promise<any | null> {
+  async findById(id: string, companyId: string): Promise<any | null> {
     return prismaRead.clientOnboarding.findUnique({
-      where: { id },
+      where: { id, companyId },
       include: {
         project: true,
         client: true,
@@ -90,9 +90,9 @@ export const clientOnboardingRepository = {
     });
   },
 
-  async findByProjectId(projectId: string): Promise<any | null> {
+  async findByProjectId(projectId: string, companyId: string): Promise<any | null> {
     return prismaRead.clientOnboarding.findUnique({
-      where: { projectId },
+      where: { projectId, project: { companyId } },
       include: {
         project: true,
         client: true,
@@ -143,9 +143,9 @@ export const clientOnboardingRepository = {
     });
   },
 
-  async update(id: string, data: any): Promise<any> {
+  async update(id: string, companyId: string, data: any): Promise<any> {
     return prisma.clientOnboarding.update({
-      where: { id },
+      where: { id, companyId },
       data,
       include: {
         project: true,
@@ -155,12 +155,13 @@ export const clientOnboardingRepository = {
     });
   },
 
-  async delete(id: string): Promise<any> {
-    return prisma.clientOnboarding.delete({ where: { id } });
+  async delete(id: string, companyId: string): Promise<any> {
+    return prisma.clientOnboarding.delete({ where: { id, companyId } });
   },
 
   // Step operations
-  async addStep(onboardingId: string, data: any): Promise<any> {
+  async addStep(onboardingId: string, companyId: string, data: any): Promise<any> {
+    await prisma.clientOnboarding.findUniqueOrThrow({ where: { id: onboardingId, companyId }, select: { id: true } });
     return prisma.onboardingStep.create({
       data: {
         onboardingId,
@@ -169,9 +170,12 @@ export const clientOnboardingRepository = {
     });
   },
 
-  async updateStep(stepId: string, data: any): Promise<any> {
+  async updateStep(stepId: string, companyId: string, data: any): Promise<any> {
     return prisma.onboardingStep.update({
-      where: { id: stepId },
+      where: {
+        id: stepId,
+        onboarding: { companyId }
+      },
       data,
       include: {
         contract: true,
@@ -186,7 +190,8 @@ export const clientOnboardingRepository = {
   },
 
   // Contract operations
-  async createContract(stepId: string, data: any): Promise<any> {
+  async createContract(stepId: string, companyId: string, data: any): Promise<any> {
+    await prisma.onboardingStep.findUniqueOrThrow({ where: { id: stepId, onboarding: { companyId } }, select: { id: true } });
     return prisma.contract.create({
       data: {
         onboardingStepId: stepId,
@@ -195,15 +200,19 @@ export const clientOnboardingRepository = {
     });
   },
 
-  async updateContract(contractId: string, data: any): Promise<any> {
+  async updateContract(contractId: string, companyId: string, data: any): Promise<any> {
     return prisma.contract.update({
-      where: { id: contractId },
+      where: {
+        id: contractId,
+        onboardingStep: { onboarding: { companyId } }
+      },
       data,
     });
   },
 
   // Payment operations
-  async createPayment(stepId: string, data: any): Promise<any> {
+  async createPayment(stepId: string, companyId: string, data: any): Promise<any> {
+    await prisma.onboardingStep.findUniqueOrThrow({ where: { id: stepId, onboarding: { companyId } }, select: { id: true } });
     return prisma.payment.create({
       data: {
         onboardingStepId: stepId,
@@ -212,15 +221,19 @@ export const clientOnboardingRepository = {
     });
   },
 
-  async updatePayment(paymentId: string, data: any): Promise<any> {
+  async updatePayment(paymentId: string, companyId: string, data: any): Promise<any> {
     return prisma.payment.update({
-      where: { id: paymentId },
+      where: {
+        id: paymentId,
+        onboardingStep: { onboarding: { companyId } }
+      },
       data,
     });
   },
 
   // Questionnaire operations
-  async createQuestionnaire(stepId: string, data: any): Promise<any> {
+  async createQuestionnaire(stepId: string, companyId: string, data: any): Promise<any> {
+    await prisma.onboardingStep.findUniqueOrThrow({ where: { id: stepId, onboarding: { companyId } }, select: { id: true } });
     return prisma.questionnaire.create({
       data: {
         onboardingStepId: stepId,
@@ -229,15 +242,19 @@ export const clientOnboardingRepository = {
     });
   },
 
-  async updateQuestionnaire(questionnaireId: string, data: any): Promise<any> {
+  async updateQuestionnaire(questionnaireId: string, companyId: string, data: any): Promise<any> {
     return prisma.questionnaire.update({
-      where: { id: questionnaireId },
+      where: {
+        id: questionnaireId,
+        onboardingStep: { onboarding: { companyId } }
+      },
       data,
     });
   },
 
   // Specifications operations
-  async createSpecifications(stepId: string, data: any): Promise<any> {
+  async createSpecifications(stepId: string, companyId: string, data: any): Promise<any> {
+    await prisma.onboardingStep.findUniqueOrThrow({ where: { id: stepId, onboarding: { companyId } }, select: { id: true } });
     return prisma.specifications.create({
       data: {
         onboardingStepId: stepId,
@@ -246,15 +263,19 @@ export const clientOnboardingRepository = {
     });
   },
 
-  async updateSpecifications(specificationsId: string, data: any): Promise<any> {
+  async updateSpecifications(specificationsId: string, companyId: string, data: any): Promise<any> {
     return prisma.specifications.update({
-      where: { id: specificationsId },
+      where: {
+        id: specificationsId,
+        onboardingStep: { onboarding: { companyId } }
+      },
       data,
     });
   },
 
   // Kickoff operations
-  async createKickoff(stepId: string, data: any): Promise<any> {
+  async createKickoff(stepId: string, companyId: string, data: any): Promise<any> {
+    await prisma.onboardingStep.findUniqueOrThrow({ where: { id: stepId, onboarding: { companyId } }, select: { id: true } });
     return prisma.kickoffMeeting.create({
       data: {
         onboardingStepId: stepId,
@@ -263,15 +284,19 @@ export const clientOnboardingRepository = {
     });
   },
 
-  async updateKickoff(kickoffId: string, data: any): Promise<any> {
+  async updateKickoff(kickoffId: string, companyId: string, data: any): Promise<any> {
     return prisma.kickoffMeeting.update({
-      where: { id: kickoffId },
+      where: {
+        id: kickoffId,
+        onboardingStep: { onboarding: { companyId } }
+      },
       data,
     });
   },
 
   // Production operations
-  async createProduction(stepId: string, data: any): Promise<any> {
+  async createProduction(stepId: string, companyId: string, data: any): Promise<any> {
+    await prisma.onboardingStep.findUniqueOrThrow({ where: { id: stepId, onboarding: { companyId } }, select: { id: true } });
     return prisma.productionProgress.create({
       data: {
         onboardingStepId: stepId,
@@ -285,15 +310,19 @@ export const clientOnboardingRepository = {
     });
   },
 
-  async updateProduction(productionId: string, data: any): Promise<any> {
+  async updateProduction(productionId: string, companyId: string, data: any): Promise<any> {
     return prisma.productionProgress.update({
-      where: { id: productionId },
+      where: {
+        id: productionId,
+        onboardingStep: { onboarding: { companyId } }
+      },
       data,
     });
   },
 
   // Delivery operations
-  async createDelivery(stepId: string, data: any): Promise<any> {
+  async createDelivery(stepId: string, companyId: string, data: any): Promise<any> {
+    await prisma.onboardingStep.findUniqueOrThrow({ where: { id: stepId, onboarding: { companyId } }, select: { id: true } });
     return prisma.delivery.create({
       data: {
         onboardingStepId: stepId,
@@ -302,9 +331,12 @@ export const clientOnboardingRepository = {
     });
   },
 
-  async updateDelivery(deliveryId: string, data: any): Promise<any> {
+  async updateDelivery(deliveryId: string, companyId: string, data: any): Promise<any> {
     return prisma.delivery.update({
-      where: { id: deliveryId },
+      where: {
+        id: deliveryId,
+        onboardingStep: { onboarding: { companyId } }
+      },
       data,
     });
   },

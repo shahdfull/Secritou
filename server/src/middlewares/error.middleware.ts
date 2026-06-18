@@ -1,9 +1,56 @@
 import type { ErrorRequestHandler } from "express";
 import { ZodError } from "zod";
+import multer from "multer";
 import { appErrorsTotal } from "../observability/metrics.js";
 import { HttpError } from "../utils/httpError.js";
 
 export const errorMiddleware: ErrorRequestHandler = (error, _req, res, _next) => {
+  // Handle Multer errors (file upload validation failures)
+  if (error instanceof multer.MulterError) {
+    let statusCode = 400;
+    let message = error.message;
+
+    // Map multer error codes to appropriate HTTP status codes
+    if (error.code === "LIMIT_FILE_SIZE") {
+      statusCode = 413; // Payload Too Large
+      message = "File exceeds maximum size limit";
+    } else if (error.code === "LIMIT_PART_COUNT") {
+      statusCode = 400; // Bad Request
+      message = "Too many file parts";
+    } else if (error.code === "LIMIT_FILE_COUNT") {
+      statusCode = 400; // Bad Request
+      message = "Too many files";
+    }
+
+    appErrorsTotal.inc({ type: `upload_${error.code}`, source: "multer" });
+    res.status(statusCode).json({
+      error: {
+        code: `MULTER_${error.code}`,
+        message,
+      },
+      message,
+    });
+    return;
+  }
+
+  // Handle errors with custom statusCode (e.g., from fileFilter with statusCode 415)
+  if (
+    error instanceof Error &&
+    "statusCode" in error &&
+    typeof (error as any).statusCode === "number"
+  ) {
+    const statusCode = (error as any).statusCode;
+    appErrorsTotal.inc({ type: `http_${statusCode}`, source: "validation" });
+    res.status(statusCode).json({
+      error: {
+        code: `HTTP_${statusCode}`,
+        message: error.message,
+      },
+      message: error.message,
+    });
+    return;
+  }
+
   if (error instanceof ZodError) {
     appErrorsTotal.inc({ type: "validation", source: "zod" });
     res.status(422).json({

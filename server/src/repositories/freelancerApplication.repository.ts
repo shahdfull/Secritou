@@ -74,6 +74,7 @@ export const freelancerApplicationRepository = {
       status: ApplicationStatus;
       rejectionReason?: string;
       userId?: string;
+      accountCreatedAt?: Date;
     }>
   ): Promise<FreelancerApplication> {
     return prisma.freelancerApplication.update({

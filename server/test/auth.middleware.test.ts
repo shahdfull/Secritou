@@ -70,3 +70,23 @@ test("authenticate rejects refresh tokens", async () => {
 
   assert.equal(error?.statusCode, 401);
 });
+
+test("authenticate rejects missing tokens", async () => {
+  const req = makeReq();
+  let error: any;
+  await authenticate(req as any, {} as any, (err?: unknown) => {
+    error = err;
+  });
+
+  assert.equal(error?.statusCode, 401);
+});
+
+test("authenticate rejects malformed tokens", async () => {
+  const req = makeReq("not-a-token");
+  let error: any;
+  await authenticate(req as any, {} as any, (err?: unknown) => {
+    error = err;
+  });
+
+  assert.equal(error?.statusCode, 401);
+});

@@ -32,7 +32,9 @@ export const projectService = {
       await tenantValidation.assertClientInCompany(data.clientId, companyId);
     }
     const project = await projectRepository.create({ ...data, companyId });
-    await invalidateTags([cacheTags.company(companyId), cacheTags.dashboard(companyId)]);
+    const tagsToInvalidate = [cacheTags.company(companyId), cacheTags.dashboard(companyId)];
+    if (data.clientId) tagsToInvalidate.push(cacheTags.client(companyId, data.clientId));
+    await invalidateTags(tagsToInvalidate);
     return project;
   },
 
@@ -56,7 +58,13 @@ export const projectService = {
       );
     }
 
-    await invalidateTags([cacheTags.company(companyId), cacheTags.dashboard(companyId)]);
+    const tagsToInvalidate = [
+      cacheTags.company(companyId),
+      cacheTags.dashboard(companyId),
+      cacheTags.project(companyId, id),
+    ];
+    if (project.clientId) tagsToInvalidate.push(cacheTags.client(companyId, project.clientId));
+    await invalidateTags(tagsToInvalidate);
     return updated;
   },
 
@@ -64,7 +72,13 @@ export const projectService = {
     const project = await projectRepository.findByIdAdmin(id, companyId);
     if (!project) throw new HttpError(404, "Project not found");
     const deleted = await projectRepository.delete(id, companyId);
-    await invalidateTags([cacheTags.company(companyId), cacheTags.dashboard(companyId)]);
+    const tagsToInvalidate = [
+      cacheTags.company(companyId),
+      cacheTags.dashboard(companyId),
+      cacheTags.project(companyId, id),
+    ];
+    if (project.clientId) tagsToInvalidate.push(cacheTags.client(companyId, project.clientId));
+    await invalidateTags(tagsToInvalidate);
     return deleted;
   },
 };

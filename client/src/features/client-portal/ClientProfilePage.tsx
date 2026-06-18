@@ -1,91 +1,159 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useAuthStore } from '@/store/auth.store';
-import { Edit, Lock, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useAuthStore } from "@/store/auth.store";
+import { useUpdateMe, useChangePassword } from "@/hooks/useAuth";
+import { Edit, Lock, Loader2 } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+
+// ─── Schemas ────────────────────────────────────────────────────────────────
 
 const profileSchema = z.object({
-  name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères'),
-  email: z.string().email('Email invalide'),
-  phone: z.string().optional(),
+  name: z.string().min(2, "Le nom doit contenir au moins 2 caractères").max(255),
+  email: z.string().email("Email invalide"),
+  phone: z.string().max(50).optional(),
 });
 
-const passwordSchema = z.object({
-  oldPassword: z.string().min(6, 'Le mot de passe doit contenir au moins 6 caractères'),
-  newPassword: z.string().min(6, 'Le mot de passe doit contenir au moins 6 caractères'),
-  confirmPassword: z.string(),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: 'Les mots de passe ne correspondent pas',
-  path: ['confirmPassword'],
-});
+const passwordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Mot de passe actuel requis"),
+    newPassword: z
+      .string()
+      .min(8, "Le nouveau mot de passe doit contenir au moins 8 caractères"),
+    confirmPassword: z.string().min(1, "Confirmation requise"),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: "Les mots de passe ne correspondent pas",
+    path: ["confirmPassword"],
+  });
 
 type ProfileForm = z.infer<typeof profileSchema>;
 type PasswordForm = z.infer<typeof passwordSchema>;
 
+// ─── Component ──────────────────────────────────────────────────────────────
+
 export function ClientProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
-  const user = useAuthStore((state) => state.user);
 
+  const user = useAuthStore((s) => s.user);
+  const updateMe = useUpdateMe();
+  const changePassword = useChangePassword();
+
+  // ── Profile form ──────────────────────────────────────────────────────────
   const profileForm = useForm<ProfileForm>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      name: user?.name || '',
-      email: user?.email || '',
-      phone: '',
+      name: user?.name ?? "",
+      email: user?.email ?? "",
+      phone: "",
     },
   });
 
-  const passwordForm = useForm<PasswordForm>({
-    resolver: zodResolver(passwordSchema),
-    defaultValues: {
-      oldPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    },
-  });
+  // Keep form in sync when user data arrives / changes
+  useEffect(() => {
+    if (user) {
+      profileForm.reset({
+        name: user.name ?? "",
+        email: user.email ?? "",
+        phone: "",
+      });
+    }
+  }, [user, profileForm]);
 
   const handleProfileSubmit = (data: ProfileForm) => {
-    // TODO: Call API to update profile
-    toast.success('Profil mis à jour avec succès');
-    setIsEditing(false);
+    updateMe.mutate(
+      { name: data.name, email: data.email, phone: data.phone || undefined },
+      {
+        onSuccess: () => {
+          setIsEditing(false);
+        },
+      }
+    );
   };
 
+  // ── Password form ─────────────────────────────────────────────────────────
+  const passwordForm = useForm<PasswordForm>({
+    resolver: zodResolver(passwordSchema),
+    defaultValues: { currentPassword: "", newPassword: "", confirmPassword: "" },
+  });
+
   const handlePasswordSubmit = (data: PasswordForm) => {
-    // TODO: Call API to update password
-    toast.success('Mot de passe mis à jour avec succès');
-    setPasswordDialogOpen(false);
-    passwordForm.reset();
+    changePassword.mutate(
+      { currentPassword: data.currentPassword, newPassword: data.newPassword },
+      {
+        onSuccess: () => {
+          setPasswordDialogOpen(false);
+          passwordForm.reset();
+        },
+      }
+    );
   };
+
+  // ── Derived display values ─────────────────────────────────────────────────
+  const initials = user?.name
+    ? user.name
+        .split(" ")
+        .slice(0, 2)
+        .map((w) => w[0]?.toUpperCase())
+        .join("")
+    : "?";
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Mon profil</h1>
-        {!isEditing && (
-          <Button onClick={() => setIsEditing(true)}>
-            <Edit className="h-4 w-4 mr-2" />
-            Modifier
-          </Button>
-        )}
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Avatar className="h-16 w-16">
+          <AvatarFallback className="text-xl font-semibold">{initials}</AvatarFallback>
+        </Avatar>
+        <div>
+          <h1 className="text-2xl font-bold">{user?.name ?? "Mon profil"}</h1>
+          <p className="text-sm text-muted-foreground">{user?.email}</p>
+        </div>
       </div>
 
+      {/* Personal info */}
       <Card>
-        <CardHeader>
-          <CardTitle>Informations personnelles</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between pb-4">
+          <div>
+            <CardTitle>Informations personnelles</CardTitle>
+            <CardDescription>Vos coordonnées visibles par l'équipe</CardDescription>
+          </div>
+          {!isEditing && (
+            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+              <Edit className="h-4 w-4 mr-2" />
+              Modifier
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           {isEditing ? (
             <Form {...profileForm}>
-              <form onSubmit={profileForm.handleSubmit(handleProfileSubmit)} className="space-y-4">
+              <form
+                onSubmit={profileForm.handleSubmit(handleProfileSubmit)}
+                className="space-y-4"
+              >
                 <FormField
                   control={profileForm.control}
                   name="name"
@@ -93,7 +161,7 @@ export function ClientProfilePage() {
                     <FormItem>
                       <FormLabel>Nom complet</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} autoComplete="name" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -106,7 +174,7 @@ export function ClientProfilePage() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" {...field} />
+                        <Input type="email" {...field} autoComplete="email" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -119,45 +187,56 @@ export function ClientProfilePage() {
                     <FormItem>
                       <FormLabel>Téléphone</FormLabel>
                       <FormControl>
-                        <Input type="tel" {...field} />
+                        <Input type="tel" {...field} autoComplete="tel" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <div className="flex gap-2">
-                  <Button type="submit">Enregistrer</Button>
-                  <Button variant="ghost" onClick={() => {
-                    setIsEditing(false);
-                    profileForm.reset();
-                  }}>
+                <div className="flex gap-2 pt-2">
+                  <Button type="submit" disabled={updateMe.isPending}>
+                    {updateMe.isPending && (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    )}
+                    Enregistrer
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setIsEditing(false);
+                      profileForm.reset();
+                    }}
+                  >
                     Annuler
                   </Button>
                 </div>
               </form>
             </Form>
           ) : (
-            <div className="space-y-4">
+            <dl className="space-y-4">
               <div>
-                <div className="text-sm text-muted-foreground">Nom complet</div>
-                <div className="font-medium">{user?.name}</div>
+                <dt className="text-sm text-muted-foreground">Nom complet</dt>
+                <dd className="font-medium">{user?.name ?? "—"}</dd>
               </div>
               <div>
-                <div className="text-sm text-muted-foreground">Email</div>
-                <div className="font-medium">{user?.email}</div>
+                <dt className="text-sm text-muted-foreground">Email</dt>
+                <dd className="font-medium">{user?.email ?? "—"}</dd>
               </div>
               <div>
-                <div className="text-sm text-muted-foreground">Téléphone</div>
-                <div className="font-medium">Non renseigné</div>
+                <dt className="text-sm text-muted-foreground">Rôle</dt>
+                <dd className="font-medium capitalize">{user?.role?.toLowerCase() ?? "—"}</dd>
               </div>
-            </div>
+            </dl>
           )}
         </CardContent>
       </Card>
 
+      {/* Security */}
       <Card>
         <CardHeader>
           <CardTitle>Sécurité</CardTitle>
+          <CardDescription>Gérez votre mot de passe de connexion</CardDescription>
         </CardHeader>
         <CardContent>
           <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
@@ -171,19 +250,27 @@ export function ClientProfilePage() {
               <DialogHeader>
                 <DialogTitle>Changer de mot de passe</DialogTitle>
                 <DialogDescription>
-                  Entrez votre mot de passe actuel et votre nouveau mot de passe
+                  Entrez votre mot de passe actuel, puis choisissez un nouveau mot de passe
+                  d'au moins 8 caractères.
                 </DialogDescription>
               </DialogHeader>
               <Form {...passwordForm}>
-                <form onSubmit={passwordForm.handleSubmit(handlePasswordSubmit)} className="space-y-4">
+                <form
+                  onSubmit={passwordForm.handleSubmit(handlePasswordSubmit)}
+                  className="space-y-4"
+                >
                   <FormField
                     control={passwordForm.control}
-                    name="oldPassword"
+                    name="currentPassword"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Mot de passe actuel</FormLabel>
                         <FormControl>
-                          <Input type="password" {...field} />
+                          <Input
+                            type="password"
+                            {...field}
+                            autoComplete="current-password"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -196,7 +283,11 @@ export function ClientProfilePage() {
                       <FormItem>
                         <FormLabel>Nouveau mot de passe</FormLabel>
                         <FormControl>
-                          <Input type="password" {...field} />
+                          <Input
+                            type="password"
+                            {...field}
+                            autoComplete="new-password"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -209,14 +300,33 @@ export function ClientProfilePage() {
                       <FormItem>
                         <FormLabel>Confirmer le nouveau mot de passe</FormLabel>
                         <FormControl>
-                          <Input type="password" {...field} />
+                          <Input
+                            type="password"
+                            {...field}
+                            autoComplete="new-password"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                   <DialogFooter>
-                    <Button type="submit">Enregistrer</Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setPasswordDialogOpen(false);
+                        passwordForm.reset();
+                      }}
+                    >
+                      Annuler
+                    </Button>
+                    <Button type="submit" disabled={changePassword.isPending}>
+                      {changePassword.isPending && (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      )}
+                      Enregistrer
+                    </Button>
                   </DialogFooter>
                 </form>
               </Form>

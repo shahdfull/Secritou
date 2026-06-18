@@ -5,16 +5,28 @@ import { Toaster } from "@/components/ui/sonner";
 import { usePageViewTracking } from "@/hooks/usePageViewTracking";
 import { AppRoutes } from "@/routes/AppRoutes";
 import { queryClient } from "@/services/queryClient";
+import { useBootstrapSession } from "@/hooks/useAuth";
 
-export function App() {
+function AppContent() {
+  // Bootstrap session on app startup (uses HTTP-only cookie for refresh)
+  useBootstrapSession();
+
   usePageViewTracking();
 
   return (
+    <>
+      <SEO />
+      <AppRoutes />
+      <Toaster richColors position="top-right" />
+    </>
+  );
+}
+
+export function App() {
+  return (
     <GlobalErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <SEO />
-        <AppRoutes />
-        <Toaster richColors position="top-right" />
+        <AppContent />
       </QueryClientProvider>
     </GlobalErrorBoundary>
   );

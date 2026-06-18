@@ -7,10 +7,11 @@ import type {
 } from "../types/freelancer";
 import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 import { toast } from "sonner";
+import { queryKeys } from "@/lib/query-keys";
 
 export function useFreelancers(params: ListQueryParams = {}) {
   return useQuery<PaginatedResponse<FreelancerProfile>>({
-    queryKey: ["freelancers", params],
+    queryKey: queryKeys.freelancers(params),
     queryFn: () => freelancersApi.getAll(params),
     placeholderData: (prev) => prev,
     staleTime: 60_000,
@@ -19,7 +20,7 @@ export function useFreelancers(params: ListQueryParams = {}) {
 
 export function useFreelancer(id: string) {
   return useQuery<FreelancerProfile>({
-    queryKey: ["freelancer", id],
+    queryKey: queryKeys.freelancer(id),
     queryFn: () => freelancersApi.getById(id),
     enabled: !!id,
     staleTime: 60_000,
@@ -36,7 +37,7 @@ export function useCreateMyFreelancerProfile() {
   >({
     mutationFn: (data) => freelancersApi.createMyProfile(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["freelancers"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.freelancers() });
       toast.success("Profile created successfully");
     },
   });
@@ -52,8 +53,8 @@ export function useUpdateMyFreelancerProfile() {
   >({
     mutationFn: (data) => freelancersApi.updateMyProfile(data),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["freelancers"] });
-      queryClient.invalidateQueries({ queryKey: ["freelancer", data.id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.freelancers() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.freelancer(data.id) });
       toast.success("Profile updated successfully");
     },
   });
@@ -65,7 +66,7 @@ export function useDeleteMyFreelancerProfile() {
   return useMutation<void, Error, void>({
     mutationFn: () => freelancersApi.deleteMyProfile(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["freelancers"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.freelancers() });
       toast.success("Profile deleted successfully");
     },
   });

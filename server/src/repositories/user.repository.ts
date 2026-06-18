@@ -75,6 +75,7 @@ export const userRepository = {
     passwordHash: string;
     role?: Role;
     companyId?: string;
+    mustChangePassword?: boolean;
   }): Promise<PublicUser> {
     return prisma.user.create({
       data,
@@ -111,6 +112,33 @@ export const userRepository = {
         createdAt: true,
         updatedAt: true,
       },
+    });
+  },
+
+  async updateMe(
+    id: string,
+    data: Partial<{ name: string; email: string; phone: string }>
+  ): Promise<PublicUser> {
+    return prisma.user.update({
+      where: { id },
+      data,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        companyId: true,
+        clientId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  },
+
+  async findByEmailExcluding(email: string, excludeId: string): Promise<{ id: string } | null> {
+    return prisma.user.findFirst({
+      where: { email, NOT: { id: excludeId } },
+      select: { id: true },
     });
   },
 

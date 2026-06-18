@@ -16,13 +16,13 @@ import { contactRequestsApi, type ContactRequest } from "@/api/contactRequests.a
 import { usersApi } from "@/api/users.api";
 import { toast } from "sonner";
 
-const reviewSchema = z.object({
-  name: z.string().min(2),
-  email: z.string().email(),
+const createReviewSchema = (t: (key: string) => string) => z.object({
+  name: z.string().min(2, t("auth.nameMinLength")),
+  email: z.string().email(t("auth.validEmail")),
   role: z.enum(["MANAGER", "FREELANCER"]),
 });
 
-type ReviewForm = z.infer<typeof reviewSchema>;
+type ReviewForm = z.infer<ReturnType<typeof createReviewSchema>>;
 
 export function SettingsJoinRequestsTab() {
   const { t } = useTranslation();
@@ -34,6 +34,7 @@ export function SettingsJoinRequestsTab() {
     queryFn: () => contactRequestsApi.getAll({ limit: 50 }),
   });
 
+  const reviewSchema = createReviewSchema(t);
   const reviewForm = useForm<ReviewForm>({
     resolver: zodResolver(reviewSchema),
     defaultValues: { name: "", email: "", role: "FREELANCER" },

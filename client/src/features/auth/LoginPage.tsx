@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useLogin, getRedirectPathForRole } from "@/hooks/useAuth";
 import { useNavigate, Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
@@ -38,7 +39,7 @@ export function LoginPage() {
             {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
           </div>
           <div className="space-y-1">
-            <Input placeholder={t("auth.password")} type="password" {...register("password")} disabled={isPending} />
+            <PasswordInput placeholder={t("auth.password")} {...register("password")} disabled={isPending} />
             {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
           </div>
         </div>

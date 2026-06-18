@@ -10,7 +10,6 @@ import { MustChangePasswordGuard } from "@/components/MustChangePasswordGuard";
 import {
   importAIAssistantPage,
   importAnalyticsPage,
-  importCaseStudiesPage,
   importClientDashboardPage,
   importClientDetailPage,
   importClientProfilePage,
@@ -19,6 +18,7 @@ import {
   importDashboardPage,
   importForgotPasswordPage,
   importFreelancersPage,
+  importFreelancerDetailPage,
   importHomePage,
   importLeadsPage,
   importLoginPage,
@@ -38,13 +38,18 @@ import {
   importChangePasswordPage,
   importClientOnboardingPage,
   importAdminOnboardingPage,
+  importProposalsPage,
+  importApprovalsPage,
+  importInvoicesPage,
+  importEnhancedDocumentsPage,
+  importClientSuccessPage,
+  importServiceRequestsAdminPage,
 } from "./routePrefetch";
 
 // Lazy load route components for code splitting (handle named exports)
 const HomePage = lazy(() => importHomePage().then((m) => ({ default: m.HomePage })));
 const ServicesPage = lazy(() => importServicesPage().then((m) => ({ default: m.ServicesPage })));
 const SolutionsPage = lazy(() => importSolutionsPage().then((m) => ({ default: m.SolutionsPage })));
-const CaseStudiesPage = lazy(() => importCaseStudiesPage().then((m) => ({ default: m.CaseStudiesPage })));
 const ContactPage = lazy(() => importContactPage().then((m) => ({ default: m.ContactPage })));
 const LoginPage = lazy(() => importLoginPage().then((m) => ({ default: m.LoginPage })));
 const JoinUsPage = lazy(() => importJoinUsPage().then((m) => ({ default: m.JoinUsPage })));
@@ -56,6 +61,7 @@ const AnalyticsPage = lazy(() => importAnalyticsPage().then((m) => ({ default: m
 const ClientsPage = lazy(() => importClientsPage().then((m) => ({ default: m.ClientsPage })));
 const ClientDetailPage = lazy(() => importClientDetailPage().then((m) => ({ default: m.ClientDetailPage })));
 const FreelancersPage = lazy(() => importFreelancersPage().then((m) => ({ default: m.FreelancersPage })));
+const FreelancerDetailPage = lazy(() => importFreelancerDetailPage().then((m) => ({ default: m.FreelancerDetailPage })));
 const MissionsPage = lazy(() => importMissionsPage().then((m) => ({ default: m.MissionsPage })));
 const ProjectsPage = lazy(() => importProjectsPage().then((m) => ({ default: m.ProjectsPage })));
 const TasksPage = lazy(() => importTasksPage().then((m) => ({ default: m.TasksPage })));
@@ -71,6 +77,14 @@ const ApplicationsPage = lazy(() => importApplicationsPage().then((m) => ({ defa
 const ChangePasswordPage = lazy(() => importChangePasswordPage().then((m) => ({ default: m.ChangePasswordPage })));
 const ClientOnboardingPage = lazy(() => importClientOnboardingPage().then((m) => ({ default: m.ClientOnboardingPage })));
 const AdminOnboardingPage = lazy(() => importAdminOnboardingPage().then((m) => ({ default: m.AdminOnboardingPage })));
+const ProposalsPage = lazy(() => importProposalsPage().then((m) => ({ default: m.ProposalsPage })));
+const ApprovalsPage = lazy(() => importApprovalsPage().then((m) => ({ default: m.ApprovalsPage })));
+const InvoicesPage = lazy(() => importInvoicesPage().then((m) => ({ default: m.InvoicesPage })));
+const EnhancedDocumentsPage = lazy(() => importEnhancedDocumentsPage().then((m) => ({ default: m.EnhancedDocumentsPage })));
+const ClientSuccessPage = lazy(() => importClientSuccessPage().then((m) => ({ default: m.ClientSuccessPage })));
+const ServiceRequestsAdminPage = lazy(() =>
+  importServiceRequestsAdminPage().then((m) => ({ default: m.ServiceRequestsAdminPage }))
+);
 
 function PageLoader() {
   return (
@@ -106,7 +120,6 @@ export function AppRoutes() {
         <Route index element={withBoundary(<HomePage />)} />
         <Route path="services" element={withBoundary(<ServicesPage />)} />
         <Route path="solutions" element={withBoundary(<SolutionsPage />)} />
-        <Route path="case-studies" element={withBoundary(<CaseStudiesPage />)} />
         <Route path="contact" element={withBoundary(<ContactPage />)} />
         <Route path="login" element={withBoundary(<LoginPage />)} />
         <Route path="rejoindre" element={withBoundary(<JoinUsPage />)} />
@@ -130,16 +143,23 @@ export function AppRoutes() {
           <Route path="clients" element={withBoundary(<ClientsPage />)} />
           <Route path="clients/:id" element={withBoundary(<ClientDetailPage />)} />
           <Route path="freelancers" element={withBoundary(<FreelancersPage />)} />
+          <Route path="freelancers/:id" element={withBoundary(<FreelancerDetailPage />)} />
           <Route path="missions" element={withBoundary(<MissionsPage />)} />
           <Route path="projects" element={withBoundary(<ProjectsPage />)} />
           <Route path="tasks" element={withBoundary(<TasksPage />)} />
           <Route path="ai" element={withBoundary(<AIAssistantPage />)} />
-          <Route path="analytics" element={withBoundary(<AnalyticsPage />)} />
-          <Route path="reports" element={withBoundary(<ReportsPage />)} />
-          <Route path="applications" element={withBoundary(<ApplicationsPage />)} />
-          <Route path="client-onboardings" element={withBoundary(<AdminOnboardingPage />)} />
-          <Route path="client-onboarding/:id" element={withBoundary(<ClientOnboardingPage />)} />
-          <Route path="settings" element={withBoundary(<SettingsPage />)} />
+              <Route path="analytics" element={withBoundary(<AnalyticsPage />)} />
+              <Route path="reports" element={withBoundary(<ReportsPage />)} />
+              <Route path="applications" element={withBoundary(<ApplicationsPage />)} />
+              <Route path="proposals" element={withBoundary(<ProposalsPage />)} />
+              <Route path="approvals" element={withBoundary(<ApprovalsPage />)} />
+              <Route path="invoices" element={withBoundary(<InvoicesPage />)} />
+              <Route path="documents" element={withBoundary(<EnhancedDocumentsPage />)} />
+              <Route path="client-success/:clientId" element={withBoundary(<ClientSuccessPage />)} />
+              <Route path="client-onboardings" element={withBoundary(<AdminOnboardingPage />)} />
+              <Route path="client-onboarding/:id" element={withBoundary(<ClientOnboardingPage />)} />
+              <Route path="service-requests" element={withBoundary(<ServiceRequestsAdminPage />)} />
+              <Route path="settings" element={withBoundary(<SettingsPage />)} />
         </Route>
 
         <Route

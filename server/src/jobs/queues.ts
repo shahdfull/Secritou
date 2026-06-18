@@ -23,6 +23,8 @@ export const maintenanceQueue = new Queue(queueNames.maintenance, {
   },
 });
 
+// ─── Notification job ─────────────────────────────────────────────────────────
+
 export type NotificationJob = {
   userId: string;
   title: string;
@@ -36,6 +38,36 @@ export async function enqueueNotification(data: NotificationJob) {
 export async function enqueueNotifications(items: NotificationJob[]) {
   if (items.length === 0) return;
   await communicationQueue.addBulk(
-    items.map((data) => ({ name: jobNames.sendNotification, data })),
+    items.map((data) => ({ name: jobNames.sendNotification, data }))
+  );
+}
+
+// ─── Email job ────────────────────────────────────────────────────────────────
+
+export type EmailJob = {
+  to: string | string[];
+  subject: string;
+  html: string;
+  /** Optional plain-text fallback; auto-generated from html if omitted. */
+  text?: string;
+  replyTo?: string;
+};
+
+export async function enqueueEmail(data: EmailJob): Promise<void> {
+  await communicationQueue.add(jobNames.sendEmail, data, {
+    // Emails get 5 attempts with exponential backoff
+    attempts: 5,
+    backoff: { type: "exponential", delay: 5000 },
+  });
+}
+
+export async function enqueueEmails(items: EmailJob[]): Promise<void> {
+  if (items.length === 0) return;
+  await communicationQueue.addBulk(
+    items.map((data) => ({
+      name: jobNames.sendEmail,
+      data,
+      opts: { attempts: 5, backoff: { type: "exponential", delay: 5000 } },
+    }))
   );
 }

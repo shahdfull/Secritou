@@ -58,5 +58,9 @@ export async function invalidateTags(tags: string[]) {
 
 export const cacheTTL = {
   dashboard: 60,
+  clientSummary: 300,
+  projectSummary: 120,
+  successSummary: 300,
+  onboardingSummary: 300,
   authMe: 30,
 };

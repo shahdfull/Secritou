@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { env } from "../config/env.js";
 import { parseDurationToMs } from "./parseDuration.js";
 
-const COOKIE_PATH = "/api/v1/auth";
+const COOKIE_PATH = "/";
 
 export function setRefreshTokenCookie(res: Response, token: string) {
   res.cookie(env.REFRESH_COOKIE_NAME, token, {

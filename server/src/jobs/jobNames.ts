@@ -5,6 +5,7 @@ export const queueNames = {
 
 export const jobNames = {
   sendNotification: "send-notification",
+  sendEmail: "send-email",
   cleanupRefreshTokens: "cleanup-refresh-tokens",
   archiveColdData: "archive-cold-data",
   warmDashboardSummaries: "warm-dashboard-summaries",

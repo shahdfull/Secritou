@@ -13,6 +13,7 @@ export const importAnalyticsPage = () => import("@/features/analytics/AnalyticsP
 export const importClientsPage = () => import("@/features/clients/ClientsPage");
 export const importClientDetailPage = () => import("@/features/clients/ClientDetailPage");
 export const importFreelancersPage = () => import("@/features/freelancers/FreelancersPage");
+export const importFreelancerDetailPage = () => import("@/features/freelancers/FreelancerDetailPage");
 export const importMissionsPage = () => import("@/features/missions/MissionsPage");
 export const importProjectsPage = () => import("@/features/projects/ProjectsPage");
 export const importTasksPage = () => import("@/features/tasks/TasksPage");
@@ -28,6 +29,12 @@ export const importApplicationsPage = () => import("@/features/applications/Appl
 export const importChangePasswordPage = () => import("@/features/auth/ChangePasswordPage");
 export const importClientOnboardingPage = () => import("@/features/client-onboarding/ClientOnboardingPage");
 export const importAdminOnboardingPage = () => import("@/features/admin-onboarding/AdminOnboardingPage");
+export const importProposalsPage = () => import("@/features/proposals/ProposalsPage");
+export const importApprovalsPage = () => import("@/features/approvals/ApprovalsPage");
+export const importInvoicesPage = () => import("@/features/invoices/InvoicesPage");
+export const importEnhancedDocumentsPage = () => import("@/features/enhanced-documents/EnhancedDocumentsPage");
+export const importClientSuccessPage = () => import("@/features/client-success/ClientSuccessPage");
+export const importServiceRequestsAdminPage = () => import("@/features/service-requests/ServiceRequestsAdminPage");
 
 export const routePrefetch = {
   home: () => void importHomePage(),
@@ -56,4 +63,10 @@ export const routePrefetch = {
   clientRequests: () => void importServiceRequestsClientPage(),
   clientProfile: () => void importClientProfilePage(),
   applications: () => void importApplicationsPage(),
+  proposals: () => void importProposalsPage(),
+  approvals: () => void importApprovalsPage(),
+  invoices: () => void importInvoicesPage(),
+  enhancedDocuments: () => void importEnhancedDocumentsPage(),
+  clientSuccess: () => void importClientSuccessPage(),
+  serviceRequests: () => void importServiceRequestsAdminPage(),
 };

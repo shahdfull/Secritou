@@ -15,10 +15,9 @@ import {
   Loader2,
   Users,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   useMissions,
@@ -73,33 +72,31 @@ import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { useAuthStore } from "@/store/auth.store";
 import { useTranslation } from "react-i18next";
 import { missionsApi } from "@/api/missions.api";
+import {
+  createMissionSchema,
+  updateMissionSchema,
+  type CreateMissionForm,
+  type UpdateMissionForm,
+} from "@/schemas/mission.schema";
+import { useDebouncedValue } from "@/hooks/shared/useDebouncedValue";
+import { useCrudDialogState } from "@/hooks/shared/useCrudDialogState";
 
-const createMissionSchema = z.object({
-  title: z.string().min(1, "Title required"),
-  description: z.string().optional(),
-  budget: z.coerce.number().positive().optional(),
-});
-
-const updateMissionSchema = createMissionSchema.extend({
-  status: z
-    .enum(["OPEN", "ASSIGNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"])
-    .optional(),
-});
-
-type CreateMissionForm = z.infer<typeof createMissionSchema>;
-type UpdateMissionForm = z.infer<typeof updateMissionSchema>;
+const STATUS_OPTIONS = ["OPEN", "ASSIGNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as const;
 
 export function MissionsPage() {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [applicationsSheetOpen, setApplicationsSheetOpen] = useState(false);
-  const [editingMission, setEditingMission] = useState<FreelancerMission | null>(null);
   const [selectedMissionForApplications, setSelectedMissionForApplications] = useState<FreelancerMission | null>(null);
   const queryClient = useQueryClient();
 
-  const { page, pageSize, orderBy, orderDir, params, setPage, updateParams } = useListParams(10);
+  const { page, pageSize, orderBy, orderDir, params, setPage, updateParams, setSearch } = useListParams(10);
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
+
+  useEffect(() => {
+    setSearch(debouncedSearch);
+  }, [debouncedSearch, setSearch]);
+
   const { data: missionsResult, isLoading } = useMissions(params);
   const missions = missionsResult?.data ?? [];
   const total = missionsResult?.total ?? 0;
@@ -125,6 +122,18 @@ export function MissionsPage() {
   const isFreelancer = user?.role === "FREELANCER";
   const isAdminOrClient = ["ADMIN", "CLIENT"].includes(user?.role || "");
   const userCompanyId = user?.companyId;
+
+  const {
+    createDialogOpen,
+    editDialogOpen,
+    editingEntity: editingMission,
+    openCreateDialog,
+    closeCreateDialog,
+    openEditDialog,
+    closeEditDialog,
+    openDeleteDialog,
+    closeDeleteDialog,
+  } = useCrudDialogState<FreelancerMission>();
 
   const filteredMissions = missions.filter((mission) =>
     mission.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -165,7 +174,7 @@ export function MissionsPage() {
   };
 
   const createForm = useForm<CreateMissionForm>({
-    resolver: zodResolver(createMissionSchema) as any,
+    resolver: zodResolver(createMissionSchema),
     defaultValues: {
       title: "",
       description: "",
@@ -174,51 +183,67 @@ export function MissionsPage() {
   });
 
   const editForm = useForm<UpdateMissionForm>({
-    resolver: zodResolver(updateMissionSchema) as any,
+    resolver: zodResolver(updateMissionSchema),
   });
 
-  const handleCreate = async (data: CreateMissionForm) => {
-    createMission(data, {
-      onSuccess: () => {
-        setCreateDialogOpen(false);
-        createForm.reset();
-      },
-    });
-  };
-
-  const handleEdit = (mission: FreelancerMission) => {
-    setEditingMission(mission);
-    editForm.reset(mission);
-    setEditDialogOpen(true);
-  };
-
-  const handleUpdate = async (data: UpdateMissionForm) => {
-    if (!editingMission) return;
-    updateMission(
-      { id: editingMission.id, data },
-      {
+  const handleCreate = useCallback(
+    (data: CreateMissionForm) => {
+      createMission(data, {
         onSuccess: () => {
-          setEditDialogOpen(false);
-          setEditingMission(null);
+          closeCreateDialog();
+          createForm.reset();
         },
+      });
+    },
+    [createForm, createMission, closeCreateDialog]
+  );
+
+  const handleEdit = useCallback(
+    (mission: FreelancerMission) => {
+      openEditDialog(mission);
+      editForm.reset(mission);
+    },
+    [editForm, openEditDialog]
+  );
+
+  const handleUpdate = useCallback(
+    (data: UpdateMissionForm) => {
+      if (!editingMission) return;
+      updateMission(
+        { id: editingMission.id, data },
+        {
+          onSuccess: () => {
+            closeEditDialog();
+          },
+        }
+      );
+    },
+    [editingMission, updateMission, closeEditDialog]
+  );
+
+  const handleDelete = useCallback(
+    (mission: FreelancerMission) => {
+      if (confirm(t("missionsPage.areYouSureDelete", { title: mission.title }))) {
+        deleteMission(mission.id);
       }
-    );
-  };
+    },
+    [deleteMission, t]
+  );
 
-  const handleDelete = (mission: FreelancerMission) => {
-    if (confirm(t("missionsPage.areYouSureDelete", { title: mission.title }))) {
-      deleteMission(mission.id);
-    }
-  };
+  const handleApply = useCallback(
+    (missionId: string) => {
+      applyToMission(missionId);
+    },
+    [applyToMission]
+  );
 
-  const handleApply = (missionId: string) => {
-    applyToMission(missionId);
-  };
-
-  const handleViewApplications = (mission: FreelancerMission) => {
-    setSelectedMissionForApplications(mission);
-    setApplicationsSheetOpen(true);
-  };
+  const handleViewApplications = useCallback(
+    (mission: FreelancerMission) => {
+      setSelectedMissionForApplications(mission);
+      setApplicationsSheetOpen(true);
+    },
+    []
+  );
 
   if (isLoading) {
     return (
@@ -240,7 +265,7 @@ export function MissionsPage() {
           </p>
         </div>
         {isAdminOrClient && (
-          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+          <Dialog open={createDialogOpen} onOpenChange={closeCreateDialog}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
@@ -534,7 +559,7 @@ export function MissionsPage() {
 
       {/* Edit Dialog */}
       {editingMission && (
-        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <Dialog open={editDialogOpen} onOpenChange={closeEditDialog}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{t("missionsPage.editMission")}</DialogTitle>
@@ -602,11 +627,11 @@ export function MissionsPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="OPEN">{t("missionsPage.statuses.open")}</SelectItem>
-                          <SelectItem value="ASSIGNED">Assigned</SelectItem>
-                          <SelectItem value="IN_PROGRESS">{t("missionsPage.statuses.inProgress")}</SelectItem>
-                          <SelectItem value="COMPLETED">{t("missionsPage.statuses.completed")}</SelectItem>
-                          <SelectItem value="CANCELLED">{t("missionsPage.statuses.cancelled")}</SelectItem>
+                          {STATUS_OPTIONS.map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {getStatusLabel(status)}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />

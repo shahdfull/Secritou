@@ -24,7 +24,7 @@ const extendedCases = [
     company: "Helix Labs",
     challengeKey: "solutionsPage.sections.creators.needs.0.b",
     outcomeKey: "solutionsPage.sections.creators.needs.1.b",
-    metric: "+€42k",
+    metric: "+42k DT",
     metricLabelKey: "caseStudiesPage.metricLabel",
   },
   {

@@ -34,7 +34,7 @@ export function DateFilter({ value, onChange }: DateFilterProps) {
     setPreset(newPreset);
     const today = new Date();
     let from: Date | undefined;
-    let to = new Date(today);
+    const to = new Date(today);
 
     switch (newPreset) {
       case "7d":

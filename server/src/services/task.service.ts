@@ -40,7 +40,18 @@ export const taskService = {
         message: `La tâche "${task.title}" vous a été assignée.`,
       });
     }
-    await invalidateTags([cacheTags.company(companyId), cacheTags.dashboard(companyId)]);
+    const { prismaRead: prisma } = await import("../config/prisma.js");
+    const project = await prisma.project.findUnique({
+      where: { id: data.projectId, companyId },
+      select: { id: true, clientId: true },
+    });
+    const tagsToInvalidate = [
+      cacheTags.company(companyId),
+      cacheTags.dashboard(companyId),
+      cacheTags.project(companyId, data.projectId),
+    ];
+    if (project?.clientId) tagsToInvalidate.push(cacheTags.client(companyId, project.clientId));
+    await invalidateTags(tagsToInvalidate);
     return task;
   },
 
@@ -59,15 +70,37 @@ export const taskService = {
         message: `La tâche "${updated.title}" vous a été assignée.`,
       });
     }
-    await invalidateTags([cacheTags.company(companyId), cacheTags.dashboard(companyId)]);
+    const { prismaRead: prisma } = await import("../config/prisma.js");
+    const project = await prisma.project.findUnique({
+      where: { id: task.projectId, companyId },
+      select: { id: true, clientId: true },
+    });
+    const tagsToInvalidate = [
+      cacheTags.company(companyId),
+      cacheTags.dashboard(companyId),
+      cacheTags.project(companyId, task.projectId),
+    ];
+    if (project?.clientId) tagsToInvalidate.push(cacheTags.client(companyId, project.clientId));
+    await invalidateTags(tagsToInvalidate);
     return updated;
   },
 
   async deleteTask(id: string, companyId: string) {
     const task = await taskRepository.findByIdAdmin(id, companyId);
     if (!task) throw new HttpError(404, "Task not found");
+    const { prismaRead: prisma } = await import("../config/prisma.js");
+    const project = await prisma.project.findUnique({
+      where: { id: task.projectId, companyId },
+      select: { id: true, clientId: true },
+    });
     const deleted = await taskRepository.delete(id, companyId);
-    await invalidateTags([cacheTags.company(companyId), cacheTags.dashboard(companyId)]);
+    const tagsToInvalidate = [
+      cacheTags.company(companyId),
+      cacheTags.dashboard(companyId),
+      cacheTags.project(companyId, task.projectId),
+    ];
+    if (project?.clientId) tagsToInvalidate.push(cacheTags.client(companyId, project.clientId));
+    await invalidateTags(tagsToInvalidate);
     return deleted;
   },
 };

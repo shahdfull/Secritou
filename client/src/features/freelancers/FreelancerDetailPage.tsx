@@ -1,0 +1,127 @@
+import { useParams, Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { freelancersApi } from "@/api/freelancers.api";
+import { queryKeys } from "@/lib/query-keys";
+import { Loader2, ArrowLeft, MapPin, Clock, Star } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { FreelancerRatingSection } from "@/components/ratings/FreelancerRatingSection";
+import { StarRating } from "@/components/ratings/StarRating";
+import { useAuthStore } from "@/store/auth.store";
+import { useTranslation } from "react-i18next";
+
+export function FreelancerDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const { user } = useAuthStore();
+  const { t } = useTranslation();
+
+  const { data: freelancer, isLoading } = useQuery({
+    queryKey: queryKeys.freelancer(id!),
+    queryFn: () => freelancersApi.getById(id!),
+    enabled: !!id,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!freelancer) {
+    return (
+      <div className="text-center py-20">
+        <p className="text-muted-foreground">{t("freelancers.notFound")}</p>
+        <Button asChild variant="outline" className="mt-4">
+          <Link to="/app/freelancers">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            {t("common.back")}
+          </Link>
+        </Button>
+      </div>
+    );
+  }
+
+  const initials = freelancer.user.name.slice(0, 2).toUpperCase();
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      <div>
+        <Button asChild variant="ghost" size="sm" className="-ml-2">
+          <Link to="/app/freelancers">
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            {t("common.back")}
+          </Link>
+        </Button>
+      </div>
+
+      {/* Profile header */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Avatar className="h-20 w-20">
+              <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 space-y-2">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h1 className="text-2xl font-bold">{freelancer.user.name}</h1>
+                  <p className="text-muted-foreground">{freelancer.user.email}</p>
+                </div>
+                <Badge variant={freelancer.availability ? "default" : "secondary"}>
+                  {freelancer.availability ? t("freelancers.available") : t("freelancers.busy")}
+                </Badge>
+              </div>
+
+              {(freelancer.rating || freelancer.reviewCount > 0) && (
+                <div className="flex items-center gap-2">
+                  <StarRating value={freelancer.rating ?? 0} size="md" />
+                  <span className="font-semibold">{freelancer.rating?.toFixed(1)}</span>
+                  <span className="text-sm text-muted-foreground">
+                    ({freelancer.reviewCount} {t("ratings.reviews")})
+                  </span>
+                </div>
+              )}
+
+              {freelancer.hourlyRate && (
+                <div className="flex items-center gap-1 text-sm font-medium">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  {freelancer.hourlyRate} TND/h
+                </div>
+              )}
+
+              {freelancer.bio && (
+                <p className="text-sm text-muted-foreground leading-relaxed">{freelancer.bio}</p>
+              )}
+
+              {freelancer.skills.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {freelancer.skills.map((skill) => (
+                    <Badge key={skill.id} variant="outline">{skill.name}</Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Rating section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">{t("ratings.title")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <FreelancerRatingSection
+            freelancerId={freelancer.id}
+            // missionId would be passed from a missions context when available
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

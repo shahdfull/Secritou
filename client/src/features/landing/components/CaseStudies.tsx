@@ -25,7 +25,7 @@ export const cases = [
     company: "Helix Labs",
     challengeKey: "caseStudiesSection.cases.2.challenge",
     outcomeKey: "caseStudiesSection.cases.2.outcome",
-    metric: "+€42k",
+    metric: "+42k DT",
     metricLabelKey: "caseStudiesSection.cases.2.metricLabel",
   },
 ];

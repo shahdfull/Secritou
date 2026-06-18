@@ -102,7 +102,12 @@ enum SpecApprovalStatus {
 // Service request status options
 enum ServiceRequestStatus {
   NEW
+  IN_REVIEW
   IN_PROGRESS
+  WAITING_CLIENT
+  COMPLETED
+  CANCELLED
+  // Legacy values kept for migration compatibility
   DONE
 }
 
@@ -115,20 +120,26 @@ enum DocumentType {
 
 // Multi-tenant Company model
 model Company {
-  id        String                @id @default(uuid())
-  name      String                @db.VarChar(255)
-  website   String?               @db.VarChar(255)
-  logoUrl   String?               @db.VarChar(255)
-  primaryColor String?            @db.VarChar(20)
-  users     User[]
-  leads     Lead[]
-  clients   Client[]
-  projects  Project[]
-  missions  FreelancerMission[]
-  serviceRequests ServiceRequest[]
-  documents Document[]
-  createdAt DateTime              @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime              @updatedAt @db.Timestamptz(6)
+  id                  String                @id @default(uuid())
+  name                String                @db.VarChar(255)
+  website             String?               @db.VarChar(255)
+  logoUrl             String?               @db.VarChar(255)
+  primaryColor        String?               @db.VarChar(20)
+  users               User[]
+  leads               Lead[]
+  clients             Client[]
+  projects            Project[]
+  missions            FreelancerMission[]
+  serviceRequests     ServiceRequest[]
+  documents           Document[]
+  proposals           Proposal[]
+  approvals           Approval[]
+  enhancedDocuments   EnhancedDocument[]
+  invoices            Invoice[]
+  clientSuccess       ClientSuccess[]
+  clientOnboardings   ClientOnboarding[]
+  createdAt           DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime              @updatedAt @db.Timestamptz(6)
 
   // Indexes for faster queries
   @@index([name])
@@ -153,6 +164,15 @@ model User {
   notifications Notification[]
   resetToken String? @db.VarChar(255)
   resetTokenExpiry DateTime? @db.Timestamptz(6)
+  freelancerApplications FreelancerApplication[]
+  clientOnboardingsAsAssignee ClientOnboarding[] @relation("ClientOnboardingAssignedUser")
+  proposalHistories    ProposalHistory[]
+  approvalTimelines    ApprovalTimeline[]
+  documentAccessLogs   DocumentAccessLog[]
+  assignedServiceRequests ServiceRequestComment[] @relation("ServiceRequestCommentAuthor")
+  serviceRequestHistory   ServiceRequestHistory[] @relation("ServiceRequestHistoryUser")
+  serviceRequestAssignments ServiceRequest[]      @relation("ServiceRequestAssignee")
+  givenRatings        FreelancerRating[]
   createdAt           DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt           DateTime             @updatedAt @db.Timestamptz(6)
 
@@ -201,6 +221,12 @@ model Client {
   users            User[]
   serviceRequests  ServiceRequest[]
   documents        Document[]
+  proposals        Proposal[]
+  approvals        Approval[]
+  enhancedDocuments EnhancedDocument[]
+  invoices         Invoice[]
+  clientSuccess    ClientSuccess?
+  clientOnboardings ClientOnboarding[]
   createdAt        DateTime         @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime         @updatedAt @db.Timestamptz(6)
 
@@ -210,36 +236,78 @@ model Client {
   @@index([email])
 }
 model ServiceRequest {
-  id          String               @id @default(uuid())
-  title       String               @db.VarChar(255)
-  description String?              @db.Text
-  status      ServiceRequestStatus @default(NEW)
-  clientId    String
-  client      Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  companyId   String
-  company     Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdAt   DateTime             @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime             @updatedAt @db.Timestamptz(6)
+  id           String               @id @default(uuid())
+  title        String               @db.VarChar(255)
+  description  String?              @db.Text
+  status       ServiceRequestStatus @default(NEW)
+  priority     String               @default("NORMAL") @db.VarChar(20)
+  assignedToId String?
+  assignedTo   User?                @relation("ServiceRequestAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  clientId     String
+  client       Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  companyId    String
+  company      Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt    DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime             @updatedAt @db.Timestamptz(6)
+
+  comments  ServiceRequestComment[]
+  history   ServiceRequestHistory[]
 
   @@index([clientId])
   @@index([companyId, status])
   @@index([companyId, createdAt])
   @@index([companyId, status, createdAt])
+  @@index([assignedToId])
+}
+
+model ServiceRequestComment {
+  id               String         @id @default(uuid())
+  body             String         @db.Text
+  isInternal       Boolean        @default(false)
+  serviceRequestId String
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  authorId         String
+  author           User           @relation("ServiceRequestCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt        DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime       @updatedAt @db.Timestamptz(6)
+
+  @@index([serviceRequestId])
+  @@index([serviceRequestId, isInternal])
+}
+
+model ServiceRequestHistory {
+  id               String         @id @default(uuid())
+  serviceRequestId String
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  userId           String?
+  user             User?          @relation("ServiceRequestHistoryUser", fields: [userId], references: [id], onDelete: SetNull)
+  field            String         @db.VarChar(100)
+  oldValue         String?        @db.VarChar(500)
+  newValue         String?        @db.VarChar(500)
+  createdAt        DateTime       @default(now()) @db.Timestamptz(6)
+
+  @@index([serviceRequestId])
+  @@index([serviceRequestId, createdAt])
 }
 model Project {
-  id          String                @id @default(uuid())
-  name        String                @db.VarChar(255)
-  description String?               @db.Text
-  status      ProjectStatus         @default(PLANNING)
-  companyId   String
-  company     Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  clientId    String?
-  client      Client?               @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  tasks       Task[]
-  missions    FreelancerMission[]
-  documents   Document[]
-  createdAt   DateTime              @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime              @updatedAt @db.Timestamptz(6)
+  id                String                @id @default(uuid())
+  name              String                @db.VarChar(255)
+  description       String?               @db.Text
+  status            ProjectStatus         @default(PLANNING)
+  companyId         String
+  company           Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientId          String?
+  client            Client?               @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  tasks             Task[]
+  missions          FreelancerMission[]
+  documents         Document[]
+  proposals         Proposal[]
+  approvals         Approval[]
+  enhancedDocuments EnhancedDocument[]
+  invoices          Invoice[]
+  clientOnboardings ClientOnboarding[]
+  createdAt         DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime              @updatedAt @db.Timestamptz(6)
 
   // Indexes for faster queries
   @@index([companyId, status])
@@ -320,6 +388,7 @@ model FreelancerProfile {
   missions    FreelancerMission[]
   portfolio   PortfolioItem[]
   applications MissionApplication[]
+  ratings     FreelancerRating[]
   createdAt   DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime             @updatedAt @db.Timestamptz(6)
 
@@ -342,6 +411,7 @@ model FreelancerMission {
   projectId   String?
   project     Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
   applications MissionApplication[]
+  ratings     FreelancerRating[]
   createdAt   DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime             @updatedAt @db.Timestamptz(6)
 
@@ -358,6 +428,7 @@ model MissionApplication {
   freelancerId String
   freelancer  FreelancerProfile      @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
   status      MissionApplicationStatus @default(PENDING)
+  rating      FreelancerRating?
   createdAt   DateTime               @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime               @updatedAt @db.Timestamptz(6)
 
@@ -366,6 +437,28 @@ model MissionApplication {
   @@index([freelancerId])
   @@index([missionId, status])
   @@index([missionId, createdAt])
+}
+
+// FreelancerRating model - one rating per completed mission
+model FreelancerRating {
+  id              String            @id @default(uuid())
+  score           Int               // 1-5
+  comment         String?           @db.Text
+  freelancerId    String
+  freelancer      FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  missionId       String
+  mission         FreelancerMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  applicationId   String            @unique
+  application     MissionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  reviewerId      String
+  reviewer        User              @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
+  createdAt       DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime          @updatedAt @db.Timestamptz(6)
+
+  @@unique([missionId, freelancerId])
+  @@index([freelancerId])
+  @@index([reviewerId])
+  @@index([freelancerId, score])
 }
 model PortfolioItem {
   id          String         @id @default(uuid())
@@ -401,6 +494,7 @@ model Document {
   name      String       @db.VarChar(255)
   type      DocumentType @default(OTHER)
   url       String       @db.VarChar(500)
+  fileKey   String?      @db.VarChar(500)
   projectId String?
   project   Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
   clientId  String?
@@ -418,6 +512,7 @@ model Document {
 model RefreshToken {
   id        String    @id @default(uuid())
   tokenHash String    @unique @db.VarChar(64)
+  familyId  String    @db.VarChar(36)
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime  @db.Timestamptz(6)
@@ -425,6 +520,7 @@ model RefreshToken {
   createdAt DateTime  @default(now()) @db.Timestamptz(6)
 
   @@index([userId])
+  @@index([familyId])
   @@index([expiresAt])
 }
 
@@ -437,11 +533,14 @@ model FreelancerApplication {
   phone           String?           @db.VarChar(50)
   position        String            @db.VarChar(255)
   cvUrl           String            @db.VarChar(500)
+  cvKey           String?           @db.VarChar(500)
   portfolioUrl    String            @db.VarChar(500)
+  portfolioKey    String?           @db.VarChar(500)
   status          ApplicationStatus @default(PENDING)
   rejectionReason String?           @db.Text
   userId          String?
   user            User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountCreatedAt DateTime?
   createdAt       DateTime          @default(now()) @db.Timestamptz(6)
   updatedAt       DateTime          @updatedAt @db.Timestamptz(6)
 
@@ -461,7 +560,7 @@ model ClientOnboarding {
   companyId     String
   company       Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   assignedUserId String?
-  assignedUser  User?            @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  assignedUser  User?            @relation("ClientOnboardingAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
   steps         OnboardingStep[]
   createdAt     DateTime         @default(now()) @db.Timestamptz(6)
   updatedAt     DateTime         @updatedAt @db.Timestamptz(6)
@@ -590,4 +689,369 @@ model Delivery {
   userGuides       String?      @db.VarChar(500)
   createdAt        DateTime     @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime     @updatedAt @db.Timestamptz(6)
+}
+
+// Proposal Center
+enum ProposalStatus {
+  DRAFT
+  SENT
+  VIEWED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+model Proposal {
+  id          String         @id @default(uuid())
+  title       String         @db.VarChar(255)
+  description String?        @db.Text
+  status      ProposalStatus @default(DRAFT)
+  amount      Decimal?       @db.Decimal(12, 2)
+  currency    String         @default("EUR") @db.VarChar(10)
+  expiresAt   DateTime?      @db.Timestamptz(6)
+  viewedAt    DateTime?      @db.Timestamptz(6)
+  acceptedAt  DateTime?      @db.Timestamptz(6)
+  rejectedAt  DateTime?      @db.Timestamptz(6)
+  pdfUrl      String?        @db.VarChar(500)
+  clientId    String
+  client      Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  sections    ProposalSection[]
+  history     ProposalHistory[]
+  createdAt   DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime       @updatedAt @db.Timestamptz(6)
+
+  @@index([clientId])
+  @@index([companyId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([createdAt])
+  @@index([companyId, status])
+}
+
+model ProposalSection {
+  id          String   @id @default(uuid())
+  title       String   @db.VarChar(255)
+  content     String?  @db.Text
+  orderIndex  Int      @default(0)
+  proposalId  String
+  proposal    Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([proposalId])
+  @@index([proposalId, orderIndex])
+}
+
+model ProposalHistory {
+  id          String   @id @default(uuid())
+  action      String   @db.VarChar(100)
+  comment     String?  @db.Text
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  proposalId  String
+  proposal    Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([proposalId])
+  @@index([proposalId, createdAt])
+}
+
+// Approval Center
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMMENTED
+}
+
+model Approval {
+  id          String         @id @default(uuid())
+  title       String         @db.VarChar(255)
+  description String?        @db.Text
+  status      ApprovalStatus @default(PENDING)
+  dueDate     DateTime?      @db.Timestamptz(6)
+  clientId    String
+  client      Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  attachments ApprovalAttachment[]
+  timeline    ApprovalTimeline[]
+  createdAt   DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime       @updatedAt @db.Timestamptz(6)
+
+  @@index([clientId])
+  @@index([companyId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([createdAt])
+  @@index([companyId, status])
+}
+
+model ApprovalAttachment {
+  id          String   @id @default(uuid())
+  name        String   @db.VarChar(255)
+  url         String   @db.VarChar(500)
+  approvalId  String
+  approval    Approval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([approvalId])
+}
+
+model ApprovalTimeline {
+  id          String         @id @default(uuid())
+  action      String         @db.VarChar(100)
+  comment     String?        @db.Text
+  status      ApprovalStatus
+  userId      String?
+  user        User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  approvalId  String
+  approval    Approval       @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  createdAt   DateTime       @default(now()) @db.Timestamptz(6)
+
+  @@index([approvalId])
+  @@index([approvalId, createdAt])
+}
+
+// Document Center (Enhanced)
+enum EnhancedDocumentType {
+  CONTRACT
+  DELIVERABLE
+  GUIDE
+  REPORT
+  INVOICE
+  OTHER
+}
+
+enum DocumentAccessLevel {
+  ADMIN_ONLY
+  ADMIN_FREELANCER
+  CLIENT_ADMIN
+  ALL
+}
+
+model EnhancedDocument {
+  id          String               @id @default(uuid())
+  name        String               @db.VarChar(255)
+  description String?              @db.Text
+  type        EnhancedDocumentType @default(OTHER)
+  url         String               @db.VarChar(500)
+  fileKey     String?              @db.VarChar(500)
+  version     Int                  @default(1)
+  parentId    String?
+  parent      EnhancedDocument?    @relation("DocumentVersioning", fields: [parentId], references: [id], onDelete: SetNull)
+  children    EnhancedDocument[]   @relation("DocumentVersioning")
+  tags        String[]
+  accessLevel DocumentAccessLevel  @default(CLIENT_ADMIN)
+  clientId    String?
+  client      Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  companyId   String
+  company     Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  accessLog   DocumentAccessLog[]
+  createdAt   DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime             @updatedAt @db.Timestamptz(6)
+
+  @@index([clientId])
+  @@index([companyId])
+  @@index([type])
+  @@index([tags])
+  @@index([createdAt])
+  @@index([companyId, type])
+}
+
+model DocumentAccessLog {
+  id          String           @id @default(uuid())
+  action      String           @db.VarChar(100)
+  userId      String?
+  user        User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  documentId  String
+  document    EnhancedDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  ipAddress   String?          @db.VarChar(45)
+  userAgent   String?          @db.Text
+  createdAt   DateTime         @default(now()) @db.Timestamptz(6)
+
+  @@index([documentId])
+  @@index([userId])
+  @@index([documentId, createdAt])
+}
+
+// Invoice Center
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  PARTIAL
+  OVERDUE
+  CANCELLED
+}
+
+model Invoice {
+  id                String        @id @default(uuid())
+  number            String        @db.VarChar(100)
+  title             String        @db.VarChar(255)
+  description       String?       @db.Text
+  amount            Decimal       @db.Decimal(12, 2)
+  currency          String        @default("EUR") @db.VarChar(10)
+  amountPaid        Decimal       @default(0) @db.Decimal(12, 2)
+  status            InvoiceStatus @default(DRAFT)
+  dueDate           DateTime?     @db.Timestamptz(6)
+  sentAt            DateTime?     @db.Timestamptz(6)
+  paidAt            DateTime?     @db.Timestamptz(6)
+  pdfUrl            String?       @db.VarChar(500)
+  clientId          String
+  client            Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  companyId         String
+  company           Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projectId         String?
+  project           Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  items             InvoiceItem[]
+  payments          InvoicePayment[]
+  reminders         InvoiceReminder[]
+  createdAt         DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime      @updatedAt @db.Timestamptz(6)
+
+  @@index([clientId])
+  @@index([companyId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([createdAt])
+  @@index([companyId, status])
+  @@index([number])
+}
+
+model InvoiceItem {
+  id          String   @id @default(uuid())
+  description String   @db.VarChar(500)
+  quantity    Int      @default(1)
+  unitPrice   Decimal  @db.Decimal(12, 2)
+  total       Decimal  @db.Decimal(12, 2)
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([invoiceId])
+}
+
+model InvoicePayment {
+  id          String   @id @default(uuid())
+  amount      Decimal  @db.Decimal(12, 2)
+  method      String?  @db.VarChar(100)
+  reference   String?  @db.VarChar(255)
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  paidAt      DateTime @default(now()) @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([invoiceId])
+}
+
+model InvoiceReminder {
+  id          String   @id @default(uuid())
+  type        String   @db.VarChar(100)
+  sentAt      DateTime @default(now()) @db.Timestamptz(6)
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([invoiceId])
+}
+
+// Client Success Center
+model ClientSuccess {
+  id              String             @id @default(uuid())
+  clientId        String             @unique
+  client          Client             @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  companyId       String
+  company         Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  score           Int                @default(0)
+  objectives      SuccessObjective[]
+  metrics         SuccessMetric[]
+  recommendations SuccessRecommendation[]
+  timeline        SuccessTimeline[]
+  createdAt       DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime           @updatedAt @db.Timestamptz(6)
+
+  @@index([clientId])
+  @@index([companyId])
+}
+
+model SuccessObjective {
+  id             String        @id @default(uuid())
+  title          String        @db.VarChar(255)
+  description    String?       @db.Text
+  targetValue    Decimal?      @db.Decimal(12, 2)
+  currentValue   Decimal?      @db.Decimal(12, 2)
+  unit           String?       @db.VarChar(50)
+  targetDate     DateTime?     @db.Timestamptz(6)
+  completedAt    DateTime?     @db.Timestamptz(6)
+  successId      String
+  success        ClientSuccess @relation(fields: [successId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @db.Timestamptz(6)
+
+  @@index([successId])
+}
+
+model SuccessMetric {
+  id           String        @id @default(uuid())
+  name         String        @db.VarChar(255)
+  initialValue Decimal       @db.Decimal(12, 2)
+  currentValue Decimal       @db.Decimal(12, 2)
+  unit         String?       @db.VarChar(50)
+  successId    String
+  success      ClientSuccess @relation(fields: [successId], references: [id], onDelete: Cascade)
+  history      MetricHistory[]
+  createdAt    DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @db.Timestamptz(6)
+
+  @@index([successId])
+}
+
+model MetricHistory {
+  id        String        @id @default(uuid())
+  value     Decimal       @db.Decimal(12, 2)
+  date      DateTime      @default(now()) @db.Timestamptz(6)
+  metricId  String
+  metric    SuccessMetric @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now()) @db.Timestamptz(6)
+
+  @@index([metricId])
+  @@index([metricId, date])
+}
+
+model SuccessRecommendation {
+  id          String        @id @default(uuid())
+  title       String        @db.VarChar(255)
+  description String?       @db.Text
+  priority    Int           @default(0)
+  status      String        @default("PENDING") @db.VarChar(50)
+  successId   String
+  success     ClientSuccess @relation(fields: [successId], references: [id], onDelete: Cascade)
+  createdAt   DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @db.Timestamptz(6)
+
+  @@index([successId])
+  @@index([successId, priority])
+}
+
+model SuccessTimeline {
+  id          String        @id @default(uuid())
+  title       String        @db.VarChar(255)
+  description String?       @db.Text
+  eventType   String        @db.VarChar(100)
+  date        DateTime      @default(now()) @db.Timestamptz(6)
+  successId   String
+  success     ClientSuccess @relation(fields: [successId], references: [id], onDelete: Cascade)
+  createdAt   DateTime      @default(now()) @db.Timestamptz(6)
+
+  @@index([successId])
+  @@index([successId, date])
 }

@@ -1,4 +1,5 @@
 import type { RequestHandler } from "express";
+import multer from "multer";
 import { freelancerApplicationService } from "../services/freelancerApplication.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
 import { validate } from "../middlewares/validate.middleware.js";
@@ -31,12 +32,42 @@ export const getApplicationById: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const createApplication: RequestHandler = [
-  validate(createFreelancerApplicationValidator),
+// Multer for handling file uploads
+const upload = multer({ storage: multer.memoryStorage() });
+
+export const createApplication: RequestHandler[] = [
+  // Parse multipart form data with two files
+  upload.fields([
+    { name: "cvFile", maxCount: 1 },
+    { name: "portfolioFile", maxCount: 1 },
+  ]),
+
   async (req, res, next) => {
     try {
+      const cvFile = (req.files as any)?.cvFile?.[0];
+      const portfolioFile = (req.files as any)?.portfolioFile?.[0];
+
+      if (!cvFile) {
+        res.status(400).json({ error: "CV file is required" });
+        return;
+      }
+      if (!portfolioFile) {
+        res.status(400).json({ error: "Portfolio file is required" });
+        return;
+      }
+
       const application = await freelancerApplicationService.createApplication(
-        req.body
+        {
+          firstName: req.body.firstName,
+          lastName: req.body.lastName,
+          email: req.body.email,
+          phone: req.body.phone,
+          position: req.body.position,
+          bio: req.body.bio,
+          role: req.body.role,
+        },
+        cvFile,
+        portfolioFile
       );
       res.status(201).json({ data: application });
     } catch (error) {
@@ -57,7 +88,7 @@ export const rejectApplication: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const acceptApplication: RequestHandler = [
+export const acceptApplication: RequestHandler[] = [
   validate(acceptFreelancerApplicationValidator),
   async (req, res, next) => {
     try {

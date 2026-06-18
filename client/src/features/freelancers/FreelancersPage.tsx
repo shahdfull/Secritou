@@ -8,13 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
-  MoreHorizontal,
   Search,
   Plus,
   Edit,
-  Star,
   Loader2,
 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { StarRating } from "@/components/ratings/StarRating";
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -177,20 +177,6 @@ export function FreelancersPage() {
     );
   }, [editForm, updateProfile]);
 
-  const renderStars = useCallback((rating?: number) => {
-    const stars = [];
-    for (let i = 1; i <= 5; i++) {
-      stars.push(
-        <Star
-          key={i}
-          className={`h-4 w-4 ${
-            i <= (rating || 0) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-          }`}
-        />
-      );
-    }
-    return <div className="flex items-center gap-1">{stars}</div>;
-  }, []);
 
   if (isLoading) {
     return (
@@ -315,10 +301,10 @@ export function FreelancersPage() {
           <Card key={freelancer.id} className="hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">
-                <div>
+                <Link to={`/app/freelancers/${freelancer.id}`} className="hover:underline">
                   <CardTitle className="text-lg">{freelancer.user.name}</CardTitle>
                   <p className="text-sm text-muted-foreground">{freelancer.user.email}</p>
-                </div>
+                </Link>
                 {freelancer.userId === user?.id && (
                   <Button variant="ghost" size="icon" onClick={() => handleEdit(freelancer)}>
                     <Edit className="h-4 w-4" />
@@ -329,7 +315,8 @@ export function FreelancersPage() {
             <CardContent className="space-y-3">
               {(freelancer.rating || freelancer.reviewCount > 0) && (
                 <div className="flex items-center gap-2">
-                  {renderStars(freelancer.rating)}
+                  <StarRating value={freelancer.rating ?? 0} size="sm" />
+                  <span className="text-sm font-medium">{freelancer.rating?.toFixed(1)}</span>
                   <span className="text-sm text-muted-foreground">
                     ({freelancer.reviewCount} avis)
                   </span>

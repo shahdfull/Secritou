@@ -2,6 +2,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
+import swaggerUi from "swagger-ui-express";
 import { env } from "./config/env.js";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
 import { loggingMiddleware } from "./middlewares/logging.middleware.js";
@@ -9,6 +10,7 @@ import { metricsAuthMiddleware } from "./middlewares/metricsAuth.middleware.js";
 import { metricsMiddleware } from "./observability/middleware.js";
 import { metricsHandler, metricsRoutes } from "./observability/routes.js";
 import { apiRoutes } from "./routes/index.js";
+import { swaggerSpec } from "./swagger.js";
 
 export const app = express();
 
@@ -64,6 +66,16 @@ app.use(loggingMiddleware);
 
 if (env.METRICS_ENABLED) {
   app.get(env.METRICS_PATH, metricsAuthMiddleware, metricsHandler);
+}
+
+// Swagger/OpenAPI documentation
+if (process.env.NODE_ENV !== "production") {
+  app.use("/api-docs", swaggerUi.serve);
+  app.get("/api-docs", swaggerUi.setup(swaggerSpec, { swaggerOptions: { defaultModelsExpandDepth: 1 } }));
+  app.get("/openapi.json", (_req, res) => {
+    res.setHeader("Content-Type", "application/json");
+    res.send(swaggerSpec);
+  });
 }
 
 app.use("/api/v1", apiRoutes);

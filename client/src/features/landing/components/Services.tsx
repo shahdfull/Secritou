@@ -54,6 +54,13 @@ export function Services() {
     },
   ];
 
+  const highlights = [
+    t("home.services.highlights.0"),
+    t("home.services.highlights.1"),
+    t("home.services.highlights.2"),
+    t("home.services.highlights.3"),
+  ];
+
   return (
     <section id="services" className="bg-surface-warm/40 py-20 sm:py-28">
       <div className="container-page">
@@ -108,6 +115,17 @@ export function Services() {
             </motion.button>
           ))}
         </div>
+
+        <ul className="mt-8 grid gap-3 text-sm text-ink sm:grid-cols-2 lg:grid-cols-4">
+          {highlights.map((item) => (
+            <li key={item} className="flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 shadow-soft">
+              <span className="grid h-5 w-5 place-items-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                ✓
+              </span>
+              {item}
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );

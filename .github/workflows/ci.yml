@@ -7,8 +7,50 @@ on:
     branches: [main, develop]
 
 jobs:
-  build:
+  quality-checks:
+    name: Quality Checks
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+            server/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prisma format
+        run: npm run prisma:format:check --workspace server
+
+      - name: Prisma validate
+        run: npm run prisma:validate --workspace server
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check i18n keys
+        run: npm run check:i18n
+
+      - name: Security audit
+        run: npm run check:security
+
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    needs: quality-checks
     services:
       postgres:
         image: postgres:16-alpine
@@ -32,7 +74,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/secritou_test?schema=public
       JWT_ACCESS_SECRET: ci-access-secret-at-least-32-characters-long
@@ -42,7 +83,7 @@ jobs:
       CACHE_ENABLED: "true"
       JOBS_ENABLED: "false"
       METRICS_ENABLED: "false"
-
+      NODE_ENV: test
     steps:
       - uses: actions/checkout@v4
 
@@ -50,8 +91,21 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
 
-      - run: npm ci
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Prisma engines
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/prisma
+          key: ${{ runner.os }}-prisma-${{ hashFiles('server/package-lock.json') }}
+
+      - name: Prisma generate
+        run: npm run prisma:generate --workspace server
 
       - name: Prisma migrate deploy
         run: npm run prisma:migrate:deploy --workspace server
@@ -59,20 +113,130 @@ jobs:
       - name: Prisma seed
         run: npm run prisma:seed --workspace server
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Unit tests with coverage
+        run: npm run test:coverage --workspace server
 
-      - name: Lint
-        run: npm run lint
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-coverage
+          path: server/coverage
+          if-no-files-found: error
 
-      - name: Unit tests
-        run: npm run test:unit --workspace server
+  frontend-build:
+    name: Frontend Build & Bundle Check
+    runs-on: ubuntu-latest
+    needs: quality-checks
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Build
-        run: npm run build
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build --workspace client
+
+      - name: Check bundle budgets
+        run: npm run bundle:check --workspace client
+
+      - name: Upload frontend dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-dist
+          path: client/dist
+          if-no-files-found: error
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-build]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: secritou_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/secritou_test?schema=public
+      JWT_ACCESS_SECRET: ci-access-secret-at-least-32-characters-long
+      JWT_REFRESH_SECRET: ci-refresh-secret-at-least-32-characters-long
+      CLIENT_ORIGIN: http://localhost:5173
+      REDIS_URL: redis://localhost:6379
+      CACHE_ENABLED: "true"
+      JOBS_ENABLED: "false"
+      METRICS_ENABLED: "false"
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+            server/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Prisma generate
+        run: npm run prisma:generate --workspace server
+
+      - name: Prisma migrate deploy
+        run: npm run prisma:migrate:deploy --workspace server
+
+      - name: Prisma seed
+        run: npm run prisma:seed --workspace server
 
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
-      - name: E2E Auth tests
+      - name: Build backend
+        run: npm run build --workspace server
+
+      - name: Build frontend
+        run: npm run build --workspace client
+
+      - name: Run E2E tests
         run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          if-no-files-found: ignore

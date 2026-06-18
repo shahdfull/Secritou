@@ -1,6 +1,7 @@
 import { clientOnboardingRepository } from "../repositories/clientOnboarding.repository.js";
 import { projectRepository } from "../repositories/project.repository.js";
 import { clientRepository } from "../repositories/client.repository.js";
+import { tenantValidation } from "./tenantValidation.service.js";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 
 export const clientOnboardingService = {
@@ -10,12 +11,12 @@ export const clientOnboardingService = {
     return clientOnboardingRepository.findAll(options);
   },
 
-  async getOnboardingById(id: string) {
-    return clientOnboardingRepository.findById(id);
+  async getOnboardingById(id: string, companyId: string) {
+    return clientOnboardingRepository.findById(id, companyId);
   },
 
-  async getOnboardingByProjectId(projectId: string) {
-    return clientOnboardingRepository.findByProjectId(projectId);
+  async getOnboardingByProjectId(projectId: string, companyId: string) {
+    return clientOnboardingRepository.findByProjectId(projectId, companyId);
   },
 
   async createOnboarding(data: {
@@ -23,14 +24,14 @@ export const clientOnboardingService = {
     companyId: string;
     assignedUserId?: string;
   }) {
-    // Validate project exists
-    const project = await projectRepository.findById(data.projectId);
+    // Validate project exists in company
+    const project = await projectRepository.findById(data.projectId, data.companyId);
     if (!project) {
       throw new Error("Project not found");
     }
 
-    // Validate client exists
-    const client = await clientRepository.findById(project.clientId);
+    // Validate client exists in company
+    const client = await clientRepository.findById(project.clientId, data.companyId);
     if (!client) {
       throw new Error("Client not found");
     }
@@ -88,83 +89,83 @@ export const clientOnboardingService = {
     });
   },
 
-  async updateOnboarding(id: string, data: any) {
-    return clientOnboardingRepository.update(id, data);
+  async updateOnboarding(id: string, companyId: string, data: any) {
+    return clientOnboardingRepository.update(id, companyId, data);
   },
 
-  async deleteOnboarding(id: string) {
-    return clientOnboardingRepository.delete(id);
+  async deleteOnboarding(id: string, companyId: string) {
+    return clientOnboardingRepository.delete(id, companyId);
   },
 
   // Step operations
-  async addStep(onboardingId: string, data: any) {
-    return clientOnboardingRepository.addStep(onboardingId, data);
+  async addStep(onboardingId: string, companyId: string, data: any) {
+    return clientOnboardingRepository.addStep(onboardingId, companyId, data);
   },
 
-  async updateStep(stepId: string, data: any) {
-    return clientOnboardingRepository.updateStep(stepId, data);
+  async updateStep(stepId: string, companyId: string, data: any) {
+    return clientOnboardingRepository.updateStep(stepId, companyId, data);
   },
 
   // Contract operations
-  async createContract(stepId: string, data: any) {
-    return clientOnboardingRepository.createContract(stepId, data);
+  async createContract(stepId: string, companyId: string, data: any) {
+    return clientOnboardingRepository.createContract(stepId, companyId, data);
   },
 
-  async updateContract(contractId: string, data: any) {
-    return clientOnboardingRepository.updateContract(contractId, data);
+  async updateContract(contractId: string, companyId: string, data: any) {
+    return clientOnboardingRepository.updateContract(contractId, companyId, data);
   },
 
   // Payment operations
-  async createPayment(stepId: string, data: any) {
-    return clientOnboardingRepository.createPayment(stepId, data);
+  async createPayment(stepId: string, companyId: string, data: any) {
+    return clientOnboardingRepository.createPayment(stepId, companyId, data);
   },
 
-  async updatePayment(paymentId: string, data: any) {
-    return clientOnboardingRepository.updatePayment(paymentId, data);
+  async updatePayment(paymentId: string, companyId: string, data: any) {
+    return clientOnboardingRepository.updatePayment(paymentId, companyId, data);
   },
 
   // Questionnaire operations
-  async createQuestionnaire(stepId: string, data: any) {
-    return clientOnboardingRepository.createQuestionnaire(stepId, data);
+  async createQuestionnaire(stepId: string, companyId: string, data: any) {
+    return clientOnboardingRepository.createQuestionnaire(stepId, companyId, data);
   },
 
-  async updateQuestionnaire(questionnaireId: string, data: any) {
-    return clientOnboardingRepository.updateQuestionnaire(questionnaireId, data);
+  async updateQuestionnaire(questionnaireId: string, companyId: string, data: any) {
+    return clientOnboardingRepository.updateQuestionnaire(questionnaireId, companyId, data);
   },
 
   // Specifications operations
-  async createSpecifications(stepId: string, data: any) {
-    return clientOnboardingRepository.createSpecifications(stepId, data);
+  async createSpecifications(stepId: string, companyId: string, data: any) {
+    return clientOnboardingRepository.createSpecifications(stepId, companyId, data);
   },
 
-  async updateSpecifications(specificationsId: string, data: any) {
-    return clientOnboardingRepository.updateSpecifications(specificationsId, data);
+  async updateSpecifications(specificationsId: string, companyId: string, data: any) {
+    return clientOnboardingRepository.updateSpecifications(specificationsId, companyId, data);
   },
 
   // Kickoff operations
-  async createKickoff(stepId: string, data: any) {
-    return clientOnboardingRepository.createKickoff(stepId, data);
+  async createKickoff(stepId: string, companyId: string, data: any) {
+    return clientOnboardingRepository.createKickoff(stepId, companyId, data);
   },
 
-  async updateKickoff(kickoffId: string, data: any) {
-    return clientOnboardingRepository.updateKickoff(kickoffId, data);
+  async updateKickoff(kickoffId: string, companyId: string, data: any) {
+    return clientOnboardingRepository.updateKickoff(kickoffId, companyId, data);
   },
 
   // Production operations
-  async createProduction(stepId: string, data: any) {
-    return clientOnboardingRepository.createProduction(stepId, data);
+  async createProduction(stepId: string, companyId: string, data: any) {
+    return clientOnboardingRepository.createProduction(stepId, companyId, data);
   },
 
-  async updateProduction(productionId: string, data: any) {
-    return clientOnboardingRepository.updateProduction(productionId, data);
+  async updateProduction(productionId: string, companyId: string, data: any) {
+    return clientOnboardingRepository.updateProduction(productionId, companyId, data);
   },
 
   // Delivery operations
-  async createDelivery(stepId: string, data: any) {
-    return clientOnboardingRepository.createDelivery(stepId, data);
+  async createDelivery(stepId: string, companyId: string, data: any) {
+    return clientOnboardingRepository.createDelivery(stepId, companyId, data);
   },
 
-  async updateDelivery(deliveryId: string, data: any) {
-    return clientOnboardingRepository.updateDelivery(deliveryId, data);
+  async updateDelivery(deliveryId: string, companyId: string, data: any) {
+    return clientOnboardingRepository.updateDelivery(deliveryId, companyId, data);
   },
 };

@@ -2,14 +2,12 @@
   "nav": {
     "services": "Services",
     "solutions": "Solutions",
-    "caseStudies": "Case Studies",
     "contact": "Contact",
     "login": "Login",
     "joinUs": "Join Us",
-    "bookConsultation": "Book a Consultation",
-    "bookFreeConsultation": "Book a Free Consultation",
-    "discoverSolutions": "Discover Our Solutions",
-    "scheduleFreeConsultation": "Schedule a Free Consultation"
+    "scheduleCall": "Schedule a Call",
+    "bookConsultation": "Book a Free Consultation",
+    "caseStudies": "Case Studies"
   },
   "auth": {
     "signIn": "Sign in",
@@ -51,14 +49,23 @@
     "setNewPasswordInstructions": "Enter your new password.",
     "newPassword": "New password",
     "confirmPassword": "Confirm password",
-    "resetting": "Resetting..."
+    "resetting": "Resetting...",
+    "changePassword": "Change password",
+    "changePasswordRequired": "You must change your password before continuing.",
+    "passwordChanged": "Password changed successfully"
   },
   "services": {
     "title": "One partner. Multiple growth solutions.",
     "subtitle": "Here's how we solve them",
     "seeFullCapabilities": "See full capabilities",
+    "highlights": [
+      "Business performance",
+      "Digital growth",
+      "Technology solutions",
+      "AI & Automation"
+    ],
     "businessPerformance": {
-      "title": "Business Performance",
+      "title": "Management & Performance",
       "body": "KPI tracking, dashboards, objectives and business analytics — finally one place for the numbers that matter.",
       "items": ["KPI tracking", "Dashboards", "Objectives", "Business analytics"]
     },
@@ -68,7 +75,7 @@
       "items": ["Social media", "Content creation", "SEO", "Paid advertising"]
     },
     "technologySolutions": {
-      "title": "Technology Solutions",
+      "title": "Technology",
       "body": "Websites, e-commerce, inventory systems and the digital tools you need to operate at the next level.",
       "items": ["Websites", "E-commerce", "Inventory systems", "Digital tools"]
     },
@@ -94,7 +101,7 @@
     "replyTime": "We typically reply within one business day.",
     "emailInfo": "hello@secritou.com",
     "bookCall": "30-minute discovery call, free of charge.",
-    "whereWeWork": "Remote-first · Europe & worldwide.",
+    "whereWeWork": "Tunis · Remote across Tunisia.",
     "pleaseEnterName": "Please enter your name.",
     "pleaseEnterEmail": "Please enter a valid email address.",
     "pleaseEnterServiceType": "Please select a service type.",
@@ -110,11 +117,11 @@
   },
   "home": {
     "hero": {
-      "tagline": "Strategy · Technology · Data",
+      "tagline": "Management · Marketing · Technology",
       "title": {
-        "0": "Your external growth &",
-        "1": "digital transformation",
-        "2": "partner."
+        "0": "The partner who",
+        "1": "structures, digitizes and grows",
+        "2": "your business."
       },
       "description": "We help SMEs, entrepreneurs and creators organize, digitize and grow — through strategy, technology, marketing and data-driven decision making.",
       "features": ["Data-driven decisions", "Digital transformation", "Business growth", "Process optimization"]
@@ -146,9 +153,15 @@
       "subtitle": "Here's how we solve them",
       "title": "One partner. Multiple growth solutions.",
       "seeFullCapabilities": "See full capabilities",
+      "highlights": [
+        "Management & Performance",
+        "Digital growth",
+        "Technology",
+        "AI & Automation"
+      ],
       "items": [
         {
-          "title": "Business Performance",
+          "title": "Management & Performance",
           "body": "KPI tracking, dashboards, objectives and business analytics — finally one place for the numbers that matter.",
           "items": ["KPI tracking", "Dashboards", "Objectives", "Business analytics"]
         },
@@ -158,7 +171,7 @@
           "items": ["Social media", "Content creation", "SEO", "Paid advertising"]
         },
         {
-          "title": "Technology Solutions",
+          "title": "Technology",
           "body": "Websites, e-commerce, inventory systems and the digital tools you need to operate at the next level.",
           "items": ["Websites", "E-commerce", "Inventory systems", "Digital tools"]
         },
@@ -221,11 +234,23 @@
     "finalCta": {
       "subtitle": "Ready when you are",
       "title": "Ready to accelerate your growth?",
-      "description": "30 minutes. No slides, no pitch. Just a conversation about where you are, where you want to be, and what's standing in the way.",
-      "seeResults": "See the results"
+      "description": "30 minutes. No slides, no pitch. Just a conversation about where you are, where you want to be, and what's standing in the way."
+    },
+    "socialProof": {
+      "trustedBy": "Trusted by",
+      "impact": "Average impact",
+      "revenueGrowth": "+20 to 30% revenue",
+      "averageFirstYear": "in the first year",
+      "testimonial": "Secritou helped us bring order to our growth. In just a few months, our decisions became clearer and our operations much smoother.",
+      "testimonialAuthor": "Nadia Ben Salah",
+      "testimonialRole": "Founder, Brand Boutique"
+    },
+    "cta": {
+      "primary": "Book a free consultation",
+      "secondary": "Discover our services"
     },
     "footer": {
-      "description": "Your external growth & digital transformation partner — building the future operating system for SMEs, entrepreneurs, and creators.",
+      "description": "A Tunisian B2B agency helping SMEs, entrepreneurs, and creators get organized, go digital, and grow.",
       "services": "Services",
       "solutions": "Solutions",
       "industries": "Industries",
@@ -241,7 +266,7 @@
         "startups": "Startups"
       },
       "copyright": "© {year} Secritou. All rights reserved.",
-      "builtFor": "Built for businesses that take growth seriously."
+      "builtFor": "Clear, measurable support designed to convert."
     }
   },
   "dashboard": {
@@ -281,7 +306,77 @@
     "selectPlaceholder": "Select...",
     "noDescription": "No description provided",
     "areYouSureDelete": "Are you sure you want to delete {name}?",
-    "actions": "Actions"
+    "actions": "Actions",
+    "saving": "Saving...",
+    "optional": "optional",
+    "error": "An error occurred."
+  },
+  "search": {
+    "placeholder": "Search leads, clients, projects...",
+    "minCharacters": "Type at least 2 characters",
+    "noResults": "No results",
+    "leads": "Leads",
+    "clients": "Clients",
+    "projects": "Projects",
+    "tasks": "Tasks",
+    "freelancers": "Freelancers"
+  },
+  "settingsUsersTab": {
+    "title": "Users",
+    "inviteUserButton": "Invite User",
+    "inviteDialogTitle": "Invite New User",
+    "inviteDialogDesc": "Send an invitation to a new user",
+    "nameLabel": "Name",
+    "emailLabel": "Email",
+    "roleLabel": "Role",
+    "selectRolePlaceholder": "Select role",
+    "admin": "Admin",
+    "manager": "Manager",
+    "client": "Client",
+    "freelancer": "Freelancer",
+    "cancel": "Cancel",
+    "sendInvitation": "Send Invitation",
+    "createdAt": "Created At",
+    "actions": "Actions",
+    "editUser": "Edit User",
+    "updateUserInfo": "Update user information",
+    "save": "Save",
+    "deleteUser": "Delete User",
+    "deleteConfirm": "Are you sure you want to delete this user?",
+    "delete": "Delete",
+    "permissionsMatrix": "Permissions Matrix",
+    "permissionsPerRole": "Permissions per role",
+    "role": "Role",
+    "permissions": "Permissions"
+  },
+  "sidebar": {
+    "title": "Navigation",
+    "dashboard": "Dashboard",
+    "leads": "Leads",
+    "clients": "Clients",
+    "applications": "Applications",
+    "onboarding": "Onboarding",
+    "freelancers": "Freelancers",
+    "missions": "Missions",
+    "projects": "Projects",
+    "tasks": "Tasks",
+    "aiAssistant": "AI Assistant",
+    "analytics": "Analytics",
+    "reports": "Reports",
+    "settings": "Settings",
+    "serviceRequests": "Service Requests",
+    "proposals": "Proposals",
+    "approvals": "Approvals",
+    "invoices": "Invoices",
+    "documents": "Documents",
+    "clientSuccess": "Client Success"
+  },
+  "userMenu": {
+    "myAccount": "My Account",
+    "profile": "Profile",
+    "settings": "Settings",
+    "logout": "Logout",
+    "loggingOut": "Logging out..."
   },
   "toasts": {
     "loginSuccess": "Logged in successfully",
@@ -353,7 +448,15 @@
     "bio": "Tell us about your experience",
     "submit": "Submit application",
     "success": "Your request has been sent successfully.",
-    "bioMinLength": "Please describe your experience in at least 20 characters."
+    "bioMinLength": "Please describe your experience in at least 20 characters.",
+    "uploadCv": "Click to upload CV",
+    "uploadPortfolio": "Click to upload portfolio (PDF or ZIP)",
+    "motivations": "Your motivations",
+    "motivationsPlaceholder": "Why do you want to join our team? What are your goals and what drives you?",
+    "successTitle": "Thank you for your application!",
+    "successDescription": "We've received your application. Our team will review your profile and contact you very soon.",
+    "successSubtext": "We will get back to you within 3-5 business days.",
+    "successMessage": "Your application has been sent successfully!"
   },
   "applications": {
     "title": "Applications",
@@ -406,33 +509,6 @@
     "rejected": "Application rejected successfully",
     "accepted": "Application accepted and account created successfully"
   },
-  "auth": {
-    "signIn": "Sign in",
-    "signUp": "Sign up",
-    "email": "Email",
-    "password": "Password",
-    "forgotPassword": "Forgot password?",
-    "resetPassword": "Reset password",
-    "createAccount": "Create account",
-    "fullName": "Full name",
-    "companyName": "Company name",
-    "accessWorkspace": "Access your workspace, projects, reports and AI assistant.",
-    "getStarted": "Get started with your growth and digital transformation platform.",
-    "dontHaveAccount": "Don't have an account?",
-    "alreadyHaveAccount": "Already have an account?",
-    "signingIn": "Signing in...",
-    "creatingAccount": "Creating account...",
-    "validEmail": "Please enter a valid email",
-    "passwordMinLength": "Password must be at least 6 characters",
-    "nameMinLength": "Name must be at least 2 characters",
-    "companyNameMinLength": "Company name must be at least 2 characters",
-    "changePassword": "Change password",
-    "changePasswordRequired": "You must change your password before continuing.",
-    "newPassword": "New password",
-    "confirmPassword": "Confirm new password",
-    "passwordMismatch": "Passwords do not match",
-    "passwordChanged": "Password changed successfully"
-  },
   "joinRequests": {
     "title": "Join requests",
     "description": "Review applications before creating an account for the candidate.",
@@ -456,9 +532,9 @@
     "growthQuestion": "What's our top growth opportunity?",
     "aiLabel": "Secritou AI:",
     "growthAnswer": "Focus on email campaigns - they drive 42% of conversions!",
-    "joinWaitlist": "Join the Waitlist",
-    "futureVision": "Future Vision",
-    "comingSoon": "Coming Soon",
+    "joinWaitlist": "Book a free consultation",
+    "futureVision": "Book a consultation",
+    "comingSoon": "Let's talk growth",
     "kpis": {
       "revenue": "Revenue",
       "newLeads": "New Leads",
@@ -528,9 +604,9 @@
     }
   },
   "futureProduct": {
-    "badge": "Future product vision",
-    "title": "The future operating system for growing businesses.",
-    "description": "Today we deliver this as a coordinated service. Tomorrow, it's a platform - your revenue, KPIs, marketing, tasks and automations, unified in one place."
+    "badge": "Our vision",
+    "title": "A coordinated growth partner for your business.",
+    "description": "Today we help you structure, digitize, and grow through services that stay practical, measurable, and focused on results."
   },
   "solutionsPage": {
     "title": "Built around who you are — and where you're going.",
@@ -602,6 +678,44 @@
       "completed": "Completed"
     }
   },
+  "leadsPage": {
+    "title": "Leads",
+    "subtitle": "Manage your leads and track their progress",
+    "addLead": "Add Lead",
+    "createLead": "Create Lead",
+    "createLeadDesc": "Add a new lead to your list",
+    "editLead": "Edit Lead",
+    "editLeadDesc": "Update lead information",
+    "searchLeads": "Search leads...",
+    "filterByStatus": "Filter by status",
+    "allStatuses": "All statuses",
+    "viewList": "List view",
+    "viewKanban": "Kanban view",
+    "selectSource": "Select source",
+    "selectStatus": "Select status",
+    "namePlaceholder": "Lead name",
+    "emailPlaceholder": "lead@example.com",
+    "phonePlaceholder": "+1234567890",
+    "notesPlaceholder": "Add notes...",
+    "convertToClient": "Convert to client",
+    "sourceLabel": "Source",
+    "status": {
+      "new": "New",
+      "contacted": "Contacted",
+      "qualified": "Qualified",
+      "proposal": "Proposal",
+      "won": "Won",
+      "lost": "Lost"
+    },
+    "sources": {
+      "website": "Website",
+      "linkedin": "LinkedIn",
+      "referral": "Referral",
+      "email": "Email",
+      "inboundCall": "Inbound Call",
+      "other": "Other"
+    }
+  },
   "tasksPage": {
     "title": "Tasks",
     "subtitle": "Manage and track your project tasks",
@@ -617,7 +731,7 @@
     "projectRequired": "Project is required",
     "selectProject": "Select project",
     "selectStatus": "Select status",
-    "title": "Task title",
+    "taskTitle": "Task title",
     "description": "Task description",
     "statuses": {
       "todo": "To Do",
@@ -982,5 +1096,212 @@
       "edit": "Edit",
       "delete": "Delete"
     }
+  },
+  "proposals": {
+    "title": "Proposals",
+    "subtitle": "Manage commercial proposals for clients.",
+    "empty": "No proposals yet.",
+    "search": "Search proposals...",
+    "filterByStatus": "Filter by status",
+    "allStatuses": "All statuses",
+    "proposalTitle": "Title",
+    "client": "Client",
+    "amount": "Amount",
+    "date": "Date",
+    "status": "Status",
+    "actions": "Actions",
+    "view": "View",
+    "download": "Download",
+    "send": "Send",
+    "accept": "Accept",
+    "reject": "Reject",
+    "delete": "Delete",
+    "statuses": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "viewed": "Viewed",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "expired": "Expired"
+    },
+    "rejectModal": {
+      "title": "Reject proposal",
+      "description": "Please provide a reason for rejection (this will create a Gmail draft).",
+      "reasonPlaceholder": "We have decided to go with another provider...",
+      "cancel": "Cancel",
+      "confirm": "Reject"
+    },
+    "created": "Proposal created successfully",
+    "updated": "Proposal updated successfully",
+    "deleted": "Proposal deleted successfully",
+    "sent": "Proposal sent successfully",
+    "accepted": "Proposal accepted successfully",
+    "rejected": "Proposal rejected successfully"
+  },
+  "approvals": {
+    "title": "Approvals",
+    "subtitle": "Manage deliverable approvals for clients.",
+    "empty": "No approvals yet.",
+    "search": "Search approvals...",
+    "filterByStatus": "Filter by status",
+    "allStatuses": "All statuses",
+    "approvalTitle": "Title",
+    "client": "Client",
+    "dueDate": "Due Date",
+    "status": "Status",
+    "actions": "Actions",
+    "view": "View",
+    "approve": "Approve",
+    "reject": "Reject",
+    "comment": "Comment",
+    "delete": "Delete",
+    "statuses": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "commented": "Commented"
+    },
+    "commentPlaceholder": "Add your comments...",
+    "created": "Approval created successfully",
+    "updated": "Approval updated successfully",
+    "deleted": "Approval deleted successfully",
+    "approved": "Approval approved successfully",
+    "rejected": "Approval rejected successfully",
+    "commented": "Comment added successfully"
+  },
+  "invoices": {
+    "title": "Invoices",
+    "subtitle": "Manage invoices for clients.",
+    "empty": "No invoices yet.",
+    "search": "Search invoices...",
+    "filterByStatus": "Filter by status",
+    "allStatuses": "All statuses",
+    "number": "Number",
+    "client": "Client",
+    "amount": "Amount",
+    "amountPaid": "Amount Paid",
+    "dueDate": "Due Date",
+    "status": "Status",
+    "actions": "Actions",
+    "view": "View",
+    "download": "Download",
+    "send": "Send",
+    "addPayment": "Add Payment",
+    "delete": "Delete",
+    "statuses": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "paid": "Paid",
+      "partial": "Partially Paid",
+      "overdue": "Overdue",
+      "cancelled": "Cancelled"
+    },
+    "created": "Invoice created successfully",
+    "updated": "Invoice updated successfully",
+    "deleted": "Invoice deleted successfully",
+    "sent": "Invoice sent successfully",
+    "paymentAdded": "Payment added successfully"
+  },
+  "enhancedDocuments": {
+    "title": "Documents",
+    "subtitle": "Manage contracts, deliverables, guides, and reports.",
+    "empty": "No documents yet.",
+    "search": "Search documents...",
+    "filterByType": "Filter by type",
+    "allTypes": "All types",
+    "add": "Add Document",
+    "addTitle": "Add New Document",
+    "addDescription": "Upload a new document to your library",
+    "file": "File",
+    "uploadFile": "Click to upload file",
+    "name": "Name",
+    "descriptionLabel": "Description",
+    "client": "Client",
+    "type": "Type",
+    "version": "Version",
+    "tags": "Tags",
+    "tagsLabel": "Tags (comma-separated)",
+    "accessLevel": "Access Level",
+    "date": "Date",
+    "actions": "Actions",
+    "view": "View",
+    "download": "Download",
+    "uploadNewVersion": "Upload New Version",
+    "delete": "Delete",
+    "types": {
+      "contract": "Contract",
+      "deliverable": "Deliverable",
+      "guide": "Guide",
+      "report": "Report",
+      "invoice": "Invoice",
+      "other": "Other"
+    },
+    "created": "Document uploaded successfully",
+    "updated": "Document updated successfully",
+    "deleted": "Document deleted successfully",
+    "versionCreated": "New version uploaded successfully"
+  },
+  "clientSuccess": {
+    "title": "Client Success",
+    "subtitle": "Track client success metrics, objectives, and timeline.",
+    "score": "Success Score",
+    "objectives": "Objectives",
+    "metrics": "Metrics",
+    "recommendations": "Recommendations",
+    "timeline": "Timeline",
+    "addObjective": "Add Objective",
+    "editObjective": "Edit Objective",
+    "deleteObjective": "Delete Objective",
+    "addMetric": "Add Metric",
+    "editMetric": "Edit Metric",
+    "deleteMetric": "Delete Metric",
+    "addRecommendation": "Add Recommendation",
+    "editRecommendation": "Edit Recommendation",
+    "deleteRecommendation": "Delete Recommendation",
+    "addTimelineEntry": "Add Timeline Entry",
+    "deleteTimelineEntry": "Delete Timeline Entry",
+    "calculateScore": "Calculate Score",
+    "scoreCalculated": "Success score calculated successfully",
+    "objectiveAdded": "Objective added successfully",
+    "objectiveUpdated": "Objective updated successfully",
+    "objectiveDeleted": "Objective deleted successfully",
+    "metricAdded": "Metric added successfully",
+    "metricUpdated": "Metric updated successfully",
+    "metricDeleted": "Metric deleted successfully",
+    "recommendationAdded": "Recommendation added successfully",
+    "recommendationUpdated": "Recommendation updated successfully",
+    "recommendationDeleted": "Recommendation deleted successfully",
+    "timelineAdded": "Timeline entry added successfully",
+    "timelineDeleted": "Timeline entry deleted successfully"
+  },
+  "ratings": {
+    "title": "Reviews",
+    "writeReview": "Write a Review",
+    "submitReview": "Submit Review",
+    "updateReview": "Update Review",
+    "editReview": "Edit Review",
+    "noReviews": "No reviews yet.",
+    "reviewCount_one": "{{count}} review",
+    "reviewCount_other": "{{count}} reviews",
+    "reviews": "reviews",
+    "forMission": "Mission",
+    "score": "Score",
+    "comment": "Comment",
+    "commentPlaceholder": "Share your experience working with this freelancer...",
+    "created": "Review submitted successfully.",
+    "updated": "Review updated.",
+    "deleted": "Review deleted.",
+    "scoreLabel": {
+      "1": "Poor",
+      "2": "Fair",
+      "3": "Good",
+      "4": "Very Good",
+      "5": "Excellent"
+    }
+  },
+  "freelancers": {
+    "available": "Available",
+    "busy": "Busy",
+    "notFound": "Freelancer not found."
   }
 }

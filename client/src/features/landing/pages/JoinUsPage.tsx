@@ -21,17 +21,21 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { toast } from "sonner";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCreateFreelancerApplication } from "@/hooks/useFreelancerApplications";
-import { useState } from "react";
+import { FileUploadField } from "@/components/common/FileUploadField";
+import { useRef, useState } from "react";
 
 export function JoinUsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const createApplication = useCreateFreelancerApplication();
-  const [cvFile, setCvFile] = useState<File | null>(null);
-  const [portfolioFile, setPortfolioFile] = useState<File | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
+
+  // Track selected files (not uploaded yet - will be uploaded on form submit)
+  const uploadedCv = useRef<File | null>(null);
+  const uploadedPortfolio = useRef<File | null>(null);
 
   const schema = z.object({
     firstName: z.string().min(1, t("auth.nameMinLength")),
@@ -40,8 +44,6 @@ export function JoinUsPage() {
     phone: z.string().optional(),
     role: z.enum(["FREELANCER", "MANAGER"]),
     bio: z.string().min(20, t("joinUs.bioMinLength")),
-    cvUrl: z.string().url(t("joinUs.cvInvalid")).optional(),
-    portfolioUrl: z.string().url(t("joinUs.portfolioInvalid")).optional(),
   });
   type JoinUsForm = z.infer<typeof schema>;
 
@@ -54,45 +56,37 @@ export function JoinUsPage() {
       phone: "",
       role: "FREELANCER",
       bio: "",
-      cvUrl: "",
-      portfolioUrl: "",
     },
   });
 
-  // Placeholder for file upload - in real app, you'd upload to storage service
-  const handleFileUpload = (file: File, type: "cv" | "portfolio") => {
-    // For now, we'll use a dummy URL - in production, use S3, Cloudinary, etc.
-    const dummyUrl = URL.createObjectURL(file);
-    if (type === "cv") {
-      setCvFile(file);
-      form.setValue("cvUrl", dummyUrl);
-    } else {
-      setPortfolioFile(file);
-      form.setValue("portfolioUrl", dummyUrl);
-    }
-  };
-
   const onSubmit = (data: JoinUsForm) => {
-    if (!data.cvUrl) {
+    if (!uploadedCv.current) {
       toast.error(t("joinUs.cvRequired"));
       return;
     }
-    if (!data.portfolioUrl) {
+    if (!uploadedPortfolio.current) {
       toast.error(t("joinUs.portfolioRequired"));
       return;
     }
 
-    createApplication.mutate(
-      {
-        ...data,
-        position: data.role === "FREELANCER" ? "Freelancer" : "Manager",
+    // Create FormData to send files + form data together
+    const formData = new FormData();
+    formData.append("firstName", data.firstName);
+    formData.append("lastName", data.lastName);
+    formData.append("email", data.email);
+    formData.append("phone", data.phone || "");
+    formData.append("role", data.role);
+    formData.append("bio", data.bio);
+    formData.append("position", data.role === "FREELANCER" ? "Freelancer" : "Manager");
+    formData.append("cvFile", uploadedCv.current);
+    formData.append("portfolioFile", uploadedPortfolio.current);
+
+    createApplication.mutate(formData as any, {
+      onSuccess: () => {
+        setIsSuccess(true);
+        toast.success(t("joinUs.successMessage"));
       },
-      {
-        onSuccess: () => {
-          navigate("/");
-        },
-      }
-    );
+    });
   };
 
   return (
@@ -110,7 +104,21 @@ export function JoinUsPage() {
           </p>
         </div>
 
-        <Form {...form}>
+        {isSuccess ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <CheckCircle2 className="h-16 w-16 text-green-600 mb-4" />
+            <h2 className="text-2xl font-bold text-ink mb-2">
+              {t("joinUs.successTitle")}
+            </h2>
+            <p className="text-muted-foreground mb-6 max-w-md">
+              {t("joinUs.successDescription")}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {t("joinUs.successSubtext")}
+            </p>
+          </div>
+        ) : (
+          <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
             <div className="grid grid-cols-2 gap-4">
               <FormField
@@ -191,79 +199,43 @@ export function JoinUsPage() {
             />
 
             {/* CV Upload */}
-            <FormField
-              control={form.control}
-              name="cvUrl"
-              render={() => (
-                <FormItem>
-                  <FormLabel>{t("joinUs.cv")}</FormLabel>
-                  <FormControl>
-                    <div className="flex items-center gap-4">
-                      <label className="flex-1 cursor-pointer">
-                        <div className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:border-primary transition-colors">
-                          <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-                          <p className="text-sm text-muted-foreground">
-                            {cvFile ? cvFile.name : "Click to upload CV"}
-                          </p>
-                        </div>
-                        <input
-                          type="file"
-                          accept=".pdf"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleFileUpload(file, "cv");
-                          }}
-                        />
-                      </label>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-ink">
+                {t("joinUs.cv")}
+              </label>
+              <FileUploadField
+                context="cv"
+                accept=".pdf"
+                label={t("joinUs.uploadCv")}
+                onUploaded={(result) => {
+                  uploadedCv.current = result as File;
+                }}
+              />
+            </div>
 
             {/* Portfolio Upload */}
-            <FormField
-              control={form.control}
-              name="portfolioUrl"
-              render={() => (
-                <FormItem>
-                  <FormLabel>{t("joinUs.portfolio")}</FormLabel>
-                  <FormControl>
-                    <div className="flex items-center gap-4">
-                      <label className="flex-1 cursor-pointer">
-                        <div className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:border-primary transition-colors">
-                          <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-                          <p className="text-sm text-muted-foreground">
-                            {portfolioFile ? portfolioFile.name : "Click to upload portfolio (PDF or ZIP)"}
-                          </p>
-                        </div>
-                        <input
-                          type="file"
-                          accept=".pdf,.zip"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleFileUpload(file, "portfolio");
-                          }}
-                        />
-                      </label>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-ink">
+                {t("joinUs.portfolio")}
+              </label>
+              <FileUploadField
+                context="portfolio"
+                accept=".pdf,.zip"
+                label={t("joinUs.uploadPortfolio")}
+                onUploaded={(result) => {
+                  uploadedPortfolio.current = result as File;
+                }}
+              />
+            </div>
 
             <FormField
               control={form.control}
               name="bio"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("joinUs.bio")}</FormLabel>
+                  <FormLabel>{t("joinUs.motivations")}</FormLabel>
                   <FormControl>
-                    <Textarea rows={5} {...field} />
+                    <Textarea rows={5} placeholder={t("joinUs.motivationsPlaceholder")} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -281,7 +253,8 @@ export function JoinUsPage() {
               {t("joinUs.submit")}
             </Button>
           </form>
-        </Form>
+          </Form>
+        )}
       </div>
     </section>
   );

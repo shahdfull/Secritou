@@ -14,6 +14,7 @@ import {
   SidebarInset,
   SidebarHeader,
 } from "@/components/ui/sidebar";
+import logoAsset from "@/assets/secritou-logo.png";
 import {
   Home,
   Users,
@@ -29,6 +30,11 @@ import {
   Bot,
   UserCheck,
   Rocket,
+  File,
+  Check,
+  Receipt,
+  Star,
+  Inbox,
 } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -46,70 +52,96 @@ import { useLogout } from "@/hooks/useAuth";
 import { NotificationBell } from "@/components/NotificationBell";
 import { GlobalSearch } from "@/components/common/GlobalSearch";
 import { routePrefetch } from "@/routes/routePrefetch";
+import { useTranslation } from "react-i18next";
 
 const menuItems = [
   {
-    title: "Dashboard",
+    key: "dashboard",
     url: "/app",
     icon: Home,
   },
   {
-    title: "Leads",
+    key: "leads",
     url: "/app/leads",
     icon: UserPlus,
   },
   {
-    title: "Clients",
+    key: "clients",
     url: "/app/clients",
     icon: Users,
   },
   {
-    title: "Applications",
+    key: "applications",
     url: "/app/applications",
     icon: UserCheck,
   },
   {
-    title: "Onboarding",
+    key: "onboarding",
     url: "/app/client-onboardings",
     icon: Rocket,
   },
   {
-    title: "Freelancers",
+    key: "serviceRequests",
+    url: "/app/service-requests",
+    icon: Inbox,
+  },
+  {
+    key: "proposals",
+    url: "/app/proposals",
+    icon: File,
+  },
+  {
+    key: "approvals",
+    url: "/app/approvals",
+    icon: Check,
+  },
+  {
+    key: "invoices",
+    url: "/app/invoices",
+    icon: Receipt,
+  },
+  {
+    key: "documents",
+    url: "/app/documents",
+    icon: FileText,
+  },
+  {
+    key: "freelancers",
     url: "/app/freelancers",
     icon: Briefcase,
   },
   {
-    title: "Missions",
+    key: "missions",
     url: "/app/missions",
     icon: ClipboardList,
   },
   {
-    title: "Projects",
+    key: "projects",
     url: "/app/projects",
     icon: FolderOpen,
   },
   {
-    title: "Tasks",
+    key: "tasks",
     url: "/app/tasks",
     icon: CheckSquare,
   },
   {
-    title: "AI Assistant",
+    key: "aiAssistant",
     url: "/app/ai",
     icon: Bot,
   },
   {
-    title: "Analytics",
+    key: "analytics",
     url: "/app/analytics",
     icon: BarChart3,
   },
   {
-    title: "Rapports",
+    key: "reports",
     url: "/app/reports",
-    icon: FileText,
+    icon: File,
   },
   {
-    title: "Settings",
+    key: "settings",
     url: "/app/settings",
     icon: Settings,
   },
@@ -119,6 +151,7 @@ export const AdminLayout = memo(function AdminLayout() {
   const user = useAuthStore((state) => state.user);
   const { mutate: logout, isPending } = useLogout();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleLogout = useCallback(() => {
     logout(undefined, {
@@ -151,6 +184,21 @@ export const AdminLayout = memo(function AdminLayout() {
         break;
       case "/app/applications":
         routePrefetch.applications?.();
+        break;
+      case "/app/service-requests":
+        routePrefetch.serviceRequests?.();
+        break;
+      case "/app/proposals":
+        routePrefetch.proposals?.();
+        break;
+      case "/app/approvals":
+        routePrefetch.approvals?.();
+        break;
+      case "/app/invoices":
+        routePrefetch.invoices?.();
+        break;
+      case "/app/documents":
+        routePrefetch.enhancedDocuments?.();
         break;
       case "/app/freelancers":
         routePrefetch.freelancers();
@@ -187,17 +235,17 @@ export const AdminLayout = memo(function AdminLayout() {
         <Sidebar className="border-r">
           <SidebarHeader className="border-b p-4">
             <div className="flex items-center gap-2 font-display text-xl font-bold text-ink">
-              <div className="h-8 w-8 rounded-full bg-primary"></div>
+              <img src={logoAsset} alt="Secritou" className="h-8 w-8 object-contain" loading="lazy" />
               Secritou
             </div>
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroup>
-              <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+              <SidebarGroupLabel>{t("sidebar.title")}</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
                   {menuItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
+                    <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton asChild isActive={false}>
                         <NavLink
                           to={item.url}
@@ -209,7 +257,7 @@ export const AdminLayout = memo(function AdminLayout() {
                           }
                         >
                           <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
+                          <span>{t(`sidebar.${item.key}`)}</span>
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -251,10 +299,10 @@ export const AdminLayout = memo(function AdminLayout() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("userMenu.myAccount")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>Profile</DropdownMenuItem>
-                  <DropdownMenuItem>Settings</DropdownMenuItem>
+                  <DropdownMenuItem>{t("userMenu.profile")}</DropdownMenuItem>
+                  <DropdownMenuItem>{t("userMenu.settings")}</DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleLogout}
@@ -262,7 +310,7 @@ export const AdminLayout = memo(function AdminLayout() {
                     className="text-red-600"
                   >
                     <LogOut className="h-4 w-4 mr-2" />
-                    {isPending ? "Logging out..." : "Logout"}
+                    {isPending ? t("userMenu.loggingOut") : t("userMenu.logout")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

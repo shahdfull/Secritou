@@ -38,11 +38,11 @@ import { useListParams } from "@/hooks/useListParams";
 
 export function AdminOnboardingPage() {
   const { t } = useTranslation();
-  const [searchParams, setSearchParams] = useListParams();
+  const { params, updateParams } = useListParams();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
-  const { data: onboardings, isLoading } = useClientOnboardings(searchParams);
+  const { data: onboardings, isLoading } = useClientOnboardings(params);
   const { data: projects } = useProjects();
   const createOnboarding = useCreateClientOnboarding();
 
@@ -67,7 +67,7 @@ export function AdminOnboardingPage() {
   };
 
   return (
-    <section className="container-page py-8">
+    <section className="space-y-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">{t("onboarding.admin.title")}</h1>
@@ -120,8 +120,8 @@ export function AdminOnboardingPage() {
 
       <Input
         placeholder={t("onboarding.admin.searchOnboardings")}
-        value={searchParams.search || ""}
-        onChange={(e) => setSearchParams({ search: e.target.value })}
+        value={(params.search as string | undefined) || ""}
+        onChange={(e) => updateParams({ search: e.target.value, page: 1 })}
         className="mb-6 max-w-md"
       />
 
@@ -196,11 +196,8 @@ export function AdminOnboardingPage() {
         <DataTablePagination
           page={onboardings.page}
           pageSize={onboardings.pageSize}
-          totalCount={onboardings.total}
-          onPageChange={(page) => setSearchParams({ page })}
-          onPageSizeChange={(pageSize) =>
-            setSearchParams({ pageSize, page: 1 })
-          }
+          total={onboardings.total}
+          onPageChange={(nextPage) => updateParams({ page: nextPage })}
         />
       )}
     </section>

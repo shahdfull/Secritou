@@ -1,4 +1,3 @@
-import { useMe } from "../hooks/useAuth";
 import { useAuthStore } from "../store/auth.store";
 import { Navigate, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
@@ -11,11 +10,12 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, redirectTo = "/login" }: ProtectedRouteProps) {
   const user = useAuthStore((state) => state.user);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const { isLoading, error } = useMe();
+  const status = useAuthStore((state) => state.status);
+  const bootstrapped = useAuthStore((state) => state.bootstrapped);
   const location = useLocation();
 
-  if (isLoading) {
+  // Still loading bootstrap
+  if (status === "unknown" || !bootstrapped) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="size-10 animate-spin" />
@@ -23,7 +23,8 @@ export function ProtectedRoute({ children, redirectTo = "/login" }: ProtectedRou
     );
   }
 
-  if (!isAuthenticated || error) {
+  // Not authenticated
+  if (status === "unauthenticated") {
     return <Navigate to={redirectTo} replace />;
   }
 

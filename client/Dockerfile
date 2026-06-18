@@ -1,20 +1,13 @@
-FROM node:24-alpine AS deps
+FROM node:22-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
-COPY client/package.json ./client/package.json
-COPY shared/package.json ./shared/package.json
-RUN npm install
+RUN npm ci
+COPY . .
+RUN npm run build
 
-FROM node:24-alpine AS build
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY client ./client
-COPY shared ./shared
-COPY package.json package-lock.json ./
-RUN npm run build --workspace shared && npm run build --workspace client
-
-FROM nginx:1.27-alpine
-COPY client/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/client/dist /usr/share/nginx/html
-EXPOSE 80
+FROM nginxinc/nginx-unprivileged:1.27-alpine
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/dist /usr/share/nginx/html
+USER 101
+EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]
