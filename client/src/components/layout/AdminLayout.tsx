@@ -81,14 +81,9 @@ const menuItems = [
     icon: Rocket,
   },
   {
-    key: "serviceRequests",
-    url: "/app/service-requests",
-    icon: Inbox,
-  },
-  {
-    key: "proposals",
-    url: "/app/proposals",
-    icon: File,
+    key: "commercial",
+    url: "/app/commercial",
+    icon: FileText,
   },
   {
     key: "approvals",
