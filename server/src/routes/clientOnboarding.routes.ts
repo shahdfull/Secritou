@@ -22,151 +22,134 @@ import {
   createDelivery,
   updateDelivery,
 } from "../controllers/clientOnboarding.controller.js";
-import { authMiddleware } from "../middlewares/auth.middleware.js";
-import { rbacMiddleware } from "../middlewares/rbac.middleware.js";
+import { authenticate } from "../middlewares/auth.middleware.js";
+import { authorize } from "../middlewares/rbac.middleware.js";
+import { requireCompanyTenant } from "../middlewares/tenant.middleware.js";
 
 const router = express.Router();
 
+// Apply base middleware to all onboarding routes
+router.use(authenticate, requireCompanyTenant());
+
 router.get(
   "/",
-  authMiddleware,
-  rbacMiddleware(["ADMIN", "MANAGER", "CLIENT"]),
+  authorize("ADMIN", "MANAGER", "CLIENT"),
   getOnboardings
 );
 router.get(
   "/:id",
-  authMiddleware,
-  rbacMiddleware(["ADMIN", "MANAGER", "CLIENT"]),
+  authorize("ADMIN", "MANAGER", "CLIENT"),
   getOnboardingById
 );
 router.get(
   "/project/:projectId",
-  authMiddleware,
-  rbacMiddleware(["ADMIN", "MANAGER", "CLIENT"]),
+  authorize("ADMIN", "MANAGER", "CLIENT"),
   getOnboardingByProjectId
 );
 router.post(
   "/",
-  authMiddleware,
-  rbacMiddleware(["ADMIN", "MANAGER"]),
+  authorize("ADMIN", "MANAGER"),
   createOnboarding
 );
 router.put(
   "/:id",
-  authMiddleware,
-  rbacMiddleware(["ADMIN", "MANAGER"]),
+  authorize("ADMIN", "MANAGER"),
   updateOnboarding
 );
 router.delete(
   "/:id",
-  authMiddleware,
-  rbacMiddleware(["ADMIN"]),
+  authorize("ADMIN"),
   deleteOnboarding
 );
 
 // Step routes
 router.put(
   "/steps/:stepId",
-  authMiddleware,
-  rbacMiddleware(["ADMIN", "MANAGER", "CLIENT"]),
+  authorize("ADMIN", "MANAGER", "CLIENT"),
   updateStep
 );
 
 // Contract routes
 router.post(
   "/steps/:stepId/contract",
-  authMiddleware,
-  rbacMiddleware(["ADMIN", "MANAGER"]),
+  authorize("ADMIN", "MANAGER"),
   createContract
 );
 router.put(
   "/contracts/:contractId",
-  authMiddleware,
-  rbacMiddleware(["ADMIN", "MANAGER", "CLIENT"]),
+  authorize("ADMIN", "MANAGER", "CLIENT"),
   updateContract
 );
 
 // Payment routes
 router.post(
   "/steps/:stepId/payment",
-  authMiddleware,
-  rbacMiddleware(["ADMIN", "MANAGER"]),
+  authorize("ADMIN", "MANAGER"),
   createPayment
 );
 router.put(
   "/payments/:paymentId",
-  authMiddleware,
-  rbacMiddleware(["ADMIN", "MANAGER", "CLIENT"]),
+  authorize("ADMIN", "MANAGER", "CLIENT"),
   updatePayment
 );
 
 // Questionnaire routes
 router.post(
   "/steps/:stepId/questionnaire",
-  authMiddleware,
-  rbacMiddleware(["ADMIN", "MANAGER"]),
+  authorize("ADMIN", "MANAGER"),
   createQuestionnaire
 );
 router.put(
   "/questionnaires/:questionnaireId",
-  authMiddleware,
-  rbacMiddleware(["ADMIN", "MANAGER", "CLIENT"]),
+  authorize("ADMIN", "MANAGER", "CLIENT"),
   updateQuestionnaire
 );
 
 // Specifications routes
 router.post(
   "/steps/:stepId/specifications",
-  authMiddleware,
-  rbacMiddleware(["ADMIN", "MANAGER"]),
+  authorize("ADMIN", "MANAGER"),
   createSpecifications
 );
 router.put(
   "/specifications/:specificationsId",
-  authMiddleware,
-  rbacMiddleware(["ADMIN", "MANAGER", "CLIENT"]),
+  authorize("ADMIN", "MANAGER", "CLIENT"),
   updateSpecifications
 );
 
 // Kickoff routes
 router.post(
   "/steps/:stepId/kickoff",
-  authMiddleware,
-  rbacMiddleware(["ADMIN", "MANAGER"]),
+  authorize("ADMIN", "MANAGER"),
   createKickoff
 );
 router.put(
   "/kickoffs/:kickoffId",
-  authMiddleware,
-  rbacMiddleware(["ADMIN", "MANAGER", "CLIENT"]),
+  authorize("ADMIN", "MANAGER", "CLIENT"),
   updateKickoff
 );
 
 // Production routes
 router.post(
   "/steps/:stepId/production",
-  authMiddleware,
-  rbacMiddleware(["ADMIN", "MANAGER"]),
+  authorize("ADMIN", "MANAGER"),
   createProduction
 );
 router.put(
   "/productions/:productionId",
-  authMiddleware,
-  rbacMiddleware(["ADMIN", "MANAGER"]),
+  authorize("ADMIN", "MANAGER"),
   updateProduction
 );
 
 // Delivery routes
 router.post(
   "/steps/:stepId/delivery",
-  authMiddleware,
-  rbacMiddleware(["ADMIN", "MANAGER"]),
+  authorize("ADMIN", "MANAGER"),
   createDelivery
 );
 router.put(
   "/deliveries/:deliveryId",
-  authMiddleware,
-  rbacMiddleware(["ADMIN", "MANAGER", "CLIENT"]),
+  authorize("ADMIN", "MANAGER", "CLIENT"),
   updateDelivery
 );
 

@@ -19,12 +19,75 @@ import searchRoutes from "./search.routes.js";
 import aiRoutes from "./ai.routes.js";
 import freelancerApplicationRoutes from "./freelancerApplication.routes.js";
 import clientOnboardingRoutes from "./clientOnboarding.routes.js";
+import proposalRoutes from "./proposal.routes.js";
+import approvalRoutes from "./approval.routes.js";
+import invoiceRoutes from "./invoice.routes.js";
+import enhancedDocumentRoutes from "./enhancedDocument.routes.js";
+import clientSuccessRoutes from "./clientSuccess.routes.js";
+import summaryRoutes from "./summary.routes.js";
+import uploadRoutes from "./upload.routes.js";
+import ratingRoutes from "./rating.routes.js";
 
 export const apiRoutes = Router();
 
-// Health check
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Health check
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Service is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     status:
+ *                       type: string
+ *                       enum: [ok]
+ */
 apiRoutes.get("/health", (_req, res) => res.json({ data: { status: "ok" } }));
 
+/**
+ * @swagger
+ * /health/ready:
+ *   get:
+ *     summary: Readiness check (database, redis, etc)
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Service is ready
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     status:
+ *                       type: string
+ *                       enum: [ready, degraded]
+ *                     checks:
+ *                       type: object
+ *                       properties:
+ *                         api:
+ *                           type: string
+ *                           enum: [ok, error]
+ *                         database:
+ *                           type: string
+ *                           enum: [ok, error, unknown]
+ *                         redis:
+ *                           type: string
+ *                           enum: [ok, error, skipped]
+ *       503:
+ *         description: Service not ready
+ */
 apiRoutes.get("/health/ready", async (_req, res) => {
   const checks: Record<string, string> = { api: "ok", database: "unknown", redis: "skipped" };
 
@@ -90,3 +153,19 @@ apiRoutes.use("/service-requests", serviceRequestRoutes);
 // Search & AI routes
 apiRoutes.use("/search", searchRoutes);
 apiRoutes.use("/ai", aiRoutes);
+
+// Premium portal routes
+apiRoutes.use("/proposals", proposalRoutes);
+apiRoutes.use("/approvals", approvalRoutes);
+apiRoutes.use("/invoices", invoiceRoutes);
+apiRoutes.use("/enhanced-documents", enhancedDocumentRoutes);
+apiRoutes.use("/client-success", clientSuccessRoutes);
+
+// Summary routes (for performance optimizations)
+apiRoutes.use("/summaries", summaryRoutes);
+
+// File upload routes (authenticated, S3-backed)
+apiRoutes.use("/upload", uploadRoutes);
+
+// Rating routes
+apiRoutes.use("/ratings", ratingRoutes);

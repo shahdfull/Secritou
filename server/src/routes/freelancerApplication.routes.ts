@@ -6,8 +6,8 @@ import {
   rejectApplication,
   acceptApplication,
 } from "../controllers/freelancerApplication.controller.js";
-import { authMiddleware } from "../middlewares/auth.middleware.js";
-import { rbacMiddleware } from "../middlewares/rbac.middleware.js";
+import { authenticate } from "../middlewares/auth.middleware.js";
+import { authorize } from "../middlewares/rbac.middleware.js";
 
 const router = express.Router();
 
@@ -15,9 +15,9 @@ const router = express.Router();
 router.post("/", createApplication);
 
 // Protected routes: admin only
-router.get("/", authMiddleware, rbacMiddleware(["ADMIN"]), getApplications);
-router.get("/:id", authMiddleware, rbacMiddleware(["ADMIN"]), getApplicationById);
-router.post("/:id/reject", authMiddleware, rbacMiddleware(["ADMIN"]), rejectApplication);
-router.post("/:id/accept", authMiddleware, rbacMiddleware(["ADMIN"]), acceptApplication);
+router.get("/", authenticate, authorize("ADMIN"), getApplications);
+router.get("/:id", authenticate, authorize("ADMIN"), getApplicationById);
+router.post("/:id/reject", authenticate, authorize("ADMIN"), rejectApplication);
+router.post("/:id/accept", authenticate, authorize("ADMIN"), acceptApplication);
 
 export default router;

@@ -5,6 +5,6 @@ import { authorize } from "../middlewares/rbac.middleware.js";
 
 const router = Router();
 
-router.get("/", authenticate, authorize("ADMIN", "MANAGER"), globalSearch);
+router.get("/", authenticate, authorize("ADMIN", "MANAGER", "FREELANCER", "CLIENT"), globalSearch);
 
 export default router;
