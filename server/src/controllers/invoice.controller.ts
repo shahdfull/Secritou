@@ -96,6 +96,14 @@ export const deleteInvoiceItem = async (req: Request, res: Response) => {
   res.status(204).send();
 };
 
+export const cancelInvoice = async (req: Request, res: Response) => {
+  const invoice = await invoiceService.cancel(
+    req.params.id as string,
+    req.user!.companyId as string
+  );
+  res.json({ data: invoice });
+};
+
 export const createInvoiceFromProposal = async (req: Request, res: Response) => {
   const invoice = await invoiceService.createFromProposal(
     req.params.id as string,

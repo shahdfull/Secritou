@@ -1,6 +1,6 @@
 import { invoiceRepository } from "../repositories/invoice.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
-import { enqueueEmail } from "../jobs/queues.js";
+import { enqueueEmail, enqueueNotifications } from "../jobs/queues.js";
 import { invoiceSentTemplate, invoiceReminderTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
 import type { InvoiceStatus } from "@prisma/client";
@@ -103,7 +103,32 @@ export const invoiceService = {
   },
 
   async delete(id: string, companyId: string) {
+    // A financial document must remain on record once issued. Only DRAFT invoices (never sent)
+    // may be hard-deleted; anything else must be cancelled (void) to preserve the audit trail.
+    const invoice = await invoiceRepository.findById(id, companyId);
+    if (!invoice) throw new HttpError(404, "Invoice not found");
+    if (invoice.status !== "DRAFT") {
+      throw new HttpError(
+        409,
+        "Only draft invoices can be deleted; cancel the invoice instead",
+        "INVOICE_NOT_DRAFT"
+      );
+    }
     return invoiceRepository.delete(id, companyId);
+  },
+
+  async cancel(id: string, companyId: string) {
+    const invoice = await invoiceRepository.findById(id, companyId);
+    if (!invoice) throw new HttpError(404, "Invoice not found");
+    // PAID and already-CANCELLED invoices are terminal — voiding them makes no sense.
+    if (invoice.status === "PAID" || invoice.status === "CANCELLED") {
+      throw new HttpError(
+        409,
+        `Cannot cancel a ${invoice.status} invoice`,
+        "INVOICE_NOT_CANCELLABLE"
+      );
+    }
+    return invoiceRepository.update(id, companyId, { status: "CANCELLED" });
   },
 
   async send(id: string, companyId: string) {
@@ -144,7 +169,7 @@ export const invoiceService = {
   ) {
     // Payment positivity is enforced by addPaymentSchema (amount = positiveDecimal); we do
     // not re-check it here to avoid two diverging sources of truth.
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const invoice = await tx.invoice.findUnique({
         where: { id, companyId },
         select: { id: true, amount: true, amountPaid: true, status: true, currency: true },
@@ -195,6 +220,22 @@ export const invoiceService = {
             : undefined,
       };
     });
+
+    // Notify company admins that a payment was recorded (outside the transaction so a
+    // notification hiccup can't roll back the payment).
+    const invoiceMeta = await invoiceRepository.findById(id, companyId);
+    if (invoiceMeta) {
+      const admins = await userRepository.findAdminsByCompanyId(companyId);
+      await enqueueNotifications(
+        admins.map((admin) => ({
+          userId: admin.id,
+          title: "Paiement reçu",
+          message: `Un paiement de ${Number(data.amount).toFixed(2)} ${invoiceMeta.currency ?? "EUR"} a été enregistré pour la facture ${invoiceMeta.number}.`,
+        }))
+      );
+    }
+
+    return result;
   },
 
   async addReminder(id: string, companyId: string, type: string) {

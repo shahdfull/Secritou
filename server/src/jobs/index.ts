@@ -1,4 +1,5 @@
 import { Worker, QueueEvents } from "bullmq";
+import * as Sentry from "@sentry/node";
 import { env } from "../config/env.js";
 import { jobNames, queueNames } from "./jobNames.js";
 import { maintenanceQueue } from "./queues.js";
@@ -11,6 +12,9 @@ import {
   archiveColdData,
   cleanupExpiredRefreshTokens,
   warmDashboardSummaries,
+  recalculateClientScores,
+  expireProposals,
+  markOverdueInvoices,
 } from "./processors/maintenance.processor.js";
 import type { NotificationJob, EmailJob } from "./queues.js";
 
@@ -41,6 +45,9 @@ function startWorkers() {
     console.error(
       `[jobs] Job ${jobId} in "${queueNames.communication}" permanently failed: ${failedReason}`
     );
+    if (env.SENTRY_DSN) {
+      Sentry.captureException(new Error(`Job ${jobId} failed: ${failedReason}`));
+    }
   });
 
   communicationEvents.on("stalled", ({ jobId }) => {
@@ -62,6 +69,15 @@ function startWorkers() {
       if (job.name === jobNames.warmDashboardSummaries) {
         return warmDashboardSummaries();
       }
+      if (job.name === jobNames.recalculateClientScores) {
+        return recalculateClientScores();
+      }
+      if (job.name === jobNames.expireProposals) {
+        return expireProposals();
+      }
+      if (job.name === jobNames.markOverdueInvoices) {
+        return markOverdueInvoices();
+      }
       throw new Error(`Unknown job: ${job.name}`);
     },
     { connection, concurrency: 1 }
@@ -82,6 +98,23 @@ function startWorkers() {
     jobNames.warmDashboardSummaries,
     {},
     { repeat: { pattern: "0 */6 * * *" }, jobId: "warm-dashboard-summaries-6h" }
+  );
+  void maintenanceQueue.add(
+    jobNames.recalculateClientScores,
+    {},
+    { repeat: { pattern: "0 2 * * *" }, jobId: "recalculate-client-scores-daily" }
+  );
+  // Flip expired proposals (hourly so the displayed status stays fresh).
+  void maintenanceQueue.add(
+    jobNames.expireProposals,
+    {},
+    { repeat: { pattern: "0 * * * *" }, jobId: "expire-proposals-hourly" }
+  );
+  // Mark overdue invoices + notify admins (daily, early morning).
+  void maintenanceQueue.add(
+    jobNames.markOverdueInvoices,
+    {},
+    { repeat: { pattern: "15 4 * * *" }, jobId: "mark-overdue-invoices-daily" }
   );
 }
 

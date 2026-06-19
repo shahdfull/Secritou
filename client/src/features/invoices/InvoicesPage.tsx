@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { Invoice } from "@/api/invoices.api";
-import { useInvoices, useDeleteInvoice, useSendInvoice, useAddInvoicePayment } from "@/hooks/useInvoices";
+import { useInvoices, useDeleteInvoice, useSendInvoice, useCancelInvoice, useAddInvoicePayment } from "@/hooks/useInvoices";
 import {
   Table,
   TableBody,
@@ -20,14 +20,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -40,9 +32,11 @@ import {
   Download,
   Send,
   Plus,
+  Ban,
 } from "lucide-react";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { useListParams } from "@/hooks/useListParams";
+import { CreateInvoiceDialog } from "./components/CreateInvoiceDialog";
 
 const ALL_STATUSES_VALUE = "__all__";
 
@@ -51,6 +45,7 @@ export function InvoicesPage() {
   const { page, pageSize, search, status, updateParams } = useListParams(10);
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
   const { data: invoicesResult, isLoading } = useInvoices({
@@ -67,6 +62,7 @@ export function InvoicesPage() {
 
   const deleteMutation = useDeleteInvoice();
   const sendMutation = useSendInvoice();
+  const cancelMutation = useCancelInvoice();
   const paymentMutation = useAddInvoicePayment();
 
   const getStatusColor = (status: string) => {
@@ -97,6 +93,10 @@ export function InvoicesPage() {
             {t("invoices.subtitle")}
           </p>
         </div>
+        <Button onClick={() => setCreateDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Créer une facture
+        </Button>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -218,14 +218,26 @@ export function InvoicesPage() {
                             {t("invoices.addPayment")}
                           </DropdownMenuItem>
                         )}
-                        <DropdownMenuItem
-                          onClick={() => deleteMutation.mutate(invoice.id)}
-                          disabled={deleteMutation.isPending}
-                          className="text-red-600"
-                        >
-                          <MoreHorizontal className="mr-2 h-4 w-4" />
-                          {t("invoices.delete")}
-                        </DropdownMenuItem>
+                        {!["PAID", "CANCELLED", "DRAFT"].includes(invoice.status) && (
+                          <DropdownMenuItem
+                            onClick={() => cancelMutation.mutate(invoice.id)}
+                            disabled={cancelMutation.isPending}
+                            className="text-amber-600"
+                          >
+                            <Ban className="mr-2 h-4 w-4" />
+                            {t("invoices.cancel", "Annuler")}
+                          </DropdownMenuItem>
+                        )}
+                        {invoice.status === "DRAFT" && (
+                          <DropdownMenuItem
+                            onClick={() => deleteMutation.mutate(invoice.id)}
+                            disabled={deleteMutation.isPending}
+                            className="text-red-600"
+                          >
+                            <MoreHorizontal className="mr-2 h-4 w-4" />
+                            {t("invoices.delete")}
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -244,6 +256,10 @@ export function InvoicesPage() {
           onPageChange={(nextPage) => updateParams({ page: nextPage })}
         />
       )}
+      <CreateInvoiceDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+      />
     </section>
   );
 }

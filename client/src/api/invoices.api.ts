@@ -16,6 +16,7 @@ export interface Invoice {
   clientId: string;
   companyId: string;
   projectId?: string;
+  proposalId?: string;
   client?: { name: string };
   items?: InvoiceItem[];
   payments?: InvoicePayment[];
@@ -88,6 +89,7 @@ export const invoicesApi = {
     pdfUrl?: string;
     clientId: string;
     projectId?: string;
+    proposalId?: string;
   }) => {
     const response = await apiClient.post<{ data: Invoice }>("/invoices", data);
     return response.data.data;
@@ -110,9 +112,14 @@ export const invoicesApi = {
     return response.data.data;
   },
 
-  addPayment: async (id: string, data: { amount: number; method?: string; reference?: string }) => {
-    const response = await apiClient.post<{ data: InvoicePayment }>(`/invoices/${id}/payments`, data);
+  cancelInvoice: async (id: string) => {
+    const response = await apiClient.post<{ data: Invoice }>(`/invoices/${id}/cancel`);
     return response.data.data;
+  },
+
+  addPayment: async (id: string, data: { amount: number; method?: string; reference?: string }) => {
+    const response = await apiClient.post<{ data: InvoicePayment; warning?: string }>(`/invoices/${id}/payments`, data);
+    return { ...response.data.data, warning: response.data.warning };
   },
 
   addReminder: async (id: string, data: { type: string }) => {

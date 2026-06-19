@@ -171,3 +171,28 @@ export const deleteMission: RequestHandler = async (req, res, next) => {
     next(error);
   }
 };
+
+export const markMissionAsPaid: RequestHandler = async (req, res, next) => {
+  try {
+    const companyId = req.user?.companyId!;
+    const { mission, warning } = await missionService.markAsPaid(
+      req.params.id as string,
+      companyId,
+      req.body
+    );
+    res.json({ data: mission, ...(warning ? { warning } : {}) });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getUnpaidMissions: RequestHandler = async (req, res, next) => {
+  try {
+    const companyId = req.user?.companyId!;
+    const options = parseListQuery(req.query as Record<string, unknown>);
+    const result = await missionService.getUnpaidMissions(companyId, options);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};

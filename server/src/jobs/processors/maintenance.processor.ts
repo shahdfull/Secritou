@@ -1,6 +1,9 @@
 import { prisma } from "../../config/prisma.js";
 import { recordBullMQJob } from "../../observability/collectors.js";
 import { dashboardService } from "../../services/dashboard.service.js";
+import { clientSuccessService } from "../../services/clientSuccess.service.js";
+import { userRepository } from "../../repositories/user.repository.js";
+import { enqueueNotifications } from "../queues.js";
 
 export async function cleanupExpiredRefreshTokens() {
   const start = performance.now();
@@ -118,4 +121,96 @@ export async function warmDashboardSummaries() {
   const warmed = await dashboardService.warmAllSummaries();
   recordBullMQJob("maintenance", "warm-dashboard-summaries", "completed", (performance.now() - start) / 1000);
   return warmed;
+}
+
+/**
+ * Flip live proposals (SENT/VIEWED) whose expiresAt has passed to EXPIRED, so the displayed
+ * status is correct even when no one tries to accept them. The acceptance path also guards
+ * against expiry at the moment of acceptance (PROPOSAL_EXPIRED).
+ */
+export async function expireProposals() {
+  const start = performance.now();
+  const result = await prisma.proposal.updateMany({
+    where: {
+      status: { in: ["SENT", "VIEWED"] },
+      expiresAt: { not: null, lt: new Date() },
+    },
+    data: { status: "EXPIRED" },
+  });
+  recordBullMQJob("maintenance", "expire-proposals", "completed", (performance.now() - start) / 1000);
+  return result.count;
+}
+
+/**
+ * Flip sent/partially-paid invoices past their due date to OVERDUE and notify the company's
+ * admins about each newly-overdue invoice so collection can be chased. Only invoices currently
+ * in SENT/PARTIAL are affected (DRAFT not yet billed, PAID/CANCELLED are terminal).
+ */
+export async function markOverdueInvoices() {
+  const start = performance.now();
+
+  const newlyOverdue = await prisma.invoice.findMany({
+    where: {
+      status: { in: ["SENT", "PARTIAL"] },
+      dueDate: { not: null, lt: new Date() },
+    },
+    select: { id: true, number: true, companyId: true, clientId: true },
+  });
+
+  if (newlyOverdue.length === 0) {
+    recordBullMQJob("maintenance", "mark-overdue-invoices", "completed", (performance.now() - start) / 1000);
+    return 0;
+  }
+
+  await prisma.invoice.updateMany({
+    where: { id: { in: newlyOverdue.map((i) => i.id) } },
+    data: { status: "OVERDUE" },
+  });
+
+  // Notify each company's admins about their newly-overdue invoices.
+  const byCompany = new Map<string, typeof newlyOverdue>();
+  for (const inv of newlyOverdue) {
+    const list = byCompany.get(inv.companyId) ?? [];
+    list.push(inv);
+    byCompany.set(inv.companyId, list);
+  }
+
+  for (const [companyId, invoices] of byCompany) {
+    const admins = await userRepository.findAdminsByCompanyId(companyId);
+    await enqueueNotifications(
+      admins.flatMap((admin) =>
+        invoices.map((inv) => ({
+          userId: admin.id,
+          title: "Facture en retard",
+          message: `La facture ${inv.number} est désormais en retard de paiement.`,
+        }))
+      )
+    );
+  }
+
+  recordBullMQJob("maintenance", "mark-overdue-invoices", "completed", (performance.now() - start) / 1000);
+  return newlyOverdue.length;
+}
+
+export async function recalculateClientScores() {
+  const start = performance.now();
+
+  // Fetch all ClientSuccess records with their linked client (to get companyId)
+  const records = await prisma.clientSuccess.findMany({
+    select: { clientId: true, companyId: true },
+  });
+
+  let updated = 0;
+  for (const record of records) {
+    try {
+      const score = await clientSuccessService.calculateScore(record.clientId, record.companyId);
+      await clientSuccessService.updateScore(record.clientId, record.companyId, score);
+      updated++;
+    } catch {
+      // Non-fatal: skip individual failures so one bad record doesn't abort the batch
+    }
+  }
+
+  recordBullMQJob("maintenance", "recalculate-client-scores", "completed", (performance.now() - start) / 1000);
+  return updated;
 }
