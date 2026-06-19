@@ -1159,7 +1159,7 @@
       "empty": "Aucune approbation pour le moment.",
       "due": "Délai",
       "dialogApprove": "Approuver",
-      "dialogReject": "Rejeter",
+      "dialogReject": "Refuser",
       "dialogComment": "Commenter",
       "commentOptional": "Commentaire (optionnel)",
       "rejectReason": "Motif du rejet (optionnel)",
@@ -1167,7 +1167,7 @@
       "statuses": {
         "PENDING": "En attente",
         "APPROVED": "Approuvé",
-        "REJECTED": "Rejeté",
+        "REJECTED": "Refusé",
         "COMMENTED": "Commenté"
       }
     },
@@ -1190,16 +1190,16 @@
       "title": "Mes Propositions",
       "empty": "Aucune proposition pour le moment.",
       "accept": "Accepter",
-      "reject": "Rejeter",
-      "rejectTitle": "Rejeter la proposition",
+      "reject": "Refuser",
+      "rejectTitle": "Refuser la proposition",
       "rejectReason": "Motif du rejet (optionnel)",
-      "confirmReject": "Confirmer le rejet",
+      "confirmReject": "Confirmer le refus",
       "statuses": {
         "DRAFT": "Brouillon",
         "SENT": "Envoyée",
         "VIEWED": "Vue",
         "ACCEPTED": "Acceptée",
-        "REJECTED": "Rejetée",
+        "REJECTED": "Refusée",
         "EXPIRED": "Expirée"
       }
     }
@@ -1230,7 +1230,7 @@
         "pending": "En attente",
         "inProgress": "En cours",
         "completed": "Complété",
-        "rejected": "Rejeté"
+        "rejected": "Refusé"
       }
     },
     "contract": {
