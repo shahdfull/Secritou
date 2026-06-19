@@ -27,4 +27,17 @@ export const clientsApi = {
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/clients/${id}`);
   },
+
+  archive: async (id: string): Promise<Client> => {
+    const response = await apiClient.post<ApiResponse<Client>>(`/clients/${id}/archive`);
+    return response.data.data;
+  },
+
+  invitePortalUser: async (id: string, data: { email: string; name: string }): Promise<{ user: { id: string; email: string; name: string } }> => {
+    const response = await apiClient.post<ApiResponse<{ user: { id: string; email: string; name: string } }>>(
+      `/clients/${id}/invite`,
+      data
+    );
+    return response.data.data;
+  },
 };

@@ -492,6 +492,7 @@
     "clientCreated": "Client créé avec succès",
     "clientUpdated": "Client mis à jour avec succès",
     "clientDeleted": "Client supprimé avec succès",
+    "clientArchived": "Client archivé avec succès",
     "projectCreated": "Projet créé avec succès",
     "projectUpdated": "Projet mis à jour avec succès",
     "projectDeleted": "Projet supprimé avec succès",

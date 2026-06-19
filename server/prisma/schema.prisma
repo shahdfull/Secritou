@@ -233,6 +233,7 @@ model Client {
   invoices         Invoice[]
   clientSuccess    ClientSuccess?
   clientOnboardings ClientOnboarding[]
+  archivedAt       DateTime?        @db.Timestamptz(6)
   createdAt        DateTime         @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime         @updatedAt @db.Timestamptz(6)
 
@@ -240,6 +241,7 @@ model Client {
   @@index([companyId])
   @@index([companyId, createdAt])
   @@index([email])
+  @@index([archivedAt])
 }
 model ServiceRequest {
   id           String               @id @default(uuid())

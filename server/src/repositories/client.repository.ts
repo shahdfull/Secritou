@@ -21,6 +21,7 @@ const clientListSelect = {
   email: true,
   phone: true,
   companyId: true,
+  archivedAt: true,
   createdAt: true,
   updatedAt: true,
   _count: { select: { projects: true } },
@@ -32,6 +33,7 @@ const clientDetailSelect = {
   email: true,
   phone: true,
   companyId: true,
+  archivedAt: true,
   createdAt: true,
   updatedAt: true,
   projects: { select: projectBriefSelect, orderBy: { createdAt: "desc" } },
@@ -43,8 +45,13 @@ const clientDetailSelect = {
 } as const;
 
 export const clientRepository = {
-  async findAll(companyId: string, options: ListQueryOptions): Promise<PaginatedResult<ClientListItem>> {
-    const where = { companyId };
+  async findAll(
+    companyId: string,
+    options: ListQueryOptions & { includeArchived?: boolean }
+  ): Promise<PaginatedResult<ClientListItem>> {
+    // Archived clients are hidden by default; pass includeArchived to surface them.
+    const where: { companyId: string; archivedAt?: null } = { companyId };
+    if (!options.includeArchived) where.archivedAt = null;
     const skip = (options.page - 1) * options.pageSize;
     const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
 
@@ -83,6 +90,7 @@ export const clientRepository = {
         email: true,
         phone: true,
         companyId: true,
+        archivedAt: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -107,6 +115,7 @@ export const clientRepository = {
         email: true,
         phone: true,
         companyId: true,
+        archivedAt: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -115,6 +124,23 @@ export const clientRepository = {
 
   async countInvoices(id: string, companyId: string): Promise<number> {
     return prisma.invoice.count({ where: { clientId: id, companyId } });
+  },
+
+  async archive(id: string, companyId: string): Promise<Client> {
+    return prisma.client.update({
+      where: { id, companyId },
+      data: { archivedAt: new Date() },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        companyId: true,
+        archivedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
   },
 
   async delete(id: string, companyId: string): Promise<Client> {
@@ -126,6 +152,7 @@ export const clientRepository = {
         email: true,
         phone: true,
         companyId: true,
+        archivedAt: true,
         createdAt: true,
         updatedAt: true,
       },

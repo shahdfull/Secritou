@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useClient, useDeleteClient, useInviteClientUser } from "@/hooks/useClients";
+import { useClient, useDeleteClient, useArchiveClient, useInviteClientUser } from "@/hooks/useClients";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, Edit, Trash2, Plus, Download, Star, ExternalLink, Mail, CheckCircle2 } from "lucide-react";
+import { Loader2, Edit, Trash2, Archive, Plus, Download, Star, ExternalLink, Mail, CheckCircle2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { documentsApi, type Document } from "@/api/documents.api";
@@ -84,6 +84,7 @@ export function ClientDetailPage() {
   const queryClient = useQueryClient();
   const { data: client, isLoading } = useClient(id ?? "");
   const { mutate: deleteClient, isPending: isDeleting } = useDeleteClient();
+  const { mutate: archiveClient, isPending: isArchiving } = useArchiveClient();
   const inviteClientUser = useInviteClientUser(id ?? "");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [addDocumentDialogOpen, setAddDocumentDialogOpen] = useState(false);
@@ -137,6 +138,28 @@ export function ClientDetailPage() {
   const handleDelete = () => {
     if (id) {
       deleteClient(id, {
+        onSuccess: () => navigate("/app/crm"),
+        onError: (err) => {
+          // Backend blocks deletion when the client has invoices (CLIENT_HAS_INVOICES).
+          // Steer the user toward archiving, which preserves the financial records.
+          const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
+          if (code === "CLIENT_HAS_INVOICES") {
+            toast.error(
+              t(
+                "clientsPage.detail.deleteBlockedHasInvoices",
+                "Ce client a des factures et ne peut pas être supprimé. Archivez-le à la place."
+              )
+            );
+            setDeleteDialogOpen(false);
+          }
+        },
+      });
+    }
+  };
+
+  const handleArchive = () => {
+    if (id) {
+      archiveClient(id, {
         onSuccess: () => navigate("/app/crm"),
       });
     }
@@ -225,6 +248,10 @@ export function ClientDetailPage() {
           <Button variant="outline" onClick={() => navigate(`/app/client-success/${client.id}`)}>
             <Star className="h-4 w-4 mr-2" />
             Client Success
+          </Button>
+          <Button variant="outline" onClick={handleArchive} disabled={isArchiving}>
+            {isArchiving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Archive className="h-4 w-4 mr-2" />}
+            {t("clientsPage.detail.archive", "Archiver")}
           </Button>
           <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
             <Trash2 className="h-4 w-4 mr-2" />

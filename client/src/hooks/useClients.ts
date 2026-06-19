@@ -60,3 +60,32 @@ export function useDeleteClient() {
     },
   });
 }
+
+export function useArchiveClient() {
+  const queryClient = useQueryClient();
+
+  return useMutation<Client, Error, string>({
+    mutationFn: (id) => clientsApi.archive(id),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.clients() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.client(data.id) });
+      toast.success(i18n.t("toasts.clientArchived", "Client archivé"));
+    },
+  });
+}
+
+export function useInviteClientUser(clientId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    { user: { id: string; email: string; name: string } },
+    Error,
+    { email: string; name: string }
+  >({
+    mutationFn: (data) => clientsApi.invitePortalUser(clientId, data),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.client(clientId) });
+      toast.success(i18n.t("toasts.invitationSent", `Invitation envoyée à ${variables.email}`));
+    },
+  });
+}

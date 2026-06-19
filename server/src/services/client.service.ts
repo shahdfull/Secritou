@@ -13,7 +13,10 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
 export const clientService = {
-  async getClients(companyId: string, options: ListQueryOptions) {
+  async getClients(
+    companyId: string,
+    options: ListQueryOptions & { includeArchived?: boolean }
+  ) {
     return clientRepository.findAll(companyId, options);
   },
 
@@ -63,6 +66,18 @@ export const clientService = {
       cacheTags.client(companyId, id),
     ]);
     return deleted;
+  },
+
+  async archiveClient(id: string, companyId: string) {
+    const client = await clientRepository.findById(id, companyId);
+    if (!client) throw new HttpError(404, "Client not found");
+    const archived = await clientRepository.archive(id, companyId);
+    await invalidateTags([
+      cacheTags.company(companyId),
+      cacheTags.dashboard(companyId),
+      cacheTags.client(companyId, id),
+    ]);
+    return archived;
   },
 
   async inviteClientUser(
