@@ -35,6 +35,11 @@ const clientDetailSelect = {
   createdAt: true,
   updatedAt: true,
   projects: { select: projectBriefSelect, orderBy: { createdAt: "desc" } },
+  users: {
+    select: { id: true, name: true, email: true, role: true, createdAt: true },
+    where: { role: "CLIENT" as const },
+    take: 1,
+  },
 } as const;
 
 export const clientRepository = {
@@ -106,6 +111,10 @@ export const clientRepository = {
         updatedAt: true,
       },
     });
+  },
+
+  async countInvoices(id: string, companyId: string): Promise<number> {
+    return prisma.invoice.count({ where: { clientId: id, companyId } });
   },
 
   async delete(id: string, companyId: string): Promise<Client> {

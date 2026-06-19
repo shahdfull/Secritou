@@ -2,6 +2,14 @@
 import { prismaRead as prisma } from "../config/prisma.js";
 import { sqlDateRange } from "../utils/sqlHelpers.js";
 
+function getPreviousPeriod(from: Date, to: Date): { from: Date; to: Date } {
+  const duration = to.getTime() - from.getTime();
+  return {
+    from: new Date(from.getTime() - duration),
+    to: new Date(to.getTime() - duration),
+  };
+}
+
 export const analyticsRepository = {
   async getLeadStats(companyId: string, from?: Date, to?: Date) {
     const where = {
@@ -33,7 +41,30 @@ export const analyticsRepository = {
     const wonCount = byStatus.find((s) => s.status === "WON")?.count || 0;
     const conversionRate = total > 0 ? Math.round((wonCount / total) * 100) : 0;
 
-    return { total, byStatus, wonCount, conversionRate };
+    // Get previous period stats for growth calculation
+    let previousConversionRate = 0;
+    if (from && to) {
+      const previous = getPreviousPeriod(from, to);
+      const previousWhere = {
+        companyId,
+        createdAt: {
+          gte: previous.from,
+          lte: previous.to,
+        },
+      };
+      const [prevTotal, prevByStatusRaw] = await Promise.all([
+        prisma.lead.count({ where: previousWhere }),
+        prisma.lead.groupBy({
+          by: ["status"],
+          where: previousWhere,
+          _count: { status: true },
+        }),
+      ]);
+      const prevWonCount = prevByStatusRaw.find((s) => s.status === "WON")?._count?.status || 0;
+      previousConversionRate = prevTotal > 0 ? Math.round((prevWonCount / prevTotal) * 100) : 0;
+    }
+
+    return { total, byStatus, wonCount, conversionRate, previousConversionRate };
   },
 
   async getClientStats(companyId: string, from?: Date, to?: Date) {
@@ -65,7 +96,22 @@ export const analyticsRepository = {
       }),
     ]);
 
-    return { total, newThisMonth };
+    // Get previous period stats
+    let previousNew = 0;
+    if (from && to) {
+      const previous = getPreviousPeriod(from, to);
+      previousNew = await prisma.client.count({
+        where: {
+          companyId,
+          createdAt: {
+            gte: previous.from,
+            lte: previous.to,
+          },
+        },
+      });
+    }
+
+    return { total, newThisMonth, previousNew };
   },
 
   async getProjectStats(companyId: string, from?: Date, to?: Date) {
@@ -98,7 +144,30 @@ export const analyticsRepository = {
     const completedCount = byStatus.find((s) => s.status === "COMPLETED")?.count || 0;
     const completionRate = total > 0 ? Math.round((completedCount / total) * 100) : 0;
 
-    return { total, byStatus, completedCount, completionRate };
+    // Get previous period stats
+    let previousCompletionRate = 0;
+    if (from && to) {
+      const previous = getPreviousPeriod(from, to);
+      const previousWhere = {
+        companyId,
+        createdAt: {
+          gte: previous.from,
+          lte: previous.to,
+        },
+      };
+      const [prevTotal, prevByStatusRaw] = await Promise.all([
+        prisma.project.count({ where: previousWhere }),
+        prisma.project.groupBy({
+          by: ["status"],
+          where: previousWhere,
+          _count: { status: true },
+        }),
+      ]);
+      const prevCompletedCount = prevByStatusRaw.find((s) => s.status === "COMPLETED")?._count?.status || 0;
+      previousCompletionRate = prevTotal > 0 ? Math.round((prevCompletedCount / prevTotal) * 100) : 0;
+    }
+
+    return { total, byStatus, completedCount, completionRate, previousCompletionRate };
   },
 
   async getTaskStats(companyId: string, from?: Date, to?: Date) {
@@ -118,10 +187,38 @@ export const analyticsRepository = {
     `;
 
     const row = rows[0];
+    const total = Number(row?.total ?? 0);
+    const doneCount = Number(row?.doneCount ?? 0);
+    const taskDonePct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+
+    // Get previous period stats
+    let previousTaskDonePct = 0;
+    if (from && to) {
+      const previous = getPreviousPeriod(from, to);
+      const prevRows = await prisma.$queryRaw<
+        Array<{ total: bigint; doneCount: bigint }>
+      >`
+        SELECT
+          COUNT(*)::bigint AS total,
+          COUNT(*) FILTER (WHERE t.status = 'DONE')::bigint AS "doneCount"
+        FROM "Task" t
+        INNER JOIN "Project" p ON p.id = t."projectId"
+        WHERE p."companyId" = ${companyId}
+        AND t."createdAt" >= ${previous.from.toISOString()}
+        AND t."createdAt" <= ${previous.to.toISOString()}
+      `;
+      const prevRow = prevRows[0];
+      const prevTotal = Number(prevRow?.total ?? 0);
+      const prevDone = Number(prevRow?.doneCount ?? 0);
+      previousTaskDonePct = prevTotal > 0 ? Math.round((prevDone / prevTotal) * 100) : 0;
+    }
+
     return {
-      total: Number(row?.total ?? 0),
-      doneCount: Number(row?.doneCount ?? 0),
+      total,
+      doneCount,
       overdueCount: Number(row?.overdueCount ?? 0),
+      taskDonePct,
+      previousTaskDonePct,
     };
   },
 
@@ -180,19 +277,27 @@ export const analyticsRepository = {
   },
 
   async getRevenueByMonth(companyId: string, from?: Date, to?: Date) {
+    // "Collected revenue" — actual cash received, summed from individual InvoicePayment rows
+    // (so partial payments are included; previously the Invoice-level paidAt filter dropped
+    // every PARTIAL invoice). This is the *collected* figure and is intentionally different
+    // from "invoiced (confirmed)" in summary.repository — do not conflate or merge them.
+    //
+    // Buckets are keyed on DATE_TRUNC('month', payment date) including the year, so Jan 2025
+    // and Jan 2026 no longer collapse into the same bucket.
     const rows = await prisma.$queryRaw<
-      Array<{ month: string; revenue: number; month_num: number }>
+      Array<{ bucket: Date; month: string; revenue: number }>
     >`
       SELECT
-        TO_CHAR("updatedAt", 'Mon') AS month,
-        COALESCE(SUM("budget"), 0)::float AS revenue,
-        EXTRACT(MONTH FROM "updatedAt")::int AS month_num
-      FROM "FreelancerMission"
-      WHERE "companyId" = ${companyId}
-        AND status = 'COMPLETED'
-      ${sqlDateRange("updatedAt", from, to)}
-      GROUP BY month_num, TO_CHAR("updatedAt", 'Mon')
-      ORDER BY month_num
+        DATE_TRUNC('month', ip."paidAt") AS bucket,
+        TO_CHAR(ip."paidAt", 'Mon YYYY') AS month,
+        COALESCE(SUM(ip."amount"), 0)::float AS revenue
+      FROM "InvoicePayment" ip
+      INNER JOIN "Invoice" i ON i.id = ip."invoiceId"
+      WHERE i."companyId" = ${companyId}
+        AND i.status <> 'CANCELLED'
+      ${sqlDateRange("paidAt", from, to, "ip")}
+      GROUP BY bucket, month
+      ORDER BY bucket
     `;
 
     return rows.map((row) => ({

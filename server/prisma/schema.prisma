@@ -137,7 +137,9 @@ model Company {
   enhancedDocuments   EnhancedDocument[]
   invoices            Invoice[]
   clientSuccess       ClientSuccess[]
-  clientOnboardings   ClientOnboarding[]
+  clientOnboardings        ClientOnboarding[]
+  freelancerApplications   FreelancerApplication[]
+  aiConversations      AiConversation[]
   createdAt           DateTime              @default(now()) @db.Timestamptz(6)
   updatedAt           DateTime              @updatedAt @db.Timestamptz(6)
 
@@ -148,13 +150,13 @@ model Company {
 // User model for all platform users
 model User {
   id                  String               @id @default(uuid())
-  email               String               @unique @db.VarChar(255)
+  email               String               @db.VarChar(255)
   name                String               @db.VarChar(255)
   passwordHash        String               @db.VarChar(255)
   role                Role                 @default(CLIENT)
   mustChangePassword  Boolean              @default(false)
   companyId           String?
-  company             Company?             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company             Company?             @relation(fields: [companyId], references: [id], onDelete: SetNull)
   clientId            String?
   client              Client?              @relation(fields: [clientId], references: [id], onDelete: Cascade)
   tasks               Task[]               @relation("AssignedTasks")
@@ -173,8 +175,12 @@ model User {
   serviceRequestHistory   ServiceRequestHistory[] @relation("ServiceRequestHistoryUser")
   serviceRequestAssignments ServiceRequest[]      @relation("ServiceRequestAssignee")
   givenRatings        FreelancerRating[]
+  recordedInvoicePayments InvoicePayment[]  @relation("RecordedInvoicePayments")
+  aiConversations     AiConversation[]
   createdAt           DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt           DateTime             @updatedAt @db.Timestamptz(6)
+
+  @@unique([companyId, email])
 
   // Indexes for faster queries
   @@index([companyId])
@@ -252,6 +258,7 @@ model ServiceRequest {
 
   comments  ServiceRequestComment[]
   history   ServiceRequestHistory[]
+  proposal  Proposal?
 
   @@index([clientId])
   @@index([companyId, status])
@@ -399,27 +406,32 @@ model FreelancerProfile {
 
 // FreelancerMission model for marketplace missions
 model FreelancerMission {
-  id          String               @id @default(uuid())
-  title       String               @db.VarChar(255)
-  description String?              @db.Text
-  budget      Decimal?             @db.Decimal(10, 2)
-  status      MissionStatus        @default(OPEN)
-  companyId   String
-  company     Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  freelancerId String?
-  freelancer  FreelancerProfile?   @relation(fields: [freelancerId], references: [id], onDelete: SetNull)
-  projectId   String?
-  project     Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  applications MissionApplication[]
-  ratings     FreelancerRating[]
-  createdAt   DateTime             @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime             @updatedAt @db.Timestamptz(6)
+  id             String               @id @default(uuid())
+  title          String               @db.VarChar(255)
+  description    String?              @db.Text
+  budget         Decimal?             @db.Decimal(10, 2)
+  status         MissionStatus        @default(OPEN)
+  paymentStatus  PaymentStatus        @default(UNPAID)
+  paidAmount     Decimal?             @db.Decimal(12, 2)
+  paidAt         DateTime?            @db.Timestamptz(6)
+  paymentNote    String?              @db.Text
+  companyId      String
+  company        Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  freelancerId   String?
+  freelancer     FreelancerProfile?   @relation(fields: [freelancerId], references: [id], onDelete: SetNull)
+  projectId      String?
+  project        Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  applications   MissionApplication[]
+  ratings        FreelancerRating[]
+  createdAt      DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime             @updatedAt @db.Timestamptz(6)
 
   // Indexes for faster queries
   @@index([companyId, status])
   @@index([companyId, status, updatedAt])
   @@index([companyId, createdAt])
   @@index([freelancerId])
+  @@index([paymentStatus])
 }
 model MissionApplication {
   id          String                 @id @default(uuid())
@@ -488,6 +500,7 @@ model Notification {
   @@index([userId])
   @@index([userId, read])
   @@index([userId, createdAt])
+  @@index([userId, read, createdAt])
 }
 model Document {
   id        String       @id @default(uuid())
@@ -540,6 +553,9 @@ model FreelancerApplication {
   rejectionReason String?           @db.Text
   userId          String?
   user            User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Nullable: set at submission time when known, or at acceptance time by the admin
+  companyId       String?
+  company         Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
   accountCreatedAt DateTime?
   createdAt       DateTime          @default(now()) @db.Timestamptz(6)
   updatedAt       DateTime          @updatedAt @db.Timestamptz(6)
@@ -548,6 +564,8 @@ model FreelancerApplication {
   @@index([status])
   @@index([createdAt])
   @@index([status, createdAt])
+  @@index([companyId])
+  @@index([companyId, status])
 }
 
 // Client Onboarding model
@@ -702,27 +720,30 @@ enum ProposalStatus {
 }
 
 model Proposal {
-  id          String         @id @default(uuid())
-  title       String         @db.VarChar(255)
-  description String?        @db.Text
-  status      ProposalStatus @default(DRAFT)
-  amount      Decimal?       @db.Decimal(12, 2)
-  currency    String         @default("EUR") @db.VarChar(10)
-  expiresAt   DateTime?      @db.Timestamptz(6)
-  viewedAt    DateTime?      @db.Timestamptz(6)
-  acceptedAt  DateTime?      @db.Timestamptz(6)
-  rejectedAt  DateTime?      @db.Timestamptz(6)
-  pdfUrl      String?        @db.VarChar(500)
-  clientId    String
-  client      Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  companyId   String
-  company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  projectId   String?
-  project     Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  sections    ProposalSection[]
-  history     ProposalHistory[]
-  createdAt   DateTime       @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime       @updatedAt @db.Timestamptz(6)
+  id               String         @id @default(uuid())
+  title            String         @db.VarChar(255)
+  description      String?        @db.Text
+  status           ProposalStatus @default(DRAFT)
+  amount           Decimal?       @db.Decimal(12, 2)
+  currency         String         @default("EUR") @db.VarChar(10)
+  expiresAt        DateTime?      @db.Timestamptz(6)
+  viewedAt         DateTime?      @db.Timestamptz(6)
+  acceptedAt       DateTime?      @db.Timestamptz(6)
+  rejectedAt       DateTime?      @db.Timestamptz(6)
+  pdfUrl           String?        @db.VarChar(500)
+  clientId         String
+  client           Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  companyId        String
+  company          Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projectId        String?
+  project          Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  serviceRequestId String?         @unique
+  serviceRequest   ServiceRequest? @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
+  sections         ProposalSection[]
+  history          ProposalHistory[]
+  invoice          Invoice?
+  createdAt        DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime       @updatedAt @db.Timestamptz(6)
 
   @@index([clientId])
   @@index([companyId])
@@ -730,6 +751,7 @@ model Proposal {
   @@index([expiresAt])
   @@index([createdAt])
   @@index([companyId, status])
+  @@index([serviceRequestId])
 }
 
 model ProposalSection {
@@ -912,6 +934,8 @@ model Invoice {
   company           Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   projectId         String?
   project           Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  proposalId        String?       @unique
+  proposal          Proposal?     @relation(fields: [proposalId], references: [id], onDelete: SetNull)
   items             InvoiceItem[]
   payments          InvoicePayment[]
   reminders         InvoiceReminder[]
@@ -923,7 +947,9 @@ model Invoice {
   @@index([status])
   @@index([dueDate])
   @@index([createdAt])
+  @@unique([companyId, number])
   @@index([companyId, status])
+  @@index([companyId, status, createdAt])
   @@index([number])
 }
 
@@ -941,16 +967,19 @@ model InvoiceItem {
 }
 
 model InvoicePayment {
-  id          String   @id @default(uuid())
-  amount      Decimal  @db.Decimal(12, 2)
-  method      String?  @db.VarChar(100)
-  reference   String?  @db.VarChar(255)
-  invoiceId   String
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  paidAt      DateTime @default(now()) @db.Timestamptz(6)
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  id           String   @id @default(uuid())
+  amount       Decimal  @db.Decimal(12, 2)
+  method       String?  @db.VarChar(100)
+  reference    String?  @db.VarChar(255)
+  invoiceId    String
+  invoice      Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  recordedById String?
+  recordedBy   User?    @relation("RecordedInvoicePayments", fields: [recordedById], references: [id], onDelete: SetNull)
+  paidAt       DateTime @default(now()) @db.Timestamptz(6)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
 
   @@index([invoiceId])
+  @@index([recordedById])
 }
 
 model InvoiceReminder {
@@ -1054,4 +1083,37 @@ model SuccessTimeline {
 
   @@index([successId])
   @@index([successId, date])
+}
+
+// AI Conversation history — persisted per user + company
+enum AiMessageRole {
+  user
+  assistant
+}
+
+model AiConversation {
+  id        String      @id @default(uuid())
+  title     String      @db.VarChar(255)
+  companyId String
+  company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  AiMessage[]
+  createdAt DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime    @updatedAt @db.Timestamptz(6)
+
+  @@index([companyId, userId])
+  @@index([companyId, userId, createdAt])
+}
+
+model AiMessage {
+  id             String         @id @default(uuid())
+  role           AiMessageRole
+  content        String         @db.Text
+  conversationId String
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime       @default(now()) @db.Timestamptz(6)
+
+  @@index([conversationId])
+  @@index([conversationId, createdAt])
 }

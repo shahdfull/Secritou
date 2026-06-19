@@ -1,10 +1,16 @@
 // Service for Clients - Business logic
 import type { CreateClientDTO } from "../types/entities.js";
 import { clientRepository } from "../repositories/client.repository.js";
+import { userRepository } from "../repositories/user.repository.js";
 import { HttpError } from "../utils/httpError.js";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
+import { enqueueEmail } from "../jobs/queues.js";
+import { clientInvitationTemplate } from "./emailTemplates/index.js";
+import { env } from "../config/env.js";
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 export const clientService = {
   async getClients(companyId: string, options: ListQueryOptions) {
@@ -38,6 +44,18 @@ export const clientService = {
   async deleteClient(id: string, companyId: string) {
     const client = await clientRepository.findById(id, companyId);
     if (!client) throw new HttpError(404, "Client not found");
+
+    // Hard-deleting a client cascades to its invoices (financial records). Block it when
+    // any invoice exists — even DRAFT/CANCELLED — and steer callers toward archiving instead.
+    const invoiceCount = await clientRepository.countInvoices(id, companyId);
+    if (invoiceCount > 0) {
+      throw new HttpError(
+        409,
+        "Client has invoices and cannot be deleted; archive the client instead",
+        "CLIENT_HAS_INVOICES"
+      );
+    }
+
     const deleted = await clientRepository.delete(id, companyId);
     await invalidateTags([
       cacheTags.company(companyId),
@@ -45,5 +63,44 @@ export const clientService = {
       cacheTags.client(companyId, id),
     ]);
     return deleted;
+  },
+
+  async inviteClientUser(
+    clientId: string,
+    companyId: string,
+    email: string,
+    name: string
+  ) {
+    const client = await clientRepository.findById(clientId, companyId);
+    if (!client) throw new HttpError(404, "Client not found");
+
+    const existing = await userRepository.findByClientId(clientId);
+    if (existing.length > 0) {
+      throw new HttpError(409, "Client already has a portal account");
+    }
+
+    const tempPassword = crypto.randomBytes(16).toString("base64url").slice(0, 16);
+    const passwordHash = await bcrypt.hash(tempPassword, 12);
+
+    const user = await userRepository.create({
+      email,
+      name,
+      role: "CLIENT",
+      companyId,
+      clientId,
+      passwordHash,
+      mustChangePassword: true,
+    });
+
+    const { subject, html } = clientInvitationTemplate({
+      name,
+      email,
+      tempPassword,
+      loginUrl: `${env.FRONTEND_URL}/login`,
+      companyName: client.name,
+    });
+    void enqueueEmail({ to: email, subject, html });
+
+    return { user };
   },
 };

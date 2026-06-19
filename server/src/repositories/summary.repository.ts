@@ -29,8 +29,10 @@ export const summaryRepository = {
       prisma.task.count({
         where: { project: { companyId, clientId } },
       }),
+      // Confirmed invoiced amount for this client (excludes unconfirmed DRAFT / voided
+      // CANCELLED invoices). totalPaid here is cash recorded against those invoices.
       prisma.invoice.aggregate({
-        where: { companyId, clientId },
+        where: { companyId, clientId, status: { notIn: ["DRAFT", "CANCELLED"] } },
         _sum: { amount: true, amountPaid: true },
         _count: true,
       }),
@@ -177,8 +179,13 @@ export const summaryRepository = {
           project: { select: { id: true, name: true } },
         },
       }),
+      // "Invoiced (confirmed)" — sum of confirmed invoice amounts. DRAFT and CANCELLED are
+      // excluded because they are not money the business has actually committed to billing.
+      // NOTE: this is *invoiced* (billed), NOT *collected* cash. The "amount collected" figure
+      // lives in analytics.repository.getRevenueByMonth (keyed on real payment dates). The two
+      // are intentionally different concepts — do not merge them.
       prisma.invoice.aggregate({
-        where: { companyId },
+        where: { companyId, status: { notIn: ["DRAFT", "CANCELLED"] } },
         _sum: { amount: true, amountPaid: true },
         _count: true,
       }),

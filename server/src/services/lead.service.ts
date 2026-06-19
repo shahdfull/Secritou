@@ -49,6 +49,17 @@ export const leadService = {
     if (!lead) throw new HttpError(404, "Lead not found");
 
     const client = await prisma.$transaction(async (tx) => {
+      // Re-read inside the transaction and guard against double-conversion. Without this, a
+      // second /convert call would create a duplicate Client and orphan the first one.
+      const current = await tx.lead.findUnique({
+        where: { id, companyId },
+        select: { convertedClientId: true },
+      });
+      if (!current) throw new HttpError(404, "Lead not found");
+      if (current.convertedClientId) {
+        throw new HttpError(409, "Lead already converted", "LEAD_ALREADY_CONVERTED");
+      }
+
       const created = await tx.client.create({
         data: {
           name: lead.name,
