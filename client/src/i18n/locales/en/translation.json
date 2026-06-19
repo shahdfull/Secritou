@@ -347,7 +347,17 @@
     "email": "Email",
     "phone": "Phone",
     "notes": "Notes",
-    "retry": "Retry"
+    "retry": "Retry",
+    "sortBy": "Sort by",
+    "selectUser": "Select a user",
+    "writeComment": "Write a comment...",
+    "addComment": "Add a comment...",
+    "period": "Period",
+    "selectProject": "Select a project",
+    "selectType": "Select a type",
+    "selectLanguage": "Select language",
+    "priority": "Priority",
+    "nameRequired": "Name is required"
   },
   "search": {
     "placeholder": "Search leads, clients, projects...",
@@ -1299,6 +1309,8 @@
     "version": "Version",
     "tags": "Tags",
     "tagsLabel": "Tags (comma-separated)",
+    "namePlaceholder": "Q3 Contract — Acme Corp",
+    "tagsPlaceholder": "legal, signed, 2024",
     "accessLevel": "Access Level",
     "date": "Date",
     "actions": "Actions",

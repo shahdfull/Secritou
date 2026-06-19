@@ -95,7 +95,7 @@ export function AdminOnboardingPage() {
                 onValueChange={setSelectedProjectId}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a project" />
+                  <SelectValue placeholder={t("common.selectProject")} />
                 </SelectTrigger>
                 <SelectContent>
                   {projects?.data.map((p: any) => (

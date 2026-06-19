@@ -60,7 +60,7 @@ import type { UploadResult } from "@/api/upload.api";
 const ALL_TYPES_VALUE = "__all__";
 
 const createDocSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "common.nameRequired"),
   description: z.string().optional(),
   type: z.enum(["CONTRACT", "DELIVERABLE", "GUIDE", "REPORT", "INVOICE", "OTHER"]),
   accessLevel: z.enum(["ADMIN_ONLY", "ADMIN_FREELANCER", "CLIENT_ADMIN", "ALL"]),
@@ -70,6 +70,13 @@ type CreateDocForm = z.infer<typeof createDocSchema>;
 
 export function EnhancedDocumentsPage() {
   const { t } = useTranslation();
+  const docSchema = z.object({
+    name: z.string().min(1, t("common.nameRequired")),
+    description: z.string().optional(),
+    type: z.enum(["CONTRACT", "DELIVERABLE", "GUIDE", "REPORT", "INVOICE", "OTHER"]),
+    accessLevel: z.enum(["ADMIN_ONLY", "ADMIN_FREELANCER", "CLIENT_ADMIN", "ALL"]),
+    tags: z.string().optional(),
+  });
   const { page, pageSize, search, status, updateParams } = useListParams(10);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const uploadedFile = useRef<UploadResult | null>(null);
@@ -90,7 +97,7 @@ export function EnhancedDocumentsPage() {
   const createMutation = useCreateEnhancedDocument();
 
   const form = useForm<CreateDocForm>({
-    resolver: zodResolver(createDocSchema),
+    resolver: zodResolver(docSchema),
     defaultValues: {
       name: "",
       description: "",
@@ -284,7 +291,7 @@ export function EnhancedDocumentsPage() {
                   <FormItem>
                     <FormLabel>{t("enhancedDocuments.name")}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Q3 Contract — Acme Corp" {...field} />
+                      <Input placeholder={t("enhancedDocuments.namePlaceholder")} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -364,7 +371,7 @@ export function EnhancedDocumentsPage() {
                   <FormItem>
                     <FormLabel>{t("enhancedDocuments.tagsLabel")}</FormLabel>
                     <FormControl>
-                      <Input placeholder="legal, signed, 2024" {...field} />
+                      <Input placeholder={t("enhancedDocuments.tagsPlaceholder")} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

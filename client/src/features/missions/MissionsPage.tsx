@@ -368,7 +368,7 @@ export function MissionsPage() {
           }}
         >
           <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Trier par" />
+            <SelectValue placeholder={t("common.sortBy")} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="title-asc">Titre (A-Z)</SelectItem>

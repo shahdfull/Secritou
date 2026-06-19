@@ -84,6 +84,7 @@ const CommentForm = memo(function CommentForm({
   onCreateComment: (content: string) => void;
   createCommentMutation: { isPending: boolean };
 }) {
+  const { t } = useTranslation();
   const commentForm = useForm<CommentForm>({
     resolver: zodResolver(commentFormSchema),
     defaultValues: { content: "" },
@@ -107,7 +108,7 @@ const CommentForm = memo(function CommentForm({
             <FormItem className="flex-1">
               <FormControl>
                 <Textarea
-                  placeholder="Écrire un commentaire..."
+                  placeholder={t("common.writeComment")}
                   className="flex-1"
                   {...field}
                 />
@@ -518,7 +519,7 @@ export function TasksPage() {
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Sélectionner un utilisateur" />
+                              <SelectValue placeholder={t("common.selectUser")} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -816,7 +817,7 @@ export function TasksPage() {
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner un utilisateur" />
+                            <SelectValue placeholder={t("common.selectUser")} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>

@@ -20,14 +20,14 @@ const getStatusColor = (status: string) => {
   }
 };
 
-const getStatusText = (status: string) => {
+const getStatusText = (status: string, t: (key: string) => string) => {
   switch (status) {
     case "NEW":
-      return "Nouveau";
+      return t("clientPortal.serviceRequests.statuses.new");
     case "IN_PROGRESS":
-      return "En cours";
+      return t("clientPortal.serviceRequests.statuses.inProgress");
     case "DONE":
-      return "Terminé";
+      return t("clientPortal.serviceRequests.statuses.done");
     default:
       return status;
   }
@@ -58,38 +58,38 @@ export function ServiceRequestsClientPage() {
   return (
     <div className="container-page max-w-6xl mx-auto py-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-        <h1 className="text-3xl font-bold text-ink">Mes Demandes</h1>
+        <h1 className="text-3xl font-bold text-ink">{t("clientPortal.serviceRequests.title")}</h1>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-1">
           <Card className="rounded-3xl border border-border shadow-soft">
             <CardHeader>
-              <CardTitle>Nouvelle Demande</CardTitle>
-              <CardDescription>Décrivez votre besoin, nous vous répondrons rapidement.</CardDescription>
+              <CardTitle>{t("clientPortal.serviceRequests.newRequest")}</CardTitle>
+              <CardDescription>{t("clientPortal.serviceRequests.newRequestDesc")}</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-1">Titre</label>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">{t("clientPortal.serviceRequests.requestTitle")}</label>
                   <Input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Titre de la demande"
+                    placeholder={t("clientPortal.serviceRequests.titlePlaceholder")}
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-1">Description</label>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">{t("common.description")}</label>
                   <Textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Décrivez votre demande en détail..."
+                    placeholder={t("clientPortal.serviceRequests.descriptionPlaceholder")}
                     rows={4}
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={isPending}>
-                  {isPending ? "Envoi en cours..." : "Envoyer la demande"}
+                  {isPending ? t("clientPortal.serviceRequests.sending") : t("clientPortal.serviceRequests.send")}
                 </Button>
               </form>
             </CardContent>
@@ -100,7 +100,7 @@ export function ServiceRequestsClientPage() {
           {requests?.length === 0 ? (
             <Card className="rounded-3xl border border-border shadow-soft">
               <CardContent className="p-8 text-center">
-                <p className="text-muted-foreground">Vous n'avez pas encore de demande de service.</p>
+                <p className="text-muted-foreground">{t("clientPortal.serviceRequests.noRequests")}</p>
               </CardContent>
             </Card>
           ) : (
@@ -110,7 +110,7 @@ export function ServiceRequestsClientPage() {
                   <div className="flex items-start justify-between">
                     <CardTitle className="text-xl font-bold text-ink">{request.title}</CardTitle>
                     <Badge className={getStatusColor(request.status)}>
-                      {getStatusText(request.status)}
+                      {getStatusText(request.status, t)}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -119,7 +119,7 @@ export function ServiceRequestsClientPage() {
                     <p className="text-muted-foreground">{request.description}</p>
                   )}
                   <p className="text-xs text-muted-foreground mt-3">
-                    Créée le {new Date(request.createdAt).toLocaleDateString("fr-FR")}
+                    {t("clientPortal.serviceRequests.createdOn")} {new Date(request.createdAt).toLocaleDateString("fr-FR")}
                   </p>
                 </CardContent>
               </Card>

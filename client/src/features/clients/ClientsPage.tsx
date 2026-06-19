@@ -250,7 +250,7 @@ export function ClientsPage() {
           }}
         >
           <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Trier par" />
+            <SelectValue placeholder={t("common.sortBy")} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="name-asc">Nom (A-Z)</SelectItem>

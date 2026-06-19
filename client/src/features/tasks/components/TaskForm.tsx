@@ -132,7 +132,7 @@ export function TaskForm({ task, projects, users, onSubmit, isSubmitting }: Task
               <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un utilisateur" />
+                    <SelectValue placeholder={t("common.selectUser")} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>

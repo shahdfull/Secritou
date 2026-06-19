@@ -347,7 +347,17 @@
     "email": "Email",
     "phone": "Téléphone",
     "notes": "Notes",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "sortBy": "Trier par",
+    "selectUser": "Sélectionner un utilisateur",
+    "writeComment": "Écrire un commentaire...",
+    "addComment": "Ajouter un commentaire...",
+    "period": "Période",
+    "selectProject": "Sélectionner un projet",
+    "selectType": "Sélectionnez un type",
+    "selectLanguage": "Sélectionner la langue",
+    "priority": "Priorité",
+    "nameRequired": "Le nom est requis"
   },
   "search": {
     "placeholder": "Rechercher les leads, clients, projets...",
@@ -1299,6 +1309,8 @@
     "version": "Version",
     "tags": "Tags",
     "tagsLabel": "Tags (séparés par des virgules)",
+    "namePlaceholder": "Contrat T3 — Acme Corp",
+    "tagsPlaceholder": "légal, signé, 2024",
     "accessLevel": "Niveau d'accès",
     "date": "Date",
     "actions": "Actions",
