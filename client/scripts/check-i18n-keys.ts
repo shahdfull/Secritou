@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const I18N_DIR = path.resolve(__dirname, "../client/src/i18n/locales");
+const I18N_DIR = path.resolve(__dirname, "../src/i18n/locales");
 const LANGS = ["en", "fr"];
 
 function getNestedKeys(obj: any, prefix: string = ""): string[] {
@@ -57,8 +57,21 @@ async function checkI18nKeys() {
       }
     }
 
+    // Check for empty values
+    const emptyKeys: string[] = [];
+    for (const key of langKeys) {
+      const value = key.split(".").reduce<any>((acc, part) => (acc == null ? acc : acc[part]), translations[lang]);
+      if (typeof value === "string" && value.trim() === "") {
+        emptyKeys.push(key);
+      }
+    }
+
     if (missingKeys.length > 0) {
       console.error(`❌ [${lang}] Missing keys:`, missingKeys);
+      hasErrors = true;
+    }
+    if (emptyKeys.length > 0) {
+      console.error(`❌ [${lang}] Empty values:`, emptyKeys);
       hasErrors = true;
     }
     if (extraKeys.length > 0) {
