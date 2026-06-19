@@ -253,7 +253,7 @@
       "description": "Agence tunisienne B2B qui aide les PME, entrepreneurs et créateurs à s'organiser, se digitaliser et croître.",
       "services": "Services",
       "solutions": "Solutions",
-      "industries": "Secteurs",
+      "industriesTitle": "Secteurs",
       "company": "Entreprise",
       "forSmes": "Pour les PME",
       "forEntrepreneurs": "Pour les entrepreneurs",
@@ -281,7 +281,41 @@
     "leadsByMonth": "Nouveaux leads par mois sur les 6 derniers mois",
     "leadsOverview": "Aperçu des leads",
     "projectStatus": "Répartition des statuts de projet",
-    "projectStatusBreakdown": "Répartition des projets actuels par statut"
+    "projectStatusBreakdown": "Répartition des projets actuels par statut",
+    "tabOverview": "Vue d'ensemble",
+    "tabTrends": "Tendances",
+    "newLead": "Nouveau Lead",
+    "newTask": "Nouvelle Tâche",
+    "viewApprovals": "Voir les approbations",
+    "newLeadDialogDesc": "Ajoutez rapidement un nouveau lead à votre CRM",
+    "leadNameLabel": "Nom *",
+    "leadNamePlaceholder": "Ex: Jean Dupont",
+    "leadEmailPlaceholder": "jean@exemple.com",
+    "createAndViewCrm": "Créer et voir dans CRM",
+    "pendingApprovals_one": "approbation en attente",
+    "pendingApprovals_other": "approbations en attente",
+    "overdueInvoices_one": "facture en retard",
+    "overdueInvoices_other": "factures en retard",
+    "hotLeads_one": "lead qualifié",
+    "hotLeads_other": "leads qualifiés",
+    "leadConversion": "Conversion des leads",
+    "leadsConverted": "leads convertis",
+    "activeClientsCard": "Clients actifs",
+    "thisMonth": "ce mois",
+    "projectCompletion": "Avancement des projets",
+    "projectsCount": "projets",
+    "tasksDone": "Tâches complétées",
+    "overdueCount": "en retard",
+    "chartsLoading": "Chargement des graphiques…",
+    "chartsLoadingDesc": "Préparation des visualisations"
+  },
+  "commercial": {
+    "tabs": {
+      "serviceRequests": "Demandes de service",
+      "proposals": "Propositions",
+      "approvals": "Approbations",
+      "invoices": "Factures"
+    }
   },
   "common": {
     "loading": "Chargement...",
@@ -312,7 +346,8 @@
     "error": "Une erreur s'est produite.",
     "email": "Email",
     "phone": "Téléphone",
-    "notes": "Notes"
+    "notes": "Notes",
+    "retry": "Réessayer"
   },
   "search": {
     "placeholder": "Rechercher les leads, clients, projets...",
@@ -371,7 +406,9 @@
     "approvals": "Approbations",
     "invoices": "Factures",
     "documents": "Documents",
-    "clientSuccess": "Succès Client"
+    "clientSuccess": "Succès Client",
+    "crm": "CRM",
+    "talent": "Talent"
   },
   "userMenu": {
     "myAccount": "Mon compte",
@@ -457,7 +494,8 @@
     "motivationsPlaceholder": "Pourquoi souhaitez-vous rejoindre notre équipe? Quels sont vos objectifs et ce qui vous motive?",
     "successTitle": "Merci pour votre candidature !",
     "successDescription": "Nous avons bien reçu votre demande. Notre équipe examinera votre profil et vous contactera très bientôt.",
-    "successSubtext": "Nous vous répondrons dans les 3 à 5 jours ouvrables."
+    "successSubtext": "Nous vous répondrons dans les 3 à 5 jours ouvrables.",
+    "successMessage": "Votre candidature a été envoyée avec succès !"
   },
   "applications": {
     "title": "Candidatures",
@@ -1305,5 +1343,8 @@
     "available": "Disponible",
     "busy": "Occupé",
     "notFound": "Freelancer introuvable."
+  },
+  "errors": {
+    "tabLoadFailed": "Cette section n'a pas pu se charger. Veuillez réessayer."
   }
 }

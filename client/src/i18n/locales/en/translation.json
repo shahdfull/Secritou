@@ -253,7 +253,7 @@
       "description": "A Tunisian B2B agency helping SMEs, entrepreneurs, and creators get organized, go digital, and grow.",
       "services": "Services",
       "solutions": "Solutions",
-      "industries": "Industries",
+      "industriesTitle": "Industries",
       "company": "Company",
       "forSmes": "For SMEs",
       "forEntrepreneurs": "For Entrepreneurs",
@@ -281,7 +281,41 @@
     "leadsByMonth": "New leads per month for the last 6 months",
     "leadsOverview": "Leads Overview",
     "projectStatus": "Project Status Distribution",
-    "projectStatusBreakdown": "Breakdown of current projects by status"
+    "projectStatusBreakdown": "Breakdown of current projects by status",
+    "tabOverview": "Overview",
+    "tabTrends": "Trends",
+    "newLead": "New Lead",
+    "newTask": "New Task",
+    "viewApprovals": "View approvals",
+    "newLeadDialogDesc": "Quickly add a new lead to your CRM",
+    "leadNameLabel": "Name *",
+    "leadNamePlaceholder": "E.g. John Smith",
+    "leadEmailPlaceholder": "john@example.com",
+    "createAndViewCrm": "Create and view in CRM",
+    "pendingApprovals_one": "pending approval",
+    "pendingApprovals_other": "pending approvals",
+    "overdueInvoices_one": "overdue invoice",
+    "overdueInvoices_other": "overdue invoices",
+    "hotLeads_one": "qualified lead",
+    "hotLeads_other": "qualified leads",
+    "leadConversion": "Lead Conversion",
+    "leadsConverted": "leads converted",
+    "activeClientsCard": "Active Clients",
+    "thisMonth": "this month",
+    "projectCompletion": "Project Completion",
+    "projectsCount": "projects",
+    "tasksDone": "Tasks Done",
+    "overdueCount": "overdue",
+    "chartsLoading": "Loading charts…",
+    "chartsLoadingDesc": "Preparing visualizations"
+  },
+  "commercial": {
+    "tabs": {
+      "serviceRequests": "Service Requests",
+      "proposals": "Proposals",
+      "approvals": "Approvals",
+      "invoices": "Invoices"
+    }
   },
   "common": {
     "loading": "Loading...",
@@ -312,7 +346,8 @@
     "error": "An error occurred.",
     "email": "Email",
     "phone": "Phone",
-    "notes": "Notes"
+    "notes": "Notes",
+    "retry": "Retry"
   },
   "search": {
     "placeholder": "Search leads, clients, projects...",
@@ -371,7 +406,9 @@
     "approvals": "Approvals",
     "invoices": "Invoices",
     "documents": "Documents",
-    "clientSuccess": "Client Success"
+    "clientSuccess": "Client Success",
+    "crm": "CRM",
+    "talent": "Talent"
   },
   "userMenu": {
     "myAccount": "My Account",
@@ -942,7 +979,7 @@
       "newRequest": "New Request",
       "newRequestDesc": "Describe your need, we'll get back to you quickly.",
       "noRequests": "You don't have any service requests yet.",
-      "title": "Title",
+      "requestTitle": "Title",
       "titlePlaceholder": "Request title",
       "descriptionPlaceholder": "Describe your request in detail...",
       "send": "Send Request",
@@ -1306,5 +1343,8 @@
     "available": "Available",
     "busy": "Busy",
     "notFound": "Freelancer not found."
+  },
+  "errors": {
+    "tabLoadFailed": "This section failed to load. Please try again."
   }
 }
