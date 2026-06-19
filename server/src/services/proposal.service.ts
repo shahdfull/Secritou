@@ -116,6 +116,9 @@ export const proposalService = {
         "INVALID_PROPOSAL_TRANSITION"
       );
     }
+    if (proposal.expiresAt && proposal.expiresAt < new Date()) {
+      throw new HttpError(409, "This proposal has expired", "PROPOSAL_EXPIRED");
+    }
     const updated = await proposalRepository.update(id, companyId, {
       status: "ACCEPTED",
       acceptedAt: new Date(),

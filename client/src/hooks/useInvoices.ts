@@ -83,15 +83,31 @@ export function useSendInvoice() {
   });
 }
 
+export function useCancelInvoice() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  return useMutation<Invoice, Error, string>({
+    mutationFn: (id) => invoicesApi.cancelInvoice(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      toast.success(t("invoices.cancelled", "Facture annulée"));
+    },
+  });
+}
+
 export function useAddInvoicePayment() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
 
   return useMutation<any, Error, { id: string; data: any }>({
     mutationFn: ({ id, data }) => invoicesApi.addPayment(id, data),
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       toast.success(t("invoices.paymentAdded"));
+      // Backend returns a warning when the payment exceeds the invoice balance.
+      const warning = (result as { warning?: string })?.warning;
+      if (warning) toast.warning(warning);
     },
   });
 }

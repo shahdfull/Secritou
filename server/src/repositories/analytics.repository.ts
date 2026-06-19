@@ -1,6 +1,7 @@
 // Analytics Repository - Data access layer
 import { prismaRead as prisma } from "../config/prisma.js";
 import { sqlDateRange } from "../utils/sqlHelpers.js";
+import { startOfBusinessMonth } from "../utils/dateRange.js";
 
 function getPreviousPeriod(from: Date, to: Date): { from: Date; to: Date } {
   const duration = to.getTime() - from.getTime();
@@ -80,7 +81,9 @@ export const analyticsRepository = {
         : {}),
     };
 
-    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    // Month boundary computed in the business timezone (not server-local) so "new this month"
+    // is not off-by-one near month edges.
+    const startOfMonth = startOfBusinessMonth();
     const monthFrom = from && from > startOfMonth ? from : startOfMonth;
 
     const [total, newThisMonth] = await Promise.all([
