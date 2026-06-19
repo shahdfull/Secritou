@@ -1,7 +1,11 @@
 import { clientOnboardingRepository } from "../repositories/clientOnboarding.repository.js";
 import { projectRepository } from "../repositories/project.repository.js";
 import { clientRepository } from "../repositories/client.repository.js";
+import { userRepository } from "../repositories/user.repository.js";
 import { tenantValidation } from "./tenantValidation.service.js";
+import { enqueueEmails } from "../jobs/queues.js";
+import { onboardingStepCompletedTemplate } from "./emailTemplates/index.js";
+import { prismaRead } from "../config/prisma.js";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 
 export const clientOnboardingService = {
@@ -25,9 +29,12 @@ export const clientOnboardingService = {
     assignedUserId?: string;
   }) {
     // Validate project exists in company
-    const project = await projectRepository.findById(data.projectId, data.companyId);
+    const project = await projectRepository.findByIdAdmin(data.projectId, data.companyId);
     if (!project) {
       throw new Error("Project not found");
+    }
+    if (!project.clientId) {
+      throw new Error("Project has no associated client");
     }
 
     // Validate client exists in company
@@ -40,17 +47,17 @@ export const clientOnboardingService = {
     const defaultSteps = [
       {
         stepType: "welcome",
-        title: "Project Confirmed",
+        title: "Projet confirmé",
         orderIndex: 0,
       },
       {
         stepType: "contract",
-        title: "Contract",
+        title: "Contrat",
         orderIndex: 1,
       },
       {
         stepType: "payment",
-        title: "Payment",
+        title: "Paiement",
         orderIndex: 2,
       },
       {
@@ -60,12 +67,12 @@ export const clientOnboardingService = {
       },
       {
         stepType: "specifications",
-        title: "Specifications",
+        title: "Cahier des charges",
         orderIndex: 4,
       },
       {
         stepType: "kickoff",
-        title: "Kickoff Meeting",
+        title: "Réunion de lancement",
         orderIndex: 5,
       },
       {
@@ -75,14 +82,14 @@ export const clientOnboardingService = {
       },
       {
         stepType: "delivery",
-        title: "Delivery",
+        title: "Livraison",
         orderIndex: 7,
       },
     ];
 
     return clientOnboardingRepository.create({
       projectId: data.projectId,
-      clientId: project.clientId,
+      clientId: project.clientId!,
       companyId: data.companyId,
       assignedUserId: data.assignedUserId,
       steps: defaultSteps,
@@ -103,7 +110,53 @@ export const clientOnboardingService = {
   },
 
   async updateStep(stepId: string, companyId: string, data: any) {
-    return clientOnboardingRepository.updateStep(stepId, companyId, data);
+    const step = await clientOnboardingRepository.updateStep(stepId, companyId, data);
+
+    // Fire email to admins when a step is marked completed
+    if (data.completedAt || data.status === "COMPLETED") {
+      try {
+        // Resolve step → onboarding → project in one query
+        const stepWithOnboarding = await prismaRead.onboardingStep.findUnique({
+          where: { id: stepId },
+          select: {
+            title: true,
+            orderIndex: true,
+            onboarding: {
+              select: {
+                projectId: true,
+                companyId: true,
+                project: { select: { name: true } },
+                steps: { select: { title: true, orderIndex: true }, orderBy: { orderIndex: "asc" } },
+              },
+            },
+          },
+        });
+
+        if (stepWithOnboarding?.onboarding.companyId === companyId) {
+          const { onboarding } = stepWithOnboarding;
+          const admins = await userRepository.findAdminsByCompanyId(companyId);
+          const nextStep = onboarding.steps.find(
+            (s) => s.orderIndex > stepWithOnboarding.orderIndex
+          );
+
+          void enqueueEmails(
+            admins.map((admin) => {
+              const { subject, html } = onboardingStepCompletedTemplate(
+                admin.name ?? "Admin",
+                onboarding.project?.name ?? onboarding.projectId,
+                stepWithOnboarding.title,
+                nextStep?.title
+              );
+              return { to: admin.email, subject, html };
+            })
+          );
+        }
+      } catch {
+        // Non-fatal: email failure must not block step update
+      }
+    }
+
+    return step;
   },
 
   // Contract operations
