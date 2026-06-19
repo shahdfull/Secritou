@@ -5,6 +5,7 @@ import { createClientSchema, updateClientSchema } from "../validators/client.val
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
 import { requireCompanyTenant } from "../middlewares/tenant.middleware.js";
+import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 
 const router = Router();
 router.use(authenticate);
@@ -108,7 +109,7 @@ router.get("/:id", clientController.getClient);
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-router.post("/", validate(createClientSchema), clientController.createClient);
+router.post("/", sensitiveWriteRateLimit, validate(createClientSchema), clientController.createClient);
 
 /**
  * @swagger
@@ -173,6 +174,27 @@ router.put("/:id", authorize("ADMIN"), validate(updateClientSchema), clientContr
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.delete("/:id", authorize("ADMIN"), clientController.deleteClient);
+router.delete("/:id", sensitiveWriteRateLimit, authorize("ADMIN"), clientController.deleteClient);
+
+/**
+ * @swagger
+ * /clients/{id}/archive:
+ *   post:
+ *     summary: Archive client (preserves all linked records; hides from default lists)
+ *     tags: [Clients]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Client archived
+ */
+router.post("/:id/archive", sensitiveWriteRateLimit, authorize("ADMIN"), clientController.archiveClient);
+
+router.post("/:id/invite", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), clientController.inviteClientUser);
 
 export default router;
