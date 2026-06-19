@@ -54,12 +54,10 @@ import { fr } from "date-fns/locale";
 import { FileUploadField } from "@/components/common/FileUploadField";
 import type { UploadResult } from "@/api/upload.api";
 
-const documentSchema = z.object({
-  name: z.string().min(1, "Le nom est requis"),
-  type: z.enum(["INVOICE", "CONTRACT", "OTHER"]),
-});
-
-type DocumentForm = z.infer<typeof documentSchema>;
+type DocumentForm = {
+  name: string;
+  type: "INVOICE" | "CONTRACT" | "OTHER";
+};
 
 const PROPOSAL_STATUS_COLORS: Record<string, string> = {
   DRAFT: "bg-gray-100 text-gray-800",
@@ -127,8 +125,12 @@ export function ClientDetailPage() {
     },
   });
 
+  const documentFormSchema = z.object({
+    name: z.string().min(1, t("common.nameRequired")),
+    type: z.enum(["INVOICE", "CONTRACT", "OTHER"]),
+  });
   const documentForm = useForm<DocumentForm>({
-    resolver: zodResolver(documentSchema),
+    resolver: zodResolver(documentFormSchema),
     defaultValues: { name: "", type: "OTHER" },
   });
 
@@ -169,9 +171,9 @@ export function ClientDetailPage() {
 
   const getDocumentTypeLabel = (type: Document["type"]) => {
     switch (type) {
-      case "INVOICE": return "Facture";
-      case "CONTRACT": return "Contrat";
-      case "OTHER": return "Autre";
+      case "INVOICE": return t("clientsPage.detail.typeInvoice");
+      case "CONTRACT": return t("clientsPage.detail.typeContract");
+      case "OTHER": return t("clientsPage.detail.typeOther");
     }
   };
 
@@ -186,7 +188,7 @@ export function ClientDetailPage() {
   if (!client) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <h2 className="text-xl font-bold">Client introuvable</h2>
+        <h2 className="text-xl font-bold">{t("clientsPage.detail.notFound")}</h2>
         <Button onClick={() => navigate("/app/crm")} className="mt-4">
           Retour aux clients
         </Button>
@@ -234,28 +236,28 @@ export function ClientDetailPage() {
       {/* Hub Tabs */}
       <Tabs defaultValue="info" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="info">Informations</TabsTrigger>
+          <TabsTrigger value="info">{t("clientsPage.detail.tabInfo")}</TabsTrigger>
           <TabsTrigger value="proposals">
-            Propositions
+            {t("clientsPage.detail.proposals")}
             {proposals.length > 0 && (
               <Badge className="ml-1.5 h-4 px-1.5 text-[10px]">{proposals.length}</Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="invoices">
-            Factures
+            {t("clientsPage.detail.invoices")}
             {invoices.length > 0 && (
               <Badge className="ml-1.5 h-4 px-1.5 text-[10px]">{invoices.length}</Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="projects">
-            Projets
+            {t("clientsPage.detail.projects")}
             {client.projects && client.projects.length > 0 && (
               <Badge className="ml-1.5 h-4 px-1.5 text-[10px]">{client.projects.length}</Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="onboarding">Onboarding</TabsTrigger>
+          <TabsTrigger value="onboarding">{t("clientsPage.detail.tabOnboarding")}</TabsTrigger>
           <TabsTrigger value="documents">
-            Documents
+            {t("clientsPage.detail.documents")}
             {documents && documents.length > 0 && (
               <Badge className="ml-1.5 h-4 px-1.5 text-[10px]">{documents.length}</Badge>
             )}
@@ -266,24 +268,24 @@ export function ClientDetailPage() {
         <TabsContent value="info">
           <Card>
             <CardHeader>
-              <CardTitle>Informations du client</CardTitle>
+              <CardTitle>{t("clientsPage.detail.clientInfo")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground">Nom</p>
+                  <p className="text-muted-foreground">{t("common.name")}</p>
                   <p className="font-medium">{client.name}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Email</p>
+                  <p className="text-muted-foreground">{t("common.email")}</p>
                   <p className="font-medium">{client.email || "—"}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Téléphone</p>
+                  <p className="text-muted-foreground">{t("common.phone")}</p>
                   <p className="font-medium">{client.phone || "—"}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Client depuis</p>
+                  <p className="text-muted-foreground">{t("clientsPage.detail.clientSince")}</p>
                   <p className="font-medium">
                     {client.createdAt ? format(new Date(client.createdAt), "dd MMM yyyy", { locale: fr }) : "—"}
                   </p>
@@ -297,25 +299,25 @@ export function ClientDetailPage() {
         <TabsContent value="proposals">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Propositions</CardTitle>
+              <CardTitle>{t("clientsPage.detail.proposals")}</CardTitle>
               <Button size="sm" variant="outline" onClick={() => navigate("/app/commercial")}>
                 <ExternalLink className="h-4 w-4 mr-2" />
-                Gérer dans Commercial
+                {t("clientsPage.detail.manageInCommercial")}
               </Button>
             </CardHeader>
             <CardContent>
               {proposalsLoading ? (
                 <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
               ) : proposals.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">Aucune proposition.</p>
+                <p className="text-sm text-muted-foreground text-center py-6">{t("clientsPage.detail.noProposals")}</p>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Titre</TableHead>
-                      <TableHead>Montant</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Statut</TableHead>
+                      <TableHead>{t("common.title")}</TableHead>
+                      <TableHead>{t("invoices.amount")}</TableHead>
+                      <TableHead>{t("applications.date")}</TableHead>
+                      <TableHead>{t("common.status")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -342,26 +344,26 @@ export function ClientDetailPage() {
         <TabsContent value="invoices">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Factures</CardTitle>
+              <CardTitle>{t("clientsPage.detail.invoices")}</CardTitle>
               <Button size="sm" variant="outline" onClick={() => navigate("/app/commercial")}>
                 <ExternalLink className="h-4 w-4 mr-2" />
-                Gérer dans Commercial
+                {t("clientsPage.detail.manageInCommercial")}
               </Button>
             </CardHeader>
             <CardContent>
               {invoicesLoading ? (
                 <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
               ) : invoices.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">Aucune facture.</p>
+                <p className="text-sm text-muted-foreground text-center py-6">{t("clientsPage.detail.noInvoices")}</p>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Numéro</TableHead>
-                      <TableHead>Titre</TableHead>
-                      <TableHead>Montant</TableHead>
-                      <TableHead>Échéance</TableHead>
-                      <TableHead>Statut</TableHead>
+                      <TableHead>{t("clientsPage.detail.number")}</TableHead>
+                      <TableHead>{t("common.title")}</TableHead>
+                      <TableHead>{t("invoices.amount")}</TableHead>
+                      <TableHead>{t("clientsPage.detail.dueDate")}</TableHead>
+                      <TableHead>{t("common.status")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -391,10 +393,10 @@ export function ClientDetailPage() {
         <TabsContent value="projects">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Projets</CardTitle>
+              <CardTitle>{t("clientsPage.detail.projects")}</CardTitle>
               <Button size="sm" variant="outline" onClick={() => navigate("/app/projects")}>
                 <ExternalLink className="h-4 w-4 mr-2" />
-                Voir tous les projets
+                {t("clientsPage.detail.viewAllProjects")}
               </Button>
             </CardHeader>
             <CardContent>
@@ -410,7 +412,7 @@ export function ClientDetailPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground text-center py-6">Aucun projet associé.</p>
+                <p className="text-sm text-muted-foreground text-center py-6">{t("clientsPage.detail.noProjects")}</p>
               )}
             </CardContent>
           </Card>
@@ -420,7 +422,7 @@ export function ClientDetailPage() {
         <TabsContent value="onboarding">
           <Card>
             <CardHeader>
-              <CardTitle>Onboarding</CardTitle>
+              <CardTitle>{t("clientsPage.detail.tabOnboarding")}</CardTitle>
             </CardHeader>
             <CardContent>
               {onboardingLoading ? (
@@ -431,13 +433,13 @@ export function ClientDetailPage() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium">Projet : {onboarding.project?.name ?? "—"}</p>
+                      <p className="font-medium">{t("clientsPage.detail.projectLabel", { name: onboarding.project?.name ?? "—" })}</p>
                       <p className="text-sm text-muted-foreground">
-                        Créé le {format(new Date(onboarding.createdAt), "dd/MM/yyyy", { locale: fr })}
+                        {t("clientsPage.detail.createdOn", { date: format(new Date(onboarding.createdAt), "dd/MM/yyyy", { locale: fr }) })}
                       </p>
                     </div>
                     <Button variant="outline" onClick={() => navigate(`/app/client-onboarding/${onboarding.id}`)}>
-                      Voir le détail
+                      {t("clientsPage.detail.viewDetail")}
                     </Button>
                   </div>
                   <Separator />
@@ -461,7 +463,7 @@ export function ClientDetailPage() {
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-8 gap-4">
-                  <p className="text-muted-foreground">Aucun onboarding pour ce client.</p>
+                  <p className="text-muted-foreground">{t("clientsPage.detail.noOnboarding")}</p>
                   {client.projects && client.projects.length > 0 ? (
                     <Button
                       onClick={() =>
@@ -474,10 +476,10 @@ export function ClientDetailPage() {
                     >
                       {createOnboarding.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                       <Plus className="h-4 w-4 mr-2" />
-                      Créer un onboarding
+                      {t("clientsPage.detail.createOnboarding")}
                     </Button>
                   ) : (
-                    <p className="text-sm text-muted-foreground">Associez d'abord un projet à ce client.</p>
+                    <p className="text-sm text-muted-foreground">{t("clientsPage.detail.linkProjectFirst")}</p>
                   )}
                 </div>
               )}
@@ -489,10 +491,10 @@ export function ClientDetailPage() {
         <TabsContent value="documents">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Documents</CardTitle>
+              <CardTitle>{t("clientsPage.detail.documents")}</CardTitle>
               <Button size="sm" onClick={() => setAddDocumentDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
-                Ajouter
+                {t("clientsPage.detail.add")}
               </Button>
             </CardHeader>
             <CardContent>
@@ -500,10 +502,10 @@ export function ClientDetailPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nom</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
+                      <TableHead>{t("common.name")}</TableHead>
+                      <TableHead>{t("enhancedDocuments.type")}</TableHead>
+                      <TableHead>{t("applications.date")}</TableHead>
+                      <TableHead className="text-right">{t("clientsPage.detail.action")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -519,7 +521,7 @@ export function ClientDetailPage() {
                         <TableCell className="text-right">
                           <Button variant="ghost" size="sm" onClick={() => window.open(doc.url, "_blank")}>
                             <Download className="h-4 w-4 mr-2" />
-                            Télécharger
+                            {t("clientsPage.detail.download")}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -527,7 +529,7 @@ export function ClientDetailPage() {
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-sm text-muted-foreground text-center py-6">Aucun document</p>
+                <p className="text-sm text-muted-foreground text-center py-6">{t("clientsPage.detail.noDocuments")}</p>
               )}
             </CardContent>
           </Card>
@@ -544,8 +546,8 @@ export function ClientDetailPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Ajouter un document</DialogTitle>
-            <DialogDescription>Ajoutez un document pour ce client</DialogDescription>
+            <DialogTitle>{t("clientsPage.detail.addDocument")}</DialogTitle>
+            <DialogDescription>{t("clientsPage.detail.addDocumentDesc")}</DialogDescription>
           </DialogHeader>
           <Form {...documentForm}>
             <form onSubmit={documentForm.handleSubmit(handleAddDocument)} className="space-y-4">
@@ -554,9 +556,9 @@ export function ClientDetailPage() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nom du document</FormLabel>
+                    <FormLabel>{t("clientsPage.detail.documentName")}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ex: Facture 2024" {...field} />
+                      <Input placeholder={t("clientsPage.detail.documentNamePlaceholder")} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -567,17 +569,17 @@ export function ClientDetailPage() {
                 name="type"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Type</FormLabel>
+                    <FormLabel>{t("enhancedDocuments.type")}</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Sélectionnez un type" />
+                          <SelectValue placeholder={t("clientsPage.detail.selectType")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="INVOICE">Facture</SelectItem>
-                        <SelectItem value="CONTRACT">Contrat</SelectItem>
-                        <SelectItem value="OTHER">Autre</SelectItem>
+                        <SelectItem value="INVOICE">{t("clientsPage.detail.typeInvoice")}</SelectItem>
+                        <SelectItem value="CONTRACT">{t("clientsPage.detail.typeContract")}</SelectItem>
+                        <SelectItem value="OTHER">{t("clientsPage.detail.typeOther")}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -585,11 +587,11 @@ export function ClientDetailPage() {
                 )}
               />
               <FormItem>
-                <FormLabel>Fichier</FormLabel>
+                <FormLabel>{t("clientsPage.detail.file")}</FormLabel>
                 <FileUploadField
                   context="document"
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt"
-                  label="Cliquez pour uploader un fichier"
+                  label={t("clientsPage.detail.uploadFileLabel")}
                   uploadImmediately={true}
                   onUploaded={(result) => { uploadedFile.current = result as UploadResult; }}
                 />
@@ -597,7 +599,7 @@ export function ClientDetailPage() {
               <DialogFooter>
                 <Button type="submit" disabled={addDocumentMutation.isPending}>
                   {addDocumentMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Ajouter
+                  {t("clientsPage.detail.add")}
                 </Button>
               </DialogFooter>
             </form>
@@ -609,41 +611,41 @@ export function ClientDetailPage() {
       <Dialog open={inviteDialogOpen} onOpenChange={(open) => !open && setInviteDialogOpen(false)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Inviter au portail client</DialogTitle>
+            <DialogTitle>{t("clientsPage.detail.inviteToPortal")}</DialogTitle>
             <DialogDescription>
-              Un email avec les identifiants de connexion sera envoyé à l'adresse indiquée.
+              {t("clientsPage.detail.inviteEmailDesc")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium" htmlFor="invite-name">Nom</label>
+              <label className="text-sm font-medium" htmlFor="invite-name">{t("common.name")}</label>
               <Input
                 id="invite-name"
                 value={inviteName}
                 onChange={(e) => setInviteName(e.target.value)}
-                placeholder="Nom du contact"
+                placeholder={t("clientsPage.detail.contactNamePlaceholder")}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium" htmlFor="invite-email">Email</label>
+              <label className="text-sm font-medium" htmlFor="invite-email">{t("common.email")}</label>
               <Input
                 id="invite-email"
                 type="email"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="email@exemple.com"
+                placeholder={t("clientsPage.detail.emailPlaceholder")}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>{t("common.cancel")}</Button>
             <Button
               onClick={handleInvite}
               disabled={inviteClientUser.isPending || !inviteEmail || !inviteName}
             >
               {inviteClientUser.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               <Mail className="h-4 w-4 mr-2" />
-              Envoyer l'invitation
+              {t("clientsPage.detail.sendInvitation")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -653,16 +655,16 @@ export function ClientDetailPage() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Supprimer le client</DialogTitle>
+            <DialogTitle>{t("clientsPage.detail.deleteClient")}</DialogTitle>
             <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer ce client ? Cette action est irréversible.
+              {t("clientsPage.detail.deleteClientDesc")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>{t("common.cancel")}</Button>
             <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
               {isDeleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Supprimer
+              {t("common.delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
