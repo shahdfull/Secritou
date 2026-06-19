@@ -449,7 +449,25 @@
     "notificationsMarkedRead": "Toutes les notifications ont été marquées comme lues",
     "profileUpdated": "Profil mis à jour avec succès",
     "passwordUpdated": "Mot de passe mis à jour avec succès",
-    "documentAdded": "Document ajouté avec succès"
+    "documentAdded": "Document ajouté avec succès",
+    "freelancerProfileCreated": "Profil créé avec succès",
+    "freelancerProfileUpdated": "Profil mis à jour avec succès",
+    "freelancerProfileDeleted": "Profil supprimé avec succès",
+    "invoiceCreated": "Facture créée avec succès",
+    "invoiceCreateError": "Erreur lors de la création de la facture",
+    "serviceRequestCreated": "Demande de service créée avec succès !",
+    "serviceRequestUpdated": "Demande mise à jour",
+    "serviceRequestDeleted": "Demande supprimée",
+    "commentAdded": "Commentaire ajouté",
+    "commentDeleted": "Commentaire supprimé",
+    "conversationDeleted": "Conversation supprimée",
+    "historyImported": "Historique importé depuis votre navigateur",
+    "pdfLoadError": "Échec du chargement du PDF",
+    "uploadFileFirst": "Veuillez d'abord uploader un fichier",
+    "leadStatusUpdateError": "Échec de la mise à jour du statut du lead",
+    "taskStatusUpdateError": "Échec de la mise à jour du statut de la tâche",
+    "platformColorSaved": "Couleur de la plateforme enregistrée",
+    "previousFileRemoveWarning": "Impossible de supprimer le fichier précédent du stockage"
   },
   "aiAssistant": {
     "title": "Assistant IA",
@@ -516,6 +534,7 @@
     "view": "Voir",
     "downloadCv": "Télécharger CV",
     "downloadPortfolio": "Télécharger Portfolio",
+    "loadingPdf": "Chargement du PDF...",
     "accept": "Accepter",
     "reject": "Refuser",
     "statuses": {
@@ -1240,7 +1259,26 @@
     "updated": "Facture mise à jour avec succès",
     "deleted": "Facture supprimée avec succès",
     "sent": "Facture envoyée avec succès",
-    "paymentAdded": "Paiement ajouté avec succès"
+    "paymentAdded": "Paiement ajouté avec succès",
+    "createDialog": {
+      "title": "Créer une facture",
+      "description": "Créez une nouvelle facture pour un client",
+      "clientLabel": "Client",
+      "clientPlaceholder": "Sélectionnez un client",
+      "titleLabel": "Titre",
+      "titlePlaceholder": "Titre de la facture",
+      "amountLabel": "Montant",
+      "dueDateLabel": "Date d'échéance",
+      "descriptionLabel": "Description (optionnel)",
+      "descriptionPlaceholder": "Description de la facture",
+      "submit": "Créer la facture",
+      "submitting": "Création en cours..."
+    },
+    "validation": {
+      "clientRequired": "Veuillez sélectionner un client",
+      "titleRequired": "Le titre est obligatoire",
+      "amountPositive": "Le montant doit être positif"
+    }
   },
   "enhancedDocuments": {
     "title": "Documents",

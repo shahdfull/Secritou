@@ -11,6 +11,8 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 import type { FreelancerApplication } from "@/api/freelancerApplications.api";
 import {
   useFreelancerApplications,
+  usePendingApplications,
+  useAssignApplication,
   useRejectFreelancerApplication,
   useAcceptFreelancerApplication,
 } from "@/hooks/useFreelancerApplications";
@@ -66,6 +68,8 @@ import {
   XCircle,
   Eye,
   Copy,
+  UserPlus,
+  Inbox,
 } from "lucide-react";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { useListParams } from "@/hooks/useListParams";
@@ -89,6 +93,7 @@ export function ApplicationsPage() {
     search,
     status,
   });
+  const { data: pendingUnassigned = [] } = usePendingApplications();
 
   const applications = useMemo(
     () => Array.isArray(applicationsResult?.data) ? applicationsResult.data : [],
@@ -97,6 +102,7 @@ export function ApplicationsPage() {
 
   const rejectMutation = useRejectFreelancerApplication();
   const acceptMutation = useAcceptFreelancerApplication();
+  const assignMutation = useAssignApplication();
 
   // Create schemas with translated messages
   const acceptFormSchema = createAcceptFormSchema(t);
@@ -193,6 +199,82 @@ export function ApplicationsPage() {
           </p>
         </div>
       </div>
+
+      {pendingUnassigned.length > 0 && (
+        <div className="border rounded-lg overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3 bg-yellow-50 border-b">
+            <Inbox className="h-4 w-4 text-yellow-600" />
+            <span className="font-medium text-yellow-800 text-sm">
+              Nouvelles candidatures non assignées ({pendingUnassigned.length})
+            </span>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("applications.name")}</TableHead>
+                <TableHead>{t("applications.email")}</TableHead>
+                <TableHead>{t("applications.position")}</TableHead>
+                <TableHead>{t("applications.date")}</TableHead>
+                <TableHead className="text-right">{t("applications.actions")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pendingUnassigned.map((app) => (
+                <TableRow key={app.id}>
+                  <TableCell className="font-medium">
+                    {app.firstName} {app.lastName}
+                  </TableCell>
+                  <TableCell>{app.email}</TableCell>
+                  <TableCell>{app.position}</TableCell>
+                  <TableCell>{new Date(app.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs gap-1"
+                        onClick={() => {
+                          if (app.cvUrl) {
+                            setPdfPreviewUrl(app.cvUrl);
+                            setPreviewType("cv");
+                          }
+                        }}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        CV
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs gap-1"
+                        onClick={() => {
+                          if (app.portfolioUrl) {
+                            setPdfPreviewUrl(app.portfolioUrl);
+                            setPreviewType("portfolio");
+                          }
+                        }}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Portfolio
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="h-7 px-2 text-xs gap-1"
+                        disabled={assignMutation.isPending}
+                        onClick={() => assignMutation.mutate(app.id)}
+                      >
+                        <UserPlus className="h-3.5 w-3.5" />
+                        Assigner
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <Input
@@ -342,8 +424,8 @@ export function ApplicationsPage() {
             <Document
               file={pdfPreviewUrl}
               onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-              onLoadError={() => toast.error("Failed to load PDF")}
-              loading={<p className="text-sm text-muted-foreground mt-10">Loading PDF...</p>}
+              onLoadError={() => toast.error(t("toasts.pdfLoadError"))}
+              loading={<p className="text-sm text-muted-foreground mt-10">{t("applications.loadingPdf")}</p>}
             >
               {Array.from({ length: numPages }, (_, i) => (
                 <Page

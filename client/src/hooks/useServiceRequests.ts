@@ -11,6 +11,7 @@ import type {
 import { queryKeys } from "../lib/query-keys";
 import { queryInvalidations } from "../lib/query-invalidations";
 import { toast } from "sonner";
+import i18n from "@/i18n";
 
 // ── Client hooks ──────────────────────────────────────────────────────────────
 
@@ -29,7 +30,7 @@ export function useCreateClientServiceRequest() {
     mutationFn: (data) => serviceRequestsApi.createClientRequest(data),
     onSuccess: () => {
       queryInvalidations.invalidateClientServiceRequests(queryClient);
-      toast.success("Demande de service créée avec succès !");
+      toast.success(i18n.t("toasts.serviceRequestCreated"));
     },
   });
 }
@@ -60,7 +61,7 @@ export function useAdminUpdateServiceRequest(id: string) {
     onSuccess: (updated) => {
       queryClient.setQueryData(queryKeys.adminServiceRequest(id), updated);
       queryInvalidations.invalidateAdminServiceRequests(queryClient);
-      toast.success("Demande mise à jour");
+      toast.success(i18n.t("toasts.serviceRequestUpdated"));
     },
     onError: (error) => {
       toast.error(error.message ?? "Une erreur est survenue");
@@ -75,7 +76,7 @@ export function useAdminDeleteServiceRequest() {
     mutationFn: (id) => serviceRequestsApi.adminDelete(id),
     onSuccess: () => {
       queryInvalidations.invalidateAdminServiceRequests(queryClient);
-      toast.success("Demande supprimée");
+      toast.success(i18n.t("toasts.serviceRequestDeleted"));
     },
     onError: (error) => {
       toast.error(error.message ?? "Une erreur est survenue");
@@ -94,7 +95,7 @@ export function useAddComment(serviceRequestId: string) {
     mutationFn: (data) => serviceRequestsApi.addComment(serviceRequestId, data),
     onSuccess: () => {
       queryInvalidations.invalidateAdminServiceRequest(queryClient, serviceRequestId);
-      toast.success("Commentaire ajouté");
+      toast.success(i18n.t("toasts.commentAdded"));
     },
     onError: (error) => {
       toast.error(error.message ?? "Une erreur est survenue");
@@ -109,7 +110,7 @@ export function useDeleteComment(serviceRequestId: string) {
     mutationFn: (commentId) => serviceRequestsApi.deleteComment(serviceRequestId, commentId),
     onSuccess: () => {
       queryInvalidations.invalidateAdminServiceRequest(queryClient, serviceRequestId);
-      toast.success("Commentaire supprimé");
+      toast.success(i18n.t("toasts.commentDeleted"));
     },
   });
 }

@@ -8,6 +8,7 @@ import type {
 import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/query-keys";
+import i18n from "@/i18n";
 
 export function useFreelancers(params: ListQueryParams = {}) {
   return useQuery<PaginatedResponse<FreelancerProfile>>({
@@ -38,7 +39,7 @@ export function useCreateMyFreelancerProfile() {
     mutationFn: (data) => freelancersApi.createMyProfile(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.freelancers() });
-      toast.success("Profile created successfully");
+      toast.success(i18n.t("toasts.freelancerProfileCreated"));
     },
   });
 }
@@ -55,7 +56,7 @@ export function useUpdateMyFreelancerProfile() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.freelancers() });
       queryClient.invalidateQueries({ queryKey: queryKeys.freelancer(data.id) });
-      toast.success("Profile updated successfully");
+      toast.success(i18n.t("toasts.freelancerProfileUpdated"));
     },
   });
 }
@@ -67,7 +68,7 @@ export function useDeleteMyFreelancerProfile() {
     mutationFn: () => freelancersApi.deleteMyProfile(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.freelancers() });
-      toast.success("Profile deleted successfully");
+      toast.success(i18n.t("toasts.freelancerProfileDeleted"));
     },
   });
 }

@@ -24,6 +24,7 @@ import { useUpdateTask } from "@/hooks/useTasks";
 import type { Task } from "@/types/task";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { format, isPast } from "date-fns";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
@@ -187,6 +188,7 @@ interface TasksKanbanProps {
 }
 
 export const TasksKanban = memo(function TasksKanban({ filteredTasks, onTaskClick }: TasksKanbanProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { mutate: updateTask } = useUpdateTask();
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -260,7 +262,7 @@ export const TasksKanban = memo(function TasksKanban({ filteredTasks, onTaskClic
             for (const [key, data] of snapshots) {
               queryClient.setQueryData(key, data);
             }
-            toast.error("Failed to update task status");
+            toast.error(t("toasts.taskStatusUpdateError"));
           },
         }
       );

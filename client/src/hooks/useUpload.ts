@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { uploadApi, type UploadContext, type UploadResult } from "@/api/upload.api";
+import i18n from "@/i18n";
 
 export interface UseUploadOptions {
   context: UploadContext;
@@ -37,7 +38,7 @@ export function useUpload({ context, onSuccess, onError }: UseUploadOptions): Us
     mutationFn: (key: string) => uploadApi.deleteFile(key),
     onError: () => {
       // Non-fatal — just warn
-      toast.warning("Could not remove previous file from storage");
+      toast.warning(i18n.t("toasts.previousFileRemoveWarning"));
     },
   });
 

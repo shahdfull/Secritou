@@ -102,7 +102,7 @@ export function EnhancedDocumentsPage() {
 
   const handleCreate = (data: CreateDocForm) => {
     if (!uploadedFile.current) {
-      toast.error("Please upload a file first");
+      toast.error(t("toasts.uploadFileFirst"));
       return;
     }
 

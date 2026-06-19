@@ -6,6 +6,7 @@ import {
 } from "../api/proposals.api";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 
 export function useProposals(params?: {
   page?: number;
@@ -114,6 +115,18 @@ export function useRejectProposal() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["proposals"] });
       toast.success(t("proposals.rejected"));
+    },
+  });
+}
+
+export function useCreateInvoiceFromProposal() {
+  const queryClient = useQueryClient();
+  return useMutation<{ id: string }, Error, string>({
+    mutationFn: (proposalId) => proposalsApi.createInvoiceFromProposal(proposalId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["proposals"] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      toast.success(i18n.t("toasts.invoiceCreated"));
     },
   });
 }

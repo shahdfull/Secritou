@@ -449,7 +449,25 @@
     "notificationsMarkedRead": "All notifications marked as read",
     "profileUpdated": "Profile updated successfully",
     "passwordUpdated": "Password updated successfully",
-    "documentAdded": "Document added successfully"
+    "documentAdded": "Document added successfully",
+    "freelancerProfileCreated": "Profile created successfully",
+    "freelancerProfileUpdated": "Profile updated successfully",
+    "freelancerProfileDeleted": "Profile deleted successfully",
+    "invoiceCreated": "Invoice created successfully",
+    "invoiceCreateError": "Error while creating the invoice",
+    "serviceRequestCreated": "Service request created successfully!",
+    "serviceRequestUpdated": "Request updated",
+    "serviceRequestDeleted": "Request deleted",
+    "commentAdded": "Comment added",
+    "commentDeleted": "Comment deleted",
+    "conversationDeleted": "Conversation deleted",
+    "historyImported": "History imported from your browser",
+    "pdfLoadError": "Failed to load PDF",
+    "uploadFileFirst": "Please upload a file first",
+    "leadStatusUpdateError": "Failed to update lead status",
+    "taskStatusUpdateError": "Failed to update task status",
+    "platformColorSaved": "Platform color saved",
+    "previousFileRemoveWarning": "Could not remove previous file from storage"
   },
   "aiAssistant": {
     "title": "AI Assistant",
@@ -516,6 +534,7 @@
     "view": "View",
     "downloadCv": "Download CV",
     "downloadPortfolio": "Download Portfolio",
+    "loadingPdf": "Loading PDF...",
     "accept": "Accept",
     "reject": "Reject",
     "statuses": {
@@ -1240,7 +1259,26 @@
     "updated": "Invoice updated successfully",
     "deleted": "Invoice deleted successfully",
     "sent": "Invoice sent successfully",
-    "paymentAdded": "Payment added successfully"
+    "paymentAdded": "Payment added successfully",
+    "createDialog": {
+      "title": "Create an invoice",
+      "description": "Create a new invoice for a client",
+      "clientLabel": "Client",
+      "clientPlaceholder": "Select a client",
+      "titleLabel": "Title",
+      "titlePlaceholder": "Invoice title",
+      "amountLabel": "Amount",
+      "dueDateLabel": "Due date",
+      "descriptionLabel": "Description (optional)",
+      "descriptionPlaceholder": "Invoice description",
+      "submit": "Create invoice",
+      "submitting": "Creating..."
+    },
+    "validation": {
+      "clientRequired": "Please select a client",
+      "titleRequired": "Title is required",
+      "amountPositive": "Amount must be positive"
+    }
   },
   "enhancedDocuments": {
     "title": "Documents",

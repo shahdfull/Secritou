@@ -8,6 +8,7 @@ import { useUpdateLeadStatus } from "@/hooks/useLeads";
 import type { Lead } from "@/types/lead";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 interface StatusConfig {
@@ -138,6 +139,7 @@ function KanbanColumn({ status, leads, isDragging }: KanbanColumnProps) {
 }
 
 export const LeadsKanban = memo(function LeadsKanban({ filteredLeads }: { filteredLeads: Lead[] }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { mutate: updateLeadStatus } = useUpdateLeadStatus();
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -221,7 +223,7 @@ export const LeadsKanban = memo(function LeadsKanban({ filteredLeads }: { filter
             for (const [key, data] of snapshots) {
               queryClient.setQueryData(key, data);
             }
-            toast.error("Failed to update lead status");
+            toast.error(t("toasts.leadStatusUpdateError"));
           },
         }
       );

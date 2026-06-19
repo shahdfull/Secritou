@@ -68,7 +68,7 @@ export function SettingsPage() {
     updateCompany({ primaryColor: color }, {
       onSuccess: () => {
         localStorage.setItem("companyColor", color);
-        toast.success("Platform color saved");
+        toast.success(t("toasts.platformColorSaved"));
       },
     });
   }, [updateCompany]);
