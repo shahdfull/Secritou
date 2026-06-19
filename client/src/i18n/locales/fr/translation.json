@@ -67,22 +67,42 @@
     "businessPerformance": {
       "title": "Management & Performance",
       "body": "Suivi des KPI, tableaux de bord, objectifs et analyses commerciales — enfin un seul endroit pour les chiffres qui comptent.",
-      "items": ["Suivi des KPI", "Tableaux de bord", "Objectifs", "Analyses commerciales"]
+      "items": [
+        "Suivi des KPI",
+        "Tableaux de bord",
+        "Objectifs",
+        "Analyses commerciales"
+      ]
     },
     "digitalGrowth": {
       "title": "Croissance digitale",
       "body": "Réseaux sociaux, contenu, SEO et acquisition payante — coordonnés pour se cumuler, pas pour s'éparpiller.",
-      "items": ["Réseaux sociaux", "Création de contenu", "SEO", "Publicité payante"]
+      "items": [
+        "Réseaux sociaux",
+        "Création de contenu",
+        "SEO",
+        "Publicité payante"
+      ]
     },
     "technologySolutions": {
       "title": "Technologie",
       "body": "Sites web, e-commerce, systèmes d'inventaire et les outils digitaux dont vous avez besoin pour opérer au niveau supérieur.",
-      "items": ["Sites web", "E-commerce", "Systèmes d'inventaire", "Outils digitaux"]
+      "items": [
+        "Sites web",
+        "E-commerce",
+        "Systèmes d'inventaire",
+        "Outils digitaux"
+      ]
     },
     "aiAutomation": {
       "title": "IA & Automatisation",
       "body": "Chatbots IA, automatisation des flux de travail et assistants IA qui compressent des heures de travail fastidieux en quelques secondes.",
-      "items": ["Chatbots IA", "Automatisation des flux", "Assistants IA", "Optimisation des processus"]
+      "items": [
+        "Chatbots IA",
+        "Automatisation des flux",
+        "Assistants IA",
+        "Optimisation des processus"
+      ]
     },
     "other": "Autre"
   },
@@ -124,7 +144,12 @@
         "2": "votre entreprise."
       },
       "description": "Nous aidons les PME, les entrepreneurs et les créateurs à s'organiser, à se digitaliser et à croître — grâce à la stratégie, la technologie, le marketing et la prise de décision basée sur les données.",
-      "features": ["Décisions basées sur les données", "Transformation digitale", "Croissance commerciale", "Optimisation des processus"]
+      "features": [
+        "Décisions basées sur les données",
+        "Transformation digitale",
+        "Croissance commerciale",
+        "Optimisation des processus"
+      ]
     },
     "problems": {
       "subtitle": "Défis courants des entreprises",
@@ -163,22 +188,42 @@
         {
           "title": "Management & Performance",
           "body": "Suivi des KPI, tableaux de bord, objectifs et analyses commerciales — enfin un seul endroit pour les chiffres qui comptent.",
-          "items": ["Suivi des KPI", "Tableaux de bord", "Objectifs", "Analyses commerciales"]
+          "items": [
+            "Suivi des KPI",
+            "Tableaux de bord",
+            "Objectifs",
+            "Analyses commerciales"
+          ]
         },
         {
           "title": "Croissance digitale",
           "body": "Réseaux sociaux, contenu, SEO et acquisition payante — coordonnés pour se cumuler, pas pour s'éparpiller.",
-          "items": ["Réseaux sociaux", "Création de contenu", "SEO", "Publicité payante"]
+          "items": [
+            "Réseaux sociaux",
+            "Création de contenu",
+            "SEO",
+            "Publicité payante"
+          ]
         },
         {
           "title": "Technologie",
           "body": "Sites web, e-commerce, systèmes d'inventaire et les outils digitaux dont vous avez besoin pour opérer au niveau supérieur.",
-          "items": ["Sites web", "E-commerce", "Systèmes d'inventaire", "Outils digitaux"]
+          "items": [
+            "Sites web",
+            "E-commerce",
+            "Systèmes d'inventaire",
+            "Outils digitaux"
+          ]
         },
         {
           "title": "IA & Automatisation",
           "body": "Chatbots IA, automatisation des flux de travail et assistants IA qui compressent des heures de travail fastidieux en quelques secondes.",
-          "items": ["Chatbots IA", "Automatisation des flux", "Assistants IA", "Optimisation des processus"]
+          "items": [
+            "Chatbots IA",
+            "Automatisation des flux",
+            "Assistants IA",
+            "Optimisation des processus"
+          ]
         }
       ]
     },
@@ -317,6 +362,14 @@
       "invoices": "Factures"
     }
   },
+  "dateFilter": {
+    "last7Days": "7 derniers jours",
+    "last30Days": "30 derniers jours",
+    "last90Days": "90 derniers jours",
+    "thisYear": "Cette année",
+    "custom": "Personnalisé",
+    "selectPeriod": "Sélectionner une période"
+  },
   "common": {
     "loading": "Chargement...",
     "save": "Enregistrer",
@@ -357,7 +410,8 @@
     "selectType": "Sélectionnez un type",
     "selectLanguage": "Sélectionner la langue",
     "priority": "Priorité",
-    "nameRequired": "Le nom est requis"
+    "nameRequired": "Le nom est requis",
+    "commentsCount": "Commentaires ({{count}})"
   },
   "search": {
     "placeholder": "Rechercher les leads, clients, projets...",
@@ -489,6 +543,14 @@
     "send": "Envoyer",
     "errors": {
       "unavailable": "Impossible de contacter l'assistant IA. Veuillez vérifier la clé API."
+    },
+    "float": {
+      "open": "Assistant IA (Ctrl+J)",
+      "header": "Assistant IA",
+      "subtitle": "Posez vos questions sur vos données",
+      "clear": "Effacer la conversation",
+      "fullscreen": "Ouvrir en plein écran",
+      "close": "Fermer"
     }
   },
   "notifications": {
@@ -684,9 +746,18 @@
         "tag": "Pour les PME",
         "title": "Dirigez une entreprise plus rentable.",
         "needs": [
-          {"h": "Meilleure gestion", "b": "Remplacez l'instinct par un rythme opérationnel clair — chiffres hebdomadaires, revues mensuelles."},
-          {"h": "Meilleurs KPI", "b": "Un tableau de bord unique qui vous dit, en 60 secondes, si le mois est sur la bonne voie."},
-          {"h": "Meilleure organisation", "b": "Rôles, processus et outils qui évoluent au-delà de la boîte mail du fondateur."}
+          {
+            "h": "Meilleure gestion",
+            "b": "Remplacez l'instinct par un rythme opérationnel clair — chiffres hebdomadaires, revues mensuelles."
+          },
+          {
+            "h": "Meilleurs KPI",
+            "b": "Un tableau de bord unique qui vous dit, en 60 secondes, si le mois est sur la bonne voie."
+          },
+          {
+            "h": "Meilleure organisation",
+            "b": "Rôles, processus et outils qui évoluent au-delà de la boîte mail du fondateur."
+          }
         ],
         "outcome": "D'opérations éparses à une entreprise calme et mesurable."
       },
@@ -694,9 +765,18 @@
         "tag": "Pour les entrepreneurs",
         "title": "Avancez vite, sans vous épuiser.",
         "needs": [
-          {"h": "Croissance", "b": "Un moteur d'acquisition répétable, pas une tactique du mois."},
-          {"h": "Automatisation", "b": "IA et flux de travail qui vous rendent plus de 10 heures par semaine."},
-          {"h": "Visibilité", "b": "Une lecture claire de ce qui fonctionne — et ce qu'il faut arrêter de faire."}
+          {
+            "h": "Croissance",
+            "b": "Un moteur d'acquisition répétable, pas une tactique du mois."
+          },
+          {
+            "h": "Automatisation",
+            "b": "IA et flux de travail qui vous rendent plus de 10 heures par semaine."
+          },
+          {
+            "h": "Visibilité",
+            "b": "Une lecture claire de ce qui fonctionne — et ce qu'il faut arrêter de faire."
+          }
         ],
         "outcome": "Plus de levier par heure de fondateur."
       },
@@ -704,9 +784,18 @@
         "tag": "Pour les créateurs",
         "title": "Transformez votre audience en une vraie entreprise.",
         "needs": [
-          {"h": "Croissance des revenus", "b": "Offres produitisées, stratégie de sponsoring et optimisation du funnel."},
-          {"h": "Développement de marque", "b": "Un positionnement qui se compose au-delà d'une seule plateforme."},
-          {"h": "Suivi de performance", "b": "Analytique de niveau créateur à travers audience, revenus et engagement."}
+          {
+            "h": "Croissance des revenus",
+            "b": "Offres produitisées, stratégie de sponsoring et optimisation du funnel."
+          },
+          {
+            "h": "Développement de marque",
+            "b": "Un positionnement qui se compose au-delà d'une seule plateforme."
+          },
+          {
+            "h": "Suivi de performance",
+            "b": "Analytique de niveau créateur à travers audience, revenus et engagement."
+          }
         ],
         "outcome": "Une entreprise de créateur avec les chiffres d'un SaaS."
       }
@@ -1063,6 +1152,55 @@
         "new": "Nouveau",
         "inProgress": "En cours",
         "done": "Terminé"
+      }
+    },
+    "approvals": {
+      "title": "Mes Approbations",
+      "empty": "Aucune approbation pour le moment.",
+      "due": "Délai",
+      "dialogApprove": "Approuver",
+      "dialogReject": "Rejeter",
+      "dialogComment": "Commenter",
+      "commentOptional": "Commentaire (optionnel)",
+      "rejectReason": "Motif du rejet (optionnel)",
+      "yourComment": "Votre commentaire",
+      "statuses": {
+        "PENDING": "En attente",
+        "APPROVED": "Approuvé",
+        "REJECTED": "Rejeté",
+        "COMMENTED": "Commenté"
+      }
+    },
+    "invoices": {
+      "title": "Mes Factures",
+      "empty": "Aucune facture pour le moment.",
+      "issuedOn": "Émise le",
+      "dueDate": "Échéance",
+      "paidSuffix": "réglé",
+      "statuses": {
+        "DRAFT": "Brouillon",
+        "SENT": "Envoyée",
+        "PAID": "Payée",
+        "PARTIAL": "Partielle",
+        "OVERDUE": "En retard",
+        "CANCELLED": "Annulée"
+      }
+    },
+    "proposals": {
+      "title": "Mes Propositions",
+      "empty": "Aucune proposition pour le moment.",
+      "accept": "Accepter",
+      "reject": "Rejeter",
+      "rejectTitle": "Rejeter la proposition",
+      "rejectReason": "Motif du rejet (optionnel)",
+      "confirmReject": "Confirmer le rejet",
+      "statuses": {
+        "DRAFT": "Brouillon",
+        "SENT": "Envoyée",
+        "VIEWED": "Vue",
+        "ACCEPTED": "Acceptée",
+        "REJECTED": "Rejetée",
+        "EXPIRED": "Expirée"
       }
     }
   },
@@ -1441,5 +1579,23 @@
   },
   "errors": {
     "tabLoadFailed": "Cette section n'a pas pu se charger. Veuillez réessayer."
+  },
+  "payments": {
+    "tab": "Paiements",
+    "pending": "Paiements en attente",
+    "allPaid": "Tous les freelancers ont été payés.",
+    "budget": "Budget",
+    "paid": "Payé",
+    "remaining": "Restant",
+    "recordPayment": "Enregistrer paiement",
+    "amount": "Montant (€)",
+    "note": "Note (optionnel)",
+    "notePlaceholder": "Virement, chèque, etc.",
+    "confirm": "Confirmer",
+    "statuses": {
+      "UNPAID": "Non payé",
+      "PARTIAL": "Partiel",
+      "PAID": "Payé"
+    }
   }
 }

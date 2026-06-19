@@ -67,22 +67,42 @@
     "businessPerformance": {
       "title": "Management & Performance",
       "body": "KPI tracking, dashboards, objectives and business analytics — finally one place for the numbers that matter.",
-      "items": ["KPI tracking", "Dashboards", "Objectives", "Business analytics"]
+      "items": [
+        "KPI tracking",
+        "Dashboards",
+        "Objectives",
+        "Business analytics"
+      ]
     },
     "digitalGrowth": {
       "title": "Digital Growth",
       "body": "Social media, content, SEO and paid acquisition — coordinated to compound, not to spread thin.",
-      "items": ["Social media", "Content creation", "SEO", "Paid advertising"]
+      "items": [
+        "Social media",
+        "Content creation",
+        "SEO",
+        "Paid advertising"
+      ]
     },
     "technologySolutions": {
       "title": "Technology",
       "body": "Websites, e-commerce, inventory systems and the digital tools you need to operate at the next level.",
-      "items": ["Websites", "E-commerce", "Inventory systems", "Digital tools"]
+      "items": [
+        "Websites",
+        "E-commerce",
+        "Inventory systems",
+        "Digital tools"
+      ]
     },
     "aiAutomation": {
       "title": "AI & Automation",
       "body": "AI chatbots, workflow automation and AI assistants that compress hours of busywork into seconds.",
-      "items": ["AI chatbots", "Workflow automation", "AI assistants", "Process optimization"]
+      "items": [
+        "AI chatbots",
+        "Workflow automation",
+        "AI assistants",
+        "Process optimization"
+      ]
     },
     "other": "Other"
   },
@@ -124,7 +144,12 @@
         "2": "your business."
       },
       "description": "We help SMEs, entrepreneurs and creators organize, digitize and grow — through strategy, technology, marketing and data-driven decision making.",
-      "features": ["Data-driven decisions", "Digital transformation", "Business growth", "Process optimization"]
+      "features": [
+        "Data-driven decisions",
+        "Digital transformation",
+        "Business growth",
+        "Process optimization"
+      ]
     },
     "problems": {
       "subtitle": "Common business challenges",
@@ -163,22 +188,42 @@
         {
           "title": "Management & Performance",
           "body": "KPI tracking, dashboards, objectives and business analytics — finally one place for the numbers that matter.",
-          "items": ["KPI tracking", "Dashboards", "Objectives", "Business analytics"]
+          "items": [
+            "KPI tracking",
+            "Dashboards",
+            "Objectives",
+            "Business analytics"
+          ]
         },
         {
           "title": "Digital Growth",
           "body": "Social media, content, SEO and paid acquisition — coordinated to compound, not to spread thin.",
-          "items": ["Social media", "Content creation", "SEO", "Paid advertising"]
+          "items": [
+            "Social media",
+            "Content creation",
+            "SEO",
+            "Paid advertising"
+          ]
         },
         {
           "title": "Technology",
           "body": "Websites, e-commerce, inventory systems and the digital tools you need to operate at the next level.",
-          "items": ["Websites", "E-commerce", "Inventory systems", "Digital tools"]
+          "items": [
+            "Websites",
+            "E-commerce",
+            "Inventory systems",
+            "Digital tools"
+          ]
         },
         {
           "title": "AI & Automation",
           "body": "AI chatbots, workflow automation and AI assistants that compress hours of busywork into seconds.",
-          "items": ["AI chatbots", "Workflow automation", "AI assistants", "Process optimization"]
+          "items": [
+            "AI chatbots",
+            "Workflow automation",
+            "AI assistants",
+            "Process optimization"
+          ]
         }
       ]
     },
@@ -317,6 +362,14 @@
       "invoices": "Invoices"
     }
   },
+  "dateFilter": {
+    "last7Days": "Last 7 days",
+    "last30Days": "Last 30 days",
+    "last90Days": "Last 90 days",
+    "thisYear": "This year",
+    "custom": "Custom",
+    "selectPeriod": "Select a period"
+  },
   "common": {
     "loading": "Loading...",
     "save": "Save",
@@ -357,7 +410,8 @@
     "selectType": "Select a type",
     "selectLanguage": "Select language",
     "priority": "Priority",
-    "nameRequired": "Name is required"
+    "nameRequired": "Name is required",
+    "commentsCount": "Comments ({{count}})"
   },
   "search": {
     "placeholder": "Search leads, clients, projects...",
@@ -489,6 +543,14 @@
     "send": "Send",
     "errors": {
       "unavailable": "Unable to contact the AI assistant. Please check the API key."
+    },
+    "float": {
+      "open": "AI Assistant (Ctrl+J)",
+      "header": "AI Assistant",
+      "subtitle": "Ask questions about your data",
+      "clear": "Clear conversation",
+      "fullscreen": "Open fullscreen",
+      "close": "Close"
     }
   },
   "notifications": {
@@ -684,9 +746,18 @@
         "tag": "For SMEs",
         "title": "Run a tighter, more profitable business.",
         "needs": [
-          {"h": "Better management", "b": "Replace gut feel with a clear operating rhythm — weekly numbers, monthly reviews."},
-          {"h": "Better KPIs", "b": "One dashboard that tells you, in 60 seconds, if the month is on track."},
-          {"h": "Better organization", "b": "Roles, processes and tools that scale beyond the founder's inbox."}
+          {
+            "h": "Better management",
+            "b": "Replace gut feel with a clear operating rhythm — weekly numbers, monthly reviews."
+          },
+          {
+            "h": "Better KPIs",
+            "b": "One dashboard that tells you, in 60 seconds, if the month is on track."
+          },
+          {
+            "h": "Better organization",
+            "b": "Roles, processes and tools that scale beyond the founder's inbox."
+          }
         ],
         "outcome": "From scattered ops to a calm, measurable business."
       },
@@ -694,9 +765,18 @@
         "tag": "For Entrepreneurs",
         "title": "Move fast, without burning out.",
         "needs": [
-          {"h": "Growth", "b": "A repeatable acquisition engine, not a tactic-of-the-month."},
-          {"h": "Automation", "b": "AI and workflows that buy you back 10+ hours a week."},
-          {"h": "Visibility", "b": "A clean read on what's working — and what to stop doing."}
+          {
+            "h": "Growth",
+            "b": "A repeatable acquisition engine, not a tactic-of-the-month."
+          },
+          {
+            "h": "Automation",
+            "b": "AI and workflows that buy you back 10+ hours a week."
+          },
+          {
+            "h": "Visibility",
+            "b": "A clean read on what's working — and what to stop doing."
+          }
         ],
         "outcome": "More leverage per founder hour."
       },
@@ -704,9 +784,18 @@
         "tag": "For Creators",
         "title": "Turn your audience into a real business.",
         "needs": [
-          {"h": "Revenue growth", "b": "Productized offers, sponsorship strategy and funnel optimization."},
-          {"h": "Brand development", "b": "A positioning that compounds beyond a single platform."},
-          {"h": "Performance tracking", "b": "Creator-grade analytics across audience, revenue and engagement."}
+          {
+            "h": "Revenue growth",
+            "b": "Productized offers, sponsorship strategy and funnel optimization."
+          },
+          {
+            "h": "Brand development",
+            "b": "A positioning that compounds beyond a single platform."
+          },
+          {
+            "h": "Performance tracking",
+            "b": "Creator-grade analytics across audience, revenue and engagement."
+          }
         ],
         "outcome": "A creator business with the numbers of a SaaS."
       }
@@ -1063,6 +1152,55 @@
         "new": "New",
         "inProgress": "In Progress",
         "done": "Done"
+      }
+    },
+    "approvals": {
+      "title": "My Approvals",
+      "empty": "No approvals at the moment.",
+      "due": "Due",
+      "dialogApprove": "Approve",
+      "dialogReject": "Reject",
+      "dialogComment": "Comment",
+      "commentOptional": "Comment (optional)",
+      "rejectReason": "Reason for rejection (optional)",
+      "yourComment": "Your comment",
+      "statuses": {
+        "PENDING": "Pending",
+        "APPROVED": "Approved",
+        "REJECTED": "Rejected",
+        "COMMENTED": "Commented"
+      }
+    },
+    "invoices": {
+      "title": "My Invoices",
+      "empty": "No invoices at the moment.",
+      "issuedOn": "Issued on",
+      "dueDate": "Due",
+      "paidSuffix": "paid",
+      "statuses": {
+        "DRAFT": "Draft",
+        "SENT": "Sent",
+        "PAID": "Paid",
+        "PARTIAL": "Partial",
+        "OVERDUE": "Overdue",
+        "CANCELLED": "Cancelled"
+      }
+    },
+    "proposals": {
+      "title": "My Proposals",
+      "empty": "No proposals at the moment.",
+      "accept": "Accept",
+      "reject": "Reject",
+      "rejectTitle": "Reject proposal",
+      "rejectReason": "Reason for rejection (optional)",
+      "confirmReject": "Confirm rejection",
+      "statuses": {
+        "DRAFT": "Draft",
+        "SENT": "Sent",
+        "VIEWED": "Viewed",
+        "ACCEPTED": "Accepted",
+        "REJECTED": "Rejected",
+        "EXPIRED": "Expired"
       }
     }
   },
@@ -1441,5 +1579,23 @@
   },
   "errors": {
     "tabLoadFailed": "This section failed to load. Please try again."
+  },
+  "payments": {
+    "tab": "Payments",
+    "pending": "Pending payments",
+    "allPaid": "All freelancers have been paid.",
+    "budget": "Budget",
+    "paid": "Paid",
+    "remaining": "Remaining",
+    "recordPayment": "Record payment",
+    "amount": "Amount (€)",
+    "note": "Note (optional)",
+    "notePlaceholder": "Wire transfer, cheque, etc.",
+    "confirm": "Confirm",
+    "statuses": {
+      "UNPAID": "Unpaid",
+      "PARTIAL": "Partial",
+      "PAID": "Paid"
+    }
   }
 }
