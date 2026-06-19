@@ -8,6 +8,7 @@ import type { ListQueryOptions } from "../utils/listQuery.js";
 import { tenantValidation } from "./tenantValidation.service.js";
 import { prisma } from "../config/prisma.js";
 import { HttpError } from "../utils/httpError.js";
+import { clientSuccessService } from "./clientSuccess.service.js";
 
 // Transaction client type derived from the (extended) prisma client, so it matches the `tx`
 // argument passed by prisma.$transaction on this codebase's extended client.
@@ -233,6 +234,10 @@ export const invoiceService = {
           message: `Un paiement de ${Number(data.amount).toFixed(2)} ${invoiceMeta.currency ?? "EUR"} a été enregistré pour la facture ${invoiceMeta.number}.`,
         }))
       );
+
+      // Payment rate feeds the automatic half of the client success score; recompute now so it
+      // isn't stale until the nightly batch (best-effort, never blocks the payment).
+      void clientSuccessService.recalcAndPersist(invoiceMeta.clientId, companyId);
     }
 
     return result;
