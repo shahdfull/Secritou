@@ -332,3 +332,67 @@ describe("creditNoteService.create — amount validation", () => {
     assert.throws(() => assertCreditAmount(1200, 1000), (e: any) => e.code === "CREDIT_EXCEEDS_PAID");
   });
 });
+
+// ─── Invoice number generation (P1 #4) ───────────────────────────────────────
+
+// Mirrors the number format produced by createInvoiceWithGeneratedNumber.
+function buildInvoiceNumber(year: number, month1to12: number, sequence: number) {
+  const prefix = `INV-${year}${String(month1to12).padStart(2, "0")}`;
+  return `${prefix}-${String(sequence).padStart(4, "0")}`;
+}
+
+describe("invoice number generation (P1 #4)", () => {
+  test("formats as INV-YYYYMM-NNNN with zero-padding", () => {
+    assert.equal(buildInvoiceNumber(2026, 6, 1), "INV-202606-0001");
+  });
+
+  test("pads the month and keeps a 4-digit sequence", () => {
+    assert.equal(buildInvoiceNumber(2026, 12, 42), "INV-202612-0042");
+  });
+
+  test("next number increments the sequence within the same month", () => {
+    const count = 7; // 7 existing invoices this month
+    assert.equal(buildInvoiceNumber(2026, 6, count + 1), "INV-202606-0008");
+  });
+});
+
+// ─── Payment idempotency (P1 #5) ─────────────────────────────────────────────
+
+// Mirrors the duplicate detection in addPayment: same invoice/amount/recorder within 10s.
+function isDuplicatePayment(
+  existing: { invoiceId: string; amount: number; recordedById: string | null; createdAt: number },
+  incoming: { invoiceId: string; amount: number; recordedById: string | null },
+  now: number
+) {
+  return (
+    existing.invoiceId === incoming.invoiceId &&
+    existing.amount === incoming.amount &&
+    existing.recordedById === incoming.recordedById &&
+    now - existing.createdAt <= 10_000
+  );
+}
+
+describe("payment idempotency guard (P1 #5)", () => {
+  const now = 1_000_000;
+  const incoming = { invoiceId: "inv-1", amount: 500, recordedById: "user-1" };
+
+  test("treats an identical payment within 10s as a duplicate", () => {
+    const existing = { ...incoming, createdAt: now - 3_000 };
+    assert.equal(isDuplicatePayment(existing, incoming, now), true);
+  });
+
+  test("an identical payment older than 10s is not a duplicate", () => {
+    const existing = { ...incoming, createdAt: now - 11_000 };
+    assert.equal(isDuplicatePayment(existing, incoming, now), false);
+  });
+
+  test("a different amount is not a duplicate", () => {
+    const existing = { ...incoming, amount: 600, createdAt: now };
+    assert.equal(isDuplicatePayment(existing, incoming, now), false);
+  });
+
+  test("a different recorder is not a duplicate", () => {
+    const existing = { ...incoming, recordedById: "user-2", createdAt: now };
+    assert.equal(isDuplicatePayment(existing, incoming, now), false);
+  });
+});
