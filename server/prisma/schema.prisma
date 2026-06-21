@@ -736,6 +736,7 @@ model Proposal {
   title            String         @db.VarChar(255)
   description      String?        @db.Text
   status           ProposalStatus @default(DRAFT)
+  version          Int            @default(1)
   amount           Decimal?       @db.Decimal(12, 2)
   currency         String         @default("EUR") @db.VarChar(10)
   expiresAt        DateTime?      @db.Timestamptz(6)

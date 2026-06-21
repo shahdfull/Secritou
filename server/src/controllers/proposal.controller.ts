@@ -22,14 +22,18 @@ export const getMyProposals = async (req: Request, res: Response) => {
 
 export const respondToProposal = async (req: Request, res: Response) => {
   const id = req.params.id as string;
-  const { action, comment } = req.body as { action: string; comment?: string };
+  const { action, comment, expectedVersion } = req.body as {
+    action: string;
+    comment?: string;
+    expectedVersion?: number;
+  };
   const clientId = req.user!.clientId as string;
   const proposal = await proposalService.getByIdForClient(id, clientId);
   if (!proposal) throw new HttpError(404, "Proposal not found");
   if (proposal.clientId !== clientId) throw new HttpError(403, "Forbidden");
   const companyId = proposal.companyId as string;
   if (action === "accept") {
-    const result = await proposalService.accept(id, companyId);
+    const result = await proposalService.accept(id, companyId, expectedVersion);
     return res.json({ data: result });
   }
   if (action === "reject") {
@@ -65,7 +69,12 @@ export const createProposal = async (req: Request, res: Response) => {
 };
 
 export const updateProposal = async (req: Request, res: Response) => {
-  const proposal = await proposalService.update(req.params.id as string, req.user!.companyId as string, req.body);
+  const proposal = await proposalService.update(
+    req.params.id as string,
+    req.user!.companyId as string,
+    req.body,
+    req.user!.id
+  );
   res.json({ data: proposal });
 };
 
@@ -80,7 +89,11 @@ export const sendProposal = async (req: Request, res: Response) => {
 };
 
 export const acceptProposal = async (req: Request, res: Response) => {
-  const proposal = await proposalService.accept(req.params.id as string, req.user!.companyId as string);
+  const proposal = await proposalService.accept(
+    req.params.id as string,
+    req.user!.companyId as string,
+    req.body?.expectedVersion
+  );
   res.json({ data: proposal });
 };
 
@@ -102,12 +115,17 @@ export const updateProposalSection = async (req: Request, res: Response) => {
   const section = await proposalService.updateSection(
     req.params.sectionId as string,
     req.user!.companyId as string,
-    req.body
+    req.body,
+    req.user!.id
   );
   res.json({ data: section });
 };
 
 export const deleteProposalSection = async (req: Request, res: Response) => {
-  await proposalService.deleteSection(req.params.sectionId as string, req.user!.companyId as string);
+  await proposalService.deleteSection(
+    req.params.sectionId as string,
+    req.user!.companyId as string,
+    req.user!.id
+  );
   res.status(204).send();
 };
