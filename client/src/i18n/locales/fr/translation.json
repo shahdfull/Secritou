@@ -1271,6 +1271,8 @@
       "rejectTitle": "Refuser la proposition",
       "rejectReason": "Motif du rejet (optionnel)",
       "confirmReject": "Confirmer le refus",
+      "versionMismatch": "Cette proposition a été modifiée depuis son ouverture. Veuillez relire la dernière version.",
+      "responseFailed": "Impossible d'enregistrer votre réponse. Veuillez réessayer.",
       "statuses": {
         "DRAFT": "Brouillon",
         "SENT": "Envoyée",

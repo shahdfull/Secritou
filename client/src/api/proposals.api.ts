@@ -5,6 +5,7 @@ export interface Proposal {
   title: string;
   description?: string;
   status: "DRAFT" | "SENT" | "VIEWED" | "ACCEPTED" | "REJECTED" | "EXPIRED";
+  version: number;
   amount?: number;
   currency: string;
   expiresAt?: string;
