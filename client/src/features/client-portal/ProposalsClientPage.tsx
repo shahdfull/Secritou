@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import apiClient from "@/api/axios";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { toast } from "sonner";
 import { CheckCircle, XCircle, FileText } from "lucide-react";
 
 type Proposal = {
@@ -16,6 +17,7 @@ type Proposal = {
   title: string;
   description: string | null;
   status: string;
+  version: number;
   amount: number | null;
   currency: string;
   expiresAt: string | null;
@@ -48,13 +50,29 @@ export function ProposalsClientPage() {
   });
 
   const respond = useMutation({
-    mutationFn: (vars: { id: string; action: "accept" | "reject"; comment?: string }) =>
-      apiClient.post(`/proposals/${vars.id}/respond`, { action: vars.action, comment: vars.comment }),
+    mutationFn: (vars: { id: string; action: "accept" | "reject"; comment?: string; expectedVersion?: number }) =>
+      apiClient.post(`/proposals/${vars.id}/respond`, {
+        action: vars.action,
+        comment: vars.comment,
+        // Send the version the client actually reviewed so the server can reject a stale
+        // acceptance (proposal edited since it was loaded).
+        expectedVersion: vars.expectedVersion,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-proposals"] });
       setSelected(null);
       setRejectDialogOpen(false);
       setComment("");
+    },
+    onError: (error: any) => {
+      if (error?.response?.data?.error?.code === "PROPOSAL_VERSION_MISMATCH") {
+        // The proposal changed since it was loaded — refetch and ask the client to review again.
+        queryClient.invalidateQueries({ queryKey: ["my-proposals"] });
+        setSelected(null);
+        toast.error(t("clientPortal.proposals.versionMismatch"));
+        return;
+      }
+      toast.error(t("clientPortal.proposals.responseFailed"));
     },
   });
 
@@ -109,7 +127,7 @@ export function ProposalsClientPage() {
                 <Button
                   size="sm"
                   className="bg-green-600 hover:bg-green-700 text-white"
-                  onClick={() => respond.mutate({ id: p.id, action: "accept" })}
+                  onClick={() => respond.mutate({ id: p.id, action: "accept", expectedVersion: p.version })}
                   disabled={respond.isPending}
                 >
                   <CheckCircle className="h-4 w-4 mr-1" /> {t("clientPortal.proposals.accept")}

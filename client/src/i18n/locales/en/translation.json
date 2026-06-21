@@ -1271,6 +1271,8 @@
       "rejectTitle": "Reject proposal",
       "rejectReason": "Reason for rejection (optional)",
       "confirmReject": "Confirm rejection",
+      "versionMismatch": "This proposal was updated since you opened it. Please review the latest version.",
+      "responseFailed": "Could not save your response. Please try again.",
       "statuses": {
         "DRAFT": "Draft",
         "SENT": "Sent",
