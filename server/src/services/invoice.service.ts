@@ -15,6 +15,22 @@ import { clientSuccessService } from "./clientSuccess.service.js";
 type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
 /**
+ * Line items may only be added/changed/removed while the invoice is a DRAFT. Once it has been
+ * sent or paid, the billed figures are locked — silently editing them would break accounting
+ * consistency (the client already received a different total). Corrections must go through an
+ * explicit credit-note / re-issue flow instead.
+ */
+function assertInvoiceDraft(status: InvoiceStatus) {
+  if (status !== "DRAFT") {
+    throw new HttpError(
+      409,
+      "Cannot modify items on a non-draft invoice",
+      "INVOICE_NOT_DRAFT"
+    );
+  }
+}
+
+/**
  * Line items are the source of truth for an invoice total. Whenever items change we recompute
  * Invoice.amount = SUM(items.total) so the headline amount (used for payment status, the PDF,
  * and dashboard aggregates) can never drift from the itemisation.
@@ -290,11 +306,14 @@ export const invoiceService = {
   ) {
     const total = data.quantity * data.unitPrice;
     return prisma.$transaction(async (tx) => {
-      // Ownership check before writing
-      await tx.invoice.findUniqueOrThrow({
+      // Ownership + status check before writing. Line items may only change while the invoice
+      // is a DRAFT; once SENT/PAID/OVERDUE/etc. the billed figures are locked for accounting
+      // integrity (use a credit note / correction flow instead).
+      const invoice = await tx.invoice.findUniqueOrThrow({
         where: { id: invoiceId, companyId },
-        select: { id: true },
+        select: { status: true },
       });
+      assertInvoiceDraft(invoice.status);
       const item = await tx.invoiceItem.create({ data: { ...data, total, invoiceId } });
       await recomputeInvoiceAmount(tx, invoiceId, companyId);
       return item;
@@ -309,8 +328,10 @@ export const invoiceService = {
     return prisma.$transaction(async (tx) => {
       const invoiceItem = await tx.invoiceItem.findUnique({
         where: { id, invoice: { companyId } },
+        include: { invoice: { select: { status: true } } },
       });
       if (!invoiceItem) throw new Error("Item not found");
+      assertInvoiceDraft(invoiceItem.invoice.status);
 
       const updatedQuantity = data.quantity ?? invoiceItem.quantity;
       const updatedUnitPrice = data.unitPrice ?? Number(invoiceItem.unitPrice);
@@ -327,6 +348,12 @@ export const invoiceService = {
 
   async deleteItem(id: string, companyId: string) {
     return prisma.$transaction(async (tx) => {
+      const existing = await tx.invoiceItem.findUnique({
+        where: { id, invoice: { companyId } },
+        include: { invoice: { select: { status: true } } },
+      });
+      if (!existing) throw new HttpError(404, "Item not found");
+      assertInvoiceDraft(existing.invoice.status);
       const item = await tx.invoiceItem.delete({
         where: { id, invoice: { companyId } },
       });
