@@ -16,15 +16,17 @@ const SORTABLE_FIELDS = ["name", "status", "createdAt"];
 function buildWhere(companyId: string, userId: string, userRole: Role, options: ListQueryOptions, clientId?: string) {
   const searchFilter = buildTextSearchFilter(options.search, ["name", "description"]);
   const statusFilter = options.status ? { status: options.status as ProjectStatus } : {};
+  // Archived (soft-deleted) projects are hidden from all list views.
+  const base = { archivedAt: null, ...statusFilter, ...searchFilter };
 
   if (userRole === "ADMIN" || userRole === "MANAGER") {
-    return { companyId, ...statusFilter, ...searchFilter };
+    return { companyId, ...base };
   }
   if (userRole === "FREELANCER") {
-    return { companyId, tasks: { some: { assigneeId: userId } }, ...statusFilter, ...searchFilter };
+    return { companyId, tasks: { some: { assigneeId: userId } }, ...base };
   }
   // CLIENT role: scope by clientId only (no companyId — cross-tenant read scoped to this client)
-  return { clientId, ...statusFilter, ...searchFilter };
+  return { clientId, ...base };
 }
 
 const projectListSelect = {
@@ -34,6 +36,7 @@ const projectListSelect = {
   status: true,
   clientId: true,
   companyId: true,
+  archivedAt: true,
   createdAt: true,
   updatedAt: true,
   client: { select: clientBriefSelect },
@@ -159,5 +162,23 @@ export const projectRepository = {
 
   async delete(id: string, companyId: string): Promise<Project> {
     return prisma.project.delete({ where: { id, companyId } });
+  },
+
+  async archive(id: string, companyId: string): Promise<Project> {
+    return prisma.project.update({
+      where: { id, companyId },
+      data: { archivedAt: new Date() },
+      include: { client: { select: clientBriefSelect } },
+    });
+  },
+
+  async countNonDraftInvoices(id: string, companyId: string): Promise<number> {
+    return prisma.invoice.count({
+      where: { projectId: id, companyId, status: { not: "DRAFT" } },
+    });
+  },
+
+  async countOnboardings(id: string, companyId: string): Promise<number> {
+    return prisma.clientOnboarding.count({ where: { projectId: id, companyId } });
   },
 };

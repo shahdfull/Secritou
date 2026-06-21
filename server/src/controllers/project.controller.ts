@@ -60,6 +60,16 @@ export const deleteProject: RequestHandler = async (req, res, next) => {
   }
 };
 
+export const archiveProject: RequestHandler = async (req, res, next) => {
+  try {
+    const companyId = req.user?.companyId!;
+    const project = await projectService.archiveProject(req.params.id as string, companyId);
+    res.json({ data: project });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getMyProjects: RequestHandler = async (req, res, next) => {
   try {
     const clientId = req.user?.clientId!;

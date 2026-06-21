@@ -9,3 +9,4 @@ import "./auth.service.test.ts";
 import "./rating.service.test.ts";
 import "./validators.test.ts";
 import "./idor.test.ts";
+import "./businessGuards.test.ts";

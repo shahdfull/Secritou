@@ -328,6 +328,7 @@ model Project {
   enhancedDocuments EnhancedDocument[]
   invoices          Invoice[]
   clientOnboardings ClientOnboarding[]
+  archivedAt        DateTime?             @db.Timestamptz(6)
   createdAt         DateTime              @default(now()) @db.Timestamptz(6)
   updatedAt         DateTime              @updatedAt @db.Timestamptz(6)
 
@@ -336,6 +337,7 @@ model Project {
   @@index([companyId, status, updatedAt])
   @@index([companyId, createdAt])
   @@index([clientId])
+  @@index([archivedAt])
 }
 model Task {
   id          String      @id @default(uuid())
@@ -587,7 +589,9 @@ model FreelancerApplication {
 model ClientOnboarding {
   id            String           @id @default(uuid())
   projectId     String           @unique
-  project       Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // Restrict (not Cascade): deleting a project must not silently destroy its onboarding
+  // record. deleteProject blocks while an onboarding exists; archive the project instead.
+  project       Project          @relation(fields: [projectId], references: [id], onDelete: Restrict)
   clientId      String
   client        Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
   companyId     String
