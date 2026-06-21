@@ -7,6 +7,7 @@ const projectBaseSchema = z.object({
   description: z.string().optional(),
   status: z.nativeEnum(ProjectStatus).optional(),
   clientId: z.string().uuid().optional(),
+  serviceId: z.string().uuid().optional(),
 });
 
 export const createProjectSchema = z.object({

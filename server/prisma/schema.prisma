@@ -214,7 +214,7 @@ model Service {
   companyId String
   company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   leads     Lead[]
-  clients   Client[]
+  projects  Project[]
   users     User[]
   createdAt DateTime @default(now()) @db.Timestamptz(6)
 
@@ -246,7 +246,6 @@ model Lead {
   @@index([companyId, status, createdAt])
   @@index([email])
   @@index([archivedAt])
-  @@index([serviceId])
 }
 
 // Client model for paying/active clients
@@ -257,8 +256,6 @@ model Client {
   phone            String?          @db.VarChar(50)
   companyId        String
   company          Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  serviceId        String?
-  service          Service?         @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   projects         Project[]
   users            User[]
   serviceRequests  ServiceRequest[]
@@ -280,7 +277,6 @@ model Client {
   @@index([companyId, createdAt])
   @@index([email])
   @@index([archivedAt])
-  @@index([serviceId])
 }
 model ServiceRequest {
   id           String               @id @default(uuid())
@@ -346,6 +342,8 @@ model Project {
   company           Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   clientId          String?
   client            Client?               @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  serviceId         String?
+  service           Service?              @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   tasks             Task[]
   missions          FreelancerMission[]
   documents         Document[]
@@ -364,6 +362,7 @@ model Project {
   @@index([companyId, createdAt])
   @@index([clientId])
   @@index([archivedAt])
+  @@index([serviceId])
 }
 model Task {
   id          String      @id @default(uuid())
