@@ -6,17 +6,56 @@ import type { ContactStatus } from "@prisma/client";
 
 export class ContactService {
   async sendContactMessage(input: ContactRequestInput) {
-    // First: save to DB (critical operation)
-    const contactRequest = await prisma.contactRequest.create({
-      data: {
-        name: input.name,
-        email: input.email,
-        phone: input.phone,
-        serviceType: input.serviceType,
-        budget: input.budget,
-        company: input.company,
-        message: input.message,
-      },
+    // First: save to DB (critical operation). The contact form has two outcomes that must
+    // stay consistent: a ContactRequest record (admin inbox) AND a Lead in the internal
+    // agency company's CRM/Kanban. We create both in one transaction so a website submission
+    // always surfaces as a lead. Re-submissions by the same email upsert the existing lead
+    // instead of failing on the (companyId, email) unique constraint.
+    const { contactRequest } = await prisma.$transaction(async (tx) => {
+      const contactRequest = await tx.contactRequest.create({
+        data: {
+          name: input.name,
+          email: input.email,
+          phone: input.phone,
+          serviceType: input.serviceType,
+          budget: input.budget,
+          company: input.company,
+          message: input.message,
+        },
+      });
+
+      const notes = [
+        `Service: ${input.serviceType}`,
+        input.budget ? `Budget: ${input.budget}` : null,
+        `Company: ${input.company}`,
+        "",
+        input.message,
+      ]
+        .filter((line) => line !== null)
+        .join("\n");
+
+      await tx.lead.upsert({
+        where: {
+          companyId_email: { companyId: env.INTERNAL_COMPANY_ID, email: input.email },
+        },
+        update: {
+          // Refresh contact details and re-surface the lead if it had been archived.
+          name: input.name,
+          phone: input.phone,
+          notes,
+          archivedAt: null,
+        },
+        create: {
+          name: input.name,
+          email: input.email,
+          phone: input.phone,
+          source: "Website contact form",
+          notes,
+          companyId: env.INTERNAL_COMPANY_ID,
+        },
+      });
+
+      return { contactRequest };
     });
     console.info("Contact request saved to DB", { id: contactRequest.id });
 
