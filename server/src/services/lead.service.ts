@@ -48,6 +48,16 @@ export const leadService = {
     const lead = await leadRepository.findById(id, companyId);
     if (!lead) throw new HttpError(404, "Lead not found");
 
+    // Email is the per-company uniqueness key for clients. A lead without an email cannot be
+    // converted, otherwise we'd create clients that bypass the (companyId, email) constraint.
+    if (!lead.email) {
+      throw new HttpError(
+        422,
+        "Lead has no email — an email is required to convert to a client",
+        "LEAD_EMAIL_REQUIRED",
+      );
+    }
+
     const client = await prisma.$transaction(async (tx) => {
       // Re-read inside the transaction and guard against double-conversion. Without this, a
       // second /convert call would create a duplicate Client and orphan the first one.
@@ -58,6 +68,22 @@ export const leadService = {
       if (!current) throw new HttpError(404, "Lead not found");
       if (current.convertedClientId) {
         throw new HttpError(409, "Lead already converted", "LEAD_ALREADY_CONVERTED");
+      }
+
+      // Enforce email uniqueness within the company before creating. Without this, the
+      // create below would throw a raw Prisma P2002 (surfaced as a 500). Instead we block
+      // with an explicit business error so the client can choose to merge or cancel.
+      const existing = await tx.client.findUnique({
+        where: { companyId_email: { companyId, email: lead.email! } },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new HttpError(
+          409,
+          "A client with this email already exists — merge or cancel",
+          "CLIENT_EMAIL_EXISTS",
+          { clientId: existing.id },
+        );
       }
 
       const created = await tx.client.create({
