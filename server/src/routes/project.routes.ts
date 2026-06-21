@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, getMyProjects } from "../controllers/project.controller.js";
+import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, archiveProject, getMyProjects } from "../controllers/project.controller.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { createProjectSchema, updateProjectSchema } from "../validators/project.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
@@ -172,5 +172,6 @@ router.put("/:id", validate(updateProjectSchema), authorize("ADMIN"), updateProj
  *         $ref: '#/components/responses/NotFound'
  */
 router.delete("/:id", authorize("ADMIN"), deleteProject);
+router.post("/:id/archive", authorize("ADMIN"), archiveProject);
 
 export default router;

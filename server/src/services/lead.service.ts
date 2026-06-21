@@ -39,6 +39,11 @@ export const leadService = {
   async deleteLead(id: string, companyId: string) {
     const lead = await leadRepository.findById(id, companyId);
     if (!lead) throw new HttpError(404, "Lead not found");
+    // A converted lead is the origin record of an existing client — deleting it would erase
+    // that provenance. Block it; the lead is already archived on conversion anyway.
+    if (lead.convertedClientId) {
+      throw new HttpError(409, "Cannot delete a converted lead", "LEAD_ALREADY_CONVERTED");
+    }
     const deleted = await leadRepository.delete(id, companyId);
     await invalidateCompanyCache(companyId);
     return deleted;

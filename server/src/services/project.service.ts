@@ -71,6 +71,29 @@ export const projectService = {
   async deleteProject(id: string, companyId: string) {
     const project = await projectRepository.findByIdAdmin(id, companyId);
     if (!project) throw new HttpError(404, "Project not found");
+
+    // A project tied to issued invoices (anything past DRAFT) is part of the financial record
+    // and must not be hard-deleted — archive it instead.
+    const nonDraftInvoices = await projectRepository.countNonDraftInvoices(id, companyId);
+    if (nonDraftInvoices > 0) {
+      throw new HttpError(
+        409,
+        "Project has issued invoices and cannot be deleted; archive it instead",
+        "PROJECT_HAS_INVOICES"
+      );
+    }
+
+    // An onboarding now restricts deletion at the DB level (onDelete: Restrict). Surface that
+    // as a clean business error rather than letting the FK constraint throw a raw 500.
+    const onboardings = await projectRepository.countOnboardings(id, companyId);
+    if (onboardings > 0) {
+      throw new HttpError(
+        409,
+        "Project has an onboarding record and cannot be deleted; archive it instead",
+        "PROJECT_HAS_ONBOARDING"
+      );
+    }
+
     const deleted = await projectRepository.delete(id, companyId);
     const tagsToInvalidate = [
       cacheTags.company(companyId),
@@ -80,5 +103,19 @@ export const projectService = {
     if (project.clientId) tagsToInvalidate.push(cacheTags.client(companyId, project.clientId));
     await invalidateTags(tagsToInvalidate);
     return deleted;
+  },
+
+  async archiveProject(id: string, companyId: string) {
+    const project = await projectRepository.findByIdAdmin(id, companyId);
+    if (!project) throw new HttpError(404, "Project not found");
+    const archived = await projectRepository.archive(id, companyId);
+    const tagsToInvalidate = [
+      cacheTags.company(companyId),
+      cacheTags.dashboard(companyId),
+      cacheTags.project(companyId, id),
+    ];
+    if (project.clientId) tagsToInvalidate.push(cacheTags.client(companyId, project.clientId));
+    await invalidateTags(tagsToInvalidate);
+    return archived;
   },
 };
