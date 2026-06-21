@@ -257,3 +257,29 @@ describe("computeNewStatus — pure logic", () => {
     assert.equal(computeNewStatus(1000, 300, 200, "PARTIAL"), "PARTIAL");
   });
 });
+
+// ─── Line-item edit guard (P0 #2) — mirrors assertInvoiceDraft ───────────────
+
+function assertInvoiceDraft(status: InvoiceStatus) {
+  if (status !== "DRAFT") {
+    throw Object.assign(new Error("Cannot modify items on a non-draft invoice"), {
+      code: "INVOICE_NOT_DRAFT",
+      statusCode: 409,
+    });
+  }
+}
+
+describe("invoice.service item guard (assertInvoiceDraft)", () => {
+  test("allows item changes on a DRAFT invoice", () => {
+    assert.doesNotThrow(() => assertInvoiceDraft("DRAFT"));
+  });
+
+  for (const status of ["SENT", "PARTIAL", "PAID", "OVERDUE", "CANCELLED"] as const) {
+    test(`blocks item changes on a ${status} invoice with INVOICE_NOT_DRAFT`, () => {
+      assert.throws(
+        () => assertInvoiceDraft(status),
+        (err: any) => err.code === "INVOICE_NOT_DRAFT" && err.statusCode === 409
+      );
+    });
+  }
+});
