@@ -13,6 +13,8 @@ import {
   deleteInvoiceItem,
   getMyInvoices,
   cancelInvoice,
+  createCreditNote,
+  getInvoiceCreditNotes,
 } from "../controllers/invoice.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
@@ -28,6 +30,7 @@ import {
   addInvoiceItemSchema,
   updateInvoiceItemSchema,
   invoiceItemParamSchema,
+  createCreditNoteSchema,
 } from "../validators/invoice.validator.js";
 
 const router = express.Router();
@@ -83,6 +86,21 @@ router.delete(
   authorize("ADMIN"),
   validate(invoiceItemParamSchema),
   deleteInvoiceItem
+);
+
+// Credit notes
+router.get(
+  "/:id/credit-notes",
+  authorize("ADMIN", "MANAGER"),
+  validate(invoiceIdParamSchema),
+  getInvoiceCreditNotes
+);
+router.post(
+  "/:id/credit-note",
+  sensitiveWriteRateLimit,
+  authorize("ADMIN"),
+  validate(createCreditNoteSchema),
+  createCreditNote
 );
 
 export default router;
