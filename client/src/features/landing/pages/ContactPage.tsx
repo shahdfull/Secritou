@@ -10,10 +10,12 @@ import { submitContactRequest, type ServiceType, type BudgetOption } from "@/ser
 import { trackContactFormSubmitted, trackContactFormFailed } from "@/services/analytics.service";
 
 // Updated to use canonical names (will be mapped from translations)
+// Must stay identical (character for character) to the backend enum in
+// server/src/validators/contact.validator.ts — otherwise the contact form fails validation.
 const CANONICAL_SERVICE_TYPES = [
-  "Management & Performance",
+  "Business Performance",
   "Digital Growth",
-  "Technology",
+  "Technology Solutions",
   "AI & Automation",
   "Other"
 ] as const;
@@ -57,7 +59,7 @@ export function ContactPage() {
       name: "",
       email: "",
       phone: "",
-      serviceType: (selectedService as any) || "Management & Performance",
+      serviceType: (selectedService as any) || "Business Performance",
       budget: undefined,
       company: "",
       message: "",

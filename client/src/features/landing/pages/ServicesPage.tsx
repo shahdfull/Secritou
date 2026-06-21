@@ -3,27 +3,34 @@ import { FinalCTA } from "@/features/landing/components/FinalCTA";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
+// `serviceType` is the canonical enum value sent to the backend (must match
+// server/src/validators/contact.validator.ts). `titleKey` is only for display — never
+// pass the translated title as the serviceType, it would fail contact-form validation.
 const getServices = (t: any) => [
   {
     icon: BarChart3,
+    serviceType: "Business Performance",
     titleKey: "services.businessPerformance.title",
     bodyKey: "services.businessPerformance.body",
     itemKeys: "services.businessPerformance.items",
   },
   {
     icon: Rocket,
+    serviceType: "Digital Growth",
     titleKey: "services.digitalGrowth.title",
     bodyKey: "services.digitalGrowth.body",
     itemKeys: "services.digitalGrowth.items",
   },
   {
     icon: Monitor,
+    serviceType: "Technology Solutions",
     titleKey: "services.technologySolutions.title",
     bodyKey: "services.technologySolutions.body",
     itemKeys: "services.technologySolutions.items",
   },
   {
     icon: Sparkles,
+    serviceType: "AI & Automation",
     titleKey: "services.aiAutomation.title",
     bodyKey: "services.aiAutomation.body",
     itemKeys: "services.aiAutomation.items",
@@ -78,7 +85,7 @@ export function ServicesPage() {
                   </p>
                   <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{body}</p>
                   <button
-                    onClick={() => handleContactClick(title)}
+                    onClick={() => handleContactClick(s.serviceType)}
                     className="group mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary transition-colors hover:text-primary/80"
                   >
                     {t("nav.bookConsultation")}
