@@ -36,6 +36,7 @@ const projectListSelect = {
   status: true,
   clientId: true,
   companyId: true,
+  serviceId: true,
   archivedAt: true,
   createdAt: true,
   updatedAt: true,
@@ -135,6 +136,7 @@ export const projectRepository = {
     description?: string;
     status?: ProjectStatus;
     clientId?: string;
+    serviceId?: string;
     companyId: string;
   }): Promise<Project> {
     return prisma.project.create({
@@ -151,6 +153,7 @@ export const projectRepository = {
       description?: string;
       status?: ProjectStatus;
       clientId?: string;
+      serviceId?: string;
     }>
   ): Promise<Project> {
     return prisma.project.update({

@@ -91,13 +91,13 @@ export const leadService = {
         );
       }
 
+      // A client is not tagged with a single service (it may buy from several poles), so the
+      // lead's pole is not copied onto the client. It is carried by the projects created later.
       const created = await tx.client.create({
         data: {
           name: lead.name,
           email: lead.email ?? undefined,
           phone: lead.phone ?? undefined,
-          // Carry the lead's pole onto the client so the intent isn't lost at conversion.
-          serviceId: lead.serviceId ?? undefined,
           companyId: lead.companyId,
         },
       });
