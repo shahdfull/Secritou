@@ -98,6 +98,27 @@ export function useAcceptFreelancerApplication() {
   });
 }
 
+export function usePendingApplications() {
+  return useQuery<FreelancerApplication[]>({
+    queryKey: ["freelancerApplications", "pending"],
+    queryFn: () => freelancerApplicationsApi.getPendingApplications(),
+    staleTime: 60_000,
+  });
+}
+
+export function useAssignApplication() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  return useMutation<FreelancerApplication, Error, string>({
+    mutationFn: (id) => freelancerApplicationsApi.assignApplication(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["freelancerApplications"] });
+      toast.success(t("applications.assigned", "Candidature assignée à votre entreprise"));
+    },
+  });
+}
+
 export function useChangePassword() {
   const { t } = useTranslation();
   return useMutation<

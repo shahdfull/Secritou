@@ -1,5 +1,10 @@
+import * as Sentry from "@sentry/node";
 import { app } from "./app.js";
 import { env } from "./config/env.js";
+
+if (env.SENTRY_DSN) {
+  Sentry.init({ dsn: env.SENTRY_DSN, environment: env.NODE_ENV });
+}
 import { closeRedisClient } from "./cache/redis.js";
 import { startMetricsCollectors, stopMetricsCollectors } from "./observability/collectors.js";
 import { prisma } from "./config/prisma.js";

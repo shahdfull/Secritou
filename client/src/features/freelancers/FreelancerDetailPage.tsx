@@ -2,16 +2,17 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { freelancersApi } from "@/api/freelancers.api";
 import { queryKeys } from "@/lib/query-keys";
-import { Loader2, ArrowLeft, MapPin, Clock, Star } from "lucide-react";
+import { Loader2, ArrowLeft, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FreelancerRatingSection } from "@/components/ratings/FreelancerRatingSection";
 import { StarRating } from "@/components/ratings/StarRating";
 import { useAuthStore } from "@/store/auth.store";
 import { useTranslation } from "react-i18next";
+import { useMissions } from "@/hooks/useMissions";
 
 export function FreelancerDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +23,11 @@ export function FreelancerDetailPage() {
     queryKey: queryKeys.freelancer(id!),
     queryFn: () => freelancersApi.getById(id!),
     enabled: !!id,
+  });
+
+  const { data: missionsResult, isLoading: missionsLoading } = useMissions({
+    freelancerId: id,
+    pageSize: 100,
   });
 
   if (isLoading) {
@@ -47,6 +53,15 @@ export function FreelancerDetailPage() {
   }
 
   const initials = freelancer.user.name.slice(0, 2).toUpperCase();
+  const missions = missionsResult?.data ?? [];
+
+  const STATUS_COLORS: Record<string, string> = {
+    OPEN: "bg-blue-100 text-blue-800",
+    ASSIGNED: "bg-yellow-100 text-yellow-800",
+    IN_PROGRESS: "bg-purple-100 text-purple-800",
+    COMPLETED: "bg-green-100 text-green-800",
+    CANCELLED: "bg-red-100 text-red-800",
+  };
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -110,18 +125,56 @@ export function FreelancerDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Rating section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t("ratings.title")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <FreelancerRatingSection
-            freelancerId={freelancer.id}
-            // missionId would be passed from a missions context when available
-          />
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="missions" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="missions">Missions</TabsTrigger>
+          <TabsTrigger value="ratings">{t("ratings.title")}</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="missions">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Missions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {missionsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : missions.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">Aucune mission assignée.</p>
+              ) : (
+                <div className="space-y-3">
+                  {missions.map((mission) => (
+                    <div key={mission.id} className="flex items-center justify-between p-3 border rounded-md">
+                      <div>
+                        <p className="font-medium text-sm">{mission.title}</p>
+                        {mission.budget && (
+                          <p className="text-xs text-muted-foreground">{mission.budget} TND</p>
+                        )}
+                      </div>
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[mission.status] ?? "bg-gray-100 text-gray-800"}`}>
+                        {mission.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ratings">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t("ratings.title")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FreelancerRatingSection freelancerId={freelancer.id} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

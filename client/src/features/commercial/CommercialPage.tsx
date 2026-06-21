@@ -1,34 +1,44 @@
-import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ServiceRequestsAdminPage } from "@/features/service-requests/ServiceRequestsAdminPage";
 import { ProposalsPage } from "@/features/proposals/ProposalsPage";
+import { ApprovalsPage } from "@/features/approvals/ApprovalsPage";
+import { InvoicesPage } from "@/features/invoices/InvoicesPage";
+import { TabErrorBoundary } from "@/components/ui/TabErrorBoundary";
+import { useTranslation } from "react-i18next";
 
 export function CommercialPage() {
-  const [activeTab, setActiveTab] = useState("service-requests");
-
+  const { t } = useTranslation();
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-      <TabsList className="rounded-none border-b bg-background p-0 h-auto w-full justify-start px-6">
-        <TabsTrigger
-          value="service-requests"
-          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
-        >
-          Demandes de service
-        </TabsTrigger>
-        <TabsTrigger
-          value="proposals"
-          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
-        >
-          Propositions
-        </TabsTrigger>
+    <Tabs defaultValue="service-requests" className="space-y-6">
+      <TabsList>
+        <TabsTrigger value="service-requests">{t("commercial.tabs.serviceRequests")}</TabsTrigger>
+        <TabsTrigger value="proposals">{t("commercial.tabs.proposals")}</TabsTrigger>
+        <TabsTrigger value="approvals">{t("commercial.tabs.approvals")}</TabsTrigger>
+        <TabsTrigger value="invoices">{t("commercial.tabs.invoices")}</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="service-requests" className="flex-1 overflow-hidden m-0">
-        <ServiceRequestsAdminPage />
+      <TabsContent value="service-requests">
+        <TabErrorBoundary>
+          <ServiceRequestsAdminPage />
+        </TabErrorBoundary>
       </TabsContent>
 
-      <TabsContent value="proposals" className="flex-1 overflow-hidden m-0">
-        <ProposalsPage />
+      <TabsContent value="proposals">
+        <TabErrorBoundary>
+          <ProposalsPage />
+        </TabErrorBoundary>
+      </TabsContent>
+
+      <TabsContent value="approvals">
+        <TabErrorBoundary>
+          <ApprovalsPage />
+        </TabErrorBoundary>
+      </TabsContent>
+
+      <TabsContent value="invoices">
+        <TabErrorBoundary>
+          <InvoicesPage />
+        </TabErrorBoundary>
       </TabsContent>
     </Tabs>
   );

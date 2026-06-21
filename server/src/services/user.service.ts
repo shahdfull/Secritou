@@ -1,11 +1,15 @@
 import { userRepository } from "../repositories/user.repository.js";
 import { HttpError } from "../utils/httpError.js";
+import { enqueueEmail } from "../jobs/queues.js";
+import { userInvitationTemplate } from "./emailTemplates/index.js";
+import { env } from "../config/env.js";
 import type { Role } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 function generateRandomPassword() {
-  return Math.random().toString(36).slice(-12);
+  return crypto.randomBytes(16).toString("base64url").slice(0, 16);
 }
 
 export const userService = {
@@ -42,13 +46,20 @@ export const userService = {
     const tempPassword = generateRandomPassword();
     const hashedPassword = await bcrypt.hash(tempPassword, 12);
 
-    return userRepository.create({
+    const user = await userRepository.create({
       name,
       email,
       passwordHash: hashedPassword,
       role,
       companyId,
+      mustChangePassword: true,
     });
+
+    const loginUrl = `${env.FRONTEND_URL}/login`;
+    const { subject, html } = userInvitationTemplate(name, email, tempPassword, loginUrl);
+    void enqueueEmail({ to: email, subject, html });
+
+    return user;
   },
 
   async updateUser(id: string, companyId: string, name?: string, role?: Role) {

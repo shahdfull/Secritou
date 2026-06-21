@@ -7,13 +7,6 @@ import { useTranslation } from "react-i18next";
 export function HeroDashboard() {
   const { t } = useTranslation();
 
-  const features = [
-    { icon: BarChart3, title: t("dashboardHero.features.kpi.title"), description: t("dashboardHero.features.kpi.description") },
-    { icon: Bot, title: t("dashboardHero.features.ai.title"), description: t("dashboardHero.features.ai.description") },
-    { icon: Lightbulb, title: t("dashboardHero.features.recommendations.title"), description: t("dashboardHero.features.recommendations.description") },
-    { icon: TrendingUp, title: t("dashboardHero.features.insights.title"), description: t("dashboardHero.features.insights.description") },
-    { icon: Users, title: t("dashboardHero.features.team.title"), description: t("dashboardHero.features.team.description") },
-  ];
 
   return (
     <div className="space-y-6">
@@ -72,31 +65,7 @@ export function HeroDashboard() {
         </div>
       </motion.div>
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.5 }} className="grid gap-3">
-        {features.map((feature, i) => (
-          <motion.div key={feature.title} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.55 + i * 0.08 }} className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4 shadow-soft">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-surface-warm">
-              <feature.icon className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="font-display text-sm font-bold text-ink">{feature.title}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{feature.description}</p>
-            </div>
-          </motion.div>
-        ))}
-      </motion.div>
-
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.9 }}>
-        <Link
-          to="/contact"
-          onClick={() => trackCtaClick({ cta: t("home.cta.primary"), location: "Hero dashboard" })}
-          className="group flex w-full items-center justify-center gap-2 rounded-full bg-ink px-6 py-3 text-sm font-semibold text-white shadow-soft transition-transform hover:-translate-y-0.5"
-        >
-          <Zap className="h-4 w-4" />
-          {t("home.cta.primary")}
-          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-        </Link>
-      </motion.div>
+     
     </div>
   );
 }
@@ -107,9 +76,9 @@ function KpiTile({ label, value, delta, tone, delay }: { label: string; value: s
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay }} className={`col-span-12 rounded-2xl p-4 sm:col-span-4 ${bg}`}>
       <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-      <div className="mt-2 flex items-end justify-between gap-2">
-        <p className="font-display text-xl font-bold text-ink">{value}</p>
-        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${badge}`}>{delta}</span>
+      <div className="mt-2 flex items-center gap-1.5">
+        <p className="w-[92px] font-display text-base font-bold leading-tight text-ink whitespace-nowrap">{value}</p>
+        <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${badge}`}>{delta}</span>
       </div>
     </motion.div>
   );

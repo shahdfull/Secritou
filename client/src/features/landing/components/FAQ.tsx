@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -5,10 +6,17 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/store/auth.store";
+import { AskQuestionDialog } from "./AskQuestionDialog";
 
 export function FAQ() {
   const { t } = useTranslation();
-  
+  const navigate = useNavigate();
+  const isAuthenticated = useAuthStore((s) => s.status === "authenticated");
+  const [showQuestionDialog, setShowQuestionDialog] = useState(false);
+
   const faqs = [
     {
       q: t("home.faq.questions.0.q"),
@@ -47,19 +55,36 @@ export function FAQ() {
           </p>
         </div>
 
-        <Accordion type="single" collapsible className="w-full">
-          {faqs.map((f, i) => (
-            <AccordionItem key={i} value={`item-${i}`} className="border-b border-border">
-              <AccordionTrigger className="text-left font-display text-base font-semibold text-ink">
-                {f.q}
-              </AccordionTrigger>
-              <AccordionContent className="text-sm leading-relaxed text-muted-foreground">
-                {f.a}
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
+        <div className="w-full">
+          <Accordion type="single" collapsible className="w-full">
+            {faqs.map((f, i) => (
+              <AccordionItem key={i} value={`item-${i}`} className="border-b border-border">
+                <AccordionTrigger className="text-left font-display text-base font-semibold text-ink">
+                  {f.q}
+                </AccordionTrigger>
+                <AccordionContent className="text-sm leading-relaxed text-muted-foreground">
+                  {f.a}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+
+          <Button
+            className="mt-6 bg-ink text-white hover:bg-ink/90"
+            onClick={() => {
+              if (isAuthenticated) {
+                setShowQuestionDialog(true);
+              } else {
+                navigate("/login?redirect=/");
+              }
+            }}
+          >
+            {t("home.faq.customQuestion.cta")}
+          </Button>
+        </div>
       </div>
+
+      <AskQuestionDialog open={showQuestionDialog} onOpenChange={setShowQuestionDialog} />
     </section>
   );
 }

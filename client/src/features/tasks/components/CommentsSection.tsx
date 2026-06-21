@@ -11,6 +11,7 @@ import { Loader2, Send } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
 
 interface CommentsSectionProps {
   comments: Comment[];
@@ -25,6 +26,7 @@ const CommentForm = memo(function CommentForm({
   onCreateComment: (content: string) => void;
   createCommentMutation: { isPending: boolean };
 }) {
+  const { t } = useTranslation();
   const commentForm = useForm<CommentForm>({
     resolver: zodResolver(commentFormSchema),
     defaultValues: { content: "" },
@@ -45,7 +47,7 @@ const CommentForm = memo(function CommentForm({
             <FormItem className="flex-1">
               <FormControl>
                 <Textarea
-                  placeholder="Écrire un commentaire..."
+                  placeholder={t("common.writeComment")}
                   className="flex-1"
                   {...field}
                 />
@@ -76,6 +78,7 @@ const getInitials = (name: string) => {
 };
 
 export function CommentsSection({ comments, onCreateComment, createCommentMutation }: CommentsSectionProps) {
+  const { t } = useTranslation();
   const commentsScrollRef = useRef<HTMLDivElement | null>(null);
   const commentsVirtualizer = useVirtualizer({
     count: comments.length,

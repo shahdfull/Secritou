@@ -17,7 +17,8 @@ export const updateRating: RequestHandler = async (req, res, next) => {
   try {
     const reviewerId = req.user!.sub;
     const reviewerRole = req.user!.role;
-    const rating = await ratingService.updateRating(req.params.id as string, reviewerId, reviewerRole, req.body);
+    const companyId = req.user!.companyId;
+    const rating = await ratingService.updateRating(req.params.id as string, reviewerId, reviewerRole, companyId, req.body);
     res.json({ data: rating });
   } catch (error) {
     next(error);
@@ -28,7 +29,8 @@ export const deleteRating: RequestHandler = async (req, res, next) => {
   try {
     const reviewerId = req.user!.sub;
     const reviewerRole = req.user!.role;
-    await ratingService.deleteRating(req.params.id as string, reviewerId, reviewerRole);
+    const companyId = req.user!.companyId;
+    await ratingService.deleteRating(req.params.id as string, reviewerId, reviewerRole, companyId);
     res.status(204).send();
   } catch (error) {
     next(error);

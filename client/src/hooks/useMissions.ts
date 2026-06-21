@@ -77,3 +77,27 @@ export function useDeleteMission() {
     },
   });
 }
+
+export function useUnpaidMissions(params: ListQueryParams = {}) {
+  return useQuery<PaginatedResponse<FreelancerMission>>({
+    queryKey: [...queryKeys.missions(params), "unpaid"],
+    queryFn: () => missionsApi.getUnpaid(params),
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useMarkMissionAsPaid() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    FreelancerMission,
+    Error,
+    { id: string; paidAmount: number; paymentNote?: string }
+  >({
+    mutationFn: ({ id, ...data }) => missionsApi.markAsPaid(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.missions() });
+      toast.success(i18n.t("toasts.paymentRecorded", "Paiement enregistré"));
+    },
+  });
+}

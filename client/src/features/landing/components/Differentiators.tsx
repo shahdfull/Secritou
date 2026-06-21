@@ -45,10 +45,12 @@ export function Differentiators() {
               transition={{ duration: 0.5, delay: i * 0.08 }}
               className="rounded-3xl border border-border bg-card p-8 shadow-soft"
             >
-              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-ink text-white">
-                <it.icon className="h-5 w-5" />
+              <div className="flex items-center gap-3">
+                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-ink text-white">
+                  <it.icon className="h-5 w-5" />
+                </div>
+                <h3 className="font-display text-xl font-bold text-ink">{t(it.titleKey)}</h3>
               </div>
-              <h3 className="mt-6 font-display text-xl font-bold text-ink">{t(it.titleKey)}</h3>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{t(it.bodyKey)}</p>
             </motion.div>
           ))}

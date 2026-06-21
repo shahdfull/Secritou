@@ -18,7 +18,7 @@ type PublicUser = Pick<User, keyof typeof userPublicFields>;
 
 export const userRepository = {
   async findByEmail(email: string): Promise<User | null> {
-    return prisma.user.findUnique({ where: { email } });
+    return prisma.user.findFirst({ where: { email } });
   },
 
   async findById(id: string): Promise<PublicUser | null> {
@@ -69,12 +69,17 @@ export const userRepository = {
     });
   },
 
+  async findByRole(role: Role): Promise<PublicUser[]> {
+    return prisma.user.findMany({ where: { role }, select: userPublicFields });
+  },
+
   async create(data: {
     email: string;
     name: string;
     passwordHash: string;
     role?: Role;
     companyId?: string;
+    clientId?: string;
     mustChangePassword?: boolean;
   }): Promise<PublicUser> {
     return prisma.user.create({

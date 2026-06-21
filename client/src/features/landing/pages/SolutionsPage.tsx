@@ -70,16 +70,16 @@ export function SolutionsPage() {
                 onClick={() => trackSolutionSegmentClicked({ segment: t(s.tagKey) })}
                 className="text-left w-full"
               >
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-accent-soft text-ink">
-                  <s.icon className="h-5 w-5" />
+                <div className="flex items-center gap-3">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-accent-soft text-ink">
+                    <s.icon className="h-5 w-5" />
+                  </div>
+                  <p className="font-display text-2xl font-bold uppercase text-ink">
+                    {t(s.tagKey)}
+                  </p>
                 </div>
-                <p className="mt-5 text-xs font-semibold uppercase tracking-wider text-primary">
-                  {t(s.tagKey)}
-                </p>
-                <h2 className="mt-1 font-display text-2xl font-bold text-ink">{t(s.titleKey)}</h2>
-                <p className="mt-4 rounded-xl bg-surface-warm/40 px-4 py-3 text-sm text-ink">
-                  <span className="font-semibold">{t("caseStudiesPage.outcome")}.</span> {t(s.outcomeKey)}
-                </p>
+                <h2 className="mt-5 text-xs font-semibold tracking-wider text-primary">{t(s.titleKey)}</h2>
+
               </button>
               <ul className="grid gap-3">
                 {s.needsKeys.map((n) => (

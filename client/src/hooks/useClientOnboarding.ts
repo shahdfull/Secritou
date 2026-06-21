@@ -19,6 +19,15 @@ export function useClientOnboardings(params?: {
   });
 }
 
+export function useClientOnboardingByClientId(clientId: string) {
+  return useQuery({
+    queryKey: ["clientOnboardingByClient", clientId],
+    queryFn: () => clientOnboardingApi.getOnboardingByClientId(clientId),
+    enabled: !!clientId,
+    staleTime: 60_000,
+  });
+}
+
 export function useClientOnboarding(id: string) {
   return useQuery({
     queryKey: ["clientOnboarding", id],

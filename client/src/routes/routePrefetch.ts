@@ -9,7 +9,6 @@ export const importForgotPasswordPage = () => import("@/features/auth/ForgotPass
 export const importResetPasswordPage = () => import("@/features/auth/ResetPasswordPage");
 export const importDashboardPage = () => import("@/features/dashboard/DashboardPage");
 export const importLeadsPage = () => import("@/features/leads/LeadsPage");
-export const importAnalyticsPage = () => import("@/features/analytics/AnalyticsPage");
 export const importClientsPage = () => import("@/features/clients/ClientsPage");
 export const importClientDetailPage = () => import("@/features/clients/ClientDetailPage");
 export const importFreelancersPage = () => import("@/features/freelancers/FreelancersPage");
@@ -23,6 +22,9 @@ export const importClientDashboardPage = () => import("@/features/client-portal/
 export const importProjectsClientPage = () => import("@/features/client-portal/ProjectsClientPage");
 export const importServiceRequestsClientPage = () => import("@/features/client-portal/ServiceRequestsClientPage");
 export const importClientProfilePage = () => import("@/features/client-portal/ClientProfilePage");
+export const importProposalsClientPage = () => import("@/features/client-portal/ProposalsClientPage");
+export const importApprovalsClientPage = () => import("@/features/client-portal/ApprovalsClientPage");
+export const importInvoicesClientPage = () => import("@/features/client-portal/InvoicesClientPage");
 export const importReportsPage = () => import("@/features/reports/ReportsPage");
 export const importAIAssistantPage = () => import("@/features/ai-assistant/AIAssistantPage");
 export const importApplicationsPage = () => import("@/features/applications/ApplicationsPage");
@@ -36,6 +38,10 @@ export const importEnhancedDocumentsPage = () => import("@/features/enhanced-doc
 export const importClientSuccessPage = () => import("@/features/client-success/ClientSuccessPage");
 export const importServiceRequestsAdminPage = () => import("@/features/service-requests/ServiceRequestsAdminPage");
 export const importCommercialPage = () => import("@/features/commercial/CommercialPage");
+export const importCRMPage = () => import("@/features/crm/CRMPage");
+export const importTalentPage = () => import("@/features/talent/TalentPage");
+export const importQuestionsClientPage = () => import("@/features/client-portal/QuestionsClientPage");
+export const importAdminQuestionsPage = () => import("@/features/questions/AdminQuestionsPage");
 
 export const routePrefetch = {
   home: () => void importHomePage(),
@@ -49,7 +55,6 @@ export const routePrefetch = {
   resetPassword: () => void importResetPasswordPage(),
   dashboard: () => void importDashboardPage(),
   leads: () => void importLeadsPage(),
-  analytics: () => void importAnalyticsPage(),
   clients: () => void importClientsPage(),
   clientDetail: () => void importClientDetailPage(),
   freelancers: () => void importFreelancersPage(),
@@ -63,6 +68,9 @@ export const routePrefetch = {
   clientProjects: () => void importProjectsClientPage(),
   clientRequests: () => void importServiceRequestsClientPage(),
   clientProfile: () => void importClientProfilePage(),
+  clientProposals: () => void importProposalsClientPage(),
+  clientApprovals: () => void importApprovalsClientPage(),
+  clientInvoices: () => void importInvoicesClientPage(),
   applications: () => void importApplicationsPage(),
   proposals: () => void importProposalsPage(),
   approvals: () => void importApprovalsPage(),
@@ -71,4 +79,8 @@ export const routePrefetch = {
   clientSuccess: () => void importClientSuccessPage(),
   serviceRequests: () => void importServiceRequestsAdminPage(),
   commercial: () => void importCommercialPage(),
+  crm: () => void importCRMPage(),
+  talent: () => void importTalentPage(),
+  clientQuestions: () => void importQuestionsClientPage(),
+  adminQuestions: () => void importAdminQuestionsPage(),
 };

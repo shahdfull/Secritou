@@ -1,4 +1,5 @@
 import { prisma, prismaRead } from "../config/prisma.js";
+import { Prisma } from "@prisma/client";
 import type { ServiceRequest, ServiceRequestStatus } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildOrderBy, buildTextSearchFilter } from "../utils/listQuery.js";
@@ -18,6 +19,7 @@ const listSelect = {
   updatedAt: true,
   client: { select: { name: true, id: true } },
   assignedTo: { select: { id: true, name: true, email: true } },
+  proposal: { select: { id: true, title: true } },
 } as const;
 
 const detailSelect = {
@@ -33,6 +35,7 @@ const detailSelect = {
   updatedAt: true,
   client: { select: { name: true, id: true } },
   assignedTo: { select: { id: true, name: true, email: true } },
+  proposal: { select: { id: true, title: true } },
   comments: {
     orderBy: { createdAt: "asc" as const },
     select: {
@@ -86,8 +89,7 @@ export const serviceRequestRepository = {
       assignedToId?: string;
       priority?: string;
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ): Promise<PaginatedResult<any>> {
+  ): Promise<PaginatedResult<Prisma.ServiceRequestGetPayload<{ select: typeof listSelect }>>> {
     const textFilter = buildTextSearchFilter(options.search, ["title", "description"]);
 
     const where: Record<string, unknown> = {

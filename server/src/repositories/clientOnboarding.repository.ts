@@ -1,6 +1,46 @@
 // Client Onboarding Repository - Data access layer
 import { prisma, prismaRead } from "../config/prisma.js";
+import { Prisma } from "@prisma/client";
+import type {
+  ClientOnboarding,
+  Client,
+  Project,
+  OnboardingStep,
+  Contract,
+  Payment,
+  Questionnaire,
+  Specifications,
+  KickoffMeeting,
+  ProductionProgress,
+  Delivery,
+} from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
+
+// ─── Shared include shape used by findById / findByProjectId ─────────────────
+
+const fullOnboardingInclude = {
+  project: true,
+  client: true,
+  assignedUser: true,
+  steps: {
+    include: {
+      contract: true,
+      payment: true,
+      questionnaire: true,
+      specifications: true,
+      kickoff: true,
+      production: true,
+      delivery: true,
+    },
+    orderBy: { orderIndex: "asc" as const },
+  },
+} satisfies Prisma.ClientOnboardingInclude;
+
+type FullOnboarding = Prisma.ClientOnboardingGetPayload<{
+  include: typeof fullOnboardingInclude;
+}>;
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function buildOrderBy(orderBy: string | undefined, orderDir: "asc" | "desc") {
   const allowed = ["createdAt", "updatedAt"];
@@ -8,8 +48,8 @@ function buildOrderBy(orderBy: string | undefined, orderDir: "asc" | "desc") {
   return { [field]: orderDir };
 }
 
-function buildWhere(search?: string, companyId?: string, clientId?: string) {
-  const where: any = {};
+function buildWhere(search?: string, companyId?: string, clientId?: string): Prisma.ClientOnboardingWhereInput {
+  const where: Prisma.ClientOnboardingWhereInput = {};
 
   if (companyId) {
     where.companyId = companyId;
@@ -29,10 +69,12 @@ function buildWhere(search?: string, companyId?: string, clientId?: string) {
   return where;
 }
 
+// ─── Repository ───────────────────────────────────────────────────────────────
+
 export const clientOnboardingRepository = {
   async findAll(
     options: ListQueryOptions & { search?: string; companyId?: string; clientId?: string }
-  ): Promise<PaginatedResult<any>> {
+  ): Promise<PaginatedResult<ClientOnboarding & { client: Pick<Client, "id" | "name">; project: Pick<Project, "id" | "name"> | null }>> {
     const skip = (options.page - 1) * options.pageSize;
     const orderBy = buildOrderBy(options.orderBy, options.orderDir);
     const where = buildWhere(options.search, options.companyId, options.clientId);
@@ -67,49 +109,17 @@ export const clientOnboardingRepository = {
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(id: string, companyId: string): Promise<any | null> {
+  async findById(id: string, companyId: string): Promise<FullOnboarding | null> {
     return prismaRead.clientOnboarding.findUnique({
       where: { id, companyId },
-      include: {
-        project: true,
-        client: true,
-        assignedUser: true,
-        steps: {
-          include: {
-            contract: true,
-            payment: true,
-            questionnaire: true,
-            specifications: true,
-            kickoff: true,
-            production: true,
-            delivery: true,
-          },
-          orderBy: { orderIndex: "asc" },
-        },
-      },
+      include: fullOnboardingInclude,
     });
   },
 
-  async findByProjectId(projectId: string, companyId: string): Promise<any | null> {
+  async findByProjectId(projectId: string, companyId: string): Promise<FullOnboarding | null> {
     return prismaRead.clientOnboarding.findUnique({
       where: { projectId, project: { companyId } },
-      include: {
-        project: true,
-        client: true,
-        assignedUser: true,
-        steps: {
-          include: {
-            contract: true,
-            payment: true,
-            questionnaire: true,
-            specifications: true,
-            kickoff: true,
-            production: true,
-            delivery: true,
-          },
-          orderBy: { orderIndex: "asc" },
-        },
-      },
+      include: fullOnboardingInclude,
     });
   },
 
@@ -124,7 +134,7 @@ export const clientOnboardingRepository = {
       description?: string;
       orderIndex: number;
     }>;
-  }): Promise<any> {
+  }): Promise<FullOnboarding> {
     return prisma.clientOnboarding.create({
       data: {
         projectId: data.projectId,
@@ -135,47 +145,52 @@ export const clientOnboardingRepository = {
           create: data.steps || [],
         },
       },
-      include: {
-        project: true,
-        client: true,
-        steps: true,
-      },
+      include: fullOnboardingInclude,
     });
   },
 
-  async update(id: string, companyId: string, data: any): Promise<any> {
+  async update(
+    id: string,
+    companyId: string,
+    data: Prisma.ClientOnboardingUpdateInput
+  ): Promise<FullOnboarding> {
     return prisma.clientOnboarding.update({
       where: { id, companyId },
       data,
-      include: {
-        project: true,
-        client: true,
-        steps: true,
-      },
+      include: fullOnboardingInclude,
     });
   },
 
-  async delete(id: string, companyId: string): Promise<any> {
+  async delete(id: string, companyId: string): Promise<ClientOnboarding> {
     return prisma.clientOnboarding.delete({ where: { id, companyId } });
   },
 
-  // Step operations
-  async addStep(onboardingId: string, companyId: string, data: any): Promise<any> {
-    await prisma.clientOnboarding.findUniqueOrThrow({ where: { id: onboardingId, companyId }, select: { id: true } });
+  // ── Step operations ────────────────────────────────────────────────────────
+
+  async addStep(
+    onboardingId: string,
+    companyId: string,
+    data: Omit<Prisma.OnboardingStepCreateInput, "onboarding">
+  ): Promise<OnboardingStep> {
+    await prisma.clientOnboarding.findUniqueOrThrow({
+      where: { id: onboardingId, companyId },
+      select: { id: true },
+    });
     return prisma.onboardingStep.create({
       data: {
-        onboardingId,
+        onboarding: { connect: { id: onboardingId } },
         ...data,
       },
     });
   },
 
-  async updateStep(stepId: string, companyId: string, data: any): Promise<any> {
+  async updateStep(
+    stepId: string,
+    companyId: string,
+    data: Prisma.OnboardingStepUpdateInput
+  ): Promise<OnboardingStep> {
     return prisma.onboardingStep.update({
-      where: {
-        id: stepId,
-        onboarding: { companyId }
-      },
+      where: { id: stepId, onboarding: { companyId } },
       data,
       include: {
         contract: true,
@@ -189,117 +204,170 @@ export const clientOnboardingRepository = {
     });
   },
 
-  // Contract operations
-  async createContract(stepId: string, companyId: string, data: any): Promise<any> {
-    await prisma.onboardingStep.findUniqueOrThrow({ where: { id: stepId, onboarding: { companyId } }, select: { id: true } });
+  // ── Contract operations ────────────────────────────────────────────────────
+
+  async createContract(
+    stepId: string,
+    companyId: string,
+    data: Omit<Prisma.ContractCreateInput, "onboardingStep">
+  ): Promise<Contract> {
+    await prisma.onboardingStep.findUniqueOrThrow({
+      where: { id: stepId, onboarding: { companyId } },
+      select: { id: true },
+    });
     return prisma.contract.create({
       data: {
-        onboardingStepId: stepId,
+        onboardingStep: { connect: { id: stepId } },
         ...data,
       },
     });
   },
 
-  async updateContract(contractId: string, companyId: string, data: any): Promise<any> {
+  async updateContract(
+    contractId: string,
+    companyId: string,
+    data: Prisma.ContractUpdateInput
+  ): Promise<Contract> {
     return prisma.contract.update({
-      where: {
-        id: contractId,
-        onboardingStep: { onboarding: { companyId } }
-      },
+      where: { id: contractId, onboardingStep: { onboarding: { companyId } } },
       data,
     });
   },
 
-  // Payment operations
-  async createPayment(stepId: string, companyId: string, data: any): Promise<any> {
-    await prisma.onboardingStep.findUniqueOrThrow({ where: { id: stepId, onboarding: { companyId } }, select: { id: true } });
+  // ── Payment operations ─────────────────────────────────────────────────────
+
+  async createPayment(
+    stepId: string,
+    companyId: string,
+    data: Omit<Prisma.PaymentCreateInput, "onboardingStep">
+  ): Promise<Payment> {
+    await prisma.onboardingStep.findUniqueOrThrow({
+      where: { id: stepId, onboarding: { companyId } },
+      select: { id: true },
+    });
     return prisma.payment.create({
       data: {
-        onboardingStepId: stepId,
+        onboardingStep: { connect: { id: stepId } },
         ...data,
       },
     });
   },
 
-  async updatePayment(paymentId: string, companyId: string, data: any): Promise<any> {
+  async updatePayment(
+    paymentId: string,
+    companyId: string,
+    data: Prisma.PaymentUpdateInput
+  ): Promise<Payment> {
     return prisma.payment.update({
-      where: {
-        id: paymentId,
-        onboardingStep: { onboarding: { companyId } }
-      },
+      where: { id: paymentId, onboardingStep: { onboarding: { companyId } } },
       data,
     });
   },
 
-  // Questionnaire operations
-  async createQuestionnaire(stepId: string, companyId: string, data: any): Promise<any> {
-    await prisma.onboardingStep.findUniqueOrThrow({ where: { id: stepId, onboarding: { companyId } }, select: { id: true } });
+  // ── Questionnaire operations ───────────────────────────────────────────────
+
+  async createQuestionnaire(
+    stepId: string,
+    companyId: string,
+    data: Omit<Prisma.QuestionnaireCreateInput, "onboardingStep">
+  ): Promise<Questionnaire> {
+    await prisma.onboardingStep.findUniqueOrThrow({
+      where: { id: stepId, onboarding: { companyId } },
+      select: { id: true },
+    });
     return prisma.questionnaire.create({
       data: {
-        onboardingStepId: stepId,
+        onboardingStep: { connect: { id: stepId } },
         ...data,
       },
     });
   },
 
-  async updateQuestionnaire(questionnaireId: string, companyId: string, data: any): Promise<any> {
+  async updateQuestionnaire(
+    questionnaireId: string,
+    companyId: string,
+    data: Prisma.QuestionnaireUpdateInput
+  ): Promise<Questionnaire> {
     return prisma.questionnaire.update({
-      where: {
-        id: questionnaireId,
-        onboardingStep: { onboarding: { companyId } }
-      },
+      where: { id: questionnaireId, onboardingStep: { onboarding: { companyId } } },
       data,
     });
   },
 
-  // Specifications operations
-  async createSpecifications(stepId: string, companyId: string, data: any): Promise<any> {
-    await prisma.onboardingStep.findUniqueOrThrow({ where: { id: stepId, onboarding: { companyId } }, select: { id: true } });
+  // ── Specifications operations ──────────────────────────────────────────────
+
+  async createSpecifications(
+    stepId: string,
+    companyId: string,
+    data: Omit<Prisma.SpecificationsCreateInput, "onboardingStep">
+  ): Promise<Specifications> {
+    await prisma.onboardingStep.findUniqueOrThrow({
+      where: { id: stepId, onboarding: { companyId } },
+      select: { id: true },
+    });
     return prisma.specifications.create({
       data: {
-        onboardingStepId: stepId,
+        onboardingStep: { connect: { id: stepId } },
         ...data,
       },
     });
   },
 
-  async updateSpecifications(specificationsId: string, companyId: string, data: any): Promise<any> {
+  async updateSpecifications(
+    specificationsId: string,
+    companyId: string,
+    data: Prisma.SpecificationsUpdateInput
+  ): Promise<Specifications> {
     return prisma.specifications.update({
-      where: {
-        id: specificationsId,
-        onboardingStep: { onboarding: { companyId } }
-      },
+      where: { id: specificationsId, onboardingStep: { onboarding: { companyId } } },
       data,
     });
   },
 
-  // Kickoff operations
-  async createKickoff(stepId: string, companyId: string, data: any): Promise<any> {
-    await prisma.onboardingStep.findUniqueOrThrow({ where: { id: stepId, onboarding: { companyId } }, select: { id: true } });
+  // ── Kickoff operations ─────────────────────────────────────────────────────
+
+  async createKickoff(
+    stepId: string,
+    companyId: string,
+    data: Omit<Prisma.KickoffMeetingCreateInput, "onboardingStep">
+  ): Promise<KickoffMeeting> {
+    await prisma.onboardingStep.findUniqueOrThrow({
+      where: { id: stepId, onboarding: { companyId } },
+      select: { id: true },
+    });
     return prisma.kickoffMeeting.create({
       data: {
-        onboardingStepId: stepId,
+        onboardingStep: { connect: { id: stepId } },
         ...data,
       },
     });
   },
 
-  async updateKickoff(kickoffId: string, companyId: string, data: any): Promise<any> {
+  async updateKickoff(
+    kickoffId: string,
+    companyId: string,
+    data: Prisma.KickoffMeetingUpdateInput
+  ): Promise<KickoffMeeting> {
     return prisma.kickoffMeeting.update({
-      where: {
-        id: kickoffId,
-        onboardingStep: { onboarding: { companyId } }
-      },
+      where: { id: kickoffId, onboardingStep: { onboarding: { companyId } } },
       data,
     });
   },
 
-  // Production operations
-  async createProduction(stepId: string, companyId: string, data: any): Promise<any> {
-    await prisma.onboardingStep.findUniqueOrThrow({ where: { id: stepId, onboarding: { companyId } }, select: { id: true } });
+  // ── Production operations ──────────────────────────────────────────────────
+
+  async createProduction(
+    stepId: string,
+    companyId: string,
+    data: Omit<Prisma.ProductionProgressCreateInput, "onboardingStep">
+  ): Promise<ProductionProgress> {
+    await prisma.onboardingStep.findUniqueOrThrow({
+      where: { id: stepId, onboarding: { companyId } },
+      select: { id: true },
+    });
     return prisma.productionProgress.create({
       data: {
-        onboardingStepId: stepId,
+        onboardingStep: { connect: { id: stepId } },
         analysis: 0,
         design: 0,
         development: 0,
@@ -310,33 +378,43 @@ export const clientOnboardingRepository = {
     });
   },
 
-  async updateProduction(productionId: string, companyId: string, data: any): Promise<any> {
+  async updateProduction(
+    productionId: string,
+    companyId: string,
+    data: Prisma.ProductionProgressUpdateInput
+  ): Promise<ProductionProgress> {
     return prisma.productionProgress.update({
-      where: {
-        id: productionId,
-        onboardingStep: { onboarding: { companyId } }
-      },
+      where: { id: productionId, onboardingStep: { onboarding: { companyId } } },
       data,
     });
   },
 
-  // Delivery operations
-  async createDelivery(stepId: string, companyId: string, data: any): Promise<any> {
-    await prisma.onboardingStep.findUniqueOrThrow({ where: { id: stepId, onboarding: { companyId } }, select: { id: true } });
+  // ── Delivery operations ────────────────────────────────────────────────────
+
+  async createDelivery(
+    stepId: string,
+    companyId: string,
+    data: Omit<Prisma.DeliveryCreateInput, "onboardingStep">
+  ): Promise<Delivery> {
+    await prisma.onboardingStep.findUniqueOrThrow({
+      where: { id: stepId, onboarding: { companyId } },
+      select: { id: true },
+    });
     return prisma.delivery.create({
       data: {
-        onboardingStepId: stepId,
+        onboardingStep: { connect: { id: stepId } },
         ...data,
       },
     });
   },
 
-  async updateDelivery(deliveryId: string, companyId: string, data: any): Promise<any> {
+  async updateDelivery(
+    deliveryId: string,
+    companyId: string,
+    data: Prisma.DeliveryUpdateInput
+  ): Promise<Delivery> {
     return prisma.delivery.update({
-      where: {
-        id: deliveryId,
-        onboardingStep: { onboarding: { companyId } }
-      },
+      where: { id: deliveryId, onboardingStep: { onboarding: { companyId } } },
       data,
     });
   },

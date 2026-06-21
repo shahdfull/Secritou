@@ -7,6 +7,7 @@ import {
   useAddComment,
   useDeleteComment,
 } from "@/hooks/useServiceRequests";
+import { useCreateProposal } from "@/hooks/useProposals";
 import type {
   ServiceRequest,
   ServiceRequestStatus,
@@ -63,6 +64,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  File,
 } from "lucide-react";
 import { useDebouncedValue } from "@/hooks/shared/useDebouncedValue";
 import { useAuthStore } from "@/store/auth.store";
@@ -165,11 +167,22 @@ function ServiceRequestDetail({
   const updateMutation = useAdminUpdateServiceRequest(id);
   const addComment = useAddComment(id);
   const deleteComment = useDeleteComment(id);
+  const createProposal = useCreateProposal();
   const user = useAuthStore((s) => s.user);
 
   const [commentBody, setCommentBody] = useState("");
   const [isInternal, setIsInternal] = useState(false);
   const commentRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleCreateProposal = async () => {
+    if (!request) return;
+    await createProposal.mutateAsync({
+      title: `Proposition pour demande ${request.id}`,
+      description: request.description,
+      clientId: request.clientId,
+      serviceRequestId: request.id,
+    });
+  };
 
   if (isLoading) {
     return (
@@ -241,6 +254,11 @@ function ServiceRequestDetail({
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Actions
         </p>
+        <Button onClick={handleCreateProposal} disabled={createProposal.isPending}>
+          {createProposal.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+          <File className="h-4 w-4 mr-2" />
+          Créer une proposition
+        </Button>
 
         {/* Status transitions */}
         {nextStatuses.length > 0 && (
@@ -442,9 +460,9 @@ export function ServiceRequestsAdminPage() {
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="space-y-6">
       {/* Page header */}
-      <div className="px-6 py-5 border-b shrink-0">
+      <div className="shrink-0">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Demandes de Service</h1>
@@ -520,7 +538,7 @@ export function ServiceRequestsAdminPage() {
       </div>
 
       {/* Content area */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex">
         {/* Table */}
         <div
           className={`flex-1 overflow-auto transition-opacity ${

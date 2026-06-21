@@ -80,6 +80,7 @@ export const ratingService = {
     ratingId: string,
     reviewerId: string,
     reviewerRole: Role,
+    companyId: string | null | undefined,
     data: { score?: number; comment?: string }
   ) {
     const rating = await ratingRepository.findById(ratingId);
@@ -89,13 +90,19 @@ export const ratingService = {
       throw new HttpError(403, "You can only edit your own ratings");
     }
 
-    const updated = await ratingRepository.update(ratingId, data);
+    const tenantId = companyId ?? rating.mission.companyId;
+    const updated = await ratingRepository.update(ratingId, tenantId, data);
     await ratingRepository.updateFreelancerAggregates(rating.freelancerId);
 
     return updated;
   },
 
-  async deleteRating(ratingId: string, reviewerId: string, reviewerRole: Role) {
+  async deleteRating(
+    ratingId: string,
+    reviewerId: string,
+    reviewerRole: Role,
+    companyId: string | null | undefined
+  ) {
     const rating = await ratingRepository.findById(ratingId);
     if (!rating) throw new HttpError(404, "Rating not found");
 
@@ -103,7 +110,8 @@ export const ratingService = {
       throw new HttpError(403, "You can only delete your own ratings");
     }
 
-    await ratingRepository.delete(ratingId);
+    const tenantId = companyId ?? rating.mission.companyId;
+    await ratingRepository.delete(ratingId, tenantId);
     await ratingRepository.updateFreelancerAggregates(rating.freelancerId);
   },
 

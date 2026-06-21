@@ -2,44 +2,68 @@ import type { Lead } from "@/types/lead";
 import type { Project } from "@/types/project";
 import type { FreelancerMission } from "@/types/freelancer";
 
-type XlsxModule = typeof import("xlsx");
-
 export async function exportReportsExcel(input: {
   leads: Lead[];
   projects: Project[];
   missions: FreelancerMission[];
 }) {
-  const XLSX = (await import("xlsx")) as XlsxModule;
-  const workbook = XLSX.utils.book_new();
+  const ExcelJS = (await import("exceljs")).default;
+  const workbook = new ExcelJS.Workbook();
 
-  const leadsSheet = XLSX.utils.json_to_sheet(
+  const leadsSheet = workbook.addWorksheet("Leads");
+  leadsSheet.columns = [
+    { header: "Nom", key: "nom", width: 30 },
+    { header: "Email", key: "email", width: 30 },
+    { header: "Statut", key: "statut", width: 15 },
+    { header: "Date de création", key: "date", width: 20 },
+  ];
+  leadsSheet.addRows(
     input.leads.map((lead) => ({
-      Nom: lead.name,
-      Email: lead.email,
-      Statut: lead.status,
-      "Date de création": new Date(lead.createdAt).toLocaleDateString(),
+      nom: lead.name,
+      email: lead.email ?? "",
+      statut: lead.status,
+      date: new Date(lead.createdAt).toLocaleDateString("fr-FR"),
     }))
   );
-  XLSX.utils.book_append_sheet(workbook, leadsSheet, "Leads");
 
-  const projectsSheet = XLSX.utils.json_to_sheet(
+  const projectsSheet = workbook.addWorksheet("Projets");
+  projectsSheet.columns = [
+    { header: "Nom", key: "nom", width: 30 },
+    { header: "Description", key: "description", width: 50 },
+    { header: "Statut", key: "statut", width: 15 },
+  ];
+  projectsSheet.addRows(
     input.projects.map((project) => ({
-      Nom: project.name,
-      Description: project.description,
-      Statut: project.status,
+      nom: project.name,
+      description: project.description ?? "",
+      statut: project.status,
     }))
   );
-  XLSX.utils.book_append_sheet(workbook, projectsSheet, "Projets");
 
-  const missionsSheet = XLSX.utils.json_to_sheet(
+  const missionsSheet = workbook.addWorksheet("Missions");
+  missionsSheet.columns = [
+    { header: "Titre", key: "titre", width: 30 },
+    { header: "Description", key: "description", width: 50 },
+    { header: "Statut", key: "statut", width: 15 },
+    { header: "Budget", key: "budget", width: 15 },
+  ];
+  missionsSheet.addRows(
     input.missions.map((mission) => ({
-      Titre: mission.title,
-      Description: mission.description,
-      Statut: mission.status,
-      Budget: mission.budget,
+      titre: mission.title,
+      description: mission.description ?? "",
+      statut: mission.status,
+      budget: mission.budget ?? 0,
     }))
   );
-  XLSX.utils.book_append_sheet(workbook, missionsSheet, "Missions");
 
-  XLSX.writeFile(workbook, "rapport-secritou.xlsx");
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = "rapport-secritou.xlsx";
+  anchor.click();
+  URL.revokeObjectURL(url);
 }

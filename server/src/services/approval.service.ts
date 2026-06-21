@@ -1,13 +1,25 @@
 import { approvalRepository } from "../repositories/approval.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
-import { enqueueEmail } from "../jobs/queues.js";
-import { approvalDecisionTemplate } from "./emailTemplates/index.js";
+import { clientRepository } from "../repositories/client.repository.js";
+import { enqueueEmail, enqueueEmails } from "../jobs/queues.js";
+import { approvalRequestedTemplate, approvalDecisionTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
 import type { ApprovalStatus } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { tenantValidation } from "./tenantValidation.service.js";
 
 export const approvalService = {
+  async getAllByClientId(
+    clientId: string,
+    options: { page: number; pageSize: number; status?: ApprovalStatus }
+  ) {
+    return approvalRepository.findAllByClientId(clientId, options);
+  },
+
+  async getByIdForClient(id: string, clientId: string) {
+    return approvalRepository.findByIdForClient(id, clientId);
+  },
+
   async getAll(
     options: ListQueryOptions & {
       companyId: string;
@@ -31,10 +43,36 @@ export const approvalService = {
       clientId: string;
       projectId?: string;
     },
-    companyId: string
+    companyId: string,
+    requesterId?: string
   ) {
     await tenantValidation.assertClientInCompany(data.clientId, companyId);
-    return approvalRepository.create({ ...data, companyId });
+    const approval = await approvalRepository.create({ ...data, companyId });
+
+    const [clientUsers, requester] = await Promise.all([
+      userRepository.findByClientId(data.clientId),
+      requesterId ? userRepository.findById(requesterId) : Promise.resolve(null),
+    ]);
+
+    const approvalUrl = `${env.FRONTEND_URL}/client/approvals/${approval.id}`;
+    const dueDate = data.dueDate
+      ? new Date(data.dueDate).toLocaleDateString("fr-FR")
+      : "—";
+
+    void enqueueEmails(
+      clientUsers.map((user) => {
+        const { subject, html } = approvalRequestedTemplate(
+          user.name ?? "Client",
+          approval.title,
+          requester?.name ?? "L'équipe Secritou",
+          dueDate,
+          approvalUrl
+        );
+        return { to: user.email, subject, html };
+      })
+    );
+
+    return approval;
   },
 
   async update(

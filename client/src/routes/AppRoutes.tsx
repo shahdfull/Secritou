@@ -5,11 +5,11 @@ import { Header } from "@/components/layout/Header";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { ClientLayout } from "@/components/layout/ClientLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ScrollToTop } from "@/components/ScrollToTop";
 import { RouteBoundary } from "@/components/common/RouteBoundary";
 import { MustChangePasswordGuard } from "@/components/MustChangePasswordGuard";
 import {
   importAIAssistantPage,
-  importAnalyticsPage,
   importClientDashboardPage,
   importClientDetailPage,
   importClientProfilePage,
@@ -45,6 +45,13 @@ import {
   importClientSuccessPage,
   importServiceRequestsAdminPage,
   importCommercialPage,
+  importCRMPage,
+  importTalentPage,
+  importProposalsClientPage,
+  importApprovalsClientPage,
+  importInvoicesClientPage,
+  importQuestionsClientPage,
+  importAdminQuestionsPage,
 } from "./routePrefetch";
 
 // Lazy load route components for code splitting (handle named exports)
@@ -58,7 +65,6 @@ const ForgotPasswordPage = lazy(() => importForgotPasswordPage().then((m) => ({ 
 const ResetPasswordPage = lazy(() => importResetPasswordPage().then((m) => ({ default: m.ResetPasswordPage })));
 const DashboardPage = lazy(() => importDashboardPage().then((m) => ({ default: m.DashboardPage })));
 const LeadsPage = lazy(() => importLeadsPage().then((m) => ({ default: m.LeadsPage })));
-const AnalyticsPage = lazy(() => importAnalyticsPage().then((m) => ({ default: m.AnalyticsPage })));
 const ClientsPage = lazy(() => importClientsPage().then((m) => ({ default: m.ClientsPage })));
 const ClientDetailPage = lazy(() => importClientDetailPage().then((m) => ({ default: m.ClientDetailPage })));
 const FreelancersPage = lazy(() => importFreelancersPage().then((m) => ({ default: m.FreelancersPage })));
@@ -89,6 +95,13 @@ const ServiceRequestsAdminPage = lazy(() =>
 const CommercialPage = lazy(() =>
   importCommercialPage().then((m) => ({ default: m.CommercialPage }))
 );
+const CRMPage = lazy(() => importCRMPage().then((m) => ({ default: m.CRMPage })));
+const TalentPage = lazy(() => importTalentPage().then((m) => ({ default: m.TalentPage })));
+const ProposalsClientPage = lazy(() => importProposalsClientPage().then((m) => ({ default: m.ProposalsClientPage })));
+const ApprovalsClientPage = lazy(() => importApprovalsClientPage().then((m) => ({ default: m.ApprovalsClientPage })));
+const InvoicesClientPage = lazy(() => importInvoicesClientPage().then((m) => ({ default: m.InvoicesClientPage })));
+const QuestionsClientPage = lazy(() => importQuestionsClientPage().then((m) => ({ default: m.QuestionsClientPage })));
+const AdminQuestionsPage = lazy(() => importAdminQuestionsPage().then((m) => ({ default: m.AdminQuestionsPage })));
 
 function PageLoader() {
   return (
@@ -119,6 +132,8 @@ function withBoundary(element: React.ReactNode) {
 
 export function AppRoutes() {
   return (
+    <>
+    <ScrollToTop />
     <Routes>
       <Route element={<MarketingLayout />}>
         <Route index element={withBoundary(<HomePage />)} />
@@ -143,28 +158,32 @@ export function AppRoutes() {
           }
         >
           <Route index element={withBoundary(<DashboardPage />)} />
-          <Route path="leads" element={withBoundary(<LeadsPage />)} />
-          <Route path="clients" element={withBoundary(<ClientsPage />)} />
+          <Route path="crm" element={withBoundary(<CRMPage />)} />
+          <Route path="leads" element={<Navigate to="/app/crm" replace />} />
+          <Route path="clients" element={<Navigate to="/app/crm" replace />} />
           <Route path="clients/:id" element={withBoundary(<ClientDetailPage />)} />
-          <Route path="freelancers" element={withBoundary(<FreelancersPage />)} />
+          <Route path="talent" element={withBoundary(<TalentPage />)} />
+          <Route path="applications" element={<Navigate to="/app/talent" replace />} />
+          <Route path="freelancers" element={<Navigate to="/app/talent" replace />} />
           <Route path="freelancers/:id" element={withBoundary(<FreelancerDetailPage />)} />
-          <Route path="missions" element={withBoundary(<MissionsPage />)} />
+          <Route path="missions" element={<Navigate to="/app/talent" replace />} />
           <Route path="projects" element={withBoundary(<ProjectsPage />)} />
-          <Route path="tasks" element={withBoundary(<TasksPage />)} />
+          <Route path="tasks" element={<Navigate to="/app/projects" replace />} />
           <Route path="ai" element={withBoundary(<AIAssistantPage />)} />
-              <Route path="analytics" element={withBoundary(<AnalyticsPage />)} />
+              <Route path="analytics" element={<Navigate to="/app" replace />} />
               <Route path="reports" element={withBoundary(<ReportsPage />)} />
-              <Route path="applications" element={withBoundary(<ApplicationsPage />)} />
               <Route path="commercial" element={withBoundary(<CommercialPage />)} />
               <Route path="service-requests" element={<Navigate to="/app/commercial" replace />} />
               <Route path="proposals" element={<Navigate to="/app/commercial" replace />} />
-              <Route path="approvals" element={withBoundary(<ApprovalsPage />)} />
-              <Route path="invoices" element={withBoundary(<InvoicesPage />)} />
-              <Route path="documents" element={withBoundary(<EnhancedDocumentsPage />)} />
+              <Route path="approvals" element={<Navigate to="/app/commercial" replace />} />
+              <Route path="invoices" element={<Navigate to="/app/commercial" replace />} />
+              <Route path="documents" element={<Navigate to="/app/projects" replace />} />
               <Route path="client-success/:clientId" element={withBoundary(<ClientSuccessPage />)} />
-              <Route path="client-onboardings" element={withBoundary(<AdminOnboardingPage />)} />
+              <Route path="client-onboardings" element={<Navigate to="/app/crm" replace />} />
               <Route path="client-onboarding/:id" element={withBoundary(<ClientOnboardingPage />)} />
               <Route path="settings" element={withBoundary(<SettingsPage />)} />
+              <Route path="questions" element={withBoundary(<AdminQuestionsPage />)} />
+              <Route path="questions/:id" element={withBoundary(<AdminQuestionsPage />)} />
         </Route>
 
         <Route
@@ -178,11 +197,17 @@ export function AppRoutes() {
           <Route index element={withBoundary(<ClientDashboardPage />)} />
           <Route path="projects" element={withBoundary(<ProjectsClientPage />)} />
           <Route path="requests" element={withBoundary(<ServiceRequestsClientPage />)} />
+          <Route path="proposals" element={withBoundary(<ProposalsClientPage />)} />
+          <Route path="approvals" element={withBoundary(<ApprovalsClientPage />)} />
+          <Route path="invoices" element={withBoundary(<InvoicesClientPage />)} />
           <Route path="profile" element={withBoundary(<ClientProfilePage />)} />
+          <Route path="questions" element={withBoundary(<QuestionsClientPage />)} />
+          <Route path="questions/:id" element={withBoundary(<QuestionsClientPage />)} />
         </Route>
       </Route>
 
       <Route path="*" element={withBoundary(<NotFoundPage />)} />
     </Routes>
+    </>
   );
 }

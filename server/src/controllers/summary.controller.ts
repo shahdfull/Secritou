@@ -5,7 +5,7 @@ import { HttpError } from "../utils/httpError.js";
 export const getClientSummary: RequestHandler = async (req, res, next) => {
   try {
     const companyId = req.user?.companyId;
-    const clientId = req.params.clientId;
+    const clientId = req.params.clientId as string;
     if (!companyId) throw new HttpError(400, "Company required");
 
     const summary = await summaryService.getClientSummary(companyId, clientId);
@@ -18,8 +18,8 @@ export const getClientSummary: RequestHandler = async (req, res, next) => {
 
 export const getProjectSummary: RequestHandler = async (req, res, next) => {
   try {
-    const companyId = req.user?.companyId;
-    const projectId = req.params.projectId;
+    const companyId = req.user?.companyId as string | undefined;
+    const projectId = req.params.projectId as string;
     if (!companyId) throw new HttpError(400, "Company required");
 
     const summary = await summaryService.getProjectSummary(companyId, projectId);

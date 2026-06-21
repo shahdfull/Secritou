@@ -1,0 +1,23 @@
+groups:
+  - name: secritou
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_errors_total[5m]) > 0.05
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "Error rate > 5% for 2 minutes" }
+      - alert: SlowQueries
+        expr: histogram_quantile(0.99, prisma_query_duration_seconds_bucket) > 1
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: "P99 DB query > 1s" }
+      - alert: CacheHitRateLow
+        expr: rate(cache_hits_total[10m]) / (rate(cache_hits_total[10m]) + rate(cache_misses_total[10m])) < 0.5
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: "Cache hit rate below 50%" }
+      - alert: APIDown
+        expr: up{job="secritou-api"} == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations: { summary: "API is down" }

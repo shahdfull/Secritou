@@ -27,6 +27,8 @@ import clientSuccessRoutes from "./clientSuccess.routes.js";
 import summaryRoutes from "./summary.routes.js";
 import uploadRoutes from "./upload.routes.js";
 import ratingRoutes from "./rating.routes.js";
+import aiConversationRoutes from "./aiConversation.routes.js";
+import customQuestionRoutes from "./customQuestion.routes.js";
 
 export const apiRoutes = Router();
 
@@ -169,3 +171,9 @@ apiRoutes.use("/upload", uploadRoutes);
 
 // Rating routes
 apiRoutes.use("/ratings", ratingRoutes);
+
+// AI Conversation history routes
+apiRoutes.use("/ai/conversations", aiConversationRoutes);
+
+// Custom question (FAQ) routes
+apiRoutes.use("/custom-questions", customQuestionRoutes);

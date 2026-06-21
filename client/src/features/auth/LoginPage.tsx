@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useLogin, getRedirectPathForRole } from "@/hooks/useAuth";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -18,13 +18,18 @@ export function LoginPage() {
   type LoginForm = z.infer<typeof loginSchema>;
   const { mutate: login, isPending } = useLogin();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get("redirect");
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
 
   const onSubmit = (data: LoginForm) => {
-    login(data, { onSuccess: (response) => navigate(getRedirectPathForRole(response.user.role)) });
+    login(data, {
+      onSuccess: (response) =>
+        navigate(redirectTo || getRedirectPathForRole(response.user.role)),
+    });
   };
 
   return (

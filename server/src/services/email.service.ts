@@ -85,6 +85,51 @@ export const emailService = {
     }
   },
 
+  async sendPasswordResetEmail(options: { to: string; name: string; resetUrl: string }) {
+    const html = `
+      <!DOCTYPE html>
+      <html lang="fr">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Réinitialisation de votre mot de passe Secritou</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .button { display: inline-block; padding: 12px 24px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+            .note { color: #666; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+          <h1>Bonjour ${options.name},</h1>
+          <p>Vous avez demandé la réinitialisation de votre mot de passe Secritou.</p>
+          <p>Cliquez sur le bouton ci-dessous pour réinitialiser votre mot de passe (valable 1 heure :</p>
+          <a href="${options.resetUrl}" class="button">Réinitialiser mon mot de passe</a>
+          <p class="note">Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :</p>
+          <p class="note">${options.resetUrl}</p>
+          <p class="note">Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>
+          </div>
+        </body>
+      </html>
+    `;
+    const text = `Bonjour ${options.name},
+
+Vous avez demandé la réinitialisation de votre mot de passe Secritou.
+
+Cliquez sur le lien ci-dessous pour réinitialiser votre mot de passe (valable 1 heure) :
+${options.resetUrl}
+
+Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.`;
+
+    await this.send({
+      to: options.to,
+      subject: "Réinitialisation de votre mot de passe Secritou",
+      html,
+      text,
+    });
+  },
+
   /** Verify SMTP connectivity (used at startup or in health checks). */
   async verify(): Promise<boolean> {
     try {

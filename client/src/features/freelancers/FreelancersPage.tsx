@@ -24,6 +24,7 @@ import {
   useCreateMyFreelancerProfile,
   useUpdateMyFreelancerProfile,
 } from "@/hooks/useFreelancers";
+import { useMissions } from "@/hooks/useMissions";
 import type { FreelancerProfile } from "@/types/freelancer";
 import {
   Dialog,
@@ -75,6 +76,17 @@ const updateProfileSchema = z.object({
 
 type CreateProfileForm = z.infer<typeof createProfileSchema>;
 type UpdateProfileForm = z.infer<typeof updateProfileSchema>;
+
+function ActiveMissionsBadge({ freelancerId }: { freelancerId: string }) {
+  const { data } = useMissions({ freelancerId, status: "IN_PROGRESS", pageSize: 100 });
+  const count = data?.total ?? 0;
+  if (count === 0) return null;
+  return (
+    <span className="inline-flex items-center rounded-full bg-purple-100 text-purple-800 px-2.5 py-0.5 text-xs font-medium">
+      {count} mission{count > 1 ? "s" : ""} active{count > 1 ? "s" : ""}
+    </span>
+  );
+}
 
 export function FreelancersPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -304,6 +316,9 @@ export function FreelancersPage() {
                 <Link to={`/app/freelancers/${freelancer.id}`} className="hover:underline">
                   <CardTitle className="text-lg">{freelancer.user.name}</CardTitle>
                   <p className="text-sm text-muted-foreground">{freelancer.user.email}</p>
+                  <div className="mt-1">
+                    <ActiveMissionsBadge freelancerId={freelancer.id} />
+                  </div>
                 </Link>
                 {freelancer.userId === user?.id && (
                   <Button variant="ghost" size="icon" onClick={() => handleEdit(freelancer)}>

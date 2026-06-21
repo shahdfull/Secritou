@@ -22,6 +22,7 @@ export interface ServiceRequest {
   updatedAt: string;
   client?: { id: string; name: string };
   assignedTo?: { id: string; name: string; email: string } | null;
+  proposal?: { id: string; title: string } | null;
 }
 
 export interface ServiceRequestComment {

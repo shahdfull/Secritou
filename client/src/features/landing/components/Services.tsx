@@ -94,15 +94,17 @@ export function Services() {
               onClick={() => trackServiceCardClicked({ service: s.title })}
               className="group relative overflow-hidden rounded-3xl border border-border bg-card p-7 shadow-soft transition-shadow hover:shadow-card text-left w-full"
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary text-primary-foreground">
-                  <s.icon className="h-5 w-5" />
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary text-primary-foreground">
+                    <s.icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="font-display text-xl font-bold text-ink">{s.title}</h3>
                 </div>
                 <span className="text-xs font-semibold text-muted-foreground">
                   0{i + 1}
                 </span>
               </div>
-              <h3 className="mt-6 font-display text-xl font-bold text-ink">{s.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
               <ul className="mt-5 grid grid-cols-2 gap-y-2 gap-x-3 text-xs text-ink">
                 {s.items.map((it) => (
@@ -116,16 +118,7 @@ export function Services() {
           ))}
         </div>
 
-        <ul className="mt-8 grid gap-3 text-sm text-ink sm:grid-cols-2 lg:grid-cols-4">
-          {highlights.map((item) => (
-            <li key={item} className="flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 shadow-soft">
-              <span className="grid h-5 w-5 place-items-center rounded-full bg-primary text-[10px] text-primary-foreground">
-                ✓
-              </span>
-              {item}
-            </li>
-          ))}
-        </ul>
+        
       </div>
     </section>
   );

@@ -1,4 +1,5 @@
 import { prisma } from "../config/prisma.js";
+import { Prisma } from "@prisma/client";
 import type {
   EnhancedDocument,
   EnhancedDocumentType,
@@ -16,9 +17,9 @@ export const enhancedDocumentRepository = {
       search?: string;
     }
   ): Promise<
-    PaginatedResult<EnhancedDocument & { client?: { name: string } }>
+    PaginatedResult<EnhancedDocument & { client: { name: string } | null }>
   > {
-    const where: any = { companyId: options.companyId };
+    const where: Prisma.EnhancedDocumentWhereInput = { companyId: options.companyId };
     if (options.clientId) where.clientId = options.clientId;
     if (options.type) where.type = options.type;
     if (options.tags && options.tags.length > 0) {

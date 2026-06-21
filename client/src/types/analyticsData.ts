@@ -3,11 +3,13 @@ export interface LeadStats {
   byStatus: { status: string; count: number }[];
   wonCount: number;
   conversionRate: number;
+  previousConversionRate?: number;
 }
 
 export interface ClientStats {
   total: number;
   newThisMonth: number;
+  previousNew?: number;
 }
 
 export interface ProjectStats {
@@ -15,12 +17,15 @@ export interface ProjectStats {
   byStatus: { status: string; count: number }[];
   completedCount: number;
   completionRate: number;
+  previousCompletionRate?: number;
 }
 
 export interface TaskStats {
   total: number;
   doneCount: number;
   overdueCount: number;
+  taskDonePct?: number;
+  previousTaskDonePct?: number;
 }
 
 export interface MonthlyCount {

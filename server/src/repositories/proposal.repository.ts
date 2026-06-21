@@ -1,4 +1,5 @@
-import { prisma } from "../config/prisma.js";
+import { prisma, prismaRead } from "../config/prisma.js";
+import { Prisma } from "@prisma/client";
 import type { Proposal, ProposalStatus } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 
@@ -11,7 +12,7 @@ export const proposalRepository = {
       search?: string;
     }
   ): Promise<PaginatedResult<Proposal & { client: { name: string } }>> {
-    const where: any = { companyId: options.companyId };
+    const where: Prisma.ProposalWhereInput = { companyId: options.companyId };
     if (options.clientId) where.clientId = options.clientId;
     if (options.status) where.status = options.status;
     if (options.search) {
@@ -24,26 +25,64 @@ export const proposalRepository = {
     const skip = (options.page - 1) * options.pageSize;
 
     const [data, total] = await Promise.all([
-      prisma.proposal.findMany({
+      prismaRead.proposal.findMany({
         where,
         skip,
         take: options.pageSize,
         orderBy: { [options.orderBy || "createdAt"]: options.orderDir || "desc" },
-        include: { client: { select: { name: true } } },
+        include: {
+          client: { select: { name: true } },
+          invoice: { select: { id: true } },
+        },
       }),
-      prisma.proposal.count({ where }),
+      prismaRead.proposal.count({ where }),
     ]);
 
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
+  async findAllByClientId(
+    clientId: string,
+    options: { page: number; pageSize: number; status?: ProposalStatus }
+  ): Promise<PaginatedResult<Proposal & { client: { name: string } }>> {
+    const where: Prisma.ProposalWhereInput = { clientId };
+    if (options.status) where.status = options.status;
+    const skip = (options.page - 1) * options.pageSize;
+    const [data, total] = await Promise.all([
+      prismaRead.proposal.findMany({
+        where,
+        skip,
+        take: options.pageSize,
+        orderBy: { createdAt: "desc" },
+        include: {
+          client: { select: { name: true } },
+          invoice: { select: { id: true } },
+          sections: { orderBy: { orderIndex: "asc" } },
+        },
+      }),
+      prismaRead.proposal.count({ where }),
+    ]);
+    return { data, total, page: options.page, pageSize: options.pageSize };
+  },
+
+  async findByIdForClient(id: string, clientId: string) {
+    return prismaRead.proposal.findFirst({
+      where: { id, clientId },
+      include: {
+        sections: { orderBy: { orderIndex: "asc" } },
+        invoice: { select: { id: true } },
+      },
+    });
+  },
+
   async findById(id: string, companyId: string) {
-    return prisma.proposal.findUnique({
+    return prismaRead.proposal.findUnique({
       where: { id, companyId },
       include: {
         client: true,
         sections: { orderBy: { orderIndex: "asc" } },
         history: { include: { user: true }, orderBy: { createdAt: "desc" } },
+        invoice: { select: { id: true } },
       },
     });
   },
@@ -59,6 +98,7 @@ export const proposalRepository = {
     clientId: string;
     companyId: string;
     projectId?: string;
+    serviceRequestId?: string;
   }) {
     return prisma.proposal.create({ data });
   },
@@ -92,7 +132,7 @@ export const proposalRepository = {
     data: { title: string; content?: string; orderIndex: number }
   ) {
     // Validate proposal exists in company first
-    await prisma.proposal.findUniqueOrThrow({
+    await prismaRead.proposal.findUniqueOrThrow({
       where: { id: proposalId, companyId },
       select: { id: true }
     });

@@ -38,11 +38,16 @@ export interface FreelancerMission {
   description?: string;
   budget?: number;
   status: "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  paymentStatus: "UNPAID" | "PARTIAL" | "PAID";
+  paidAmount?: number;
+  paidAt?: string;
+  paymentNote?: string;
   companyId: string;
   freelancerId?: string;
   projectId?: string;
   createdAt: string;
   updatedAt: string;
+  freelancer?: { id: string; user: { id: string; name: string; email: string } };
   _count?: { applications: number };
 }
 

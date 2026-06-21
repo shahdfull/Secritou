@@ -10,7 +10,7 @@ export const commentService = {
     return commentRepository.create(data);
   },
 
-  async getCommentsByTaskId(taskId: string) {
-    return commentRepository.findByTaskId(taskId);
+  async getCommentsByTaskId(taskId: string, companyId: string) {
+    return commentRepository.findByTaskId(taskId, companyId);
   },
 };

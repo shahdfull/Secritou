@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { useProjects } from "@/hooks/useProjects";
+import { useQuery } from "@tanstack/react-query";
+import apiClient from "@/api/axios";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -35,10 +36,28 @@ const getStatusText = (status: string, t: (key: string) => string) => {
 
 const statusOrder = ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED"];
 
+function useMyProjects() {
+  return useQuery({
+    queryKey: ["client-projects"],
+    queryFn: async () => {
+      const res = await apiClient.get<{ data: unknown[]; total: number }>("/projects/my", {
+        params: { page: 1, pageSize: 100 },
+      });
+      return res.data;
+    },
+    staleTime: 60_000,
+  });
+}
+
 export function ProjectsClientPage() {
   const { t } = useTranslation();
-  const { data: projectsResult, isLoading } = useProjects({ page: 1, pageSize: 100 });
-  const projects = projectsResult?.data ?? [];
+  const { data: projectsResult, isLoading } = useMyProjects();
+  const projects = (projectsResult?.data ?? []) as Array<{
+    id: string;
+    name: string;
+    status: string;
+    progress?: number;
+  }>;
 
   if (isLoading) {
     return (

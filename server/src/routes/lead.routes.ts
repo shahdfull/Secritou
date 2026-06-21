@@ -5,6 +5,7 @@ import { createLeadSchema, updateLeadSchema } from "../validators/lead.validator
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
 import { requireCompanyTenant } from "../middlewares/tenant.middleware.js";
+import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 
 const router = Router();
 router.use(authenticate);
@@ -13,9 +14,9 @@ router.use(requireCompanyTenant());
 
 router.get("/", leadController.getLeads);
 router.get("/:id", leadController.getLead);
-router.post("/", validate(createLeadSchema), leadController.createLead);
+router.post("/", sensitiveWriteRateLimit, validate(createLeadSchema), leadController.createLead);
 router.put("/:id", validate(updateLeadSchema), leadController.updateLead);
-router.delete("/:id", leadController.deleteLead);
-router.post("/:id/convert", leadController.convertLeadToClient);
+router.delete("/:id", sensitiveWriteRateLimit, leadController.deleteLead);
+router.post("/:id/convert", sensitiveWriteRateLimit, leadController.convertLeadToClient);
 
 export default router;

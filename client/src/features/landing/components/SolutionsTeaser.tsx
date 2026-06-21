@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
-import { Building2, Compass, Mic2, ArrowRight } from "lucide-react";
+import { Building2, Compass, Store, ArrowRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 const segments = [
@@ -25,7 +25,7 @@ const segments = [
     ],
   },
   {
-    icon: Mic2,
+    icon: Store,
     tagKey: "solutionsTeaser.segments.creators.tag",
     titleKey: "solutionsTeaser.segments.creators.title",
     needsKeys: [
@@ -70,13 +70,15 @@ export function SolutionsTeaser() {
               transition={{ duration: 0.5, delay: i * 0.08 }}
               className="rounded-3xl border border-border bg-card p-7 shadow-soft"
             >
-              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-accent-soft text-ink">
-                <s.icon className="h-5 w-5" />
+              <div className="flex items-center gap-3">
+                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-accent-soft text-ink">
+                  <s.icon className="h-5 w-5" />
+                </div>
+                <p className="font-display text-xl font-bold uppercase text-ink">
+                  {t(s.tagKey)}
+                </p>
               </div>
-              <p className="mt-5 text-xs font-semibold uppercase tracking-wider text-primary">
-                {t(s.tagKey)}
-              </p>
-              <h3 className="mt-2 font-display text-xl font-bold text-ink">{t(s.titleKey)}</h3>
+              <h3 className="mt-5 text-xs font-semibold tracking-wider text-primary">{t(s.titleKey)}</h3>
               <ul className="mt-5 space-y-2 text-sm text-ink">
                 {s.needsKeys.map((n) => (
                   <li key={n} className="flex items-center gap-2">

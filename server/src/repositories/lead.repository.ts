@@ -53,17 +53,17 @@ export const leadRepository = {
     status?: LeadStatus;
     notes?: string;
   }>): Promise<Lead> {
-    return prisma.lead.update({ where: { id }, data });
+    return prisma.lead.update({ where: { id, companyId }, data });
   },
 
   async archive(id: string, companyId: string, convertedClientId?: string): Promise<Lead> {
     return prisma.lead.update({
-      where: { id },
+      where: { id, companyId },
       data: { status: "WON", archivedAt: new Date(), convertedClientId },
     });
   },
 
   async delete(id: string, companyId: string): Promise<Lead> {
-    return prisma.lead.delete({ where: { id } });
+    return prisma.lead.delete({ where: { id, companyId } });
   },
 };

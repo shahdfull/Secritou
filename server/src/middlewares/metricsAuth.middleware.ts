@@ -4,7 +4,7 @@ import { HttpError } from "../utils/httpError.js";
 
 export const metricsAuthMiddleware: RequestHandler = (req, _res, next) => {
   if (!env.METRICS_TOKEN) {
-    next();
+    next(new HttpError(503, "Metrics endpoint disabled — set METRICS_TOKEN to enable"));
     return;
   }
 

@@ -104,8 +104,53 @@ secritou-platform/
 
 ### Prerequisites
 - Node.js >= 20
-- PostgreSQL 16
+- Docker & Docker Compose (for local dev services)
 - npm (comes with Node.js) or yarn/pnpm
+
+### Local dev services (PostgreSQL, Redis, MinIO)
+
+All infrastructure dependencies can be started with a single command — no local installs needed.
+
+```bash
+docker compose up -d
+```
+
+This starts:
+| Service | URL | Credentials |
+|---|---|---|
+| PostgreSQL | `localhost:5432` | user: `secritou` / password: `secritou` / db: `secritou_db` |
+| Redis | `localhost:6379` | no auth |
+| MinIO (S3-compatible) | API: `localhost:9000` · Console: `localhost:9001` | `minioadmin` / `minioadmin` |
+
+#### First-time MinIO setup (local S3 bucket)
+
+Install the MinIO client (`mc`) once:
+```bash
+# macOS
+brew install minio/stable/mc
+# Linux
+curl -sL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc && chmod +x /usr/local/bin/mc
+# Windows (PowerShell)
+iwr https://dl.min.io/client/mc/release/windows-amd64/mc.exe -OutFile "$env:USERPROFILE\AppData\Local\Microsoft\WindowsApps\mc.exe"
+```
+
+Then create the local bucket:
+```bash
+./scripts/init-minio.sh
+```
+
+Add these variables to `server/.env` for local file uploads:
+```env
+S3_ENDPOINT=http://localhost:9000
+S3_BUCKET=secritou-dev
+S3_ACCESS_KEY_ID=minioadmin
+S3_SECRET_ACCESS_KEY=minioadmin
+S3_REGION=us-east-1
+S3_PUBLIC_ACL=true
+S3_PUBLIC_URL=http://localhost:9000/secritou-dev
+```
+
+Files uploaded in dev will be visible at `http://localhost:9000/secritou-dev/<key>` and manageable via the MinIO Console at `http://localhost:9001`.
 
 ### Installation & Setup
 

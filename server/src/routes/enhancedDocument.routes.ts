@@ -10,6 +10,13 @@ import {
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
 import { requireCompanyTenant } from "../middlewares/tenant.middleware.js";
+import { validate } from "../middlewares/validate.middleware.js";
+import {
+  createEnhancedDocumentSchema,
+  updateEnhancedDocumentSchema,
+  createDocumentVersionSchema,
+  documentIdParamSchema,
+} from "../validators/enhancedDocument.validator.js";
 
 const router = express.Router();
 
@@ -18,21 +25,24 @@ router.use(authenticate, requireCompanyTenant());
 
 // Protected routes
 router.get("/", authorize("ADMIN", "MANAGER"), getEnhancedDocuments);
-router.get("/:id", getEnhancedDocumentById);
+router.get("/:id", validate(documentIdParamSchema), getEnhancedDocumentById);
 router.post(
   "/",
   authorize("ADMIN", "MANAGER"),
+  validate(createEnhancedDocumentSchema),
   createEnhancedDocument
 );
 router.put(
   "/:id",
   authorize("ADMIN", "MANAGER"),
+  validate(updateEnhancedDocumentSchema),
   updateEnhancedDocument
 );
-router.delete("/:id", authorize("ADMIN"), deleteEnhancedDocument);
+router.delete("/:id", authorize("ADMIN"), validate(documentIdParamSchema), deleteEnhancedDocument);
 router.post(
   "/:id/versions",
   authorize("ADMIN", "MANAGER"),
+  validate(createDocumentVersionSchema),
   createDocumentVersion
 );
 

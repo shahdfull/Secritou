@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuthStore } from "@/store/auth.store";
 import { useLogout } from "@/hooks/useAuth";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { LogOut, Briefcase, MessageSquare, User } from "lucide-react";
+import { LogOut, Briefcase, MessageSquare, User, FileText, ClipboardCheck, Receipt, HelpCircle } from "lucide-react";
 import logoAsset from "@/assets/secritou-logo.png";
 import { Link } from "react-router-dom";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -14,6 +14,10 @@ import { routePrefetch } from "@/routes/routePrefetch";
 const NAV_ITEMS = [
   { title: "Mes projets", to: "/client/projects", icon: Briefcase },
   { title: "Mes demandes", to: "/client/requests", icon: MessageSquare },
+  { title: "Propositions", to: "/client/proposals", icon: FileText },
+  { title: "Approbations", to: "/client/approvals", icon: ClipboardCheck },
+  { title: "Factures", to: "/client/invoices", icon: Receipt },
+  { title: "Mes questions", to: "/client/questions", icon: HelpCircle },
   { title: "Mon profil", to: "/client/profile", icon: User },
 ] as const;
 

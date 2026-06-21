@@ -14,7 +14,7 @@ export class AuthRepository {
   constructor(private readonly db: ExtendedPrismaClient | any) {}
 
   findUserByEmail(email: string) {
-    return this.db.user.findUnique({ where: { email } });
+    return this.db.user.findFirst({ where: { email } });
   }
 
   findUserById(id: string) {

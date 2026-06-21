@@ -55,7 +55,7 @@
     "passwordChanged": "Password changed successfully"
   },
   "services": {
-    "title": "One partner. Multiple growth solutions.",
+    "title": "One partner : Multiple growth solutions",
     "subtitle": "Here's how we solve them",
     "seeFullCapabilities": "See full capabilities",
     "highlights": [
@@ -161,8 +161,8 @@
           "body": "Decisions are made on instinct because KPIs are scattered across spreadsheets and tools."
         },
         {
-          "title": "Scattered operations",
-          "body": "Teams, vendors and processes live in silos — nothing connects, nothing scales."
+          "title": "Growth without direction",
+          "body": "Plenty of effort but no clear course — moving forward with no defined strategy or priorities."
         },
         {
           "title": "Weak digital presence",
@@ -176,7 +176,7 @@
     },
     "services": {
       "subtitle": "Here's how we solve them",
-      "title": "One partner. Multiple growth solutions.",
+      "title": "One partner : Multiple growth solutions",
       "seeFullCapabilities": "See full capabilities",
       "highlights": [
         "Management & Performance",
@@ -256,7 +256,7 @@
       "questions": [
         {
           "q": "What types of businesses do you support?",
-          "a": "SMEs, entrepreneurs and content creators across industries — retail, professional services, healthcare, education and digital-first brands. If you have revenue and ambition, we can probably help."
+          "a": "SMEs, entrepreneurs and shops & brands across industries — retail, professional services, healthcare, education and digital-first brands. If you have revenue and ambition, we can probably help."
         },
         {
           "q": "Can I choose only one service?",
@@ -274,7 +274,12 @@
           "q": "Can you help automate my business?",
           "a": "Yes. From AI assistants to workflow automation and internal tools, automation is one of our core practices. We start by finding the highest-leverage processes and remove busywork from there."
         }
-      ]
+      ],
+      "customQuestion": {
+        "title": "Don't see your question?",
+        "description": "Ask us directly. We'll reply personally within 24–48h.",
+        "cta": "Ask a custom question"
+      }
     },
     "finalCta": {
       "subtitle": "Ready when you are",
@@ -288,7 +293,34 @@
       "averageFirstYear": "in the first year",
       "testimonial": "Secritou helped us bring order to our growth. In just a few months, our decisions became clearer and our operations much smoother.",
       "testimonialAuthor": "Nadia Ben Salah",
-      "testimonialRole": "Founder, Brand Boutique"
+      "testimonialRole": "Founder, Brand Boutique",
+      "testimonials": [
+        {
+          "quote": "Secritou helped us bring order to our growth. In just a few months, our decisions became clearer and our operations much smoother.",
+          "author": "Nadia Ben Salah",
+          "role": "Founder, Brand Boutique"
+        },
+        {
+          "quote": "We finally have real visibility on our KPIs. The dashboards save us hours every week and our meetings actually became useful.",
+          "author": "Karim Trabelsi",
+          "role": "CEO, Industrial SME"
+        },
+        {
+          "quote": "The automation they set up removed a huge amount of manual work. The team can finally focus on what truly matters.",
+          "author": "Ines Khelifi",
+          "role": "Head of Operations"
+        },
+        {
+          "quote": "Our digital presence moved to a whole new level. More content, more leads, and above all a coherent strategy.",
+          "author": "Mehdi Gharbi",
+          "role": "Founder, e-commerce brand"
+        },
+        {
+          "quote": "A partner who understands the business, not just a vendor. They brought the structure we needed to scale.",
+          "author": "Sarra Bouazizi",
+          "role": "Co-founder, SaaS startup"
+        }
+      ]
     },
     "cta": {
       "primary": "Book a free consultation",
@@ -301,8 +333,8 @@
       "industriesTitle": "Industries",
       "company": "Company",
       "forSmes": "For SMEs",
-      "forEntrepreneurs": "For Entrepreneurs",
-      "forCreators": "For Creators",
+      "forEntrepreneurs": "For Startuppers",
+      "forCreators": "For Shops & Brands",
       "industries": {
         "healthcare": "Healthcare",
         "education": "Education",
@@ -369,6 +401,49 @@
     "thisYear": "This year",
     "custom": "Custom",
     "selectPeriod": "Select a period"
+  },
+  "questions": {
+    "title": "My questions",
+    "empty": "You haven't asked any question yet.",
+    "askFirst": "Ask my first question",
+    "notFound": "Question not found.",
+    "messageCount_one": "{{count}} message",
+    "messageCount_other": "{{count}} messages",
+    "status": {
+      "OPEN": "Pending",
+      "ANSWERED": "Answered",
+      "CLOSED": "Closed"
+    },
+    "dialog": {
+      "title": "Ask a question",
+      "description": "We'll reply personally within 24–48h.",
+      "seeMine": "See my questions",
+      "subjectLabel": "Subject",
+      "subjectPlaceholder": "E.g. How does your Marketing service work?",
+      "messageLabel": "Your question",
+      "messagePlaceholder": "Describe your question in detail...",
+      "submit": "Send my question",
+      "success": "Your question has been sent! We'll reply by email."
+    },
+    "thread": {
+      "you": "You",
+      "support": "Secritou",
+      "client": "Client",
+      "replyPlaceholder": "Add a message...",
+      "send": "Send",
+      "reply": "Reply",
+      "closed": "This conversation is closed."
+    },
+    "admin": {
+      "title": "Questions",
+      "filter": "Filter",
+      "allStatuses": "All statuses",
+      "empty": "No questions.",
+      "subject": "Subject",
+      "user": "User",
+      "status": "Status",
+      "date": "Date"
+    }
   },
   "common": {
     "loading": "Loading...",
@@ -472,7 +547,8 @@
     "documents": "Documents",
     "clientSuccess": "Client Success",
     "crm": "CRM",
-    "talent": "Talent"
+    "talent": "Talent",
+    "questions": "Questions"
   },
   "userMenu": {
     "myAccount": "My Account",
@@ -763,7 +839,7 @@
         "outcome": "From scattered ops to a calm, measurable business."
       },
       "entrepreneurs": {
-        "tag": "For Entrepreneurs",
+        "tag": "For Startuppers",
         "title": "Move fast, without burning out.",
         "needs": [
           {
@@ -1022,7 +1098,7 @@
         }
       },
       "entrepreneurs": {
-        "tag": "For Entrepreneurs",
+        "tag": "For Startuppers",
         "title": "Move faster, without burning out.",
         "needs": {
           "0": "Growth",
@@ -1031,10 +1107,10 @@
         }
       },
       "creators": {
-        "tag": "For Creators",
-        "title": "Turn audience into a real business.",
+        "tag": "For Shops & Brands",
+        "title": "Turn your shop into a brand that matters.",
         "needs": {
-          "0": "Revenue growth",
+          "0": "Sales growth",
           "1": "Brand development",
           "2": "Performance tracking"
         }

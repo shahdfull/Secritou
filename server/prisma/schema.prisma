@@ -15,6 +15,13 @@ enum Role {
   FREELANCER
 }
 
+// Status of a custom question asked from the FAQ
+enum CustomQuestionStatus {
+  OPEN
+  ANSWERED
+  CLOSED
+}
+
 // Project status options
 enum ProjectStatus {
   PLANNING
@@ -140,6 +147,7 @@ model Company {
   clientOnboardings        ClientOnboarding[]
   freelancerApplications   FreelancerApplication[]
   aiConversations      AiConversation[]
+  customQuestions      CustomQuestion[]
   createdAt           DateTime              @default(now()) @db.Timestamptz(6)
   updatedAt           DateTime              @updatedAt @db.Timestamptz(6)
 
@@ -177,6 +185,8 @@ model User {
   givenRatings        FreelancerRating[]
   recordedInvoicePayments InvoicePayment[]  @relation("RecordedInvoicePayments")
   aiConversations     AiConversation[]
+  customQuestions        CustomQuestion[]
+  customQuestionMessages CustomQuestionMessage[]
   createdAt           DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt           DateTime             @updatedAt @db.Timestamptz(6)
 
@@ -1118,4 +1128,38 @@ model AiMessage {
 
   @@index([conversationId])
   @@index([conversationId, createdAt])
+}
+
+// Custom question asked by a logged-in user from the FAQ section
+model CustomQuestion {
+  id        String                  @id @default(uuid())
+  subject   String                  @db.VarChar(255)
+  status    CustomQuestionStatus    @default(OPEN)
+  userId    String
+  user      User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String?
+  company   Company?                @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  messages  CustomQuestionMessage[]
+  createdAt DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                @updatedAt @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// A single message within a custom question conversation thread
+model CustomQuestionMessage {
+  id         String         @id @default(uuid())
+  content    String         @db.Text
+  authorRole Role
+  authorId   String
+  author     User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  questionId String
+  question   CustomQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  createdAt  DateTime       @default(now()) @db.Timestamptz(6)
+
+  @@index([questionId])
+  @@index([questionId, createdAt])
 }

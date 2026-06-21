@@ -1,6 +1,6 @@
 // Mission Repository - Data access layer
 import { prismaRead as prisma } from "../config/prisma.js";
-import type { FreelancerMission } from "@prisma/client";
+import type { FreelancerMission, MissionStatus } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildOrderBy } from "../utils/listQuery.js";
 
@@ -27,6 +27,10 @@ const missionListSelect = {
   description: true,
   budget: true,
   status: true,
+  paymentStatus: true,
+  paidAmount: true,
+  paidAt: true,
+  paymentNote: true,
   companyId: true,
   freelancerId: true,
   projectId: true,
@@ -43,6 +47,10 @@ const missionPublicSelect = {
   description: true,
   budget: true,
   status: true,
+  paymentStatus: true,
+  paidAmount: true,
+  paidAt: true,
+  paymentNote: true,
   companyId: true,
   freelancerId: true,
   projectId: true,
@@ -55,8 +63,8 @@ const missionPublicSelect = {
 } as const;
 
 export const missionRepository = {
-  async findAllByCompany(companyId: string, options: ListQueryOptions): Promise<PaginatedResult<any>> {
-    const where = { companyId };
+  async findAllByCompany(companyId: string, options: ListQueryOptions, extraWhere?: object): Promise<PaginatedResult<any>> {
+    const where = { companyId, ...extraWhere };
     const skip = (options.page - 1) * options.pageSize;
     const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
 
@@ -124,7 +132,7 @@ export const missionRepository = {
       title?: string;
       description?: string;
       budget?: number;
-      status?: any;
+      status?: MissionStatus;
       freelancerId?: string;
     }
   ): Promise<FreelancerMission> {

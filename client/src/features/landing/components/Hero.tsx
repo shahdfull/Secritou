@@ -20,14 +20,26 @@ export function Hero() {
       {/* Decorative blur */}
       <div
         aria-hidden
-        className="absolute -top-32 -right-20 h-[420px] w-[420px] rounded-full bg-primary-soft opacity-60 blur-3xl"
+        className="absolute -top-32 -right-20 h-[560px] w-[560px] rounded-full bg-primary/50 opacity-90 blur-3xl"
       />
       <div
         aria-hidden
-        className="absolute top-40 -left-20 h-[320px] w-[320px] rounded-full bg-accent-soft opacity-60 blur-3xl"
+        className="absolute top-32 -left-24 h-[440px] w-[440px] rounded-full bg-accent/55 opacity-90 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="absolute -bottom-24 left-1/3 h-[380px] w-[380px] rounded-full bg-accent/40 opacity-80 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="absolute bottom-0 -right-10 h-[340px] w-[340px] rounded-full bg-primary/40 opacity-80 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="absolute top-1/2 left-1/2 h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/25 opacity-70 blur-3xl"
       />
 
-      <div className="container-page relative grid items-start gap-8 lg:grid-cols-[1.05fr_1fr] lg:gap-8">
+      <div className="container-page relative grid items-start gap-8 lg:grid-cols-[1fr_1.1fr] lg:gap-8">
         <div>
           <motion.div
             initial={{ opacity: 0, y: 12 }}

@@ -67,13 +67,15 @@ export function ServicesPage() {
                 className="grid gap-8 rounded-3xl border border-border bg-card p-8 shadow-soft lg:grid-cols-[1fr_2fr] lg:p-10"
               >
                 <div>
-                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary text-primary-foreground">
-                    <s.icon className="h-5 w-5" />
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary text-primary-foreground">
+                      <s.icon className="h-5 w-5" />
+                    </div>
+                    <h2 className="font-display text-2xl font-bold text-ink">{title}</h2>
                   </div>
                   <p className="mt-5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     0{i + 1}
                   </p>
-                  <h2 className="mt-1 font-display text-2xl font-bold text-ink">{title}</h2>
                   <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{body}</p>
                   <button
                     onClick={() => handleContactClick(title)}
