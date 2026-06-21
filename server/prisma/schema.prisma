@@ -133,6 +133,7 @@ model Company {
   logoUrl             String?               @db.VarChar(255)
   primaryColor        String?               @db.VarChar(20)
   users               User[]
+  services            Service[]
   leads               Lead[]
   clients             Client[]
   projects            Project[]
@@ -168,6 +169,8 @@ model User {
   company             Company?             @relation(fields: [companyId], references: [id], onDelete: SetNull)
   clientId            String?
   client              Client?              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  serviceId           String?
+  service             Service?             @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   tasks               Task[]               @relation("AssignedTasks")
   comments            Comment[]
   refreshTokens       RefreshToken[]
@@ -200,6 +203,23 @@ model User {
   @@index([companyId, role])
   @@index([resetToken])
   @@index([companyId, createdAt])
+  @@index([serviceId])
+}
+
+// Service (business pole/department) — e.g. "Technology Solutions", "AI & Automation".
+// Leads, clients and users are attached to a service so MANAGERs can be scoped to their pole.
+model Service {
+  id        String   @id @default(uuid())
+  name      String   @db.VarChar(100)
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  leads     Lead[]
+  clients   Client[]
+  users     User[]
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([companyId, name])
+  @@index([companyId])
 }
 
 // Lead model for potential clients/sales pipeline
@@ -213,6 +233,8 @@ model Lead {
   notes             String?    @db.Text
   companyId         String
   company           Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  serviceId         String?
+  service           Service?   @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   convertedClientId String?
   archivedAt        DateTime?  @db.Timestamptz(6)
   createdAt         DateTime   @default(now()) @db.Timestamptz(6)
@@ -224,6 +246,7 @@ model Lead {
   @@index([companyId, status, createdAt])
   @@index([email])
   @@index([archivedAt])
+  @@index([serviceId])
 }
 
 // Client model for paying/active clients
@@ -234,6 +257,8 @@ model Client {
   phone            String?          @db.VarChar(50)
   companyId        String
   company          Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  serviceId        String?
+  service          Service?         @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   projects         Project[]
   users            User[]
   serviceRequests  ServiceRequest[]
@@ -255,6 +280,7 @@ model Client {
   @@index([companyId, createdAt])
   @@index([email])
   @@index([archivedAt])
+  @@index([serviceId])
 }
 model ServiceRequest {
   id           String               @id @default(uuid())

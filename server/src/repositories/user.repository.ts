@@ -37,6 +37,12 @@ export const userRepository = {
     });
   },
 
+  // Lightweight lookup of a user's service (pole) for request scoping, without inflating PublicUser.
+  async findServiceId(id: string): Promise<string | null> {
+    const user = await prisma.user.findUnique({ where: { id }, select: { serviceId: true } });
+    return user?.serviceId ?? null;
+  },
+
   async findByCompanyId(companyId: string, options: ListQueryOptions): Promise<PaginatedResult<PublicUser>> {
     const where = { companyId };
     const skip = (options.page - 1) * options.pageSize;

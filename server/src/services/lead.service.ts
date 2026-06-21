@@ -1,6 +1,6 @@
 // Lead Service - Business logic
 import type { CreateLeadDTO } from "../types/entities.js";
-import { leadRepository } from "../repositories/lead.repository.js";
+import { leadRepository, type LeadScope } from "../repositories/lead.repository.js";
 import { HttpError } from "../utils/httpError.js";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { prisma } from "../config/prisma.js";
@@ -12,12 +12,12 @@ async function invalidateCompanyCache(companyId: string) {
 }
 
 export const leadService = {
-  async getLeads(companyId: string, options: ListQueryOptions) {
-    return leadRepository.findAll(companyId, options);
+  async getLeads(companyId: string, options: ListQueryOptions, scope?: LeadScope) {
+    return leadRepository.findAll(companyId, options, scope);
   },
 
-  async getLead(id: string, companyId: string) {
-    const lead = await leadRepository.findById(id, companyId);
+  async getLead(id: string, companyId: string, scope?: LeadScope) {
+    const lead = await leadRepository.findById(id, companyId, scope);
     if (!lead) throw new HttpError(404, "Lead not found");
     return lead;
   },
@@ -28,16 +28,16 @@ export const leadService = {
     return lead;
   },
 
-  async updateLead(id: string, data: Partial<CreateLeadDTO>, companyId: string) {
-    const lead = await leadRepository.findById(id, companyId);
+  async updateLead(id: string, data: Partial<CreateLeadDTO>, companyId: string, scope?: LeadScope) {
+    const lead = await leadRepository.findById(id, companyId, scope);
     if (!lead) throw new HttpError(404, "Lead not found");
     const updated = await leadRepository.update(id, companyId, data);
     await invalidateCompanyCache(companyId);
     return updated;
   },
 
-  async deleteLead(id: string, companyId: string) {
-    const lead = await leadRepository.findById(id, companyId);
+  async deleteLead(id: string, companyId: string, scope?: LeadScope) {
+    const lead = await leadRepository.findById(id, companyId, scope);
     if (!lead) throw new HttpError(404, "Lead not found");
     // A converted lead is the origin record of an existing client — deleting it would erase
     // that provenance. Block it; the lead is already archived on conversion anyway.
@@ -49,8 +49,8 @@ export const leadService = {
     return deleted;
   },
 
-  async convertLeadToClient(id: string, companyId: string) {
-    const lead = await leadRepository.findById(id, companyId);
+  async convertLeadToClient(id: string, companyId: string, scope?: LeadScope) {
+    const lead = await leadRepository.findById(id, companyId, scope);
     if (!lead) throw new HttpError(404, "Lead not found");
 
     // Email is the per-company uniqueness key for clients. A lead without an email cannot be
@@ -96,6 +96,8 @@ export const leadService = {
           name: lead.name,
           email: lead.email ?? undefined,
           phone: lead.phone ?? undefined,
+          // Carry the lead's pole onto the client so the intent isn't lost at conversion.
+          serviceId: lead.serviceId ?? undefined,
           companyId: lead.companyId,
         },
       });

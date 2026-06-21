@@ -1,23 +1,36 @@
 // Lead Repository - Data access layer
 import { prismaRead as prisma } from "../config/prisma.js";
-import type { Lead, LeadStatus } from "@prisma/client";
+import type { Lead, LeadStatus, Role } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildOrderBy, buildTextSearchFilter } from "../utils/listQuery.js";
 
 const SORTABLE_FIELDS = ["name", "email", "status", "source", "createdAt"];
 
-function buildWhere(companyId: string, options: ListQueryOptions) {
+export type LeadScope = { userRole: Role; userServiceId?: string | null };
+
+function buildWhere(companyId: string, options: ListQueryOptions, scope?: LeadScope) {
+  // A MANAGER only sees leads of their own service (pole). A manager with no service sees none
+  // (serviceId: "__none__" never matches) rather than the whole company. ADMIN sees all.
+  const serviceFilter =
+    scope?.userRole === "MANAGER"
+      ? { serviceId: scope.userServiceId ?? "__none__" }
+      : {};
   return {
     companyId,
     archivedAt: null,
+    ...serviceFilter,
     ...(options.status ? { status: options.status as LeadStatus } : {}),
     ...buildTextSearchFilter(options.search, ["name", "email", "source", "notes"]),
   };
 }
 
 export const leadRepository = {
-  async findAll(companyId: string, options: ListQueryOptions): Promise<PaginatedResult<Lead>> {
-    const where = buildWhere(companyId, options);
+  async findAll(
+    companyId: string,
+    options: ListQueryOptions,
+    scope?: LeadScope
+  ): Promise<PaginatedResult<Lead>> {
+    const where = buildWhere(companyId, options, scope);
     const skip = (options.page - 1) * options.pageSize;
     const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
 
@@ -29,8 +42,12 @@ export const leadRepository = {
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(id: string, companyId: string): Promise<Lead | null> {
-    return prisma.lead.findFirst({ where: { id, companyId, archivedAt: null } });
+  async findById(id: string, companyId: string, scope?: LeadScope): Promise<Lead | null> {
+    const serviceFilter =
+      scope?.userRole === "MANAGER"
+        ? { serviceId: scope.userServiceId ?? "__none__" }
+        : {};
+    return prisma.lead.findFirst({ where: { id, companyId, archivedAt: null, ...serviceFilter } });
   },
 
   async create(data: {
