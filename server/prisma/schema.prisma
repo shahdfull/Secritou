@@ -745,7 +745,7 @@ model Proposal {
   status           ProposalStatus @default(DRAFT)
   version          Int            @default(1)
   amount           Decimal?       @db.Decimal(12, 2)
-  currency         String         @default("EUR") @db.VarChar(10)
+  currency         String         @default("TND") @db.VarChar(10)
   expiresAt        DateTime?      @db.Timestamptz(6)
   viewedAt         DateTime?      @db.Timestamptz(6)
   acceptedAt       DateTime?      @db.Timestamptz(6)
@@ -941,7 +941,7 @@ model Invoice {
   title             String        @db.VarChar(255)
   description       String?       @db.Text
   amount            Decimal       @db.Decimal(12, 2)
-  currency          String        @default("EUR") @db.VarChar(10)
+  currency          String        @default("TND") @db.VarChar(10)
   amountPaid        Decimal       @default(0) @db.Decimal(12, 2)
   status            InvoiceStatus @default(DRAFT)
   dueDate           DateTime?     @db.Timestamptz(6)

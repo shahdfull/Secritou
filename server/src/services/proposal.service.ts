@@ -146,7 +146,7 @@ export const proposalService = {
     if (proposal) {
       const clientUsers = await userRepository.findByClientId(proposal.clientId);
       const viewUrl = `${env.FRONTEND_URL}/client/proposals/${id}`;
-      const currency = proposal.currency ?? "EUR";
+      const currency = proposal.currency ?? "TND";
 
       void enqueueEmails(
         clientUsers.map((user) => {
@@ -202,7 +202,7 @@ export const proposalService = {
         clientRepository.findById(proposal.clientId, companyId),
       ]);
       const dashboardUrl = `${env.FRONTEND_URL}/app/proposals/${id}`;
-      const currency = proposal.currency ?? "EUR";
+      const currency = proposal.currency ?? "TND";
 
       void enqueueEmails(
         admins.map((admin) => {
