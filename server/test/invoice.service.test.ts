@@ -283,3 +283,52 @@ describe("invoice.service item guard (assertInvoiceDraft)", () => {
     });
   }
 });
+
+// ─── Overpayment → credit note (P0 #3) ───────────────────────────────────────
+
+// Mirrors the overpayment computation in addPayment.
+function computeOverpayment(invoiceAmount: number, previousPaid: number, paymentAmount: number) {
+  const rawAmountPaid = previousPaid + paymentAmount;
+  const newAmountPaid = Math.min(rawAmountPaid, invoiceAmount);
+  return { newAmountPaid, overpaidBy: rawAmountPaid - invoiceAmount };
+}
+
+// Mirrors the credit-note amount validation in creditNoteService.create.
+function assertCreditAmount(amount: number, amountPaid: number) {
+  if (amount <= 0) throw Object.assign(new Error("invalid"), { code: "INVALID_CREDIT_AMOUNT" });
+  if (amount > amountPaid) throw Object.assign(new Error("exceeds"), { code: "CREDIT_EXCEEDS_PAID" });
+}
+
+describe("invoice.service overpayment → credit note (P0 #3)", () => {
+  test("caps amountPaid at the invoice total and reports the overpaid delta", () => {
+    const { newAmountPaid, overpaidBy } = computeOverpayment(1000, 800, 400);
+    assert.equal(newAmountPaid, 1000);
+    assert.equal(overpaidBy, 200);
+  });
+
+  test("no overpayment when payment exactly settles the invoice", () => {
+    const { newAmountPaid, overpaidBy } = computeOverpayment(1000, 0, 1000);
+    assert.equal(newAmountPaid, 1000);
+    assert.equal(overpaidBy, 0);
+  });
+
+  test("no overpayment on a partial payment (delta is not positive)", () => {
+    const { newAmountPaid, overpaidBy } = computeOverpayment(1000, 0, 400);
+    assert.equal(newAmountPaid, 400);
+    assert.ok(overpaidBy <= 0, "partial payment must not produce a positive overpaid delta");
+  });
+});
+
+describe("creditNoteService.create — amount validation", () => {
+  test("accepts a credit within the amount paid", () => {
+    assert.doesNotThrow(() => assertCreditAmount(200, 1000));
+  });
+
+  test("rejects a non-positive amount", () => {
+    assert.throws(() => assertCreditAmount(0, 1000), (e: any) => e.code === "INVALID_CREDIT_AMOUNT");
+  });
+
+  test("rejects a credit exceeding the amount paid", () => {
+    assert.throws(() => assertCreditAmount(1200, 1000), (e: any) => e.code === "CREDIT_EXCEEDS_PAID");
+  });
+});

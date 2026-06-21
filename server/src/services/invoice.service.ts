@@ -9,6 +9,7 @@ import { tenantValidation } from "./tenantValidation.service.js";
 import { prisma } from "../config/prisma.js";
 import { HttpError } from "../utils/httpError.js";
 import { clientSuccessService } from "./clientSuccess.service.js";
+import { creditNoteService } from "./creditNote.service.js";
 
 // Transaction client type derived from the (extended) prisma client, so it matches the `tx`
 // argument passed by prisma.$transaction on this codebase's extended client.
@@ -189,7 +190,7 @@ export const invoiceService = {
     const result = await prisma.$transaction(async (tx) => {
       const invoice = await tx.invoice.findUnique({
         where: { id, companyId },
-        select: { id: true, amount: true, amountPaid: true, status: true, currency: true },
+        select: { id: true, clientId: true, amount: true, amountPaid: true, status: true, currency: true },
       });
       if (!invoice) throw new Error("Invoice not found");
 
@@ -205,9 +206,9 @@ export const invoiceService = {
       });
 
       // Cap amountPaid at the invoice total so the recorded "paid" figure never exceeds what
-      // was billed. The individual InvoicePayment row keeps the raw amount entered; the
-      // overpaid delta is surfaced to the caller as a warning rather than crashing the request
-      // (an admin may legitimately enter a payment exceeding the total — credit, late discount).
+      // was billed. The individual InvoicePayment row keeps the raw amount entered; any overpaid
+      // delta is turned into a credit note (money owed back to the client) and added to the
+      // client's credit balance — instead of being silently dropped as a warning.
       const rawAmountPaid = Number(invoice.amountPaid) + data.amount;
       const invoiceAmount = Number(invoice.amount);
       const newAmountPaid = Math.min(rawAmountPaid, invoiceAmount);
@@ -229,13 +230,18 @@ export const invoiceService = {
         },
       });
 
-      return {
-        payment,
-        warning:
-          overpaidBy > 0
-            ? `Payment exceeds the invoice balance by ${overpaidBy.toFixed(2)} ${invoice.currency ?? "EUR"}`
-            : undefined,
-      };
+      let creditNote = null;
+      if (overpaidBy > 0) {
+        creditNote = await creditNoteService.createCreditNoteTx(tx, {
+          invoiceId: invoice.id,
+          clientId: invoice.clientId,
+          companyId,
+          amount: overpaidBy,
+          reason: `Overpayment on invoice (paid ${rawAmountPaid.toFixed(2)} vs billed ${invoiceAmount.toFixed(2)} ${invoice.currency ?? "EUR"})`,
+        });
+      }
+
+      return { payment, creditNote, overpaidBy, clientId: invoice.clientId };
     });
 
     // Notify company admins that a payment was recorded (outside the transaction so a
@@ -250,6 +256,19 @@ export const invoiceService = {
           message: `Un paiement de ${Number(data.amount).toFixed(2)} ${invoiceMeta.currency ?? "EUR"} a été enregistré pour la facture ${invoiceMeta.number}.`,
         }))
       );
+
+      // If the payment overpaid the invoice, a credit note was issued — tell the client too,
+      // not just the admins, since it's money owed back to them.
+      if (result.creditNote) {
+        const clientUsers = await userRepository.findByClientId(invoiceMeta.clientId);
+        await enqueueNotifications(
+          clientUsers.map((user) => ({
+            userId: user.id,
+            title: "Avoir disponible",
+            message: `Un avoir de ${result.overpaidBy.toFixed(2)} ${invoiceMeta.currency ?? "EUR"} a été crédité sur votre compte suite à un trop-perçu sur la facture ${invoiceMeta.number}.`,
+          }))
+        );
+      }
 
       // Payment rate feeds the automatic half of the client success score; recompute now so it
       // isn't stale until the nightly batch (best-effort, never blocks the payment).

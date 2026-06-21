@@ -143,6 +143,7 @@ model Company {
   approvals           Approval[]
   enhancedDocuments   EnhancedDocument[]
   invoices            Invoice[]
+  creditNotes         CreditNote[]
   clientSuccess       ClientSuccess[]
   clientOnboardings        ClientOnboarding[]
   freelancerApplications   FreelancerApplication[]
@@ -241,6 +242,8 @@ model Client {
   approvals        Approval[]
   enhancedDocuments EnhancedDocument[]
   invoices         Invoice[]
+  creditNotes      CreditNote[]
+  creditBalance    Decimal          @default(0) @db.Decimal(12, 2)
   clientSuccess    ClientSuccess?
   clientOnboardings ClientOnboarding[]
   archivedAt       DateTime?        @db.Timestamptz(6)
@@ -952,6 +955,7 @@ model Invoice {
   items             InvoiceItem[]
   payments          InvoicePayment[]
   reminders         InvoiceReminder[]
+  creditNotes       CreditNote[]
   createdAt         DateTime      @default(now()) @db.Timestamptz(6)
   updatedAt         DateTime      @updatedAt @db.Timestamptz(6)
 
@@ -964,6 +968,27 @@ model Invoice {
   @@index([companyId, status])
   @@index([companyId, status, createdAt])
   @@index([number])
+}
+
+// A credit note records money owed back to a client — issued for an overpayment or as a
+// correction against an invoice. Issuing one increments Client.creditBalance.
+model CreditNote {
+  id        String   @id @default(uuid())
+  number    String   @db.VarChar(100)
+  amount    Decimal  @db.Decimal(12, 2)
+  reason    String   @db.Text
+  invoiceId String
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([companyId, number])
+  @@index([invoiceId])
+  @@index([clientId])
+  @@index([companyId])
 }
 
 model InvoiceItem {

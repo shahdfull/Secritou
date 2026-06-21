@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { invoiceService } from "../services/invoice.service.js";
+import { creditNoteService } from "../services/creditNote.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
 import { InvoiceStatus } from "@prisma/client";
 
@@ -59,13 +60,13 @@ export const sendInvoice = async (req: Request, res: Response) => {
 };
 
 export const addInvoicePayment = async (req: Request, res: Response) => {
-  const { payment, warning } = await invoiceService.addPayment(
+  const { payment, creditNote } = await invoiceService.addPayment(
     req.params.id as string,
     req.user!.companyId as string,
     req.body,
     req.user!.id
   );
-  res.status(201).json({ data: payment, ...(warning ? { warning } : {}) });
+  res.status(201).json({ data: payment, ...(creditNote ? { creditNote } : {}) });
 };
 
 export const addInvoiceReminder = async (req: Request, res: Response) => {
@@ -110,4 +111,21 @@ export const createInvoiceFromProposal = async (req: Request, res: Response) => 
     req.user!.companyId as string
   );
   res.status(201).json({ data: invoice });
+};
+
+export const createCreditNote = async (req: Request, res: Response) => {
+  const creditNote = await creditNoteService.create(
+    req.params.id as string,
+    req.user!.companyId as string,
+    { amount: req.body.amount, reason: req.body.reason }
+  );
+  res.status(201).json({ data: creditNote });
+};
+
+export const getInvoiceCreditNotes = async (req: Request, res: Response) => {
+  const creditNotes = await creditNoteService.listByInvoice(
+    req.params.id as string,
+    req.user!.companyId as string
+  );
+  res.json({ data: creditNotes });
 };

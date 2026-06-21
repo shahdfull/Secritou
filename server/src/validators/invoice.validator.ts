@@ -78,3 +78,11 @@ export const updateInvoiceItemSchema = z.object({
 export const invoiceItemParamSchema = z.object({
   params: z.object({ id: uuidParam, itemId: uuidParam }),
 });
+
+export const createCreditNoteSchema = z.object({
+  params: z.object({ id: uuidParam }),
+  body: z.object({
+    amount: positiveDecimal,
+    reason: z.string().min(1).max(2000),
+  }),
+});
