@@ -110,6 +110,7 @@ export const proposalRepository = {
       title: string;
       description: string;
       status: ProposalStatus;
+      version: number;
       amount: number;
       currency: string;
       expiresAt: Date;
@@ -120,6 +121,16 @@ export const proposalRepository = {
     }>
   ) {
     return prisma.proposal.update({ where: { id, companyId }, data });
+  },
+
+  // Returns the parent proposal's status/version for a given section, scoped to the company.
+  // Used to enforce edit guards when a section (which is client-facing content) is changed.
+  async findProposalBySectionId(sectionId: string, companyId: string) {
+    const section = await prismaRead.proposalSection.findFirst({
+      where: { id: sectionId, proposal: { companyId } },
+      select: { proposal: { select: { id: true, status: true, version: true } } },
+    });
+    return section?.proposal ?? null;
   },
 
   async delete(id: string, companyId: string) {

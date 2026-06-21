@@ -13,6 +13,37 @@ import type { ListQueryOptions } from "../utils/listQuery.js";
 import { tenantValidation } from "./tenantValidation.service.js";
 import { HttpError } from "../utils/httpError.js";
 
+// Shared logic for section edits: a section belongs to a proposal and is client-facing
+// content, so editing/deleting one on a SENT/VIEWED proposal reverts it to DRAFT, bumps the
+// version, and records history — mirroring the rule in proposalService.update().
+async function revertParentToDraftById(
+  parent: { id: string; status: ProposalStatus; version: number },
+  companyId: string,
+  change: "edited" | "deleted",
+  userId?: string
+) {
+  if (parent.status !== "SENT" && parent.status !== "VIEWED") return;
+  const updated = await proposalRepository.update(parent.id, companyId, {
+    status: "DRAFT",
+    version: parent.version + 1,
+  });
+  await proposalRepository.addHistory(parent.id, {
+    action: "REVERTED_TO_DRAFT",
+    comment: `Section ${change} while ${parent.status}; reverted to DRAFT (v${parent.version} → v${updated.version}). Must be re-sent.`,
+    userId,
+  });
+}
+
+async function revertParentToDraftIfLive(
+  sectionId: string,
+  companyId: string,
+  change: "edited" | "deleted",
+  userId?: string
+) {
+  const parent = await proposalRepository.findProposalBySectionId(sectionId, companyId);
+  if (parent) await revertParentToDraftById(parent, companyId, change, userId);
+}
+
 export const proposalService = {
   async getAllByClientId(
     clientId: string,
@@ -69,8 +100,38 @@ export const proposalService = {
       currency: string;
       expiresAt: Date;
       pdfUrl: string;
-    }>
+    }>,
+    userId?: string
   ) {
+    const proposal = await proposalRepository.findById(id, companyId);
+    if (!proposal) throw new HttpError(404, "Proposal not found");
+
+    // A proposal that's already in front of the client (SENT/VIEWED) must not be silently
+    // edited. If any *client-facing content* field actually changes, revert it to DRAFT,
+    // bump the version (invalidates in-flight acceptances), and record the change in history.
+    // Non-content fields (pdfUrl regeneration, currency, expiresAt, internal metadata) do NOT
+    // trigger a revert — they don't change what the client reviewed.
+    const isLive = proposal.status === "SENT" || proposal.status === "VIEWED";
+    const contentChanged =
+      (data.title !== undefined && data.title !== proposal.title) ||
+      (data.description !== undefined && data.description !== proposal.description) ||
+      (data.amount !== undefined &&
+        Number(data.amount) !== (proposal.amount != null ? Number(proposal.amount) : null));
+
+    if (isLive && contentChanged && data.status === undefined) {
+      const updated = await proposalRepository.update(id, companyId, {
+        ...data,
+        status: "DRAFT",
+        version: proposal.version + 1,
+      });
+      await proposalRepository.addHistory(id, {
+        action: "REVERTED_TO_DRAFT",
+        comment: `Content edited while ${proposal.status}; reverted to DRAFT (v${proposal.version} → v${updated.version}). Must be re-sent.`,
+        userId,
+      });
+      return updated;
+    }
+
     return proposalRepository.update(id, companyId, data);
   },
 
@@ -104,9 +165,20 @@ export const proposalService = {
     return updated;
   },
 
-  async accept(id: string, companyId: string) {
+  async accept(id: string, companyId: string, expectedVersion?: number) {
     const proposal = await proposalRepository.findById(id, companyId);
     if (!proposal) throw new HttpError(404, "Proposal not found");
+    // Optimistic concurrency: the client accepts the version they actually reviewed. If the
+    // proposal was edited (and version-bumped) since it was loaded, the acceptance refers to
+    // stale content — reject it so the client re-reads the current version.
+    if (expectedVersion !== undefined && expectedVersion !== proposal.version) {
+      throw new HttpError(
+        409,
+        "This proposal was updated since you opened it. Please review the latest version.",
+        "PROPOSAL_VERSION_MISMATCH",
+        { currentVersion: proposal.version }
+      );
+    }
     // Only a live, client-facing proposal can be accepted. This blocks accepting a DRAFT
     // (never sent), re-accepting an ACCEPTED one, or reviving a REJECTED/EXPIRED proposal.
     if (!["SENT", "VIEWED"].includes(proposal.status)) {
@@ -199,13 +271,20 @@ export const proposalService = {
   async updateSection(
     id: string,
     companyId: string,
-    data: { title?: string; content?: string; orderIndex?: number }
+    data: { title?: string; content?: string; orderIndex?: number },
+    userId?: string
   ) {
-    return proposalRepository.updateSection(id, companyId, data);
+    const result = await proposalRepository.updateSection(id, companyId, data);
+    await revertParentToDraftIfLive(id, companyId, "edited", userId);
+    return result;
   },
 
-  async deleteSection(id: string, companyId: string) {
-    return proposalRepository.deleteSection(id, companyId);
+  async deleteSection(id: string, companyId: string, userId?: string) {
+    // Capture the parent before deletion (the section row is gone afterwards), then revert.
+    const parent = await proposalRepository.findProposalBySectionId(id, companyId);
+    const result = await proposalRepository.deleteSection(id, companyId);
+    if (parent) await revertParentToDraftById(parent, companyId, "deleted", userId);
+    return result;
   },
 
   async addHistory(

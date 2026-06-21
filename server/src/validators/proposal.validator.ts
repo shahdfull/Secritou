@@ -48,6 +48,8 @@ export const respondToProposalSchema = z.object({
   body: z.object({
     action: z.enum(["accept", "reject"]),
     comment: z.string().max(2000).optional(),
+    // Optimistic-concurrency token: the proposal version the client reviewed before accepting.
+    expectedVersion: z.number().int().positive().optional(),
   }),
 });
 

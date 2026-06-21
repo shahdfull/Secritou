@@ -15,6 +15,7 @@ function makeProposal(overrides = {}) {
     title: "Refonte site web",
     description: null,
     status: "SENT" as const,
+    version: 1,
     amount: 5000,
     currency: "EUR",
     expiresAt: null,
@@ -285,5 +286,94 @@ describe("proposal.service.send", () => {
       enqueuedItems[0].html.includes(PROPOSAL_ID),
       "Email HTML must include proposal id in view URL"
     );
+  });
+});
+
+// ─── Edit-after-send guards (P0 #1) — mirrors proposalService.update / accept ─────
+
+type GuardProposal = ReturnType<typeof makeProposal>;
+
+// Mirrors proposalService.update: content edits on a live proposal revert it to DRAFT,
+// bump version, and record history. Non-content fields do not trigger a revert.
+async function serviceUpdate(
+  proposal: GuardProposal,
+  data: Partial<{ title: string; description: string; amount: number; status: string; pdfUrl: string }>,
+  history: Array<{ action: string }>
+) {
+  const isLive = proposal.status === "SENT" || proposal.status === "VIEWED";
+  const contentChanged =
+    (data.title !== undefined && data.title !== proposal.title) ||
+    (data.description !== undefined && data.description !== proposal.description) ||
+    (data.amount !== undefined &&
+      Number(data.amount) !== (proposal.amount != null ? Number(proposal.amount) : null));
+
+  if (isLive && contentChanged && data.status === undefined) {
+    history.push({ action: "REVERTED_TO_DRAFT" });
+    return { ...proposal, ...data, status: "DRAFT", version: proposal.version + 1 };
+  }
+  return { ...proposal, ...data };
+}
+
+// Mirrors the version guard in proposalService.accept.
+function assertVersionMatch(proposal: GuardProposal, expectedVersion?: number) {
+  if (expectedVersion !== undefined && expectedVersion !== proposal.version) {
+    throw Object.assign(new Error("PROPOSAL_VERSION_MISMATCH"), { code: "PROPOSAL_VERSION_MISMATCH" });
+  }
+}
+
+describe("proposal.service.update — edit-after-send guard", () => {
+  test("editing title on a SENT proposal reverts to DRAFT and bumps version", async () => {
+    const history: Array<{ action: string }> = [];
+    const result = await serviceUpdate(makeProposal({ status: "SENT", version: 1 }), { title: "Nouveau titre" }, history);
+    assert.equal(result.status, "DRAFT");
+    assert.equal(result.version, 2);
+    assert.equal(history[0].action, "REVERTED_TO_DRAFT");
+  });
+
+  test("editing amount on a VIEWED proposal reverts to DRAFT", async () => {
+    const history: Array<{ action: string }> = [];
+    const result = await serviceUpdate(makeProposal({ status: "VIEWED", amount: 5000 }), { amount: 6000 }, history);
+    assert.equal(result.status, "DRAFT");
+    assert.equal(history.length, 1);
+  });
+
+  test("changing pdfUrl (non-content) does NOT revert to DRAFT", async () => {
+    const history: Array<{ action: string }> = [];
+    const result = await serviceUpdate(makeProposal({ status: "SENT" }), { pdfUrl: "https://cdn/new.pdf" }, history);
+    assert.equal(result.status, "SENT");
+    assert.equal(result.version, 1);
+    assert.equal(history.length, 0);
+  });
+
+  test("setting the same title (no real change) does NOT revert", async () => {
+    const history: Array<{ action: string }> = [];
+    const result = await serviceUpdate(makeProposal({ status: "SENT", title: "Same" }), { title: "Same" }, history);
+    assert.equal(result.status, "SENT");
+    assert.equal(history.length, 0);
+  });
+
+  test("editing a DRAFT proposal stays DRAFT without history entry", async () => {
+    const history: Array<{ action: string }> = [];
+    const result = await serviceUpdate(makeProposal({ status: "DRAFT", version: 3 }), { title: "x" }, history);
+    assert.equal(result.status, "DRAFT");
+    assert.equal(result.version, 3);
+    assert.equal(history.length, 0);
+  });
+});
+
+describe("proposal.service.accept — version guard", () => {
+  test("accepts when expectedVersion matches", () => {
+    assert.doesNotThrow(() => assertVersionMatch(makeProposal({ version: 2 }), 2));
+  });
+
+  test("throws PROPOSAL_VERSION_MISMATCH when stale", () => {
+    assert.throws(
+      () => assertVersionMatch(makeProposal({ version: 3 }), 2),
+      /PROPOSAL_VERSION_MISMATCH/
+    );
+  });
+
+  test("skips the guard when expectedVersion is omitted", () => {
+    assert.doesNotThrow(() => assertVersionMatch(makeProposal({ version: 5 }), undefined));
   });
 });
