@@ -31,6 +31,23 @@ async function main() {
   });
   console.log('Company ready:', company.name);
 
+  // ── Services (poles) ─────────────────────────────────────────────────────────
+  const SERVICE_NAMES = [
+    'Business Performance',
+    'Digital Growth',
+    'Technology Solutions',
+    'AI & Automation',
+  ];
+  const services: Record<string, { id: string }> = {};
+  for (const name of SERVICE_NAMES) {
+    services[name] = await prisma.service.upsert({
+      where: { companyId_name: { companyId: company.id, name } },
+      update: {},
+      create: { name, companyId: company.id },
+    });
+  }
+  console.log('Services ready:', SERVICE_NAMES.join(', '));
+
   // ── Users ──────────────────────────────────────────────────────────────────
   const adminPassword   = await bcrypt.hash('admin123',    10);
   const managerPassword = await bcrypt.hash('manager123',  10);

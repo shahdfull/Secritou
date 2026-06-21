@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
+import { serviceService } from "./service.service.js";
 import type { ContactRequestInput } from "../validators/contact.validator.js";
 import type { ContactStatus } from "@prisma/client";
 
@@ -34,6 +35,15 @@ export class ContactService {
         .filter((line) => line !== null)
         .join("\n");
 
+      // Attach the lead to the pole derived from the chosen serviceType (null for "Other" or
+      // an un-seeded service → unassigned, ADMIN triage). This is what lets a MANAGER later
+      // see only their pole's leads.
+      const serviceId = await serviceService.resolveServiceIdForType(
+        input.serviceType,
+        env.INTERNAL_COMPANY_ID,
+        tx
+      );
+
       await tx.lead.upsert({
         where: {
           companyId_email: { companyId: env.INTERNAL_COMPANY_ID, email: input.email },
@@ -43,6 +53,7 @@ export class ContactService {
           name: input.name,
           phone: input.phone,
           notes,
+          serviceId,
           archivedAt: null,
         },
         create: {
@@ -51,6 +62,7 @@ export class ContactService {
           phone: input.phone,
           source: "Website contact form",
           notes,
+          serviceId,
           companyId: env.INTERNAL_COMPANY_ID,
         },
       });
