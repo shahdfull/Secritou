@@ -67,7 +67,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
       title: values.title,
       description: values.description,
       amount: values.amount,
-      currency: "EUR",
+      currency: "TND",
       dueDate: values.dueDate || undefined,
       clientId: values.clientId,
     }, {

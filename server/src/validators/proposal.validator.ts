@@ -8,7 +8,7 @@ export const createProposalSchema = z.object({
     title: z.string().min(1).max(255),
     description: z.string().max(5000).optional(),
     amount: z.number().nonnegative().optional(),
-    currency: currencyCode.default("EUR"),
+    currency: currencyCode.default("TND"),
     clientId: z.string().uuid(),
     projectId: z.string().uuid().optional(),
     serviceRequestId: z.string().uuid().optional(),

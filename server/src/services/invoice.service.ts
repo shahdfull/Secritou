@@ -210,7 +210,7 @@ export const invoiceService = {
           user.name ?? invoice.clientId,
           invoice.number,
           Number(invoice.amount),
-          invoice.currency ?? "EUR",
+          invoice.currency ?? "TND",
           dueDate,
           invoiceUrl
         );
@@ -296,7 +296,7 @@ export const invoiceService = {
           clientId: invoice.clientId,
           companyId,
           amount: overpaidBy,
-          reason: `Overpayment on invoice (paid ${rawAmountPaid.toFixed(2)} vs billed ${invoiceAmount.toFixed(2)} ${invoice.currency ?? "EUR"})`,
+          reason: `Overpayment on invoice (paid ${rawAmountPaid.toFixed(2)} vs billed ${invoiceAmount.toFixed(2)} ${invoice.currency ?? "TND"})`,
         });
       }
 
@@ -318,7 +318,7 @@ export const invoiceService = {
         admins.map((admin) => ({
           userId: admin.id,
           title: "Paiement reçu",
-          message: `Un paiement de ${Number(data.amount).toFixed(2)} ${invoiceMeta.currency ?? "EUR"} a été enregistré pour la facture ${invoiceMeta.number}.`,
+          message: `Un paiement de ${Number(data.amount).toFixed(2)} ${invoiceMeta.currency ?? "TND"} a été enregistré pour la facture ${invoiceMeta.number}.`,
         }))
       );
 
@@ -330,7 +330,7 @@ export const invoiceService = {
           clientUsers.map((user) => ({
             userId: user.id,
             title: "Avoir disponible",
-            message: `Un avoir de ${result.overpaidBy.toFixed(2)} ${invoiceMeta.currency ?? "EUR"} a été crédité sur votre compte suite à un trop-perçu sur la facture ${invoiceMeta.number}.`,
+            message: `Un avoir de ${result.overpaidBy.toFixed(2)} ${invoiceMeta.currency ?? "TND"} a été crédité sur votre compte suite à un trop-perçu sur la facture ${invoiceMeta.number}.`,
           }))
         );
       }
@@ -371,7 +371,7 @@ export const invoiceService = {
           user.name ?? invoice.clientId,
           invoice.number,
           Number(invoice.amount),
-          invoice.currency ?? "EUR",
+          invoice.currency ?? "TND",
           dueDate,
           daysOverdue,
           invoiceUrl
