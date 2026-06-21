@@ -16,7 +16,7 @@ export const getCommentsByTaskId: RequestHandler = async (req, res, next) => {
       throw new HttpError(404, "Task not found");
     }
 
-    const comments = await commentService.getCommentsByTaskId(taskId);
+    const comments = await commentService.getCommentsByTaskId(taskId, companyId);
     res.json({ data: comments });
   } catch (error) {
     next(error);

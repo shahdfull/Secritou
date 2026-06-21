@@ -54,7 +54,7 @@
     "resetting": "Resetting..."
   },
   "services": {
-    "title": "One partner. Multiple growth solutions.",
+    "title": "One partner : Multiple growth solutions",
     "subtitle": "Here's how we solve them",
     "seeFullCapabilities": "See full capabilities",
     "businessPerformance": {
@@ -144,7 +144,7 @@
     },
     "services": {
       "subtitle": "Here's how we solve them",
-      "title": "One partner. Multiple growth solutions.",
+      "title": "One partner : Multiple growth solutions",
       "seeFullCapabilities": "See full capabilities",
       "items": [
         {
@@ -231,7 +231,7 @@
       "industries": "Industries",
       "company": "Company",
       "forSmes": "For SMEs",
-      "forEntrepreneurs": "For Entrepreneurs",
+      "forEntrepreneurs": "For Startuppers",
       "forCreators": "For Creators",
       "industries": {
         "healthcare": "Healthcare",
@@ -547,7 +547,7 @@
         "outcome": "From scattered ops to a calm, measurable business."
       },
       "entrepreneurs": {
-        "tag": "For Entrepreneurs",
+        "tag": "For Startuppers",
         "title": "Move fast, without burning out.",
         "needs": [
           {"h": "Growth", "b": "A repeatable acquisition engine, not a tactic-of-the-month."},
@@ -704,7 +704,7 @@
         }
       },
       "entrepreneurs": {
-        "tag": "For Entrepreneurs",
+        "tag": "For Startuppers",
         "title": "Move faster, without burning out.",
         "needs": {
           "0": "Growth",

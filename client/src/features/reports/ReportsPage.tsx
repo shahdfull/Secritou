@@ -1,11 +1,13 @@
 import { useCallback, useMemo, useRef, useState, useTransition } from "react";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DateFilter, DateRange } from "@/components/DateFilter";
 import { useLeads } from "@/hooks/useLeads";
 import { useProjects } from "@/hooks/useProjects";
 import { useMissions } from "@/hooks/useMissions";
-import { FileText, FileSpreadsheet, Loader2, Users, Briefcase, Target } from "lucide-react";
+import { useInvoices } from "@/hooks/useInvoices";
+import { FileText, FileSpreadsheet, Loader2, Users, Briefcase, Target, TrendingUp } from "lucide-react";
 import { Table, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { Lead } from "@/types/lead";
 import type { Project } from "@/types/project";
@@ -78,11 +80,13 @@ export function ReportsPage() {
   const { data: leadsResult, isLoading: leadsLoading } = useLeads(listParams);
   const { data: projectsResult, isLoading: projectsLoading } = useProjects(listParams);
   const { data: missionsResult, isLoading: missionsLoading } = useMissions(listParams);
+  const { data: invoicesResult, isLoading: invoicesLoading } = useInvoices(listParams);
   const leads = useMemo(() => leadsResult?.data ?? [], [leadsResult?.data]);
   const projects = useMemo(() => projectsResult?.data ?? [], [projectsResult?.data]);
   const missions = useMemo(() => missionsResult?.data ?? [], [missionsResult?.data]);
+  const invoices = useMemo(() => invoicesResult?.data ?? [], [invoicesResult?.data]);
 
-  const isLoading = leadsLoading || projectsLoading || missionsLoading;
+  const isLoading = leadsLoading || projectsLoading || missionsLoading || invoicesLoading;
   const [isExporting, startExportTransition] = useTransition();
 
   const fromMs = dateRange.from ? dateRange.from.getTime() : null;
@@ -132,6 +136,28 @@ export function ReportsPage() {
   const totalMissionBudget = useMemo(
     () => filteredMissions.reduce((sum, mission) => sum + Number(mission.budget ?? 0), 0),
     [filteredMissions]
+  );
+
+  // True revenue: cash actually received from paid/partial invoices within the date range.
+  // Uses paidAt as recognition date to match analytics.repository.ts logic.
+  const filteredInvoices = useMemo(
+    () =>
+      invoices.filter((inv) => {
+        if (inv.status !== "PAID" && inv.status !== "PARTIAL") return false;
+        const paidAtMs = inv.paidAt ? new Date(inv.paidAt).getTime() : null;
+        if (paidAtMs == null) return false;
+        return (fromMs == null || paidAtMs >= fromMs) && (toMs == null || paidAtMs <= toMs);
+      }),
+    [invoices, fromMs, toMs]
+  );
+
+  const totalRevenue = useMemo(
+    () =>
+      filteredInvoices.reduce((sum, inv) => {
+        const received = inv.status === "PAID" ? Number(inv.amount) : Number(inv.amountPaid);
+        return sum + received;
+      }, 0),
+    [filteredInvoices]
   );
 
   const exportToPDF = useCallback(() => {
@@ -193,7 +219,7 @@ export function ReportsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center gap-2">
             <Users className="h-5 w-5 text-muted-foreground" />
@@ -294,13 +320,55 @@ export function ReportsPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-muted-foreground" />
+            <CardTitle>Chiffre d'Affaires</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex justify-between items-center mb-4">
+              <div className="text-2xl font-bold">{filteredInvoices.length}</div>
+              <div className="text-3xl font-bold text-green-600">
+                {totalRevenue.toLocaleString("fr-FR", { minimumFractionDigits: 0 })} TND
+              </div>
+            </div>
+            <CardDescription className="text-sm text-muted-foreground">
+              Encaissé (factures PAID + PARTIAL)
+            </CardDescription>
+          </CardContent>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Facture</TableHead>
+                  <TableHead>Montant</TableHead>
+                </TableRow>
+              </TableHeader>
+            </Table>
+            <div className="max-h-64 overflow-auto border-t">
+              {filteredInvoices.length === 0 ? (
+                <p className="text-sm text-muted-foreground px-4 py-3">Aucune facture encaissée sur la période.</p>
+              ) : (
+                filteredInvoices.map((inv) => (
+                  <div key={inv.id} className="grid grid-cols-2 px-4 items-center border-b h-11">
+                    <div className="truncate text-sm">{inv.number} — {inv.title}</div>
+                    <div className="text-sm font-medium text-green-600">
+                      {(inv.status === "PAID" ? Number(inv.amount) : Number(inv.amountPaid)).toLocaleString("fr-FR")} TND
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-2">
             <Target className="h-5 w-5 text-muted-foreground" />
             <CardTitle>Rapport Missions</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex justify-between items-center mb-4">
               <div className="text-2xl font-bold">{filteredMissions.length}</div>
-              <div className="text-3xl font-bold text-green-600">{totalMissionBudget} TND</div>
+              <div className="text-3xl font-bold text-blue-600">{totalMissionBudget.toLocaleString("fr-FR")} TND</div>
             </div>
             <CardDescription className="text-sm text-muted-foreground">Budget total engagé</CardDescription>
           </CardContent>

@@ -6,19 +6,21 @@ import {
   HeadObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { fileTypeFromBuffer } from "file-type";
 import { v4 as uuidv4 } from "uuid";
 import path from "path";
+import { env } from "../config/env.js";
 
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
 
-const REGION = process.env.S3_REGION ?? "us-east-1";
-const BUCKET = process.env.S3_BUCKET ?? "";
-const ENDPOINT = process.env.S3_ENDPOINT; // set for MinIO / R2 / Backblaze
-const PUBLIC_URL_BASE = process.env.S3_PUBLIC_URL; // CDN or public bucket URL prefix
+const REGION = env.S3_REGION;
+const BUCKET = env.S3_BUCKET ?? "";
+const ENDPOINT = env.S3_ENDPOINT; // set for MinIO / R2 / Backblaze
+const PUBLIC_URL_BASE = env.S3_PUBLIC_URL; // CDN or public bucket URL prefix
 
-const MAX_FILE_SIZE = Number(process.env.UPLOAD_MAX_BYTES ?? 20 * 1024 * 1024); // 20 MB
+const MAX_FILE_SIZE = env.UPLOAD_MAX_BYTES;
 
 // MIME → extension whitelist
 const ALLOWED_MIME: Record<string, string> = {
@@ -60,24 +62,18 @@ export type UploadContext = keyof typeof UPLOAD_CONTEXTS;
 // ---------------------------------------------------------------------------
 
 function buildS3Client(): S3Client {
-  // Log S3 configuration for debugging
-  console.log("[S3 Config]", {
-    region: REGION,
-    bucket: BUCKET || "NOT_SET",
-    endpoint: ENDPOINT || "NOT_SET",
-    hasAccessKey: !!process.env.S3_ACCESS_KEY_ID,
-    hasSecretKey: !!process.env.S3_SECRET_ACCESS_KEY,
-  });
-
+  if (env.NODE_ENV === "production" && !env.S3_BUCKET) {
+    throw new Error("S3_BUCKET is required in production");
+  }
   const cfg: ConstructorParameters<typeof S3Client>[0] = { region: REGION };
   if (ENDPOINT) {
     cfg.endpoint = ENDPOINT;
     cfg.forcePathStyle = true; // required for MinIO / R2
   }
-  if (process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY) {
+  if (env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY) {
     cfg.credentials = {
-      accessKeyId: process.env.S3_ACCESS_KEY_ID,
-      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+      accessKeyId: env.S3_ACCESS_KEY_ID,
+      secretAccessKey: env.S3_SECRET_ACCESS_KEY,
     };
   }
   return new S3Client(cfg);
@@ -155,43 +151,45 @@ export async function uploadFile(
   context: UploadContext,
   folder?: string
 ): Promise<UploadResult> {
-  console.log("[Upload] Starting upload", {
-    originalName,
-    mimeType,
-    size,
-    context,
-    bucketConfigured: !!BUCKET,
-  });
-
   if (!BUCKET) {
-    const error = new Error("S3_BUCKET is not configured. Set S3_BUCKET env var.");
-    console.error("[Upload Error]", error.message);
-    throw Object.assign(error, { statusCode: 500 });
+    throw Object.assign(
+      new Error("S3_BUCKET is not configured. Set S3_BUCKET env var."),
+      { statusCode: 500 }
+    );
   }
 
-  try {
-    validateUpload(mimeType, size, context);
-  } catch (err) {
-    console.error("[Upload Validation Error]", err);
-    throw err;
+  validateUpload(mimeType, size, context);
+
+  // Verify actual file content matches declared MIME type (defense against spoofed Content-Type)
+  const detected = await fileTypeFromBuffer(buffer);
+  // Some text/plain files have no magic bytes — only reject if detection succeeds but doesn't match
+  if (detected && !ALLOWED_MIME[detected.mime]) {
+    throw Object.assign(
+      new Error(`Invalid file content (detected: ${detected.mime})`),
+      { statusCode: 415 }
+    );
+  }
+  if (detected && detected.mime !== mimeType) {
+    const allowed = UPLOAD_CONTEXTS[context] as readonly string[];
+    if (!allowed.includes(detected.mime)) {
+      throw Object.assign(
+        new Error(
+          `File content (${detected.mime}) does not match declared type (${mimeType})`
+        ),
+        { statusCode: 415 }
+      );
+    }
+    // Use the detected MIME instead of the client-supplied one
+    mimeType = detected.mime;
   }
 
   const resolvedFolder = folder ?? context;
   const key = buildKey(resolvedFolder, originalName);
 
-  console.log("[Upload] Generated key", { key, folder: resolvedFolder });
-
   // Encode original name to base64 for safe storage in S3 metadata (preserves UTF-8)
   const encodedName = Buffer.from(originalName, 'utf8').toString('base64');
 
   try {
-    console.log("[Upload] Sending to S3", {
-      bucket: BUCKET,
-      key,
-      contentType: mimeType,
-      bufferSize: buffer.length,
-    });
-
     await getS3().send(
       new PutObjectCommand({
         Bucket: BUCKET,
@@ -200,29 +198,21 @@ export async function uploadFile(
         ContentType: mimeType,
         ContentLength: size,
         // Private by default — use signed URLs to serve
-        ACL: process.env.S3_PUBLIC_ACL === "true" ? "public-read" : "private",
+        ACL: env.S3_PUBLIC_ACL ? "public-read" : "private",
         Metadata: {
           originalName: encodedName,
         },
       })
     );
 
-    console.log("[Upload] S3 upload successful", { key });
   } catch (s3Error) {
-    console.error("[Upload S3 Error]", {
-      message: (s3Error as Error).message,
-      name: (s3Error as Error).name,
-      bucket: BUCKET,
-      key,
-    });
     throw s3Error;
   }
 
-  const url = process.env.S3_PUBLIC_ACL === "true"
+  const url = env.S3_PUBLIC_ACL
     ? buildPublicUrl(key)
     : await getSignedReadUrl(key, 60 * 60 * 24 * 7); // 7-day signed URL
 
-  console.log("[Upload] Complete", { key, url });
   return { key, url, originalName, mimeType, size };
 }
 

@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -35,6 +35,7 @@ import {
   Receipt,
   Star,
   Inbox,
+  HelpCircle,
 } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,8 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { GlobalSearch } from "@/components/common/GlobalSearch";
 import { routePrefetch } from "@/routes/routePrefetch";
 import { useTranslation } from "react-i18next";
+import { AIAssistantFloat } from "./AIAssistantFloat";
+import { type ChatMessage } from "@/api/ai.api";
 
 const menuItems = [
   {
@@ -61,24 +64,9 @@ const menuItems = [
     icon: Home,
   },
   {
-    key: "leads",
-    url: "/app/leads",
-    icon: UserPlus,
-  },
-  {
-    key: "clients",
-    url: "/app/clients",
+    key: "crm",
+    url: "/app/crm",
     icon: Users,
-  },
-  {
-    key: "applications",
-    url: "/app/applications",
-    icon: UserCheck,
-  },
-  {
-    key: "onboarding",
-    url: "/app/client-onboardings",
-    icon: Rocket,
   },
   {
     key: "commercial",
@@ -86,29 +74,9 @@ const menuItems = [
     icon: FileText,
   },
   {
-    key: "approvals",
-    url: "/app/approvals",
-    icon: Check,
-  },
-  {
-    key: "invoices",
-    url: "/app/invoices",
-    icon: Receipt,
-  },
-  {
-    key: "documents",
-    url: "/app/documents",
-    icon: FileText,
-  },
-  {
-    key: "freelancers",
-    url: "/app/freelancers",
+    key: "talent",
+    url: "/app/talent",
     icon: Briefcase,
-  },
-  {
-    key: "missions",
-    url: "/app/missions",
-    icon: ClipboardList,
   },
   {
     key: "projects",
@@ -116,19 +84,9 @@ const menuItems = [
     icon: FolderOpen,
   },
   {
-    key: "tasks",
-    url: "/app/tasks",
-    icon: CheckSquare,
-  },
-  {
-    key: "aiAssistant",
-    url: "/app/ai",
-    icon: Bot,
-  },
-  {
-    key: "analytics",
-    url: "/app/analytics",
-    icon: BarChart3,
+    key: "questions",
+    url: "/app/questions",
+    icon: HelpCircle,
   },
   {
     key: "settings",
@@ -140,6 +98,24 @@ const menuItems = [
 export const AdminLayout = memo(function AdminLayout() {
   const user = useAuthStore((state) => state.user);
   const { mutate: logout, isPending } = useLogout();
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiMessages, setAiMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const saved = localStorage.getItem("ai_chat_history");
+      return saved ? (JSON.parse(saved) as ChatMessage[]) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("ai_chat_history", JSON.stringify(aiMessages.slice(-50)));
+  }, [aiMessages]);
+
+  const handleAiMessagesChange = useCallback((next: ChatMessage[]) => {
+    if (next.length === 0) localStorage.removeItem("ai_chat_history");
+    setAiMessages(next);
+  }, []);
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -150,22 +126,15 @@ export const AdminLayout = memo(function AdminLayout() {
       ADMIN: menuItems.map((item) => item.key),
       MANAGER: [
         "dashboard",
-        "clients",
-        "serviceRequests",
-        "proposals",
-        "approvals",
-        "invoices",
-        "documents",
+        "crm",
+        "commercial",
         "projects",
-        "tasks",
-        "aiAssistant",
+        "questions",
         "settings",
       ],
       FREELANCER: [
         "dashboard",
-        "missions",
-        "tasks",
-        "aiAssistant",
+        "talent",
         "settings",
       ],
     };
@@ -197,50 +166,20 @@ export const AdminLayout = memo(function AdminLayout() {
       case "/app":
         routePrefetch.dashboard();
         break;
-      case "/app/leads":
-        routePrefetch.leads();
-        break;
-      case "/app/clients":
-        routePrefetch.clients();
-        break;
-      case "/app/applications":
-        routePrefetch.applications?.();
+      case "/app/crm":
+        routePrefetch.crm?.();
         break;
       case "/app/service-requests":
         routePrefetch.serviceRequests?.();
         break;
-      case "/app/proposals":
-        routePrefetch.proposals?.();
-        break;
-      case "/app/approvals":
-        routePrefetch.approvals?.();
-        break;
-      case "/app/invoices":
-        routePrefetch.invoices?.();
-        break;
-      case "/app/documents":
-        routePrefetch.enhancedDocuments?.();
-        break;
-      case "/app/freelancers":
-        routePrefetch.freelancers();
-        break;
-      case "/app/missions":
-        routePrefetch.missions();
+      case "/app/talent":
+        routePrefetch.talent?.();
         break;
       case "/app/projects":
         routePrefetch.projects();
         break;
-      case "/app/tasks":
-        routePrefetch.tasks();
-        break;
       case "/app/ai":
         routePrefetch.ai();
-        break;
-      case "/app/analytics":
-        routePrefetch.analytics();
-        break;
-      case "/app/reports":
-        routePrefetch.reports();
         break;
       case "/app/settings":
         routePrefetch.settings();
@@ -343,6 +282,12 @@ export const AdminLayout = memo(function AdminLayout() {
           </main>
         </SidebarInset>
       </div>
+      <AIAssistantFloat
+        open={aiOpen}
+        onOpenChange={setAiOpen}
+        messages={aiMessages}
+        onMessagesChange={handleAiMessagesChange}
+      />
     </SidebarProvider>
   );
 });

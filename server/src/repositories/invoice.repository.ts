@@ -1,8 +1,10 @@
-import { prisma } from "../config/prisma.js";
-import type { Invoice, InvoiceStatus } from "@prisma/client";
+import { prisma, prismaRead } from "../config/prisma.js";
+import type { Invoice, InvoiceStatus, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 
 export const invoiceRepository = {
+  // ─── READ REPLICA ────────────────────────────────────────────────────────────
+
   async findAll(
     options: ListQueryOptions & {
       companyId: string;
@@ -11,7 +13,7 @@ export const invoiceRepository = {
       search?: string;
     }
   ): Promise<PaginatedResult<Invoice & { client: { name: string } }>> {
-    const where: any = { companyId: options.companyId };
+    const where: Prisma.InvoiceWhereInput = { companyId: options.companyId };
     if (options.clientId) where.clientId = options.clientId;
     if (options.status) where.status = options.status;
     if (options.search) {
@@ -24,21 +26,45 @@ export const invoiceRepository = {
     const skip = (options.page - 1) * options.pageSize;
 
     const [data, total] = await Promise.all([
-      prisma.invoice.findMany({
+      prismaRead.invoice.findMany({
         where,
         skip,
         take: options.pageSize,
         orderBy: { [options.orderBy || "createdAt"]: options.orderDir || "desc" },
         include: { client: { select: { name: true } } },
       }),
-      prisma.invoice.count({ where }),
+      prismaRead.invoice.count({ where }),
     ]);
 
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
+  async findAllByClientId(
+    clientId: string,
+    options: { page: number; pageSize: number; status?: InvoiceStatus }
+  ): Promise<PaginatedResult<Invoice & { client: { name: string } }>> {
+    const where: Prisma.InvoiceWhereInput = { clientId };
+    if (options.status) where.status = options.status;
+    const skip = (options.page - 1) * options.pageSize;
+    const [data, total] = await Promise.all([
+      prismaRead.invoice.findMany({
+        where,
+        skip,
+        take: options.pageSize,
+        orderBy: { createdAt: "desc" },
+        include: {
+          client: { select: { name: true } },
+          items: true,
+          payments: { orderBy: { paidAt: "desc" } },
+        },
+      }),
+      prismaRead.invoice.count({ where }),
+    ]);
+    return { data, total, page: options.page, pageSize: options.pageSize };
+  },
+
   async findById(id: string, companyId: string) {
-    return prisma.invoice.findUnique({
+    return prismaRead.invoice.findUnique({
       where: { id, companyId },
       include: {
         client: true,
@@ -48,6 +74,8 @@ export const invoiceRepository = {
       },
     });
   },
+
+  // ─── PRIMARY ──────────────────────────────────────────────────────────────────
 
   async create(data: {
     number: string;
@@ -62,6 +90,7 @@ export const invoiceRepository = {
     clientId: string;
     companyId: string;
     projectId?: string;
+    proposalId?: string;
   }) {
     return prisma.invoice.create({ data });
   },
@@ -95,7 +124,11 @@ export const invoiceRepository = {
     companyId: string,
     data: { description: string; quantity: number; unitPrice: number; total: number }
   ) {
-    await prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId, companyId }, select: { id: true } });
+    // Ownership check: ensures the invoice belongs to the company before writing
+    await prisma.invoice.findUniqueOrThrow({
+      where: { id: invoiceId, companyId },
+      select: { id: true },
+    });
     return prisma.invoiceItem.create({ data: { ...data, invoiceId } });
   },
 
@@ -105,20 +138,14 @@ export const invoiceRepository = {
     data: { description?: string; quantity?: number; unitPrice?: number; total?: number }
   ) {
     return prisma.invoiceItem.update({
-      where: {
-        id,
-        invoice: { companyId }
-      },
-      data
+      where: { id, invoice: { companyId } },
+      data,
     });
   },
 
   async deleteItem(id: string, companyId: string) {
     return prisma.invoiceItem.delete({
-      where: {
-        id,
-        invoice: { companyId }
-      }
+      where: { id, invoice: { companyId } },
     });
   },
 
@@ -127,7 +154,11 @@ export const invoiceRepository = {
     companyId: string,
     data: { amount: number; method?: string; reference?: string; paidAt?: Date }
   ) {
-    await prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId, companyId }, select: { id: true } });
+    // Ownership check: ensures the invoice belongs to the company before writing
+    await prisma.invoice.findUniqueOrThrow({
+      where: { id: invoiceId, companyId },
+      select: { id: true },
+    });
     return prisma.invoicePayment.create({ data: { ...data, invoiceId } });
   },
 
@@ -136,7 +167,10 @@ export const invoiceRepository = {
     companyId: string,
     data: { type: string; sentAt?: Date }
   ) {
-    await prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId, companyId }, select: { id: true } });
+    await prisma.invoice.findUniqueOrThrow({
+      where: { id: invoiceId, companyId },
+      select: { id: true },
+    });
     return prisma.invoiceReminder.create({ data: { ...data, invoiceId } });
   },
 };

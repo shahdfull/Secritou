@@ -8,4 +8,5 @@ export type JwtPayload = {
   role: Role;
   companyId: string | null;
   clientId: string | null;
+  mustChangePassword: boolean;
 };

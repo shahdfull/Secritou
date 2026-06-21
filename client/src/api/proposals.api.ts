@@ -15,6 +15,8 @@ export interface Proposal {
   clientId: string;
   companyId: string;
   projectId?: string;
+  serviceRequestId?: string;
+  invoice?: { id: string } | null;
   client?: { name: string };
   sections?: ProposalSection[];
   history?: ProposalHistory[];
@@ -77,6 +79,7 @@ export const proposalsApi = {
     pdfUrl?: string;
     clientId: string;
     projectId?: string;
+    serviceRequestId?: string;
   }) => {
     const response = await apiClient.post<{ data: Proposal }>("/proposals", data);
     return response.data.data;
@@ -123,6 +126,11 @@ export const proposalsApi = {
 
   deleteSection: async (id: string, sectionId: string) => {
     const response = await apiClient.delete<{ data: { success: boolean } }>(`/proposals/${id}/sections/${sectionId}`);
+    return response.data.data;
+  },
+
+  createInvoiceFromProposal: async (proposalId: string) => {
+    const response = await apiClient.post<{ data: { id: string } }>(`/proposals/${proposalId}/create-invoice`);
     return response.data.data;
   },
 };

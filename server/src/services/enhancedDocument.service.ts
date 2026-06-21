@@ -68,16 +68,16 @@ export const enhancedDocumentService = {
 
     const newVersion = await enhancedDocumentRepository.create({
       name: original.name,
-      description: original.description,
+      description: original.description ?? undefined,
       type: original.type,
       url: data.url,
       version: original.version + 1,
       parentId: original.id,
       tags: original.tags,
       accessLevel: original.accessLevel,
-      clientId: original.clientId,
+      clientId: original.clientId ?? undefined,
       companyId: original.companyId,
-      projectId: original.projectId,
+      projectId: original.projectId ?? undefined,
     });
 
     await enhancedDocumentRepository.addAccessLog(id, companyId, {

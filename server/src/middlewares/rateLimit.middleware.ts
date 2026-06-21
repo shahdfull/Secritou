@@ -33,7 +33,7 @@ export const aiRateLimit = rateLimit({
 
 export const sensitiveWriteRateLimit = rateLimit({
   windowMs: 60 * 1000,
-  limit: 30,
+  limit: 10,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: rateLimitKeyGenerator,

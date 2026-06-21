@@ -1,5 +1,6 @@
 // Freelancer Repository - Data access layer
 import { prisma, prismaRead } from "../config/prisma.js";
+import { HttpError } from "../utils/httpError.js";
 import type { FreelancerProfile, Skill, PortfolioItem } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 
@@ -85,6 +86,7 @@ export const freelancerRepository = {
 
   async update(
     id: string,
+    userId: string,
     data: {
       bio?: string;
       hourlyRate?: number;
@@ -92,6 +94,12 @@ export const freelancerRepository = {
       skillIds?: string[];
     }
   ): Promise<FreelancerProfile & { skills: Skill[] }> {
+    const existing = await prismaRead.freelancerProfile.findFirst({
+      where: { id, userId },
+      select: { id: true },
+    });
+    if (!existing) throw new HttpError(404, `Freelancer ${id} not found or access denied`);
+
     const updateData: Record<string, unknown> = {
       bio: data.bio,
       hourlyRate: data.hourlyRate ? String(data.hourlyRate) : undefined,
@@ -100,18 +108,24 @@ export const freelancerRepository = {
 
     if (data.skillIds) {
       updateData.skills = {
-        set: data.skillIds.map((id) => ({ id })),
+        set: data.skillIds.map((skillId) => ({ id: skillId })),
       };
     }
 
     return prisma.freelancerProfile.update({
-      where: { id },
+      where: { id, userId },
       data: updateData,
       include: { skills: true },
     });
   },
 
-  async delete(id: string): Promise<FreelancerProfile> {
-    return prisma.freelancerProfile.delete({ where: { id } });
+  async delete(id: string, userId: string): Promise<FreelancerProfile> {
+    const existing = await prismaRead.freelancerProfile.findFirst({
+      where: { id, userId },
+      select: { id: true },
+    });
+    if (!existing) throw new HttpError(404, `Freelancer ${id} not found or access denied`);
+
+    return prisma.freelancerProfile.delete({ where: { id, userId } });
   },
 };

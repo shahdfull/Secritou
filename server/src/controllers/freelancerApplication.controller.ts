@@ -10,8 +10,9 @@ import {
 
 export const getApplications: RequestHandler = async (req, res, next) => {
   try {
+    const companyId = req.user!.companyId!;
     const options = parseListQuery(req.query as Record<string, unknown>);
-    const result = await freelancerApplicationService.getAllApplications({
+    const result = await freelancerApplicationService.getAllApplications(companyId, {
       ...options,
       status: req.query.status as any,
     });
@@ -23,8 +24,10 @@ export const getApplications: RequestHandler = async (req, res, next) => {
 
 export const getApplicationById: RequestHandler = async (req, res, next) => {
   try {
+    const companyId = req.user!.companyId!;
     const application = await freelancerApplicationService.getApplicationById(
-      req.params.id as string
+      req.params.id as string,
+      companyId
     );
     res.json({ data: application });
   } catch (error) {
@@ -56,6 +59,8 @@ export const createApplication: RequestHandler[] = [
         return;
       }
 
+      // Public route: no companyId at submission time.
+      // companyId is set when an admin accepts the application.
       const application = await freelancerApplicationService.createApplication(
         {
           firstName: req.body.firstName,
@@ -76,10 +81,34 @@ export const createApplication: RequestHandler[] = [
   },
 ];
 
+export const getPendingApplications: RequestHandler = async (req, res, next) => {
+  try {
+    const applications = await freelancerApplicationService.getPendingApplications();
+    res.json({ data: applications });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const assignApplication: RequestHandler = async (req, res, next) => {
+  try {
+    const companyId = req.user!.companyId!;
+    const application = await freelancerApplicationService.assignApplicationToCompany(
+      req.params.id as string,
+      companyId
+    );
+    res.json({ data: application });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const rejectApplication: RequestHandler = async (req, res, next) => {
   try {
+    const companyId = req.user!.companyId!;
     const application = await freelancerApplicationService.rejectApplication(
       req.params.id as string,
+      companyId,
       req.body.rejectionReason
     );
     res.json({ data: application });
@@ -92,8 +121,10 @@ export const acceptApplication: RequestHandler[] = [
   validate(acceptFreelancerApplicationValidator),
   async (req, res, next) => {
     try {
+      const companyId = req.user!.companyId!;
       const result = await freelancerApplicationService.acceptApplication(
         req.params.id as string,
+        companyId,
         req.body
       );
       res.json({ data: result });

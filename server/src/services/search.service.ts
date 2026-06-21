@@ -7,7 +7,10 @@ export const searchService = {
       throw new HttpError(403, "Forbidden");
     }
     if (!query || query.trim().length < 2) {
-      return { leads: [], clients: [], projects: [], tasks: [], freelancers: [] };
+      return { leads: [], clients: [], projects: [], tasks: [], freelancers: [], proposals: [], invoices: [], serviceRequests: [], approvals: [] };
+    }
+    if (query.trim().length > 200) {
+      throw new HttpError(400, "Search query too long (max 200 characters)");
     }
     return searchRepository.search(companyId, query.trim());
   },

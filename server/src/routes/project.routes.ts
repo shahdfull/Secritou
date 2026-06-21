@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllProjects, getProjectById, createProject, updateProject, deleteProject } from "../controllers/project.controller.js";
+import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, getMyProjects } from "../controllers/project.controller.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { createProjectSchema, updateProjectSchema } from "../validators/project.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
@@ -8,7 +8,10 @@ import { requireCompanyTenant } from "../middlewares/tenant.middleware.js";
 
 const router = Router();
 
-// Apply auth middleware to all project routes
+// CLIENT route — scoped by clientId from token, no companyId needed
+router.get("/my", authenticate, authorize("CLIENT"), getMyProjects);
+
+// Apply auth + tenant middleware to all admin/manager routes
 router.use(authenticate);
 router.use(requireCompanyTenant());
 

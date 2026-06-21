@@ -1,6 +1,6 @@
 // Freelancer Application Repository - Data access layer
 import { prisma, prismaRead } from "../config/prisma.js";
-import type { FreelancerApplication, ApplicationStatus } from "@prisma/client";
+import type { FreelancerApplication, ApplicationStatus, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 
 function buildOrderBy(orderBy: string | undefined, orderDir: "asc" | "desc") {
@@ -9,31 +9,46 @@ function buildOrderBy(orderBy: string | undefined, orderDir: "asc" | "desc") {
   return { [field]: orderDir };
 }
 
-function buildWhere(search?: string, status?: ApplicationStatus) {
-  const where: any = {};
-  
-  if (search) {
-    where.OR = [
-      { firstName: { contains: search, mode: "insensitive" } },
-      { lastName: { contains: search, mode: "insensitive" } },
-      { email: { contains: search, mode: "insensitive" } },
-    ];
-  }
-  
+function buildWhere(
+  companyId: string,
+  search?: string,
+  status?: ApplicationStatus
+): Prisma.FreelancerApplicationWhereInput {
+  const textFilter: Prisma.FreelancerApplicationWhereInput = search
+    ? {
+        OR: [
+          { firstName: { contains: search, mode: "insensitive" } },
+          { lastName: { contains: search, mode: "insensitive" } },
+          { email: { contains: search, mode: "insensitive" } },
+        ],
+      }
+    : {};
+
+  // When filtering by a specific status, scope strictly to that status.
+  // Otherwise include both: records owned by this company AND unassigned PENDING
+  // records (companyId: null) that are awaiting assignment.
   if (status) {
-    where.status = status;
+    const companyFilter: Prisma.FreelancerApplicationWhereInput =
+      status === "PENDING"
+        ? { companyId: null }
+        : { companyId };
+    return { ...companyFilter, status, ...textFilter };
   }
-  
-  return where;
+
+  return {
+    OR: [{ companyId }, { companyId: null, status: "PENDING" }],
+    ...textFilter,
+  };
 }
 
 export const freelancerApplicationRepository = {
   async findAll(
+    companyId: string,
     options: ListQueryOptions & { search?: string; status?: ApplicationStatus }
   ): Promise<PaginatedResult<FreelancerApplication>> {
     const skip = (options.page - 1) * options.pageSize;
     const orderBy = buildOrderBy(options.orderBy, options.orderDir);
-    const where = buildWhere(options.search, options.status);
+    const where = buildWhere(companyId, options.search, options.status);
 
     const [data, total] = await Promise.all([
       prismaRead.freelancerApplication.findMany({
@@ -48,9 +63,9 @@ export const freelancerApplicationRepository = {
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(id: string): Promise<FreelancerApplication | null> {
-    return prismaRead.freelancerApplication.findUnique({
-      where: { id },
+  async findById(id: string, companyId: string): Promise<FreelancerApplication | null> {
+    return prismaRead.freelancerApplication.findFirst({
+      where: { id, companyId },
     });
   },
 
@@ -63,27 +78,43 @@ export const freelancerApplicationRepository = {
     cvUrl: string;
     portfolioUrl: string;
   }): Promise<FreelancerApplication> {
-    return prisma.freelancerApplication.create({
-      data,
-    });
+    // companyId intentionally absent: public route, no auth context at submission time.
+    // It is set during acceptApplication() when the admin processes the application.
+    return prisma.freelancerApplication.create({ data });
   },
 
   async update(
     id: string,
+    companyId: string,
     data: Partial<{
       status: ApplicationStatus;
       rejectionReason?: string;
       userId?: string;
+      companyId?: string;
       accountCreatedAt?: Date;
     }>
   ): Promise<FreelancerApplication> {
     return prisma.freelancerApplication.update({
-      where: { id },
+      where: { id, companyId },
       data,
     });
   },
 
-  async delete(id: string): Promise<FreelancerApplication> {
-    return prisma.freelancerApplication.delete({ where: { id } });
+  async delete(id: string, companyId: string): Promise<FreelancerApplication> {
+    return prisma.freelancerApplication.delete({ where: { id, companyId } });
+  },
+
+  async findPending(): Promise<FreelancerApplication[]> {
+    return prismaRead.freelancerApplication.findMany({
+      where: { status: "PENDING", companyId: null },
+      orderBy: { createdAt: "desc" },
+    });
+  },
+
+  async assignToCompany(id: string, companyId: string): Promise<FreelancerApplication> {
+    return prisma.freelancerApplication.update({
+      where: { id, companyId: null },
+      data: { companyId },
+    });
   },
 };

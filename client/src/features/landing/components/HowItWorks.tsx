@@ -39,12 +39,7 @@ export function HowItWorks() {
           </h2>
         </div>
 
-        <div className="mt-14 relative">
-          {/* Connecting line */}
-          <div
-            aria-hidden
-            className="hidden lg:block absolute left-0 right-0 top-7 h-px bg-gradient-to-r from-transparent via-border to-transparent"
-          />
+        <div className="mt-14">
           <div className="grid gap-8 lg:grid-cols-4 lg:gap-6">
             {steps.map((s, i) => (
               <motion.div
@@ -55,10 +50,12 @@ export function HowItWorks() {
                 transition={{ duration: 0.5, delay: i * 0.08 }}
                 className="relative"
               >
-                <div className="relative grid h-14 w-14 place-items-center rounded-2xl bg-ink font-display text-base font-bold text-white shadow-soft">
-                  {s.n}
+                <div className="flex items-center gap-3">
+                  <div className="relative grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-ink font-display text-base font-bold text-white shadow-soft">
+                    {s.n}
+                  </div>
+                  <h3 className="font-display text-lg font-semibold text-ink">{s.title}</h3>
                 </div>
-                <h3 className="mt-5 font-display text-lg font-semibold text-ink">{s.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
               </motion.div>
             ))}

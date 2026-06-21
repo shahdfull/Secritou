@@ -61,16 +61,18 @@ export function BusinessImpact() {
               transition={{ duration: 0.5, delay: index * 0.08 }}
               className="rounded-3xl border border-border bg-card p-6 shadow-soft"
             >
-              <div className="flex items-start justify-between">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary text-primary-foreground">
-                  <item.icon className="h-6 w-6" />
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary text-primary-foreground">
+                    <item.icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="font-display text-lg font-bold text-ink">{t(item.titleKey)}</h3>
                 </div>
-                <div className="text-right">
+                <div className="shrink-0 text-right">
                   <p className="font-display text-xl font-bold text-primary">{item.metric}</p>
                   <p className="text-xs text-muted-foreground">{t(item.labelKey)}</p>
                 </div>
               </div>
-              <h3 className="mt-4 font-display text-lg font-bold text-ink">{t(item.titleKey)}</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{t(item.descriptionKey)}</p>
             </motion.div>
           ))}

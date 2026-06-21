@@ -10,35 +10,54 @@ import {
   commentApproval,
   addApprovalAttachment,
   deleteApprovalAttachment,
+  getMyApprovals,
+  respondToApproval,
 } from "../controllers/approval.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
 import { requireCompanyTenant } from "../middlewares/tenant.middleware.js";
+import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
+import { validate } from "../middlewares/validate.middleware.js";
+import {
+  createApprovalSchema,
+  updateApprovalSchema,
+  approvalActionSchema,
+  respondToApprovalSchema,
+  addAttachmentSchema,
+  approvalIdParamSchema,
+  attachmentParamSchema,
+} from "../validators/approval.validator.js";
 
 const router = express.Router();
 
-// Apply base middleware to all approval routes
+// CLIENT routes — before requireCompanyTenant
+router.get("/my", authenticate, authorize("CLIENT"), getMyApprovals);
+router.post("/:id/respond", authenticate, authorize("CLIENT"), sensitiveWriteRateLimit, validate(respondToApprovalSchema), respondToApproval);
+
+// Apply base middleware to all admin/manager routes
 router.use(authenticate, requireCompanyTenant());
 
 // Protected routes
 router.get("/", authorize("ADMIN", "MANAGER"), getApprovals);
-router.get("/:id", authorize("ADMIN", "MANAGER"), getApprovalById);
-router.post("/", authorize("ADMIN", "MANAGER"), createApproval);
-router.put("/:id", authorize("ADMIN", "MANAGER"), updateApproval);
-router.delete("/:id", authorize("ADMIN"), deleteApproval);
-router.post("/:id/approve", approveApproval);
-router.post("/:id/reject", rejectApproval);
-router.post("/:id/comment", commentApproval);
+router.get("/:id", authorize("ADMIN", "MANAGER"), validate(approvalIdParamSchema), getApprovalById);
+router.post("/", authorize("ADMIN", "MANAGER"), validate(createApprovalSchema), createApproval);
+router.put("/:id", authorize("ADMIN", "MANAGER"), validate(updateApprovalSchema), updateApproval);
+router.delete("/:id", authorize("ADMIN"), validate(approvalIdParamSchema), deleteApproval);
+router.post("/:id/approve", authorize("ADMIN", "MANAGER"), validate(approvalActionSchema), approveApproval);
+router.post("/:id/reject", authorize("ADMIN", "MANAGER"), validate(approvalActionSchema), rejectApproval);
+router.post("/:id/comment", authorize("ADMIN", "MANAGER"), validate(approvalActionSchema), commentApproval);
 
 // Attachments
 router.post(
   "/:id/attachments",
   authorize("ADMIN", "MANAGER"),
+  validate(addAttachmentSchema),
   addApprovalAttachment
 );
 router.delete(
   "/:id/attachments/:attachmentId",
   authorize("ADMIN"),
+  validate(attachmentParamSchema),
   deleteApprovalAttachment
 );
 

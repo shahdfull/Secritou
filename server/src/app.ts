@@ -2,11 +2,13 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import swaggerUi from "swagger-ui-express";
 import { env } from "./config/env.js";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
 import { loggingMiddleware } from "./middlewares/logging.middleware.js";
 import { metricsAuthMiddleware } from "./middlewares/metricsAuth.middleware.js";
+import { enforceMustChangePassword } from "./middlewares/mustChangePassword.middleware.js";
 import { metricsMiddleware } from "./observability/middleware.js";
 import { metricsHandler, metricsRoutes } from "./observability/routes.js";
 import { apiRoutes } from "./routes/index.js";
@@ -55,7 +57,7 @@ app.use(
 
 app.use(
   cors({
-    origin: env.CLIENT_ORIGIN,
+    origin: env.FRONTEND_URL,
     credentials: true,
   }),
 );
@@ -77,6 +79,24 @@ if (process.env.NODE_ENV !== "production") {
     res.send(swaggerSpec);
   });
 }
+
+// Baseline DDoS protection — specific limiters (authRateLimit, aiRateLimit, etc.) remain in place
+app.use("/api/", rateLimit({
+  windowMs: 60_000,
+  limit: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests" },
+}));
+
+// Enforce mustChangePassword server-side on all authenticated routes.
+// Routes without authenticate middleware (login, register, refresh, forgot-password,
+// reset-password) have req.user = undefined so the check is a no-op there.
+// POST /auth/change-password is explicitly exempted so the user can actually fix it.
+app.use("/api/v1", (req, res, next) => {
+  if (req.method === "POST" && req.path === "/auth/change-password") return next();
+  enforceMustChangePassword(req, res, next);
+});
 
 app.use("/api/v1", apiRoutes);
 app.use("/api/v1/metrics", metricsRoutes);

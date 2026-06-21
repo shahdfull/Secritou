@@ -6,6 +6,12 @@ import {
   deleteFile,
   getSignedUrl,
 } from "../controllers/upload.controller.js";
+import { validate } from "../middlewares/validate.middleware.js";
+import {
+  uploadContextParamSchema,
+  deleteFileSchema,
+  signedUrlQuerySchema,
+} from "../validators/upload.validator.js";
 
 const router = Router();
 
@@ -20,8 +26,8 @@ const PUBLIC_KEY_PREFIXES = ["cv/", "portfolio/"];
 // POST /upload/:context — upload a file (multipart/form-data, field: "file")
 // Public contexts (cv, portfolio) require no authentication but are rate-limited.
 // Protected contexts ("document", "image") require authentication.
-router.post("/:context", (req, res, next) => {
-  if (PUBLIC_UPLOAD_CONTEXTS.has(req.params.context)) {
+router.post("/:context", validate(uploadContextParamSchema), (req, res, next) => {
+  if (PUBLIC_UPLOAD_CONTEXTS.has(req.params.context as string)) {
     return contactRateLimit(req, res, next);
   }
   return authenticate(req, res, next);
@@ -29,7 +35,7 @@ router.post("/:context", (req, res, next) => {
 
 // DELETE /upload — delete a stored file by its S3 key.
 // Public-context keys (cv/, portfolio/) are rate-limited; all others require authentication.
-router.delete("/", (req, res, next) => {
+router.delete("/", validate(deleteFileSchema), (req, res, next) => {
   const key = (req.body as { key?: string })?.key ?? "";
   const isPublicKey = PUBLIC_KEY_PREFIXES.some((prefix) => key.startsWith(prefix));
   if (isPublicKey) {
@@ -39,6 +45,6 @@ router.delete("/", (req, res, next) => {
 }, deleteFile);
 
 // GET /upload/signed-url?key=...&expiresIn=3600 (protected)
-router.get("/signed-url", authenticate, getSignedUrl);
+router.get("/signed-url", authenticate, validate(signedUrlQuerySchema), getSignedUrl);
 
 export default router;

@@ -8,9 +8,6 @@ import {
   adminDeleteServiceRequest,
   addComment,
   deleteComment,
-  // legacy
-  getCompanyServiceRequests,
-  updateServiceRequest,
 } from "../controllers/serviceRequest.controller.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import {
@@ -79,14 +76,5 @@ router.delete(
   deleteComment
 );
 
-// ── Legacy routes (backward compat) ──────────────────────────────────────────
-router.get("/company", authorize("ADMIN"), requireCompanyTenant(), getCompanyServiceRequests);
-router.put(
-  "/:id",
-  authorize("ADMIN"),
-  requireCompanyTenant(),
-  validate(updateServiceRequestSchema),
-  updateServiceRequest
-);
 
 export default router;

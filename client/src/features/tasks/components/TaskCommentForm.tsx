@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { commentFormSchema, type CommentForm } from "@/schemas/task.schema";
+import { useTranslation } from "react-i18next";
 
 export const TaskCommentForm = memo(function TaskCommentForm({
   onCreateComment,
@@ -14,6 +15,7 @@ export const TaskCommentForm = memo(function TaskCommentForm({
   onCreateComment: (content: string) => void;
   isPending: boolean;
 }) {
+  const { t } = useTranslation();
   const commentForm = useForm<CommentForm>({
     resolver: zodResolver(commentFormSchema),
     defaultValues: { content: "" },
@@ -36,7 +38,7 @@ export const TaskCommentForm = memo(function TaskCommentForm({
           render={({ field }) => (
             <FormItem className="flex-1">
               <FormControl>
-                <Textarea placeholder="Écrire un commentaire..." className="flex-1" {...field} />
+                <Textarea placeholder={t("common.writeComment")} className="flex-1" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

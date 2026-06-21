@@ -263,10 +263,12 @@ function InfoCard({
 }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
-      <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary-soft text-primary">
-        <Icon className="h-4 w-4" />
+      <div className="flex items-center gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
+          <Icon className="h-4 w-4" />
+        </div>
+        <h3 className="font-display text-base font-semibold text-ink">{title}</h3>
       </div>
-      <h3 className="mt-4 font-display text-base font-semibold text-ink">{title}</h3>
       <p className="mt-1 text-sm text-muted-foreground">{children}</p>
     </div>
   );

@@ -5,6 +5,7 @@ export interface ListQueryParams {
   orderDir?: "asc" | "desc";
   search?: string;
   status?: string;
+  freelancerId?: string;
 }
 
 export interface PaginatedResponse<T> {

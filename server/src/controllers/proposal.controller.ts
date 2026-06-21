@@ -1,85 +1,113 @@
 import type { Request, Response } from "express";
 import { proposalService } from "../services/proposal.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
+import { HttpError } from "../utils/httpError.js";
+import { ProposalStatus } from "@prisma/client";
 
 function textQuery(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
+export const getMyProposals = async (req: Request, res: Response) => {
+  const clientId = req.user!.clientId!;
+  const options = {
+    ...parseListQuery(req.query as Record<string, unknown>),
+    companyId: "",
+    clientId,
+    status: textQuery(req.query.status) as ProposalStatus | undefined,
+  };
+  const result = await proposalService.getAllByClientId(clientId, options);
+  res.json(result);
+};
+
+export const respondToProposal = async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const { action, comment } = req.body as { action: string; comment?: string };
+  const clientId = req.user!.clientId as string;
+  const proposal = await proposalService.getByIdForClient(id, clientId);
+  if (!proposal) throw new HttpError(404, "Proposal not found");
+  if (proposal.clientId !== clientId) throw new HttpError(403, "Forbidden");
+  const companyId = proposal.companyId as string;
+  if (action === "accept") {
+    const result = await proposalService.accept(id, companyId);
+    return res.json({ data: result });
+  }
+  if (action === "reject") {
+    const result = await proposalService.reject(id, companyId, comment);
+    return res.json({ data: result });
+  }
+  throw new HttpError(400, "Invalid action — use 'accept' or 'reject'");
+};
+
 export const getProposals = async (req: Request, res: Response) => {
   const options = {
     ...parseListQuery(req.query as Record<string, unknown>),
-    companyId: req.user!.companyId!,
+    companyId: req.user!.companyId as string,
     clientId: textQuery(req.query.clientId),
-    status: textQuery(req.query.status) as never,
+    status: textQuery(req.query.status) as ProposalStatus | undefined,
     search: textQuery(req.query.search),
   };
   const result = await proposalService.getAll(options);
-  res.json({ data: result });
+  res.json(result);
 };
 
 export const getProposalById = async (req: Request, res: Response) => {
-  const proposal = await proposalService.getById(req.params.id, req.user!.companyId!);
+  const proposal = await proposalService.getById(req.params.id as string, req.user!.companyId as string);
   res.json({ data: proposal });
 };
 
 export const createProposal = async (req: Request, res: Response) => {
   const proposal = await proposalService.create(
     req.body,
-    req.user!.companyId!
+    req.user!.companyId as string
   );
-  res.json({ data: proposal });
+  res.status(201).json({ data: proposal });
 };
 
 export const updateProposal = async (req: Request, res: Response) => {
-  const proposal = await proposalService.update(req.params.id, req.user!.companyId!, req.body);
+  const proposal = await proposalService.update(req.params.id as string, req.user!.companyId as string, req.body);
   res.json({ data: proposal });
 };
 
 export const deleteProposal = async (req: Request, res: Response) => {
-  await proposalService.delete(req.params.id, req.user!.companyId!);
-  res.json({ data: { success: true } });
+  await proposalService.delete(req.params.id as string, req.user!.companyId as string);
+  res.status(204).send();
 };
 
 export const sendProposal = async (req: Request, res: Response) => {
-  const proposal = await proposalService.send(req.params.id, req.user!.companyId!);
+  const proposal = await proposalService.send(req.params.id as string, req.user!.companyId as string);
   res.json({ data: proposal });
 };
 
 export const acceptProposal = async (req: Request, res: Response) => {
-  const proposal = await proposalService.accept(req.params.id, req.user!.companyId!);
+  const proposal = await proposalService.accept(req.params.id as string, req.user!.companyId as string);
   res.json({ data: proposal });
 };
 
 export const rejectProposal = async (req: Request, res: Response) => {
   const proposal = await proposalService.reject(
-    req.params.id,
-    req.user!.companyId!,
+    req.params.id as string,
+    req.user!.companyId as string,
     req.body.comment
   );
   res.json({ data: proposal });
 };
 
-export const viewProposal = async (req: Request, res: Response) => {
-  const proposal = await proposalService.view(req.params.id, req.user!.companyId!);
-  res.json({ data: proposal });
-};
-
 export const addProposalSection = async (req: Request, res: Response) => {
-  const section = await proposalService.addSection(req.params.id, req.user!.companyId!, req.body);
-  res.json({ data: section });
+  const section = await proposalService.addSection(req.params.id as string, req.user!.companyId as string, req.body);
+  res.status(201).json({ data: section });
 };
 
 export const updateProposalSection = async (req: Request, res: Response) => {
   const section = await proposalService.updateSection(
-    req.params.sectionId,
-    req.user!.companyId!,
+    req.params.sectionId as string,
+    req.user!.companyId as string,
     req.body
   );
   res.json({ data: section });
 };
 
 export const deleteProposalSection = async (req: Request, res: Response) => {
-  await proposalService.deleteSection(req.params.sectionId, req.user!.companyId!);
-  res.json({ data: { success: true } });
+  await proposalService.deleteSection(req.params.sectionId as string, req.user!.companyId as string);
+  res.status(204).send();
 };

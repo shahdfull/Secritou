@@ -1,5 +1,6 @@
 import React, { Component, type ErrorInfo, type ReactNode } from "react";
 import { Link } from "react-router-dom";
+import * as Sentry from "@sentry/react";
 
 interface Props {
   children: ReactNode;
@@ -21,6 +22,7 @@ export class GlobalErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Global error caught:", error, errorInfo);
+    Sentry.captureException(error);
   }
 
   render() {

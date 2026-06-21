@@ -2,17 +2,20 @@ import express from "express";
 import {
   getApplications,
   getApplicationById,
+  getPendingApplications,
+  assignApplication,
   createApplication,
   rejectApplication,
   acceptApplication,
 } from "../controllers/freelancerApplication.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
+import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 
 const router = express.Router();
 
 // Public route: create application
-router.post("/", createApplication);
+router.post("/", sensitiveWriteRateLimit, createApplication);
 
 /**
  * @swagger
@@ -37,8 +40,10 @@ router.post("/", createApplication);
  *         $ref: '#/components/responses/Forbidden'
  */
 router.get("/", authenticate, authorize("ADMIN"), getApplications);
+router.get("/pending", authenticate, authorize("ADMIN"), getPendingApplications);
+router.patch("/:id/assign", authenticate, authorize("ADMIN"), assignApplication);
 router.get("/:id", authenticate, authorize("ADMIN"), getApplicationById);
-router.post("/:id/reject", authenticate, authorize("ADMIN"), rejectApplication);
-router.post("/:id/accept", authenticate, authorize("ADMIN"), acceptApplication);
+router.post("/:id/reject", authenticate, sensitiveWriteRateLimit, authorize("ADMIN"), rejectApplication);
+router.post("/:id/accept", authenticate, sensitiveWriteRateLimit, authorize("ADMIN"), acceptApplication);
 
 export default router;

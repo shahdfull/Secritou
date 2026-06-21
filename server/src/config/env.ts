@@ -13,7 +13,7 @@ const envSchema = z.object({
   JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
   JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
   REFRESH_COOKIE_NAME: z.string().default("secritou_refresh"),
-  CLIENT_ORIGIN: z.string().url().default("http://localhost:5173"),
+  FRONTEND_URL: z.string().url().default("http://localhost:5173"),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().optional(),
   SMTP_USER: z.string().optional(),
@@ -40,6 +40,18 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => v !== "false" && v !== "0"),
+  S3_REGION: z.string().default("us-east-1"),
+  S3_BUCKET: z.string().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
+  S3_ENDPOINT: z.string().url().optional(),
+  S3_PUBLIC_URL: z.string().url().optional(),
+  S3_PUBLIC_ACL: z
+    .string()
+    .optional()
+    .transform((v) => v === "true"),
+  UPLOAD_MAX_BYTES: z.coerce.number().default(20 * 1024 * 1024),
+  SENTRY_DSN: z.string().url().optional(),
 });
 
 export const env = envSchema.parse(process.env);

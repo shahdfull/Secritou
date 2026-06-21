@@ -59,3 +59,20 @@ export const deleteProject: RequestHandler = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getMyProjects: RequestHandler = async (req, res, next) => {
+  try {
+    const clientId = req.user?.clientId!;
+    const options = parseListQuery(req.query as Record<string, unknown>);
+    const result = await projectService.getAllProjects(
+      "",
+      req.user?.sub!,
+      "CLIENT",
+      options,
+      clientId
+    );
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};

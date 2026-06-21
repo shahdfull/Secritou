@@ -8,7 +8,7 @@ export function setRefreshTokenCookie(res: Response, token: string) {
   res.cookie(env.REFRESH_COOKIE_NAME, token, {
     httpOnly: true,
     secure: env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "strict",
     path: COOKIE_PATH,
     maxAge: parseDurationToMs(env.JWT_REFRESH_EXPIRES_IN),
   });
@@ -18,7 +18,7 @@ export function clearRefreshTokenCookie(res: Response) {
   res.clearCookie(env.REFRESH_COOKIE_NAME, {
     httpOnly: true,
     secure: env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "strict",
     path: COOKIE_PATH,
   });
 }

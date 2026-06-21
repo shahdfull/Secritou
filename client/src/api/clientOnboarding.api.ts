@@ -77,6 +77,14 @@ export const clientOnboardingApi = {
     return response.data.data;
   },
 
+  getOnboardingByClientId: async (clientId: string) => {
+    const response = await apiClient.get<PaginatedResponse<ClientOnboarding>>(
+      "/client-onboardings",
+      { params: { clientId, pageSize: 1 } }
+    );
+    return response.data.data[0] ?? null;
+  },
+
   updateOnboarding: async (id: string, data: any) => {
     const response = await apiClient.put<{ data: ClientOnboarding }>(
       `/client-onboardings/${id}`,

@@ -23,7 +23,8 @@ function buildWhere(companyId: string, userId: string, userRole: Role, options: 
   if (userRole === "FREELANCER") {
     return { companyId, tasks: { some: { assigneeId: userId } }, ...statusFilter, ...searchFilter };
   }
-  return { companyId, clientId, ...statusFilter, ...searchFilter };
+  // CLIENT role: scope by clientId only (no companyId — cross-tenant read scoped to this client)
+  return { clientId, ...statusFilter, ...searchFilter };
 }
 
 const projectListSelect = {

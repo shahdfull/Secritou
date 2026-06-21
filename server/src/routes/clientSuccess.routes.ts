@@ -18,6 +18,17 @@ import {
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
 import { requireCompanyTenant } from "../middlewares/tenant.middleware.js";
+import { validate } from "../middlewares/validate.middleware.js";
+import {
+  updateScoreSchema,
+  addObjectiveSchema,
+  updateObjectiveSchema,
+  addMetricSchema,
+  updateMetricSchema,
+  addRecommendationSchema,
+  updateRecommendationSchema,
+  addTimelineSchema,
+} from "../validators/clientSuccess.validator.js";
 
 const router = express.Router();
 
@@ -33,6 +44,7 @@ router.get(
 router.put(
   "/:clientId/score",
   authorize("ADMIN", "MANAGER"),
+  validate(updateScoreSchema),
   updateClientSuccessScore
 );
 router.post(
@@ -45,11 +57,13 @@ router.post(
 router.post(
   "/:clientId/objectives",
   authorize("ADMIN", "MANAGER"),
+  validate(addObjectiveSchema),
   addSuccessObjective
 );
 router.put(
   "/:clientId/objectives/:objectiveId",
   authorize("ADMIN", "MANAGER"),
+  validate(updateObjectiveSchema),
   updateSuccessObjective
 );
 router.delete(
@@ -62,11 +76,13 @@ router.delete(
 router.post(
   "/:clientId/metrics",
   authorize("ADMIN", "MANAGER"),
+  validate(addMetricSchema),
   addSuccessMetric
 );
 router.put(
   "/:clientId/metrics/:metricId",
   authorize("ADMIN", "MANAGER"),
+  validate(updateMetricSchema),
   updateSuccessMetric
 );
 router.delete(
@@ -79,11 +95,13 @@ router.delete(
 router.post(
   "/:clientId/recommendations",
   authorize("ADMIN", "MANAGER"),
+  validate(addRecommendationSchema),
   addSuccessRecommendation
 );
 router.put(
   "/:clientId/recommendations/:recommendationId",
   authorize("ADMIN", "MANAGER"),
+  validate(updateRecommendationSchema),
   updateSuccessRecommendation
 );
 router.delete(
@@ -96,6 +114,7 @@ router.delete(
 router.post(
   "/:clientId/timeline",
   authorize("ADMIN", "MANAGER"),
+  validate(addTimelineSchema),
   addSuccessTimeline
 );
 router.delete(

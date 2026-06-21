@@ -85,6 +85,20 @@ export const freelancerApplicationsApi = {
     }>(`/freelancer-applications/${id}/accept`, data);
     return response.data.data;
   },
+
+  getPendingApplications: async () => {
+    const response = await apiClient.get<{ data: FreelancerApplication[] }>(
+      "/freelancer-applications/pending"
+    );
+    return response.data.data;
+  },
+
+  assignApplication: async (id: string) => {
+    const response = await apiClient.patch<{ data: FreelancerApplication }>(
+      `/freelancer-applications/${id}/assign`
+    );
+    return response.data.data;
+  },
 };
 
 // Auth API additions

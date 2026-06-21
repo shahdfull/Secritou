@@ -1,8 +1,10 @@
 import type { ErrorRequestHandler } from "express";
 import { ZodError } from "zod";
 import multer from "multer";
+import * as Sentry from "@sentry/node";
 import { appErrorsTotal } from "../observability/metrics.js";
 import { HttpError } from "../utils/httpError.js";
+import { env } from "../config/env.js";
 
 export const errorMiddleware: ErrorRequestHandler = (error, _req, res, _next) => {
   // Handle Multer errors (file upload validation failures)
@@ -76,6 +78,7 @@ export const errorMiddleware: ErrorRequestHandler = (error, _req, res, _next) =>
 
   appErrorsTotal.inc({ type: "unhandled", source: "server" });
   console.error(error);
+  if (env.SENTRY_DSN) Sentry.captureException(error);
   res.status(500).json({
     error: {
       code: "HTTP_500",

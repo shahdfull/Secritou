@@ -1,11 +1,19 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+import * as Sentry from "@sentry/react";
 import { App } from "./App";
 import { initWebVitals } from "./observability/webVitals";
 import { ThemeProvider } from "./providers/ThemeProvider";
 import "./styles.css";
 import "./i18n";
+
+if (import.meta.env.VITE_SENTRY_DSN) {
+  Sentry.init({
+    dsn: import.meta.env.VITE_SENTRY_DSN,
+    environment: import.meta.env.MODE,
+  });
+}
 
 initWebVitals();
 

@@ -5,10 +5,10 @@ import { randomBytes, createHash } from "node:crypto";
 import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
 import { AuthRepository } from "../repositories/auth.repository.js";
+import { enqueueEmail } from "../jobs/queues.js";
+import { passwordResetTemplate } from "./emailTemplates/index.js";
 import { HttpError } from "../utils/httpError.js";
 import { parseDurationToDate } from "../utils/parseDuration.js";
-
-const authRepository = new AuthRepository(prisma);
 
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
@@ -29,7 +29,7 @@ function toAuthUser(
 }
 
 function signAccessToken(
-  user: Pick<User, "id" | "email" | "role" | "companyId" | "clientId">
+  user: Pick<User, "id" | "email" | "role" | "companyId" | "clientId" | "mustChangePassword">
 ) {
   return jwt.sign(
     {
@@ -40,6 +40,7 @@ function signAccessToken(
       role: user.role,
       companyId: user.companyId,
       clientId: user.clientId,
+      mustChangePassword: user.mustChangePassword,
     },
     env.JWT_ACCESS_SECRET,
     {
@@ -60,12 +61,20 @@ function signRefreshToken(userId: string) {
 }
 
 export class AuthService {
+  private readonly repo: AuthRepository;
+  private readonly db: typeof prisma;
+
+  constructor(db: typeof prisma = prisma) {
+    this.db = db;
+    this.repo = new AuthRepository(db);
+  }
+
   async register(input: { email: string; password: string; name: string; companyName: string }) {
-    const existing = await authRepository.findUserByEmail(input.email);
+    const existing = await this.repo.findUserByEmail(input.email);
     if (existing) throw new HttpError(409, "Email is already registered");
 
     const passwordHash = await bcrypt.hash(input.password, 12);
-    const company = await authRepository.createCompanyWithOwner({
+    const company = await this.repo.createCompanyWithOwner({
       companyName: input.companyName,
       email: input.email,
       name: input.name,
@@ -76,7 +85,7 @@ export class AuthService {
   }
 
   async login(input: { email: string; password: string }) {
-    const user = await authRepository.findUserByEmail(input.email);
+    const user = await this.repo.findUserByEmail(input.email);
     if (!user) throw new HttpError(401, "Invalid email or password");
 
     const isValid = await bcrypt.compare(input.password, user.passwordHash);
@@ -102,62 +111,69 @@ export class AuthService {
     }
 
     const tokenHash = hashToken(refreshToken);
-    const stored = await authRepository.findRefreshToken(tokenHash);
+    const stored = await this.repo.findRefreshToken(tokenHash);
 
     if (!stored) {
       // Reuse detected - revoke entire family!
       if (decoded.jti) {
-        await authRepository.revokeTokenFamily(decoded.jti);
+        await this.repo.revokeTokenFamily(decoded.jti);
       }
       throw new HttpError(401, "Refresh token is no longer valid");
     }
 
     if (stored.revokedAt || stored.expiresAt < new Date()) {
       // Token was revoked or expired
-      await authRepository.revokeTokenFamily(stored.familyId);
+      await this.repo.revokeTokenFamily(stored.familyId);
       throw new HttpError(401, "Refresh token is no longer valid");
     }
 
     // Revoke old token and issue new one
-    await authRepository.revokeRefreshToken(stored.id);
+    await this.repo.revokeRefreshToken(stored.id);
     return this.issueTokens(stored.user, stored.familyId);
   }
 
   async me(userId: string) {
-    const user = await authRepository.findUserById(userId);
+    const user = await this.repo.findUserById(userId);
     if (!user) throw new HttpError(404, "User not found");
     return toAuthUser(user);
   }
 
   async logout(refreshToken: string) {
     const tokenHash = hashToken(refreshToken);
-    const stored = await authRepository.findRefreshToken(tokenHash);
+    const stored = await this.repo.findRefreshToken(tokenHash);
     if (stored) {
-      await authRepository.revokeTokenFamily(stored.familyId);
+      await this.repo.revokeTokenFamily(stored.familyId);
     }
   }
 
   async requestPasswordReset(email: string) {
-    const user = await authRepository.findUserByEmail(email);
+    const user = await this.repo.findUserByEmail(email);
     if (!user) return;
 
     const resetToken = randomBytes(32).toString("hex");
     const resetTokenHash = hashToken(resetToken);
     const resetTokenExpiry = new Date(Date.now() + 1000 * 60 * 60);
 
-    await prisma.user.update({
+    await this.db.user.update({
       where: { id: user.id },
       data: { resetToken: resetTokenHash, resetTokenExpiry },
     });
 
-    if (env.NODE_ENV === "development" && env.SMTP_HOST) {
-      // Email would be sent via SMTP in production
+    try {
+      const { subject, html } = passwordResetTemplate(
+        user.name,
+        `${env.FRONTEND_URL}/reset-password?token=${resetToken}`
+      );
+      void enqueueEmail({ to: user.email, subject, html });
+    } catch (error) {
+      console.error("[auth] Failed to enqueue password reset email:", error);
+      // Non-fatal — le token est déjà persisté en base
     }
   }
 
   async resetPassword(token: string, newPassword: string) {
     const tokenHash = hashToken(token);
-    const user = await prisma.user.findFirst({
+    const user = await this.db.user.findFirst({
       where: {
         resetToken: tokenHash,
         resetTokenExpiry: { gt: new Date() },
@@ -169,26 +185,26 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 12);
-    await prisma.user.update({
+    await this.db.user.update({
       where: { id: user.id },
       data: { passwordHash, resetToken: null, resetTokenExpiry: null },
     });
-    await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+    await this.db.refreshToken.deleteMany({ where: { userId: user.id } });
   }
 
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
-    const user = await authRepository.findUserById(userId);
+    const user = await this.repo.findUserById(userId);
     if (!user) throw new HttpError(404, "User not found");
 
     const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!isValid) throw new HttpError(401, "Invalid current password");
 
     const passwordHash = await bcrypt.hash(newPassword, 12);
-    await prisma.user.update({
+    await this.db.user.update({
       where: { id: user.id },
       data: { passwordHash, mustChangePassword: false },
     });
-    await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+    await this.db.refreshToken.deleteMany({ where: { userId: user.id } });
   }
 
   private async issueTokens(
@@ -199,7 +215,7 @@ export class AuthService {
     const refreshToken = signRefreshToken(user.id);
     const familyId = existingFamilyId || randomBytes(16).toString("hex");
 
-    await authRepository.createRefreshToken({
+    await this.repo.createRefreshToken({
       tokenHash: hashToken(refreshToken),
       userId: user.id,
       familyId,

@@ -81,7 +81,7 @@ export const serviceRequestService = {
       }))
     );
 
-    const dashboardUrl = `${env.CLIENT_ORIGIN}/app/service-requests`;
+    const dashboardUrl = `${env.FRONTEND_URL}/app/service-requests`;
     for (const admin of admins) {
       const { subject, html } = serviceRequestReceivedTemplate(
         admin.name ?? "Admin",

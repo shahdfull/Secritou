@@ -65,4 +65,20 @@ export const missionsApi = {
   remove: async (id: string): Promise<void> => {
     await apiClient.delete(`/freelancers/missions/${id}`);
   },
+
+  getUnpaid: async (params: ListQueryParams = {}): Promise<PaginatedResponse<FreelancerMission>> => {
+    const response = await apiClient.get<PaginatedResponse<FreelancerMission>>(
+      "/freelancers/missions/unpaid",
+      { params }
+    );
+    return response.data;
+  },
+
+  markAsPaid: async (id: string, data: { paidAmount: number; paymentNote?: string }): Promise<FreelancerMission> => {
+    const response = await apiClient.patch<ApiResponse<FreelancerMission>>(
+      `/freelancers/missions/${id}/pay`,
+      data
+    );
+    return response.data.data;
+  },
 };

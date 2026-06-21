@@ -7,6 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 export type DateRange = {
   from: Date | undefined;
@@ -19,14 +20,15 @@ interface DateFilterProps {
 }
 
 const presetOptions = [
-  { label: "7 derniers jours", value: "7d" },
-  { label: "30 derniers jours", value: "30d" },
-  { label: "90 derniers jours", value: "90d" },
-  { label: "Cette année", value: "year" },
-  { label: "Personnalisé", value: "custom" },
+  { labelKey: "dateFilter.last7Days", value: "7d" },
+  { labelKey: "dateFilter.last30Days", value: "30d" },
+  { labelKey: "dateFilter.last90Days", value: "90d" },
+  { labelKey: "dateFilter.thisYear", value: "year" },
+  { labelKey: "dateFilter.custom", value: "custom" },
 ];
 
 export function DateFilter({ value, onChange }: DateFilterProps) {
+  const { t } = useTranslation();
   const [preset, setPreset] = useState<string>("30d");
   const [open, setOpen] = useState(false);
 
@@ -72,12 +74,12 @@ export function DateFilter({ value, onChange }: DateFilterProps) {
     <div className="flex items-center gap-2">
       <Select value={preset} onValueChange={handlePresetChange}>
         <SelectTrigger className="w-[180px]">
-          <SelectValue placeholder="Période" />
+          <SelectValue placeholder={t("common.period")} />
         </SelectTrigger>
         <SelectContent>
           {presetOptions.map((option) => (
             <SelectItem key={option.value} value={option.value}>
-              {option.label}
+              {t(option.labelKey)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -103,7 +105,7 @@ export function DateFilter({ value, onChange }: DateFilterProps) {
                 format(value.from, "dd/MM/yyyy", { locale: fr })
               )
             ) : (
-              <span>Sélectionner une période</span>
+              <span>{t("dateFilter.selectPeriod")}</span>
             )}
           </Button>
         </PopoverTrigger>

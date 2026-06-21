@@ -55,7 +55,7 @@
     "passwordChanged": "Mot de passe changé avec succès"
   },
   "services": {
-    "title": "Un partenaire. Plusieurs solutions de croissance.",
+    "title": "Un partenaire : Plusieurs solutions de croissance",
     "subtitle": "Voici comment nous résolvons les problèmes",
     "seeFullCapabilities": "Voir toutes les capacités",
     "highlights": [
@@ -161,8 +161,8 @@
           "body": "Les décisions sont prises sur l'instinct parce que les KPI sont éparpillés dans des feuilles de calcul et des outils."
         },
         {
-          "title": "Opérations éparses",
-          "body": "Équipes, fournisseurs et processus vivent en silos — rien ne se connecte, rien ne s'adapte."
+          "title": "Croissance sans direction",
+          "body": "Beaucoup d'efforts mais pas de cap clair — on avance sans stratégie ni priorités définies."
         },
         {
           "title": "Faible présence digitale",
@@ -176,7 +176,7 @@
     },
     "services": {
       "subtitle": "Voici comment nous résolvons les problèmes",
-      "title": "Un partenaire. Plusieurs solutions de croissance.",
+      "title": "Un partenaire : Plusieurs solutions de croissance",
       "seeFullCapabilities": "Voir toutes les capacités",
       "highlights": [
         "Management & Performance",
@@ -256,7 +256,7 @@
       "questions": [
         {
           "q": "Quels types d'entreprises prenez-vous en charge ?",
-          "a": "Les PME, les entrepreneurs et les créateurs de contenu dans tous les secteurs — commerce de détail, services professionnels, santé, éducation et marques numériques. Si vous avez des revenus et de l'ambition, nous pouvons probablement vous aider."
+          "a": "Les PME, les entrepreneurs et les commerces & marques dans tous les secteurs — commerce de détail, services professionnels, santé, éducation et marques numériques. Si vous avez des revenus et de l'ambition, nous pouvons probablement vous aider."
         },
         {
           "q": "Puis-je choisir seulement un service ?",
@@ -274,7 +274,12 @@
           "q": "Pouvez-vous aider à automatiser mon entreprise ?",
           "a": "Oui. Des assistants IA à l'automatisation des flux de travail et aux outils internes, l'automatisation est l'une de nos pratiques fondamentales. Nous commençons par trouver les processus à plus fort impact et éliminons le travail fastidieux à partir de là."
         }
-      ]
+      ],
+      "customQuestion": {
+        "title": "Votre question n'est pas là ?",
+        "description": "Posez-nous directement votre question. Nous vous répondrons personnellement sous 24–48h.",
+        "cta": "Poser une question personnalisée"
+      }
     },
     "finalCta": {
       "subtitle": "Prêt quand vous êtes",
@@ -288,7 +293,34 @@
       "averageFirstYear": "dès la 1re année",
       "testimonial": "Secritou nous a aidés à remettre de l'ordre dans notre croissance. En quelques mois, nos décisions sont devenues plus claires et notre organisation beaucoup plus fluide.",
       "testimonialAuthor": "Nadia Ben Salah",
-      "testimonialRole": "Fondatrice, Boutique de marque"
+      "testimonialRole": "Fondatrice, Boutique de marque",
+      "testimonials": [
+        {
+          "quote": "Secritou nous a aidés à remettre de l'ordre dans notre croissance. En quelques mois, nos décisions sont devenues plus claires et notre organisation beaucoup plus fluide.",
+          "author": "Nadia Ben Salah",
+          "role": "Fondatrice, Boutique de marque"
+        },
+        {
+          "quote": "On a enfin une vraie visibilité sur nos KPI. Les tableaux de bord nous font gagner des heures chaque semaine et nos réunions sont devenues utiles.",
+          "author": "Karim Trabelsi",
+          "role": "CEO, PME industrielle"
+        },
+        {
+          "quote": "L'automatisation mise en place a éliminé un travail manuel énorme. L'équipe se concentre enfin sur ce qui compte vraiment.",
+          "author": "Ines Khelifi",
+          "role": "Directrice des opérations"
+        },
+        {
+          "quote": "Notre présence digitale a complètement changé de niveau. Plus de contenu, plus de leads, et surtout une stratégie cohérente.",
+          "author": "Mehdi Gharbi",
+          "role": "Fondateur, marque e-commerce"
+        },
+        {
+          "quote": "Un partenaire qui comprend le business, pas juste un prestataire. Ils ont apporté la structure qui nous manquait pour passer à l'échelle.",
+          "author": "Sarra Bouazizi",
+          "role": "Co-fondatrice, startup SaaS"
+        }
+      ]
     },
     "cta": {
       "primary": "Réserver une consultation gratuite",
@@ -301,8 +333,8 @@
       "industriesTitle": "Secteurs",
       "company": "Entreprise",
       "forSmes": "Pour les PME",
-      "forEntrepreneurs": "Pour les entrepreneurs",
-      "forCreators": "Pour les créateurs",
+      "forEntrepreneurs": "Pour les startuppers",
+      "forCreators": "Pour les Commerces & Marques",
       "industries": {
         "healthcare": "Santé",
         "education": "Éducation",
@@ -369,6 +401,49 @@
     "thisYear": "Cette année",
     "custom": "Personnalisé",
     "selectPeriod": "Sélectionner une période"
+  },
+  "questions": {
+    "title": "Mes questions",
+    "empty": "Vous n'avez pas encore posé de question.",
+    "askFirst": "Poser ma première question",
+    "notFound": "Question introuvable.",
+    "messageCount_one": "{{count}} message",
+    "messageCount_other": "{{count}} messages",
+    "status": {
+      "OPEN": "En attente",
+      "ANSWERED": "Répondu",
+      "CLOSED": "Clôturé"
+    },
+    "dialog": {
+      "title": "Poser une question",
+      "description": "Nous vous répondrons personnellement sous 24–48h.",
+      "seeMine": "Voir mes questions",
+      "subjectLabel": "Sujet",
+      "subjectPlaceholder": "Ex : Comment fonctionne votre service Marketing ?",
+      "messageLabel": "Votre question",
+      "messagePlaceholder": "Décrivez votre question en détail...",
+      "submit": "Envoyer ma question",
+      "success": "Votre question a été envoyée ! Nous vous répondrons par email."
+    },
+    "thread": {
+      "you": "Vous",
+      "support": "Secritou",
+      "client": "Client",
+      "replyPlaceholder": "Ajouter un message...",
+      "send": "Envoyer",
+      "reply": "Répondre",
+      "closed": "Cette conversation est clôturée."
+    },
+    "admin": {
+      "title": "Questions",
+      "filter": "Filtrer",
+      "allStatuses": "Tous les statuts",
+      "empty": "Aucune question.",
+      "subject": "Sujet",
+      "user": "Utilisateur",
+      "status": "Statut",
+      "date": "Date"
+    }
   },
   "common": {
     "loading": "Chargement...",
@@ -472,7 +547,8 @@
     "documents": "Documents",
     "clientSuccess": "Succès Client",
     "crm": "CRM",
-    "talent": "Talent"
+    "talent": "Talent",
+    "questions": "Questions"
   },
   "userMenu": {
     "myAccount": "Mon compte",
@@ -763,7 +839,7 @@
         "outcome": "D'opérations éparses à une entreprise calme et mesurable."
       },
       "entrepreneurs": {
-        "tag": "Pour les entrepreneurs",
+        "tag": "Pour les startuppers",
         "title": "Avancez vite, sans vous épuiser.",
         "needs": [
           {
@@ -1022,7 +1098,7 @@
         }
       },
       "entrepreneurs": {
-        "tag": "Pour les entrepreneurs",
+        "tag": "Pour les startuppers",
         "title": "Avancez plus vite, sans vous épuiser.",
         "needs": {
           "0": "Croissance",
@@ -1031,10 +1107,10 @@
         }
       },
       "creators": {
-        "tag": "Pour les créateurs",
-        "title": "Transformez votre audience en vraie entreprise.",
+        "tag": "Pour les Commerces & Marques",
+        "title": "Transformez votre commerce en marque qui compte.",
         "needs": {
-          "0": "Croissance des revenus",
+          "0": "Croissance des ventes",
           "1": "Développement de marque",
           "2": "Suivi de performance"
         }

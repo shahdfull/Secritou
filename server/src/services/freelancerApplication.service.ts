@@ -1,11 +1,12 @@
 import { freelancerApplicationRepository } from "../repositories/freelancerApplication.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { freelancerRepository } from "../repositories/freelancer.repository.js";
-import { enqueueEmail } from "../jobs/queues.js";
+import { enqueueEmail, enqueueEmails } from "../jobs/queues.js";
 import {
   applicationReceivedTemplate,
   applicationAcceptedTemplate,
   applicationRejectedTemplate,
+  newApplicationAdminTemplate,
 } from "./emailTemplates/index.js";
 import { uploadService } from "./upload.service.js";
 import { env } from "../config/env.js";
@@ -15,13 +16,14 @@ import type { ListQueryOptions } from "../utils/listQuery.js";
 
 export const freelancerApplicationService = {
   async getAllApplications(
+    companyId: string,
     options: ListQueryOptions & { search?: string; status?: ApplicationStatus }
   ) {
-    return freelancerApplicationRepository.findAll(options);
+    return freelancerApplicationRepository.findAll(companyId, options);
   },
 
-  async getApplicationById(id: string) {
-    return freelancerApplicationRepository.findById(id);
+  async getApplicationById(id: string, companyId: string) {
+    return freelancerApplicationRepository.findById(id, companyId);
   },
 
   async createApplication(
@@ -37,7 +39,6 @@ export const freelancerApplicationService = {
     cvFile: Express.Multer.File,
     portfolioFile: Express.Multer.File
   ) {
-    // Upload CV to MinIO
     const cvUpload = await uploadService.upload(
       cvFile.buffer,
       cvFile.originalname,
@@ -46,7 +47,6 @@ export const freelancerApplicationService = {
       "cv"
     );
 
-    // Upload Portfolio to MinIO
     const portfolioUpload = await uploadService.upload(
       portfolioFile.buffer,
       portfolioFile.originalname,
@@ -55,7 +55,6 @@ export const freelancerApplicationService = {
       "portfolio"
     );
 
-    // Create application with uploaded file URLs
     const application = await freelancerApplicationRepository.create({
       firstName: data.firstName,
       lastName: data.lastName,
@@ -69,11 +68,36 @@ export const freelancerApplicationService = {
     const { subject, html } = applicationReceivedTemplate(data.firstName);
     void enqueueEmail({ to: data.email, subject, html });
 
+    const platformAdmins = await userRepository.findByRole("ADMIN");
+    if (platformAdmins.length > 0) {
+      void enqueueEmails(
+        platformAdmins.map((admin) => ({
+          to: admin.email,
+          subject: `Nouvelle candidature — ${data.firstName} ${data.lastName}`,
+          html: newApplicationAdminTemplate({
+            adminName: admin.name,
+            applicantName: `${data.firstName} ${data.lastName}`,
+            applicantEmail: data.email,
+            position: data.position ?? "Non spécifié",
+            dashboardUrl: `${env.FRONTEND_URL}/app/talent`,
+          }),
+        }))
+      );
+    }
+
     return application;
   },
 
-  async rejectApplication(id: string, rejectionReason?: string) {
-    const application = await freelancerApplicationRepository.update(id, {
+  async getPendingApplications() {
+    return freelancerApplicationRepository.findPending();
+  },
+
+  async assignApplicationToCompany(id: string, companyId: string) {
+    return freelancerApplicationRepository.assignToCompany(id, companyId);
+  },
+
+  async rejectApplication(id: string, companyId: string, rejectionReason?: string) {
+    const application = await freelancerApplicationRepository.update(id, companyId, {
       status: "REJECTED",
       rejectionReason,
     });
@@ -89,6 +113,7 @@ export const freelancerApplicationService = {
 
   async acceptApplication(
     id: string,
+    companyId: string,
     data: {
       username: string;
       password: string;
@@ -99,33 +124,31 @@ export const freelancerApplicationService = {
       role: "FREELANCER" | "MANAGER";
     }
   ) {
-    // Hash password
     const passwordHash = await bcrypt.hash(data.password, 12);
 
-    // Create user
+    // Create user linked to the admin's company
     const user = await userRepository.create({
       email: data.email,
       name: `${data.firstName} ${data.lastName}`,
       passwordHash,
       role: data.role,
+      companyId,
       mustChangePassword: true,
     });
 
-    // If freelancer, create profile
     if (data.role === "FREELANCER") {
-      await freelancerRepository.create({
-        userId: user.id,
-      });
+      await freelancerRepository.create({ userId: user.id });
     }
 
-    // Update application
-    const application = await freelancerApplicationRepository.update(id, {
+    // Mark application as accepted and link it to the company
+    const application = await freelancerApplicationRepository.update(id, companyId, {
       status: "ACCEPTED",
       userId: user.id,
+      companyId,
       accountCreatedAt: new Date(),
     });
 
-    const loginUrl = `${env.CLIENT_ORIGIN}/login`;
+    const loginUrl = `${env.FRONTEND_URL}/login`;
     const { subject, html } = applicationAcceptedTemplate(
       data.firstName,
       data.username,

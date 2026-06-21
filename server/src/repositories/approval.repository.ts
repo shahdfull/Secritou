@@ -1,4 +1,5 @@
 import { prisma } from "../config/prisma.js";
+import { Prisma } from "@prisma/client";
 import type { Approval, ApprovalStatus } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 
@@ -11,7 +12,7 @@ export const approvalRepository = {
       search?: string;
     }
   ): Promise<PaginatedResult<Approval & { client: { name: string } }>> {
-    const where: any = { companyId: options.companyId };
+    const where: Prisma.ApprovalWhereInput = { companyId: options.companyId };
     if (options.clientId) where.clientId = options.clientId;
     if (options.status) where.status = options.status;
     if (options.search) {
@@ -35,6 +36,37 @@ export const approvalRepository = {
     ]);
 
     return { data, total, page: options.page, pageSize: options.pageSize };
+  },
+
+  async findAllByClientId(
+    clientId: string,
+    options: { page: number; pageSize: number; status?: ApprovalStatus }
+  ): Promise<PaginatedResult<Approval & { client: { name: string } }>> {
+    const where: Prisma.ApprovalWhereInput = { clientId };
+    if (options.status) where.status = options.status;
+    const skip = (options.page - 1) * options.pageSize;
+    const [data, total] = await Promise.all([
+      prisma.approval.findMany({
+        where,
+        skip,
+        take: options.pageSize,
+        orderBy: { createdAt: "desc" },
+        include: {
+          client: { select: { name: true } },
+          attachments: true,
+          timeline: { orderBy: { createdAt: "desc" } },
+        },
+      }),
+      prisma.approval.count({ where }),
+    ]);
+    return { data, total, page: options.page, pageSize: options.pageSize };
+  },
+
+  async findByIdForClient(id: string, clientId: string) {
+    return prisma.approval.findFirst({
+      where: { id, clientId },
+      include: { attachments: true, timeline: { orderBy: { createdAt: "desc" } } },
+    });
   },
 
   async findById(id: string, companyId: string) {

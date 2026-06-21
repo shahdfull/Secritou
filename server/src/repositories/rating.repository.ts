@@ -3,7 +3,7 @@ import type { FreelancerRating } from "@prisma/client";
 
 export type RatingWithRelations = FreelancerRating & {
   reviewer: { id: string; name: string };
-  mission: { id: string; title: string };
+  mission: { id: string; title: string; companyId: string };
 };
 
 export type RatingStats = {
@@ -25,27 +25,28 @@ export const ratingRepository = {
       data,
       include: {
         reviewer: { select: { id: true, name: true } },
-        mission: { select: { id: true, title: true } },
+        mission: { select: { id: true, title: true, companyId: true } },
       },
     });
   },
 
   async update(
     id: string,
+    companyId: string,
     data: { score?: number; comment?: string }
   ): Promise<RatingWithRelations> {
     return prisma.freelancerRating.update({
-      where: { id },
+      where: { id, mission: { companyId } },
       data,
       include: {
         reviewer: { select: { id: true, name: true } },
-        mission: { select: { id: true, title: true } },
+        mission: { select: { id: true, title: true, companyId: true } },
       },
     });
   },
 
-  async delete(id: string): Promise<FreelancerRating> {
-    return prisma.freelancerRating.delete({ where: { id } });
+  async delete(id: string, companyId: string): Promise<FreelancerRating> {
+    return prisma.freelancerRating.delete({ where: { id, mission: { companyId } } });
   },
 
   async findById(id: string): Promise<RatingWithRelations | null> {
@@ -53,7 +54,7 @@ export const ratingRepository = {
       where: { id },
       include: {
         reviewer: { select: { id: true, name: true } },
-        mission: { select: { id: true, title: true } },
+        mission: { select: { id: true, title: true, companyId: true } },
       },
     });
   },
@@ -83,7 +84,7 @@ export const ratingRepository = {
         where,
         include: {
           reviewer: { select: { id: true, name: true } },
-          mission: { select: { id: true, title: true } },
+          mission: { select: { id: true, title: true, companyId: true } },
         },
         orderBy: { createdAt: "desc" },
         skip,

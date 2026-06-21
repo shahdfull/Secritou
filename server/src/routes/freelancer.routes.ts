@@ -360,6 +360,20 @@ router.delete(
   freelancerController.deleteMission
 );
 
+router.get(
+  "/missions/unpaid",
+  authenticate,
+  authorize("ADMIN", "CLIENT"),
+  freelancerController.getUnpaidMissions
+);
+
+router.patch(
+  "/missions/:id/pay",
+  authenticate,
+  authorize("ADMIN", "CLIENT"),
+  freelancerController.markMissionAsPaid
+);
+
 /**
  * @swagger
  * /freelancers/me:

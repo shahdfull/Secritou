@@ -1,4 +1,4 @@
-import { apiClient } from "./apiClient";
+import apiClient from "@/api/axios";
 
 const _serviceTypes = [
   "Management & Performance",
@@ -33,9 +33,7 @@ export type ContactResponse = {
   message: string;
 };
 
-export function submitContactRequest(payload: ContactPayload) {
-  return apiClient<ContactResponse>("/contact", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export async function submitContactRequest(payload: ContactPayload): Promise<ContactResponse> {
+  const response = await apiClient.post<ContactResponse>("/contact", payload);
+  return response.data;
 }
