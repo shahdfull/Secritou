@@ -13,12 +13,14 @@ const router = Router();
 router.use(authenticate);
 router.use(requireCompanyTenant());
 
-// Task routes
-router.get("/", getAllTasks);
-router.get("/:id", getTaskById);
-router.post("/", validate(createTaskSchema), authorize("ADMIN"), createTask);
-router.put("/:id", validate(updateTaskSchema), authorize("ADMIN"), updateTask);
-router.delete("/:id", authorize("ADMIN"), deleteTask);
+// Task routes. Reads are role-scoped in the repository (FREELANCER → own tasks, MANAGER → own
+// service); CLIENT has no operational task access. Writes are ADMIN or MANAGER (scoped to their
+// service in the service layer) — a service lead must be able to create/assign tasks.
+router.get("/", authorize("ADMIN", "MANAGER", "FREELANCER"), getAllTasks);
+router.get("/:id", authorize("ADMIN", "MANAGER", "FREELANCER"), getTaskById);
+router.post("/", authorize("ADMIN", "MANAGER"), validate(createTaskSchema), createTask);
+router.put("/:id", authorize("ADMIN", "MANAGER"), validate(updateTaskSchema), updateTask);
+router.delete("/:id", authorize("ADMIN", "MANAGER"), deleteTask);
 
 // Comment routes
 router.get("/:taskId/comments", getCommentsByTaskId);

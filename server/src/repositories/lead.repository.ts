@@ -7,6 +7,7 @@ import { buildOrderBy, buildTextSearchFilter } from "../utils/listQuery.js";
 const SORTABLE_FIELDS = ["name", "email", "status", "source", "createdAt"];
 
 export type LeadScope = { userRole: Role; userServiceId?: string | null };
+// (kept as a local alias; structurally identical to utils/serviceScope.ServiceScope)
 
 function buildWhere(companyId: string, options: ListQueryOptions, scope?: LeadScope) {
   // A MANAGER only sees leads of their own service (pole). A manager with no service sees none

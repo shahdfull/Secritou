@@ -10,9 +10,22 @@ const SORTABLE_FIELDS = ["title", "status", "dueDate", "createdAt"];
 
 type TaskWithRelations = Prisma.TaskGetPayload<{ select: typeof taskWithRelationsSelect }>;
 
-function buildWhere(companyId: string, userId: string, userRole: Role, options: ListQueryOptions, projectId?: string) {
+function buildWhere(
+  companyId: string,
+  userId: string,
+  userRole: Role,
+  options: ListQueryOptions,
+  projectId?: string,
+  userServiceId?: string | null
+) {
+  // A MANAGER only sees tasks whose project belongs to their service (pole). "__none__"
+  // guarantees no match when the manager has no service, rather than leaking the company.
+  const projectFilter =
+    userRole === "MANAGER"
+      ? { companyId, serviceId: userServiceId ?? "__none__" }
+      : { companyId };
   const base = {
-    project: { companyId },
+    project: projectFilter,
     ...(projectId && { projectId }),
     ...(options.status ? { status: options.status as TaskStatus } : {}),
     ...buildTextSearchFilter(options.search, ["title", "description"]),
@@ -37,9 +50,10 @@ export const taskRepository = {
     userId: string,
     userRole: Role,
     options: ListQueryOptions,
-    projectId?: string
+    projectId?: string,
+    userServiceId?: string | null
   ): Promise<PaginatedResult<TaskWithRelations>> {
-    const where = buildWhere(companyId, userId, userRole, options, projectId);
+    const where = buildWhere(companyId, userId, userRole, options, projectId, userServiceId);
     const skip = (options.page - 1) * options.pageSize;
     const orderBy = buildOrderBy(options.orderBy, options.orderDir);
 
@@ -61,12 +75,17 @@ export const taskRepository = {
     id: string,
     companyId: string,
     userId: string,
-    userRole: Role
+    userRole: Role,
+    userServiceId?: string | null
   ): Promise<TaskWithRelations | null> {
-    const where =
-      userRole === "FREELANCER"
-        ? { id, project: { companyId }, assigneeId: userId }
-        : { id, project: { companyId } };
+    let where: Prisma.TaskWhereInput;
+    if (userRole === "FREELANCER") {
+      where = { id, project: { companyId }, assigneeId: userId };
+    } else if (userRole === "MANAGER") {
+      where = { id, project: { companyId, serviceId: userServiceId ?? "__none__" } };
+    } else {
+      where = { id, project: { companyId } };
+    }
 
     return prisma.task.findFirst({
       where,

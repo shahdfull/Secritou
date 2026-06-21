@@ -12,3 +12,4 @@ import "./idor.test.ts";
 import "./businessGuards.test.ts";
 import "./leadService.test.ts";
 import "./searchScope.test.ts";
+import "./taskScope.test.ts";
