@@ -4,6 +4,7 @@ import { enqueueEmail, enqueueNotifications } from "../jobs/queues.js";
 import { invoiceSentTemplate, invoiceReminderTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
 import type { InvoiceStatus } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { tenantValidation } from "./tenantValidation.service.js";
 import { prisma } from "../config/prisma.js";
@@ -29,6 +30,47 @@ function assertInvoiceDraft(status: InvoiceStatus) {
       "INVOICE_NOT_DRAFT"
     );
   }
+}
+
+/**
+ * Generates a per-company, per-month sequential invoice number (INV-YYYYMM-NNNN) based on the
+ * count of existing invoices in that month, then creates the invoice. The (companyId, number)
+ * unique constraint is the real guarantee: if two requests race onto the same sequence value,
+ * one hits P2002 and we retry with the next number. This replaces the old timestamp-based
+ * number, which produced opaque non-sequential numbers and surfaced collisions as raw 500s.
+ */
+async function createInvoiceWithGeneratedNumber(
+  companyId: string,
+  data: Omit<Parameters<typeof invoiceRepository.create>[0], "number" | "companyId">
+) {
+  const now = new Date();
+  const prefix = `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const MAX_ATTEMPTS = 5;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const count = await prisma.invoice.count({
+      where: { companyId, number: { startsWith: prefix } },
+    });
+    const number = `${prefix}-${String(count + 1 + attempt).padStart(4, "0")}`;
+    try {
+      return await invoiceRepository.create({ ...data, number, companyId });
+    } catch (err) {
+      // P2002 = unique constraint violation on (companyId, number): another request took this
+      // number first. Retry with the next sequence value.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        lastError = err;
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new HttpError(
+    409,
+    "Could not allocate a unique invoice number, please retry",
+    "INVOICE_NUMBER_CONFLICT",
+    lastError
+  );
 }
 
 /**
@@ -194,6 +236,23 @@ export const invoiceService = {
       });
       if (!invoice) throw new Error("Invoice not found");
 
+      // Idempotency guard against accidental double-submit (double-click, retry): if an
+      // identical payment (same invoice, amount, recorder) was just recorded, return it
+      // instead of creating a second InvoicePayment row.
+      const tenSecondsAgo = new Date(Date.now() - 10_000);
+      const duplicate = await tx.invoicePayment.findFirst({
+        where: {
+          invoiceId: id,
+          amount: data.amount,
+          recordedById: recordedById ?? null,
+          createdAt: { gte: tenSecondsAgo },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      if (duplicate) {
+        return { payment: duplicate, creditNote: null, overpaidBy: 0, clientId: invoice.clientId, deduplicated: true };
+      }
+
       const payment = await tx.invoicePayment.create({
         data: {
           invoiceId: id,
@@ -241,8 +300,14 @@ export const invoiceService = {
         });
       }
 
-      return { payment, creditNote, overpaidBy, clientId: invoice.clientId };
+      return { payment, creditNote, overpaidBy, clientId: invoice.clientId, deduplicated: false };
     });
+
+    // A deduplicated request must not re-fire notifications or recompute — the original
+    // submission already did all of that.
+    if (result.deduplicated) {
+      return result;
+    }
 
     // Notify company admins that a payment was recorded (outside the transaction so a
     // notification hiccup can't roll back the payment).
@@ -402,19 +467,15 @@ export const invoiceService = {
       );
     }
 
-    const now = new Date();
-    const number = `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getTime()).slice(-4)}`;
-    const dueDate = new Date(now);
+    const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 30);
 
-    return invoiceRepository.create({
-      number,
+    return createInvoiceWithGeneratedNumber(companyId, {
       title: `Facture — ${proposal.title}`,
       description: proposal.description ?? undefined,
       amount: Number(proposal.amount ?? 0),
       currency: proposal.currency,
       clientId: proposal.clientId,
-      companyId,
       projectId: proposal.projectId ?? undefined,
       proposalId: proposal.id,
       dueDate,
