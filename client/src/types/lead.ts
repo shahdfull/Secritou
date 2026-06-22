@@ -1,3 +1,12 @@
+export interface LeadProposal {
+  id: string;
+  title: string;
+  status: "DRAFT" | "SENT" | "VIEWED" | "ACCEPTED" | "REJECTED" | "EXPIRED";
+  amount?: number | null;
+  currency: string;
+  createdAt: string;
+}
+
 export interface Lead {
   id: string;
   name: string;
@@ -9,6 +18,8 @@ export interface Lead {
   companyId: string;
   createdAt: string;
   updatedAt: string;
+  // Present when fetched via getById (lead detail) — the proposals linked to this lead.
+  proposals?: LeadProposal[];
 }
 
 export interface CreateLeadInput {

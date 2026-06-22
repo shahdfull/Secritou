@@ -14,6 +14,7 @@ export function useProposals(params?: {
   search?: string;
   status?: string;
   clientId?: string;
+  leadId?: string;
 }) {
   return useQuery<PaginatedResponse<Proposal>>({
     queryKey: ["proposals", params],

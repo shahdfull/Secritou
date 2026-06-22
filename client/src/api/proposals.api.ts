@@ -14,11 +14,15 @@ export interface Proposal {
   rejectedAt?: string;
   pdfUrl?: string;
   clientId: string;
+  clientName?: string;
+  email?: string;
+  leadId?: string;
   companyId: string;
   projectId?: string;
   serviceRequestId?: string;
   invoice?: { id: string } | null;
   client?: { name: string };
+  lead?: { id: string; name: string } | null;
   sections?: ProposalSection[];
   history?: ProposalHistory[];
   createdAt: string;
@@ -59,6 +63,7 @@ export const proposalsApi = {
     search?: string;
     status?: string;
     clientId?: string;
+    leadId?: string;
   }) => {
     const response = await apiClient.get<{ data: PaginatedResponse<Proposal> }>("/proposals", {
       params,
@@ -79,6 +84,9 @@ export const proposalsApi = {
     expiresAt?: string;
     pdfUrl?: string;
     clientId: string;
+    clientName?: string;
+    email?: string;
+    leadId?: string;
     projectId?: string;
     serviceRequestId?: string;
   }) => {

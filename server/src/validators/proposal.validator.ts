@@ -10,6 +10,11 @@ export const createProposalSchema = z.object({
     amount: z.number().nonnegative().optional(),
     currency: currencyCode.default("TND"),
     clientId: z.string().uuid(),
+    // Optional contact snapshot (pre-filled from the source Lead when created from a lead).
+    clientName: z.string().max(255).optional(),
+    email: z.string().email().max(255).optional(),
+    // When set, the new proposal is linked to this lead and the lead is advanced to PROPOSAL.
+    leadId: z.string().uuid().optional(),
     projectId: z.string().uuid().optional(),
     serviceRequestId: z.string().uuid().optional(),
     expiresAt: z.string().datetime({ offset: true }).optional(),
