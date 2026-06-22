@@ -17,7 +17,7 @@ export const leadService = {
   },
 
   async getLead(id: string, companyId: string, scope?: LeadScope) {
-    const lead = await leadRepository.findById(id, companyId, scope);
+    const lead = await leadRepository.findByIdWithProposals(id, companyId, scope);
     if (!lead) throw new HttpError(404, "Lead not found");
     return lead;
   },

@@ -13,6 +13,7 @@ import type { ListQueryOptions } from "../utils/listQuery.js";
 import { tenantValidation } from "./tenantValidation.service.js";
 import { HttpError } from "../utils/httpError.js";
 import type { ServiceScope } from "../utils/serviceScope.js";
+import { prisma } from "../config/prisma.js";
 
 // A MANAGER may only see/act on a proposal whose project is in their service. A proposal with
 // no project is ADMIN-only. ADMIN is unrestricted. Throws 404 (not 403) to avoid revealing
@@ -105,13 +106,50 @@ export const proposalService = {
       expiresAt?: Date;
       pdfUrl?: string;
       clientId: string;
+      clientName?: string;
+      email?: string;
+      leadId?: string;
       projectId?: string;
       serviceRequestId?: string;
     },
     companyId: string
   ) {
     await tenantValidation.assertClientInCompany(data.clientId, companyId);
-    return proposalRepository.create({ ...data, companyId });
+
+    if (!data.leadId) {
+      // No source lead: create the proposal as-is (contact snapshot is whatever was passed).
+      return proposalRepository.create({ ...data, companyId });
+    }
+
+    // Created from a lead: the lead must belong to the same company, the proposal is linked to
+    // it, the lead's contact details snapshot the proposal (so it carries them independently of
+    // the Client record), and the lead advances to PROPOSAL — all atomically so a failed status
+    // update never leaves an orphaned proposal.
+    const leadId = data.leadId;
+    return prisma.$transaction(async (tx) => {
+      const lead = await tx.lead.findFirst({
+        where: { id: leadId, companyId },
+        select: { id: true, name: true, email: true },
+      });
+      if (!lead) throw new HttpError(404, "Lead not found");
+
+      const proposal = await tx.proposal.create({
+        data: {
+          ...data,
+          leadId,
+          clientName: data.clientName ?? lead.name,
+          email: data.email ?? lead.email,
+          companyId,
+        },
+      });
+
+      await tx.lead.update({
+        where: { id: leadId },
+        data: { status: "PROPOSAL" },
+      });
+
+      return proposal;
+    });
   },
 
   async update(

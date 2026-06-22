@@ -49,6 +49,7 @@ export const getProposals = async (req: Request, res: Response) => {
     ...parseListQuery(req.query as Record<string, unknown>),
     companyId: req.user!.companyId as string,
     clientId: textQuery(req.query.clientId),
+    leadId: textQuery(req.query.leadId),
     status: textQuery(req.query.status) as ProposalStatus | undefined,
     search: textQuery(req.query.search),
   };

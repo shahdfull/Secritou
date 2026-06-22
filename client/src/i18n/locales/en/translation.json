@@ -486,7 +486,8 @@
     "selectLanguage": "Select language",
     "priority": "Priority",
     "nameRequired": "Name is required",
-    "commentsCount": "Comments ({{count}})"
+    "commentsCount": "Comments ({{count}})",
+    "details": "Details"
   },
   "search": {
     "placeholder": "Search leads, clients, projects...",
@@ -949,7 +950,8 @@
       "email": "Email",
       "inboundCall": "Inbound Call",
       "other": "Other"
-    }
+    },
+    "noEmail": "No email"
   },
   "tasksPage": {
     "title": "Tasks",
@@ -1467,7 +1469,20 @@
     "deleted": "Proposal deleted successfully",
     "sent": "Proposal sent successfully",
     "accepted": "Proposal accepted successfully",
-    "rejected": "Proposal rejected successfully"
+    "rejected": "Proposal rejected successfully",
+    "sourceLead": "Source lead",
+    "filterByLead": "Filter by lead",
+    "allLeads": "All leads",
+    "fromLead": {
+      "title": "Create a proposal",
+      "description": "New proposal for lead {{name}}",
+      "defaultTitle": "Proposal for {{name}}",
+      "targetClient": "Target client",
+      "selectClient": "Select a client",
+      "create": "Create a proposal",
+      "linkedProposals": "Linked proposals",
+      "noProposals": "No proposals linked to this lead"
+    }
   },
   "approvals": {
     "title": "Approvals",

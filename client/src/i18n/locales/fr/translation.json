@@ -486,7 +486,8 @@
     "selectLanguage": "Sélectionner la langue",
     "priority": "Priorité",
     "nameRequired": "Le nom est requis",
-    "commentsCount": "Commentaires ({{count}})"
+    "commentsCount": "Commentaires ({{count}})",
+    "details": "Détails"
   },
   "search": {
     "placeholder": "Rechercher les leads, clients, projets...",
@@ -949,7 +950,8 @@
       "email": "Email",
       "inboundCall": "Appel entrant",
       "other": "Autre"
-    }
+    },
+    "noEmail": "Aucun email"
   },
   "tasksPage": {
     "title": "Tâches",
@@ -1467,7 +1469,20 @@
     "deleted": "Proposition supprimée avec succès",
     "sent": "Proposition envoyée avec succès",
     "accepted": "Proposition acceptée avec succès",
-    "rejected": "Proposition refusée avec succès"
+    "rejected": "Proposition refusée avec succès",
+    "sourceLead": "Lead source",
+    "filterByLead": "Filtrer par lead",
+    "allLeads": "Tous les leads",
+    "fromLead": {
+      "title": "Créer une proposition",
+      "description": "Nouvelle proposition pour le lead {{name}}",
+      "defaultTitle": "Proposition pour {{name}}",
+      "targetClient": "Client associé",
+      "selectClient": "Sélectionner un client",
+      "create": "Créer une proposition",
+      "linkedProposals": "Propositions liées",
+      "noProposals": "Aucune proposition liée à ce lead"
+    }
   },
   "approvals": {
     "title": "Approbations",

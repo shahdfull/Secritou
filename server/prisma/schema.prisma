@@ -102,13 +102,6 @@ enum ServiceRequestStatus {
   DONE
 }
 
-// Document type options
-enum DocumentType {
-  INVOICE
-  CONTRACT
-  OTHER
-}
-
 // Multi-tenant Company model
 model Company {
   id                  String                @id @default(uuid())
@@ -125,7 +118,6 @@ model Company {
   documents           Document[]
   proposals           Proposal[]
   approvals           Approval[]
-  enhancedDocuments   EnhancedDocument[]
   invoices            Invoice[]
   creditNotes         CreditNote[]
   clientSuccess       ClientSuccess[]
@@ -174,6 +166,9 @@ model User {
   customQuestions        CustomQuestion[]
   customQuestionMessages CustomQuestionMessage[]
   managerPermission   ManagerPermission?
+  uploadedDocuments   Document[]         @relation("UploadedDocuments")
+  signedDocuments     Document[]         @relation("SignedDocuments")
+  assignedLeads       Lead[]           @relation("ManagerLeads")
   createdAt           DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt           DateTime             @updatedAt @db.Timestamptz(6)
 
@@ -220,6 +215,12 @@ model Lead {
   service           Service?   @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   convertedClientId String?
   archivedAt        DateTime?  @db.Timestamptz(6)
+  proposals         Proposal[]
+  sourceContactId   String?               @unique
+  sourceContact     ContactRequest?       @relation(fields: [sourceContactId], references: [id])
+  assignedManagerId String?
+  assignedManager   User?                 @relation("ManagerLeads", fields: [assignedManagerId], references: [id])
+  department        String?               @db.VarChar(255)
   createdAt         DateTime   @default(now()) @db.Timestamptz(6)
   updatedAt         DateTime   @updatedAt @db.Timestamptz(6)
 
@@ -245,7 +246,6 @@ model Client {
   documents        Document[]
   proposals        Proposal[]
   approvals        Approval[]
-  enhancedDocuments EnhancedDocument[]
   invoices         Invoice[]
   creditNotes      CreditNote[]
   creditBalance    Decimal          @default(0) @db.Decimal(12, 2)
@@ -329,9 +329,10 @@ model Project {
   service           Service?              @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   tasks             Task[]
   documents         Document[]
-  proposals         Proposal[]
+  proposals         Proposal[]            @relation("ProjectProposals")
+  proposalId        String?               @unique
+  proposal          Proposal?             @relation("ProjectProposal", fields: [proposalId], references: [id])
   approvals         Approval[]
-  enhancedDocuments EnhancedDocument[]
   invoices          Invoice[]
   clientOnboardings ClientOnboarding[]
   archivedAt        DateTime?             @db.Timestamptz(6)
@@ -382,17 +383,19 @@ model Comment {
 
 // ContactRequest model for contact form submissions
 model ContactRequest {
-  id          String        @id @default(uuid())
-  name        String        @db.VarChar(255)
-  email       String        @db.VarChar(255)
-  phone       String?       @db.VarChar(50)
-  serviceType String        @db.VarChar(255)
-  budget      String?       @db.VarChar(255)
-  company     String        @db.VarChar(255)
-  message     String        @db.Text
-  status      ContactStatus @default(NEW)
-  createdAt   DateTime      @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime      @updatedAt @db.Timestamptz(6)
+  id             String        @id @default(uuid())
+  name           String        @db.VarChar(255)
+  email          String        @db.VarChar(255)
+  phone          String?       @db.VarChar(50)
+  serviceType    String        @db.VarChar(255)
+  budget         String?       @db.VarChar(255)
+  company        String        @db.VarChar(255)
+  message        String        @db.Text
+  status         ContactStatus @default(NEW)
+  convertedLead  Lead?
+  convertedAt    DateTime?     @db.Timestamptz(6)
+  createdAt      DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @db.Timestamptz(6)
 
   // Indexes for faster queries
   @@index([status])
@@ -456,24 +459,45 @@ model Notification {
   @@index([userId, read, createdAt])
 }
 model Document {
-  id        String       @id @default(uuid())
-  name      String       @db.VarChar(255)
-  type      DocumentType @default(OTHER)
-  url       String       @db.VarChar(500)
-  fileKey   String?      @db.VarChar(500)
-  projectId String?
-  project   Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  clientId  String?
-  client    Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  companyId String
-  company   Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdAt DateTime     @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime     @updatedAt @db.Timestamptz(6)
+  id               String               @id @default(uuid())
+  name             String               @db.VarChar(255)
+  title            String               @db.VarChar(255)
+  description      String?              @db.Text
+  type             DocumentType
+  enhancedType     EnhancedDocumentType @default(OTHER)
+  url              String               @db.VarChar(500)
+  fileUrl          String?              @db.VarChar(500)
+  fileKey          String?              @db.VarChar(500)
+  version          Int                  @default(1)
+  parentId         String?
+  parent           Document?            @relation("DocumentVersioning", fields: [parentId], references: [id], onDelete: SetNull)
+  children         Document[]           @relation("DocumentVersioning")
+  tags             String[]
+  accessLevel      DocumentAccessLevel  @default(CLIENT_ADMIN)
+  clientId         String?
+  client           Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  companyId        String
+  company          Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projectId        String?
+  project          Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  uploadedById     String
+  uploadedBy       User                 @relation("UploadedDocuments", fields: [uploadedById], references: [id], onDelete: Cascade)
+  signedAt         DateTime?            @db.Timestamptz(6)
+  signedByClientId String?
+  signedByClient   User?                @relation("SignedDocuments", fields: [signedByClientId], references: [id], onDelete: SetNull)
+  accessLog        DocumentAccessLog[]
+  createdAt        DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime             @updatedAt @db.Timestamptz(6)
 
   @@index([companyId])
   @@index([companyId, createdAt])
   @@index([clientId])
   @@index([projectId])
+  @@index([type])
+  @@index([enhancedType])
+  @@index([tags])
+  @@index([companyId, type])
+  @@index([companyId, enhancedType])
 }
 model RefreshToken {
   id        String    @id @default(uuid())
@@ -687,17 +711,25 @@ model Proposal {
   acceptedAt       DateTime?      @db.Timestamptz(6)
   rejectedAt       DateTime?      @db.Timestamptz(6)
   pdfUrl           String?        @db.VarChar(500)
+  // Denormalized snapshot of the recipient, captured at creation. When a proposal is created
+  // from a Lead these are pre-filled from the lead so the proposal carries the lead's contact
+  // details independently of the (always-present) Client record.
+  clientName       String?        @db.VarChar(255)
+  email            String?        @db.VarChar(255)
   clientId         String
   client           Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
   companyId        String
   company          Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   projectId        String?
-  project          Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  project          Project?       @relation("ProjectProposals", fields: [projectId], references: [id], onDelete: SetNull)
+  leadId           String?
+  lead             Lead?          @relation(fields: [leadId], references: [id])
   serviceRequestId String?         @unique
   serviceRequest   ServiceRequest? @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
   sections         ProposalSection[]
   history          ProposalHistory[]
   invoice          Invoice?
+  linkedProject    Project?         @relation("ProjectProposal")
   createdAt        DateTime       @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime       @updatedAt @db.Timestamptz(6)
 
@@ -708,6 +740,7 @@ model Proposal {
   @@index([createdAt])
   @@index([companyId, status])
   @@index([serviceRequestId])
+  @@index([leadId])
 }
 
 model ProposalSection {
@@ -797,7 +830,7 @@ model ApprovalTimeline {
   @@index([approvalId, createdAt])
 }
 
-// Document Center (Enhanced)
+// Document Center
 enum EnhancedDocumentType {
   CONTRACT
   DELIVERABLE
@@ -807,42 +840,22 @@ enum EnhancedDocumentType {
   OTHER
 }
 
+enum DocumentType {
+  WELCOME_LETTER
+  CONTRACT
+  SPECS
+  CLIENT_BRIEF
+  QUOTE
+  INVOICE_DEPOSIT
+  INVOICE_BALANCE
+  ROADMAP
+}
+
 enum DocumentAccessLevel {
   ADMIN_ONLY
   ADMIN_FREELANCER
   CLIENT_ADMIN
   ALL
-}
-
-model EnhancedDocument {
-  id          String               @id @default(uuid())
-  name        String               @db.VarChar(255)
-  description String?              @db.Text
-  type        EnhancedDocumentType @default(OTHER)
-  url         String               @db.VarChar(500)
-  fileKey     String?              @db.VarChar(500)
-  version     Int                  @default(1)
-  parentId    String?
-  parent      EnhancedDocument?    @relation("DocumentVersioning", fields: [parentId], references: [id], onDelete: SetNull)
-  children    EnhancedDocument[]   @relation("DocumentVersioning")
-  tags        String[]
-  accessLevel DocumentAccessLevel  @default(CLIENT_ADMIN)
-  clientId    String?
-  client      Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  companyId   String
-  company     Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  projectId   String?
-  project     Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  accessLog   DocumentAccessLog[]
-  createdAt   DateTime             @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime             @updatedAt @db.Timestamptz(6)
-
-  @@index([clientId])
-  @@index([companyId])
-  @@index([type])
-  @@index([tags])
-  @@index([createdAt])
-  @@index([companyId, type])
 }
 
 model DocumentAccessLog {
@@ -851,7 +864,7 @@ model DocumentAccessLog {
   userId      String?
   user        User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
   documentId  String
-  document    EnhancedDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document    Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
   ipAddress   String?          @db.VarChar(45)
   userAgent   String?          @db.Text
   createdAt   DateTime         @default(now()) @db.Timestamptz(6)

@@ -4,12 +4,18 @@ import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrate
 import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { FileText } from "lucide-react";
 import { useUpdateLeadStatus } from "@/hooks/useLeads";
 import type { Lead } from "@/types/lead";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { CreateProposalFromLeadDialog } from "./CreateProposalFromLeadDialog";
+
+// A Proposal can only be created from a lead that is being actively pursued.
+const CAN_CREATE_PROPOSAL: Lead["status"][] = ["CONTACTED", "QUALIFIED"];
 
 interface StatusConfig {
   label: string;
@@ -36,9 +42,11 @@ const COLUMN_STATUSES: Lead["status"][] = [
 
 interface SortableLeadCardProps {
   lead: Lead;
+  onCreateProposal: (lead: Lead) => void;
 }
 
-function SortableLeadCard({ lead }: SortableLeadCardProps) {
+function SortableLeadCard({ lead, onCreateProposal }: SortableLeadCardProps) {
+  const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lead.id });
 
   const style = {
@@ -47,6 +55,8 @@ function SortableLeadCard({ lead }: SortableLeadCardProps) {
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 999 : "auto",
   };
+
+  const canCreateProposal = CAN_CREATE_PROPOSAL.includes(lead.status);
 
   return (
     <Card
@@ -65,6 +75,22 @@ function SortableLeadCard({ lead }: SortableLeadCardProps) {
           <div className="text-sm text-muted-foreground">{lead.phone}</div>
         )}
         <Badge className={STATUS_CONFIG[lead.status].bgColor}>{STATUS_CONFIG[lead.status].label}</Badge>
+        {canCreateProposal && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full mt-2 gap-1"
+            // Stop the drag sensors from claiming these events so the click registers as a click.
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onCreateProposal(lead);
+            }}
+          >
+            <FileText className="h-3.5 w-3.5" />
+            {t("proposals.fromLead.create")}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
@@ -74,9 +100,10 @@ interface KanbanColumnProps {
   status: Lead["status"];
   leads: Lead[];
   isDragging: boolean;
+  onCreateProposal: (lead: Lead) => void;
 }
 
-function KanbanColumn({ status, leads, isDragging }: KanbanColumnProps) {
+function KanbanColumn({ status, leads, isDragging, onCreateProposal }: KanbanColumnProps) {
   const config = STATUS_CONFIG[status];
   const ids = useMemo(() => leads.map((lead) => lead.id), [leads]);
   const columnBg = status === "WON" ? "bg-green-50/50" : status === "LOST" ? "bg-red-50/50" : "bg-card";
@@ -120,7 +147,7 @@ function KanbanColumn({ status, leads, isDragging }: KanbanColumnProps) {
                     }}
                     className="pb-2"
                   >
-                    <SortableLeadCard lead={lead} />
+                    <SortableLeadCard lead={lead} onCreateProposal={onCreateProposal} />
                   </div>
                 );
               })}
@@ -128,7 +155,7 @@ function KanbanColumn({ status, leads, isDragging }: KanbanColumnProps) {
           ) : (
             <div className="space-y-2">
               {leads.map((lead) => (
-                <SortableLeadCard key={lead.id} lead={lead} />
+                <SortableLeadCard key={lead.id} lead={lead} onCreateProposal={onCreateProposal} />
               ))}
             </div>
           )}
@@ -143,6 +170,11 @@ export const LeadsKanban = memo(function LeadsKanban({ filteredLeads }: { filter
   const queryClient = useQueryClient();
   const { mutate: updateLeadStatus } = useUpdateLeadStatus();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [proposalLead, setProposalLead] = useState<Lead | null>(null);
+
+  const handleCreateProposal = useCallback((lead: Lead) => {
+    setProposalLead(lead);
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -252,6 +284,7 @@ export const LeadsKanban = memo(function LeadsKanban({ filteredLeads }: { filter
               status={status}
               leads={groupedLeads[status]}
               isDragging={!!activeId}
+              onCreateProposal={handleCreateProposal}
             />
           ))}
         </div>
@@ -274,6 +307,14 @@ export const LeadsKanban = memo(function LeadsKanban({ filteredLeads }: { filter
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      <CreateProposalFromLeadDialog
+        lead={proposalLead}
+        open={!!proposalLead}
+        onOpenChange={(open) => {
+          if (!open) setProposalLead(null);
+        }}
+      />
     </div>
   );
 });
