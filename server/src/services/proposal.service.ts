@@ -19,6 +19,7 @@ import { invoiceService } from "./invoice.service.js";
 import { clientService } from "./client.service.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
+import { documentGeneratorService } from "./documentGenerator.service.js";
 
 // A MANAGER may only see/act on a proposal whose project is in their service. A proposal with
 // no project is ADMIN-only. ADMIN is unrestricted. Throws 404 (not 403) to avoid revealing
@@ -311,7 +312,7 @@ export const proposalService = {
   // Idempotency: a re-accept of an already-ACCEPTED proposal does not throw here — it runs in
   // "reconcile" mode, backfilling a missing project/invoice from a prior partial cascade. The
   // Project.proposalId / Invoice.proposalId @unique constraints are the hard backstops.
-  async acceptWithCascade(id: string, companyId: string, expectedVersion?: number) {
+  async acceptWithCascade(id: string, companyId: string, expectedVersion?: number, uploadedById?: string) {
     const result = await prisma.$transaction(async (tx) => {
       const proposal = await tx.proposal.findUnique({
         where: { id, companyId },
@@ -466,6 +467,59 @@ export const proposalService = {
     }
 
     const proposal = await proposalRepository.findById(id, companyId);
+
+    // Generate the 7 onboarding PDFs. Best-effort: failures are logged but never undo the
+    // acceptance. We only generate when we have a project (no project = no folder to store into).
+    if (result.projectId && uploadedById) {
+      const docProject = {
+        id: result.projectId,
+        name: result.title,
+        description: proposal?.description ?? undefined,
+        budget: proposal?.amount != null ? String(proposal.amount) : undefined,
+        deadline: proposal?.expiresAt ?? undefined,
+        serviceId: null as string | null,
+      };
+      const docClient = client ?? { id: result.clientId, name: result.clientName ?? "Client", email: result.email ?? undefined };
+      const manager = await userRepository.findById(uploadedById).catch(() => null);
+      const docManager = manager
+        ? { id: manager.id, name: manager.name ?? undefined, email: manager.email }
+        : { id: uploadedById, name: undefined, email: "" };
+      const docProposal = {
+        id,
+        title: result.title,
+        description: proposal?.description ?? undefined,
+        amount: result.amount != null ? Number(result.amount) : null,
+        currency: result.currency,
+        expiresAt: proposal?.expiresAt ?? undefined,
+      };
+
+      void Promise.allSettled([
+        documentGeneratorService.generateWelcomeLetter(docProposal, docProject, docClient, docManager, companyId, uploadedById),
+        documentGeneratorService.generateContract(docProposal, docProject, docClient, companyId, uploadedById),
+        documentGeneratorService.generateSpecs(docProject, docClient, companyId, uploadedById),
+        documentGeneratorService.generateClientBrief(docProject, docClient, companyId, uploadedById),
+        documentGeneratorService.generateQuotePDF(docProposal, docProject, docClient, companyId, uploadedById),
+        ...(result.invoiceId
+          ? [
+              (async () => {
+                const { prismaRead } = await import("../config/prisma.js");
+                const inv = await prismaRead.invoice.findUnique({ where: { id: result.invoiceId! }, select: { id: true, number: true, amount: true, currency: true, dueDate: true } });
+                if (!inv) return;
+                return documentGeneratorService.generateInvoicePDF(
+                  { ...inv, amount: inv.amount != null ? Number(inv.amount) : null },
+                  docProject, docClient, companyId, uploadedById
+                );
+              })(),
+            ]
+          : []),
+        documentGeneratorService.generateRoadmap(docProject, companyId, uploadedById),
+      ]).then((results) => {
+        results.forEach((r, i) => {
+          if (r.status === "rejected") console.error(`[documentGenerator] PDF #${i} failed:`, r.reason);
+        });
+      });
+    }
+
     return {
       proposal,
       projectId: result.projectId,
