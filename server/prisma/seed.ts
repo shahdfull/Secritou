@@ -4,13 +4,10 @@ import {
   LeadStatus,
   ProjectStatus,
   TaskStatus,
-  MissionStatus,
-  MissionApplicationStatus,
   ServiceRequestStatus,
   ProposalStatus,
   InvoiceStatus,
   ApprovalStatus,
-  PaymentStatus,
 } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
@@ -265,79 +262,7 @@ async function main() {
       prisma.portfolioItem.create({ data: { title: 'Pipeline ETL',         description: 'Pipeline ETL Python pour une banque tunisienne', freelancerId: fp3.id } }),
     ]);
 
-    // ── Freelancer Missions ────────────────────────────────────────────────────
-    const mission1 = await prisma.freelancerMission.create({
-      data: {
-        title: 'Développement frontend React e-commerce',
-        description: 'Intégration des maquettes Figma et développement des composants React pour la boutique en ligne.',
-        budget: 3500,
-        status: MissionStatus.COMPLETED,
-        paymentStatus: PaymentStatus.PAID,
-        paidAmount: 3500,
-        companyId: company.id,
-        freelancerId: fp1.id,
-        projectId: projects[0]?.id,
-      },
-    });
-
-    const mission2 = await prisma.freelancerMission.create({
-      data: {
-        title: 'Refonte UX application mobile',
-        description: 'Audit UX et redesign complet de l\'application mobile Monoprix.',
-        budget: 2800,
-        status: MissionStatus.IN_PROGRESS,
-        paymentStatus: PaymentStatus.PARTIAL,
-        paidAmount: 1400,
-        companyId: company.id,
-        freelancerId: fp2.id,
-        projectId: projects[1]?.id,
-      },
-    });
-
-    const mission3 = await prisma.freelancerMission.create({
-      data: {
-        title: 'Analyse et migration des données ERP',
-        description: 'Audit des données existantes, scripts Python de migration et validation.',
-        budget: 4200,
-        status: MissionStatus.OPEN,
-        paymentStatus: PaymentStatus.UNPAID,
-        companyId: company.id,
-      },
-    });
-
-    // ── Mission Applications ────────────────────────────────────────────────────
-    const app1 = await prisma.missionApplication.create({
-      data: { missionId: mission1.id, freelancerId: fp1.id, status: MissionApplicationStatus.ACCEPTED },
-    });
-    await prisma.missionApplication.create({
-      data: { missionId: mission2.id, freelancerId: fp2.id, status: MissionApplicationStatus.ACCEPTED },
-    });
-    await prisma.missionApplication.create({
-      data: { missionId: mission3.id, freelancerId: fp3.id, status: MissionApplicationStatus.PENDING },
-    });
-    // Extra application on mission1 (rejected)
-    await prisma.missionApplication.create({
-      data: { missionId: mission1.id, freelancerId: fp2.id, status: MissionApplicationStatus.REJECTED },
-    });
-
-    // ── Rating for completed mission ────────────────────────────────────────────
-    await prisma.freelancerRating.create({
-      data: {
-        score: 5,
-        comment: 'Excellent travail, livré en avance avec une qualité au-dessus des attentes.',
-        freelancerId: fp1.id,
-        missionId: mission1.id,
-        applicationId: app1.id,
-        reviewerId: admin.id,
-      },
-    });
-    // Update aggregates manually (service normally handles this)
-    await prisma.freelancerProfile.update({
-      where: { id: fp1.id },
-      data: { rating: 5.0, reviewCount: 1 },
-    });
-
-    console.log('Created freelancer profiles, missions, applications, and rating.');
+    console.log('Created freelancer profiles.');
   } else {
     console.log('Freelancer profiles already exist, skipping.');
   }

@@ -26,7 +26,6 @@ import enhancedDocumentRoutes from "./enhancedDocument.routes.js";
 import clientSuccessRoutes from "./clientSuccess.routes.js";
 import summaryRoutes from "./summary.routes.js";
 import uploadRoutes from "./upload.routes.js";
-import ratingRoutes from "./rating.routes.js";
 import aiConversationRoutes from "./aiConversation.routes.js";
 import customQuestionRoutes from "./customQuestion.routes.js";
 
@@ -143,7 +142,7 @@ apiRoutes.use("/notifications", notificationRoutes);
 apiRoutes.use("/documents", documentRoutes);
 apiRoutes.use("/users", userRoutes);
 
-// Freelancer & Mission routes
+// Freelancer profile routes
 apiRoutes.use("/freelancers", freelancerRoutes);
 
 // Analytics routes
@@ -168,9 +167,6 @@ apiRoutes.use("/summaries", summaryRoutes);
 
 // File upload routes (authenticated, S3-backed)
 apiRoutes.use("/upload", uploadRoutes);
-
-// Rating routes
-apiRoutes.use("/ratings", ratingRoutes);
 
 // AI Conversation history routes
 apiRoutes.use("/ai/conversations", aiConversationRoutes);

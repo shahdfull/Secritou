@@ -55,22 +55,6 @@ enum ContactStatus {
   ARCHIVED
 }
 
-// Mission status options for freelancer marketplace
-enum MissionStatus {
-  OPEN
-  ASSIGNED
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
-
-// Mission Application status
-enum MissionApplicationStatus {
-  PENDING
-  ACCEPTED
-  REJECTED
-}
-
 // Freelancer Application status
 enum ApplicationStatus {
   PENDING
@@ -137,7 +121,6 @@ model Company {
   leads               Lead[]
   clients             Client[]
   projects            Project[]
-  missions            FreelancerMission[]
   serviceRequests     ServiceRequest[]
   documents           Document[]
   proposals           Proposal[]
@@ -186,7 +169,6 @@ model User {
   assignedServiceRequests ServiceRequestComment[] @relation("ServiceRequestCommentAuthor")
   serviceRequestHistory   ServiceRequestHistory[] @relation("ServiceRequestHistoryUser")
   serviceRequestAssignments ServiceRequest[]      @relation("ServiceRequestAssignee")
-  givenRatings        FreelancerRating[]
   recordedInvoicePayments InvoicePayment[]  @relation("RecordedInvoicePayments")
   aiConversations     AiConversation[]
   customQuestions        CustomQuestion[]
@@ -345,7 +327,6 @@ model Project {
   serviceId         String?
   service           Service?              @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   tasks             Task[]
-  missions          FreelancerMission[]
   documents         Document[]
   proposals         Proposal[]
   approvals         Approval[]
@@ -434,10 +415,7 @@ model FreelancerProfile {
   rating      Decimal?             @db.Decimal(2, 1) // Average rating (1-5)
   reviewCount Int                  @default(0)
   skills      Skill[]
-  missions    FreelancerMission[]
   portfolio   PortfolioItem[]
-  applications MissionApplication[]
-  ratings     FreelancerRating[]
   createdAt   DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime             @updatedAt @db.Timestamptz(6)
 
@@ -446,74 +424,6 @@ model FreelancerProfile {
   @@index([userId, createdAt])
 }
 
-// FreelancerMission model for marketplace missions
-model FreelancerMission {
-  id             String               @id @default(uuid())
-  title          String               @db.VarChar(255)
-  description    String?              @db.Text
-  budget         Decimal?             @db.Decimal(10, 2)
-  status         MissionStatus        @default(OPEN)
-  paymentStatus  PaymentStatus        @default(UNPAID)
-  paidAmount     Decimal?             @db.Decimal(12, 2)
-  paidAt         DateTime?            @db.Timestamptz(6)
-  paymentNote    String?              @db.Text
-  companyId      String
-  company        Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  freelancerId   String?
-  freelancer     FreelancerProfile?   @relation(fields: [freelancerId], references: [id], onDelete: SetNull)
-  projectId      String?
-  project        Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  applications   MissionApplication[]
-  ratings        FreelancerRating[]
-  createdAt      DateTime             @default(now()) @db.Timestamptz(6)
-  updatedAt      DateTime             @updatedAt @db.Timestamptz(6)
-
-  // Indexes for faster queries
-  @@index([companyId, status])
-  @@index([companyId, status, updatedAt])
-  @@index([companyId, createdAt])
-  @@index([freelancerId])
-  @@index([paymentStatus])
-}
-model MissionApplication {
-  id          String                 @id @default(uuid())
-  missionId   String
-  mission     FreelancerMission      @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  freelancerId String
-  freelancer  FreelancerProfile      @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
-  status      MissionApplicationStatus @default(PENDING)
-  rating      FreelancerRating?
-  createdAt   DateTime               @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime               @updatedAt @db.Timestamptz(6)
-
-  @@unique([missionId, freelancerId])
-  @@index([missionId])
-  @@index([freelancerId])
-  @@index([missionId, status])
-  @@index([missionId, createdAt])
-}
-
-// FreelancerRating model - one rating per completed mission
-model FreelancerRating {
-  id              String            @id @default(uuid())
-  score           Int               // 1-5
-  comment         String?           @db.Text
-  freelancerId    String
-  freelancer      FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
-  missionId       String
-  mission         FreelancerMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  applicationId   String            @unique
-  application     MissionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  reviewerId      String
-  reviewer        User              @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
-  createdAt       DateTime          @default(now()) @db.Timestamptz(6)
-  updatedAt       DateTime          @updatedAt @db.Timestamptz(6)
-
-  @@unique([missionId, freelancerId])
-  @@index([freelancerId])
-  @@index([reviewerId])
-  @@index([freelancerId, score])
-}
 model PortfolioItem {
   id          String         @id @default(uuid())
   title       String         @db.VarChar(255)

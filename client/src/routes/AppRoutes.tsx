@@ -22,7 +22,6 @@ import {
   importHomePage,
   importLeadsPage,
   importLoginPage,
-  importMissionsPage,
   importNotFoundPage,
   importJoinUsPage,
   importProjectsClientPage,
@@ -69,7 +68,6 @@ const ClientsPage = lazy(() => importClientsPage().then((m) => ({ default: m.Cli
 const ClientDetailPage = lazy(() => importClientDetailPage().then((m) => ({ default: m.ClientDetailPage })));
 const FreelancersPage = lazy(() => importFreelancersPage().then((m) => ({ default: m.FreelancersPage })));
 const FreelancerDetailPage = lazy(() => importFreelancerDetailPage().then((m) => ({ default: m.FreelancerDetailPage })));
-const MissionsPage = lazy(() => importMissionsPage().then((m) => ({ default: m.MissionsPage })));
 const ProjectsPage = lazy(() => importProjectsPage().then((m) => ({ default: m.ProjectsPage })));
 const TasksPage = lazy(() => importTasksPage().then((m) => ({ default: m.TasksPage })));
 const SettingsPage = lazy(() => importSettingsPage().then((m) => ({ default: m.SettingsPage })));

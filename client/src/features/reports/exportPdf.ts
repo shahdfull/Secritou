@@ -1,7 +1,6 @@
 import type { DateRange } from "@/components/DateFilter";
 import type { Lead } from "@/types/lead";
 import type { Project } from "@/types/project";
-import type { FreelancerMission } from "@/types/freelancer";
 
 type JsPDFModule = typeof import("jspdf");
 type AutoTableModule = typeof import("jspdf-autotable");
@@ -10,7 +9,6 @@ export async function exportReportsPdf(input: {
   dateRange: DateRange;
   leads: Lead[];
   projects: Project[];
-  missions: FreelancerMission[];
 }) {
   const [{ jsPDF }, autoTable] = await Promise.all([
     import("jspdf") as Promise<JsPDFModule>,
@@ -41,18 +39,6 @@ export async function exportReportsPdf(input: {
     startY: projectsY + 5,
     head: [["Nom", "Description", "Statut"]],
     body: input.projects.map((project) => [project.name, project.description || "-", project.status]),
-  });
-
-  const missionsY = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? projectsY) + 20;
-  doc.text("Missions", 14, missionsY);
-  autoTable.default(doc, {
-    startY: missionsY + 5,
-    head: [["Titre", "Statut", "Budget"]],
-    body: input.missions.map((mission) => [
-      mission.title,
-      mission.status,
-      mission.budget ? `${mission.budget} TND` : "-",
-    ]),
   });
 
   doc.save("rapport-secritou.pdf");

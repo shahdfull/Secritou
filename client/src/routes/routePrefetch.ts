@@ -13,7 +13,6 @@ export const importClientsPage = () => import("@/features/clients/ClientsPage");
 export const importClientDetailPage = () => import("@/features/clients/ClientDetailPage");
 export const importFreelancersPage = () => import("@/features/freelancers/FreelancersPage");
 export const importFreelancerDetailPage = () => import("@/features/freelancers/FreelancerDetailPage");
-export const importMissionsPage = () => import("@/features/missions/MissionsPage");
 export const importProjectsPage = () => import("@/features/projects/ProjectsPage");
 export const importTasksPage = () => import("@/features/tasks/TasksPage");
 export const importSettingsPage = () => import("@/features/settings/SettingsPage");
@@ -58,7 +57,6 @@ export const routePrefetch = {
   clients: () => void importClientsPage(),
   clientDetail: () => void importClientDetailPage(),
   freelancers: () => void importFreelancersPage(),
-  missions: () => void importMissionsPage(),
   projects: () => void importProjectsPage(),
   tasks: () => void importTasksPage(),
   settings: () => void importSettingsPage(),

@@ -92,7 +92,7 @@ export function getRedirectPathForRole(role: string) {
     case "CLIENT":
       return "/client";
     case "FREELANCER":
-      return "/app/missions";
+      return "/app/tasks";
     case "ADMIN":
     case "MANAGER":
     default:

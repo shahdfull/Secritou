@@ -41,10 +41,10 @@ export function ProtectedRoute({ children, redirectTo = "/login" }: ProtectedRou
     
     // Check freelancer routes
     if (user.role === "FREELANCER") {
-      const allowedFreelancerRoutes = ["/app", "/app/missions", "/app/tasks", "/app/ai", "/app/settings"];
+      const allowedFreelancerRoutes = ["/app", "/app/tasks", "/app/projects", "/app/ai", "/app/settings"];
       const isAllowedRoute = allowedFreelancerRoutes.some(route => currentPath === route || currentPath.startsWith(route + "/"));
       if (!isAllowedRoute) {
-        return <Navigate to="/app/missions" replace />;
+        return <Navigate to="/app/tasks" replace />;
       }
     }
   }

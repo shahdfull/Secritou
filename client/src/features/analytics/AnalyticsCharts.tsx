@@ -77,7 +77,7 @@ export const AnalyticsCharts = memo(function AnalyticsCharts({
           <CardHeader className="flex flex-row items-center gap-2">
             <DollarSign className="h-4 w-4 text-muted-foreground" />
             <CardTitle>Revenus par mois</CardTitle>
-            <CardDescription>Revenus des missions complétés</CardDescription>
+            <CardDescription>Revenus encaissés</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-80">

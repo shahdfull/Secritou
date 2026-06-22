@@ -110,13 +110,6 @@ export const seoByPath: Record<string, SeoConfig> = {
     image: defaultImage,
     noindex: true,
   },
-  "/app/missions": {
-    title: "Missions - Secritou",
-    description: "Post and manage freelance missions in Secritou marketplace.",
-    path: "/app/missions",
-    image: defaultImage,
-    noindex: true,
-  },
   "/app/projects": {
     title: "Projects - Secritou",
     description: "Manage initiatives, ownership, timelines and tasks in Secritou.",

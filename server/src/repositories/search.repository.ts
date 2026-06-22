@@ -86,14 +86,14 @@ export const searchRepository = {
     return { ...emptyResults(), projects, proposals, invoices, serviceRequests, approvals };
   },
 
-  // FREELANCER: only their own missions' projects and tasks assigned to them.
+  // FREELANCER: only projects where they have an assigned task, and tasks assigned to them.
   async searchForFreelancer(
     actor: SearchActor,
     contains: { contains: string; mode: "insensitive" }
   ): Promise<SearchResults> {
     const [projects, tasks] = await Promise.all([
       prisma.project.findMany({
-        where: { name: contains, missions: { some: { freelancer: { userId: actor.userId } } } },
+        where: { name: contains, tasks: { some: { assigneeId: actor.userId } } },
         select: { id: true, name: true },
         take: SEARCH_LIMIT,
       }),
@@ -148,11 +148,12 @@ export const searchRepository = {
           select: { id: true, title: true },
           take: SEARCH_LIMIT,
         }),
-        // Freelancer marketplace is internal: ADMIN only, never MANAGER.
+        // Freelancer directory is internal: ADMIN only, never MANAGER. Scoped to the company
+        // via the freelancer's user account (missions no longer link freelancers to a company).
         isManager
           ? Promise.resolve([])
           : prisma.freelancerProfile.findMany({
-              where: { user: { name: contains }, missions: { some: { companyId } } },
+              where: { user: { is: { name: contains, companyId } } },
               select: { id: true, user: { select: { id: true, name: true, email: true } } },
               take: SEARCH_LIMIT,
             }),
