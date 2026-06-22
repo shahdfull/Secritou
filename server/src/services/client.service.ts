@@ -9,19 +9,26 @@ import { cacheTags } from "../cache/cacheKeys.js";
 import { enqueueEmail } from "../jobs/queues.js";
 import { clientInvitationTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
+import type { ServiceScope } from "../utils/serviceScope.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
 export const clientService = {
   async getClients(
     companyId: string,
-    options: ListQueryOptions & { includeArchived?: boolean }
+    options: ListQueryOptions & { includeArchived?: boolean },
+    scope?: ServiceScope
   ) {
-    return clientRepository.findAll(companyId, options);
+    // MANAGER sees only clients with a project in their service; ADMIN sees all.
+    const serviceId =
+      scope?.userRole === "MANAGER" ? (scope.userServiceId ?? "__none__") : undefined;
+    return clientRepository.findAll(companyId, { ...options, serviceId });
   },
 
-  async getClient(id: string, companyId: string) {
-    const client = await clientRepository.findById(id, companyId);
+  async getClient(id: string, companyId: string, scope?: ServiceScope) {
+    const serviceId =
+      scope?.userRole === "MANAGER" ? (scope.userServiceId ?? "__none__") : undefined;
+    const client = await clientRepository.findById(id, companyId, serviceId);
     if (!client) throw new HttpError(404, "Client not found");
     return client;
   },

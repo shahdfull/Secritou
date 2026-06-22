@@ -9,8 +9,9 @@ import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js"
 
 const router = Router();
 router.use(authenticate);
-router.use(authorize("ADMIN"));
 router.use(requireCompanyTenant());
+// Note: authorization is per-route. Reads are ADMIN + MANAGER (a MANAGER sees only clients
+// with a project in their service, enforced in the service layer). Mutations are ADMIN only.
 
 /**
  * @swagger
@@ -44,7 +45,7 @@ router.use(requireCompanyTenant());
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-router.get("/", clientController.getClients);
+router.get("/", authorize("ADMIN", "MANAGER"), clientController.getClients);
 
 /**
  * @swagger
@@ -76,7 +77,7 @@ router.get("/", clientController.getClients);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.get("/:id", clientController.getClient);
+router.get("/:id", authorize("ADMIN", "MANAGER"), clientController.getClient);
 
 /**
  * @swagger
@@ -109,7 +110,7 @@ router.get("/:id", clientController.getClient);
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-router.post("/", sensitiveWriteRateLimit, validate(createClientSchema), clientController.createClient);
+router.post("/", sensitiveWriteRateLimit, authorize("ADMIN"), validate(createClientSchema), clientController.createClient);
 
 /**
  * @swagger

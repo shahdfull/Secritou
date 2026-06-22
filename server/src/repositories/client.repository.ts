@@ -49,11 +49,16 @@ const clientDetailSelect = {
 export const clientRepository = {
   async findAll(
     companyId: string,
-    options: ListQueryOptions & { includeArchived?: boolean }
+    options: ListQueryOptions & { includeArchived?: boolean; serviceId?: string | null }
   ): Promise<PaginatedResult<ClientListItem>> {
     // Archived clients are hidden by default; pass includeArchived to surface them.
-    const where: { companyId: string; archivedAt?: null } = { companyId };
+    const where: Record<string, unknown> = { companyId };
     if (!options.includeArchived) where.archivedAt = null;
+    // MANAGER scope: a client is visible only if it has at least one project in the manager's
+    // service (a client is not tagged with a single service — it may buy from several poles).
+    if (options.serviceId !== undefined) {
+      where.projects = { some: { serviceId: options.serviceId ?? "__none__" } };
+    }
     const skip = (options.page - 1) * options.pageSize;
     const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
 
@@ -71,9 +76,18 @@ export const clientRepository = {
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(id: string, companyId: string): Promise<ClientDetail | null> {
+  async findById(
+    id: string,
+    companyId: string,
+    serviceId?: string | null
+  ): Promise<ClientDetail | null> {
+    const where: Record<string, unknown> = { id, companyId };
+    // MANAGER scope: only reachable if the client has a project in the manager's service.
+    if (serviceId !== undefined) {
+      where.projects = { some: { serviceId: serviceId ?? "__none__" } };
+    }
     return prisma.client.findFirst({
-      where: { id, companyId },
+      where,
       select: clientDetailSelect,
     });
   },

@@ -4,8 +4,26 @@ import type {
   EnhancedDocument,
   EnhancedDocumentType,
   DocumentAccessLevel,
+  Role,
 } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
+
+// Maps a role to the document access levels it may see. The accessLevel enum predates MANAGER;
+// a MANAGER is treated as agency staff (same visibility as ADMIN). This is the actual access
+// gate — previously accessLevel was stored but never enforced in any query.
+export function visibleAccessLevels(role: Role): DocumentAccessLevel[] {
+  switch (role) {
+    case "ADMIN":
+    case "MANAGER":
+      return ["ADMIN_ONLY", "ADMIN_FREELANCER", "CLIENT_ADMIN", "ALL"];
+    case "FREELANCER":
+      return ["ADMIN_FREELANCER", "ALL"];
+    case "CLIENT":
+      return ["CLIENT_ADMIN", "ALL"];
+    default:
+      return ["ALL"];
+  }
+}
 
 export const enhancedDocumentRepository = {
   async findAll(
@@ -15,12 +33,22 @@ export const enhancedDocumentRepository = {
       type?: EnhancedDocumentType;
       tags?: string[];
       search?: string;
+      role?: Role;
+      viewerClientId?: string | null;
     }
   ): Promise<
     PaginatedResult<EnhancedDocument & { client: { name: string } | null }>
   > {
     const where: Prisma.EnhancedDocumentWhereInput = { companyId: options.companyId };
     if (options.clientId) where.clientId = options.clientId;
+    // Enforce the document access level by role. Without this, accessLevel was decorative.
+    if (options.role) {
+      where.accessLevel = { in: visibleAccessLevels(options.role) };
+      // A CLIENT additionally only ever sees documents attached to their own client record.
+      if (options.role === "CLIENT") {
+        where.clientId = options.viewerClientId ?? "__none__";
+      }
+    }
     if (options.type) where.type = options.type;
     if (options.tags && options.tags.length > 0) {
       where.tags = { hasSome: options.tags };
@@ -48,9 +76,20 @@ export const enhancedDocumentRepository = {
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(id: string, companyId: string) {
-    return prisma.enhancedDocument.findUnique({
-      where: { id, companyId },
+  async findById(
+    id: string,
+    companyId: string,
+    viewer?: { role: Role; clientId?: string | null }
+  ) {
+    const where: Prisma.EnhancedDocumentWhereInput = { id, companyId };
+    if (viewer) {
+      where.accessLevel = { in: visibleAccessLevels(viewer.role) };
+      if (viewer.role === "CLIENT") {
+        where.clientId = viewer.clientId ?? "__none__";
+      }
+    }
+    return prisma.enhancedDocument.findFirst({
+      where,
       include: {
         client: true,
         children: true,

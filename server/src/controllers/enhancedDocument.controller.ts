@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { enhancedDocumentService } from "../services/enhancedDocument.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
+import { HttpError } from "../utils/httpError.js";
 import { EnhancedDocumentType } from "@prisma/client";
 
 function textQuery(value: unknown): string | undefined {
@@ -16,14 +17,22 @@ export const getEnhancedDocuments = async (req: Request, res: Response) => {
     tags: typeof req.query.tags === "string" ? req.query.tags.split(",") : undefined,
     search: textQuery(req.query.search),
   };
-  const result = await enhancedDocumentService.getAll(options);
+  const result = await enhancedDocumentService.getAll(options, {
+    role: req.user!.role,
+    clientId: req.user!.clientId,
+  });
   res.json({ data: result });
 };
 
 export const getEnhancedDocumentById = async (req: Request, res: Response) => {
   const id = req.params.id as string;
   const companyId = req.user!.companyId as string;
-  const document = await enhancedDocumentService.getById(id, companyId);
+  const document = await enhancedDocumentService.getById(id, companyId, {
+    role: req.user!.role,
+    clientId: req.user!.clientId,
+  });
+  // Don't log a VIEW (or leak existence) for a document the viewer isn't allowed to see.
+  if (!document) throw new HttpError(404, "Document not found");
   await enhancedDocumentService.logAccess(id, companyId, {
     action: "VIEW",
     userId: req.user?.sub as string | undefined,

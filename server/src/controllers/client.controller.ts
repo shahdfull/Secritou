@@ -2,6 +2,7 @@
 import type { RequestHandler } from "express";
 import { clientService } from "../services/client.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
+import { buildServiceScope } from "../utils/serviceScope.js";
 
 export const getClients: RequestHandler = async (req, res, next) => {
   try {
@@ -10,7 +11,7 @@ export const getClients: RequestHandler = async (req, res, next) => {
       ...parseListQuery(req.query as Record<string, unknown>),
       includeArchived: req.query.includeArchived === "true",
     };
-    const result = await clientService.getClients(companyId, options);
+    const result = await clientService.getClients(companyId, options, await buildServiceScope(req));
     res.json(result);
   } catch (error) {
     next(error);
@@ -20,7 +21,7 @@ export const getClients: RequestHandler = async (req, res, next) => {
 export const getClient: RequestHandler = async (req, res, next) => {
   try {
     const companyId = req.user?.companyId!;
-    const client = await clientService.getClient(req.params.id as string, companyId);
+    const client = await clientService.getClient(req.params.id as string, companyId, await buildServiceScope(req));
     res.json({ data: client });
   } catch (error) {
     next(error);
