@@ -86,3 +86,20 @@ export const getMyProjects: RequestHandler = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getTimelineStatus: RequestHandler = async (req, res, next) => {
+  try {
+    const role = req.user?.role!;
+    const companyId = req.user?.companyId ?? "";
+    const clientId = req.user?.clientId as string | undefined;
+    const steps = await projectService.getTimelineStatus(
+      req.params.id as string,
+      companyId,
+      role,
+      clientId
+    );
+    res.json({ data: steps });
+  } catch (error) {
+    next(error);
+  }
+};

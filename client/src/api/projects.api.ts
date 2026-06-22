@@ -27,4 +27,18 @@ export const projectsApi = {
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/projects/${id}`);
   },
+
+  getTimelineStatus: async (id: string): Promise<TimelineStep[]> => {
+    const response = await apiClient.get<{ data: TimelineStep[] }>(`/projects/${id}/timeline-status`);
+    return response.data.data;
+  },
 };
+
+export type TimelineStepStatus = "done" | "pending" | "locked";
+
+export interface TimelineStep {
+  key: string;
+  label: string;
+  status: TimelineStepStatus;
+  date: string | null;
+}
