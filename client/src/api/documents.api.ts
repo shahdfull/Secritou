@@ -1,7 +1,19 @@
 import apiClient from "./axios";
 
-export type DocumentType = "WELCOME_LETTER" | "CONTRACT" | "SPECS" | "CLIENT_BRIEF" | "QUOTE" | "INVOICE_DEPOSIT" | "INVOICE_BALANCE" | "ROADMAP";
-export type EnhancedDocumentType = "CONTRACT" | "DELIVERABLE" | "GUIDE" | "REPORT" | "INVOICE" | "OTHER";
+export type DocumentType =
+  | "WELCOME_LETTER"
+  | "CONTRACT"
+  | "SPECS"
+  | "CLIENT_BRIEF"
+  | "QUOTE"
+  | "INVOICE_DEPOSIT"
+  | "INVOICE_BALANCE"
+  | "ROADMAP"
+  | "DELIVERABLE"
+  | "GUIDE"
+  | "REPORT"
+  | "INVOICE"
+  | "OTHER";
 
 export interface Document {
   id: string;
@@ -9,7 +21,6 @@ export interface Document {
   title: string;
   description?: string;
   type: DocumentType;
-  enhancedType: EnhancedDocumentType;
   url: string;
   fileUrl?: string;
   fileKey?: string;
@@ -55,7 +66,6 @@ export const documentsApi = {
     pageSize?: number;
     search?: string;
     type?: DocumentType;
-    enhancedType?: EnhancedDocumentType;
     clientId?: string;
     projectId?: string;
     tags?: string[];
@@ -79,7 +89,6 @@ export const documentsApi = {
     title: string;
     description?: string;
     type?: DocumentType;
-    enhancedType?: EnhancedDocumentType;
     url: string;
     fileUrl?: string;
     fileKey?: string;

@@ -31,6 +31,11 @@ const DOC_TYPE_LABELS: Record<DocumentType, string> = {
   INVOICE_DEPOSIT: "Facture d'acompte",
   INVOICE_BALANCE: "Facture de solde",
   ROADMAP: "Roadmap projet",
+  DELIVERABLE: "Livrable",
+  GUIDE: "Guide",
+  REPORT: "Rapport",
+  INVOICE: "Facture",
+  OTHER: "Autre",
 };
 
 const DOC_TYPE_ORDER: DocumentType[] = [
@@ -42,6 +47,11 @@ const DOC_TYPE_ORDER: DocumentType[] = [
   "INVOICE_DEPOSIT",
   "INVOICE_BALANCE",
   "ROADMAP",
+  "DELIVERABLE",
+  "GUIDE",
+  "REPORT",
+  "INVOICE",
+  "OTHER",
 ];
 
 // ---------------------------------------------------------------------------

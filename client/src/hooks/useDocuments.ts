@@ -12,7 +12,6 @@ export function useDocuments(params?: {
   pageSize?: number;
   search?: string;
   type?: any;
-  enhancedType?: any;
   clientId?: string;
   projectId?: string;
   tags?: string[];

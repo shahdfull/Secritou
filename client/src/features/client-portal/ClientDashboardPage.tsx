@@ -51,7 +51,7 @@ export function ClientDashboardPage() {
   ];
 
   const getDocumentTypeLabel = (doc: Document) => {
-    switch (doc.enhancedType) {
+    switch (doc.type) {
       case 'INVOICE': return 'Facture';
       case 'CONTRACT': return 'Contrat';
       case 'OTHER': return 'Autre';
