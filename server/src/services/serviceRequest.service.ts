@@ -9,7 +9,7 @@ import {
 import { env } from "../config/env.js";
 import { HttpError } from "../utils/httpError.js";
 import type { ListQueryOptions } from "../utils/listQuery.js";
-import type { ServiceRequestStatus } from "@prisma/client";
+import type { ServiceRequestStatus, Priority } from "@prisma/client";
 
 // ─── Status machine ───────────────────────────────────────────────────────────
 
@@ -20,7 +20,6 @@ const ALLOWED_TRANSITIONS: Record<ServiceRequestStatus, ServiceRequestStatus[]> 
   WAITING_CLIENT: ["IN_PROGRESS", "COMPLETED", "CANCELLED"],
   COMPLETED: [],
   CANCELLED: [],
-  DONE: ["COMPLETED"], // legacy migration path
 };
 
 function assertValidTransition(from: ServiceRequestStatus, to: ServiceRequestStatus): void {
@@ -50,7 +49,7 @@ export const serviceRequestService = {
       status?: ServiceRequestStatus;
       clientId?: string;
       assignedToId?: string;
-      priority?: string;
+      priority?: Priority;
     }
   ) {
     return serviceRequestRepository.findAllByCompanyId(companyId, options);
@@ -67,10 +66,14 @@ export const serviceRequestService = {
   async createServiceRequest(data: {
     title: string;
     description?: string;
+    type?: "SUPPORT" | "NEW_PROJECT";
     clientId: string;
     companyId: string;
   }) {
-    const request = await serviceRequestRepository.create(data);
+    const request = await serviceRequestRepository.create({
+      ...data,
+      type: data.type ?? "NEW_PROJECT",
+    });
 
     const admins = await userRepository.findAdminsByCompanyId(data.companyId);
     await notificationRepository.createMany(
@@ -105,8 +108,9 @@ export const serviceRequestService = {
       title?: string;
       description?: string;
       status?: ServiceRequestStatus;
-      priority?: string;
+      priority?: Priority;
       assignedToId?: string | null;
+      type?: "SUPPORT" | "NEW_PROJECT";
     }
   ) {
     const current = await serviceRequestRepository.findByIdSimple(id, companyId);
@@ -176,42 +180,6 @@ export const serviceRequestService = {
         const { subject, html } = serviceRequestStatusTemplate(
           user.name ?? "Client",
           current.title,
-          data.status
-        );
-        void enqueueEmail({ to: user.email, subject, html });
-      }
-    }
-
-    return updated;
-  },
-
-  // ── Legacy client update (kept for backward compat) ──────────────────────────
-
-  async updateServiceRequest(
-    id: string,
-    data: Partial<{ title?: string; description?: string; status?: ServiceRequestStatus }>,
-    companyId?: string
-  ) {
-    if (!companyId) throw new HttpError(403, "Company access required");
-    const req = await serviceRequestRepository.findByIdSimple(id, companyId);
-    if (!req) throw new HttpError(404, "Service request not found");
-
-    const updated = await serviceRequestRepository.update(id, companyId, data);
-
-    if (data.status && data.status !== req.status) {
-      const clientUsers = await userRepository.findByClientId(req.clientId);
-      await notificationRepository.createMany(
-        clientUsers.map((user) => ({
-          userId: user.id,
-          title: "Mise à jour de la demande de service",
-          message: `La demande de service "${req.title}" est passée à ${data.status}`,
-        }))
-      );
-
-      for (const user of clientUsers) {
-        const { subject, html } = serviceRequestStatusTemplate(
-          user.name ?? "Client",
-          req.title,
           data.status
         );
         void enqueueEmail({ to: user.email, subject, html });
