@@ -62,7 +62,7 @@ export function Services() {
   ];
 
   return (
-    <section id="services" className="bg-surface-warm/40 py-20 sm:py-28">
+    <section id="services" className="bg-surface-warm/40 py-14 sm:py-20">
       <div className="container-page">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">

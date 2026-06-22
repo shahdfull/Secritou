@@ -69,7 +69,7 @@ export function SocialProof() {
   }, [emblaApi]);
 
   return (
-    <section className="relative border-t border-border bg-background py-16 lg:py-24">
+    <section className="relative border-t border-border bg-background py-12 lg:py-16">
       <div className="container-page">
         {/* Trusted by */}
         <div className="text-center">

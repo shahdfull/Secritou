@@ -16,7 +16,7 @@ export function Hero() {
   ];
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-surface-warm/70 via-background to-background pt-4 pb-12 lg:pt-6 lg:pb-16">
+    <section className="relative overflow-hidden bg-gradient-to-b from-surface-warm/70 via-background to-background pt-3 pb-8 lg:pt-4 lg:pb-10">
       {/* Decorative blur */}
       <div
         aria-hidden

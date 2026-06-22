@@ -7,9 +7,9 @@ export function FinalCTA() {
   const { t } = useTranslation();
   
   return (
-    <section className="bg-background py-20 sm:py-28">
+    <section className="bg-background py-14 sm:py-20">
       <div className="container-page">
-        <div className="relative overflow-hidden rounded-[2rem] bg-ink px-8 py-16 text-center sm:px-16 sm:py-24">
+        <div className="relative overflow-hidden rounded-[2rem] bg-ink px-8 py-12 text-center sm:px-16 sm:py-16">
           <div
             aria-hidden
             className="absolute -top-20 -left-20 h-80 w-80 rounded-full bg-primary opacity-30 blur-3xl"

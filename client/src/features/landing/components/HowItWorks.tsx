@@ -28,7 +28,7 @@ export function HowItWorks() {
   ];
 
   return (
-    <section className="bg-background py-20 sm:py-28">
+    <section className="bg-background py-14 sm:py-20">
       <div className="container-page">
         <div className="max-w-2xl">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
