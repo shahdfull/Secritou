@@ -1,5 +1,6 @@
 // Service for Comments - SaaS business logic
 import { commentRepository } from "../repositories/comment.repository.js";
+import { COMPANY_ID } from "../config/constants.js";
 
 export const commentService = {
   async createComment(data: {
@@ -10,7 +11,7 @@ export const commentService = {
     return commentRepository.create(data);
   },
 
-  async getCommentsByTaskId(taskId: string, companyId: string) {
-    return commentRepository.findByTaskId(taskId, companyId);
+  async getCommentsByTaskId(taskId: string) {
+    return commentRepository.findByTaskId(taskId, COMPANY_ID);
   },
 };

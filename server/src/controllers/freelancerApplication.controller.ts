@@ -7,12 +7,12 @@ import {
   createFreelancerApplicationValidator,
   acceptFreelancerApplicationValidator,
 } from "../validators/freelancerApplication.validator.js";
+import { COMPANY_ID } from "../config/constants.js";
 
 export const getApplications: RequestHandler = async (req, res, next) => {
   try {
-    const companyId = req.user!.companyId!;
     const options = parseListQuery(req.query as Record<string, unknown>);
-    const result = await freelancerApplicationService.getAllApplications(companyId, {
+    const result = await freelancerApplicationService.getAllApplications({
       ...options,
       status: req.query.status as any,
     });
@@ -24,10 +24,8 @@ export const getApplications: RequestHandler = async (req, res, next) => {
 
 export const getApplicationById: RequestHandler = async (req, res, next) => {
   try {
-    const companyId = req.user!.companyId!;
     const application = await freelancerApplicationService.getApplicationById(
-      req.params.id as string,
-      companyId
+      req.params.id as string
     );
     res.json({ data: application });
   } catch (error) {
@@ -92,10 +90,8 @@ export const getPendingApplications: RequestHandler = async (req, res, next) => 
 
 export const assignApplication: RequestHandler = async (req, res, next) => {
   try {
-    const companyId = req.user!.companyId!;
     const application = await freelancerApplicationService.assignApplicationToCompany(
-      req.params.id as string,
-      companyId
+      req.params.id as string
     );
     res.json({ data: application });
   } catch (error) {
@@ -105,10 +101,8 @@ export const assignApplication: RequestHandler = async (req, res, next) => {
 
 export const rejectApplication: RequestHandler = async (req, res, next) => {
   try {
-    const companyId = req.user!.companyId!;
     const application = await freelancerApplicationService.rejectApplication(
       req.params.id as string,
-      companyId,
       req.body.rejectionReason
     );
     res.json({ data: application });
@@ -121,10 +115,8 @@ export const acceptApplication: RequestHandler[] = [
   validate(acceptFreelancerApplicationValidator),
   async (req, res, next) => {
     try {
-      const companyId = req.user!.companyId!;
       const result = await freelancerApplicationService.acceptApplication(
         req.params.id as string,
-        companyId,
         req.body
       );
       res.json({ data: result });

@@ -8,7 +8,6 @@ import clientRoutes from "./client.routes.js";
 import leadRoutes from "./lead.routes.js";
 import projectRoutes from "./project.routes.js";
 import taskRoutes from "./task.routes.js";
-import companyRoutes from "./company.routes.js";
 import freelancerRoutes from "./freelancer.routes.js";
 import analyticsRoutes from "./analytics.routes.js";
 import serviceRequestRoutes from "./serviceRequest.routes.js";
@@ -134,7 +133,6 @@ apiRoutes.use("/freelancer-applications", freelancerApplicationRoutes);
 apiRoutes.use("/client-onboardings", clientOnboardingRoutes);
 
 // Protected MVP routes
-apiRoutes.use("/companies", companyRoutes);
 apiRoutes.use("/projects", projectRoutes);
 apiRoutes.use("/tasks", taskRoutes);
 apiRoutes.use("/clients", clientRoutes);

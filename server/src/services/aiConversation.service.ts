@@ -1,4 +1,5 @@
 import { aiConversationRepository } from "../repositories/aiConversation.repository.js";
+import { COMPANY_ID } from "../config/constants.js";
 import { env } from "../config/env.js";
 import { HttpError } from "../utils/httpError.js";
 
@@ -33,69 +34,76 @@ async function callOpenAI(messages: { role: string; content: string }[]): Promis
   return data.choices[0]?.message?.content ?? "Désolé, je n'ai pas pu générer de réponse.";
 }
 
+function toOpenAIRole(role: string): "user" | "assistant" | "system" {
+  return role.toUpperCase() === "ASSISTANT" ? "assistant" : role.toUpperCase() === "SYSTEM" ? "system" : "user";
+}
+
 export const aiConversationService = {
-  async list(companyId: string, userId: string, page: number, pageSize: number) {
-    return aiConversationRepository.findAll(companyId, userId, page, pageSize);
+  async list(userId: string, page: number, pageSize: number) {
+    return aiConversationRepository.findAll(COMPANY_ID, userId, page, pageSize);
   },
 
-  async getById(id: string, companyId: string, userId: string) {
-    const conv = await aiConversationRepository.findById(id, companyId, userId);
+  async getById(id: string, userId: string) {
+    const conv = await aiConversationRepository.findById(id, COMPANY_ID, userId);
     if (!conv) throw new HttpError(404, "Conversation not found");
     return conv;
   },
 
-  async create(companyId: string, userId: string, firstMessage: string) {
+  async create(userId: string, firstMessage: string) {
     // Auto-generate title from the first message (truncate to 60 chars)
     const title = firstMessage.slice(0, 60) + (firstMessage.length > 60 ? "…" : "");
-    const conv = await aiConversationRepository.create(companyId, userId, title);
+    const conv = await aiConversationRepository.create(COMPANY_ID, userId, title);
 
     // Persist user message, call OpenAI, persist reply
-    await aiConversationRepository.addMessage(conv.id, "user", firstMessage);
+    await aiConversationRepository.addMessage(conv.id, "USER", firstMessage);
 
     const history = [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: firstMessage },
     ];
     const reply = await callOpenAI(history);
-    const assistantMsg = await aiConversationRepository.addMessage(conv.id, "assistant", reply);
+    const assistantMsg = await aiConversationRepository.addMessage(conv.id, "ASSISTANT", reply);
 
     return { conversation: conv, reply: assistantMsg };
   },
 
-  async addMessage(id: string, companyId: string, userId: string, content: string) {
-    const conv = await aiConversationRepository.findById(id, companyId, userId);
+  async addMessage(id: string, userId: string, content: string) {
+    const conv = await aiConversationRepository.findById(id, COMPANY_ID, userId);
     if (!conv) throw new HttpError(404, "Conversation not found");
 
-    await aiConversationRepository.addMessage(conv.id, "user", content);
+    await aiConversationRepository.addMessage(conv.id, "USER", content);
 
     // Build history for OpenAI (last 20 messages to respect token limits)
     const recentMessages = conv.messages.slice(-20);
     const history = [
       { role: "system", content: SYSTEM_PROMPT },
-      ...recentMessages.map((m) => ({ role: m.role as string, content: m.content })),
+      ...recentMessages.map((m) => ({ role: toOpenAIRole(m.role), content: m.content })),
       { role: "user", content },
     ];
     const reply = await callOpenAI(history);
-    const assistantMsg = await aiConversationRepository.addMessage(conv.id, "assistant", reply);
+    const assistantMsg = await aiConversationRepository.addMessage(conv.id, "ASSISTANT", reply);
 
     return { reply: assistantMsg };
   },
 
-  async delete(id: string, companyId: string, userId: string) {
-    const conv = await aiConversationRepository.findById(id, companyId, userId);
+  async delete(id: string, userId: string) {
+    const conv = await aiConversationRepository.findById(id, COMPANY_ID, userId);
     if (!conv) throw new HttpError(404, "Conversation not found");
-    await aiConversationRepository.delete(id, companyId, userId);
+    await aiConversationRepository.delete(id, COMPANY_ID, userId);
   },
 
   async importFromLocalStorage(
-    companyId: string,
     userId: string,
     messages: { role: "user" | "assistant"; content: string }[]
   ) {
     if (!messages.length) return null;
-    const conv = await aiConversationRepository.create(companyId, userId, "Historique importé");
+    const conv = await aiConversationRepository.create(COMPANY_ID, userId, "Historique importé");
     for (const msg of messages) {
-      await aiConversationRepository.addMessage(conv.id, msg.role, msg.content);
+      await aiConversationRepository.addMessage(
+        conv.id,
+        msg.role.toUpperCase() === "ASSISTANT" ? "ASSISTANT" : "USER",
+        msg.content
+      );
     }
     return conv;
   },

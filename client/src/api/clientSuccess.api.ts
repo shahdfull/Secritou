@@ -4,7 +4,6 @@ export interface ClientSuccess {
   id: string;
   clientId: string;
   client?: { name: string };
-  companyId: string;
   score: number;
   objectives?: SuccessObjective[];
   metrics?: SuccessMetric[];

@@ -15,7 +15,6 @@ export const proposalBaseSchema = z.object({
   clientId: z.string().uuid(),
   clientName: z.string().max(255).optional(),
   email: z.string().email().max(255).optional(),
-  leadId: z.string().uuid().optional(),
   projectId: z.string().uuid().optional(),
   serviceRequestId: z.string().uuid().optional(),
   expiresAt: z.string().datetime({ offset: true }).optional(),

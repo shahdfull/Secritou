@@ -1,6 +1,7 @@
 import type { RequestHandler } from "express";
 import { customQuestionService } from "../services/customQuestion.service.js";
 import type { CustomQuestionStatus } from "@prisma/client";
+import { COMPANY_ID } from "../config/constants.js";
 
 // POST /api/custom-questions — any authenticated user
 export const createQuestion: RequestHandler = async (req, res, next) => {
@@ -45,7 +46,6 @@ export const getAllQuestions: RequestHandler = async (req, res, next) => {
     const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
     const result = await customQuestionService.getAllQuestions(
-      req.user!.companyId,
       { status },
       page,
       limit

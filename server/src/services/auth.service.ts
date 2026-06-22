@@ -9,27 +9,27 @@ import { enqueueEmail } from "../jobs/queues.js";
 import { passwordResetTemplate } from "./emailTemplates/index.js";
 import { HttpError } from "../utils/httpError.js";
 import { parseDurationToDate } from "../utils/parseDuration.js";
+import { COMPANY_ID } from "../config/constants.js";
 
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
 function toAuthUser(
-  user: Pick<User, "id" | "email" | "name" | "role" | "companyId" | "clientId" | "mustChangePassword">
+  user: Pick<User, "id" | "email" | "name" | "role" | "clientId" | "mustChangePassword">
 ) {
   return {
     id: user.id,
     email: user.email,
     name: user.name,
     role: user.role,
-    companyId: user.companyId,
     clientId: user.clientId,
     mustChangePassword: user.mustChangePassword,
   };
 }
 
 function signAccessToken(
-  user: Pick<User, "id" | "email" | "role" | "companyId" | "clientId" | "mustChangePassword">
+  user: Pick<User, "id" | "email" | "role" | "clientId" | "mustChangePassword">
 ) {
   return jwt.sign(
     {
@@ -38,7 +38,6 @@ function signAccessToken(
       tokenType: "access" as const,
       email: user.email,
       role: user.role,
-      companyId: user.companyId,
       clientId: user.clientId,
       mustChangePassword: user.mustChangePassword,
     },
@@ -69,18 +68,16 @@ export class AuthService {
     this.repo = new AuthRepository(db);
   }
 
-  async register(input: { email: string; password: string; name: string; companyName: string }) {
+  async register(input: { email: string; password: string; name: string }) {
     const existing = await this.repo.findUserByEmail(input.email);
     if (existing) throw new HttpError(409, "Email is already registered");
 
     const passwordHash = await bcrypt.hash(input.password, 12);
-    const company = await this.repo.createCompanyWithOwner({
-      companyName: input.companyName,
+    const user = await this.repo.createUser({
       email: input.email,
       name: input.name,
       passwordHash,
     });
-    const user = company.users[0];
     return this.issueTokens(user);
   }
 
@@ -208,7 +205,7 @@ export class AuthService {
   }
 
   private async issueTokens(
-    user: Pick<User, "id" | "email" | "name" | "role" | "companyId" | "clientId" | "mustChangePassword">,
+    user: Pick<User, "id" | "email" | "name" | "role" | "clientId" | "mustChangePassword">,
     existingFamilyId?: string
   ) {
     const accessToken = signAccessToken(user);

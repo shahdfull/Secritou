@@ -156,10 +156,10 @@ export class ContactService {
 
   async convertToLead(
     contactRequestId: string,
-    companyId: string,
     assignedManagerId?: string,
     department?: string
   ) {
+    const { COMPANY_ID } = await import("../config/constants.js");
     return prisma.$transaction(async (tx) => {
       const contactRequest = await tx.contactRequest.findUnique({
         where: { id: contactRequestId },
@@ -189,7 +189,7 @@ export class ContactService {
           ]
             .filter((line) => line !== null)
             .join("\n"),
-          companyId,
+          companyId: COMPANY_ID,
           sourceContactId: contactRequestId,
           assignedManagerId,
           department,

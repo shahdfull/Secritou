@@ -4,7 +4,6 @@ export interface ClientOnboarding {
   id: string;
   projectId: string;
   clientId: string;
-  companyId: string;
   assignedUserId?: string;
   createdAt: string;
   updatedAt: string;

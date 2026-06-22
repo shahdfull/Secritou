@@ -1,6 +1,7 @@
 // Service (pole/department) lookups.
 import { prisma } from "../config/prisma.js";
 import { serviceNameForType } from "../constants/serviceMapping.js";
+import { COMPANY_ID } from "../config/constants.js";
 
 type PrismaLike = { service: { findUnique: typeof prisma.service.findUnique } };
 
@@ -10,13 +11,12 @@ export const serviceService = {
   // then leaves the lead/client unassigned (ADMIN triage) rather than failing.
   async resolveServiceIdForType(
     serviceType: string,
-    companyId: string,
     client: PrismaLike = prisma
   ): Promise<string | null> {
     const name = serviceNameForType(serviceType);
     if (!name) return null;
     const service = await client.service.findUnique({
-      where: { companyId_name: { companyId, name } },
+      where: { companyId_name: { companyId: COMPANY_ID, name } },
       select: { id: true },
     });
     return service?.id ?? null;

@@ -3,6 +3,7 @@ import { HttpError } from "../utils/httpError.js";
 import { enqueueEmail } from "../jobs/queues.js";
 import { userInvitationTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
+import { COMPANY_ID } from "../config/constants.js";
 import type { Role } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import bcrypt from "bcryptjs";
@@ -35,11 +36,11 @@ export const userService = {
   },
 
 
-  async getUsersByCompany(companyId: string, options: ListQueryOptions) {
-    return userRepository.findByCompanyId(companyId, options);
+  async getUsersByCompany(options: ListQueryOptions) {
+    return userRepository.findByCompanyId(COMPANY_ID, options);
   },
 
-  async inviteUser(companyId: string, email: string, name: string, role: Role) {
+  async inviteUser(email: string, name: string, role: Role) {
     const existingUser = await userRepository.findByEmail(email);
     if (existingUser) throw new HttpError(409, "User with that email already exists");
 
@@ -51,7 +52,7 @@ export const userService = {
       email,
       passwordHash: hashedPassword,
       role,
-      companyId,
+      companyId: COMPANY_ID,
       mustChangePassword: true,
     });
 
@@ -62,18 +63,18 @@ export const userService = {
     return user;
   },
 
-  async updateUser(id: string, companyId: string, name?: string, role?: Role) {
+  async updateUser(id: string, name?: string, role?: Role) {
     const user = await userRepository.findById(id);
     if (!user) throw new HttpError(404, "User not found");
-    if (user.companyId !== companyId) throw new HttpError(403, "You cannot update this user");
+    if (user.companyId !== COMPANY_ID) throw new HttpError(403, "You cannot update this user");
 
     return userRepository.update(id, { name, role });
   },
 
-  async deleteUser(id: string, companyId: string) {
+  async deleteUser(id: string) {
     const user = await userRepository.findById(id);
     if (!user) throw new HttpError(404, "User not found");
-    if (user.companyId !== companyId) throw new HttpError(403, "You cannot delete this user");
+    if (user.companyId !== COMPANY_ID) throw new HttpError(403, "You cannot delete this user");
 
     return userRepository.delete(id);
   },

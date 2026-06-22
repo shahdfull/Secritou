@@ -24,12 +24,10 @@ import {
 } from "../controllers/clientOnboarding.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
-import { requireCompanyTenant } from "../middlewares/tenant.middleware.js";
-
 const router = express.Router();
 
 // Apply base middleware to all onboarding routes
-router.use(authenticate, requireCompanyTenant());
+router.use(authenticate);
 
 router.get(
   "/",

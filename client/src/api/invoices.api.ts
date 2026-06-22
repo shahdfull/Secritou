@@ -14,7 +14,6 @@ export interface Invoice {
   paidAt?: string;
   pdfUrl?: string;
   clientId: string;
-  companyId: string;
   projectId?: string;
   proposalId?: string;
   client?: { name: string };

@@ -1,4 +1,5 @@
 import { prisma } from "../config/prisma.js";
+import { COMPANY_ID } from "../config/constants.js";
 import { enqueueEmail } from "../jobs/queues.js";
 import { notificationRepository } from "../repositories/notification.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
@@ -140,7 +141,6 @@ class CustomQuestionService {
 
   /** Admin/manager: all questions with optional status filter, paginated. */
   async getAllQuestions(
-    companyId: string | null,
     filters: { status?: CustomQuestionStatus } = {},
     page = 1,
     limit = 20
@@ -150,7 +150,7 @@ class CustomQuestionService {
     const skip = (safePage - 1) * safeLimit;
 
     const where: Prisma.CustomQuestionWhereInput = {
-      ...(companyId ? { companyId } : {}),
+      companyId: COMPANY_ID,
       ...(filters.status ? { status: filters.status } : {}),
     };
 

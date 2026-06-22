@@ -7,7 +7,6 @@ export interface Approval {
   status: "PENDING" | "APPROVED" | "REJECTED" | "COMMENTED";
   dueDate?: string;
   clientId: string;
-  companyId: string;
   projectId?: string;
   client?: { name: string };
   attachments?: ApprovalAttachment[];

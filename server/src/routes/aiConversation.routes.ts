@@ -9,7 +9,6 @@ import {
 } from "../controllers/aiConversation.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
-import { requireCompanyTenant } from "../middlewares/tenant.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { aiRateLimit } from "../middlewares/rateLimit.middleware.js";
 import {
@@ -20,7 +19,7 @@ import {
 } from "../validators/aiConversation.validator.js";
 
 const router = Router();
-router.use(authenticate, authorize("ADMIN", "MANAGER"), requireCompanyTenant());
+router.use(authenticate, authorize("ADMIN", "MANAGER"));
 
 router.get("/", listConversations);
 router.post("/", aiRateLimit, validate(createConversationSchema), createConversation);

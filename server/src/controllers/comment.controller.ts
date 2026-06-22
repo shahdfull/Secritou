@@ -6,17 +6,16 @@ import { HttpError } from "../utils/httpError.js";
 
 export const getCommentsByTaskId: RequestHandler = async (req, res, next) => {
   try {
-    const companyId = req.user?.companyId!;
     const userId = req.user?.sub!;
     const userRole = req.user?.role!;
     const taskId = req.params.taskId as string;
 
-    const hasAccess = await taskRepository.existsInCompany(taskId, companyId, userId, userRole);
+    const hasAccess = await taskRepository.existsInCompany(taskId, userId, userRole);
     if (!hasAccess) {
       throw new HttpError(404, "Task not found");
     }
 
-    const comments = await commentService.getCommentsByTaskId(taskId, companyId);
+    const comments = await commentService.getCommentsByTaskId(taskId);
     res.json({ data: comments });
   } catch (error) {
     next(error);
@@ -25,13 +24,12 @@ export const getCommentsByTaskId: RequestHandler = async (req, res, next) => {
 
 export const createComment: RequestHandler = async (req, res, next) => {
   try {
-    const companyId = req.user?.companyId!;
     const userId = req.user?.sub!;
     const userRole = req.user?.role!;
     const taskId = req.params.taskId as string;
     const { content } = req.body;
 
-    const hasAccess = await taskRepository.existsInCompany(taskId, companyId, userId, userRole);
+    const hasAccess = await taskRepository.existsInCompany(taskId, userId, userRole);
     if (!hasAccess) {
       throw new HttpError(404, "Task not found");
     }

@@ -1,21 +1,20 @@
 import { clientSuccessRepository } from "../repositories/clientSuccess.repository.js";
+import { COMPANY_ID } from "../config/constants.js";
 import { prisma } from "../config/prisma.js";
-import { tenantValidation } from "./tenantValidation.service.js";
 
 export const clientSuccessService = {
-  async getByClientId(clientId: string, companyId: string) {
-    await tenantValidation.assertClientInCompany(clientId, companyId);
-    let success = await clientSuccessRepository.findByClientId(clientId, companyId);
+  async getByClientId(clientId: string) {
+    let success = await clientSuccessRepository.findByClientId(clientId, COMPANY_ID);
     if (!success) {
-      await clientSuccessRepository.create({ clientId, companyId });
-      success = await clientSuccessRepository.findByClientId(clientId, companyId);
+      await clientSuccessRepository.create({ clientId, companyId: COMPANY_ID });
+      success = await clientSuccessRepository.findByClientId(clientId, COMPANY_ID);
     }
     return success!
   },
 
-  async updateScore(clientId: string, companyId: string, score: number) {
-    const success = await this.getByClientId(clientId, companyId);
-    return clientSuccessRepository.update(success!.id, companyId, { score });
+  async updateScore(clientId: string, score: number) {
+    const success = await this.getByClientId(clientId);
+    return clientSuccessRepository.update(success!.id, COMPANY_ID, { score });
   },
 
   /**
@@ -24,30 +23,30 @@ export const clientSuccessService = {
    * displayed score isn't stale until the nightly batch runs. Best-effort: never throws into
    * the caller's flow, since scoring is a side effect of the primary action.
    */
-  async recalcAndPersist(clientId: string, companyId: string) {
+  async recalcAndPersist(clientId: string) {
     try {
-      const score = await this.calculateScore(clientId, companyId);
-      await this.updateScore(clientId, companyId, score);
+      const score = await this.calculateScore(clientId);
+      await this.updateScore(clientId, score);
     } catch {
       // Non-fatal: a scoring failure must not break the payment/objective update that triggered it.
     }
   },
 
   /** Resolve the clientId behind a ClientSuccess id and recompute its score (best-effort). */
-  async recalcForSuccess(successId: string, companyId: string) {
+  async recalcForSuccess(successId: string) {
     try {
       const success = await prisma.clientSuccess.findFirst({
-        where: { id: successId, client: { companyId } },
+        where: { id: successId, client: { companyId: COMPANY_ID } },
         select: { clientId: true },
       });
-      if (success) await this.recalcAndPersist(success.clientId, companyId);
+      if (success) await this.recalcAndPersist(success.clientId);
     } catch {
       // Non-fatal.
     }
   },
 
-  async calculateScore(clientId: string, companyId: string) {
-    const success = await this.getByClientId(clientId, companyId);
+  async calculateScore(clientId: string) {
+    const success = await this.getByClientId(clientId);
     if (!success) return 0;
 
     // ── Manual signals (50 pts max) ──────────────────────────────────────────
@@ -87,7 +86,7 @@ export const clientSuccessService = {
       prisma.invoice.findMany({
         where: {
           clientId,
-          companyId,
+          companyId: COMPANY_ID,
           createdAt: { gte: twelveMonthsAgo },
           status: { in: ["SENT", "PARTIAL", "PAID"] },
         },
@@ -100,7 +99,7 @@ export const clientSuccessService = {
       prisma.project.count({
         where: {
           clientId,
-          companyId,
+          companyId: COMPANY_ID,
           status: { in: ["IN_PROGRESS", "COMPLETED"] },
           updatedAt: { gte: sixMonthsAgo },
         },
@@ -144,7 +143,6 @@ export const clientSuccessService = {
 
   async addObjective(
     clientId: string,
-    companyId: string,
     data: {
       title: string;
       description?: string;
@@ -154,13 +152,12 @@ export const clientSuccessService = {
       targetDate?: Date;
     }
   ) {
-    const success = await this.getByClientId(clientId, companyId);
-    return clientSuccessRepository.addObjective(success!.id, companyId, data);
+    const success = await this.getByClientId(clientId);
+    return clientSuccessRepository.addObjective(success!.id, COMPANY_ID, data);
   },
 
   async updateObjective(
     id: string,
-    companyId: string,
     data: Partial<{
       title: string;
       description: string;
@@ -171,21 +168,20 @@ export const clientSuccessService = {
       completedAt: Date;
     }>
   ) {
-    const objective = await clientSuccessRepository.updateObjective(id, companyId, data);
+    const objective = await clientSuccessRepository.updateObjective(id, COMPANY_ID, data);
     // Completing an objective feeds the manual half of the score; recompute so it isn't stale.
     if (data.completedAt !== undefined) {
-      await this.recalcForSuccess(objective.successId, companyId);
+      await this.recalcForSuccess(objective.successId);
     }
     return objective;
   },
 
-  async deleteObjective(id: string, companyId: string) {
-    return clientSuccessRepository.deleteObjective(id, companyId);
+  async deleteObjective(id: string) {
+    return clientSuccessRepository.deleteObjective(id, COMPANY_ID);
   },
 
   async addMetric(
     clientId: string,
-    companyId: string,
     data: {
       name: string;
       initialValue: number;
@@ -193,9 +189,9 @@ export const clientSuccessService = {
       unit?: string;
     }
   ) {
-    const success = await this.getByClientId(clientId, companyId);
-    const metric = await clientSuccessRepository.addMetric(success!.id, companyId, data);
-    await clientSuccessRepository.addMetricHistory(metric.id, companyId, {
+    const success = await this.getByClientId(clientId);
+    const metric = await clientSuccessRepository.addMetric(success!.id, COMPANY_ID, data);
+    await clientSuccessRepository.addMetricHistory(metric.id, COMPANY_ID, {
       value: data.currentValue,
     });
     return metric;
@@ -203,7 +199,6 @@ export const clientSuccessService = {
 
   async updateMetric(
     id: string,
-    companyId: string,
     data: Partial<{
       name: string;
       initialValue: number;
@@ -211,20 +206,19 @@ export const clientSuccessService = {
       unit: string;
     }>
   ) {
-    const metric = await clientSuccessRepository.updateMetric(id, companyId, data);
+    const metric = await clientSuccessRepository.updateMetric(id, COMPANY_ID, data);
     if (data.currentValue !== undefined) {
-      await clientSuccessRepository.addMetricHistory(id, companyId, { value: data.currentValue });
+      await clientSuccessRepository.addMetricHistory(id, COMPANY_ID, { value: data.currentValue });
     }
     return metric;
   },
 
-  async deleteMetric(id: string, companyId: string) {
-    return clientSuccessRepository.deleteMetric(id, companyId);
+  async deleteMetric(id: string) {
+    return clientSuccessRepository.deleteMetric(id, COMPANY_ID);
   },
 
   async addRecommendation(
     clientId: string,
-    companyId: string,
     data: {
       title: string;
       description?: string;
@@ -232,13 +226,12 @@ export const clientSuccessService = {
       status?: string;
     }
   ) {
-    const success = await this.getByClientId(clientId, companyId);
-    return clientSuccessRepository.addRecommendation(success!.id, companyId, data);
+    const success = await this.getByClientId(clientId);
+    return clientSuccessRepository.addRecommendation(success!.id, COMPANY_ID, data);
   },
 
   async updateRecommendation(
     id: string,
-    companyId: string,
     data: Partial<{
       title: string;
       description: string;
@@ -246,21 +239,20 @@ export const clientSuccessService = {
       status: string;
     }>
   ) {
-    const recommendation = await clientSuccessRepository.updateRecommendation(id, companyId, data);
+    const recommendation = await clientSuccessRepository.updateRecommendation(id, COMPANY_ID, data);
     // A completed recommendation feeds the score; recompute on status change.
     if (data.status !== undefined) {
-      await this.recalcForSuccess(recommendation.successId, companyId);
+      await this.recalcForSuccess(recommendation.successId);
     }
     return recommendation;
   },
 
-  async deleteRecommendation(id: string, companyId: string) {
-    return clientSuccessRepository.deleteRecommendation(id, companyId);
+  async deleteRecommendation(id: string) {
+    return clientSuccessRepository.deleteRecommendation(id, COMPANY_ID);
   },
 
   async addTimeline(
     clientId: string,
-    companyId: string,
     data: {
       title: string;
       description?: string;
@@ -268,14 +260,14 @@ export const clientSuccessService = {
       date?: Date;
     }
   ) {
-    const success = await this.getByClientId(clientId, companyId);
-    return clientSuccessRepository.addTimeline(success!.id, companyId, {
+    const success = await this.getByClientId(clientId);
+    return clientSuccessRepository.addTimeline(success!.id, COMPANY_ID, {
       ...data,
       date: data.date || new Date(),
     });
   },
 
-  async deleteTimeline(id: string, companyId: string) {
-    return clientSuccessRepository.deleteTimeline(id, companyId);
+  async deleteTimeline(id: string) {
+    return clientSuccessRepository.deleteTimeline(id, COMPANY_ID);
   },
 };

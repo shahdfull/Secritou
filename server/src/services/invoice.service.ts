@@ -1,4 +1,5 @@
 import { invoiceRepository } from "../repositories/invoice.repository.js";
+import { COMPANY_ID } from "../config/constants.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { enqueueEmail, enqueueNotifications } from "../jobs/queues.js";
 import { invoiceSentTemplate, invoiceReminderTemplate } from "./emailTemplates/index.js";
@@ -6,7 +7,6 @@ import { env } from "../config/env.js";
 import type { InvoiceStatus } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
-import { tenantValidation } from "./tenantValidation.service.js";
 import { prisma } from "../config/prisma.js";
 import { HttpError } from "../utils/httpError.js";
 import { clientSuccessService } from "./clientSuccess.service.js";
@@ -40,7 +40,6 @@ function assertInvoiceDraft(status: InvoiceStatus) {
  * number, which produced opaque non-sequential numbers and surfaced collisions as raw 500s.
  */
 async function createInvoiceWithGeneratedNumber(
-  companyId: string,
   data: Omit<Parameters<typeof invoiceRepository.create>[0], "number" | "companyId">
 ) {
   const now = new Date();
@@ -50,11 +49,11 @@ async function createInvoiceWithGeneratedNumber(
   let lastError: unknown;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const count = await prisma.invoice.count({
-      where: { companyId, number: { startsWith: prefix } },
+      where: { companyId: COMPANY_ID, number: { startsWith: prefix } },
     });
     const number = `${prefix}-${String(count + 1 + attempt).padStart(4, "0")}`;
     try {
-      return await invoiceRepository.create({ ...data, number, companyId });
+      return await invoiceRepository.create({ ...data, number, companyId: COMPANY_ID });
     } catch (err) {
       // P2002 = unique constraint violation on (companyId, number): another request took this
       // number first. Retry with the next sequence value.
@@ -80,15 +79,14 @@ async function createInvoiceWithGeneratedNumber(
  */
 async function recomputeInvoiceAmount(
   tx: TxClient,
-  invoiceId: string,
-  companyId: string
+  invoiceId: string
 ) {
   const agg = await tx.invoiceItem.aggregate({
-    where: { invoiceId, invoice: { companyId } },
+    where: { invoiceId, invoice: { companyId: COMPANY_ID } },
     _sum: { total: true },
   });
   const amount = Number(agg._sum.total ?? 0);
-  await tx.invoice.update({ where: { id: invoiceId, companyId }, data: { amount } });
+  await tx.invoice.update({ where: { id: invoiceId, companyId: COMPANY_ID }, data: { amount } });
 }
 
 export const invoiceService = {
@@ -101,17 +99,16 @@ export const invoiceService = {
 
   async getAll(
     options: ListQueryOptions & {
-      companyId: string;
       clientId?: string;
       status?: InvoiceStatus;
       search?: string;
     }
   ) {
-    return invoiceRepository.findAll(options);
+    return invoiceRepository.findAll({ ...options, companyId: COMPANY_ID });
   },
 
-  async getById(id: string, companyId: string) {
-    return invoiceRepository.findById(id, companyId);
+  async getById(id: string) {
+    return invoiceRepository.findById(id, COMPANY_ID);
   },
 
   async create(
@@ -126,16 +123,13 @@ export const invoiceService = {
       clientId: string;
       projectId?: string;
       proposalId?: string;
-    },
-    companyId: string
+    }
   ) {
-    await tenantValidation.assertClientInCompany(data.clientId, companyId);
-    return invoiceRepository.create({ ...data, companyId });
+    return invoiceRepository.create({ ...data, companyId: COMPANY_ID });
   },
 
   async update(
     id: string,
-    companyId: string,
     data: Partial<{
       number: string;
       title: string;
@@ -150,7 +144,7 @@ export const invoiceService = {
     // and must not be set directly — otherwise the two would drift. Invoices with no items
     // (e.g. created from a proposal without itemisation) keep amount manually editable.
     if (data.amount !== undefined) {
-      const itemCount = await prisma.invoiceItem.count({ where: { invoiceId: id, invoice: { companyId } } });
+      const itemCount = await prisma.invoiceItem.count({ where: { invoiceId: id, invoice: { companyId: COMPANY_ID } } });
       if (itemCount > 0) {
         throw new HttpError(
           409,
@@ -159,13 +153,13 @@ export const invoiceService = {
         );
       }
     }
-    return invoiceRepository.update(id, companyId, data);
+    return invoiceRepository.update(id, COMPANY_ID, data);
   },
 
-  async delete(id: string, companyId: string) {
+  async delete(id: string) {
     // A financial document must remain on record once issued. Only DRAFT invoices (never sent)
     // may be hard-deleted; anything else must be cancelled (void) to preserve the audit trail.
-    const invoice = await invoiceRepository.findById(id, companyId);
+    const invoice = await invoiceRepository.findById(id, COMPANY_ID);
     if (!invoice) throw new HttpError(404, "Invoice not found");
     if (invoice.status !== "DRAFT") {
       throw new HttpError(
@@ -174,11 +168,11 @@ export const invoiceService = {
         "INVOICE_NOT_DRAFT"
       );
     }
-    return invoiceRepository.delete(id, companyId);
+    return invoiceRepository.delete(id, COMPANY_ID);
   },
 
-  async cancel(id: string, companyId: string) {
-    const invoice = await invoiceRepository.findById(id, companyId);
+  async cancel(id: string) {
+    const invoice = await invoiceRepository.findById(id, COMPANY_ID);
     if (!invoice) throw new HttpError(404, "Invoice not found");
     // PAID and already-CANCELLED invoices are terminal — voiding them makes no sense.
     if (invoice.status === "PAID" || invoice.status === "CANCELLED") {
@@ -188,12 +182,12 @@ export const invoiceService = {
         "INVOICE_NOT_CANCELLABLE"
       );
     }
-    return invoiceRepository.update(id, companyId, { status: "CANCELLED" });
+    return invoiceRepository.update(id, COMPANY_ID, { status: "CANCELLED" });
   },
 
-  async send(id: string, companyId: string) {
-    const invoice = await invoiceRepository.findById(id, companyId);
-    const updated = await invoiceRepository.update(id, companyId, {
+  async send(id: string) {
+    const invoice = await invoiceRepository.findById(id, COMPANY_ID);
+    const updated = await invoiceRepository.update(id, COMPANY_ID, {
       status: "SENT",
       sentAt: new Date(),
     });
@@ -223,7 +217,6 @@ export const invoiceService = {
 
   async addPayment(
     id: string,
-    companyId: string,
     data: { amount: number; method?: string; reference?: string; paidAt?: Date },
     recordedById?: string
   ) {
@@ -231,16 +224,16 @@ export const invoiceService = {
     // not re-check it here to avoid two diverging sources of truth.
     const result = await prisma.$transaction(async (tx) => {
       const invoice = await tx.invoice.findUnique({
-        where: { id, companyId },
+        where: { id, companyId: COMPANY_ID },
         select: { id: true, clientId: true, amount: true, amountPaid: true, status: true, currency: true },
       });
       if (!invoice) throw new Error("Invoice not found");
 
       // Idempotency guard against accidental double-submit (double-click, retry): if an
       // identical payment (same invoice, amount, recorder) was just recorded, return it
-      // instead of creating a second InvoicePayment row.
+      // instead of creating a second Payment row.
       const tenSecondsAgo = new Date(Date.now() - 10_000);
-      const duplicate = await tx.invoicePayment.findFirst({
+      const duplicate = await tx.payment.findFirst({
         where: {
           invoiceId: id,
           amount: data.amount,
@@ -253,7 +246,7 @@ export const invoiceService = {
         return { payment: duplicate, creditNote: null, overpaidBy: 0, clientId: invoice.clientId, deduplicated: true };
       }
 
-      const payment = await tx.invoicePayment.create({
+      const payment = await tx.payment.create({
         data: {
           invoiceId: id,
           amount: data.amount,
@@ -265,7 +258,7 @@ export const invoiceService = {
       });
 
       // Cap amountPaid at the invoice total so the recorded "paid" figure never exceeds what
-      // was billed. The individual InvoicePayment row keeps the raw amount entered; any overpaid
+      // was billed. The individual Payment row keeps the raw amount entered; any overpaid
       // delta is turned into a credit note (money owed back to the client) and added to the
       // client's credit balance — instead of being silently dropped as a warning.
       const rawAmountPaid = Number(invoice.amountPaid) + data.amount;
@@ -281,7 +274,7 @@ export const invoiceService = {
           : invoice.status as InvoiceStatus;
 
       await tx.invoice.update({
-        where: { id, companyId },
+        where: { id, companyId: COMPANY_ID },
         data: {
           amountPaid: newAmountPaid,
           status: newStatus,
@@ -294,7 +287,6 @@ export const invoiceService = {
         creditNote = await creditNoteService.createCreditNoteTx(tx, {
           invoiceId: invoice.id,
           clientId: invoice.clientId,
-          companyId,
           amount: overpaidBy,
           reason: `Overpayment on invoice (paid ${rawAmountPaid.toFixed(2)} vs billed ${invoiceAmount.toFixed(2)} ${invoice.currency ?? "TND"})`,
         });
@@ -311,9 +303,9 @@ export const invoiceService = {
 
     // Notify company admins that a payment was recorded (outside the transaction so a
     // notification hiccup can't roll back the payment).
-    const invoiceMeta = await invoiceRepository.findById(id, companyId);
+    const invoiceMeta = await invoiceRepository.findById(id, COMPANY_ID);
     if (invoiceMeta) {
-      const admins = await userRepository.findAdminsByCompanyId(companyId);
+      const admins = await userRepository.findAdminsByCompanyId(COMPANY_ID);
       await enqueueNotifications(
         admins.map((admin) => ({
           userId: admin.id,
@@ -337,15 +329,15 @@ export const invoiceService = {
 
       // Payment rate feeds the automatic half of the client success score; recompute now so it
       // isn't stale until the nightly batch (best-effort, never blocks the payment).
-      void clientSuccessService.recalcAndPersist(invoiceMeta.clientId, companyId);
+      void clientSuccessService.recalcAndPersist(invoiceMeta.clientId);
     }
 
     return result;
   },
 
-  async addReminder(id: string, companyId: string, type: string) {
-    const invoice = await invoiceRepository.findById(id, companyId);
-    const reminder = await invoiceRepository.addReminder(id, companyId, {
+  async addReminder(id: string, type: string) {
+    const invoice = await invoiceRepository.findById(id, COMPANY_ID);
+    const reminder = await invoiceRepository.addReminder(id, COMPANY_ID, {
       type,
       sentAt: new Date(),
     });
@@ -385,7 +377,6 @@ export const invoiceService = {
 
   async addItem(
     invoiceId: string,
-    companyId: string,
     data: { description: string; quantity: number; unitPrice: number }
   ) {
     const total = data.quantity * data.unitPrice;
@@ -394,24 +385,23 @@ export const invoiceService = {
       // is a DRAFT; once SENT/PAID/OVERDUE/etc. the billed figures are locked for accounting
       // integrity (use a credit note / correction flow instead).
       const invoice = await tx.invoice.findUniqueOrThrow({
-        where: { id: invoiceId, companyId },
+        where: { id: invoiceId, companyId: COMPANY_ID },
         select: { status: true },
       });
       assertInvoiceDraft(invoice.status);
       const item = await tx.invoiceItem.create({ data: { ...data, total, invoiceId } });
-      await recomputeInvoiceAmount(tx, invoiceId, companyId);
+      await recomputeInvoiceAmount(tx, invoiceId);
       return item;
     });
   },
 
   async updateItem(
     id: string,
-    companyId: string,
     data: { description?: string; quantity?: number; unitPrice?: number }
   ) {
     return prisma.$transaction(async (tx) => {
       const invoiceItem = await tx.invoiceItem.findUnique({
-        where: { id, invoice: { companyId } },
+        where: { id, invoice: { companyId: COMPANY_ID } },
         include: { invoice: { select: { status: true } } },
       });
       if (!invoiceItem) throw new Error("Item not found");
@@ -422,36 +412,36 @@ export const invoiceService = {
       const total = updatedQuantity * updatedUnitPrice;
 
       const item = await tx.invoiceItem.update({
-        where: { id, invoice: { companyId } },
+        where: { id, invoice: { companyId: COMPANY_ID } },
         data: { ...data, total },
       });
-      await recomputeInvoiceAmount(tx, invoiceItem.invoiceId, companyId);
+      await recomputeInvoiceAmount(tx, invoiceItem.invoiceId);
       return item;
     });
   },
 
-  async deleteItem(id: string, companyId: string) {
+  async deleteItem(id: string) {
     return prisma.$transaction(async (tx) => {
       const existing = await tx.invoiceItem.findUnique({
-        where: { id, invoice: { companyId } },
+        where: { id, invoice: { companyId: COMPANY_ID } },
         include: { invoice: { select: { status: true } } },
       });
       if (!existing) throw new HttpError(404, "Item not found");
       assertInvoiceDraft(existing.invoice.status);
       const item = await tx.invoiceItem.delete({
-        where: { id, invoice: { companyId } },
+        where: { id, invoice: { companyId: COMPANY_ID } },
       });
-      await recomputeInvoiceAmount(tx, item.invoiceId, companyId);
+      await recomputeInvoiceAmount(tx, item.invoiceId);
       return item;
     });
   },
 
-  async createFromProposal(proposalId: string, companyId: string) {
+  async createFromProposal(proposalId: string) {
     const proposal = await prisma.proposal.findUnique({
       where: { id: proposalId },
       include: { invoice: { select: { id: true } } },
     });
-    if (!proposal || proposal.companyId !== companyId) {
+    if (!proposal || proposal.companyId !== COMPANY_ID) {
       throw Object.assign(new Error("Proposal not found"), { statusCode: 404 });
     }
     if (proposal.status !== "ACCEPTED") {
@@ -470,7 +460,7 @@ export const invoiceService = {
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 30);
 
-    return createInvoiceWithGeneratedNumber(companyId, {
+    return createInvoiceWithGeneratedNumber({
       title: `Facture — ${proposal.title}`,
       description: proposal.description ?? undefined,
       amount: Number(proposal.amount ?? 0),
@@ -493,7 +483,6 @@ export const invoiceService = {
   async createDepositInvoiceTx(
     tx: TxClient,
     args: {
-      companyId: string;
       title: string;
       description?: string;
       amount: number;
@@ -513,7 +502,7 @@ export const invoiceService = {
     let lastError: unknown;
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       const count = await tx.invoice.count({
-        where: { companyId: args.companyId, number: { startsWith: prefix } },
+        where: { companyId: COMPANY_ID, number: { startsWith: prefix } },
       });
       const number = `${prefix}-${String(count + 1 + attempt).padStart(4, "0")}`;
       try {
@@ -527,7 +516,7 @@ export const invoiceService = {
             status: "DRAFT",
             dueDate,
             clientId: args.clientId,
-            companyId: args.companyId,
+            companyId: COMPANY_ID,
             projectId: args.projectId,
             proposalId: args.proposalId,
           },
@@ -560,7 +549,6 @@ export const invoiceService = {
   async createBalanceInvoiceTx(
     tx: TxClient,
     args: {
-      companyId: string;
       title: string;
       description?: string;
       amount: number;
@@ -579,7 +567,7 @@ export const invoiceService = {
     let lastError: unknown;
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       const count = await tx.invoice.count({
-        where: { companyId: args.companyId, number: { startsWith: prefix } },
+        where: { companyId: COMPANY_ID, number: { startsWith: prefix } },
       });
       const number = `${prefix}-${String(count + 1 + attempt).padStart(4, "0")}`;
       try {
@@ -593,7 +581,7 @@ export const invoiceService = {
             status: "DRAFT",
             dueDate,
             clientId: args.clientId,
-            companyId: args.companyId,
+            companyId: COMPANY_ID,
             projectId: args.projectId,
           },
         });

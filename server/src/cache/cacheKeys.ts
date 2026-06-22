@@ -1,18 +1,20 @@
+import { COMPANY_ID } from "../config/constants.js";
+
 export const cacheKeys = {
-  dashboardSummary: (companyId: string) => `cache:dashboard:summary:${companyId}`,
-  clientSummary: (companyId: string, clientId: string) => `cache:client:summary:${companyId}:${clientId}`,
-  projectSummary: (companyId: string, projectId: string) => `cache:project:summary:${companyId}:${projectId}`,
-  successSummary: (companyId: string, clientId: string) => `cache:success:summary:${companyId}:${clientId}`,
-  onboardingSummary: (companyId: string, clientId: string) => `cache:onboarding:summary:${companyId}:${clientId}`,
+  dashboardSummary: () => `cache:dashboard:summary:${COMPANY_ID}`,
+  clientSummary: (clientId: string) => `cache:client:summary:${COMPANY_ID}:${clientId}`,
+  projectSummary: (projectId: string) => `cache:project:summary:${COMPANY_ID}:${projectId}`,
+  successSummary: (clientId: string) => `cache:success:summary:${COMPANY_ID}:${clientId}`,
+  onboardingSummary: (clientId: string) => `cache:onboarding:summary:${COMPANY_ID}:${clientId}`,
   authMe: (userId: string) => `cache:auth:me:${userId}`,
   managerPermissions: (userId: string) => `cache:manager:permissions:${userId}`,
 };
 
 export const cacheTags = {
-  company: (companyId: string) => `tag:company:${companyId}`,
-  dashboard: (companyId: string) => `tag:dashboard:${companyId}`,
-  client: (companyId: string, clientId: string) => `tag:client:${companyId}:${clientId}`,
-  project: (companyId: string, projectId: string) => `tag:project:${companyId}:${projectId}`,
-  success: (companyId: string, clientId: string) => `tag:success:${companyId}:${clientId}`,
-  onboarding: (companyId: string, clientId: string) => `tag:onboarding:${companyId}:${clientId}`,
+  company: () => `tag:company:${COMPANY_ID}`,
+  dashboard: () => `tag:dashboard:${COMPANY_ID}`,
+  client: (clientId: string) => `tag:client:${COMPANY_ID}:${clientId}`,
+  project: (projectId: string) => `tag:project:${COMPANY_ID}:${projectId}`,
+  success: (clientId: string) => `tag:success:${COMPANY_ID}:${clientId}`,
+  onboarding: (clientId: string) => `tag:onboarding:${COMPANY_ID}:${clientId}`,
 };

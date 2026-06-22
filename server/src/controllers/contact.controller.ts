@@ -1,6 +1,7 @@
 import type { RequestHandler } from "express";
 import { ContactService } from "../services/contact.service.js";
 import type { ContactStatus } from "@prisma/client";
+import { COMPANY_ID } from "../config/constants.js";
 
 const contactService = new ContactService();
 
@@ -41,13 +42,11 @@ export const updateContactRequest: RequestHandler = async (req, res, next) => {
 
 export const convertToLead: RequestHandler = async (req, res, next) => {
   try {
-    const companyId = req.user?.companyId!;
     const contactRequestId = req.params.id as string;
     const { assignedManagerId, department } = req.body;
 
     const lead = await contactService.convertToLead(
       contactRequestId,
-      companyId,
       assignedManagerId,
       department
     );

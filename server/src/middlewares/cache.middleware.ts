@@ -1,6 +1,7 @@
 import type { RequestHandler } from "express";
 import { cacheGet, cacheSet, cacheTTL } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
+import { COMPANY_ID } from "../config/constants.js";
 
 export function httpCache(keyFn: (req: Parameters<RequestHandler>[0]) => string, ttlSeconds: number, tagsFn?: (req: Parameters<RequestHandler>[0]) => string[]): RequestHandler {
   return async (req, res, next) => {
@@ -22,7 +23,7 @@ export function httpCache(keyFn: (req: Parameters<RequestHandler>[0]) => string,
 }
 
 export const dashboardCache = httpCache(
-  (req) => `cache:dashboard:summary:${req.user!.companyId}`,
+  (req) => `cache:dashboard:summary:${COMPANY_ID}`,
   cacheTTL.dashboard,
-  (req) => [cacheTags.dashboard(req.user!.companyId!), cacheTags.company(req.user!.companyId!)],
+  (req) => [cacheTags.dashboard(), cacheTags.company()],
 );

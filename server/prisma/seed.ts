@@ -10,6 +10,7 @@ import {
   ApprovalStatus,
 } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { COMPANY_ID } from '../src/config/constants.js';
 
 const prisma = new PrismaClient();
 
@@ -18,11 +19,11 @@ async function main() {
 
   // ── Company ────────────────────────────────────────────────────────────────
   const company = await prisma.company.upsert({
-    where: { id: 'seed-company-001' },
+    where: { id: COMPANY_ID },
     update: {},
     create: {
-      id: 'seed-company-001',
-      name: 'Sécritou Solutions',
+      id: COMPANY_ID,
+      name: 'Secritou',
       website: 'https://secritou.tn',
     },
   });

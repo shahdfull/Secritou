@@ -5,13 +5,10 @@ import { validate } from "../middlewares/validate.middleware.js";
 import { createTaskSchema, updateTaskSchema } from "../validators/task.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
-import { requireCompanyTenant } from "../middlewares/tenant.middleware.js";
-
 const router = Router();
 
 // Apply auth middleware to all task routes
 router.use(authenticate);
-router.use(requireCompanyTenant());
 
 // Task routes. Reads are role-scoped in the repository (FREELANCER → own tasks, MANAGER → own
 // service); CLIENT has no operational task access. Writes are ADMIN or MANAGER (scoped to their

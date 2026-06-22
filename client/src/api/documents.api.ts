@@ -31,7 +31,6 @@ export interface Document {
   tags: string[];
   accessLevel: "ADMIN_ONLY" | "ADMIN_FREELANCER" | "CLIENT_ADMIN" | "ALL";
   clientId?: string;
-  companyId: string;
   projectId?: string;
   uploadedById: string;
   signedAt?: string;

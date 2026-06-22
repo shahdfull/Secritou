@@ -1,5 +1,6 @@
 // Credit Note service — records money owed back to a client (overpayment or correction).
 import { prisma } from "../config/prisma.js";
+import { COMPANY_ID } from "../config/constants.js";
 import { HttpError } from "../utils/httpError.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { enqueueNotifications } from "../jobs/queues.js";
@@ -22,7 +23,6 @@ async function createCreditNoteTx(
   params: {
     invoiceId: string;
     clientId: string;
-    companyId: string;
     amount: number;
     reason: string;
   }
@@ -34,7 +34,7 @@ async function createCreditNoteTx(
       reason: params.reason,
       invoiceId: params.invoiceId,
       clientId: params.clientId,
-      companyId: params.companyId,
+      companyId: COMPANY_ID,
     },
   });
 
@@ -51,7 +51,6 @@ export const creditNoteService = {
 
   async create(
     invoiceId: string,
-    companyId: string,
     data: { amount: number; reason: string }
   ) {
     if (data.amount <= 0) {
@@ -60,7 +59,7 @@ export const creditNoteService = {
 
     const creditNote = await prisma.$transaction(async (tx) => {
       const invoice = await tx.invoice.findUnique({
-        where: { id: invoiceId, companyId },
+        where: { id: invoiceId, companyId: COMPANY_ID },
         select: { id: true, clientId: true, amountPaid: true },
       });
       if (!invoice) throw new HttpError(404, "Invoice not found");
@@ -78,14 +77,13 @@ export const creditNoteService = {
       return createCreditNoteTx(tx, {
         invoiceId: invoice.id,
         clientId: invoice.clientId,
-        companyId,
         amount: data.amount,
         reason: data.reason,
       });
     });
 
     // Notify company admins (best effort, outside the transaction).
-    const admins = await userRepository.findAdminsByCompanyId(companyId);
+    const admins = await userRepository.findAdminsByCompanyId(COMPANY_ID);
     await enqueueNotifications(
       admins.map((admin) => ({
         userId: admin.id,
@@ -97,9 +95,9 @@ export const creditNoteService = {
     return creditNote;
   },
 
-  async listByInvoice(invoiceId: string, companyId: string) {
+  async listByInvoice(invoiceId: string) {
     return prisma.creditNote.findMany({
-      where: { invoiceId, companyId },
+      where: { invoiceId, companyId: COMPANY_ID },
       orderBy: { createdAt: "desc" },
     });
   },

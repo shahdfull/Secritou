@@ -3,7 +3,6 @@ export interface User {
   email: string;
   name: string;
   role: "ADMIN" | "MANAGER" | "CLIENT" | "FREELANCER";
-  companyId?: string;
   clientId?: string;
   mustChangePassword?: boolean;
   createdAt: string;
@@ -23,7 +22,6 @@ export interface RegisterCredentials {
   email: string;
   password: string;
   name: string;
-  companyName: string;
 }
 
 export interface ApiResponse<T> {

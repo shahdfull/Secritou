@@ -7,6 +7,13 @@ export const documentType = z.enum([
   "REPORT",
   "INVOICE",
   "OTHER",
+  "WELCOME_LETTER",
+  "SPECS",
+  "CLIENT_BRIEF",
+  "QUOTE",
+  "INVOICE_DEPOSIT",
+  "INVOICE_BALANCE",
+  "ROADMAP",
 ]);
 
 export const documentAccessLevel = z.enum([
@@ -34,7 +41,7 @@ export const updateDocumentSchema = documentBaseSchema.partial();
 
 export const documentSchema = z.object({
   name: z.string().min(1),
-  type: z.enum(["INVOICE", "CONTRACT", "OTHER"]),
+  type: documentType,
   url: z.string().url(),
 });
 

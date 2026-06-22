@@ -116,7 +116,7 @@ export function ClientDetailPage() {
   const documents = documentsResult?.data ?? [];
 
   const addDocumentMutation = useMutation({
-    mutationFn: (data: Omit<Document, "id" | "createdAt" | "updatedAt" | "companyId">) =>
+    mutationFn: (data: Omit<Document, "id" | "createdAt" | "updatedAt">) =>
       documentsApi.createDocument({ ...data, clientId: id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clientDocuments", id] });

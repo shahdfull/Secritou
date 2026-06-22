@@ -3,6 +3,7 @@ import { invoiceService } from "../services/invoice.service.js";
 import { creditNoteService } from "../services/creditNote.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
 import { InvoiceStatus } from "@prisma/client";
+import { COMPANY_ID } from "../config/constants.js";
 
 function textQuery(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
@@ -22,7 +23,7 @@ export const getMyInvoices = async (req: Request, res: Response) => {
 export const getInvoices = async (req: Request, res: Response) => {
   const options = {
     ...parseListQuery(req.query as Record<string, unknown>),
-    companyId: req.user!.companyId as string,
+    companyId: COMPANY_ID,
     clientId: textQuery(req.query.clientId),
     status: textQuery(req.query.status) as InvoiceStatus | undefined,
     search: textQuery(req.query.search),
@@ -32,37 +33,37 @@ export const getInvoices = async (req: Request, res: Response) => {
 };
 
 export const getInvoiceById = async (req: Request, res: Response) => {
-  const invoice = await invoiceService.getById(req.params.id as string, req.user!.companyId as string);
+  const invoice = await invoiceService.getById(req.params.id as string, COMPANY_ID);
   res.json({ data: invoice });
 };
 
 export const createInvoice = async (req: Request, res: Response) => {
   const invoice = await invoiceService.create(
     req.body,
-    req.user!.companyId as string
+    COMPANY_ID
   );
   res.status(201).json({ data: invoice });
 };
 
 export const updateInvoice = async (req: Request, res: Response) => {
-  const invoice = await invoiceService.update(req.params.id as string, req.user!.companyId as string, req.body);
+  const invoice = await invoiceService.update(req.params.id as string, COMPANY_ID, req.body);
   res.json({ data: invoice });
 };
 
 export const deleteInvoice = async (req: Request, res: Response) => {
-  await invoiceService.delete(req.params.id as string, req.user!.companyId as string);
+  await invoiceService.delete(req.params.id as string, COMPANY_ID);
   res.status(204).send();
 };
 
 export const sendInvoice = async (req: Request, res: Response) => {
-  const invoice = await invoiceService.send(req.params.id as string, req.user!.companyId as string);
+  const invoice = await invoiceService.send(req.params.id as string, COMPANY_ID);
   res.json({ data: invoice });
 };
 
-export const addInvoicePayment = async (req: Request, res: Response) => {
+export const addPayment = async (req: Request, res: Response) => {
   const { payment, creditNote } = await invoiceService.addPayment(
     req.params.id as string,
-    req.user!.companyId as string,
+    COMPANY_ID,
     req.body,
     req.user!.id
   );
@@ -72,35 +73,35 @@ export const addInvoicePayment = async (req: Request, res: Response) => {
 export const addInvoiceReminder = async (req: Request, res: Response) => {
   const reminder = await invoiceService.addReminder(
     req.params.id as string,
-    req.user!.companyId as string,
+    COMPANY_ID,
     req.body.type
   );
   res.status(201).json({ data: reminder });
 };
 
 export const addInvoiceItem = async (req: Request, res: Response) => {
-  const item = await invoiceService.addItem(req.params.id as string, req.user!.companyId as string, req.body);
+  const item = await invoiceService.addItem(req.params.id as string, COMPANY_ID, req.body);
   res.status(201).json({ data: item });
 };
 
 export const updateInvoiceItem = async (req: Request, res: Response) => {
   const item = await invoiceService.updateItem(
     req.params.itemId as string,
-    req.user!.companyId as string,
+    COMPANY_ID,
     req.body
   );
   res.json({ data: item });
 };
 
 export const deleteInvoiceItem = async (req: Request, res: Response) => {
-  await invoiceService.deleteItem(req.params.itemId as string, req.user!.companyId as string);
+  await invoiceService.deleteItem(req.params.itemId as string, COMPANY_ID);
   res.status(204).send();
 };
 
 export const cancelInvoice = async (req: Request, res: Response) => {
   const invoice = await invoiceService.cancel(
     req.params.id as string,
-    req.user!.companyId as string
+    COMPANY_ID
   );
   res.json({ data: invoice });
 };
@@ -108,7 +109,7 @@ export const cancelInvoice = async (req: Request, res: Response) => {
 export const createInvoiceFromProposal = async (req: Request, res: Response) => {
   const invoice = await invoiceService.createFromProposal(
     req.params.id as string,
-    req.user!.companyId as string
+    COMPANY_ID
   );
   res.status(201).json({ data: invoice });
 };
@@ -116,7 +117,7 @@ export const createInvoiceFromProposal = async (req: Request, res: Response) => 
 export const createCreditNote = async (req: Request, res: Response) => {
   const creditNote = await creditNoteService.create(
     req.params.id as string,
-    req.user!.companyId as string,
+    COMPANY_ID,
     { amount: req.body.amount, reason: req.body.reason }
   );
   res.status(201).json({ data: creditNote });
@@ -125,7 +126,7 @@ export const createCreditNote = async (req: Request, res: Response) => {
 export const getInvoiceCreditNotes = async (req: Request, res: Response) => {
   const creditNotes = await creditNoteService.listByInvoice(
     req.params.id as string,
-    req.user!.companyId as string
+    COMPANY_ID
   );
   res.json({ data: creditNotes });
 };

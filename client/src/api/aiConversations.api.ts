@@ -11,7 +11,6 @@ export interface AiMessage {
 export interface AiConversation {
   id: string;
   title: string;
-  companyId: string;
   userId: string;
   messages: AiMessage[];
   createdAt: string;

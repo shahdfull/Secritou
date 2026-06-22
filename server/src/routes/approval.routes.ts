@@ -15,7 +15,6 @@ import {
 } from "../controllers/approval.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
-import { requireCompanyTenant } from "../middlewares/tenant.middleware.js";
 import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import {
@@ -30,12 +29,12 @@ import {
 
 const router = express.Router();
 
-// CLIENT routes — before requireCompanyTenant
+// CLIENT routes
 router.get("/my", authenticate, authorize("CLIENT"), getMyApprovals);
 router.post("/:id/respond", authenticate, authorize("CLIENT"), sensitiveWriteRateLimit, validate(respondToApprovalSchema), respondToApproval);
 
 // Apply base middleware to all admin/manager routes
-router.use(authenticate, requireCompanyTenant());
+router.use(authenticate);
 
 // Protected routes
 router.get("/", authorize("ADMIN", "MANAGER"), getApprovals);

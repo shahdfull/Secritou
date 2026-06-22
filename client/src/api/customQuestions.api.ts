@@ -23,7 +23,6 @@ export type CustomQuestion = {
   subject: string;
   status: CustomQuestionStatus;
   userId: string;
-  companyId?: string | null;
   createdAt: string;
   updatedAt: string;
   user?: CustomQuestionUser;

@@ -14,13 +14,13 @@ import {
   updateProductionValidator,
   updateDeliveryValidator,
 } from "../validators/clientOnboarding.validator.js";
+import { COMPANY_ID } from "../config/constants.js";
 
 export const getOnboardings: RequestHandler = async (req, res, next) => {
   try {
     const options = parseListQuery(req.query as Record<string, unknown>);
     const result = await clientOnboardingService.getAllOnboardings({
       ...options,
-      companyId: req.user?.companyId ?? undefined,
     });
     res.json(result);
   } catch (error) {
@@ -31,8 +31,7 @@ export const getOnboardings: RequestHandler = async (req, res, next) => {
 export const getOnboardingById: RequestHandler = async (req, res, next) => {
   try {
     const onboarding = await clientOnboardingService.getOnboardingById(
-      req.params.id as string,
-      req.user!.companyId!
+      req.params.id as string
     );
     res.json({ data: onboarding });
   } catch (error) {
@@ -43,8 +42,7 @@ export const getOnboardingById: RequestHandler = async (req, res, next) => {
 export const getOnboardingByProjectId: RequestHandler = async (req, res, next) => {
   try {
     const onboarding = await clientOnboardingService.getOnboardingByProjectId(
-      req.params.projectId as string,
-      req.user!.companyId!
+      req.params.projectId as string
     );
     res.json({ data: onboarding });
   } catch (error) {
@@ -58,7 +56,6 @@ export const createOnboarding: RequestHandler[] = [
     try {
       const onboarding = await clientOnboardingService.createOnboarding({
         ...req.body,
-        companyId: req.user?.companyId,
       });
       res.status(201).json({ data: onboarding });
     } catch (error) {
@@ -73,7 +70,6 @@ export const updateOnboarding: RequestHandler[] = [
     try {
       const onboarding = await clientOnboardingService.updateOnboarding(
         req.params.id as string,
-        req.user!.companyId!,
         req.body
       );
       res.json({ data: onboarding });
@@ -86,8 +82,7 @@ export const updateOnboarding: RequestHandler[] = [
 export const deleteOnboarding: RequestHandler = async (req, res, next) => {
   try {
     await clientOnboardingService.deleteOnboarding(
-      req.params.id as string,
-      req.user!.companyId!
+      req.params.id as string
     );
     res.status(204).send();
   } catch (error) {
@@ -102,7 +97,6 @@ export const updateStep: RequestHandler[] = [
     try {
       const step = await clientOnboardingService.updateStep(
         req.params.stepId as string,
-        req.user!.companyId!,
         req.body
       );
       res.json({ data: step });
@@ -119,7 +113,6 @@ export const createContract: RequestHandler[] = [
     try {
       const contract = await clientOnboardingService.createContract(
         req.params.stepId as string,
-        req.user!.companyId!,
         req.body
       );
       res.status(201).json({ data: contract });
@@ -135,7 +128,6 @@ export const updateContract: RequestHandler[] = [
     try {
       const contract = await clientOnboardingService.updateContract(
         req.params.contractId as string,
-        req.user!.companyId!,
         req.body
       );
       res.json({ data: contract });
@@ -152,7 +144,6 @@ export const createPayment: RequestHandler[] = [
     try {
       const payment = await clientOnboardingService.createPayment(
         req.params.stepId as string,
-        req.user!.companyId!,
         req.body
       );
       res.status(201).json({ data: payment });
@@ -168,7 +159,6 @@ export const updatePayment: RequestHandler[] = [
     try {
       const payment = await clientOnboardingService.updatePayment(
         req.params.paymentId as string,
-        req.user!.companyId!,
         req.body
       );
       res.json({ data: payment });
@@ -185,7 +175,6 @@ export const createQuestionnaire: RequestHandler[] = [
     try {
       const questionnaire = await clientOnboardingService.createQuestionnaire(
         req.params.stepId as string,
-        req.user!.companyId!,
         req.body
       );
       res.status(201).json({ data: questionnaire });
@@ -201,7 +190,6 @@ export const updateQuestionnaire: RequestHandler[] = [
     try {
       const questionnaire = await clientOnboardingService.updateQuestionnaire(
         req.params.questionnaireId as string,
-        req.user!.companyId!,
         req.body
       );
       res.json({ data: questionnaire });
@@ -218,7 +206,6 @@ export const createSpecifications: RequestHandler[] = [
     try {
       const specifications = await clientOnboardingService.createSpecifications(
         req.params.stepId as string,
-        req.user!.companyId!,
         req.body
       );
       res.status(201).json({ data: specifications });
@@ -234,7 +221,6 @@ export const updateSpecifications: RequestHandler[] = [
     try {
       const specifications = await clientOnboardingService.updateSpecifications(
         req.params.specificationsId as string,
-        req.user!.companyId!,
         req.body
       );
       res.json({ data: specifications });
@@ -251,7 +237,6 @@ export const createKickoff: RequestHandler[] = [
     try {
       const kickoff = await clientOnboardingService.createKickoff(
         req.params.stepId as string,
-        req.user!.companyId!,
         req.body
       );
       res.status(201).json({ data: kickoff });
@@ -267,7 +252,6 @@ export const updateKickoff: RequestHandler[] = [
     try {
       const kickoff = await clientOnboardingService.updateKickoff(
         req.params.kickoffId as string,
-        req.user!.companyId!,
         req.body
       );
       res.json({ data: kickoff });
@@ -284,7 +268,6 @@ export const createProduction: RequestHandler[] = [
     try {
       const production = await clientOnboardingService.createProduction(
         req.params.stepId as string,
-        req.user!.companyId!,
         req.body
       );
       res.status(201).json({ data: production });
@@ -300,7 +283,6 @@ export const updateProduction: RequestHandler[] = [
     try {
       const production = await clientOnboardingService.updateProduction(
         req.params.productionId as string,
-        req.user!.companyId!,
         req.body
       );
       res.json({ data: production });
@@ -317,7 +299,6 @@ export const createDelivery: RequestHandler[] = [
     try {
       const delivery = await clientOnboardingService.createDelivery(
         req.params.stepId as string,
-        req.user!.companyId!,
         req.body
       );
       res.status(201).json({ data: delivery });
@@ -333,7 +314,6 @@ export const updateDelivery: RequestHandler[] = [
     try {
       const delivery = await clientOnboardingService.updateDelivery(
         req.params.deliveryId as string,
-        req.user!.companyId!,
         req.body
       );
       res.json({ data: delivery });

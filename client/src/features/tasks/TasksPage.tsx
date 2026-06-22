@@ -15,7 +15,7 @@ import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { SortableTableHead } from "@/components/common/SortableTableHead";
 import { useTranslation } from "react-i18next";
 import { TasksKanban } from "./TasksKanban";
-import { companyApi } from "@/api/company.api";
+import { usersApi } from "@/api/users.api";
 import { commentsApi } from "@/api/comments.api";
 import type { User } from "@/types/auth";
 import type { Comment } from "@/types/comment";
@@ -180,7 +180,7 @@ export function TasksPage() {
   const { data: users = [], isLoading: usersLoading } = useQuery({
     queryKey: ["companyUsers"],
     queryFn: async () => {
-      const result = await companyApi.getUsers();
+      const result = await usersApi.getUsers();
       return result.data;
     },
     staleTime: 5 * 60 * 1000,

@@ -1,4 +1,5 @@
 import { freelancerApplicationRepository } from "../repositories/freelancerApplication.repository.js";
+import { COMPANY_ID } from "../config/constants.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { freelancerRepository } from "../repositories/freelancer.repository.js";
 import { enqueueEmail, enqueueEmails } from "../jobs/queues.js";
@@ -16,14 +17,13 @@ import type { ListQueryOptions } from "../utils/listQuery.js";
 
 export const freelancerApplicationService = {
   async getAllApplications(
-    companyId: string,
     options: ListQueryOptions & { search?: string; status?: ApplicationStatus }
   ) {
-    return freelancerApplicationRepository.findAll(companyId, options);
+    return freelancerApplicationRepository.findAll(COMPANY_ID, options);
   },
 
-  async getApplicationById(id: string, companyId: string) {
-    return freelancerApplicationRepository.findById(id, companyId);
+  async getApplicationById(id: string) {
+    return freelancerApplicationRepository.findById(id, COMPANY_ID);
   },
 
   async createApplication(
@@ -92,12 +92,12 @@ export const freelancerApplicationService = {
     return freelancerApplicationRepository.findPending();
   },
 
-  async assignApplicationToCompany(id: string, companyId: string) {
-    return freelancerApplicationRepository.assignToCompany(id, companyId);
+  async assignApplicationToCompany(id: string) {
+    return freelancerApplicationRepository.assignToCompany(id, COMPANY_ID);
   },
 
-  async rejectApplication(id: string, companyId: string, rejectionReason?: string) {
-    const application = await freelancerApplicationRepository.update(id, companyId, {
+  async rejectApplication(id: string, rejectionReason?: string) {
+    const application = await freelancerApplicationRepository.update(id, COMPANY_ID, {
       status: "REJECTED",
       rejectionReason,
     });
@@ -113,7 +113,6 @@ export const freelancerApplicationService = {
 
   async acceptApplication(
     id: string,
-    companyId: string,
     data: {
       username: string;
       password: string;
@@ -132,7 +131,7 @@ export const freelancerApplicationService = {
       name: `${data.firstName} ${data.lastName}`,
       passwordHash,
       role: data.role,
-      companyId,
+      companyId: COMPANY_ID,
       mustChangePassword: true,
     });
 
@@ -141,10 +140,10 @@ export const freelancerApplicationService = {
     }
 
     // Mark application as accepted and link it to the company
-    const application = await freelancerApplicationRepository.update(id, companyId, {
+    const application = await freelancerApplicationRepository.update(id, COMPANY_ID, {
       status: "ACCEPTED",
       userId: user.id,
-      companyId,
+      companyId: COMPANY_ID,
       accountCreatedAt: new Date(),
     });
 

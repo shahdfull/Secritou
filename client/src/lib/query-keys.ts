@@ -29,7 +29,6 @@ export const queryKeys = {
   // Users
   users: <T extends object = object>(params?: T) => ["users", params] as const,
   user: (id: string) => ["user", id] as const,
-  companyUsers: () => ["companyUsers"] as const,
   
   // Applications
   freelancerApplications: <T extends object = object>(params?: T) => ["freelancerApplications", params] as const,
@@ -38,7 +37,6 @@ export const queryKeys = {
   reports: () => ["reports"] as const,
   
   // Settings
-  company: () => ["company"] as const,
   permissions: () => ["permissions"] as const,
   joinRequests: () => ["joinRequests"] as const,
   
