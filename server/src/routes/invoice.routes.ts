@@ -42,26 +42,26 @@ router.get("/my", authenticate, authorize("CLIENT"), getMyInvoices);
 router.use(authenticate, requireCompanyTenant());
 
 // Protected routes
-router.get("/", authorize("ADMIN", "MANAGER"), getInvoices);
-router.get("/:id", authorize("ADMIN", "MANAGER"), validate(invoiceIdParamSchema), getInvoiceById);
-router.post("/", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), validate(createInvoiceSchema), createInvoice);
-router.put("/:id", authorize("ADMIN", "MANAGER"), validate(updateInvoiceSchema), updateInvoice);
+router.get("/", authorize("ADMIN"), getInvoices);
+router.get("/:id", authorize("ADMIN"), validate(invoiceIdParamSchema), getInvoiceById);
+router.post("/", sensitiveWriteRateLimit, authorize("ADMIN"), validate(createInvoiceSchema), createInvoice);
+router.put("/:id", authorize("ADMIN"), validate(updateInvoiceSchema), updateInvoice);
 router.delete("/:id", sensitiveWriteRateLimit, authorize("ADMIN"), validate(invoiceIdParamSchema), deleteInvoice);
-router.post("/:id/send", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), validate(invoiceIdParamSchema), sendInvoice);
-router.post("/:id/cancel", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), validate(invoiceIdParamSchema), cancelInvoice);
+router.post("/:id/send", sensitiveWriteRateLimit, authorize("ADMIN"), validate(invoiceIdParamSchema), sendInvoice);
+router.post("/:id/cancel", sensitiveWriteRateLimit, authorize("ADMIN"), validate(invoiceIdParamSchema), cancelInvoice);
 
 // Payments & Reminders
 router.post(
   "/:id/payments",
   sensitiveWriteRateLimit,
-  authorize("ADMIN", "MANAGER"),
+  authorize("ADMIN"),
   validate(addPaymentSchema),
   addInvoicePayment
 );
 router.post(
   "/:id/reminders",
   sensitiveWriteRateLimit,
-  authorize("ADMIN", "MANAGER"),
+  authorize("ADMIN"),
   validate(addReminderSchema),
   addInvoiceReminder
 );
@@ -70,13 +70,13 @@ router.post(
 router.post(
   "/:id/items",
   sensitiveWriteRateLimit,
-  authorize("ADMIN", "MANAGER"),
+  authorize("ADMIN"),
   validate(addInvoiceItemSchema),
   addInvoiceItem
 );
 router.put(
   "/:id/items/:itemId",
-  authorize("ADMIN", "MANAGER"),
+  authorize("ADMIN"),
   validate(updateInvoiceItemSchema),
   updateInvoiceItem
 );
@@ -91,7 +91,7 @@ router.delete(
 // Credit notes
 router.get(
   "/:id/credit-notes",
-  authorize("ADMIN", "MANAGER"),
+  authorize("ADMIN"),
   validate(invoiceIdParamSchema),
   getInvoiceCreditNotes
 );

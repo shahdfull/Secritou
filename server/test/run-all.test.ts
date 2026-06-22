@@ -14,3 +14,4 @@ import "./leadService.test.ts";
 import "./searchScope.test.ts";
 import "./taskScope.test.ts";
 import "./missionAccess.test.ts";
+import "./financeAccess.test.ts";

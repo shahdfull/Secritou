@@ -10,11 +10,17 @@ export const proposalRepository = {
       clientId?: string;
       status?: ProposalStatus;
       search?: string;
+      // When set, restrict to proposals whose project is in this service (MANAGER scope).
+      // Proposals with no project are excluded for a scoped manager.
+      serviceId?: string | null;
     }
   ): Promise<PaginatedResult<Proposal & { client: { name: string } }>> {
     const where: Prisma.ProposalWhereInput = { companyId: options.companyId };
     if (options.clientId) where.clientId = options.clientId;
     if (options.status) where.status = options.status;
+    if (options.serviceId !== undefined) {
+      where.project = { is: { serviceId: options.serviceId ?? "__none__" } };
+    }
     if (options.search) {
       where.OR = [
         { title: { contains: options.search, mode: "insensitive" } },
@@ -128,7 +134,11 @@ export const proposalRepository = {
   async findProposalBySectionId(sectionId: string, companyId: string) {
     const section = await prismaRead.proposalSection.findFirst({
       where: { id: sectionId, proposal: { companyId } },
-      select: { proposal: { select: { id: true, status: true, version: true } } },
+      select: {
+        proposal: {
+          select: { id: true, status: true, version: true, projectId: true, companyId: true },
+        },
+      },
     });
     return section?.proposal ?? null;
   },

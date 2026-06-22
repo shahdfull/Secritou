@@ -3,6 +3,7 @@ import { proposalService } from "../services/proposal.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
 import { HttpError } from "../utils/httpError.js";
 import { ProposalStatus } from "@prisma/client";
+import { buildServiceScope } from "../utils/serviceScope.js";
 
 function textQuery(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
@@ -51,12 +52,16 @@ export const getProposals = async (req: Request, res: Response) => {
     status: textQuery(req.query.status) as ProposalStatus | undefined,
     search: textQuery(req.query.search),
   };
-  const result = await proposalService.getAll(options);
+  const result = await proposalService.getAll(options, await buildServiceScope(req));
   res.json(result);
 };
 
 export const getProposalById = async (req: Request, res: Response) => {
-  const proposal = await proposalService.getById(req.params.id as string, req.user!.companyId as string);
+  const proposal = await proposalService.getById(
+    req.params.id as string,
+    req.user!.companyId as string,
+    await buildServiceScope(req)
+  );
   res.json({ data: proposal });
 };
 
@@ -73,7 +78,8 @@ export const updateProposal = async (req: Request, res: Response) => {
     req.params.id as string,
     req.user!.companyId as string,
     req.body,
-    req.user!.id
+    req.user!.id,
+    await buildServiceScope(req)
   );
   res.json({ data: proposal });
 };
@@ -84,11 +90,17 @@ export const deleteProposal = async (req: Request, res: Response) => {
 };
 
 export const sendProposal = async (req: Request, res: Response) => {
-  const proposal = await proposalService.send(req.params.id as string, req.user!.companyId as string);
+  const proposal = await proposalService.send(
+    req.params.id as string,
+    req.user!.companyId as string,
+    await buildServiceScope(req)
+  );
   res.json({ data: proposal });
 };
 
 export const acceptProposal = async (req: Request, res: Response) => {
+  // Guard manager scope before the (shared) accept logic.
+  await proposalService.getById(req.params.id as string, req.user!.companyId as string, await buildServiceScope(req));
   const proposal = await proposalService.accept(
     req.params.id as string,
     req.user!.companyId as string,
@@ -98,6 +110,8 @@ export const acceptProposal = async (req: Request, res: Response) => {
 };
 
 export const rejectProposal = async (req: Request, res: Response) => {
+  // Guard manager scope before the (shared) reject logic.
+  await proposalService.getById(req.params.id as string, req.user!.companyId as string, await buildServiceScope(req));
   const proposal = await proposalService.reject(
     req.params.id as string,
     req.user!.companyId as string,
@@ -107,7 +121,12 @@ export const rejectProposal = async (req: Request, res: Response) => {
 };
 
 export const addProposalSection = async (req: Request, res: Response) => {
-  const section = await proposalService.addSection(req.params.id as string, req.user!.companyId as string, req.body);
+  const section = await proposalService.addSection(
+    req.params.id as string,
+    req.user!.companyId as string,
+    req.body,
+    await buildServiceScope(req)
+  );
   res.status(201).json({ data: section });
 };
 
@@ -116,7 +135,8 @@ export const updateProposalSection = async (req: Request, res: Response) => {
     req.params.sectionId as string,
     req.user!.companyId as string,
     req.body,
-    req.user!.id
+    req.user!.id,
+    await buildServiceScope(req)
   );
   res.json({ data: section });
 };
@@ -125,7 +145,8 @@ export const deleteProposalSection = async (req: Request, res: Response) => {
   await proposalService.deleteSection(
     req.params.sectionId as string,
     req.user!.companyId as string,
-    req.user!.id
+    req.user!.id,
+    await buildServiceScope(req)
   );
   res.status(204).send();
 };
