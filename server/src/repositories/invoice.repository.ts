@@ -1,4 +1,5 @@
 import { prisma, prismaRead } from "../config/prisma.js";
+import { COMPANY_ID } from "../config/constants.js";
 import type { Invoice, InvoiceStatus, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 
@@ -63,7 +64,7 @@ export const invoiceRepository = {
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(id: string, companyId: string) {
+  async findById(id: string, companyId: string = COMPANY_ID) {
     return prismaRead.invoice.findUnique({
       where: { id, companyId },
       include: {
@@ -97,7 +98,7 @@ export const invoiceRepository = {
 
   async update(
     id: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Partial<{
       number: string;
       title: string;
@@ -115,13 +116,13 @@ export const invoiceRepository = {
     return prisma.invoice.update({ where: { id, companyId }, data });
   },
 
-  async delete(id: string, companyId: string) {
+  async delete(id: string, companyId: string = COMPANY_ID) {
     return prisma.invoice.delete({ where: { id, companyId } });
   },
 
   async addItem(
     invoiceId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: { description: string; quantity: number; unitPrice: number; total: number }
   ) {
     // Ownership check: ensures the invoice belongs to the company before writing
@@ -134,7 +135,7 @@ export const invoiceRepository = {
 
   async updateItem(
     id: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: { description?: string; quantity?: number; unitPrice?: number; total?: number }
   ) {
     return prisma.invoiceItem.update({
@@ -143,7 +144,7 @@ export const invoiceRepository = {
     });
   },
 
-  async deleteItem(id: string, companyId: string) {
+  async deleteItem(id: string, companyId: string = COMPANY_ID) {
     return prisma.invoiceItem.delete({
       where: { id, invoice: { companyId } },
     });
@@ -151,20 +152,30 @@ export const invoiceRepository = {
 
   async addPayment(
     invoiceId: string,
-    companyId: string,
-    data: { amount: number; method?: string; reference?: string; paidAt?: Date }
+    companyId: string = COMPANY_ID,
+    data: { amount: number; method?: string; reference?: string; paidAt?: Date },
+    recordedById?: string
   ) {
     // Ownership check: ensures the invoice belongs to the company before writing
     await prisma.invoice.findUniqueOrThrow({
       where: { id: invoiceId, companyId },
       select: { id: true },
     });
-    return prisma.invoicePayment.create({ data: { ...data, invoiceId } });
+    return prisma.payment.create({
+      data: {
+        invoiceId,
+        amount: data.amount,
+        method: data.method,
+        reference: data.reference,
+        paidAt: data.paidAt ?? new Date(),
+        recordedById,
+      },
+    });
   },
 
   async addReminder(
     invoiceId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: { type: string; sentAt?: Date }
   ) {
     await prisma.invoice.findUniqueOrThrow({

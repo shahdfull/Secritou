@@ -1,8 +1,9 @@
 import { prismaRead as prisma } from "../config/prisma.js";
+import { COMPANY_ID } from "../config/constants.js";
 import { getProgressByProjectIds } from "../utils/projectProgress.js";
 
 export const summaryRepository = {
-  async getClientSummary(companyId: string, clientId: string) {
+  async getClientSummary(companyId: string = COMPANY_ID, clientId: string) {
     const [client, projects, tasks, invoices, serviceRequests, documents] = await Promise.all([
       prisma.client.findUnique({
         where: { id: clientId, companyId },
@@ -70,7 +71,7 @@ export const summaryRepository = {
     };
   },
 
-  async getProjectSummary(companyId: string, projectId: string) {
+  async getProjectSummary(companyId: string = COMPANY_ID, projectId: string) {
     const [project, tasks, documents, invoices, comments] = await Promise.all([
       prisma.project.findUnique({
         where: { id: projectId, companyId },
@@ -116,7 +117,7 @@ export const summaryRepository = {
     };
   },
 
-  async getEnhancedDashboardSummary(companyId: string) {
+  async getEnhancedDashboardSummary(companyId: string = COMPANY_ID) {
     const [
       leadCounts,
       clientCounts,

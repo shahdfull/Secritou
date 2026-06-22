@@ -1,5 +1,6 @@
 // Task Repository - Data access layer
 import { prisma } from "../config/prisma.js";
+import { COMPANY_ID } from "../config/constants.js";
 import type { TaskStatus, Role, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildTextSearchFilter } from "../utils/listQuery.js";
@@ -46,7 +47,7 @@ function buildOrderBy(orderBy: string | undefined, orderDir: "asc" | "desc") {
 
 export const taskRepository = {
   async findAll(
-    companyId: string,
+    companyId: string = COMPANY_ID,
     userId: string,
     userRole: Role,
     options: ListQueryOptions,
@@ -73,7 +74,7 @@ export const taskRepository = {
 
   async findById(
     id: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     userId: string,
     userRole: Role,
     userServiceId?: string | null
@@ -93,14 +94,14 @@ export const taskRepository = {
     });
   },
 
-  async findByIdAdmin(id: string, companyId: string): Promise<TaskWithRelations | null> {
+  async findByIdAdmin(id: string, companyId: string = COMPANY_ID): Promise<TaskWithRelations | null> {
     return prisma.task.findFirst({
       where: { id, project: { companyId } },
       select: taskWithRelationsSelect,
     });
   },
 
-  async existsInCompany(id: string, companyId: string, userId: string, userRole: Role): Promise<boolean> {
+  async existsInCompany(id: string, companyId: string = COMPANY_ID, userId: string, userRole: Role): Promise<boolean> {
     const where =
       userRole === "FREELANCER"
         ? { id, project: { companyId }, assigneeId: userId }
@@ -126,7 +127,7 @@ export const taskRepository = {
 
   async update(
     id: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Partial<{
       title?: string;
       description?: string;
@@ -156,7 +157,7 @@ export const taskRepository = {
     return task;
   },
 
-  async delete(id: string, companyId: string): Promise<TaskWithRelations> {
+  async delete(id: string, companyId: string = COMPANY_ID): Promise<TaskWithRelations> {
     const task = await prisma.task.findFirst({
       where: { id, project: { companyId } },
       select: taskWithRelationsSelect,

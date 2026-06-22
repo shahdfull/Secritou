@@ -15,6 +15,7 @@ import type {
   Delivery,
 } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
+import { COMPANY_ID } from "../config/constants.js";
 
 // ─── Shared include shape used by findById / findByProjectId ─────────────────
 
@@ -109,14 +110,14 @@ export const clientOnboardingRepository = {
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(id: string, companyId: string): Promise<FullOnboarding | null> {
+  async findById(id: string, companyId: string = COMPANY_ID): Promise<FullOnboarding | null> {
     return prismaRead.clientOnboarding.findUnique({
       where: { id, companyId },
       include: fullOnboardingInclude,
     });
   },
 
-  async findByProjectId(projectId: string, companyId: string): Promise<FullOnboarding | null> {
+  async findByProjectId(projectId: string, companyId: string = COMPANY_ID): Promise<FullOnboarding | null> {
     return prismaRead.clientOnboarding.findUnique({
       where: { projectId, project: { companyId } },
       include: fullOnboardingInclude,
@@ -151,7 +152,7 @@ export const clientOnboardingRepository = {
 
   async update(
     id: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Prisma.ClientOnboardingUpdateInput
   ): Promise<FullOnboarding> {
     return prisma.clientOnboarding.update({
@@ -161,7 +162,7 @@ export const clientOnboardingRepository = {
     });
   },
 
-  async delete(id: string, companyId: string): Promise<ClientOnboarding> {
+  async delete(id: string, companyId: string = COMPANY_ID): Promise<ClientOnboarding> {
     return prisma.clientOnboarding.delete({ where: { id, companyId } });
   },
 
@@ -169,7 +170,7 @@ export const clientOnboardingRepository = {
 
   async addStep(
     onboardingId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Omit<Prisma.OnboardingStepCreateInput, "onboarding">
   ): Promise<OnboardingStep> {
     await prisma.clientOnboarding.findUniqueOrThrow({
@@ -186,7 +187,7 @@ export const clientOnboardingRepository = {
 
   async updateStep(
     stepId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Prisma.OnboardingStepUpdateInput
   ): Promise<OnboardingStep> {
     return prisma.onboardingStep.update({
@@ -208,7 +209,7 @@ export const clientOnboardingRepository = {
 
   async createContract(
     stepId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Omit<Prisma.ContractCreateInput, "onboardingStep">
   ): Promise<Contract> {
     await prisma.onboardingStep.findUniqueOrThrow({
@@ -225,7 +226,7 @@ export const clientOnboardingRepository = {
 
   async updateContract(
     contractId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Prisma.ContractUpdateInput
   ): Promise<Contract> {
     return prisma.contract.update({
@@ -238,7 +239,7 @@ export const clientOnboardingRepository = {
 
   async createPayment(
     stepId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Omit<Prisma.PaymentCreateInput, "onboardingStep">
   ): Promise<Payment> {
     await prisma.onboardingStep.findUniqueOrThrow({
@@ -255,7 +256,7 @@ export const clientOnboardingRepository = {
 
   async updatePayment(
     paymentId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Prisma.PaymentUpdateInput
   ): Promise<Payment> {
     return prisma.payment.update({
@@ -268,7 +269,7 @@ export const clientOnboardingRepository = {
 
   async createQuestionnaire(
     stepId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Omit<Prisma.QuestionnaireCreateInput, "onboardingStep">
   ): Promise<Questionnaire> {
     await prisma.onboardingStep.findUniqueOrThrow({
@@ -285,7 +286,7 @@ export const clientOnboardingRepository = {
 
   async updateQuestionnaire(
     questionnaireId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Prisma.QuestionnaireUpdateInput
   ): Promise<Questionnaire> {
     return prisma.questionnaire.update({
@@ -298,7 +299,7 @@ export const clientOnboardingRepository = {
 
   async createSpecifications(
     stepId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Omit<Prisma.SpecificationsCreateInput, "onboardingStep">
   ): Promise<Specifications> {
     await prisma.onboardingStep.findUniqueOrThrow({
@@ -315,7 +316,7 @@ export const clientOnboardingRepository = {
 
   async updateSpecifications(
     specificationsId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Prisma.SpecificationsUpdateInput
   ): Promise<Specifications> {
     return prisma.specifications.update({
@@ -328,7 +329,7 @@ export const clientOnboardingRepository = {
 
   async createKickoff(
     stepId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Omit<Prisma.KickoffMeetingCreateInput, "onboardingStep">
   ): Promise<KickoffMeeting> {
     await prisma.onboardingStep.findUniqueOrThrow({
@@ -345,7 +346,7 @@ export const clientOnboardingRepository = {
 
   async updateKickoff(
     kickoffId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Prisma.KickoffMeetingUpdateInput
   ): Promise<KickoffMeeting> {
     return prisma.kickoffMeeting.update({
@@ -358,7 +359,7 @@ export const clientOnboardingRepository = {
 
   async createProduction(
     stepId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Omit<Prisma.ProductionProgressCreateInput, "onboardingStep">
   ): Promise<ProductionProgress> {
     await prisma.onboardingStep.findUniqueOrThrow({
@@ -380,7 +381,7 @@ export const clientOnboardingRepository = {
 
   async updateProduction(
     productionId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Prisma.ProductionProgressUpdateInput
   ): Promise<ProductionProgress> {
     return prisma.productionProgress.update({
@@ -393,7 +394,7 @@ export const clientOnboardingRepository = {
 
   async createDelivery(
     stepId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Omit<Prisma.DeliveryCreateInput, "onboardingStep">
   ): Promise<Delivery> {
     await prisma.onboardingStep.findUniqueOrThrow({
@@ -410,7 +411,7 @@ export const clientOnboardingRepository = {
 
   async updateDelivery(
     deliveryId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Prisma.DeliveryUpdateInput
   ): Promise<Delivery> {
     return prisma.delivery.update({

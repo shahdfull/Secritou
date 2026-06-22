@@ -1,5 +1,6 @@
 // Project Repository - Data access layer
 import { prismaRead as prisma } from "../config/prisma.js";
+import { COMPANY_ID } from "../config/constants.js";
 import type { Project, ProjectStatus, Role } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildOrderBy, buildTextSearchFilter } from "../utils/listQuery.js";
@@ -54,7 +55,7 @@ const projectListSelect = {
 
 export const projectRepository = {
   async findAll(
-    companyId: string,
+    companyId: string = COMPANY_ID,
     userId: string,
     userRole: Role,
     options: ListQueryOptions,
@@ -86,7 +87,7 @@ export const projectRepository = {
 
   async findById(
     id: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     userId: string,
     userRole: Role,
     clientId?: string
@@ -127,7 +128,7 @@ export const projectRepository = {
     };
   },
 
-  async findByIdAdmin(id: string, companyId: string) {
+  async findByIdAdmin(id: string, companyId: string = COMPANY_ID) {
     return prisma.project.findUnique({
       where: { id, companyId },
       select: {
@@ -157,7 +158,7 @@ export const projectRepository = {
 
   async update(
     id: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Partial<{
       name?: string;
       description?: string;
@@ -173,11 +174,11 @@ export const projectRepository = {
     });
   },
 
-  async delete(id: string, companyId: string): Promise<Project> {
+  async delete(id: string, companyId: string = COMPANY_ID): Promise<Project> {
     return prisma.project.delete({ where: { id, companyId } });
   },
 
-  async archive(id: string, companyId: string): Promise<Project> {
+  async archive(id: string, companyId: string = COMPANY_ID): Promise<Project> {
     return prisma.project.update({
       where: { id, companyId },
       data: { archivedAt: new Date() },
@@ -185,13 +186,13 @@ export const projectRepository = {
     });
   },
 
-  async countNonDraftInvoices(id: string, companyId: string): Promise<number> {
+  async countNonDraftInvoices(id: string, companyId: string = COMPANY_ID): Promise<number> {
     return prisma.invoice.count({
       where: { projectId: id, companyId, status: { not: "DRAFT" } },
     });
   },
 
-  async countOnboardings(id: string, companyId: string): Promise<number> {
+  async countOnboardings(id: string, companyId: string = COMPANY_ID): Promise<number> {
     return prisma.clientOnboarding.count({ where: { projectId: id, companyId } });
   },
 };

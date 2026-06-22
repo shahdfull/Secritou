@@ -1,5 +1,6 @@
 // Analytics Repository - Data access layer
 import { prismaRead as prisma } from "../config/prisma.js";
+import { COMPANY_ID } from "../config/constants.js";
 import { sqlDateRange } from "../utils/sqlHelpers.js";
 import { startOfBusinessMonth } from "../utils/dateRange.js";
 
@@ -12,7 +13,7 @@ function getPreviousPeriod(from: Date, to: Date): { from: Date; to: Date } {
 }
 
 export const analyticsRepository = {
-  async getLeadStats(companyId: string, from?: Date, to?: Date) {
+  async getLeadStats(companyId: string = COMPANY_ID, from?: Date, to?: Date) {
     const where = {
       companyId,
       ...(from || to
@@ -68,7 +69,7 @@ export const analyticsRepository = {
     return { total, byStatus, wonCount, conversionRate, previousConversionRate };
   },
 
-  async getClientStats(companyId: string, from?: Date, to?: Date) {
+  async getClientStats(companyId: string = COMPANY_ID, from?: Date, to?: Date) {
     const where = {
       companyId,
       ...(from || to
@@ -117,7 +118,7 @@ export const analyticsRepository = {
     return { total, newThisMonth, previousNew };
   },
 
-  async getProjectStats(companyId: string, from?: Date, to?: Date) {
+  async getProjectStats(companyId: string = COMPANY_ID, from?: Date, to?: Date) {
     const where = {
       companyId,
       ...(from || to
@@ -173,7 +174,7 @@ export const analyticsRepository = {
     return { total, byStatus, completedCount, completionRate, previousCompletionRate };
   },
 
-  async getTaskStats(companyId: string, from?: Date, to?: Date) {
+  async getTaskStats(companyId: string = COMPANY_ID, from?: Date, to?: Date) {
     const rows = await prisma.$queryRaw<
       Array<{ total: bigint; doneCount: bigint; overdueCount: bigint }>
     >`
@@ -225,7 +226,7 @@ export const analyticsRepository = {
     };
   },
 
-  async getLeadsByMonth(companyId: string, from?: Date, to?: Date) {
+  async getLeadsByMonth(companyId: string = COMPANY_ID, from?: Date, to?: Date) {
     const rows = await prisma.$queryRaw<
       Array<{ month: string; count: bigint; month_num: number }>
     >`
@@ -246,7 +247,7 @@ export const analyticsRepository = {
     }));
   },
 
-  async getProjectsByStatus(companyId: string, from?: Date, to?: Date) {
+  async getProjectsByStatus(companyId: string = COMPANY_ID, from?: Date, to?: Date) {
     const colorMap: Record<string, string> = {
       PLANNING: "#94a3b8",
       IN_PROGRESS: "#2563eb",
@@ -279,8 +280,8 @@ export const analyticsRepository = {
     }));
   },
 
-  async getRevenueByMonth(companyId: string, from?: Date, to?: Date) {
-    // "Collected revenue" — actual cash received, summed from individual InvoicePayment rows
+  async getRevenueByMonth(companyId: string = COMPANY_ID, from?: Date, to?: Date) {
+    // "Collected revenue" — actual cash received, summed from individual Payment rows
     // (so partial payments are included; previously the Invoice-level paidAt filter dropped
     // every PARTIAL invoice). This is the *collected* figure and is intentionally different
     // from "invoiced (confirmed)" in summary.repository — do not conflate or merge them.
@@ -291,14 +292,14 @@ export const analyticsRepository = {
       Array<{ bucket: Date; month: string; revenue: number }>
     >`
       SELECT
-        DATE_TRUNC('month', ip."paidAt") AS bucket,
-        TO_CHAR(ip."paidAt", 'Mon YYYY') AS month,
-        COALESCE(SUM(ip."amount"), 0)::float AS revenue
-      FROM "InvoicePayment" ip
-      INNER JOIN "Invoice" i ON i.id = ip."invoiceId"
+        DATE_TRUNC('month', p."paidAt") AS bucket,
+        TO_CHAR(p."paidAt", 'Mon YYYY') AS month,
+        COALESCE(SUM(p."amount"), 0)::float AS revenue
+      FROM "Payment" p
+      INNER JOIN "Invoice" i ON i.id = p."invoiceId"
       WHERE i."companyId" = ${companyId}
         AND i.status <> 'CANCELLED'
-      ${sqlDateRange("paidAt", from, to, "ip")}
+      ${sqlDateRange("paidAt", from, to, "p")}
       GROUP BY bucket, month
       ORDER BY bucket
     `;

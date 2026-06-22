@@ -1,5 +1,6 @@
 // User Repository - Data access layer
 import { prismaRead as prisma } from "../config/prisma.js";
+import { COMPANY_ID } from "../config/constants.js";
 import type { User, Role } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 
@@ -43,7 +44,7 @@ export const userRepository = {
     return user?.serviceId ?? null;
   },
 
-  async findByCompanyId(companyId: string, options: ListQueryOptions): Promise<PaginatedResult<PublicUser>> {
+  async findByCompanyId(companyId: string = COMPANY_ID, options: ListQueryOptions): Promise<PaginatedResult<PublicUser>> {
     const where = { companyId };
     const skip = (options.page - 1) * options.pageSize;
 
@@ -68,7 +69,7 @@ export const userRepository = {
     });
   },
 
-  async findAdminsByCompanyId(companyId: string): Promise<PublicUser[]> {
+  async findAdminsByCompanyId(companyId: string = COMPANY_ID): Promise<PublicUser[]> {
     return prisma.user.findMany({
       where: { companyId, role: { in: ["ADMIN", "MANAGER"] } },
       select: userPublicFields,

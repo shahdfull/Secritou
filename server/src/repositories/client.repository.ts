@@ -4,6 +4,7 @@ import type { Client } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildOrderBy } from "../utils/listQuery.js";
 import { projectBriefSelect } from "../utils/prismaSelects.js";
+import { COMPANY_ID } from "../config/constants.js";
 
 const SORTABLE_FIELDS = ["name", "email", "phone", "createdAt"];
 
@@ -50,7 +51,7 @@ const clientDetailSelect = {
 
 export const clientRepository = {
   async findAll(
-    companyId: string,
+    companyId: string = COMPANY_ID,
     options: ListQueryOptions & { includeArchived?: boolean; serviceId?: string | null }
   ): Promise<PaginatedResult<ClientListItem>> {
     // Archived clients are hidden by default; pass includeArchived to surface them.
@@ -80,7 +81,7 @@ export const clientRepository = {
 
   async findById(
     id: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     serviceId?: string | null
   ): Promise<ClientDetail | null> {
     const where: Record<string, unknown> = { id, companyId };
@@ -119,7 +120,7 @@ export const clientRepository = {
 
   async update(
     id: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Partial<{
       name?: string;
       email?: string;
@@ -144,11 +145,11 @@ export const clientRepository = {
     });
   },
 
-  async countInvoices(id: string, companyId: string): Promise<number> {
+  async countInvoices(id: string, companyId: string = COMPANY_ID): Promise<number> {
     return prisma.invoice.count({ where: { clientId: id, companyId } });
   },
 
-  async archive(id: string, companyId: string): Promise<Client> {
+  async archive(id: string, companyId: string = COMPANY_ID): Promise<Client> {
     return prisma.client.update({
       where: { id, companyId },
       data: { archivedAt: new Date() },
@@ -167,7 +168,7 @@ export const clientRepository = {
     });
   },
 
-  async delete(id: string, companyId: string): Promise<Client> {
+  async delete(id: string, companyId: string = COMPANY_ID): Promise<Client> {
     return prisma.client.delete({
       where: { id, companyId },
       select: {
