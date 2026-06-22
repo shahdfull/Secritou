@@ -84,6 +84,7 @@ import {
 import { useDebouncedValue } from "@/hooks/shared/useDebouncedValue";
 import { useCrudDialogState } from "@/hooks/shared/useCrudDialogState";
 import { useTranslation } from "react-i18next";
+import { usePermission } from "@/hooks/usePermission";
 
 const STATUS_OPTIONS = ["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "WON", "LOST"] as const;
 const SOURCE_OPTIONS = ["Site web", "LinkedIn", "Recommandation", "Email", "Appel entrant", "Autre"] as const;
@@ -91,6 +92,7 @@ const ALL_STATUSES_VALUE = "__all__";
 
 export function LeadsPage() {
   const { t } = useTranslation();
+  const canCreate = usePermission("leads", "create");
   const [statusFilter, setStatusFilter] = useState<string>(ALL_STATUSES_VALUE);
   const [searchInput, setSearchInput] = useState("");
   const [view, setView] = useState<"list" | "kanban">("list");
@@ -266,12 +268,14 @@ export function LeadsPage() {
           <p className="text-muted-foreground">{t('leadsPage.subtitle')}</p>
         </div>
         <Dialog open={createDialogOpen} onOpenChange={closeCreateDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              {t('leadsPage.addLead')}
-            </Button>
-          </DialogTrigger>
+          {canCreate && (
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                {t('leadsPage.addLead')}
+              </Button>
+            </DialogTrigger>
+          )}
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{t('leadsPage.createLead')}</DialogTitle>

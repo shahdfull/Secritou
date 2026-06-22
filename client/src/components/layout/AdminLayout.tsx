@@ -50,6 +50,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuthStore } from "@/store/auth.store";
 import { useLogout } from "@/hooks/useAuth";
+import type { Module } from "@/types/permissions";
 import { NotificationBell } from "@/components/NotificationBell";
 import { GlobalSearch } from "@/components/common/GlobalSearch";
 import { routePrefetch } from "@/routes/routePrefetch";
@@ -57,42 +58,17 @@ import { useTranslation } from "react-i18next";
 import { AIAssistantFloat } from "./AIAssistantFloat";
 import { type ChatMessage } from "@/api/ai.api";
 
-const menuItems = [
-  {
-    key: "dashboard",
-    url: "/app",
-    icon: Home,
-  },
-  {
-    key: "crm",
-    url: "/app/crm",
-    icon: Users,
-  },
-  {
-    key: "commercial",
-    url: "/app/commercial",
-    icon: FileText,
-  },
-  {
-    key: "talent",
-    url: "/app/talent",
-    icon: Briefcase,
-  },
-  {
-    key: "projects",
-    url: "/app/projects",
-    icon: FolderOpen,
-  },
-  {
-    key: "questions",
-    url: "/app/questions",
-    icon: HelpCircle,
-  },
-  {
-    key: "settings",
-    url: "/app/settings",
-    icon: Settings,
-  },
+// Keys that map to a permission module (undefined = always visible for MANAGER)
+type MenuItem = { key: string; url: string; icon: React.ElementType; permModule?: Module };
+
+const menuItems: MenuItem[] = [
+  { key: "dashboard",  url: "/app",          icon: Home },
+  { key: "crm",        url: "/app/crm",       icon: Users,       permModule: "clients" },
+  { key: "commercial", url: "/app/commercial", icon: FileText,   permModule: "leads"   },
+  { key: "talent",     url: "/app/talent",    icon: Briefcase,   permModule: "freelancers" },
+  { key: "projects",   url: "/app/projects",  icon: FolderOpen,  permModule: "projects" },
+  { key: "questions",  url: "/app/questions", icon: HelpCircle },
+  { key: "settings",   url: "/app/settings",  icon: Settings },
 ];
 
 export const AdminLayout = memo(function AdminLayout() {
@@ -119,29 +95,27 @@ export const AdminLayout = memo(function AdminLayout() {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
+  const can = useAuthStore((state) => state.can);
+
   const filteredMenuItems = useMemo(() => {
     const role = user?.role ?? "ADMIN";
-    
-    const allowedKeysByRole: Record<string, string[]> = {
-      ADMIN: menuItems.map((item) => item.key),
-      MANAGER: [
-        "dashboard",
-        "crm",
-        "commercial",
-        "projects",
-        "questions",
-        "settings",
-      ],
-      FREELANCER: [
-        "dashboard",
-        "talent",
-        "settings",
-      ],
-    };
 
-    const allowedKeys = allowedKeysByRole[role] ?? allowedKeysByRole.ADMIN;
-    return menuItems.filter((item) => allowedKeys.includes(item.key));
-  }, [user?.role]);
+    if (role === "ADMIN") return menuItems;
+
+    if (role === "MANAGER") {
+      return menuItems.filter((item) => {
+        // Items without a permModule are always visible (dashboard, questions, settings)
+        if (!item.permModule) return true;
+        return can(item.permModule, "read");
+      });
+    }
+
+    if (role === "FREELANCER") {
+      return menuItems.filter((item) => ["dashboard", "talent", "settings"].includes(item.key));
+    }
+
+    return menuItems;
+  }, [user?.role, can]);
 
   const handleLogout = useCallback(() => {
     logout(undefined, {
