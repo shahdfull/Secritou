@@ -87,6 +87,37 @@ export const getMyProjects: RequestHandler = async (req, res, next) => {
   }
 };
 
+export const getBrief: RequestHandler = async (req, res, next) => {
+  try {
+    const role = req.user?.role!;
+    const companyId = req.user?.companyId ?? "";
+    const clientId = req.user?.clientId as string | undefined;
+    const result = await projectService.getBrief(req.params.id as string, companyId, role, clientId);
+    res.json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const submitBrief: RequestHandler = async (req, res, next) => {
+  try {
+    const clientId = req.user?.clientId;
+    if (!clientId) return next(new Error("Client access required"));
+    const companyId = req.user?.companyId ?? "";
+    const uploadedById = req.user?.sub!;
+    const updated = await projectService.submitBrief(
+      req.params.id as string,
+      companyId,
+      clientId,
+      uploadedById,
+      req.body as Record<string, unknown>
+    );
+    res.json({ data: updated });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getTimelineStatus: RequestHandler = async (req, res, next) => {
   try {
     const role = req.user?.role!;
