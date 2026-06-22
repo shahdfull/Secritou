@@ -14,6 +14,7 @@ export const importClientDetailPage = () => import("@/features/clients/ClientDet
 export const importFreelancersPage = () => import("@/features/freelancers/FreelancersPage");
 export const importFreelancerDetailPage = () => import("@/features/freelancers/FreelancerDetailPage");
 export const importProjectsPage = () => import("@/features/projects/ProjectsPage");
+export const importProjectDetailPage = () => import("@/features/projects/ProjectDetailPage");
 export const importTasksPage = () => import("@/features/tasks/TasksPage");
 export const importSettingsPage = () => import("@/features/settings/SettingsPage");
 export const importNotFoundPage = () => import("@/features/landing/pages/NotFoundPage");
@@ -33,7 +34,7 @@ export const importAdminOnboardingPage = () => import("@/features/admin-onboardi
 export const importProposalsPage = () => import("@/features/proposals/ProposalsPage");
 export const importApprovalsPage = () => import("@/features/approvals/ApprovalsPage");
 export const importInvoicesPage = () => import("@/features/invoices/InvoicesPage");
-export const importEnhancedDocumentsPage = () => import("@/features/enhanced-documents/EnhancedDocumentsPage");
+export const importDocumentsPage = () => import("@/features/documents/DocumentsPage");
 export const importClientSuccessPage = () => import("@/features/client-success/ClientSuccessPage");
 export const importServiceRequestsAdminPage = () => import("@/features/service-requests/ServiceRequestsAdminPage");
 export const importCommercialPage = () => import("@/features/commercial/CommercialPage");
@@ -73,7 +74,7 @@ export const routePrefetch = {
   proposals: () => void importProposalsPage(),
   approvals: () => void importApprovalsPage(),
   invoices: () => void importInvoicesPage(),
-  enhancedDocuments: () => void importEnhancedDocumentsPage(),
+  documents: () => void importDocumentsPage(),
   clientSuccess: () => void importClientSuccessPage(),
   serviceRequests: () => void importServiceRequestsAdminPage(),
   commercial: () => void importCommercialPage(),
