@@ -42,8 +42,10 @@ export const importCRMPage = () => import("@/features/crm/CRMPage");
 export const importTalentPage = () => import("@/features/talent/TalentPage");
 export const importQuestionsClientPage = () => import("@/features/client-portal/QuestionsClientPage");
 export const importAdminQuestionsPage = () => import("@/features/questions/AdminQuestionsPage");
+export const importDocumentsClientPage = () => import("@/features/client-portal/DocumentsClientPage");
 
 export const routePrefetch = {
+  clientDocuments: () => void importDocumentsClientPage(),
   home: () => void importHomePage(),
   services: () => void importServicesPage(),
   solutions: () => void importSolutionsPage(),
