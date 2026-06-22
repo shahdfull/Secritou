@@ -1,14 +1,10 @@
 // Lead Validators - Validation schemas
 import { z } from "zod";
 import { LeadStatus } from "@prisma/client";
+import { leadBaseSchema as sharedLeadBase } from "@secritou/shared";
 
-const leadBaseSchema = z.object({
-  name: z.string().min(2),
-  email: z.string().email().optional(),
-  phone: z.string().optional(),
-  source: z.string().optional(),
+const leadBaseSchema = sharedLeadBase.extend({
   status: z.nativeEnum(LeadStatus).optional(),
-  notes: z.string().optional(),
 });
 
 export const createLeadSchema = z.object({

@@ -22,7 +22,6 @@ import clientOnboardingRoutes from "./clientOnboarding.routes.js";
 import proposalRoutes from "./proposal.routes.js";
 import approvalRoutes from "./approval.routes.js";
 import invoiceRoutes from "./invoice.routes.js";
-import enhancedDocumentRoutes from "./enhancedDocument.routes.js";
 import clientSuccessRoutes from "./clientSuccess.routes.js";
 import summaryRoutes from "./summary.routes.js";
 import uploadRoutes from "./upload.routes.js";
@@ -161,7 +160,11 @@ apiRoutes.use("/ai", aiRoutes);
 apiRoutes.use("/proposals", proposalRoutes);
 apiRoutes.use("/approvals", approvalRoutes);
 apiRoutes.use("/invoices", invoiceRoutes);
-apiRoutes.use("/enhanced-documents", enhancedDocumentRoutes);
+// Redirect legacy enhanced-documents route to documents
+apiRoutes.use("/enhanced-documents", (req, res) => {
+  const path = req.originalUrl.replace("/enhanced-documents", "/documents");
+  res.redirect(301, path);
+});
 apiRoutes.use("/client-success", clientSuccessRoutes);
 
 // Summary routes (for performance optimizations)

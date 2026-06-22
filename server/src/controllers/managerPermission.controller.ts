@@ -4,7 +4,7 @@ import { HttpError } from "../utils/httpError.js";
 
 export const getManagerPermission: RequestHandler = async (req, res, next) => {
   try {
-    const { userId } = req.params;
+    const userId = req.params.userId as string;
     const permission = await managerPermissionService.findByUserId(userId);
     res.json({ data: permission });
   } catch (error) {
@@ -14,7 +14,7 @@ export const getManagerPermission: RequestHandler = async (req, res, next) => {
 
 export const updateManagerPermission: RequestHandler = async (req, res, next) => {
   try {
-    const { userId } = req.params;
+    const userId = req.params.userId as string;
     const permission = await managerPermissionService.update(userId, req.body);
     res.json({ data: permission });
   } catch (error) {

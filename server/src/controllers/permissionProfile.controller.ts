@@ -22,7 +22,7 @@ export const createPermissionProfile: RequestHandler = async (req, res, next) =>
 
 export const updatePermissionProfile: RequestHandler = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const profile = await permissionProfileService.update(id, req.body);
     res.json({ data: profile });
   } catch (error) {
@@ -32,7 +32,7 @@ export const updatePermissionProfile: RequestHandler = async (req, res, next) =>
 
 export const deletePermissionProfile: RequestHandler = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     await permissionProfileService.delete(id);
     res.status(204).send();
   } catch (error) {

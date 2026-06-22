@@ -1,6 +1,5 @@
 // Permission Profile Repository - Data access layer
-import { prismaRead as prisma } from "../config/prisma.js";
-import { prismaWrite } from "../config/prisma.js";
+import { prisma } from "../config/prisma.js";
 import type { PermissionProfile } from "@prisma/client";
 
 export const permissionProfileRepository = {
@@ -22,7 +21,7 @@ export const permissionProfileRepository = {
     permissions: any;
     isDefault?: boolean;
   }): Promise<PermissionProfile> {
-    return prismaWrite.permissionProfile.create({
+    return prisma.permissionProfile.create({
       data,
     });
   },
@@ -36,14 +35,14 @@ export const permissionProfileRepository = {
       isDefault?: boolean;
     }>
   ): Promise<PermissionProfile> {
-    return prismaWrite.permissionProfile.update({
+    return prisma.permissionProfile.update({
       where: { id },
       data,
     });
   },
 
   async delete(id: string): Promise<PermissionProfile> {
-    return prismaWrite.permissionProfile.delete({
+    return prisma.permissionProfile.delete({
       where: { id },
     });
   },

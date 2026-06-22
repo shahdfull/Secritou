@@ -4,12 +4,12 @@ import type { Request } from "express";
 import type { Role } from "@prisma/client";
 import { userRepository } from "../repositories/user.repository.js";
 
-export type ServiceScope = { userRole: Role; userServiceId?: string | null };
+export type ServiceScope = { userRole: Role; userServiceId?: string | null; userId?: string };
 
 export async function buildServiceScope(req: Request): Promise<ServiceScope> {
   const role = req.user!.role;
   if (role === "MANAGER") {
-    return { userRole: role, userServiceId: await userRepository.findServiceId(req.user!.id) };
+    return { userRole: role, userServiceId: await userRepository.findServiceId(req.user!.id), userId: req.user!.id };
   }
-  return { userRole: role };
+  return { userRole: role, userId: req.user!.id };
 }
