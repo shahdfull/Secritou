@@ -37,9 +37,12 @@ const projectListSelect = {
   clientId: true,
   companyId: true,
   serviceId: true,
+  proposalId: true,
   archivedAt: true,
   createdAt: true,
   updatedAt: true,
+  budget: true,
+  deadline: true,
   client: { select: clientBriefSelect },
 } as const;
 

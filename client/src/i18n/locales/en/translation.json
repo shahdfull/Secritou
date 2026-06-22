@@ -1482,6 +1482,15 @@
       "create": "Create a proposal",
       "linkedProposals": "Linked proposals",
       "noProposals": "No proposals linked to this lead"
+    },
+    "acceptCascade": {
+      "title": "Accept the proposal",
+      "description": "This triggers project creation, the deposit invoice, and the client invitation.",
+      "willCreateProject": "A project \"{{name}}\" will be created",
+      "willInvoiceDeposit": "A 30% deposit will be invoiced",
+      "willInviteClient": "The client will be invited to their portal by email",
+      "confirm": "Accept and proceed",
+      "clientInvited": "Client invited by email"
     }
   },
   "approvals": {
@@ -1690,6 +1699,21 @@
       "UNPAID": "Unpaid",
       "PARTIAL": "Partial",
       "PAID": "Paid"
+    }
+  },
+  "projects": {
+    "title": "Projects",
+    "notFound": "Project not found",
+    "budget": "Budget",
+    "deadline": "Deadline",
+    "progress": "Progress",
+    "tasks": "Tasks",
+    "noTasks": "No tasks",
+    "status": {
+      "planning": "Planning",
+      "in_progress": "In progress",
+      "review": "Review",
+      "completed": "Completed"
     }
   }
 }

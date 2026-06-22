@@ -26,6 +26,7 @@ import {
   importJoinUsPage,
   importProjectsClientPage,
   importProjectsPage,
+  importProjectDetailPage,
   importReportsPage,
   importResetPasswordPage,
   importServiceRequestsClientPage,
@@ -40,7 +41,7 @@ import {
   importProposalsPage,
   importApprovalsPage,
   importInvoicesPage,
-  importEnhancedDocumentsPage,
+  importDocumentsPage,
   importClientSuccessPage,
   importServiceRequestsAdminPage,
   importCommercialPage,
@@ -69,6 +70,7 @@ const ClientDetailPage = lazy(() => importClientDetailPage().then((m) => ({ defa
 const FreelancersPage = lazy(() => importFreelancersPage().then((m) => ({ default: m.FreelancersPage })));
 const FreelancerDetailPage = lazy(() => importFreelancerDetailPage().then((m) => ({ default: m.FreelancerDetailPage })));
 const ProjectsPage = lazy(() => importProjectsPage().then((m) => ({ default: m.ProjectsPage })));
+const ProjectDetailPage = lazy(() => importProjectDetailPage().then((m) => ({ default: m.ProjectDetailPage })));
 const TasksPage = lazy(() => importTasksPage().then((m) => ({ default: m.TasksPage })));
 const SettingsPage = lazy(() => importSettingsPage().then((m) => ({ default: m.SettingsPage })));
 const NotFoundPage = lazy(() => importNotFoundPage().then((m) => ({ default: m.NotFoundPage })));
@@ -85,7 +87,7 @@ const AdminOnboardingPage = lazy(() => importAdminOnboardingPage().then((m) => (
 const ProposalsPage = lazy(() => importProposalsPage().then((m) => ({ default: m.ProposalsPage })));
 const ApprovalsPage = lazy(() => importApprovalsPage().then((m) => ({ default: m.ApprovalsPage })));
 const InvoicesPage = lazy(() => importInvoicesPage().then((m) => ({ default: m.InvoicesPage })));
-const EnhancedDocumentsPage = lazy(() => importEnhancedDocumentsPage().then((m) => ({ default: m.EnhancedDocumentsPage })));
+const DocumentsPage = lazy(() => importDocumentsPage().then((m) => ({ default: m.DocumentsPage })));
 const ClientSuccessPage = lazy(() => importClientSuccessPage().then((m) => ({ default: m.ClientSuccessPage })));
 const ServiceRequestsAdminPage = lazy(() =>
   importServiceRequestsAdminPage().then((m) => ({ default: m.ServiceRequestsAdminPage }))
@@ -166,6 +168,7 @@ export function AppRoutes() {
           <Route path="freelancers/:id" element={withBoundary(<FreelancerDetailPage />)} />
           <Route path="missions" element={<Navigate to="/app/talent" replace />} />
           <Route path="projects" element={withBoundary(<ProjectsPage />)} />
+          <Route path="projects/:id" element={withBoundary(<ProjectDetailPage />)} />
           <Route path="tasks" element={<Navigate to="/app/projects" replace />} />
           <Route path="ai" element={withBoundary(<AIAssistantPage />)} />
               <Route path="analytics" element={<Navigate to="/app" replace />} />

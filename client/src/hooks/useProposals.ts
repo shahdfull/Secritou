@@ -3,6 +3,7 @@ import {
   proposalsApi,
   type Proposal,
   type PaginatedResponse,
+  type AcceptProposalResult,
 } from "../api/proposals.api";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -98,10 +99,14 @@ export function useAcceptProposal() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
 
-  return useMutation<Proposal, Error, string>({
+  return useMutation<AcceptProposalResult, Error, string>({
     mutationFn: (id) => proposalsApi.acceptProposal(id),
     onSuccess: () => {
+      // The cascade also creates a project + deposit invoice, so refresh those lists too. The
+      // cascade-specific toast/navigation is handled by the caller via the returned meta.
       queryClient.invalidateQueries({ queryKey: ["proposals"] });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
       toast.success(t("proposals.accepted"));
     },
   });
