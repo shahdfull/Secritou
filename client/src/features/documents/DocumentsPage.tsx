@@ -62,7 +62,7 @@ const ALL_TYPES_VALUE = "__all__";
 const createDocSchema = z.object({
   name: z.string().min(1, "common.nameRequired"),
   description: z.string().optional(),
-  enhancedType: z.enum(["CONTRACT", "DELIVERABLE", "GUIDE", "REPORT", "INVOICE", "OTHER"]),
+  type: z.enum(["CONTRACT", "DELIVERABLE", "GUIDE", "REPORT", "INVOICE", "OTHER", "WELCOME_LETTER", "SPECS", "CLIENT_BRIEF", "QUOTE", "INVOICE_DEPOSIT", "INVOICE_BALANCE", "ROADMAP"]),
   accessLevel: z.enum(["ADMIN_ONLY", "ADMIN_FREELANCER", "CLIENT_ADMIN", "ALL"]),
   tags: z.string().optional(),
 });
@@ -73,7 +73,7 @@ export function DocumentsPage() {
   const docSchema = z.object({
     name: z.string().min(1, t("common.nameRequired")),
     description: z.string().optional(),
-    enhancedType: z.enum(["CONTRACT", "DELIVERABLE", "GUIDE", "REPORT", "INVOICE", "OTHER"]),
+    type: z.enum(["CONTRACT", "DELIVERABLE", "GUIDE", "REPORT", "INVOICE", "OTHER", "WELCOME_LETTER", "SPECS", "CLIENT_BRIEF", "QUOTE", "INVOICE_DEPOSIT", "INVOICE_BALANCE", "ROADMAP"]),
     accessLevel: z.enum(["ADMIN_ONLY", "ADMIN_FREELANCER", "CLIENT_ADMIN", "ALL"]),
     tags: z.string().optional(),
   });
@@ -101,7 +101,7 @@ export function DocumentsPage() {
     defaultValues: {
       name: "",
       description: "",
-      enhancedType: "OTHER",
+      type: "OTHER",
       accessLevel: "CLIENT_ADMIN",
       tags: "",
     },
@@ -118,8 +118,7 @@ export function DocumentsPage() {
         name: data.name,
         title: data.name,
         description: data.description,
-        type: "CONTRACT", // Default DocumentType
-        enhancedType: data.enhancedType,
+        type: data.type,
         accessLevel: data.accessLevel,
         url: uploadedFile.current.url,
         fileUrl: uploadedFile.current.url,
@@ -212,7 +211,7 @@ export function DocumentsPage() {
                   <TableCell>{doc.client?.name || "-"}</TableCell>
                   <TableCell>
                     <Badge variant="outline">
-                      {t(`documents.types.${doc.enhancedType?.toLowerCase() || 'other'}`)}
+                      {t(`documents.types.${doc.type?.toLowerCase() || 'other'}`)}
                     </Badge>
                   </TableCell>
                   <TableCell>{doc.version}</TableCell>
@@ -319,7 +318,7 @@ export function DocumentsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="enhancedType"
+                  name="type"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t("documents.type")}</FormLabel>

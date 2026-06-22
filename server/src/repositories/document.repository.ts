@@ -2,7 +2,6 @@ import { prisma } from "../config/prisma.js";
 import { Prisma } from "@prisma/client";
 import type {
   Document,
-  EnhancedDocumentType,
   DocumentType,
   DocumentAccessLevel,
   Role,
@@ -32,7 +31,6 @@ export const documentRepository = {
       companyId: string;
       clientId?: string;
       type?: DocumentType;
-      enhancedType?: EnhancedDocumentType;
       projectId?: string;
       tags?: string[];
       search?: string;
@@ -54,7 +52,6 @@ export const documentRepository = {
       }
     }
     if (options.type) where.type = options.type;
-    if (options.enhancedType) where.enhancedType = options.enhancedType;
     if (options.tags && options.tags.length > 0) {
       where.tags = { hasSome: options.tags };
     }
@@ -114,7 +111,6 @@ export const documentRepository = {
     title: string;
     description?: string;
     type: DocumentType;
-    enhancedType?: EnhancedDocumentType;
     url: string;
     fileUrl?: string;
     fileKey?: string;
@@ -140,7 +136,6 @@ export const documentRepository = {
       title: string;
       description: string;
       type: DocumentType;
-      enhancedType: EnhancedDocumentType;
       url: string;
       fileUrl: string;
       fileKey: string;

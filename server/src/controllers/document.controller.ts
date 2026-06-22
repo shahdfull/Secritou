@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { documentService } from "../services/document.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
 import { HttpError } from "../utils/httpError.js";
-import { EnhancedDocumentType, DocumentType } from "@prisma/client";
+import { DocumentType } from "@prisma/client";
 
 function textQuery(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
@@ -14,7 +14,6 @@ export const getDocuments = async (req: Request, res: Response) => {
     companyId: req.user!.companyId!,
     clientId: textQuery(req.query.clientId),
     type: textQuery(req.query.type) as DocumentType | undefined,
-    enhancedType: textQuery(req.query.enhancedType) as EnhancedDocumentType | undefined,
     projectId: textQuery(req.query.projectId),
     tags: typeof req.query.tags === "string" ? req.query.tags.split(",") : undefined,
     search: textQuery(req.query.search),

@@ -98,8 +98,18 @@ enum ServiceRequestStatus {
   WAITING_CLIENT
   COMPLETED
   CANCELLED
-  // Legacy values kept for migration compatibility
-  DONE
+}
+
+enum ServiceRequestType {
+  SUPPORT
+  NEW_PROJECT
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
 }
 
 // Multi-tenant Company model
@@ -125,6 +135,7 @@ model Company {
   freelancerApplications   FreelancerApplication[]
   aiConversations      AiConversation[]
   customQuestions      CustomQuestion[]
+  ratings              Rating[]
   createdAt           DateTime              @default(now()) @db.Timestamptz(6)
   updatedAt           DateTime              @updatedAt @db.Timestamptz(6)
 
@@ -161,7 +172,7 @@ model User {
   assignedServiceRequests ServiceRequestComment[] @relation("ServiceRequestCommentAuthor")
   serviceRequestHistory   ServiceRequestHistory[] @relation("ServiceRequestHistoryUser")
   serviceRequestAssignments ServiceRequest[]      @relation("ServiceRequestAssignee")
-  recordedInvoicePayments InvoicePayment[]  @relation("RecordedInvoicePayments")
+  recordedPayments Payment[]  @relation("RecordedPayments")
   aiConversations     AiConversation[]
   customQuestions        CustomQuestion[]
   customQuestionMessages CustomQuestionMessage[]
@@ -170,6 +181,7 @@ model User {
   signedDocuments          Document[]    @relation("SignedDocuments")
   projectClientApprovals   Project[]     @relation("ProjectClientApprovals")
   assignedLeads            Lead[]        @relation("ManagerLeads")
+  givenRatings             Rating[]      @relation("RatedByUser")
   createdAt           DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt           DateTime             @updatedAt @db.Timestamptz(6)
 
@@ -195,6 +207,7 @@ model Service {
   leads     Lead[]
   projects  Project[]
   users     User[]
+  clients   Client[]
   createdAt DateTime @default(now()) @db.Timestamptz(6)
 
   @@unique([companyId, name])
@@ -215,8 +228,8 @@ model Lead {
   serviceId         String?
   service           Service?   @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   convertedClientId String?
+  convertedClient   Client?    @relation("ConvertedLead", fields: [convertedClientId], references: [id], onDelete: SetNull)
   archivedAt        DateTime?  @db.Timestamptz(6)
-  proposals         Proposal[]
   sourceContactId   String?               @unique
   sourceContact     ContactRequest?       @relation(fields: [sourceContactId], references: [id])
   assignedManagerId String?
@@ -252,6 +265,9 @@ model Client {
   creditBalance    Decimal          @default(0) @db.Decimal(12, 2)
   clientSuccess    ClientSuccess?
   clientOnboardings ClientOnboarding[]
+  serviceId         String?
+  service           Service?         @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  convertedLeads    Lead[]           @relation("ConvertedLead")
   archivedAt       DateTime?        @db.Timestamptz(6)
   createdAt        DateTime         @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime         @updatedAt @db.Timestamptz(6)
@@ -266,8 +282,9 @@ model ServiceRequest {
   id           String               @id @default(uuid())
   title        String               @db.VarChar(255)
   description  String?              @db.Text
+  type         ServiceRequestType    @default(NEW_PROJECT)
   status       ServiceRequestStatus @default(NEW)
-  priority     String               @default("NORMAL") @db.VarChar(20)
+  priority     Priority             @default(NORMAL)
   assignedToId String?
   assignedTo   User?                @relation("ServiceRequestAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
   clientId     String
@@ -383,7 +400,7 @@ model Task {
   @@index([dueDate, status])
 }
 model Comment {
-  id        String   @id @default(cuid())
+  id        String   @id @default(uuid())
   content   String   @db.Text
   taskId    String
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
@@ -434,6 +451,7 @@ model FreelancerProfile {
   reviewCount Int                  @default(0)
   skills      Skill[]
   portfolio   PortfolioItem[]
+  ratings     Rating[]
   createdAt   DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime             @updatedAt @db.Timestamptz(6)
 
@@ -454,6 +472,22 @@ model PortfolioItem {
   updatedAt   DateTime       @updatedAt @db.Timestamptz(6)
 
   @@index([freelancerId])
+}
+
+model Rating {
+  id              String            @id @default(uuid())
+  score           Int
+  comment         String?           @db.Text
+  freelancerId    String
+  freelancer      FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  ratedByUserId   String?
+  ratedByUser     User?             @relation("RatedByUser", fields: [ratedByUserId], references: [id], onDelete: SetNull)
+  companyId       String
+  company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt       DateTime          @default(now()) @db.Timestamptz(6)
+
+  @@index([freelancerId])
+  @@index([companyId])
 }
 
 // Notification model for user notifications
@@ -477,8 +511,7 @@ model Document {
   name             String               @db.VarChar(255)
   title            String               @db.VarChar(255)
   description      String?              @db.Text
-  type             DocumentType
-  enhancedType     EnhancedDocumentType @default(OTHER)
+  type             DocumentType         @default(OTHER)
   url              String               @db.VarChar(500)
   fileUrl          String?              @db.VarChar(500)
   fileKey          String?              @db.VarChar(500)
@@ -508,10 +541,8 @@ model Document {
   @@index([clientId])
   @@index([projectId])
   @@index([type])
-  @@index([enhancedType])
   @@index([tags])
   @@index([companyId, type])
-  @@index([companyId, enhancedType])
 }
 model RefreshToken {
   id        String    @id @default(uuid())
@@ -551,6 +582,7 @@ model FreelancerApplication {
   createdAt       DateTime          @default(now()) @db.Timestamptz(6)
   updatedAt       DateTime          @updatedAt @db.Timestamptz(6)
 
+  @@unique([email])
   @@index([email])
   @@index([status])
   @@index([createdAt])
@@ -622,15 +654,24 @@ model Contract {
 // Payment model
 model Payment {
   id               String           @id @default(uuid())
-  onboardingStepId String           @unique
-  onboardingStep   OnboardingStep   @relation(fields: [onboardingStepId], references: [id], onDelete: Cascade)
+  onboardingStepId String?          @unique
+  onboardingStep   OnboardingStep?  @relation(fields: [onboardingStepId], references: [id], onDelete: Cascade)
+  invoiceId        String?
+  invoice          Invoice?         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   amount           Decimal?         @db.Decimal(10, 2)
   amountPaid       Decimal?         @db.Decimal(10, 2)
+  method           String?          @db.VarChar(100)
+  reference        String?          @db.VarChar(255)
+  recordedById     String?
+  recordedBy       User?            @relation("RecordedPayments", fields: [recordedById], references: [id], onDelete: SetNull)
   status           PaymentStatus    @default(UNPAID)
   deadline         DateTime?        @db.Timestamptz(6)
   paidAt           DateTime?        @db.Timestamptz(6)
   createdAt        DateTime         @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime         @updatedAt @db.Timestamptz(6)
+
+  @@index([invoiceId])
+  @@index([recordedById])
 }
 
 // Questionnaire model
@@ -736,8 +777,6 @@ model Proposal {
   company          Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   projectId        String?
   project          Project?       @relation("ProjectProposals", fields: [projectId], references: [id], onDelete: SetNull)
-  leadId           String?
-  lead             Lead?          @relation(fields: [leadId], references: [id])
   serviceRequestId String?         @unique
   serviceRequest   ServiceRequest? @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
   sections         ProposalSection[]
@@ -754,7 +793,6 @@ model Proposal {
   @@index([createdAt])
   @@index([companyId, status])
   @@index([serviceRequestId])
-  @@index([leadId])
 }
 
 model ProposalSection {
@@ -845,15 +883,6 @@ model ApprovalTimeline {
 }
 
 // Document Center
-enum EnhancedDocumentType {
-  CONTRACT
-  DELIVERABLE
-  GUIDE
-  REPORT
-  INVOICE
-  OTHER
-}
-
 enum DocumentType {
   WELCOME_LETTER
   CONTRACT
@@ -863,6 +892,11 @@ enum DocumentType {
   INVOICE_DEPOSIT
   INVOICE_BALANCE
   ROADMAP
+  DELIVERABLE
+  GUIDE
+  REPORT
+  INVOICE
+  OTHER
 }
 
 enum DocumentAccessLevel {
@@ -920,7 +954,7 @@ model Invoice {
   proposalId        String?       @unique
   proposal          Proposal?     @relation(fields: [proposalId], references: [id], onDelete: SetNull)
   items             InvoiceItem[]
-  payments          InvoicePayment[]
+  payments          Payment[]
   reminders         InvoiceReminder[]
   creditNotes       CreditNote[]
   createdAt         DateTime      @default(now()) @db.Timestamptz(6)
@@ -969,22 +1003,6 @@ model InvoiceItem {
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
 
   @@index([invoiceId])
-}
-
-model InvoicePayment {
-  id           String   @id @default(uuid())
-  amount       Decimal  @db.Decimal(12, 2)
-  method       String?  @db.VarChar(100)
-  reference    String?  @db.VarChar(255)
-  invoiceId    String
-  invoice      Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  recordedById String?
-  recordedBy   User?    @relation("RecordedInvoicePayments", fields: [recordedById], references: [id], onDelete: SetNull)
-  paidAt       DateTime @default(now()) @db.Timestamptz(6)
-  createdAt    DateTime @default(now()) @db.Timestamptz(6)
-
-  @@index([invoiceId])
-  @@index([recordedById])
 }
 
 model InvoiceReminder {
@@ -1092,8 +1110,8 @@ model SuccessTimeline {
 
 // AI Conversation history — persisted per user + company
 enum AiMessageRole {
-  user
-  assistant
+  USER
+  ASSISTANT
 }
 
 model AiConversation {
@@ -1158,7 +1176,7 @@ model CustomQuestionMessage {
 }
 
 model PermissionProfile {
-  id          String             @id @default(cuid())
+  id          String             @id @default(uuid())
   name        String             @unique
   description String?
   permissions Json
@@ -1169,7 +1187,7 @@ model PermissionProfile {
 }
 
 model ManagerPermission {
-  id        String             @id @default(cuid())
+  id        String             @id @default(uuid())
   userId    String             @unique
   user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   profileId String?

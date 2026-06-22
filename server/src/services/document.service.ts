@@ -1,5 +1,5 @@
 import { documentRepository } from "../repositories/document.repository.js";
-import type { EnhancedDocumentType, DocumentType, DocumentAccessLevel, Role } from "@prisma/client";
+import type { DocumentType, DocumentAccessLevel, Role } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { tenantValidation } from "./tenantValidation.service.js";
 import { prisma } from "../config/prisma.js";
@@ -14,7 +14,6 @@ export const documentService = {
       companyId: string;
       clientId?: string;
       type?: DocumentType;
-      enhancedType?: EnhancedDocumentType;
       projectId?: string;
       tags?: string[];
       search?: string;
@@ -38,7 +37,6 @@ export const documentService = {
       title: string;
       description?: string;
       type: DocumentType;
-      enhancedType?: EnhancedDocumentType;
       url: string;
       fileUrl?: string;
       fileKey?: string;
@@ -66,7 +64,6 @@ export const documentService = {
       title: string;
       description: string;
       type: DocumentType;
-      enhancedType: EnhancedDocumentType;
       url: string;
       fileUrl: string;
       fileKey: string;
@@ -98,7 +95,6 @@ export const documentService = {
       title: original.title,
       description: original.description ?? undefined,
       type: original.type as DocumentType,
-      enhancedType: original.enhancedType as EnhancedDocumentType,
       url: data.url,
       fileUrl: original.fileUrl ?? undefined,
       fileKey: original.fileKey ?? undefined,
