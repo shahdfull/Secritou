@@ -1,5 +1,6 @@
 // Freelancer Application Repository - Data access layer
 import { prisma, prismaRead } from "../config/prisma.js";
+import { COMPANY_ID } from "../config/constants.js";
 import type { FreelancerApplication, ApplicationStatus, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 
@@ -43,7 +44,7 @@ function buildWhere(
 
 export const freelancerApplicationRepository = {
   async findAll(
-    companyId: string,
+    companyId: string = COMPANY_ID,
     options: ListQueryOptions & { search?: string; status?: ApplicationStatus }
   ): Promise<PaginatedResult<FreelancerApplication>> {
     const skip = (options.page - 1) * options.pageSize;
@@ -63,7 +64,7 @@ export const freelancerApplicationRepository = {
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(id: string, companyId: string): Promise<FreelancerApplication | null> {
+  async findById(id: string, companyId: string = COMPANY_ID): Promise<FreelancerApplication | null> {
     return prismaRead.freelancerApplication.findFirst({
       where: { id, companyId },
     });
@@ -85,7 +86,7 @@ export const freelancerApplicationRepository = {
 
   async update(
     id: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Partial<{
       status: ApplicationStatus;
       rejectionReason?: string;
@@ -100,7 +101,7 @@ export const freelancerApplicationRepository = {
     });
   },
 
-  async delete(id: string, companyId: string): Promise<FreelancerApplication> {
+  async delete(id: string, companyId: string = COMPANY_ID): Promise<FreelancerApplication> {
     return prisma.freelancerApplication.delete({ where: { id, companyId } });
   },
 
@@ -111,7 +112,7 @@ export const freelancerApplicationRepository = {
     });
   },
 
-  async assignToCompany(id: string, companyId: string): Promise<FreelancerApplication> {
+  async assignToCompany(id: string, companyId: string = COMPANY_ID): Promise<FreelancerApplication> {
     return prisma.freelancerApplication.update({
       where: { id, companyId: null },
       data: { companyId },

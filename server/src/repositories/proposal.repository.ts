@@ -1,4 +1,5 @@
 import { prisma, prismaRead } from "../config/prisma.js";
+import { COMPANY_ID } from "../config/constants.js";
 import { Prisma } from "@prisma/client";
 import type { Proposal, ProposalStatus } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
@@ -8,17 +9,15 @@ export const proposalRepository = {
     options: ListQueryOptions & {
       companyId: string;
       clientId?: string;
-      leadId?: string;
       status?: ProposalStatus;
       search?: string;
       // When set, restrict to proposals whose project is in this service (MANAGER scope).
       // Proposals with no project are excluded for a scoped manager.
       serviceId?: string | null;
     }
-  ): Promise<PaginatedResult<Proposal & { client: { name: string }; lead: { id: string; name: string } | null }>> {
+  ): Promise<PaginatedResult<Proposal & { client: { name: string } }>> {
     const where: Prisma.ProposalWhereInput = { companyId: options.companyId };
     if (options.clientId) where.clientId = options.clientId;
-    if (options.leadId) where.leadId = options.leadId;
     if (options.status) where.status = options.status;
     if (options.serviceId !== undefined) {
       where.project = { is: { serviceId: options.serviceId ?? "__none__" } };
@@ -40,7 +39,6 @@ export const proposalRepository = {
         orderBy: { [options.orderBy || "createdAt"]: options.orderDir || "desc" },
         include: {
           client: { select: { name: true } },
-          lead: { select: { id: true, name: true } },
           invoice: { select: { id: true } },
         },
       }),
@@ -84,7 +82,7 @@ export const proposalRepository = {
     });
   },
 
-  async findById(id: string, companyId: string) {
+  async findById(id: string, companyId: string = COMPANY_ID) {
     return prismaRead.proposal.findUnique({
       where: { id, companyId },
       include: {
@@ -107,7 +105,6 @@ export const proposalRepository = {
     clientId: string;
     clientName?: string;
     email?: string;
-    leadId?: string;
     companyId: string;
     projectId?: string;
     serviceRequestId?: string;
@@ -117,7 +114,7 @@ export const proposalRepository = {
 
   async update(
     id: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Partial<{
       title: string;
       description: string;
@@ -137,7 +134,7 @@ export const proposalRepository = {
 
   // Returns the parent proposal's status/version for a given section, scoped to the company.
   // Used to enforce edit guards when a section (which is client-facing content) is changed.
-  async findProposalBySectionId(sectionId: string, companyId: string) {
+  async findProposalBySectionId(sectionId: string, companyId: string = COMPANY_ID) {
     const section = await prismaRead.proposalSection.findFirst({
       where: { id: sectionId, proposal: { companyId } },
       select: {
@@ -149,13 +146,13 @@ export const proposalRepository = {
     return section?.proposal ?? null;
   },
 
-  async delete(id: string, companyId: string) {
+  async delete(id: string, companyId: string = COMPANY_ID) {
     return prisma.proposal.delete({ where: { id, companyId } });
   },
 
   async addSection(
     proposalId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: { title: string; content?: string; orderIndex: number }
   ) {
     // Validate proposal exists in company first
@@ -168,7 +165,7 @@ export const proposalRepository = {
 
   async updateSection(
     id: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: { title?: string; content?: string; orderIndex?: number }
   ) {
     // Validate section belongs to a proposal in the company
@@ -181,7 +178,7 @@ export const proposalRepository = {
     });
   },
 
-  async deleteSection(id: string, companyId: string) {
+  async deleteSection(id: string, companyId: string = COMPANY_ID) {
     // Validate section belongs to a proposal in the company
     return prisma.proposalSection.delete({
       where: {

@@ -1,6 +1,7 @@
 import { prisma, prismaRead } from "../config/prisma.js";
+import { COMPANY_ID } from "../config/constants.js";
 import { Prisma } from "@prisma/client";
-import type { ServiceRequest, ServiceRequestStatus } from "@prisma/client";
+import type { ServiceRequest, ServiceRequestStatus, Priority } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildOrderBy, buildTextSearchFilter } from "../utils/listQuery.js";
 import { HttpError } from "../utils/httpError.js";
@@ -87,7 +88,7 @@ export const serviceRequestRepository = {
       status?: ServiceRequestStatus;
       clientId?: string;
       assignedToId?: string;
-      priority?: string;
+      priority?: Priority;
     }
   ): Promise<PaginatedResult<Prisma.ServiceRequestGetPayload<{ select: typeof listSelect }>>> {
     const textFilter = buildTextSearchFilter(options.search, ["title", "description"]);
@@ -118,14 +119,14 @@ export const serviceRequestRepository = {
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(id: string, companyId?: string) {
+  async findById(id: string, companyId: string = COMPANY_ID) {
     return prismaRead.serviceRequest.findFirst({
       where: { id, ...(companyId ? { companyId } : {}) },
       select: detailSelect,
     });
   },
 
-  async findByIdSimple(id: string, companyId?: string): Promise<ServiceRequest | null> {
+  async findByIdSimple(id: string, companyId: string = COMPANY_ID): Promise<ServiceRequest | null> {
     return prismaRead.serviceRequest.findFirst({
       where: { id, ...(companyId ? { companyId } : {}) },
     });
@@ -134,6 +135,7 @@ export const serviceRequestRepository = {
   async create(data: {
     title: string;
     description?: string;
+    type?: "SUPPORT" | "NEW_PROJECT";
     clientId: string;
     companyId: string;
   }): Promise<ServiceRequest> {
@@ -142,13 +144,14 @@ export const serviceRequestRepository = {
 
   async update(
     id: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Partial<{
       title: string;
       description: string;
       status: ServiceRequestStatus;
-      priority: string;
+      priority: Priority;
       assignedToId: string | null;
+      type: "SUPPORT" | "NEW_PROJECT";
     }>
   ) {
     const result = await prisma.serviceRequest.updateMany({
@@ -159,7 +162,7 @@ export const serviceRequestRepository = {
     return this.findById(id, companyId);
   },
 
-  async delete(id: string, companyId: string): Promise<ServiceRequest> {
+  async delete(id: string, companyId: string = COMPANY_ID): Promise<ServiceRequest> {
     const request = await prisma.serviceRequest.findFirst({ where: { id, companyId } });
     if (!request) throw new HttpError(404, "Service request not found");
     await prisma.serviceRequest.delete({ where: { id } });

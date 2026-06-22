@@ -1,9 +1,10 @@
 import { prisma } from "../config/prisma.js";
 import { prismaRead } from "../config/prisma.js";
+import { COMPANY_ID } from "../config/constants.js";
 import type { AiMessageRole } from "@prisma/client";
 
 export const aiConversationRepository = {
-  async findAll(companyId: string, userId: string, page: number, pageSize: number) {
+  async findAll(companyId: string = COMPANY_ID, userId: string, page: number, pageSize: number) {
     const skip = (page - 1) * pageSize;
     const [data, total] = await Promise.all([
       prismaRead.aiConversation.findMany({
@@ -24,7 +25,7 @@ export const aiConversationRepository = {
     return { data, total, page, pageSize };
   },
 
-  async findById(id: string, companyId: string, userId: string) {
+  async findById(id: string, companyId: string = COMPANY_ID, userId: string) {
     return prismaRead.aiConversation.findFirst({
       where: { id, companyId, userId },
       include: {
@@ -33,7 +34,7 @@ export const aiConversationRepository = {
     });
   },
 
-  async create(companyId: string, userId: string, title: string) {
+  async create(companyId: string = COMPANY_ID, userId: string, title: string) {
     return prisma.aiConversation.create({
       data: { companyId, userId, title },
       include: { messages: true },
@@ -51,11 +52,11 @@ export const aiConversationRepository = {
     return message;
   },
 
-  async delete(id: string, companyId: string, userId: string) {
+  async delete(id: string, companyId: string = COMPANY_ID, userId: string) {
     await prisma.aiConversation.deleteMany({ where: { id, companyId, userId } });
   },
 
-  async deleteAll(companyId: string, userId: string) {
+  async deleteAll(companyId: string = COMPANY_ID, userId: string) {
     await prisma.aiConversation.deleteMany({ where: { companyId, userId } });
   },
 };

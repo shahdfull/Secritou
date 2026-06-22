@@ -1,4 +1,5 @@
 import { prisma } from "../config/prisma.js";
+import { COMPANY_ID } from "../config/constants.js";
 import { Prisma } from "@prisma/client";
 import type {
   Document,
@@ -81,7 +82,7 @@ export const documentRepository = {
 
   async findById(
     id: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     viewer?: { role: Role; clientId?: string | null }
   ) {
     const where: Prisma.DocumentWhereInput = { id, companyId };
@@ -130,7 +131,7 @@ export const documentRepository = {
 
   async update(
     id: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Partial<{
       name: string;
       title: string;
@@ -151,13 +152,13 @@ export const documentRepository = {
     return prisma.document.update({ where: { id, companyId }, data });
   },
 
-  async delete(id: string, companyId: string) {
+  async delete(id: string, companyId: string = COMPANY_ID) {
     return prisma.document.delete({ where: { id, companyId } });
   },
 
   async addAccessLog(
     documentId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: {
       action: string;
       userId?: string;

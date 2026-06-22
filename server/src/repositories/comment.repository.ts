@@ -1,5 +1,6 @@
 // Comment Repository - Data access layer
 import { prismaRead as prisma } from "../config/prisma.js";
+import { COMPANY_ID } from "../config/constants.js";
 import type { Prisma } from "@prisma/client";
 import { authorPublicSelect } from "../utils/prismaSelects.js";
 
@@ -26,7 +27,7 @@ export const commentRepository = {
     });
   },
 
-  async findByTaskId(taskId: string, companyId: string): Promise<CommentWithAuthor[]> {
+  async findByTaskId(taskId: string, companyId: string = COMPANY_ID): Promise<CommentWithAuthor[]> {
     return prisma.comment.findMany({
       where: { taskId, task: { project: { companyId } } },
       select: commentSelect,

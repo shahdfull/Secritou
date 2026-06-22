@@ -1,11 +1,12 @@
 import type { ExtendedPrismaClient } from "../config/prisma.js";
+import { COMPANY_ID } from "../config/constants.js";
+import type { Role } from "@prisma/client";
 
 const userPublicSelect = {
   id: true,
   email: true,
   name: true,
   role: true,
-  companyId: true,
   clientId: true,
   mustChangePassword: true,
 } as const;
@@ -21,20 +22,16 @@ export class AuthRepository {
     return this.db.user.findUnique({ where: { id } });
   }
 
-  createCompanyWithOwner(input: { companyName: string; name: string; email: string; passwordHash: string }) {
-    return this.db.company.create({
+  createUser(input: { name: string; email: string; passwordHash: string; role?: Role }) {
+    return this.db.user.create({
       data: {
-        name: input.companyName,
-        users: {
-          create: {
-            name: input.name,
-            email: input.email,
-            passwordHash: input.passwordHash,
-            role: "ADMIN",
-          },
-        },
+        name: input.name,
+        email: input.email,
+        passwordHash: input.passwordHash,
+        role: input.role ?? "ADMIN",
+        companyId: COMPANY_ID,
       },
-      include: { users: { select: userPublicSelect } },
+      select: userPublicSelect,
     });
   }
 

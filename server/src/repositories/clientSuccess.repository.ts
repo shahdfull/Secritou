@@ -1,8 +1,9 @@
 import { prisma } from "../config/prisma.js";
+import { COMPANY_ID } from "../config/constants.js";
 import type { ClientSuccess } from "@prisma/client";
 
 export const clientSuccessRepository = {
-  async findByClientId(clientId: string, companyId: string) {
+  async findByClientId(clientId: string, companyId: string = COMPANY_ID) {
     return prisma.clientSuccess.findFirst({
       where: { clientId, client: { companyId } },
       include: {
@@ -17,11 +18,11 @@ export const clientSuccessRepository = {
     });
   },
 
-  async create(data: { clientId: string; companyId: string; score?: number }) {
-    return prisma.clientSuccess.create({ data });
+  async create(data: { clientId: string; companyId?: string; score?: number }) {
+    return prisma.clientSuccess.create({ data: { ...data, companyId: data.companyId ?? COMPANY_ID } });
   },
 
-  async update(id: string, companyId: string, data: Partial<{ score: number }>) {
+  async update(id: string, companyId: string = COMPANY_ID, data: Partial<{ score: number }>) {
     await prisma.clientSuccess.findFirstOrThrow({
       where: { id, client: { companyId } },
       select: { id: true },
@@ -31,7 +32,7 @@ export const clientSuccessRepository = {
 
   async addObjective(
     successId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: {
       title: string;
       description?: string;
@@ -50,7 +51,7 @@ export const clientSuccessRepository = {
 
   async updateObjective(
     id: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Partial<{
       title: string;
       description: string;
@@ -64,13 +65,13 @@ export const clientSuccessRepository = {
     return prisma.successObjective.update({ where: { id }, data });
   },
 
-  async deleteObjective(id: string, companyId: string) {
+  async deleteObjective(id: string, companyId: string = COMPANY_ID) {
     return prisma.successObjective.delete({ where: { id } });
   },
 
   async addMetric(
     successId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: {
       name: string;
       initialValue: number;
@@ -87,7 +88,7 @@ export const clientSuccessRepository = {
 
   async updateMetric(
     id: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Partial<{
       name: string;
       initialValue: number;
@@ -98,13 +99,13 @@ export const clientSuccessRepository = {
     return prisma.successMetric.update({ where: { id }, data });
   },
 
-  async deleteMetric(id: string, companyId: string) {
+  async deleteMetric(id: string, companyId: string = COMPANY_ID) {
     return prisma.successMetric.delete({ where: { id } });
   },
 
   async addMetricHistory(
     metricId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: { value: number; date?: Date }
   ) {
     await prisma.successMetric.findFirstOrThrow({
@@ -116,7 +117,7 @@ export const clientSuccessRepository = {
 
   async addRecommendation(
     successId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: {
       title: string;
       description?: string;
@@ -133,7 +134,7 @@ export const clientSuccessRepository = {
 
   async updateRecommendation(
     id: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Partial<{
       title: string;
       description: string;
@@ -144,13 +145,13 @@ export const clientSuccessRepository = {
     return prisma.successRecommendation.update({ where: { id }, data });
   },
 
-  async deleteRecommendation(id: string, companyId: string) {
+  async deleteRecommendation(id: string, companyId: string = COMPANY_ID) {
     return prisma.successRecommendation.delete({ where: { id } });
   },
 
   async addTimeline(
     successId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: {
       title: string;
       description?: string;
@@ -165,7 +166,7 @@ export const clientSuccessRepository = {
     return prisma.successTimeline.create({ data: { ...data, successId } });
   },
 
-  async deleteTimeline(id: string, companyId: string) {
+  async deleteTimeline(id: string, companyId: string = COMPANY_ID) {
     return prisma.successTimeline.delete({ where: { id } });
   },
 };

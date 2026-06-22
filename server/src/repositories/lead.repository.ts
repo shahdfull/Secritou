@@ -1,5 +1,6 @@
 // Lead Repository - Data access layer
 import { prismaRead as prisma } from "../config/prisma.js";
+import { COMPANY_ID } from "../config/constants.js";
 import type { Lead, LeadStatus, Role } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildOrderBy, buildTextSearchFilter } from "../utils/listQuery.js";
@@ -31,7 +32,7 @@ function buildWhere(companyId: string, options: ListQueryOptions, scope?: LeadSc
 
 export const leadRepository = {
   async findAll(
-    companyId: string,
+    companyId: string = COMPANY_ID,
     options: ListQueryOptions,
     scope?: LeadScope
   ): Promise<PaginatedResult<Lead>> {
@@ -47,7 +48,7 @@ export const leadRepository = {
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(id: string, companyId: string, scope?: LeadScope): Promise<Lead | null> {
+  async findById(id: string, companyId: string = COMPANY_ID, scope?: LeadScope): Promise<Lead | null> {
     const serviceFilter =
       scope?.userRole === "MANAGER"
         ? { 
@@ -62,7 +63,7 @@ export const leadRepository = {
 
   // Same scoping as findById, but eager-loads the linked proposals (most recent first) so the
   // lead detail view can show its "Propositions liées" section.
-  async findByIdWithProposals(id: string, companyId: string, scope?: LeadScope) {
+  async findByIdWithProposals(id: string, companyId: string = COMPANY_ID, scope?: LeadScope) {
     const serviceFilter =
       scope?.userRole === "MANAGER"
         ? {
@@ -75,17 +76,7 @@ export const leadRepository = {
     return prisma.lead.findFirst({
       where: { id, companyId, archivedAt: null, ...serviceFilter },
       include: {
-        proposals: {
-          orderBy: { createdAt: "desc" },
-          select: {
-            id: true,
-            title: true,
-            status: true,
-            amount: true,
-            currency: true,
-            createdAt: true,
-          },
-        },
+        convertedClient: { select: { id: true, name: true, email: true } },
       },
     });
   },
@@ -102,7 +93,7 @@ export const leadRepository = {
     return prisma.lead.create({ data });
   },
 
-  async update(id: string, companyId: string, data: Partial<{
+  async update(id: string, companyId: string = COMPANY_ID, data: Partial<{
     name?: string;
     email?: string;
     phone?: string;
@@ -113,14 +104,14 @@ export const leadRepository = {
     return prisma.lead.update({ where: { id, companyId }, data });
   },
 
-  async archive(id: string, companyId: string, convertedClientId?: string): Promise<Lead> {
+  async archive(id: string, companyId: string = COMPANY_ID, convertedClientId?: string): Promise<Lead> {
     return prisma.lead.update({
       where: { id, companyId },
       data: { status: "WON", archivedAt: new Date(), convertedClientId },
     });
   },
 
-  async delete(id: string, companyId: string): Promise<Lead> {
+  async delete(id: string, companyId: string = COMPANY_ID): Promise<Lead> {
     return prisma.lead.delete({ where: { id, companyId } });
   },
 };

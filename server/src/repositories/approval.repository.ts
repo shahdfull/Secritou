@@ -2,17 +2,18 @@ import { prisma } from "../config/prisma.js";
 import { Prisma } from "@prisma/client";
 import type { Approval, ApprovalStatus } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
+import { COMPANY_ID } from "../config/constants.js";
 
 export const approvalRepository = {
   async findAll(
     options: ListQueryOptions & {
-      companyId: string;
+      companyId?: string;
       clientId?: string;
       status?: ApprovalStatus;
       search?: string;
     }
   ): Promise<PaginatedResult<Approval & { client: { name: string } }>> {
-    const where: Prisma.ApprovalWhereInput = { companyId: options.companyId };
+    const where: Prisma.ApprovalWhereInput = { companyId: options.companyId ?? COMPANY_ID };
     if (options.clientId) where.clientId = options.clientId;
     if (options.status) where.status = options.status;
     if (options.search) {
@@ -69,7 +70,7 @@ export const approvalRepository = {
     });
   },
 
-  async findById(id: string, companyId: string) {
+  async findById(id: string, companyId: string = COMPANY_ID) {
     return prisma.approval.findUnique({
       where: { id, companyId },
       include: {
@@ -94,7 +95,7 @@ export const approvalRepository = {
 
   async update(
     id: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: Partial<{
       title: string;
       description: string;
@@ -105,13 +106,13 @@ export const approvalRepository = {
     return prisma.approval.update({ where: { id, companyId }, data });
   },
 
-  async delete(id: string, companyId: string) {
+  async delete(id: string, companyId: string = COMPANY_ID) {
     return prisma.approval.delete({ where: { id, companyId } });
   },
 
   async addAttachment(
     approvalId: string,
-    companyId: string,
+    companyId: string = COMPANY_ID,
     data: { name: string; url: string }
   ) {
     await prisma.approval.findUniqueOrThrow({
@@ -121,7 +122,7 @@ export const approvalRepository = {
     return prisma.approvalAttachment.create({ data: { ...data, approvalId } });
   },
 
-  async deleteAttachment(id: string, companyId: string) {
+  async deleteAttachment(id: string, companyId: string = COMPANY_ID) {
     return prisma.approvalAttachment.delete({
       where: {
         id,
