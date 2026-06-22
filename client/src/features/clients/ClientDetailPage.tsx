@@ -56,7 +56,7 @@ import type { UploadResult } from "@/api/upload.api";
 
 type DocumentForm = {
   name: string;
-  enhancedType: "INVOICE" | "CONTRACT" | "OTHER";
+  type: "INVOICE" | "CONTRACT" | "OTHER";
 };
 
 const PROPOSAL_STATUS_COLORS: Record<string, string> = {
@@ -129,11 +129,11 @@ export function ClientDetailPage() {
 
   const documentFormSchema = z.object({
     name: z.string().min(1, t("common.nameRequired")),
-    enhancedType: z.enum(["INVOICE", "CONTRACT", "OTHER"]),
+    type: z.enum(["INVOICE", "CONTRACT", "OTHER"]),
   });
   const documentForm = useForm<DocumentForm>({
     resolver: zodResolver(documentFormSchema),
-    defaultValues: { name: "", enhancedType: "OTHER" },
+    defaultValues: { name: "", type: "OTHER" },
   });
 
   const handleDelete = () => {
@@ -188,8 +188,7 @@ export function ClientDetailPage() {
     addDocumentMutation.mutate({
       name: data.name,
       title: data.name,
-      type: "CONTRACT", // Default DocumentType
-      enhancedType: data.enhancedType,
+      type: data.type,
       url: uploadedFile.current.url,
       fileUrl: uploadedFile.current.url,
       fileKey: uploadedFile.current.key,
@@ -202,7 +201,7 @@ export function ClientDetailPage() {
   };
 
   const getDocumentTypeLabel = (doc: Document) => {
-    switch (doc.enhancedType) {
+    switch (doc.type) {
       case "INVOICE": return t("clientsPage.detail.typeInvoice");
       case "CONTRACT": return t("clientsPage.detail.typeContract");
       case "OTHER": return t("clientsPage.detail.typeOther");
@@ -603,7 +602,7 @@ export function ClientDetailPage() {
               />
               <FormField
                 control={documentForm.control}
-                name="enhancedType"
+                name="type"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t("enhancedDocuments.type")}</FormLabel>
