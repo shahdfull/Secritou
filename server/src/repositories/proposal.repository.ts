@@ -8,15 +8,17 @@ export const proposalRepository = {
     options: ListQueryOptions & {
       companyId: string;
       clientId?: string;
+      leadId?: string;
       status?: ProposalStatus;
       search?: string;
       // When set, restrict to proposals whose project is in this service (MANAGER scope).
       // Proposals with no project are excluded for a scoped manager.
       serviceId?: string | null;
     }
-  ): Promise<PaginatedResult<Proposal & { client: { name: string } }>> {
+  ): Promise<PaginatedResult<Proposal & { client: { name: string }; lead: { id: string; name: string } | null }>> {
     const where: Prisma.ProposalWhereInput = { companyId: options.companyId };
     if (options.clientId) where.clientId = options.clientId;
+    if (options.leadId) where.leadId = options.leadId;
     if (options.status) where.status = options.status;
     if (options.serviceId !== undefined) {
       where.project = { is: { serviceId: options.serviceId ?? "__none__" } };
@@ -38,6 +40,7 @@ export const proposalRepository = {
         orderBy: { [options.orderBy || "createdAt"]: options.orderDir || "desc" },
         include: {
           client: { select: { name: true } },
+          lead: { select: { id: true, name: true } },
           invoice: { select: { id: true } },
         },
       }),
@@ -102,6 +105,9 @@ export const proposalRepository = {
     expiresAt?: Date;
     pdfUrl?: string;
     clientId: string;
+    clientName?: string;
+    email?: string;
+    leadId?: string;
     companyId: string;
     projectId?: string;
     serviceRequestId?: string;

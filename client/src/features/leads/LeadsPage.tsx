@@ -57,6 +57,7 @@ import {
   Loader2,
   List,
   KanbanSquare,
+  Eye,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -68,8 +69,9 @@ import {
   useDeleteLead,
   useConvertLeadToClient,
 } from "@/hooks/useLeads";
-import type { Lead } from "@/types/lead";
+import type { Lead, CreateLeadInput, UpdateLeadInput } from "@/types/lead";
 import { LeadsKanban } from "./LeadsKanban";
+import { LeadDetailDialog } from "./LeadDetailDialog";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { SortableTableHead } from "@/components/common/SortableTableHead";
 import { useListParams } from "@/hooks/useListParams";
@@ -84,7 +86,7 @@ import { useCrudDialogState } from "@/hooks/shared/useCrudDialogState";
 import { useTranslation } from "react-i18next";
 
 const STATUS_OPTIONS = ["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "WON", "LOST"] as const;
-const SOURCE_OPTIONS = ["Website", "LinkedIn", "Referral", "Email", "Inbound Call", "Other"] as const;
+const SOURCE_OPTIONS = ["Site web", "LinkedIn", "Recommandation", "Email", "Appel entrant", "Autre"] as const;
 const ALL_STATUSES_VALUE = "__all__";
 
 export function LeadsPage() {
@@ -92,6 +94,7 @@ export function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState<string>(ALL_STATUSES_VALUE);
   const [searchInput, setSearchInput] = useState("");
   const [view, setView] = useState<"list" | "kanban">("list");
+  const [detailLead, setDetailLead] = useState<Lead | null>(null);
 
   const { page, pageSize, orderBy, orderDir, search, params, setPage, setSearch, setSort, updateParams } = useListParams(10);
   const debouncedSearch = useDebouncedValue(searchInput, 300);
@@ -150,7 +153,7 @@ export function LeadsPage() {
   });
 
   const handleCreate = useCallback(async (data: CreateLeadForm) => {
-    createLead(data, {
+    createLead(data as unknown as CreateLeadInput, {
       onSuccess: () => {
         closeCreateDialog();
         createForm.reset();
@@ -166,7 +169,7 @@ export function LeadsPage() {
   const handleUpdate = useCallback(async (data: UpdateLeadForm) => {
     if (!editingLead) return;
     updateLead(
-      { id: editingLead.id, data },
+      { id: editingLead.id, data: data as unknown as Omit<UpdateLeadInput, "id"> },
       {
         onSuccess: () => {
           closeEditDialog();
@@ -206,17 +209,17 @@ export function LeadsPage() {
 
   const getSourceBadgeClass = (source: string) => {
     switch (source) {
-      case "Website":
+      case "Site web":
         return "bg-cyan-100 text-cyan-800";
       case "LinkedIn":
         return "bg-blue-100 text-blue-800";
-      case "Referral":
+      case "Recommandation":
         return "bg-green-100 text-green-800";
       case "Email":
         return "bg-pink-100 text-pink-800";
-      case "Inbound Call":
+      case "Appel entrant":
         return "bg-orange-100 text-orange-800";
-      case "Other":
+      case "Autre":
         return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -225,12 +228,12 @@ export function LeadsPage() {
 
   const getSourceLabel = (source: string) => {
     const labels: Record<string, string> = {
-      Website: t('leadsPage.sources.website'),
+      "Site web": t('leadsPage.sources.website'),
       LinkedIn: t('leadsPage.sources.linkedin'),
-      Referral: t('leadsPage.sources.referral'),
+      Recommandation: t('leadsPage.sources.referral'),
       Email: t('leadsPage.sources.email'),
-      "Inbound Call": t('leadsPage.sources.inboundCall'),
-      Other: t('leadsPage.sources.other'),
+      "Appel entrant": t('leadsPage.sources.inboundCall'),
+      Autre: t('leadsPage.sources.other'),
     };
     return labels[source] || source;
   };
@@ -500,6 +503,10 @@ export function LeadsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setDetailLead(lead)}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            {t('common.details')}
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleEdit(lead)}>
                             <Edit className="h-4 w-4 mr-2" />
                             {t('common.edit')}
@@ -654,6 +661,14 @@ export function LeadsPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      <LeadDetailDialog
+        lead={detailLead}
+        open={!!detailLead}
+        onOpenChange={(open) => {
+          if (!open) setDetailLead(null);
+        }}
+      />
     </div>
   );
 }

@@ -6,15 +6,19 @@ import { buildOrderBy, buildTextSearchFilter } from "../utils/listQuery.js";
 
 const SORTABLE_FIELDS = ["name", "email", "status", "source", "createdAt"];
 
-export type LeadScope = { userRole: Role; userServiceId?: string | null };
+export type LeadScope = { userRole: Role; userServiceId?: string | null; userId?: string };
 // (kept as a local alias; structurally identical to utils/serviceScope.ServiceScope)
 
 function buildWhere(companyId: string, options: ListQueryOptions, scope?: LeadScope) {
-  // A MANAGER only sees leads of their own service (pole). A manager with no service sees none
-  // (serviceId: "__none__" never matches) rather than the whole company. ADMIN sees all.
+  // A MANAGER only sees leads of their own service (pole) OR leads assigned to them.
   const serviceFilter =
     scope?.userRole === "MANAGER"
-      ? { serviceId: scope.userServiceId ?? "__none__" }
+      ? { 
+          OR: [
+            { serviceId: scope.userServiceId ?? "__none__" },
+            { assignedManagerId: scope.userId }
+          ]
+        }
       : {};
   return {
     companyId,
@@ -46,9 +50,44 @@ export const leadRepository = {
   async findById(id: string, companyId: string, scope?: LeadScope): Promise<Lead | null> {
     const serviceFilter =
       scope?.userRole === "MANAGER"
-        ? { serviceId: scope.userServiceId ?? "__none__" }
+        ? { 
+            OR: [
+              { serviceId: scope.userServiceId ?? "__none__" },
+              { assignedManagerId: scope.userId }
+            ]
+          }
         : {};
     return prisma.lead.findFirst({ where: { id, companyId, archivedAt: null, ...serviceFilter } });
+  },
+
+  // Same scoping as findById, but eager-loads the linked proposals (most recent first) so the
+  // lead detail view can show its "Propositions liées" section.
+  async findByIdWithProposals(id: string, companyId: string, scope?: LeadScope) {
+    const serviceFilter =
+      scope?.userRole === "MANAGER"
+        ? {
+            OR: [
+              { serviceId: scope.userServiceId ?? "__none__" },
+              { assignedManagerId: scope.userId },
+            ],
+          }
+        : {};
+    return prisma.lead.findFirst({
+      where: { id, companyId, archivedAt: null, ...serviceFilter },
+      include: {
+        proposals: {
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            amount: true,
+            currency: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
   },
 
   async create(data: {

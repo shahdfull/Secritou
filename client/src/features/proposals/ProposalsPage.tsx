@@ -59,12 +59,19 @@ import {
 } from "lucide-react";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { useListParams } from "@/hooks/useListParams";
+import { useLeads } from "@/hooks/useLeads";
 
 const ALL_STATUSES_VALUE = "__all__";
+const ALL_LEADS_VALUE = "__all__";
 
 export function ProposalsPage() {
   const { t } = useTranslation();
   const { page, pageSize, search, status, updateParams } = useListParams(10);
+
+  // Lead filter (kept in local state — not part of the shared URL list params).
+  const [leadFilter, setLeadFilter] = useState<string>(ALL_LEADS_VALUE);
+  const { data: leadsResult } = useLeads({ pageSize: 200 });
+  const leads = useMemo(() => leadsResult?.data ?? [], [leadsResult?.data]);
 
   // Base dialogs
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -84,7 +91,13 @@ export function ProposalsPage() {
   const [projectDescription, setProjectDescription] = useState("");
   const [withOnboarding, setWithOnboarding] = useState(true);
 
-  const { data: proposalsResult, isLoading } = useProposals({ page, pageSize, search, status });
+  const { data: proposalsResult, isLoading } = useProposals({
+    page,
+    pageSize,
+    search,
+    status,
+    leadId: leadFilter === ALL_LEADS_VALUE ? undefined : leadFilter,
+  });
   const proposals = useMemo(
     () => (Array.isArray(proposalsResult?.data) ? proposalsResult.data : []),
     [proposalsResult?.data]
@@ -211,6 +224,25 @@ export function ProposalsPage() {
             <SelectItem value="EXPIRED">{t("proposals.statuses.expired")}</SelectItem>
           </SelectContent>
         </Select>
+        <Select
+          value={leadFilter}
+          onValueChange={(value) => {
+            setLeadFilter(value);
+            updateParams({ page: 1 });
+          }}
+        >
+          <SelectTrigger className="max-w-sm">
+            <SelectValue placeholder={t("proposals.filterByLead")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_LEADS_VALUE}>{t("proposals.allLeads")}</SelectItem>
+            {leads.map((lead) => (
+              <SelectItem key={lead.id} value={lead.id}>
+                {lead.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="border rounded-lg overflow-hidden">
@@ -219,6 +251,7 @@ export function ProposalsPage() {
             <TableRow>
               <TableHead>{t("proposals.proposalTitle")}</TableHead>
               <TableHead>{t("proposals.client")}</TableHead>
+              <TableHead>{t("proposals.sourceLead")}</TableHead>
               <TableHead>{t("proposals.amount")}</TableHead>
               <TableHead>{t("proposals.date")}</TableHead>
               <TableHead>{t("proposals.status")}</TableHead>
@@ -228,13 +261,13 @@ export function ProposalsPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10">
+                <TableCell colSpan={7} className="text-center py-10">
                   {t("common.loading")}
                 </TableCell>
               </TableRow>
             ) : proposals.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10">
+                <TableCell colSpan={7} className="text-center py-10">
                   {t("proposals.empty")}
                 </TableCell>
               </TableRow>
@@ -243,6 +276,13 @@ export function ProposalsPage() {
                 <TableRow key={proposal.id}>
                   <TableCell className="font-medium">{proposal.title}</TableCell>
                   <TableCell>{proposal.client?.name}</TableCell>
+                  <TableCell>
+                    {proposal.lead ? (
+                      <Badge variant="outline">{proposal.lead.name}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {proposal.amount} {proposal.currency}
                   </TableCell>
