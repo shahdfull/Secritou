@@ -59,12 +59,12 @@
     "seeFullCapabilities": "See full capabilities",
     "businessPerformance": {
       "title": "Business Performance",
-      "body": "KPI tracking, dashboards, objectives and business analytics — finally one place for the numbers that matter.",
+      "body": "KPI tracking, dashboards, objectives and business analytics : finally one place for the numbers that matter.",
       "items": ["KPI tracking", "Dashboards", "Objectives", "Business analytics"]
     },
     "digitalGrowth": {
       "title": "Digital Growth",
-      "body": "Social media, content, SEO and paid acquisition — coordinated to compound, not to spread thin.",
+      "body": "Social media, content, SEO and paid acquisition : coordinated to compound, not to spread thin.",
       "items": ["Social media", "Content creation", "SEO", "Paid advertising"]
     },
     "technologySolutions": {
@@ -116,7 +116,7 @@
         "1": "digital transformation",
         "2": "partner."
       },
-      "description": "We help SMEs, entrepreneurs and creators organize, digitize and grow — through strategy, technology, marketing and data-driven decision making.",
+      "description": "We help SMEs, entrepreneurs and creators organize, digitize and grow : through strategy, technology, marketing and data-driven decision making.",
       "features": ["Data-driven decisions", "Digital transformation", "Business growth", "Process optimization"]
     },
     "problems": {
@@ -130,7 +130,7 @@
         },
         {
           "title": "Scattered operations",
-          "body": "Teams, vendors and processes live in silos — nothing connects, nothing scales."
+          "body": "Teams, vendors and processes live in silos : nothing connects, nothing scales."
         },
         {
           "title": "Weak digital presence",
@@ -149,12 +149,12 @@
       "items": [
         {
           "title": "Business Performance",
-          "body": "KPI tracking, dashboards, objectives and business analytics — finally one place for the numbers that matter.",
+          "body": "KPI tracking, dashboards, objectives and business analytics : finally one place for the numbers that matter.",
           "items": ["KPI tracking", "Dashboards", "Objectives", "Business analytics"]
         },
         {
           "title": "Digital Growth",
-          "body": "Social media, content, SEO and paid acquisition — coordinated to compound, not to spread thin.",
+          "body": "Social media, content, SEO and paid acquisition : coordinated to compound, not to spread thin.",
           "items": ["Social media", "Content creation", "SEO", "Paid advertising"]
         },
         {
@@ -194,15 +194,15 @@
     "faq": {
       "title": "Questions, answered.",
       "subtitle": "FAQ",
-      "description": "Still unsure? Book a free 30-minute consultation and we'll talk through your situation — no pitch, no obligation.",
+      "description": "Still unsure? Book a free 30-minute consultation and we'll talk through your situation : no pitch, no obligation.",
       "questions": [
         {
           "q": "What types of businesses do you support?",
-          "a": "SMEs, entrepreneurs and content creators across industries — retail, professional services, healthcare, education and digital-first brands. If you have revenue and ambition, we can probably help."
+          "a": "SMEs, entrepreneurs and content creators across industries : retail, professional services, healthcare, education and digital-first brands. If you have revenue and ambition, we can probably help."
         },
         {
           "q": "Can I choose only one service?",
-          "a": "Yes. You can engage us for a single workstream — say, KPI dashboards or paid acquisition — or as your end-to-end growth partner. We adapt to your scope, not the other way around."
+          "a": "Yes. You can engage us for a single workstream : say, KPI dashboards or paid acquisition : or as your end-to-end growth partner. We adapt to your scope, not the other way around."
         },
         {
           "q": "Do you work with startups?",
@@ -210,7 +210,7 @@
         },
         {
           "q": "Do you offer custom solutions?",
-          "a": "Every engagement is built around your specific goals. We don't sell templated retainers — we co-design a plan, with KPIs and milestones we agree on upfront."
+          "a": "Every engagement is built around your specific goals. We don't sell templated retainers : we co-design a plan, with KPIs and milestones we agree on upfront."
         },
         {
           "q": "Can you help automate my business?",
@@ -225,7 +225,7 @@
       "seeResults": "See the results"
     },
     "footer": {
-      "description": "Your external growth & digital transformation partner — building the future operating system for SMEs, entrepreneurs, and creators.",
+      "description": "Your external growth & digital transformation partner : building the future operating system for SMEs, entrepreneurs, and creators.",
       "services": "Services",
       "solutions": "Solutions",
       "industries": "Industries",
@@ -533,14 +533,14 @@
     "description": "Today we deliver this as a coordinated service. Tomorrow, it's a platform - your revenue, KPIs, marketing, tasks and automations, unified in one place."
   },
   "solutionsPage": {
-    "title": "Built around who you are — and where you're going.",
+    "title": "Built around who you are : and where you're going.",
     "subtitle": "Same team. Same expertise. Different playbook depending on what your business actually needs.",
     "sections": {
       "smes": {
         "tag": "For SMEs",
         "title": "Run a tighter, more profitable business.",
         "needs": [
-          {"h": "Better management", "b": "Replace gut feel with a clear operating rhythm — weekly numbers, monthly reviews."},
+          {"h": "Better management", "b": "Replace gut feel with a clear operating rhythm : weekly numbers, monthly reviews."},
           {"h": "Better KPIs", "b": "One dashboard that tells you, in 60 seconds, if the month is on track."},
           {"h": "Better organization", "b": "Roles, processes and tools that scale beyond the founder's inbox."}
         ],
@@ -552,7 +552,7 @@
         "needs": [
           {"h": "Growth", "b": "A repeatable acquisition engine, not a tactic-of-the-month."},
           {"h": "Automation", "b": "AI and workflows that buy you back 10+ hours a week."},
-          {"h": "Visibility", "b": "A clean read on what's working — and what to stop doing."}
+          {"h": "Visibility", "b": "A clean read on what's working : and what to stop doing."}
         ],
         "outcome": "More leverage per founder hour."
       },
@@ -570,7 +570,7 @@
   },
   "caseStudiesPage": {
     "title": "Real businesses. Measurable outcomes.",
-    "subtitle": "A selection of recent engagements across industries — each starts with a problem and ends with numbers that moved.",
+    "subtitle": "A selection of recent engagements across industries : each starts with a problem and ends with numbers that moved.",
     "industry": "Industry",
     "challenge": "Challenge",
     "outcome": "Outcome",

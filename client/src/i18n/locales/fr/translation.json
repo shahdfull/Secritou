@@ -66,7 +66,7 @@
     ],
     "businessPerformance": {
       "title": "Management & Performance",
-      "body": "Suivi des KPI, tableaux de bord, objectifs et analyses commerciales — enfin un seul endroit pour les chiffres qui comptent.",
+      "body": "Suivi des KPI, tableaux de bord, objectifs et analyses commerciales : enfin un seul endroit pour les chiffres qui comptent.",
       "items": [
         "Suivi des KPI",
         "Tableaux de bord",
@@ -76,7 +76,7 @@
     },
     "digitalGrowth": {
       "title": "Croissance digitale",
-      "body": "Réseaux sociaux, contenu, SEO et acquisition payante — coordonnés pour se cumuler, pas pour s'éparpiller.",
+      "body": "Réseaux sociaux, contenu, SEO et acquisition payante : coordonnés pour se cumuler, pas pour s'éparpiller.",
       "items": [
         "Réseaux sociaux",
         "Création de contenu",
@@ -143,7 +143,7 @@
         "1": "structure, digitalise et fait grandir",
         "2": "votre entreprise."
       },
-      "description": "Nous aidons les PME, les startuppers et les créateurs à s'organiser, à se digitaliser et à croître — grâce à la stratégie, la technologie, le marketing et la prise de décision basée sur les données.",
+      "description": "Nous aidons les PME, les startuppers et les créateurs à s'organiser, à se digitaliser et à croître : grâce à la stratégie, la technologie, le marketing et la prise de décision basée sur les données.",
       "features": [
         "Décisions basées sur les données",
         "Transformation digitale",
@@ -162,7 +162,7 @@
         },
         {
           "title": "Croissance sans direction",
-          "body": "Beaucoup d'efforts mais pas de cap clair — on avance sans stratégie ni priorités définies."
+          "body": "Beaucoup d'efforts mais pas de cap clair : on avance sans stratégie ni priorités définies."
         },
         {
           "title": "Faible présence digitale",
@@ -187,7 +187,7 @@
       "items": [
         {
           "title": "Management & Performance",
-          "body": "Suivi des KPI, tableaux de bord, objectifs et analyses commerciales — enfin un seul endroit pour les chiffres qui comptent.",
+          "body": "Suivi des KPI, tableaux de bord, objectifs et analyses commerciales : enfin un seul endroit pour les chiffres qui comptent.",
           "items": [
             "Suivi des KPI",
             "Tableaux de bord",
@@ -197,7 +197,7 @@
         },
         {
           "title": "Croissance digitale",
-          "body": "Réseaux sociaux, contenu, SEO et acquisition payante — coordonnés pour se cumuler, pas pour s'éparpiller.",
+          "body": "Réseaux sociaux, contenu, SEO et acquisition payante : coordonnés pour se cumuler, pas pour s'éparpiller.",
           "items": [
             "Réseaux sociaux",
             "Création de contenu",
@@ -252,15 +252,15 @@
     "faq": {
       "title": "Questions, réponses.",
       "subtitle": "FAQ",
-      "description": "Toujours incertain ? Réservez une consultation gratuite de 30 minutes et nous discuterons de votre situation — pas de pitch, pas d'obligation.",
+      "description": "Toujours incertain ? Réservez une consultation gratuite de 30 minutes et nous discuterons de votre situation : pas de pitch, pas d'obligation.",
       "questions": [
         {
           "q": "Quels types d'entreprises prenez-vous en charge ?",
-          "a": "Les PME, les startuppers et les commerces & marques dans tous les secteurs — commerce de détail, services professionnels, santé, éducation et marques numériques. Si vous avez des revenus et de l'ambition, nous pouvons probablement vous aider."
+          "a": "Les PME, les startuppers et les commerces & marques dans tous les secteurs : commerce de détail, services professionnels, santé, éducation et marques numériques. Si vous avez des revenus et de l'ambition, nous pouvons probablement vous aider."
         },
         {
           "q": "Puis-je choisir seulement un service ?",
-          "a": "Oui. Vous pouvez nous engager pour un seul flux de travail — disons, les tableaux de bord KPI ou l'acquisition payante — ou comme votre partenaire de croissance de bout en bout. Nous nous adaptons à votre périmètre, pas l'inverse."
+          "a": "Oui. Vous pouvez nous engager pour un seul flux de travail : disons, les tableaux de bord KPI ou l'acquisition payante : ou comme votre partenaire de croissance de bout en bout. Nous nous adaptons à votre périmètre, pas l'inverse."
         },
         {
           "q": "Travaillez-vous avec les startups ?",
@@ -268,7 +268,7 @@
         },
         {
           "q": "Proposez-vous des solutions personnalisées ?",
-          "a": "Chaque engagement est construit autour de vos objectifs spécifiques. Nous ne vendons pas de forfaits modèles — nous co-concevons un plan, avec des KPI et des jalons sur lesquels nous nous accordons d'avance."
+          "a": "Chaque engagement est construit autour de vos objectifs spécifiques. Nous ne vendons pas de forfaits modèles : nous co-concevons un plan, avec des KPI et des jalons sur lesquels nous nous accordons d'avance."
         },
         {
           "q": "Pouvez-vous aider à automatiser mon entreprise ?",
@@ -817,7 +817,7 @@
     "description": "Aujourd'hui, nous vous aidons à structurer, digitaliser et développer votre activité avec des services pratiques, mesurables et orientés résultats."
   },
   "solutionsPage": {
-    "title": "Construit autour de qui vous êtes — et où vous allez.",
+    "title": "Construit autour de qui vous êtes : et où vous allez.",
     "subtitle": "Même équipe. Même expertise. Différent playbook selon ce dont votre entreprise a réellement besoin.",
     "sections": {
       "smes": {
@@ -826,7 +826,7 @@
         "needs": [
           {
             "h": "Meilleure gestion",
-            "b": "Remplacez l'instinct par un rythme opérationnel clair — chiffres hebdomadaires, revues mensuelles."
+            "b": "Remplacez l'instinct par un rythme opérationnel clair : chiffres hebdomadaires, revues mensuelles."
           },
           {
             "h": "Meilleurs KPI",
@@ -853,13 +853,13 @@
           },
           {
             "h": "Visibilité",
-            "b": "Une lecture claire de ce qui fonctionne — et ce qu'il faut arrêter de faire."
+            "b": "Une lecture claire de ce qui fonctionne : et ce qu'il faut arrêter de faire."
           }
         ],
         "outcome": "Plus de levier par heure de fondateur."
       },
       "brands": {
-        "tag": "Pour les créateurs",
+        "tag": "Pour les Commerces & Marques",
         "title": "Transformez votre audience en une vraie entreprise.",
         "needs": [
           {
@@ -881,7 +881,7 @@
   },
   "caseStudiesPage": {
     "title": "Vraies entreprises. Résultats mesurables.",
-    "subtitle": "Une sélection d'engagements récents à travers les secteurs — chacun commence par un problème et se termine par des chiffres qui ont bougé.",
+    "subtitle": "Une sélection d'engagements récents à travers les secteurs : chacun commence par un problème et se termine par des chiffres qui ont bougé.",
     "industry": "Secteur",
     "challenge": "Défi",
     "outcome": "Résultat",
@@ -1598,7 +1598,7 @@
     "version": "Version",
     "tags": "Tags",
     "tagsLabel": "Tags (séparés par des virgules)",
-    "namePlaceholder": "Contrat T3 — Acme Corp",
+    "namePlaceholder": "Contrat T3 : Acme Corp",
     "tagsPlaceholder": "légal, signé, 2024",
     "accessLevel": "Niveau d'accès",
     "date": "Date",

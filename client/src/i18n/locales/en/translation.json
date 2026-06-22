@@ -66,7 +66,7 @@
     ],
     "businessPerformance": {
       "title": "Management & Performance",
-      "body": "KPI tracking, dashboards, objectives and business analytics — finally one place for the numbers that matter.",
+      "body": "KPI tracking, dashboards, objectives and business analytics : finally one place for the numbers that matter.",
       "items": [
         "KPI tracking",
         "Dashboards",
@@ -76,7 +76,7 @@
     },
     "digitalGrowth": {
       "title": "Digital Growth",
-      "body": "Social media, content, SEO and paid acquisition — coordinated to compound, not to spread thin.",
+      "body": "Social media, content, SEO and paid acquisition : coordinated to compound, not to spread thin.",
       "items": [
         "Social media",
         "Content creation",
@@ -143,7 +143,7 @@
         "1": "structures, digitizes and grows",
         "2": "your business."
       },
-      "description": "We help SMEs, startuppers and brands organize, digitize and grow — through strategy, technology, marketing and data-driven decision making.",
+      "description": "We help SMEs, startuppers and brands organize, digitize and grow : through strategy, technology, marketing and data-driven decision making.",
       "features": [
         "Data-driven decisions",
         "Digital transformation",
@@ -162,7 +162,7 @@
         },
         {
           "title": "Growth without direction",
-          "body": "Plenty of effort but no clear course — moving forward with no defined strategy or priorities."
+          "body": "Plenty of effort but no clear course : moving forward with no defined strategy or priorities."
         },
         {
           "title": "Weak digital presence",
@@ -187,7 +187,7 @@
       "items": [
         {
           "title": "Management & Performance",
-          "body": "KPI tracking, dashboards, objectives and business analytics — finally one place for the numbers that matter.",
+          "body": "KPI tracking, dashboards, objectives and business analytics : finally one place for the numbers that matter.",
           "items": [
             "KPI tracking",
             "Dashboards",
@@ -197,7 +197,7 @@
         },
         {
           "title": "Digital Growth",
-          "body": "Social media, content, SEO and paid acquisition — coordinated to compound, not to spread thin.",
+          "body": "Social media, content, SEO and paid acquisition : coordinated to compound, not to spread thin.",
           "items": [
             "Social media",
             "Content creation",
@@ -252,15 +252,15 @@
     "faq": {
       "title": "Questions, answered.",
       "subtitle": "FAQ",
-      "description": "Still unsure? Book a free 30-minute consultation and we'll talk through your situation — no pitch, no obligation.",
+      "description": "Still unsure? Book a free 30-minute consultation and we'll talk through your situation : no pitch, no obligation.",
       "questions": [
         {
           "q": "What types of businesses do you support?",
-          "a": "SMEs, startuppers and shops & brands across industries — retail, professional services, healthcare, education and digital-first brands. If you have revenue and ambition, we can probably help."
+          "a": "SMEs, startuppers and shops & brands across industries : retail, professional services, healthcare, education and digital-first brands. If you have revenue and ambition, we can probably help."
         },
         {
           "q": "Can I choose only one service?",
-          "a": "Yes. You can engage us for a single workstream — say, KPI dashboards or paid acquisition — or as your end-to-end growth partner. We adapt to your scope, not the other way around."
+          "a": "Yes. You can engage us for a single workstream : say, KPI dashboards or paid acquisition : or as your end-to-end growth partner. We adapt to your scope, not the other way around."
         },
         {
           "q": "Do you work with startups?",
@@ -268,7 +268,7 @@
         },
         {
           "q": "Do you offer custom solutions?",
-          "a": "Every engagement is built around your specific goals. We don't sell templated retainers — we co-design a plan, with KPIs and milestones we agree on upfront."
+          "a": "Every engagement is built around your specific goals. We don't sell templated retainers : we co-design a plan, with KPIs and milestones we agree on upfront."
         },
         {
           "q": "Can you help automate my business?",
@@ -817,7 +817,7 @@
     "description": "Today we help you structure, digitize, and grow through services that stay practical, measurable, and focused on results."
   },
   "solutionsPage": {
-    "title": "Built around who you are — and where you're going.",
+    "title": "Built around who you are : and where you're going.",
     "subtitle": "Same team. Same expertise. Different playbook depending on what your business actually needs.",
     "sections": {
       "smes": {
@@ -826,7 +826,7 @@
         "needs": [
           {
             "h": "Better management",
-            "b": "Replace gut feel with a clear operating rhythm — weekly numbers, monthly reviews."
+            "b": "Replace gut feel with a clear operating rhythm : weekly numbers, monthly reviews."
           },
           {
             "h": "Better KPIs",
@@ -853,13 +853,13 @@
           },
           {
             "h": "Visibility",
-            "b": "A clean read on what's working — and what to stop doing."
+            "b": "A clean read on what's working : and what to stop doing."
           }
         ],
         "outcome": "More leverage per founder hour."
       },
       "brands": {
-        "tag": "For Creators",
+        "tag": "For Shops & Brands",
         "title": "Turn your audience into a real business.",
         "needs": [
           {
@@ -881,7 +881,7 @@
   },
   "caseStudiesPage": {
     "title": "Real businesses. Measurable outcomes.",
-    "subtitle": "A selection of recent engagements across industries — each starts with a problem and ends with numbers that moved.",
+    "subtitle": "A selection of recent engagements across industries : each starts with a problem and ends with numbers that moved.",
     "industry": "Industry",
     "challenge": "Challenge",
     "outcome": "Outcome",
@@ -1598,7 +1598,7 @@
     "version": "Version",
     "tags": "Tags",
     "tagsLabel": "Tags (comma-separated)",
-    "namePlaceholder": "Q3 Contract — Acme Corp",
+    "namePlaceholder": "Q3 Contract : Acme Corp",
     "tagsPlaceholder": "legal, signed, 2024",
     "accessLevel": "Access Level",
     "date": "Date",
