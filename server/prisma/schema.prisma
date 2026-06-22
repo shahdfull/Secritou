@@ -166,9 +166,10 @@ model User {
   customQuestions        CustomQuestion[]
   customQuestionMessages CustomQuestionMessage[]
   managerPermission   ManagerPermission?
-  uploadedDocuments   Document[]         @relation("UploadedDocuments")
-  signedDocuments     Document[]         @relation("SignedDocuments")
-  assignedLeads       Lead[]           @relation("ManagerLeads")
+  uploadedDocuments        Document[]    @relation("UploadedDocuments")
+  signedDocuments          Document[]    @relation("SignedDocuments")
+  projectClientApprovals   Project[]     @relation("ProjectClientApprovals")
+  assignedLeads            Lead[]        @relation("ManagerLeads")
   createdAt           DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt           DateTime             @updatedAt @db.Timestamptz(6)
 
@@ -344,6 +345,10 @@ model Project {
   briefData         Json?
   briefCompleted    Boolean               @default(false)
   briefCompletedAt  DateTime?             @db.Timestamptz(6)
+  // Client final approval (triggers COMPLETED + balance invoice)
+  clientApprovedAt      DateTime?         @db.Timestamptz(6)
+  clientApprovedById    String?
+  clientApprovedBy      User?             @relation("ProjectClientApprovals", fields: [clientApprovedById], references: [id], onDelete: SetNull)
   archivedAt        DateTime?             @db.Timestamptz(6)
   createdAt         DateTime              @default(now()) @db.Timestamptz(6)
   updatedAt         DateTime              @updatedAt @db.Timestamptz(6)

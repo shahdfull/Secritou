@@ -553,4 +553,63 @@ export const invoiceService = {
       lastError
     );
   },
+
+  // Transaction-aware balance (solde) invoice creator — mirrors createDepositInvoiceTx but for
+  // the 70% balance. No proposalId @unique guard (the balance is per project, not per proposal).
+  // Idempotency is handled by the caller checking for an existing balance invoice first.
+  async createBalanceInvoiceTx(
+    tx: TxClient,
+    args: {
+      companyId: string;
+      title: string;
+      description?: string;
+      amount: number;
+      currency: string;
+      clientId: string;
+      projectId: string;
+      dueInDays?: number;
+    }
+  ) {
+    const now = new Date();
+    const prefix = `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const dueDate = new Date(now);
+    dueDate.setDate(dueDate.getDate() + (args.dueInDays ?? 30));
+
+    const MAX_ATTEMPTS = 5;
+    let lastError: unknown;
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      const count = await tx.invoice.count({
+        where: { companyId: args.companyId, number: { startsWith: prefix } },
+      });
+      const number = `${prefix}-${String(count + 1 + attempt).padStart(4, "0")}`;
+      try {
+        return await tx.invoice.create({
+          data: {
+            number,
+            title: args.title,
+            description: args.description,
+            amount: args.amount,
+            currency: args.currency,
+            status: "DRAFT",
+            dueDate,
+            clientId: args.clientId,
+            companyId: args.companyId,
+            projectId: args.projectId,
+          },
+        });
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+          lastError = err;
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw new HttpError(
+      409,
+      "Could not allocate a unique invoice number, please retry",
+      "INVOICE_NUMBER_CONFLICT",
+      lastError
+    );
+  },
 };

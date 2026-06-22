@@ -47,6 +47,8 @@ const projectListSelect = {
   briefData: true,
   briefCompleted: true,
   briefCompletedAt: true,
+  clientApprovedAt: true,
+  clientApprovedById: true,
   client: { select: clientBriefSelect },
 } as const;
 
