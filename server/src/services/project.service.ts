@@ -7,6 +7,7 @@ import { enqueueNotifications } from "../jobs/queues.js";
 import type { CreateProjectDTO } from "../types/entities.js";
 import { HttpError } from "../utils/httpError.js";
 import type { Role } from "@prisma/client";
+import type { ServiceScope } from "../utils/serviceScope.js";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
@@ -47,9 +48,14 @@ export const projectService = {
     return project;
   },
 
-  async createProject(data: CreateProjectDTO, companyId: string) {
+  async createProject(data: CreateProjectDTO, companyId: string, scope?: ServiceScope) {
     if (data.clientId) {
       await tenantValidation.assertClientInCompany(data.clientId, companyId);
+    }
+    // MANAGER scope: force serviceId to their own service so they cannot create projects
+    // outside their pole.
+    if (scope?.userRole === "MANAGER" && scope.userServiceId) {
+      data = { ...data, serviceId: scope.userServiceId };
     }
     const project = await projectRepository.create({ ...data, companyId });
     const tagsToInvalidate = [cacheTags.company(companyId), cacheTags.dashboard(companyId)];
@@ -58,9 +64,15 @@ export const projectService = {
     return project;
   },
 
-  async updateProject(id: string, data: Partial<CreateProjectDTO>, companyId: string) {
+  async updateProject(id: string, data: Partial<CreateProjectDTO>, companyId: string, scope?: ServiceScope) {
     const project = await projectRepository.findByIdAdmin(id, companyId);
     if (!project) throw new HttpError(404, "Project not found");
+    // MANAGER scope: can only modify projects within their service.
+    if (scope?.userRole === "MANAGER" && scope.userServiceId) {
+      if (project.serviceId !== scope.userServiceId) {
+        throw new HttpError(404, "Project not found");
+      }
+    }
     if (data.clientId) {
       await tenantValidation.assertClientInCompany(data.clientId, companyId);
     }

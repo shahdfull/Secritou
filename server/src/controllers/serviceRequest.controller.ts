@@ -1,7 +1,7 @@
 import type { RequestHandler } from "express";
 import { serviceRequestService } from "../services/serviceRequest.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
-import type { ServiceRequestStatus } from "@prisma/client";
+import type { ServiceRequestStatus, Priority } from "@prisma/client";
 
 // ─── Client handlers ──────────────────────────────────────────────────────────
 
@@ -42,7 +42,7 @@ export const adminGetServiceRequests: RequestHandler = async (req, res, next) =>
       status: (query.status as ServiceRequestStatus | undefined) ?? undefined,
       clientId: (query.clientId as string | undefined) ?? undefined,
       assignedToId: (query.assignedToId as string | undefined) ?? undefined,
-      priority: (query.priority as string | undefined) ?? undefined,
+      priority: (query.priority as Priority | undefined) ?? undefined,
     };
     const result = await serviceRequestService.getServiceRequestsByCompany(companyId, options);
     res.json(result);
@@ -124,21 +124,4 @@ export const deleteComment: RequestHandler = async (req, res, next) => {
   }
 };
 
-// ─── Legacy handler (backward compat) ────────────────────────────────────────
-
-export const updateServiceRequest: RequestHandler = async (req, res, next) => {
-  try {
-    const companyId = req.user?.companyId ?? undefined;
-    const request = await serviceRequestService.updateServiceRequest(
-      req.params["id"] as string,
-      req.body,
-      companyId
-    );
-    res.json({ data: request });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// ─── Stub kept for old imports ────────────────────────────────────────────────
 export const getCompanyServiceRequests = adminGetServiceRequests;

@@ -135,6 +135,7 @@ export const projectRepository = {
         name: true,
         status: true,
         clientId: true,
+        serviceId: true,
         companyId: true,
       },
     });
