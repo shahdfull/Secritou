@@ -10,6 +10,7 @@ import { env } from "../config/env.js";
 import { HttpError } from "../utils/httpError.js";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import type { ServiceRequestStatus, Priority } from "@prisma/client";
+import { COMPANY_ID } from "../config/constants.js";
 
 // ─── Status machine ───────────────────────────────────────────────────────────
 
@@ -44,7 +45,6 @@ export const serviceRequestService = {
   // ── Admin queries ─────────────────────────────────────────────────────────────
 
   async getServiceRequestsByCompany(
-    companyId: string,
     options: ListQueryOptions & {
       status?: ServiceRequestStatus;
       clientId?: string;
@@ -52,11 +52,11 @@ export const serviceRequestService = {
       priority?: Priority;
     }
   ) {
-    return serviceRequestRepository.findAllByCompanyId(companyId, options);
+    return serviceRequestRepository.findAllByCompanyId(COMPANY_ID, options);
   },
 
-  async getServiceRequestById(id: string, companyId?: string) {
-    const req = await serviceRequestRepository.findById(id, companyId);
+  async getServiceRequestById(id: string) {
+    const req = await serviceRequestRepository.findById(id, COMPANY_ID);
     if (!req) throw new HttpError(404, "Service request not found");
     return req;
   },
@@ -68,14 +68,14 @@ export const serviceRequestService = {
     description?: string;
     type?: "SUPPORT" | "NEW_PROJECT";
     clientId: string;
-    companyId: string;
   }) {
     const request = await serviceRequestRepository.create({
       ...data,
+      companyId: COMPANY_ID,
       type: data.type ?? "NEW_PROJECT",
     });
 
-    const admins = await userRepository.findAdminsByCompanyId(data.companyId);
+    const admins = await userRepository.findAdminsByCompanyId(COMPANY_ID);
     await notificationRepository.createMany(
       admins.map((admin) => ({
         userId: admin.id,
@@ -102,7 +102,6 @@ export const serviceRequestService = {
 
   async adminUpdateServiceRequest(
     id: string,
-    companyId: string,
     userId: string,
     data: {
       title?: string;
@@ -113,7 +112,7 @@ export const serviceRequestService = {
       type?: "SUPPORT" | "NEW_PROJECT";
     }
   ) {
-    const current = await serviceRequestRepository.findByIdSimple(id, companyId);
+    const current = await serviceRequestRepository.findByIdSimple(id, COMPANY_ID);
     if (!current) throw new HttpError(404, "Service request not found");
 
     // Validate status transition
@@ -121,7 +120,7 @@ export const serviceRequestService = {
       assertValidTransition(current.status, data.status);
     }
 
-    const updated = await serviceRequestRepository.update(id, companyId, data);
+    const updated = await serviceRequestRepository.update(id, COMPANY_ID, data);
 
     // Record history entries
     const historyPromises: Promise<unknown>[] = [];
@@ -189,22 +188,21 @@ export const serviceRequestService = {
     return updated;
   },
 
-  async deleteServiceRequest(id: string, companyId: string) {
-    const req = await serviceRequestRepository.findByIdSimple(id, companyId);
+  async deleteServiceRequest(id: string) {
+    const req = await serviceRequestRepository.findByIdSimple(id, COMPANY_ID);
     if (!req) throw new HttpError(404, "Service request not found");
-    return serviceRequestRepository.delete(id, companyId);
+    return serviceRequestRepository.delete(id, COMPANY_ID);
   },
 
   // ── Comments ──────────────────────────────────────────────────────────────────
 
   async addComment(
     serviceRequestId: string,
-    companyId: string,
     authorId: string,
     body: string,
     isInternal: boolean
   ) {
-    const req = await serviceRequestRepository.findByIdSimple(serviceRequestId, companyId);
+    const req = await serviceRequestRepository.findByIdSimple(serviceRequestId, COMPANY_ID);
     if (!req) throw new HttpError(404, "Service request not found");
 
     const comment = await serviceRequestRepository.addComment({

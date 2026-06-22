@@ -6,7 +6,7 @@ export type JwtPayload = {
   tokenType: "access" | "refresh";
   email: string;
   role: Role;
-  companyId: string | null;
   clientId: string | null;
   mustChangePassword: boolean;
 };
+

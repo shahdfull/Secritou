@@ -1,28 +1,5 @@
-// Freelancer Controller - HTTP request handlers (profiles only; missions removed)
 import type { RequestHandler } from "express";
 import { freelancerService } from "../services/freelancer.service.js";
-import { parseListQuery } from "../utils/listQuery.js";
-
-export const getPublicFreelancers: RequestHandler = async (req, res, next) => {
-  try {
-    const options = parseListQuery(req.query as Record<string, unknown>);
-    const result = await freelancerService.getPublicProfiles(options);
-    res.json(result);
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getFreelancerById: RequestHandler = async (req, res, next) => {
-  try {
-    const freelancer = await freelancerService.getProfile(
-      req.params.id as string
-    );
-    res.json({ data: freelancer });
-  } catch (error) {
-    next(error);
-  }
-};
 
 export const createMyProfile: RequestHandler = async (req, res, next) => {
   try {

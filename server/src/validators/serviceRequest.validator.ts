@@ -9,7 +9,7 @@ const ADMIN_STATUSES = [
   "CANCELLED",
 ] as const;
 
-const CLIENT_STATUSES = ["NEW", "IN_PROGRESS", "DONE"] as const;
+const CLIENT_STATUSES = ["NEW", "IN_PROGRESS"] as const;
 
 const PRIORITIES = ["LOW", "NORMAL", "HIGH", "URGENT"] as const;
 
@@ -21,7 +21,9 @@ const serviceRequestBaseSchema = z.object({
 // ── Client schemas ─────────────────────────────────────────────────────────────
 
 export const createServiceRequestSchema = z.object({
-  body: serviceRequestBaseSchema,
+  body: serviceRequestBaseSchema.extend({
+    type: z.enum(["SUPPORT", "NEW_PROJECT"]).default("NEW_PROJECT"),
+  }),
 });
 
 export const updateServiceRequestSchema = z.object({

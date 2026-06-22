@@ -9,14 +9,13 @@ function paramText(value: unknown): string {
 }
 
 export const getClientSuccess = async (req: Request, res: Response) => {
-  const success = await clientSuccessService.getByClientId(paramText(req.params.clientId), req.user!.companyId!);
+  const success = await clientSuccessService.getByClientId(paramText(req.params.clientId));
   res.json({ data: success });
 };
 
 export const updateClientSuccessScore = async (req: Request, res: Response) => {
   const success = await clientSuccessService.updateScore(
     paramText(req.params.clientId),
-    req.user!.companyId!,
     req.body.score
   );
   res.json({ data: success });
@@ -24,15 +23,14 @@ export const updateClientSuccessScore = async (req: Request, res: Response) => {
 
 export const calculateClientSuccessScore = async (req: Request, res: Response) => {
   const clientId = paramText(req.params.clientId);
-  const score = await clientSuccessService.calculateScore(clientId, req.user!.companyId!);
-  await clientSuccessService.updateScore(clientId, req.user!.companyId!, score);
+  const score = await clientSuccessService.calculateScore(clientId);
+  await clientSuccessService.updateScore(clientId, score);
   res.json({ data: { score } });
 };
 
 export const addSuccessObjective = async (req: Request, res: Response) => {
   const objective = await clientSuccessService.addObjective(
     paramText(req.params.clientId),
-    req.user!.companyId!,
     req.body
   );
   res.json({ data: objective });
@@ -41,21 +39,19 @@ export const addSuccessObjective = async (req: Request, res: Response) => {
 export const updateSuccessObjective = async (req: Request, res: Response) => {
   const objective = await clientSuccessService.updateObjective(
     paramText(req.params.objectiveId),
-    req.user!.companyId!,
     req.body
   );
   res.json({ data: objective });
 };
 
 export const deleteSuccessObjective = async (req: Request, res: Response) => {
-  await clientSuccessService.deleteObjective(paramText(req.params.objectiveId), req.user!.companyId!);
+  await clientSuccessService.deleteObjective(paramText(req.params.objectiveId));
   res.json({ data: { success: true } });
 };
 
 export const addSuccessMetric = async (req: Request, res: Response) => {
   const metric = await clientSuccessService.addMetric(
     paramText(req.params.clientId),
-    req.user!.companyId!,
     req.body
   );
   res.json({ data: metric });
@@ -64,21 +60,19 @@ export const addSuccessMetric = async (req: Request, res: Response) => {
 export const updateSuccessMetric = async (req: Request, res: Response) => {
   const metric = await clientSuccessService.updateMetric(
     paramText(req.params.metricId),
-    req.user!.companyId!,
     req.body
   );
   res.json({ data: metric });
 };
 
 export const deleteSuccessMetric = async (req: Request, res: Response) => {
-  await clientSuccessService.deleteMetric(paramText(req.params.metricId), req.user!.companyId!);
+  await clientSuccessService.deleteMetric(paramText(req.params.metricId));
   res.json({ data: { success: true } });
 };
 
 export const addSuccessRecommendation = async (req: Request, res: Response) => {
   const recommendation = await clientSuccessService.addRecommendation(
     paramText(req.params.clientId),
-    req.user!.companyId!,
     req.body
   );
   res.json({ data: recommendation });
@@ -87,27 +81,25 @@ export const addSuccessRecommendation = async (req: Request, res: Response) => {
 export const updateSuccessRecommendation = async (req: Request, res: Response) => {
   const recommendation = await clientSuccessService.updateRecommendation(
     paramText(req.params.recommendationId),
-    req.user!.companyId!,
     req.body
   );
   res.json({ data: recommendation });
 };
 
 export const deleteSuccessRecommendation = async (req: Request, res: Response) => {
-  await clientSuccessService.deleteRecommendation(paramText(req.params.recommendationId), req.user!.companyId!);
+  await clientSuccessService.deleteRecommendation(paramText(req.params.recommendationId));
   res.json({ data: { success: true } });
 };
 
 export const addSuccessTimeline = async (req: Request, res: Response) => {
   const timeline = await clientSuccessService.addTimeline(
     paramText(req.params.clientId),
-    req.user!.companyId!,
     req.body
   );
   res.json({ data: timeline });
 };
 
 export const deleteSuccessTimeline = async (req: Request, res: Response) => {
-  await clientSuccessService.deleteTimeline(paramText(req.params.timelineId), req.user!.companyId!);
+  await clientSuccessService.deleteTimeline(paramText(req.params.timelineId));
   res.json({ data: { success: true } });
 };

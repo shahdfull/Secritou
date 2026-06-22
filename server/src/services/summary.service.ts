@@ -1,49 +1,50 @@
 import { summaryRepository } from "../repositories/summary.repository.js";
 import { cacheGet, cacheSet, cacheTTL } from "../cache/cacheService.js";
 import { cacheKeys, cacheTags } from "../cache/cacheKeys.js";
+import { COMPANY_ID } from "../config/constants.js";
 
 export const summaryService = {
-  async getClientSummary(companyId: string, clientId: string) {
-    const cacheKey = cacheKeys.clientSummary(companyId, clientId);
+  async getClientSummary(clientId: string) {
+    const cacheKey = cacheKeys.clientSummary(clientId);
     const cached = await cacheGet<Awaited<ReturnType<typeof summaryRepository.getClientSummary>>>(cacheKey);
     if (cached) return cached;
 
-    const summary = await summaryRepository.getClientSummary(companyId, clientId);
+    const summary = await summaryRepository.getClientSummary(COMPANY_ID, clientId);
     if (summary) {
       await cacheSet(cacheKey, summary, cacheTTL.clientSummary, [
-        cacheTags.client(companyId, clientId),
-        cacheTags.company(companyId),
+        cacheTags.client(clientId),
+        cacheTags.company(),
       ]);
     }
 
     return summary;
   },
 
-  async getProjectSummary(companyId: string, projectId: string) {
-    const cacheKey = cacheKeys.projectSummary(companyId, projectId);
+  async getProjectSummary(projectId: string) {
+    const cacheKey = cacheKeys.projectSummary(projectId);
     const cached = await cacheGet<Awaited<ReturnType<typeof summaryRepository.getProjectSummary>>>(cacheKey);
     if (cached) return cached;
 
-    const summary = await summaryRepository.getProjectSummary(companyId, projectId);
+    const summary = await summaryRepository.getProjectSummary(COMPANY_ID, projectId);
     if (summary) {
       await cacheSet(cacheKey, summary, cacheTTL.projectSummary, [
-        cacheTags.project(companyId, projectId),
-        cacheTags.company(companyId),
+        cacheTags.project(projectId),
+        cacheTags.company(),
       ]);
     }
 
     return summary;
   },
 
-  async getEnhancedDashboardSummary(companyId: string) {
-    const cacheKey = cacheKeys.dashboardSummary(companyId);
+  async getEnhancedDashboardSummary() {
+    const cacheKey = cacheKeys.dashboardSummary();
     const cached = await cacheGet<Awaited<ReturnType<typeof summaryRepository.getEnhancedDashboardSummary>>>(cacheKey);
     if (cached) return cached;
 
-    const summary = await summaryRepository.getEnhancedDashboardSummary(companyId);
+    const summary = await summaryRepository.getEnhancedDashboardSummary(COMPANY_ID);
     await cacheSet(cacheKey, summary, cacheTTL.dashboard, [
-      cacheTags.dashboard(companyId),
-      cacheTags.company(companyId),
+      cacheTags.dashboard(),
+      cacheTags.company(),
     ]);
 
     return summary;

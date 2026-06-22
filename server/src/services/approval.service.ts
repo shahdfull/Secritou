@@ -1,4 +1,5 @@
 import { approvalRepository } from "../repositories/approval.repository.js";
+import { COMPANY_ID } from "../config/constants.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { clientRepository } from "../repositories/client.repository.js";
 import { enqueueEmail, enqueueEmails } from "../jobs/queues.js";
@@ -6,7 +7,6 @@ import { approvalRequestedTemplate, approvalDecisionTemplate } from "./emailTemp
 import { env } from "../config/env.js";
 import type { ApprovalStatus } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
-import { tenantValidation } from "./tenantValidation.service.js";
 
 export const approvalService = {
   async getAllByClientId(
@@ -22,17 +22,16 @@ export const approvalService = {
 
   async getAll(
     options: ListQueryOptions & {
-      companyId: string;
       clientId?: string;
       status?: ApprovalStatus;
       search?: string;
     }
   ) {
-    return approvalRepository.findAll(options);
+    return approvalRepository.findAll({ ...options, companyId: COMPANY_ID });
   },
 
-  async getById(id: string, companyId: string) {
-    return approvalRepository.findById(id, companyId);
+  async getById(id: string) {
+    return approvalRepository.findById(id, COMPANY_ID);
   },
 
   async create(
@@ -43,11 +42,9 @@ export const approvalService = {
       clientId: string;
       projectId?: string;
     },
-    companyId: string,
     requesterId?: string
   ) {
-    await tenantValidation.assertClientInCompany(data.clientId, companyId);
-    const approval = await approvalRepository.create({ ...data, companyId });
+    const approval = await approvalRepository.create({ ...data, companyId: COMPANY_ID });
 
     const [clientUsers, requester] = await Promise.all([
       userRepository.findByClientId(data.clientId),
@@ -77,7 +74,6 @@ export const approvalService = {
 
   async update(
     id: string,
-    companyId: string,
     data: Partial<{
       title: string;
       description: string;
@@ -85,16 +81,16 @@ export const approvalService = {
       dueDate: Date;
     }>
   ) {
-    return approvalRepository.update(id, companyId, data);
+    return approvalRepository.update(id, COMPANY_ID, data);
   },
 
-  async delete(id: string, companyId: string) {
-    return approvalRepository.delete(id, companyId);
+  async delete(id: string) {
+    return approvalRepository.delete(id, COMPANY_ID);
   },
 
-  async approve(id: string, companyId: string, comment?: string, userId?: string) {
-    const approval = await approvalRepository.findById(id, companyId);
-    const updated = await approvalRepository.update(id, companyId, { status: "APPROVED" });
+  async approve(id: string, comment?: string, userId?: string) {
+    const approval = await approvalRepository.findById(id, COMPANY_ID);
+    const updated = await approvalRepository.update(id, COMPANY_ID, { status: "APPROVED" });
     await approvalRepository.addTimeline(id, {
       action: "APPROVED",
       comment,
@@ -120,9 +116,9 @@ export const approvalService = {
     return updated;
   },
 
-  async reject(id: string, companyId: string, comment?: string, userId?: string) {
-    const approval = await approvalRepository.findById(id, companyId);
-    const updated = await approvalRepository.update(id, companyId, { status: "REJECTED" });
+  async reject(id: string, comment?: string, userId?: string) {
+    const approval = await approvalRepository.findById(id, COMPANY_ID);
+    const updated = await approvalRepository.update(id, COMPANY_ID, { status: "REJECTED" });
     await approvalRepository.addTimeline(id, {
       action: "REJECTED",
       comment,
@@ -148,8 +144,8 @@ export const approvalService = {
     return updated;
   },
 
-  async comment(id: string, companyId: string, comment: string, userId?: string) {
-    const updated = await approvalRepository.update(id, companyId, { status: "COMMENTED" });
+  async comment(id: string, comment: string, userId?: string) {
+    const updated = await approvalRepository.update(id, COMPANY_ID, { status: "COMMENTED" });
     await approvalRepository.addTimeline(id, {
       action: "COMMENTED",
       comment,
@@ -159,11 +155,11 @@ export const approvalService = {
     return updated;
   },
 
-  async addAttachment(approvalId: string, companyId: string, data: { name: string; url: string }) {
-    return approvalRepository.addAttachment(approvalId, companyId, data);
+  async addAttachment(approvalId: string, data: { name: string; url: string }) {
+    return approvalRepository.addAttachment(approvalId, COMPANY_ID, data);
   },
 
-  async deleteAttachment(id: string, companyId: string) {
-    return approvalRepository.deleteAttachment(id, companyId);
+  async deleteAttachment(id: string) {
+    return approvalRepository.deleteAttachment(id, COMPANY_ID);
   },
 };

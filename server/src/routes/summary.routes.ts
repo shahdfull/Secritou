@@ -6,11 +6,9 @@ import {
 } from "../controllers/summary.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
-import { requireCompanyTenant } from "../middlewares/tenant.middleware.js";
-
 const router = express.Router();
 
-router.use(authenticate, requireCompanyTenant());
+router.use(authenticate);
 
 router.get("/dashboard", authorize("ADMIN", "MANAGER"), getEnhancedDashboardSummary);
 router.get("/clients/:clientId", authorize("ADMIN", "MANAGER", "CLIENT"), getClientSummary);

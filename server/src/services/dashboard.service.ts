@@ -1,24 +1,25 @@
 import { summaryRepository } from "../repositories/summary.repository.js";
+import { COMPANY_ID } from "../config/constants.js";
 import { prismaRead } from "../config/prisma.js";
 import { cacheGet, cacheSet, cacheTTL } from "../cache/cacheService.js";
 import { cacheKeys, cacheTags } from "../cache/cacheKeys.js";
 import { businessDashboardSummaryRecalculated } from "../observability/businessMetrics.js";
 
 export const dashboardService = {
-  async getFullDashboard(companyId: string) {
+  async getFullDashboard() {
     const [summary, pendingApprovals, overdueInvoices, hotLeads] = await Promise.all([
-      this.getSummary(companyId),
-      prismaRead.approval.count({ where: { companyId, status: "PENDING" } }),
+      this.getSummary(),
+      prismaRead.approval.count({ where: { companyId: COMPANY_ID, status: "PENDING" } }),
       // Computed at read time so the dashboard is correct even between the daily overdue job
       // runs: any SENT/PARTIAL/OVERDUE invoice whose dueDate has passed counts as overdue.
       prismaRead.invoice.count({
         where: {
-          companyId,
+          companyId: COMPANY_ID,
           status: { in: ["SENT", "PARTIAL", "OVERDUE"] },
           dueDate: { lt: new Date() },
         },
       }),
-      prismaRead.lead.count({ where: { companyId, status: "QUALIFIED", archivedAt: null } }),
+      prismaRead.lead.count({ where: { companyId: COMPANY_ID, status: "QUALIFIED", archivedAt: null } }),
     ]);
 
     return {
@@ -35,26 +36,26 @@ export const dashboardService = {
     };
   },
 
-  async getSummary(companyId: string) {
-    const cacheKey = cacheKeys.dashboardSummary(companyId);
+  async getSummary() {
+    const cacheKey = cacheKeys.dashboardSummary();
     const cached = await cacheGet<Awaited<ReturnType<typeof summaryRepository.getEnhancedDashboardSummary>>>(cacheKey);
     if (cached) return cached;
 
-    const summary = await summaryRepository.getEnhancedDashboardSummary(companyId);
+    const summary = await summaryRepository.getEnhancedDashboardSummary(COMPANY_ID);
     await cacheSet(cacheKey, summary, cacheTTL.dashboard, [
-      cacheTags.dashboard(companyId),
-      cacheTags.company(companyId),
+      cacheTags.dashboard(),
+      cacheTags.company(),
     ]);
     return summary;
   },
 
-  async warmSummary(companyId: string) {
-    const summary = await summaryRepository.getEnhancedDashboardSummary(companyId);
-    await cacheSet(cacheKeys.dashboardSummary(companyId), summary, cacheTTL.dashboard, [
-      cacheTags.dashboard(companyId),
-      cacheTags.company(companyId),
+  async warmSummary() {
+    const summary = await summaryRepository.getEnhancedDashboardSummary(COMPANY_ID);
+    await cacheSet(cacheKeys.dashboardSummary(), summary, cacheTTL.dashboard, [
+      cacheTags.dashboard(),
+      cacheTags.company(),
     ]);
-    businessDashboardSummaryRecalculated.inc({ company: companyId });
+    businessDashboardSummaryRecalculated.inc({ company: COMPANY_ID });
     return summary;
   },
 
@@ -65,7 +66,12 @@ export const dashboardService = {
     });
 
     for (const company of companies) {
-      await this.warmSummary(company.id);
+      const summary = await summaryRepository.getEnhancedDashboardSummary(company.id);
+      await cacheSet(cacheKeys.dashboardSummary(company.id), summary, cacheTTL.dashboard, [
+        cacheTags.dashboard(company.id),
+        cacheTags.company(company.id),
+      ]);
+      businessDashboardSummaryRecalculated.inc({ company: company.id });
     }
 
     return companies.length;

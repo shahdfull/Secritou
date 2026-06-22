@@ -1,7 +1,7 @@
 import { documentRepository } from "../repositories/document.repository.js";
+import { COMPANY_ID } from "../config/constants.js";
 import type { DocumentType, DocumentAccessLevel, Role } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
-import { tenantValidation } from "./tenantValidation.service.js";
 import { prisma } from "../config/prisma.js";
 import { getSignedReadUrl } from "./upload.service.js";
 import { HttpError } from "../utils/httpError.js";
@@ -11,7 +11,6 @@ type Viewer = { role: Role; clientId?: string | null };
 export const documentService = {
   async getAll(
     options: ListQueryOptions & {
-      companyId: string;
       clientId?: string;
       type?: DocumentType;
       projectId?: string;
@@ -22,13 +21,14 @@ export const documentService = {
   ) {
     return documentRepository.findAll({
       ...options,
+      companyId: COMPANY_ID,
       role: viewer.role,
       viewerClientId: viewer.clientId,
     });
   },
 
-  async getById(id: string, companyId: string, viewer: Viewer) {
-    return documentRepository.findById(id, companyId, viewer);
+  async getById(id: string, viewer: Viewer) {
+    return documentRepository.findById(id, COMPANY_ID, viewer);
   },
 
   async create(
@@ -49,16 +49,13 @@ export const documentService = {
       uploadedById: string;
       signedAt?: Date;
       signedByClientId?: string;
-    },
-    companyId: string
+    }
   ) {
-    if (data.clientId) await tenantValidation.assertClientInCompany(data.clientId, companyId);
-    return documentRepository.create({ ...data, companyId });
+    return documentRepository.create({ ...data, companyId: COMPANY_ID });
   },
 
   async update(
     id: string,
-    companyId: string,
     data: Partial<{
       name: string;
       title: string;
@@ -75,19 +72,18 @@ export const documentService = {
       signedByClientId: string;
     }>
   ) {
-    return documentRepository.update(id, companyId, data);
+    return documentRepository.update(id, COMPANY_ID, data);
   },
 
-  async delete(id: string, companyId: string) {
-    return documentRepository.delete(id, companyId);
+  async delete(id: string) {
+    return documentRepository.delete(id, COMPANY_ID);
   },
 
   async createVersion(
     id: string,
-    companyId: string,
     data: { url: string; userId?: string; ipAddress?: string; userAgent?: string }
   ) {
-    const original = await documentRepository.findById(id, companyId);
+    const original = await documentRepository.findById(id, COMPANY_ID);
     if (!original) throw new Error("Document not found");
 
     const newVersion = await documentRepository.create({
@@ -103,12 +99,12 @@ export const documentService = {
       tags: original.tags,
       accessLevel: original.accessLevel,
       clientId: original.clientId ?? undefined,
-      companyId: original.companyId,
+      companyId: COMPANY_ID,
       projectId: original.projectId ?? undefined,
       uploadedById: data.userId || original.uploadedById,
     });
 
-    await documentRepository.addAccessLog(id, companyId, {
+    await documentRepository.addAccessLog(id, COMPANY_ID, {
       action: "VERSION_CREATED",
       userId: data.userId,
       ipAddress: data.ipAddress,
@@ -120,17 +116,16 @@ export const documentService = {
 
   async logAccess(
     id: string,
-    companyId: string,
     data: { action: string; userId?: string; ipAddress?: string; userAgent?: string }
   ) {
-    return documentRepository.addAccessLog(id, companyId, data);
+    return documentRepository.addAccessLog(id, COMPANY_ID, data);
   },
 
   // CLIENT-only: sign the contract document. Guards: document must belong to the client's project,
   // and only a CONTRACT document can be signed (other types have no signature flow).
-  async signDocument(documentId: string, clientId: string, companyId: string) {
+  async signDocument(documentId: string, clientId: string) {
     const doc = await prisma.document.findFirst({
-      where: { id: documentId, companyId },
+      where: { id: documentId, companyId: COMPANY_ID },
       include: { project: { select: { clientId: true } } },
     });
     if (!doc) throw new HttpError(404, "Document not found");
@@ -145,8 +140,8 @@ export const documentService = {
 
   // Returns a short-lived (1h) signed MinIO URL for the document. Guards: the viewer check
   // already happened in getById; this is called only after that succeeds.
-  async getDownloadUrl(documentId: string, companyId: string, viewer: Viewer) {
-    const doc = await documentRepository.findById(documentId, companyId, viewer);
+  async getDownloadUrl(documentId: string, viewer: Viewer) {
+    const doc = await documentRepository.findById(documentId, COMPANY_ID, viewer);
     if (!doc) throw new HttpError(404, "Document not found");
     if (!doc.fileKey) throw new HttpError(400, "No file attached to this document");
     const url = await getSignedReadUrl(doc.fileKey, 3600);

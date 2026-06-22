@@ -1,6 +1,7 @@
 // Service for Clients - Business logic
 import type { CreateClientDTO } from "../types/entities.js";
 import { clientRepository } from "../repositories/client.repository.js";
+import { COMPANY_ID } from "../config/constants.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { HttpError } from "../utils/httpError.js";
 import type { ListQueryOptions } from "../utils/listQuery.js";
@@ -15,49 +16,48 @@ import crypto from "crypto";
 
 export const clientService = {
   async getClients(
-    companyId: string,
     options: ListQueryOptions & { includeArchived?: boolean },
     scope?: ServiceScope
   ) {
     // MANAGER sees only clients with a project in their service; ADMIN sees all.
     const serviceId =
       scope?.userRole === "MANAGER" ? (scope.userServiceId ?? "__none__") : undefined;
-    return clientRepository.findAll(companyId, { ...options, serviceId });
+    return clientRepository.findAll(COMPANY_ID, { ...options, serviceId });
   },
 
-  async getClient(id: string, companyId: string, scope?: ServiceScope) {
+  async getClient(id: string, scope?: ServiceScope) {
     const serviceId =
       scope?.userRole === "MANAGER" ? (scope.userServiceId ?? "__none__") : undefined;
-    const client = await clientRepository.findById(id, companyId, serviceId);
+    const client = await clientRepository.findById(id, COMPANY_ID, serviceId);
     if (!client) throw new HttpError(404, "Client not found");
     return client;
   },
 
-  async createClient(data: CreateClientDTO, companyId: string) {
-    const client = await clientRepository.create({ ...data, companyId });
-    await invalidateTags([cacheTags.company(companyId), cacheTags.dashboard(companyId)]);
+  async createClient(data: CreateClientDTO) {
+    const client = await clientRepository.create({ ...data, companyId: COMPANY_ID });
+    await invalidateTags([cacheTags.company(), cacheTags.dashboard()]);
     return client;
   },
 
-  async updateClient(id: string, data: Partial<CreateClientDTO>, companyId: string) {
-    const client = await clientRepository.findById(id, companyId);
+  async updateClient(id: string, data: Partial<CreateClientDTO>) {
+    const client = await clientRepository.findById(id, COMPANY_ID);
     if (!client) throw new HttpError(404, "Client not found");
-    const updated = await clientRepository.update(id, companyId, data);
+    const updated = await clientRepository.update(id, COMPANY_ID, data);
     await invalidateTags([
-      cacheTags.company(companyId),
-      cacheTags.dashboard(companyId),
-      cacheTags.client(companyId, id),
+      cacheTags.company(),
+      cacheTags.dashboard(),
+      cacheTags.client(id),
     ]);
     return updated;
   },
 
-  async deleteClient(id: string, companyId: string) {
-    const client = await clientRepository.findById(id, companyId);
+  async deleteClient(id: string) {
+    const client = await clientRepository.findById(id, COMPANY_ID);
     if (!client) throw new HttpError(404, "Client not found");
 
     // Hard-deleting a client cascades to its invoices (financial records). Block it when
     // any invoice exists — even DRAFT/CANCELLED — and steer callers toward archiving instead.
-    const invoiceCount = await clientRepository.countInvoices(id, companyId);
+    const invoiceCount = await clientRepository.countInvoices(id, COMPANY_ID);
     if (invoiceCount > 0) {
       throw new HttpError(
         409,
@@ -66,34 +66,33 @@ export const clientService = {
       );
     }
 
-    const deleted = await clientRepository.delete(id, companyId);
+    const deleted = await clientRepository.delete(id, COMPANY_ID);
     await invalidateTags([
-      cacheTags.company(companyId),
-      cacheTags.dashboard(companyId),
-      cacheTags.client(companyId, id),
+      cacheTags.company(),
+      cacheTags.dashboard(),
+      cacheTags.client(id),
     ]);
     return deleted;
   },
 
-  async archiveClient(id: string, companyId: string) {
-    const client = await clientRepository.findById(id, companyId);
+  async archiveClient(id: string) {
+    const client = await clientRepository.findById(id, COMPANY_ID);
     if (!client) throw new HttpError(404, "Client not found");
-    const archived = await clientRepository.archive(id, companyId);
+    const archived = await clientRepository.archive(id, COMPANY_ID);
     await invalidateTags([
-      cacheTags.company(companyId),
-      cacheTags.dashboard(companyId),
-      cacheTags.client(companyId, id),
+      cacheTags.company(),
+      cacheTags.dashboard(),
+      cacheTags.client(id),
     ]);
     return archived;
   },
 
   async inviteClientUser(
     clientId: string,
-    companyId: string,
     email: string,
     name: string
   ) {
-    const client = await clientRepository.findById(clientId, companyId);
+    const client = await clientRepository.findById(clientId, COMPANY_ID);
     if (!client) throw new HttpError(404, "Client not found");
 
     const existing = await userRepository.findByClientId(clientId);
@@ -108,7 +107,7 @@ export const clientService = {
       email,
       name,
       role: "CLIENT",
-      companyId,
+      companyId: COMPANY_ID,
       clientId,
       passwordHash,
       mustChangePassword: true,

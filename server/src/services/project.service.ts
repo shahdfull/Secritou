@@ -2,7 +2,6 @@
 import { projectRepository } from "../repositories/project.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { clientRepository } from "../repositories/client.repository.js";
-import { tenantValidation } from "./tenantValidation.service.js";
 import { enqueueNotifications } from "../jobs/queues.js";
 import type { CreateProjectDTO } from "../types/entities.js";
 import { HttpError } from "../utils/httpError.js";
@@ -21,6 +20,7 @@ import {
   projectApprovedClientTemplate,
 } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
+import { COMPANY_ID } from "../config/constants.js";
 
 export type TimelineStepStatus = "done" | "pending" | "locked";
 
@@ -33,39 +33,35 @@ export interface TimelineStep {
 
 export const projectService = {
   async getAllProjects(
-    companyId: string,
     userId: string,
     userRole: Role,
     options: ListQueryOptions,
     clientId?: string
   ) {
-    return projectRepository.findAll(companyId, userId, userRole, options, clientId);
+    return projectRepository.findAll(COMPANY_ID, userId, userRole, options, clientId);
   },
 
-  async getProjectById(id: string, companyId: string, userId: string, userRole: Role, clientId?: string) {
-    const project = await projectRepository.findById(id, companyId, userId, userRole, clientId);
+  async getProjectById(id: string, userId: string, userRole: Role, clientId?: string) {
+    const project = await projectRepository.findById(id, COMPANY_ID, userId, userRole, clientId);
     if (!project) throw new HttpError(404, "Project not found");
     return project;
   },
 
-  async createProject(data: CreateProjectDTO, companyId: string, scope?: ServiceScope) {
-    if (data.clientId) {
-      await tenantValidation.assertClientInCompany(data.clientId, companyId);
-    }
+  async createProject(data: CreateProjectDTO, scope?: ServiceScope) {
     // MANAGER scope: force serviceId to their own service so they cannot create projects
     // outside their pole.
     if (scope?.userRole === "MANAGER" && scope.userServiceId) {
       data = { ...data, serviceId: scope.userServiceId };
     }
-    const project = await projectRepository.create({ ...data, companyId });
-    const tagsToInvalidate = [cacheTags.company(companyId), cacheTags.dashboard(companyId)];
-    if (data.clientId) tagsToInvalidate.push(cacheTags.client(companyId, data.clientId));
+    const project = await projectRepository.create({ ...data, companyId: COMPANY_ID });
+    const tagsToInvalidate = [cacheTags.company(), cacheTags.dashboard()];
+    if (data.clientId) tagsToInvalidate.push(cacheTags.client(data.clientId));
     await invalidateTags(tagsToInvalidate);
     return project;
   },
 
-  async updateProject(id: string, data: Partial<CreateProjectDTO>, companyId: string, scope?: ServiceScope) {
-    const project = await projectRepository.findByIdAdmin(id, companyId);
+  async updateProject(id: string, data: Partial<CreateProjectDTO>, scope?: ServiceScope) {
+    const project = await projectRepository.findByIdAdmin(id, COMPANY_ID);
     if (!project) throw new HttpError(404, "Project not found");
     // MANAGER scope: can only modify projects within their service.
     if (scope?.userRole === "MANAGER" && scope.userServiceId) {
@@ -73,11 +69,8 @@ export const projectService = {
         throw new HttpError(404, "Project not found");
       }
     }
-    if (data.clientId) {
-      await tenantValidation.assertClientInCompany(data.clientId, companyId);
-    }
 
-    const updated = await projectRepository.update(id, companyId, data);
+    const updated = await projectRepository.update(id, COMPANY_ID, data);
 
     if (data.status && data.status !== project.status && project.clientId) {
       const clientUsers = await userRepository.findByClientId(project.clientId);
@@ -91,22 +84,22 @@ export const projectService = {
     }
 
     const tagsToInvalidate = [
-      cacheTags.company(companyId),
-      cacheTags.dashboard(companyId),
-      cacheTags.project(companyId, id),
+      cacheTags.company(),
+      cacheTags.dashboard(),
+      cacheTags.project(id),
     ];
-    if (project.clientId) tagsToInvalidate.push(cacheTags.client(companyId, project.clientId));
+    if (project.clientId) tagsToInvalidate.push(cacheTags.client(project.clientId));
     await invalidateTags(tagsToInvalidate);
     return updated;
   },
 
-  async deleteProject(id: string, companyId: string) {
-    const project = await projectRepository.findByIdAdmin(id, companyId);
+  async deleteProject(id: string) {
+    const project = await projectRepository.findByIdAdmin(id, COMPANY_ID);
     if (!project) throw new HttpError(404, "Project not found");
 
     // A project tied to issued invoices (anything past DRAFT) is part of the financial record
     // and must not be hard-deleted — archive it instead.
-    const nonDraftInvoices = await projectRepository.countNonDraftInvoices(id, companyId);
+    const nonDraftInvoices = await projectRepository.countNonDraftInvoices(id, COMPANY_ID);
     if (nonDraftInvoices > 0) {
       throw new HttpError(
         409,
@@ -117,7 +110,7 @@ export const projectService = {
 
     // An onboarding now restricts deletion at the DB level (onDelete: Restrict). Surface that
     // as a clean business error rather than letting the FK constraint throw a raw 500.
-    const onboardings = await projectRepository.countOnboardings(id, companyId);
+    const onboardings = await projectRepository.countOnboardings(id, COMPANY_ID);
     if (onboardings > 0) {
       throw new HttpError(
         409,
@@ -126,37 +119,37 @@ export const projectService = {
       );
     }
 
-    const deleted = await projectRepository.delete(id, companyId);
+    const deleted = await projectRepository.delete(id, COMPANY_ID);
     const tagsToInvalidate = [
-      cacheTags.company(companyId),
-      cacheTags.dashboard(companyId),
-      cacheTags.project(companyId, id),
+      cacheTags.company(),
+      cacheTags.dashboard(),
+      cacheTags.project(id),
     ];
-    if (project.clientId) tagsToInvalidate.push(cacheTags.client(companyId, project.clientId));
+    if (project.clientId) tagsToInvalidate.push(cacheTags.client(project.clientId));
     await invalidateTags(tagsToInvalidate);
     return deleted;
   },
 
-  async archiveProject(id: string, companyId: string) {
-    const project = await projectRepository.findByIdAdmin(id, companyId);
+  async archiveProject(id: string) {
+    const project = await projectRepository.findByIdAdmin(id, COMPANY_ID);
     if (!project) throw new HttpError(404, "Project not found");
-    const archived = await projectRepository.archive(id, companyId);
+    const archived = await projectRepository.archive(id, COMPANY_ID);
     const tagsToInvalidate = [
-      cacheTags.company(companyId),
-      cacheTags.dashboard(companyId),
-      cacheTags.project(companyId, id),
+      cacheTags.company(),
+      cacheTags.dashboard(),
+      cacheTags.project(id),
     ];
-    if (project.clientId) tagsToInvalidate.push(cacheTags.client(companyId, project.clientId));
+    if (project.clientId) tagsToInvalidate.push(cacheTags.client(project.clientId));
     await invalidateTags(tagsToInvalidate);
     return archived;
   },
 
   // Returns the brief questions for the project's serviceType + any saved answers.
-  async getBrief(id: string, companyId: string, role: Role, clientId?: string) {
+  async getBrief(id: string, role: Role, clientId?: string) {
     const project = await prismaRead.project.findFirst({
       where: {
         id,
-        companyId,
+        companyId: COMPANY_ID,
         ...(role === "CLIENT" ? { clientId: clientId ?? "__none__" } : {}),
       },
       select: { id: true, name: true, serviceType: true, briefData: true, briefCompleted: true, briefCompletedAt: true, clientId: true },
@@ -170,13 +163,12 @@ export const projectService = {
   // On success: saves briefData, marks complete, generates PDF, notifies managers.
   async submitBrief(
     id: string,
-    companyId: string,
     clientId: string,
     uploadedById: string,
     briefData: Record<string, unknown>
   ) {
     const project = await prismaRead.project.findFirst({
-      where: { id, companyId },
+      where: { id, companyId: COMPANY_ID },
       select: { id: true, name: true, description: true, clientId: true, serviceType: true, briefCompleted: true, budget: true, deadline: true, serviceId: true },
     });
     if (!project) throw new HttpError(404, "Project not found");
@@ -184,14 +176,14 @@ export const projectService = {
     if (project.briefCompleted) throw new HttpError(409, "Brief already submitted", "BRIEF_ALREADY_SUBMITTED");
 
     const updated = await prisma.project.update({
-      where: { id, companyId },
+      where: { id, companyId: COMPANY_ID },
       data: { briefData, briefCompleted: true, briefCompletedAt: new Date() },
     });
 
     // Best-effort: generate PDF + notify managers (never fail the submission)
     void (async () => {
       try {
-        const client = project.clientId ? await clientRepository.findById(project.clientId, companyId) : null;
+        const client = project.clientId ? await clientRepository.findById(project.clientId, COMPANY_ID) : null;
         const docProject = {
           id: project.id,
           name: project.name,
@@ -203,13 +195,13 @@ export const projectService = {
         const docClient = client
           ? { id: client.id, name: client.name, email: client.email ?? undefined }
           : { id: clientId, name: "Client", email: undefined };
-        await documentGeneratorService.generateClientBrief(docProject, docClient, companyId, uploadedById);
+        await documentGeneratorService.generateClientBrief(docProject, docClient, COMPANY_ID, uploadedById);
       } catch (err) {
         console.error("[submitBrief] PDF generation failed:", err);
       }
 
       try {
-        const managers = await userRepository.findAdminsByCompanyId(companyId);
+        const managers = await userRepository.findAdminsByCompanyId(COMPANY_ID);
         await enqueueNotifications(
           managers.map((u) => ({
             userId: u.id,
@@ -222,14 +214,14 @@ export const projectService = {
       }
     })();
 
-    await invalidateTags([cacheTags.company(companyId), cacheTags.project(companyId, id)]);
+    await invalidateTags([cacheTags.company(), cacheTags.project(id)]);
     return updated;
   },
 
   // Client approves the project: COMPLETED + balance invoice (70%) + missions closed.
   // clientId = Client entity ID from JWT (req.user.clientId), userId = User.id for audit.
   async clientApprove(projectId: string, clientId: string, userId: string) {
-    // Pre-read to get companyId and ownership (outside tx so we can 403 early)
+    // Pre-read to get ownership (outside tx so we can 403 early)
     const preread = await prismaRead.project.findFirst({
       where: { id: projectId },
       select: {
@@ -264,8 +256,6 @@ export const projectService = {
       );
     }
 
-    const { companyId } = preread;
-
     // Compute balance amount: prefer proposal.amount * 0.70, fall back to 0
     const proposalAmount = preread.proposal?.amount != null ? Number(preread.proposal.amount) : 0;
     const balanceAmount = proposalAmount > 0 ? Math.round(proposalAmount * 0.7 * 100) / 100 : 0;
@@ -292,7 +282,7 @@ export const projectService = {
       let balanceInvoice: { id: string } | null = null;
       if (!balanceAlreadyExists && balanceAmount > 0 && clientId) {
         balanceInvoice = await invoiceService.createBalanceInvoiceTx(tx, {
-          companyId,
+          companyId: COMPANY_ID,
           title: `Facture de solde — ${preread.name}`,
           description: `Solde restant (70%) pour le projet ${preread.name}`,
           amount: balanceAmount,
@@ -326,7 +316,7 @@ export const projectService = {
               },
               { id: projectId, name: preread.name, description: undefined, budget: preread.budget ?? undefined, deadline: undefined, serviceId: null },
               { id: clientId, name: preread.client?.name ?? "Client", email: preread.client?.email ?? undefined },
-              companyId,
+              COMPANY_ID,
               userId
             );
           }
@@ -337,7 +327,7 @@ export const projectService = {
 
       // 4. Notify managers
       try {
-        const managers = await userRepository.findAdminsByCompanyId(companyId);
+        const managers = await userRepository.findAdminsByCompanyId(COMPANY_ID);
         const dashboardUrl = env.FRONTEND_URL
           ? `${env.FRONTEND_URL}/app/projects/${projectId}`
           : `https://app.secritou.com/app/projects/${projectId}`;
@@ -383,10 +373,10 @@ export const projectService = {
     })();
 
     await invalidateTags([
-      cacheTags.company(companyId),
-      cacheTags.dashboard(companyId),
-      cacheTags.project(companyId, projectId),
-      ...(clientId ? [cacheTags.client(companyId, clientId)] : []),
+      cacheTags.company(),
+      cacheTags.dashboard(),
+      cacheTags.project(projectId),
+      ...(clientId ? [cacheTags.client(clientId)] : []),
     ]);
 
     return result;
@@ -398,7 +388,6 @@ export const projectService = {
   // PENDING_CLIENT_APPROVAL maps to REVIEW status (closest in the existing enum).
   async getTimelineStatus(
     id: string,
-    companyId: string,
     role: Role,
     clientId?: string
   ): Promise<TimelineStep[]> {
@@ -406,7 +395,7 @@ export const projectService = {
     const project = await prismaRead.project.findFirst({
       where: {
         id,
-        companyId,
+        companyId: COMPANY_ID,
         ...(role === "CLIENT" ? { clientId: clientId ?? "__none__" } : {}),
       },
       select: {
@@ -421,7 +410,7 @@ export const projectService = {
     if (!project) throw new HttpError(404, "Project not found");
 
     const docs = await prismaRead.document.findMany({
-      where: { projectId: id, companyId },
+      where: { projectId: id, companyId: COMPANY_ID },
       select: { type: true, signedAt: true, createdAt: true },
     });
 

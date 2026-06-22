@@ -11,7 +11,6 @@ import {
 } from "../controllers/document.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
-import { requireCompanyTenant } from "../middlewares/tenant.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import {
   createDocumentSchema,
@@ -23,7 +22,7 @@ import {
 const router = express.Router();
 
 // Apply base middleware to all document routes
-router.use(authenticate, requireCompanyTenant());
+router.use(authenticate);
 
 // Protected routes
 router.get("/", authorize("ADMIN", "MANAGER", "CLIENT"), getDocuments);

@@ -69,9 +69,6 @@ export const queryInvalidations = {
   invalidateUser: (queryClient: QueryClient, id: string) => {
     queryClient.invalidateQueries({ queryKey: queryKeys.user(id) });
   },
-  invalidateCompanyUsers: (queryClient: QueryClient) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.companyUsers() });
-  },
   
   // Applications
   invalidateFreelancerApplications: (queryClient: QueryClient) => {
@@ -79,9 +76,6 @@ export const queryInvalidations = {
   },
   
   // Settings
-  invalidateCompany: (queryClient: QueryClient) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.company() });
-  },
   invalidatePermissions: (queryClient: QueryClient) => {
     queryClient.invalidateQueries({ queryKey: queryKeys.permissions() });
   },

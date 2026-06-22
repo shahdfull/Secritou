@@ -15,7 +15,6 @@ export interface Lead {
   source?: "Site web" | "LinkedIn" | "Recommandation" | "Email" | "Appel entrant" | "Autre";
   status: "NEW" | "CONTACTED" | "QUALIFIED" | "PROPOSAL" | "WON" | "LOST";
   notes?: string;
-  companyId: string;
   createdAt: string;
   updatedAt: string;
   // Present when fetched via getById (lead detail) — the proposals linked to this lead.

@@ -17,7 +17,6 @@ import {
 } from "../controllers/clientSuccess.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
-import { requireCompanyTenant } from "../middlewares/tenant.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import {
   updateScoreSchema,
@@ -33,7 +32,7 @@ import {
 const router = express.Router();
 
 // Apply base middleware to all client success routes
-router.use(authenticate, requireCompanyTenant());
+router.use(authenticate);
 
 // Protected routes
 router.get(

@@ -1,56 +1,57 @@
 // Lead Service - Business logic
 import type { CreateLeadDTO } from "../types/entities.js";
 import { leadRepository, type LeadScope } from "../repositories/lead.repository.js";
+import { COMPANY_ID } from "../config/constants.js";
 import { HttpError } from "../utils/httpError.js";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { prisma } from "../config/prisma.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
 
-async function invalidateCompanyCache(companyId: string) {
-  await invalidateTags([cacheTags.company(companyId), cacheTags.dashboard(companyId)]);
+async function invalidateCompanyCache() {
+  await invalidateTags([cacheTags.company(), cacheTags.dashboard()]);
 }
 
 export const leadService = {
-  async getLeads(companyId: string, options: ListQueryOptions, scope?: LeadScope) {
-    return leadRepository.findAll(companyId, options, scope);
+  async getLeads(options: ListQueryOptions, scope?: LeadScope) {
+    return leadRepository.findAll(COMPANY_ID, options, scope);
   },
 
-  async getLead(id: string, companyId: string, scope?: LeadScope) {
-    const lead = await leadRepository.findByIdWithProposals(id, companyId, scope);
+  async getLead(id: string, scope?: LeadScope) {
+    const lead = await leadRepository.findByIdWithProposals(id, COMPANY_ID, scope);
     if (!lead) throw new HttpError(404, "Lead not found");
     return lead;
   },
 
-  async createLead(data: CreateLeadDTO, companyId: string) {
-    const lead = await leadRepository.create({ ...data, companyId });
-    await invalidateCompanyCache(companyId);
+  async createLead(data: CreateLeadDTO) {
+    const lead = await leadRepository.create({ ...data, companyId: COMPANY_ID });
+    await invalidateCompanyCache();
     return lead;
   },
 
-  async updateLead(id: string, data: Partial<CreateLeadDTO>, companyId: string, scope?: LeadScope) {
-    const lead = await leadRepository.findById(id, companyId, scope);
+  async updateLead(id: string, data: Partial<CreateLeadDTO>, scope?: LeadScope) {
+    const lead = await leadRepository.findById(id, COMPANY_ID, scope);
     if (!lead) throw new HttpError(404, "Lead not found");
-    const updated = await leadRepository.update(id, companyId, data);
-    await invalidateCompanyCache(companyId);
+    const updated = await leadRepository.update(id, COMPANY_ID, data);
+    await invalidateCompanyCache();
     return updated;
   },
 
-  async deleteLead(id: string, companyId: string, scope?: LeadScope) {
-    const lead = await leadRepository.findById(id, companyId, scope);
+  async deleteLead(id: string, scope?: LeadScope) {
+    const lead = await leadRepository.findById(id, COMPANY_ID, scope);
     if (!lead) throw new HttpError(404, "Lead not found");
     // A converted lead is the origin record of an existing client — deleting it would erase
     // that provenance. Block it; the lead is already archived on conversion anyway.
     if (lead.convertedClientId) {
       throw new HttpError(409, "Cannot delete a converted lead", "LEAD_ALREADY_CONVERTED");
     }
-    const deleted = await leadRepository.delete(id, companyId);
-    await invalidateCompanyCache(companyId);
+    const deleted = await leadRepository.delete(id, COMPANY_ID);
+    await invalidateCompanyCache();
     return deleted;
   },
 
-  async convertLeadToClient(id: string, companyId: string, scope?: LeadScope) {
-    const lead = await leadRepository.findById(id, companyId, scope);
+  async convertLeadToClient(id: string, scope?: LeadScope) {
+    const lead = await leadRepository.findById(id, COMPANY_ID, scope);
     if (!lead) throw new HttpError(404, "Lead not found");
 
     // Email is the per-company uniqueness key for clients. A lead without an email cannot be
@@ -67,7 +68,7 @@ export const leadService = {
       // Re-read inside the transaction and guard against double-conversion. Without this, a
       // second /convert call would create a duplicate Client and orphan the first one.
       const current = await tx.lead.findUnique({
-        where: { id, companyId },
+        where: { id, companyId: COMPANY_ID },
         select: { convertedClientId: true },
       });
       if (!current) throw new HttpError(404, "Lead not found");
@@ -79,7 +80,7 @@ export const leadService = {
       // create below would throw a raw Prisma P2002 (surfaced as a 500). Instead we block
       // with an explicit business error so the client can choose to merge or cancel.
       const existing = await tx.client.findUnique({
-        where: { companyId_email: { companyId, email: lead.email! } },
+        where: { companyId_email: { companyId: COMPANY_ID, email: lead.email! } },
         select: { id: true },
       });
       if (existing) {
@@ -98,19 +99,19 @@ export const leadService = {
           name: lead.name,
           email: lead.email ?? undefined,
           phone: lead.phone ?? undefined,
-          companyId: lead.companyId,
+          companyId: COMPANY_ID,
         },
       });
 
       await tx.lead.update({
-        where: { id, companyId },
+        where: { id, companyId: COMPANY_ID },
         data: { status: "WON", archivedAt: new Date(), convertedClientId: created.id },
       });
 
       return created;
     });
 
-    await invalidateCompanyCache(companyId);
+    await invalidateCompanyCache();
     return client;
   },
 };

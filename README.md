@@ -179,7 +179,6 @@ npm run prisma:seed --workspace server   # seed dev data
 ```
 
 Seed creates:
-- Company: **Sécritou Solutions**
 - Admin: `admin@secritou.tn` / `admin123`
 - Manager: `manager@secritou.tn` / `manager123`
 - Clients, Freelancers, Projects, Proposals, Invoices, Approvals
@@ -280,9 +279,6 @@ npm run prisma:seed --workspace server
 2. Load `ManagerPermission` with linked `PermissionProfile`
 3. `deepMerge(profile.permissions, mp.overrides)` — individual overrides win
 4. Cache result and return
-
-### Multi-tenancy
-Every model carries `companyId`. The `requireCompanyTenant()` middleware extracts it from the JWT and enforces it on every query — no cross-tenant data leakage.
 
 ---
 

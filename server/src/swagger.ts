@@ -6,7 +6,7 @@ const options = {
     info: {
       title: "Secritou Platform API",
       version: "1.0.0",
-      description: "Multi-tenant freelancer marketplace and project management platform",
+      description: "Multi-tenant project management platform",
       contact: {
         name: "Secritou Team",
         url: "https://secritou.com",
@@ -183,42 +183,6 @@ const options = {
           },
           required: ["accessToken"],
         },
-        Company: {
-          type: "object",
-          properties: {
-            id: {
-              type: "string",
-              format: "uuid",
-            },
-            name: {
-              type: "string",
-              example: "Acme Corp",
-            },
-            website: {
-              type: "string",
-              format: "uri",
-              nullable: true,
-            },
-            logoUrl: {
-              type: "string",
-              format: "uri",
-              nullable: true,
-            },
-            primaryColor: {
-              type: "string",
-              nullable: true,
-            },
-            createdAt: {
-              type: "string",
-              format: "date-time",
-            },
-            updatedAt: {
-              type: "string",
-              format: "date-time",
-            },
-          },
-          required: ["id", "name", "createdAt", "updatedAt"],
-        },
         Client: {
           type: "object",
           properties: {
@@ -371,64 +335,6 @@ const options = {
           },
           required: ["id", "title", "status", "projectId", "createdAt", "updatedAt"],
         },
-        FreelancerProfile: {
-          type: "object",
-          properties: {
-            id: {
-              type: "string",
-              format: "uuid",
-            },
-            userId: {
-              type: "string",
-              format: "uuid",
-            },
-            bio: {
-              type: "string",
-              nullable: true,
-            },
-            hourlyRate: {
-              type: "number",
-              format: "decimal",
-              nullable: true,
-              example: 75.5,
-            },
-            availability: {
-              type: "boolean",
-              example: true,
-            },
-            rating: {
-              type: "number",
-              format: "decimal",
-              nullable: true,
-              minimum: 1,
-              maximum: 5,
-              example: 4.5,
-            },
-            reviewCount: {
-              type: "integer",
-              example: 12,
-            },
-            skills: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  id: { type: "string", format: "uuid" },
-                  name: { type: "string" },
-                },
-              },
-            },
-            createdAt: {
-              type: "string",
-              format: "date-time",
-            },
-            updatedAt: {
-              type: "string",
-              format: "date-time",
-            },
-          },
-          required: ["id", "userId", "availability", "reviewCount", "createdAt", "updatedAt"],
-        },
         Invoice: {
           type: "object",
           properties: {
@@ -490,7 +396,7 @@ const options = {
             },
             status: {
               type: "string",
-              enum: ["NEW", "IN_REVIEW", "IN_PROGRESS", "WAITING_CLIENT", "COMPLETED", "CANCELLED", "DONE"],
+              enum: ["NEW", "IN_REVIEW", "IN_PROGRESS", "WAITING_CLIENT", "COMPLETED", "CANCELLED"],
               example: "NEW",
             },
             priority: {
@@ -522,13 +428,11 @@ const options = {
     tags: [
       { name: "Auth", description: "Authentication endpoints" },
       { name: "Users", description: "User management" },
-      { name: "Companies", description: "Company management" },
       { name: "Clients", description: "Client management" },
       { name: "Leads", description: "Lead management" },
       { name: "Projects", description: "Project management" },
       { name: "Tasks", description: "Task management" },
       { name: "Freelancers", description: "Freelancer profiles" },
-      { name: "Ratings", description: "Freelancer ratings and reviews" },
       { name: "Invoices", description: "Invoice management" },
       { name: "Service Requests", description: "Service request management" },
       { name: "Notifications", description: "Notification management" },

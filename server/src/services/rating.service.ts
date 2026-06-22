@@ -1,11 +1,11 @@
 import { prisma } from "../config/prisma.js";
 import { HttpError } from "../utils/httpError.js";
+import { COMPANY_ID } from "../config/constants.js";
 
 export const ratingService = {
   async addRating(
     freelancerId: string,
     score: number,
-    companyId: string,
     comment?: string,
     ratedByUserId?: string
   ) {
@@ -20,7 +20,7 @@ export const ratingService = {
     if (!profile) throw new HttpError(404, "Freelancer profile not found");
 
     const rating = await prisma.rating.create({
-      data: { score, comment, freelancerId, ratedByUserId, companyId },
+      data: { score, comment, freelancerId, ratedByUserId, companyId: COMPANY_ID },
     });
 
     await ratingService.updateFreelancerRatingAverage(freelancerId);

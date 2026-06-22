@@ -2,7 +2,7 @@ import { clientOnboardingRepository } from "../repositories/clientOnboarding.rep
 import { projectRepository } from "../repositories/project.repository.js";
 import { clientRepository } from "../repositories/client.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
-import { tenantValidation } from "./tenantValidation.service.js";
+import { COMPANY_ID } from "../config/constants.js";
 import { enqueueEmails } from "../jobs/queues.js";
 import { onboardingStepCompletedTemplate } from "./emailTemplates/index.js";
 import { prismaRead } from "../config/prisma.js";
@@ -10,26 +10,25 @@ import type { ListQueryOptions } from "../utils/listQuery.js";
 
 export const clientOnboardingService = {
   async getAllOnboardings(
-    options: ListQueryOptions & { search?: string; companyId?: string; clientId?: string }
+    options: ListQueryOptions & { search?: string; clientId?: string }
   ) {
     return clientOnboardingRepository.findAll(options);
   },
 
-  async getOnboardingById(id: string, companyId: string) {
-    return clientOnboardingRepository.findById(id, companyId);
+  async getOnboardingById(id: string) {
+    return clientOnboardingRepository.findById(id, COMPANY_ID);
   },
 
-  async getOnboardingByProjectId(projectId: string, companyId: string) {
-    return clientOnboardingRepository.findByProjectId(projectId, companyId);
+  async getOnboardingByProjectId(projectId: string) {
+    return clientOnboardingRepository.findByProjectId(projectId, COMPANY_ID);
   },
 
   async createOnboarding(data: {
     projectId: string;
-    companyId: string;
     assignedUserId?: string;
   }) {
     // Validate project exists in company
-    const project = await projectRepository.findByIdAdmin(data.projectId, data.companyId);
+    const project = await projectRepository.findByIdAdmin(data.projectId, COMPANY_ID);
     if (!project) {
       throw new Error("Project not found");
     }
@@ -38,7 +37,7 @@ export const clientOnboardingService = {
     }
 
     // Validate client exists in company
-    const client = await clientRepository.findById(project.clientId, data.companyId);
+    const client = await clientRepository.findById(project.clientId, COMPANY_ID);
     if (!client) {
       throw new Error("Client not found");
     }
@@ -90,27 +89,27 @@ export const clientOnboardingService = {
     return clientOnboardingRepository.create({
       projectId: data.projectId,
       clientId: project.clientId!,
-      companyId: data.companyId,
+      companyId: COMPANY_ID,
       assignedUserId: data.assignedUserId,
       steps: defaultSteps,
     });
   },
 
-  async updateOnboarding(id: string, companyId: string, data: any) {
-    return clientOnboardingRepository.update(id, companyId, data);
+  async updateOnboarding(id: string, data: any) {
+    return clientOnboardingRepository.update(id, COMPANY_ID, data);
   },
 
-  async deleteOnboarding(id: string, companyId: string) {
-    return clientOnboardingRepository.delete(id, companyId);
+  async deleteOnboarding(id: string) {
+    return clientOnboardingRepository.delete(id, COMPANY_ID);
   },
 
   // Step operations
-  async addStep(onboardingId: string, companyId: string, data: any) {
-    return clientOnboardingRepository.addStep(onboardingId, companyId, data);
+  async addStep(onboardingId: string, data: any) {
+    return clientOnboardingRepository.addStep(onboardingId, COMPANY_ID, data);
   },
 
-  async updateStep(stepId: string, companyId: string, data: any) {
-    const step = await clientOnboardingRepository.updateStep(stepId, companyId, data);
+  async updateStep(stepId: string, data: any) {
+    const step = await clientOnboardingRepository.updateStep(stepId, COMPANY_ID, data);
 
     // Fire email to admins when a step is marked completed
     if (data.completedAt || data.status === "COMPLETED") {
@@ -132,9 +131,9 @@ export const clientOnboardingService = {
           },
         });
 
-        if (stepWithOnboarding?.onboarding.companyId === companyId) {
+        if (stepWithOnboarding?.onboarding.companyId === COMPANY_ID) {
           const { onboarding } = stepWithOnboarding;
-          const admins = await userRepository.findAdminsByCompanyId(companyId);
+          const admins = await userRepository.findAdminsByCompanyId(COMPANY_ID);
           const nextStep = onboarding.steps.find(
             (s) => s.orderIndex > stepWithOnboarding.orderIndex
           );
@@ -160,65 +159,65 @@ export const clientOnboardingService = {
   },
 
   // Contract operations
-  async createContract(stepId: string, companyId: string, data: any) {
-    return clientOnboardingRepository.createContract(stepId, companyId, data);
+  async createContract(stepId: string, data: any) {
+    return clientOnboardingRepository.createContract(stepId, COMPANY_ID, data);
   },
 
-  async updateContract(contractId: string, companyId: string, data: any) {
-    return clientOnboardingRepository.updateContract(contractId, companyId, data);
+  async updateContract(contractId: string, data: any) {
+    return clientOnboardingRepository.updateContract(contractId, COMPANY_ID, data);
   },
 
   // Payment operations
-  async createPayment(stepId: string, companyId: string, data: any) {
-    return clientOnboardingRepository.createPayment(stepId, companyId, data);
+  async createPayment(stepId: string, data: any) {
+    return clientOnboardingRepository.createPayment(stepId, COMPANY_ID, data);
   },
 
-  async updatePayment(paymentId: string, companyId: string, data: any) {
-    return clientOnboardingRepository.updatePayment(paymentId, companyId, data);
+  async updatePayment(paymentId: string, data: any) {
+    return clientOnboardingRepository.updatePayment(paymentId, COMPANY_ID, data);
   },
 
   // Questionnaire operations
-  async createQuestionnaire(stepId: string, companyId: string, data: any) {
-    return clientOnboardingRepository.createQuestionnaire(stepId, companyId, data);
+  async createQuestionnaire(stepId: string, data: any) {
+    return clientOnboardingRepository.createQuestionnaire(stepId, COMPANY_ID, data);
   },
 
-  async updateQuestionnaire(questionnaireId: string, companyId: string, data: any) {
-    return clientOnboardingRepository.updateQuestionnaire(questionnaireId, companyId, data);
+  async updateQuestionnaire(questionnaireId: string, data: any) {
+    return clientOnboardingRepository.updateQuestionnaire(questionnaireId, COMPANY_ID, data);
   },
 
   // Specifications operations
-  async createSpecifications(stepId: string, companyId: string, data: any) {
-    return clientOnboardingRepository.createSpecifications(stepId, companyId, data);
+  async createSpecifications(stepId: string, data: any) {
+    return clientOnboardingRepository.createSpecifications(stepId, COMPANY_ID, data);
   },
 
-  async updateSpecifications(specificationsId: string, companyId: string, data: any) {
-    return clientOnboardingRepository.updateSpecifications(specificationsId, companyId, data);
+  async updateSpecifications(specificationsId: string, data: any) {
+    return clientOnboardingRepository.updateSpecifications(specificationsId, COMPANY_ID, data);
   },
 
   // Kickoff operations
-  async createKickoff(stepId: string, companyId: string, data: any) {
-    return clientOnboardingRepository.createKickoff(stepId, companyId, data);
+  async createKickoff(stepId: string, data: any) {
+    return clientOnboardingRepository.createKickoff(stepId, COMPANY_ID, data);
   },
 
-  async updateKickoff(kickoffId: string, companyId: string, data: any) {
-    return clientOnboardingRepository.updateKickoff(kickoffId, companyId, data);
+  async updateKickoff(kickoffId: string, data: any) {
+    return clientOnboardingRepository.updateKickoff(kickoffId, COMPANY_ID, data);
   },
 
   // Production operations
-  async createProduction(stepId: string, companyId: string, data: any) {
-    return clientOnboardingRepository.createProduction(stepId, companyId, data);
+  async createProduction(stepId: string, data: any) {
+    return clientOnboardingRepository.createProduction(stepId, COMPANY_ID, data);
   },
 
-  async updateProduction(productionId: string, companyId: string, data: any) {
-    return clientOnboardingRepository.updateProduction(productionId, companyId, data);
+  async updateProduction(productionId: string, data: any) {
+    return clientOnboardingRepository.updateProduction(productionId, COMPANY_ID, data);
   },
 
   // Delivery operations
-  async createDelivery(stepId: string, companyId: string, data: any) {
-    return clientOnboardingRepository.createDelivery(stepId, companyId, data);
+  async createDelivery(stepId: string, data: any) {
+    return clientOnboardingRepository.createDelivery(stepId, COMPANY_ID, data);
   },
 
-  async updateDelivery(deliveryId: string, companyId: string, data: any) {
-    return clientOnboardingRepository.updateDelivery(deliveryId, companyId, data);
+  async updateDelivery(deliveryId: string, data: any) {
+    return clientOnboardingRepository.updateDelivery(deliveryId, COMPANY_ID, data);
   },
 };

@@ -17,7 +17,6 @@ export interface Proposal {
   clientName?: string;
   email?: string;
   leadId?: string;
-  companyId: string;
   projectId?: string;
   serviceRequestId?: string;
   invoice?: { id: string } | null;

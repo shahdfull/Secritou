@@ -2,6 +2,7 @@ import type { RequestHandler } from "express";
 import { userService, permissionsMatrix } from "../services/user.service.js";
 import { HttpError } from "../utils/httpError.js";
 import { parseListQuery } from "../utils/listQuery.js";
+import { COMPANY_ID } from "../config/constants.js";
 
 // GET /users/me — any authenticated role
 export const getMe: RequestHandler = async (req, res, next) => {
@@ -30,10 +31,8 @@ export const updateMe: RequestHandler = async (req, res, next) => {
 
 export const getUsers: RequestHandler = async (req, res, next) => {
   try {
-    const companyId = req.user?.companyId;
-    if (!companyId) throw new HttpError(403, "Company not found");
     const options = parseListQuery(req.query as Record<string, unknown>);
-    const result = await userService.getUsersByCompany(companyId, options);
+    const result = await userService.getUsersByCompany(COMPANY_ID, options);
     res.json(result);
   } catch (error) {
     next(error);
@@ -42,10 +41,8 @@ export const getUsers: RequestHandler = async (req, res, next) => {
 
 export const inviteUser: RequestHandler = async (req, res, next) => {
   try {
-    const companyId = req.user?.companyId;
-    if (!companyId) throw new HttpError(403, "Company not found");
     const { name, email, role } = req.body;
-    const user = await userService.inviteUser(companyId, email, name, role);
+    const user = await userService.inviteUser(COMPANY_ID, email, name, role);
     res.json({ data: user });
   } catch (error) {
     next(error);
@@ -54,11 +51,9 @@ export const inviteUser: RequestHandler = async (req, res, next) => {
 
 export const updateUser: RequestHandler = async (req, res, next) => {
   try {
-    const companyId = req.user?.companyId;
-    if (!companyId) throw new HttpError(403, "Company not found");
     const { id } = req.params;
     const { name, role } = req.body;
-    const user = await userService.updateUser(id as string, companyId, name, role);
+    const user = await userService.updateUser(id as string, COMPANY_ID, name, role);
     res.json({ data: user });
   } catch (error) {
     next(error);
@@ -67,10 +62,8 @@ export const updateUser: RequestHandler = async (req, res, next) => {
 
 export const deleteUser: RequestHandler = async (req, res, next) => {
   try {
-    const companyId = req.user?.companyId;
-    if (!companyId) throw new HttpError(403, "Company not found");
     const { id } = req.params;
-    await userService.deleteUser(id as string, companyId);
+    await userService.deleteUser(id as string, COMPANY_ID);
     res.status(204).send();
   } catch (error) {
     next(error);

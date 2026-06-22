@@ -4,6 +4,7 @@ import { parseListQuery } from "../utils/listQuery.js";
 import { HttpError } from "../utils/httpError.js";
 import { ProposalStatus } from "@prisma/client";
 import { buildServiceScope } from "../utils/serviceScope.js";
+import { COMPANY_ID } from "../config/constants.js";
 
 function textQuery(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
@@ -13,7 +14,6 @@ export const getMyProposals = async (req: Request, res: Response) => {
   const clientId = req.user!.clientId!;
   const options = {
     ...parseListQuery(req.query as Record<string, unknown>),
-    companyId: "",
     clientId,
     status: textQuery(req.query.status) as ProposalStatus | undefined,
   };
@@ -32,13 +32,12 @@ export const respondToProposal = async (req: Request, res: Response) => {
   const proposal = await proposalService.getByIdForClient(id, clientId);
   if (!proposal) throw new HttpError(404, "Proposal not found");
   if (proposal.clientId !== clientId) throw new HttpError(403, "Forbidden");
-  const companyId = proposal.companyId as string;
   if (action === "accept") {
-    const result = await proposalService.accept(id, companyId, expectedVersion);
+    const result = await proposalService.accept(id, expectedVersion);
     return res.json({ data: result });
   }
   if (action === "reject") {
-    const result = await proposalService.reject(id, companyId, comment);
+    const result = await proposalService.reject(id, comment);
     return res.json({ data: result });
   }
   throw new HttpError(400, "Invalid action — use 'accept' or 'reject'");
@@ -47,9 +46,7 @@ export const respondToProposal = async (req: Request, res: Response) => {
 export const getProposals = async (req: Request, res: Response) => {
   const options = {
     ...parseListQuery(req.query as Record<string, unknown>),
-    companyId: req.user!.companyId as string,
     clientId: textQuery(req.query.clientId),
-    leadId: textQuery(req.query.leadId),
     status: textQuery(req.query.status) as ProposalStatus | undefined,
     search: textQuery(req.query.search),
   };
@@ -60,7 +57,6 @@ export const getProposals = async (req: Request, res: Response) => {
 export const getProposalById = async (req: Request, res: Response) => {
   const proposal = await proposalService.getById(
     req.params.id as string,
-    req.user!.companyId as string,
     await buildServiceScope(req)
   );
   res.json({ data: proposal });
@@ -68,8 +64,7 @@ export const getProposalById = async (req: Request, res: Response) => {
 
 export const createProposal = async (req: Request, res: Response) => {
   const proposal = await proposalService.create(
-    req.body,
-    req.user!.companyId as string
+    req.body
   );
   res.status(201).json({ data: proposal });
 };
@@ -77,7 +72,6 @@ export const createProposal = async (req: Request, res: Response) => {
 export const updateProposal = async (req: Request, res: Response) => {
   const proposal = await proposalService.update(
     req.params.id as string,
-    req.user!.companyId as string,
     req.body,
     req.user!.id,
     await buildServiceScope(req)
@@ -86,14 +80,13 @@ export const updateProposal = async (req: Request, res: Response) => {
 };
 
 export const deleteProposal = async (req: Request, res: Response) => {
-  await proposalService.delete(req.params.id as string, req.user!.companyId as string);
+  await proposalService.delete(req.params.id as string);
   res.status(204).send();
 };
 
 export const sendProposal = async (req: Request, res: Response) => {
   const proposal = await proposalService.send(
     req.params.id as string,
-    req.user!.companyId as string,
     await buildServiceScope(req)
   );
   res.json({ data: proposal });
@@ -101,10 +94,9 @@ export const sendProposal = async (req: Request, res: Response) => {
 
 export const acceptProposal = async (req: Request, res: Response) => {
   // Guard manager scope before the cascade.
-  await proposalService.getById(req.params.id as string, req.user!.companyId as string, await buildServiceScope(req));
+  await proposalService.getById(req.params.id as string, await buildServiceScope(req));
   const result = await proposalService.acceptWithCascade(
     req.params.id as string,
-    req.user!.companyId as string,
     req.body?.expectedVersion,
     req.user!.id
   );
@@ -122,10 +114,10 @@ export const acceptProposal = async (req: Request, res: Response) => {
 
 export const rejectProposal = async (req: Request, res: Response) => {
   // Guard manager scope before the (shared) reject logic.
-  await proposalService.getById(req.params.id as string, req.user!.companyId as string, await buildServiceScope(req));
+  await proposalService.getById(req.params.id as string, COMPANY_ID, await buildServiceScope(req));
   const proposal = await proposalService.reject(
     req.params.id as string,
-    req.user!.companyId as string,
+    COMPANY_ID,
     req.body.comment
   );
   res.json({ data: proposal });
@@ -134,7 +126,7 @@ export const rejectProposal = async (req: Request, res: Response) => {
 export const addProposalSection = async (req: Request, res: Response) => {
   const section = await proposalService.addSection(
     req.params.id as string,
-    req.user!.companyId as string,
+    COMPANY_ID,
     req.body,
     await buildServiceScope(req)
   );
@@ -144,7 +136,7 @@ export const addProposalSection = async (req: Request, res: Response) => {
 export const updateProposalSection = async (req: Request, res: Response) => {
   const section = await proposalService.updateSection(
     req.params.sectionId as string,
-    req.user!.companyId as string,
+    COMPANY_ID,
     req.body,
     req.user!.id,
     await buildServiceScope(req)
@@ -155,7 +147,7 @@ export const updateProposalSection = async (req: Request, res: Response) => {
 export const deleteProposalSection = async (req: Request, res: Response) => {
   await proposalService.deleteSection(
     req.params.sectionId as string,
-    req.user!.companyId as string,
+    COMPANY_ID,
     req.user!.id,
     await buildServiceScope(req)
   );

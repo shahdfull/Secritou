@@ -15,7 +15,6 @@ export interface ServiceRequest {
   status: ServiceRequestStatus;
   priority: ServiceRequestPriority;
   clientId: string;
-  companyId: string;
   assignedToId?: string | null;
   createdAt: string;
   updatedAt: string;

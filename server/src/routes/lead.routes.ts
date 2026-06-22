@@ -4,12 +4,10 @@ import { validate } from "../middlewares/validate.middleware.js";
 import { createLeadSchema, updateLeadSchema } from "../validators/lead.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
-import { requireCompanyTenant } from "../middlewares/tenant.middleware.js";
 import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 
 const router = Router();
 router.use(authenticate);
-router.use(requireCompanyTenant());
 
 // ADMIN sees all leads; MANAGER is scoped to their own service (pole) in the service layer.
 router.get("/", authorize("ADMIN", "MANAGER"), leadController.getLeads);

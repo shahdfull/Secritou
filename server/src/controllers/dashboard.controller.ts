@@ -3,8 +3,7 @@ import { dashboardService } from "../services/dashboard.service.js";
 
 export const getDashboardSummary: RequestHandler = async (req, res, next) => {
   try {
-    const companyId = req.user!.companyId!;
-    const data = await dashboardService.getSummary(companyId);
+    const data = await dashboardService.getSummary();
     res.json({ data });
   } catch (error) {
     next(error);
@@ -13,8 +12,7 @@ export const getDashboardSummary: RequestHandler = async (req, res, next) => {
 
 export const getFullDashboard: RequestHandler = async (req, res, next) => {
   try {
-    const companyId = req.user!.companyId!;
-    const data = await dashboardService.getFullDashboard(companyId);
+    const data = await dashboardService.getFullDashboard();
     res.json({ data });
   } catch (error) {
     next(error);

@@ -4,12 +4,10 @@ import { validate } from "../middlewares/validate.middleware.js";
 import { createClientSchema, updateClientSchema } from "../validators/client.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
-import { requireCompanyTenant } from "../middlewares/tenant.middleware.js";
 import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 
 const router = Router();
 router.use(authenticate);
-router.use(requireCompanyTenant());
 // Note: authorization is per-route. Reads are ADMIN + MANAGER (a MANAGER sees only clients
 // with a project in their service, enforced in the service layer). Mutations are ADMIN only.
 

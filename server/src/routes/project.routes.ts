@@ -4,8 +4,6 @@ import { validate } from "../middlewares/validate.middleware.js";
 import { createProjectSchema, updateProjectSchema } from "../validators/project.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
-import { requireCompanyTenant } from "../middlewares/tenant.middleware.js";
-
 const router = Router();
 
 // CLIENT route — scoped by clientId from token, no companyId needed
@@ -21,9 +19,8 @@ router.post("/:id/brief/submit", authenticate, authorize("CLIENT"), submitBrief)
 // Client final approval — triggers project COMPLETED + balance invoice
 router.post("/:id/client-approve", authenticate, authorize("CLIENT"), clientApproveProject);
 
-// Apply auth + tenant middleware to all admin/manager routes
+// Apply auth middleware to all admin/manager routes
 router.use(authenticate);
-router.use(requireCompanyTenant());
 
 /**
  * @swagger
