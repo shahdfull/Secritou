@@ -1,4 +1,4 @@
-import { Role, ProjectStatus, TaskStatus, LeadStatus, MissionStatus, ContactStatus } from "@prisma/client";
+import { Role, ProjectStatus, TaskStatus, LeadStatus, ContactStatus } from "@prisma/client";
 
 // Base interface for all entities
 export interface BaseEntity {
@@ -137,21 +137,7 @@ export interface FreelancerProfile extends BaseEntity {
   };
 }
 
-// FreelancerMission entity
-export interface FreelancerMission extends BaseEntity {
-  title: string;
-  description?: string;
-  budget?: number;
-  status: MissionStatus;
-  companyId: string;
-  freelancerId?: string;
-  projectId?: string;
-  company: Company;
-  freelancer?: FreelancerProfile;
-  project?: Project;
-}
-
-// DTOs for freelancer and mission requests
+// DTOs for freelancer profile requests
 export interface CreateFreelancerProfileDTO {
   bio?: string;
   hourlyRate?: number;
@@ -163,19 +149,4 @@ export interface UpdateFreelancerProfileDTO {
   hourlyRate?: number;
   availability?: boolean;
   skillIds?: string[];
-}
-
-export interface CreateMissionDTO {
-  title: string;
-  description?: string;
-  budget?: number;
-  projectId?: string;
-}
-
-export interface UpdateMissionDTO {
-  title?: string;
-  description?: string;
-  budget?: number;
-  status?: MissionStatus;
-  freelancerId?: string;
 }

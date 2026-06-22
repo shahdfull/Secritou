@@ -82,7 +82,7 @@ export const userService = {
 export const permissionsMatrix = {
   ADMIN: [
     "manage_users", "manage_companies", "manage_clients", "manage_leads",
-    "manage_projects", "manage_tasks", "manage_missions", "view_analytics",
+    "manage_projects", "manage_tasks", "view_analytics",
     "view_documents", "view_settings",
   ],
   MANAGER: [
@@ -90,7 +90,7 @@ export const permissionsMatrix = {
     "view_analytics", "view_documents",
   ],
   FREELANCER: [
-    "view_missions", "update_my_missions", "view_projects",
+    "view_projects", "update_my_tasks", "manage_my_profile",
   ],
   CLIENT: [
     "view_my_projects", "view_my_service_requests", "view_my_documents",

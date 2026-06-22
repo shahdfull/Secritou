@@ -429,52 +429,6 @@ const options = {
           },
           required: ["id", "userId", "availability", "reviewCount", "createdAt", "updatedAt"],
         },
-        FreelancerMission: {
-          type: "object",
-          properties: {
-            id: {
-              type: "string",
-              format: "uuid",
-            },
-            title: {
-              type: "string",
-              example: "Build REST API",
-            },
-            description: {
-              type: "string",
-              nullable: true,
-            },
-            budget: {
-              type: "number",
-              format: "decimal",
-              nullable: true,
-              example: 5000,
-            },
-            status: {
-              type: "string",
-              enum: ["OPEN", "ASSIGNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
-              example: "OPEN",
-            },
-            companyId: {
-              type: "string",
-              format: "uuid",
-            },
-            freelancerId: {
-              type: "string",
-              format: "uuid",
-              nullable: true,
-            },
-            createdAt: {
-              type: "string",
-              format: "date-time",
-            },
-            updatedAt: {
-              type: "string",
-              format: "date-time",
-            },
-          },
-          required: ["id", "title", "status", "companyId", "createdAt", "updatedAt"],
-        },
         Invoice: {
           type: "object",
           properties: {
@@ -573,7 +527,7 @@ const options = {
       { name: "Leads", description: "Lead management" },
       { name: "Projects", description: "Project management" },
       { name: "Tasks", description: "Task management" },
-      { name: "Freelancers", description: "Freelancer profiles and missions" },
+      { name: "Freelancers", description: "Freelancer profiles" },
       { name: "Ratings", description: "Freelancer ratings and reviews" },
       { name: "Invoices", description: "Invoice management" },
       { name: "Service Requests", description: "Service request management" },
