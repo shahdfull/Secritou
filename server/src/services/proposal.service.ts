@@ -12,6 +12,25 @@ import type { ProposalStatus } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { tenantValidation } from "./tenantValidation.service.js";
 import { HttpError } from "../utils/httpError.js";
+import type { ServiceScope } from "../utils/serviceScope.js";
+
+// A MANAGER may only see/act on a proposal whose project is in their service. A proposal with
+// no project is ADMIN-only. ADMIN is unrestricted. Throws 404 (not 403) to avoid revealing
+// the existence of out-of-scope proposals.
+async function assertProposalInScope(
+  proposal: { projectId: string | null; companyId: string } | null,
+  scope?: ServiceScope
+) {
+  if (!proposal) throw new HttpError(404, "Proposal not found");
+  if (!scope || scope.userRole !== "MANAGER") return;
+  if (!proposal.projectId) throw new HttpError(404, "Proposal not found");
+  const { prismaRead: prisma } = await import("../config/prisma.js");
+  const project = await prisma.project.findFirst({
+    where: { id: proposal.projectId, companyId: proposal.companyId, serviceId: scope.userServiceId ?? "__none__" },
+    select: { id: true },
+  });
+  if (!project) throw new HttpError(404, "Proposal not found");
+}
 
 // Shared logic for section edits: a section belongs to a proposal and is client-facing
 // content, so editing/deleting one on a SENT/VIEWED proposal reverts it to DRAFT, bumps the
@@ -62,13 +81,19 @@ export const proposalService = {
       clientId?: string;
       status?: ProposalStatus;
       search?: string;
-    }
+    },
+    scope?: ServiceScope
   ) {
-    return proposalRepository.findAll(options);
+    // A MANAGER only sees proposals whose project is in their service. ADMIN sees all.
+    const serviceId =
+      scope?.userRole === "MANAGER" ? (scope.userServiceId ?? "__none__") : undefined;
+    return proposalRepository.findAll({ ...options, serviceId });
   },
 
-  async getById(id: string, companyId: string) {
-    return proposalRepository.findById(id, companyId);
+  async getById(id: string, companyId: string, scope?: ServiceScope) {
+    const proposal = await proposalRepository.findById(id, companyId);
+    assertProposalInScope(proposal, scope);
+    return proposal;
   },
 
   async create(
@@ -101,9 +126,11 @@ export const proposalService = {
       expiresAt: Date;
       pdfUrl: string;
     }>,
-    userId?: string
+    userId?: string,
+    scope?: ServiceScope
   ) {
     const proposal = await proposalRepository.findById(id, companyId);
+    await assertProposalInScope(proposal, scope);
     if (!proposal) throw new HttpError(404, "Proposal not found");
 
     // A proposal that's already in front of the client (SENT/VIEWED) must not be silently
@@ -139,8 +166,9 @@ export const proposalService = {
     return proposalRepository.delete(id, companyId);
   },
 
-  async send(id: string, companyId: string) {
+  async send(id: string, companyId: string, scope?: ServiceScope) {
     const proposal = await proposalRepository.findById(id, companyId);
+    await assertProposalInScope(proposal, scope);
     const updated = await proposalRepository.update(id, companyId, { status: "SENT" });
 
     if (proposal) {
@@ -263,8 +291,11 @@ export const proposalService = {
   async addSection(
     proposalId: string,
     companyId: string,
-    data: { title: string; content?: string; orderIndex: number }
+    data: { title: string; content?: string; orderIndex: number },
+    scope?: ServiceScope
   ) {
+    const proposal = await proposalRepository.findById(proposalId, companyId);
+    await assertProposalInScope(proposal, scope);
     return proposalRepository.addSection(proposalId, companyId, data);
   },
 
@@ -272,16 +303,20 @@ export const proposalService = {
     id: string,
     companyId: string,
     data: { title?: string; content?: string; orderIndex?: number },
-    userId?: string
+    userId?: string,
+    scope?: ServiceScope
   ) {
+    const parent = await proposalRepository.findProposalBySectionId(id, companyId);
+    await assertProposalInScope(parent, scope);
     const result = await proposalRepository.updateSection(id, companyId, data);
     await revertParentToDraftIfLive(id, companyId, "edited", userId);
     return result;
   },
 
-  async deleteSection(id: string, companyId: string, userId?: string) {
+  async deleteSection(id: string, companyId: string, userId?: string, scope?: ServiceScope) {
     // Capture the parent before deletion (the section row is gone afterwards), then revert.
     const parent = await proposalRepository.findProposalBySectionId(id, companyId);
+    await assertProposalInScope(parent, scope);
     const result = await proposalRepository.deleteSection(id, companyId);
     if (parent) await revertParentToDraftById(parent, companyId, "deleted", userId);
     return result;

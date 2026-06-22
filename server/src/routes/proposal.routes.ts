@@ -49,7 +49,8 @@ router.delete("/:id", sensitiveWriteRateLimit, authorize("ADMIN"), validate(prop
 router.post("/:id/send", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), validate(proposalIdParamSchema), sendProposal);
 router.post("/:id/accept", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), validate(proposalIdParamSchema), acceptProposal);
 router.post("/:id/reject", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), validate(rejectProposalSchema), rejectProposal);
-router.post("/:id/create-invoice", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), validate(proposalIdParamSchema), createInvoiceFromProposal);
+// Creating an invoice is a financial action — ADMIN only, like the invoice routes.
+router.post("/:id/create-invoice", sensitiveWriteRateLimit, authorize("ADMIN"), validate(proposalIdParamSchema), createInvoiceFromProposal);
 
 // Sections
 router.post(
