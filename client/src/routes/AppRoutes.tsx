@@ -52,6 +52,7 @@ import {
   importInvoicesClientPage,
   importQuestionsClientPage,
   importAdminQuestionsPage,
+  importDocumentsClientPage,
 } from "./routePrefetch";
 
 // Lazy load route components for code splitting (handle named exports)
@@ -102,6 +103,7 @@ const ApprovalsClientPage = lazy(() => importApprovalsClientPage().then((m) => (
 const InvoicesClientPage = lazy(() => importInvoicesClientPage().then((m) => ({ default: m.InvoicesClientPage })));
 const QuestionsClientPage = lazy(() => importQuestionsClientPage().then((m) => ({ default: m.QuestionsClientPage })));
 const AdminQuestionsPage = lazy(() => importAdminQuestionsPage().then((m) => ({ default: m.AdminQuestionsPage })));
+const DocumentsClientPage = lazy(() => importDocumentsClientPage().then((m) => ({ default: m.DocumentsClientPage })));
 
 function PageLoader() {
   return (
@@ -204,6 +206,7 @@ export function AppRoutes() {
           <Route path="profile" element={withBoundary(<ClientProfilePage />)} />
           <Route path="questions" element={withBoundary(<QuestionsClientPage />)} />
           <Route path="questions/:id" element={withBoundary(<QuestionsClientPage />)} />
+          <Route path="documents" element={withBoundary(<DocumentsClientPage />)} />
         </Route>
       </Route>
 
