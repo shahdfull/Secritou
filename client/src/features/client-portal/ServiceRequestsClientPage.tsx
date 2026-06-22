@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -39,12 +40,14 @@ export function ServiceRequestsClientPage() {
   const { mutate: createRequest, isPending } = useCreateClientServiceRequest();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [type, setType] = useState<"SUPPORT" | "NEW_PROJECT">("SUPPORT");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createRequest({ title, description });
+    createRequest({ title, description, type });
     setTitle("");
     setDescription("");
+    setType("SUPPORT");
   };
 
   if (isLoading) {
@@ -78,6 +81,18 @@ export function ServiceRequestsClientPage() {
                     placeholder={t("clientPortal.serviceRequests.titlePlaceholder")}
                     required
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">{t("clientPortal.serviceRequests.requestType")}</label>
+                  <Select value={type} onValueChange={(v) => setType(v as "SUPPORT" | "NEW_PROJECT")}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="SUPPORT">{t("clientPortal.serviceRequests.typeSupport")}</SelectItem>
+                      <SelectItem value="NEW_PROJECT">{t("clientPortal.serviceRequests.typeNewProject")}</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-1">{t("common.description")}</label>
