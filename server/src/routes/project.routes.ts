@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, archiveProject, getMyProjects } from "../controllers/project.controller.js";
+import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, archiveProject, getMyProjects, getTimelineStatus } from "../controllers/project.controller.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { createProjectSchema, updateProjectSchema } from "../validators/project.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
@@ -10,6 +10,9 @@ const router = Router();
 
 // CLIENT route — scoped by clientId from token, no companyId needed
 router.get("/my", authenticate, authorize("CLIENT"), getMyProjects);
+
+// Timeline — accessible to CLIENT (own project only), MANAGER, ADMIN
+router.get("/:id/timeline-status", authenticate, getTimelineStatus);
 
 // Apply auth + tenant middleware to all admin/manager routes
 router.use(authenticate);
