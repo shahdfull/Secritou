@@ -9,6 +9,16 @@ import type { Role } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
+import { prismaRead } from "../config/prisma.js";
+
+export type TimelineStepStatus = "done" | "pending" | "locked";
+
+export interface TimelineStep {
+  key: string;
+  label: string;
+  status: TimelineStepStatus;
+  date: string | null;
+}
 
 export const projectService = {
   async getAllProjects(
@@ -117,5 +127,106 @@ export const projectService = {
     if (project.clientId) tagsToInvalidate.push(cacheTags.client(companyId, project.clientId));
     await invalidateTags(tagsToInvalidate);
     return archived;
+  },
+
+  // Derives the 7-step project timeline from existing project + document + task state.
+  // No new DB columns — each step's "done" condition is computed from what already exists.
+  // briefCompleted: proxied via CLIENT_BRIEF document existence (auto-generated at acceptance).
+  // PENDING_CLIENT_APPROVAL maps to REVIEW status (closest in the existing enum).
+  async getTimelineStatus(
+    id: string,
+    companyId: string,
+    role: Role,
+    clientId?: string
+  ): Promise<TimelineStep[]> {
+    // Scope check: CLIENT may only see their own project
+    const project = await prismaRead.project.findFirst({
+      where: {
+        id,
+        companyId,
+        ...(role === "CLIENT" ? { clientId: clientId ?? "__none__" } : {}),
+      },
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        tasks: { select: { status: true, updatedAt: true } },
+      },
+    });
+    if (!project) throw new HttpError(404, "Project not found");
+
+    const docs = await prismaRead.document.findMany({
+      where: { projectId: id, companyId },
+      select: { type: true, signedAt: true, createdAt: true },
+    });
+
+    const docByType = new Map(docs.map((d) => [d.type, d]));
+    const contractDoc = docByType.get("CONTRACT");
+    const quoteDoc = docByType.get("QUOTE");
+    const briefDoc = docByType.get("CLIENT_BRIEF");
+
+    const inProgressTask = project.tasks.find((t) => t.status === "IN_PROGRESS");
+    const fmt = (d: Date | null | undefined) =>
+      d ? new Date(d).toISOString().split("T")[0] : null;
+
+    // Each step: compute done, then assign status sequentially (first non-done = pending, rest = locked)
+    const conditions: Array<{ key: string; label: string; done: boolean; date: Date | null | undefined }> = [
+      {
+        key: "confirmed",
+        label: "Projet confirmé",
+        done: true, // always done once this endpoint is reachable (project exists)
+        date: project.createdAt,
+      },
+      {
+        key: "contract",
+        label: "Contrat signé",
+        done: !!contractDoc?.signedAt,
+        date: contractDoc?.signedAt,
+      },
+      {
+        key: "quote",
+        label: "Devis validé",
+        done: !!quoteDoc,
+        date: quoteDoc?.createdAt,
+      },
+      {
+        key: "brief",
+        label: "Informations collectées",
+        done: !!briefDoc,
+        date: briefDoc?.createdAt,
+      },
+      {
+        key: "production",
+        label: "Production en cours",
+        done: project.status === "IN_PROGRESS" || project.status === "REVIEW" || project.status === "COMPLETED",
+        date: inProgressTask?.updatedAt ?? null,
+      },
+      {
+        key: "delivery",
+        label: "Livraison",
+        done: project.status === "REVIEW" || project.status === "COMPLETED",
+        date: null,
+      },
+      {
+        key: "support",
+        label: "Support / Suivi",
+        done: project.status === "COMPLETED",
+        date: null,
+      },
+    ];
+
+    let foundPending = false;
+    return conditions.map(({ key, label, done, date }) => {
+      let status: TimelineStepStatus;
+      if (done) {
+        status = "done";
+      } else if (!foundPending) {
+        status = "pending";
+        foundPending = true;
+      } else {
+        status = "locked";
+      }
+      return { key, label, status, date: done ? fmt(date) : null };
+    });
   },
 };

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/api/axios";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ProjectTimeline } from "./components/ProjectTimeline";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -86,7 +87,7 @@ export function ProjectsClientPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="mb-4">
+                <div className="mb-6">
                   <div className="flex justify-between text-sm text-muted-foreground mb-1">
                     <span>Progression</span>
                     <span>{progress}%</span>
@@ -99,26 +100,7 @@ export function ProjectsClientPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 mt-4">
-                  {statusOrder.map((status, idx) => (
-                    <div key={status} className="flex items-center">
-                      <div
-                        className={`h-3 w-3 rounded-full ${
-                          statusOrder.indexOf(project.status) >= idx
-                            ? "bg-primary"
-                            : "bg-gray-200"
-                        }`}
-                      />
-                      {idx < statusOrder.length - 1 && (
-                        <div className="w-6 h-0.5 bg-gray-200 mx-1" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-4 text-sm text-muted-foreground">
-                  Progression globale : {progress}%
-                </div>
+                <ProjectTimeline projectId={project.id} />
               </CardContent>
             </Card>
           );
