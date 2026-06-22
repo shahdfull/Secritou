@@ -190,8 +190,8 @@ export function FreelancersPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold text-ink">Freelancers</h1>
-          <p className="text-muted-foreground">Find and collaborate with skilled freelancers</p>
+          <h1 className="font-display text-2xl font-bold text-ink">Équipe</h1>
+          <p className="text-muted-foreground">Trouvez et collaborez avec les membres de l'équipe</p>
         </div>
         {isFreelancer && !hasProfile && (
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
