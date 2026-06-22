@@ -3,6 +3,7 @@ import type { RequestHandler } from "express";
 import { projectService } from "../services/project.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
 import { HttpError } from "../utils/httpError.js";
+import { buildServiceScope } from "../utils/serviceScope.js";
 
 export const getAllProjects: RequestHandler = async (req, res, next) => {
   try {
@@ -34,7 +35,8 @@ export const getProjectById: RequestHandler = async (req, res, next) => {
 export const createProject: RequestHandler = async (req, res, next) => {
   try {
     const companyId = req.user?.companyId!;
-    const project = await projectService.createProject(req.body, companyId);
+    const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
+    const project = await projectService.createProject(req.body, companyId, scope);
     res.status(201).json({ data: project });
   } catch (error) {
     next(error);
@@ -44,7 +46,8 @@ export const createProject: RequestHandler = async (req, res, next) => {
 export const updateProject: RequestHandler = async (req, res, next) => {
   try {
     const companyId = req.user?.companyId!;
-    const project = await projectService.updateProject(req.params.id as string, req.body, companyId);
+    const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
+    const project = await projectService.updateProject(req.params.id as string, req.body, companyId, scope);
     res.json({ data: project });
   } catch (error) {
     next(error);

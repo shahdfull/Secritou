@@ -120,7 +120,7 @@ router.get("/:id", getProjectById);
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-router.post("/", validate(createProjectSchema), authorize("ADMIN"), createProject);
+router.post("/", validate(createProjectSchema), authorize("ADMIN", "MANAGER"), createProject);
 
 /**
  * @swagger
@@ -156,7 +156,7 @@ router.post("/", validate(createProjectSchema), authorize("ADMIN"), createProjec
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.put("/:id", validate(updateProjectSchema), authorize("ADMIN"), updateProject);
+router.put("/:id", validate(updateProjectSchema), authorize("ADMIN", "MANAGER"), updateProject);
 
 /**
  * @swagger
