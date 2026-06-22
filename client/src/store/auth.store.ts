@@ -23,7 +23,7 @@ interface AuthStore {
   can: (module: Module, action: keyof { read: boolean; create: boolean; update: boolean; delete: boolean }) => boolean;
 }
 
-export const useAuthStore = create<AuthStore>(
+export const useAuthStore = create<AuthStore>()(
   persist(
     (set, get) => ({
       user: null,

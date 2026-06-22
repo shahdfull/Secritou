@@ -1,12 +1,10 @@
 // Validators for Projects
 import { z } from "zod";
 import { ProjectStatus } from "@prisma/client";
+import { projectBaseSchema as sharedProjectBase } from "@secritou/shared";
 
-const projectBaseSchema = z.object({
-  name: z.string().min(2),
-  description: z.string().optional(),
+const projectBaseSchema = sharedProjectBase.extend({
   status: z.nativeEnum(ProjectStatus).optional(),
-  clientId: z.string().uuid().optional(),
   serviceId: z.string().uuid().optional(),
 });
 

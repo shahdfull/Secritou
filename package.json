@@ -1,4 +1,10 @@
 {
+  "private": true,
+  "workspaces": [
+    "client",
+    "server",
+    "shared"
+  ],
   "dependencies": {
     "docx": "^9.7.1"
   }

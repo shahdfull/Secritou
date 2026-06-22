@@ -1,11 +1,11 @@
 import { useState, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import type { EnhancedDocument } from "@/api/enhancedDocuments.api";
+import type { Document } from "@/api/documents.api";
 import {
-  useEnhancedDocuments,
-  useCreateEnhancedDocument,
-  useDeleteEnhancedDocument,
-} from "@/hooks/useEnhancedDocuments";
+  useDocuments,
+  useCreateDocument,
+  useDeleteDocument,
+} from "@/hooks/useDocuments";
 import {
   Table,
   TableBody,
@@ -62,18 +62,18 @@ const ALL_TYPES_VALUE = "__all__";
 const createDocSchema = z.object({
   name: z.string().min(1, "common.nameRequired"),
   description: z.string().optional(),
-  type: z.enum(["CONTRACT", "DELIVERABLE", "GUIDE", "REPORT", "INVOICE", "OTHER"]),
+  enhancedType: z.enum(["CONTRACT", "DELIVERABLE", "GUIDE", "REPORT", "INVOICE", "OTHER"]),
   accessLevel: z.enum(["ADMIN_ONLY", "ADMIN_FREELANCER", "CLIENT_ADMIN", "ALL"]),
   tags: z.string().optional(),
 });
 type CreateDocForm = z.infer<typeof createDocSchema>;
 
-export function EnhancedDocumentsPage() {
+export function DocumentsPage() {
   const { t } = useTranslation();
   const docSchema = z.object({
     name: z.string().min(1, t("common.nameRequired")),
     description: z.string().optional(),
-    type: z.enum(["CONTRACT", "DELIVERABLE", "GUIDE", "REPORT", "INVOICE", "OTHER"]),
+    enhancedType: z.enum(["CONTRACT", "DELIVERABLE", "GUIDE", "REPORT", "INVOICE", "OTHER"]),
     accessLevel: z.enum(["ADMIN_ONLY", "ADMIN_FREELANCER", "CLIENT_ADMIN", "ALL"]),
     tags: z.string().optional(),
   });
@@ -81,7 +81,7 @@ export function EnhancedDocumentsPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const uploadedFile = useRef<UploadResult | null>(null);
 
-  const { data: documentsResult, isLoading } = useEnhancedDocuments({
+  const { data: documentsResult, isLoading } = useDocuments({
     page,
     pageSize,
     search,
@@ -93,15 +93,15 @@ export function EnhancedDocumentsPage() {
     [documentsResult?.data]
   );
 
-  const deleteMutation = useDeleteEnhancedDocument();
-  const createMutation = useCreateEnhancedDocument();
+  const deleteMutation = useDeleteDocument();
+  const createMutation = useCreateDocument();
 
   const form = useForm<CreateDocForm>({
     resolver: zodResolver(docSchema),
     defaultValues: {
       name: "",
       description: "",
-      type: "OTHER",
+      enhancedType: "OTHER",
       accessLevel: "CLIENT_ADMIN",
       tags: "",
     },
@@ -116,10 +116,14 @@ export function EnhancedDocumentsPage() {
     createMutation.mutate(
       {
         name: data.name,
+        title: data.name,
         description: data.description,
-        type: data.type,
+        type: "CONTRACT", // Default DocumentType
+        enhancedType: data.enhancedType,
         accessLevel: data.accessLevel,
         url: uploadedFile.current.url,
+        fileUrl: uploadedFile.current.url,
+        fileKey: uploadedFile.current.key,
         tags: data.tags ? data.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
       },
       {
@@ -136,20 +140,20 @@ export function EnhancedDocumentsPage() {
     <section className="space-y-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">{t("enhancedDocuments.title")}</h1>
+          <h1 className="text-2xl font-bold">{t("documents.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            {t("enhancedDocuments.subtitle")}
+            {t("documents.subtitle")}
           </p>
         </div>
         <Button onClick={() => setCreateDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          {t("enhancedDocuments.add")}
+          {t("documents.add")}
         </Button>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <Input
-          placeholder={t("enhancedDocuments.search")}
+          placeholder={t("documents.search")}
           value={search || ""}
           onChange={(e) => updateParams({ search: e.target.value, page: 1 })}
           className="max-w-sm"
@@ -161,16 +165,16 @@ export function EnhancedDocumentsPage() {
           }
         >
           <SelectTrigger className="max-w-sm">
-            <SelectValue placeholder={t("enhancedDocuments.filterByType")} />
+            <SelectValue placeholder={t("documents.filterByType")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL_TYPES_VALUE}>{t("enhancedDocuments.allTypes")}</SelectItem>
-            <SelectItem value="contract">{t("enhancedDocuments.types.contract")}</SelectItem>
-            <SelectItem value="deliverable">{t("enhancedDocuments.types.deliverable")}</SelectItem>
-            <SelectItem value="guide">{t("enhancedDocuments.types.guide")}</SelectItem>
-            <SelectItem value="report">{t("enhancedDocuments.types.report")}</SelectItem>
-            <SelectItem value="invoice">{t("enhancedDocuments.types.invoice")}</SelectItem>
-            <SelectItem value="other">{t("enhancedDocuments.types.other")}</SelectItem>
+            <SelectItem value={ALL_TYPES_VALUE}>{t("documents.allTypes")}</SelectItem>
+            <SelectItem value="contract">{t("documents.types.contract")}</SelectItem>
+            <SelectItem value="deliverable">{t("documents.types.deliverable")}</SelectItem>
+            <SelectItem value="guide">{t("documents.types.guide")}</SelectItem>
+            <SelectItem value="report">{t("documents.types.report")}</SelectItem>
+            <SelectItem value="invoice">{t("documents.types.invoice")}</SelectItem>
+            <SelectItem value="other">{t("documents.types.other")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -179,13 +183,13 @@ export function EnhancedDocumentsPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("enhancedDocuments.name")}</TableHead>
-              <TableHead>{t("enhancedDocuments.client")}</TableHead>
-              <TableHead>{t("enhancedDocuments.type")}</TableHead>
-              <TableHead>{t("enhancedDocuments.version")}</TableHead>
-              <TableHead>{t("enhancedDocuments.tags")}</TableHead>
-              <TableHead>{t("enhancedDocuments.date")}</TableHead>
-              <TableHead className="text-right">{t("enhancedDocuments.actions")}</TableHead>
+              <TableHead>{t("documents.name")}</TableHead>
+              <TableHead>{t("documents.client")}</TableHead>
+              <TableHead>{t("documents.type")}</TableHead>
+              <TableHead>{t("documents.version")}</TableHead>
+              <TableHead>{t("documents.tags")}</TableHead>
+              <TableHead>{t("documents.date")}</TableHead>
+              <TableHead className="text-right">{t("documents.actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -198,7 +202,7 @@ export function EnhancedDocumentsPage() {
             ) : documents.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-10">
-                  {t("enhancedDocuments.empty")}
+                  {t("documents.empty")}
                 </TableCell>
               </TableRow>
             ) : (
@@ -208,7 +212,7 @@ export function EnhancedDocumentsPage() {
                   <TableCell>{doc.client?.name || "-"}</TableCell>
                   <TableCell>
                     <Badge variant="outline">
-                      {t(`enhancedDocuments.types.${doc.type.toLowerCase()}`)}
+                      {t(`documents.types.${doc.enhancedType?.toLowerCase() || 'other'}`)}
                     </Badge>
                   </TableCell>
                   <TableCell>{doc.version}</TableCell>
@@ -232,11 +236,11 @@ export function EnhancedDocumentsPage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => window.open(doc.url, "_blank")}>
                           <Eye className="mr-2 h-4 w-4" />
-                          {t("enhancedDocuments.view")}
+                          {t("documents.view")}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => window.open(doc.url, "_blank")}>
                           <Download className="mr-2 h-4 w-4" />
-                          {t("enhancedDocuments.download")}
+                          {t("documents.download")}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => deleteMutation.mutate(doc.id)}
@@ -244,7 +248,7 @@ export function EnhancedDocumentsPage() {
                           className="text-red-600"
                         >
                           <MoreHorizontal className="mr-2 h-4 w-4" />
-                          {t("enhancedDocuments.delete")}
+                          {t("documents.delete")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -278,8 +282,8 @@ export function EnhancedDocumentsPage() {
       >
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{t("enhancedDocuments.addTitle")}</DialogTitle>
-            <DialogDescription>{t("enhancedDocuments.addDescription")}</DialogDescription>
+            <DialogTitle>{t("documents.addTitle")}</DialogTitle>
+            <DialogDescription>{t("documents.addDescription")}</DialogDescription>
           </DialogHeader>
 
           <Form {...form}>
@@ -289,9 +293,9 @@ export function EnhancedDocumentsPage() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("enhancedDocuments.name")}</FormLabel>
+                    <FormLabel>{t("documents.name")}</FormLabel>
                     <FormControl>
-                      <Input placeholder={t("enhancedDocuments.namePlaceholder")} {...field} />
+                      <Input placeholder={t("documents.namePlaceholder")} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -303,7 +307,7 @@ export function EnhancedDocumentsPage() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("enhancedDocuments.descriptionLabel")}</FormLabel>
+                    <FormLabel>{t("documents.descriptionLabel")}</FormLabel>
                     <FormControl>
                       <Textarea rows={2} {...field} />
                     </FormControl>
@@ -315,10 +319,10 @@ export function EnhancedDocumentsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="type"
+                  name="enhancedType"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("enhancedDocuments.type")}</FormLabel>
+                      <FormLabel>{t("documents.type")}</FormLabel>
                       <Select value={field.value} onValueChange={field.onChange}>
                         <FormControl>
                           <SelectTrigger>
@@ -326,12 +330,12 @@ export function EnhancedDocumentsPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="CONTRACT">{t("enhancedDocuments.types.contract")}</SelectItem>
-                          <SelectItem value="DELIVERABLE">{t("enhancedDocuments.types.deliverable")}</SelectItem>
-                          <SelectItem value="GUIDE">{t("enhancedDocuments.types.guide")}</SelectItem>
-                          <SelectItem value="REPORT">{t("enhancedDocuments.types.report")}</SelectItem>
-                          <SelectItem value="INVOICE">{t("enhancedDocuments.types.invoice")}</SelectItem>
-                          <SelectItem value="OTHER">{t("enhancedDocuments.types.other")}</SelectItem>
+                          <SelectItem value="CONTRACT">{t("documents.types.contract")}</SelectItem>
+                          <SelectItem value="DELIVERABLE">{t("documents.types.deliverable")}</SelectItem>
+                          <SelectItem value="GUIDE">{t("documents.types.guide")}</SelectItem>
+                          <SelectItem value="REPORT">{t("documents.types.report")}</SelectItem>
+                          <SelectItem value="INVOICE">{t("documents.types.invoice")}</SelectItem>
+                          <SelectItem value="OTHER">{t("documents.types.other")}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -344,7 +348,7 @@ export function EnhancedDocumentsPage() {
                   name="accessLevel"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("enhancedDocuments.accessLevel")}</FormLabel>
+                      <FormLabel>{t("documents.accessLevel")}</FormLabel>
                       <Select value={field.value} onValueChange={field.onChange}>
                         <FormControl>
                           <SelectTrigger>
@@ -369,9 +373,9 @@ export function EnhancedDocumentsPage() {
                 name="tags"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("enhancedDocuments.tagsLabel")}</FormLabel>
+                    <FormLabel>{t("documents.tagsLabel")}</FormLabel>
                     <FormControl>
-                      <Input placeholder={t("enhancedDocuments.tagsPlaceholder")} {...field} />
+                      <Input placeholder={t("documents.tagsPlaceholder")} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -380,14 +384,16 @@ export function EnhancedDocumentsPage() {
 
               {/* File upload */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">{t("enhancedDocuments.file")}</label>
+                <label className="text-sm font-medium">{t("documents.file")}</label>
                 <FileUploadField
                   context="document"
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt"
-                  label={t("enhancedDocuments.uploadFile")}
+                  label={t("documents.uploadFile")}
                   uploadImmediately={true}
                   onUploaded={(result) => {
-                    uploadedFile.current = result;
+                    if (result && 'key' in result) {
+                      uploadedFile.current = result as UploadResult;
+                    }
                   }}
                 />
               </div>

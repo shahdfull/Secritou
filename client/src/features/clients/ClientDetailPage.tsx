@@ -56,7 +56,7 @@ import type { UploadResult } from "@/api/upload.api";
 
 type DocumentForm = {
   name: string;
-  type: "INVOICE" | "CONTRACT" | "OTHER";
+  enhancedType: "INVOICE" | "CONTRACT" | "OTHER";
 };
 
 const PROPOSAL_STATUS_COLORS: Record<string, string> = {
@@ -108,11 +108,12 @@ export function ClientDetailPage() {
 
   const uploadedFile = useRef<UploadResult | null>(null);
 
-  const { data: documents } = useQuery({
+  const { data: documentsResult } = useQuery({
     queryKey: ["clientDocuments", id],
-    queryFn: () => (id ? documentsApi.getClientDocuments(id) : Promise.resolve([])),
+    queryFn: () => (id ? documentsApi.getDocuments({ clientId: id }) : Promise.resolve({ data: [], total: 0, page: 1, pageSize: 10 })),
     enabled: !!id,
   });
+  const documents = documentsResult?.data ?? [];
 
   const addDocumentMutation = useMutation({
     mutationFn: (data: Omit<Document, "id" | "createdAt" | "updatedAt" | "companyId">) =>
@@ -128,11 +129,11 @@ export function ClientDetailPage() {
 
   const documentFormSchema = z.object({
     name: z.string().min(1, t("common.nameRequired")),
-    type: z.enum(["INVOICE", "CONTRACT", "OTHER"]),
+    enhancedType: z.enum(["INVOICE", "CONTRACT", "OTHER"]),
   });
   const documentForm = useForm<DocumentForm>({
     resolver: zodResolver(documentFormSchema),
-    defaultValues: { name: "", type: "OTHER" },
+    defaultValues: { name: "", enhancedType: "OTHER" },
   });
 
   const handleDelete = () => {
@@ -186,17 +187,26 @@ export function ClientDetailPage() {
     }
     addDocumentMutation.mutate({
       name: data.name,
-      type: data.type,
+      title: data.name,
+      type: "CONTRACT", // Default DocumentType
+      enhancedType: data.enhancedType,
       url: uploadedFile.current.url,
+      fileUrl: uploadedFile.current.url,
+      fileKey: uploadedFile.current.key,
       clientId: id,
+      version: 1,
+      tags: [],
+      accessLevel: "CLIENT_ADMIN" as any,
+      uploadedById: "",
     });
   };
 
-  const getDocumentTypeLabel = (type: Document["type"]) => {
-    switch (type) {
+  const getDocumentTypeLabel = (doc: Document) => {
+    switch (doc.enhancedType) {
       case "INVOICE": return t("clientsPage.detail.typeInvoice");
       case "CONTRACT": return t("clientsPage.detail.typeContract");
       case "OTHER": return t("clientsPage.detail.typeOther");
+      default: return "Document";
     }
   };
 
@@ -536,11 +546,11 @@ export function ClientDetailPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {documents.map((doc) => (
+                    {documents.map((doc: Document) => (
                       <TableRow key={doc.id}>
                         <TableCell className="font-medium">{doc.name}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{getDocumentTypeLabel(doc.type)}</Badge>
+                          <Badge variant="outline">{getDocumentTypeLabel(doc)}</Badge>
                         </TableCell>
                         <TableCell>
                           {format(new Date(doc.createdAt), "dd/MM/yyyy", { locale: fr })}
@@ -593,7 +603,7 @@ export function ClientDetailPage() {
               />
               <FormField
                 control={documentForm.control}
-                name="type"
+                name="enhancedType"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t("enhancedDocuments.type")}</FormLabel>
