@@ -4,8 +4,7 @@ export type ServiceRequestStatus =
   | "IN_PROGRESS"
   | "WAITING_CLIENT"
   | "COMPLETED"
-  | "CANCELLED"
-  | "DONE"; // legacy
+  | "CANCELLED";
 
 export type ServiceRequestPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
 
@@ -51,6 +50,7 @@ export interface ServiceRequestDetail extends ServiceRequest {
 export interface CreateServiceRequestInput {
   title: string;
   description?: string;
+  type?: "SUPPORT" | "NEW_PROJECT";
 }
 
 export interface AdminUpdateServiceRequestInput {
