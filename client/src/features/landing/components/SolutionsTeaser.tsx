@@ -16,22 +16,22 @@ const segments = [
   },
   {
     icon: Compass,
-    tagKey: "solutionsTeaser.segments.entrepreneurs.tag",
-    titleKey: "solutionsTeaser.segments.entrepreneurs.title",
+    tagKey: "solutionsTeaser.segments.startuppers.tag",
+    titleKey: "solutionsTeaser.segments.startuppers.title",
     needsKeys: [
-      "solutionsTeaser.segments.entrepreneurs.needs.0",
-      "solutionsTeaser.segments.entrepreneurs.needs.1",
-      "solutionsTeaser.segments.entrepreneurs.needs.2",
+      "solutionsTeaser.segments.startuppers.needs.0",
+      "solutionsTeaser.segments.startuppers.needs.1",
+      "solutionsTeaser.segments.startuppers.needs.2",
     ],
   },
   {
     icon: Store,
-    tagKey: "solutionsTeaser.segments.creators.tag",
-    titleKey: "solutionsTeaser.segments.creators.title",
+    tagKey: "solutionsTeaser.segments.brands.tag",
+    titleKey: "solutionsTeaser.segments.brands.title",
     needsKeys: [
-      "solutionsTeaser.segments.creators.needs.0",
-      "solutionsTeaser.segments.creators.needs.1",
-      "solutionsTeaser.segments.creators.needs.2",
+      "solutionsTeaser.segments.brands.needs.0",
+      "solutionsTeaser.segments.brands.needs.1",
+      "solutionsTeaser.segments.brands.needs.2",
     ],
   },
 ];

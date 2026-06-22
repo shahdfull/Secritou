@@ -20,25 +20,25 @@ export function SolutionsPage() {
     },
     {
       icon: Compass,
-      tagKey: "solutionsPage.sections.entrepreneurs.tag",
-      titleKey: "solutionsPage.sections.entrepreneurs.title",
+      tagKey: "solutionsPage.sections.startuppers.tag",
+      titleKey: "solutionsPage.sections.startuppers.title",
       needsKeys: [
-        { h: "solutionsPage.sections.entrepreneurs.needs.0.h", b: "solutionsPage.sections.entrepreneurs.needs.0.b" },
-        { h: "solutionsPage.sections.entrepreneurs.needs.1.h", b: "solutionsPage.sections.entrepreneurs.needs.1.b" },
-        { h: "solutionsPage.sections.entrepreneurs.needs.2.h", b: "solutionsPage.sections.entrepreneurs.needs.2.b" },
+        { h: "solutionsPage.sections.startuppers.needs.0.h", b: "solutionsPage.sections.startuppers.needs.0.b" },
+        { h: "solutionsPage.sections.startuppers.needs.1.h", b: "solutionsPage.sections.startuppers.needs.1.b" },
+        { h: "solutionsPage.sections.startuppers.needs.2.h", b: "solutionsPage.sections.startuppers.needs.2.b" },
       ],
-      outcomeKey: "solutionsPage.sections.entrepreneurs.outcome",
+      outcomeKey: "solutionsPage.sections.startuppers.outcome",
     },
     {
       icon: Mic2,
-      tagKey: "solutionsPage.sections.creators.tag",
-      titleKey: "solutionsPage.sections.creators.title",
+      tagKey: "solutionsPage.sections.brands.tag",
+      titleKey: "solutionsPage.sections.brands.title",
       needsKeys: [
-        { h: "solutionsPage.sections.creators.needs.0.h", b: "solutionsPage.sections.creators.needs.0.b" },
-        { h: "solutionsPage.sections.creators.needs.1.h", b: "solutionsPage.sections.creators.needs.1.b" },
-        { h: "solutionsPage.sections.creators.needs.2.h", b: "solutionsPage.sections.creators.needs.2.b" },
+        { h: "solutionsPage.sections.brands.needs.0.h", b: "solutionsPage.sections.brands.needs.0.b" },
+        { h: "solutionsPage.sections.brands.needs.1.h", b: "solutionsPage.sections.brands.needs.1.b" },
+        { h: "solutionsPage.sections.brands.needs.2.h", b: "solutionsPage.sections.brands.needs.2.b" },
       ],
-      outcomeKey: "solutionsPage.sections.creators.outcome",
+      outcomeKey: "solutionsPage.sections.brands.outcome",
     },
   ];
 

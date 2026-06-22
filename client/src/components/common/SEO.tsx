@@ -36,7 +36,7 @@ function setStructuredData() {
     url: siteUrl,
     logo: logoUrl,
     description:
-      "Secritou helps SMEs, entrepreneurs and creators organize, digitize and grow through strategy, technology, marketing and data-driven decisions.",
+      "Secritou helps SMEs, startuppers and creators organize, digitize and grow through strategy, technology, marketing and data-driven decisions.",
   };
 
   // ProfessionalService Schema
@@ -45,7 +45,7 @@ function setStructuredData() {
     "@type": "ProfessionalService",
     name: "Secritou",
     description:
-      "Secritou helps SMEs, entrepreneurs and creators organize, digitize and grow through strategy, technology, marketing and data-driven decisions.",
+      "Secritou helps SMEs, startuppers and creators organize, digitize and grow through strategy, technology, marketing and data-driven decisions.",
     url: siteUrl,
     provider: {
       "@type": "Organization",

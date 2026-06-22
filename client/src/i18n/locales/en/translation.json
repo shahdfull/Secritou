@@ -143,7 +143,7 @@
         "1": "structures, digitizes and grows",
         "2": "your business."
       },
-      "description": "We help SMEs, entrepreneurs and creators organize, digitize and grow — through strategy, technology, marketing and data-driven decision making.",
+      "description": "We help SMEs, startuppers and brands organize, digitize and grow — through strategy, technology, marketing and data-driven decision making.",
       "features": [
         "Data-driven decisions",
         "Digital transformation",
@@ -256,7 +256,7 @@
       "questions": [
         {
           "q": "What types of businesses do you support?",
-          "a": "SMEs, entrepreneurs and shops & brands across industries — retail, professional services, healthcare, education and digital-first brands. If you have revenue and ambition, we can probably help."
+          "a": "SMEs, startuppers and shops & brands across industries — retail, professional services, healthcare, education and digital-first brands. If you have revenue and ambition, we can probably help."
         },
         {
           "q": "Can I choose only one service?",
@@ -327,7 +327,7 @@
       "secondary": "Discover our services"
     },
     "footer": {
-      "description": "A Tunisian B2B agency helping SMEs, entrepreneurs, and creators get organized, go digital, and grow.",
+      "description": "A Tunisian B2B agency helping SMEs, startuppers, and brands get organized, go digital, and grow.",
       "services": "Services",
       "solutions": "Solutions",
       "industriesTitle": "Industries",
@@ -839,7 +839,7 @@
         ],
         "outcome": "From scattered ops to a calm, measurable business."
       },
-      "entrepreneurs": {
+      "startuppers": {
         "tag": "For Startuppers",
         "title": "Move fast, without burning out.",
         "needs": [
@@ -858,7 +858,7 @@
         ],
         "outcome": "More leverage per founder hour."
       },
-      "creators": {
+      "brands": {
         "tag": "For Creators",
         "title": "Turn your audience into a real business.",
         "needs": [
@@ -1099,7 +1099,7 @@
           "2": "Better organization"
         }
       },
-      "entrepreneurs": {
+      "startuppers": {
         "tag": "For Startuppers",
         "title": "Move faster, without burning out.",
         "needs": {
@@ -1108,7 +1108,7 @@
           "2": "Visibility"
         }
       },
-      "creators": {
+      "brands": {
         "tag": "For Shops & Brands",
         "title": "Turn your shop into a brand that matters.",
         "needs": {
