@@ -1,35 +1,96 @@
-import type { RequestHandler } from 'express';
-import { documentService } from '../services/document.service.js';
-import { parseListQuery } from '../utils/listQuery.js';
-import { z } from 'zod';
+import type { Request, Response } from "express";
+import { documentService } from "../services/document.service.js";
+import { parseListQuery } from "../utils/listQuery.js";
+import { HttpError } from "../utils/httpError.js";
+import { EnhancedDocumentType, DocumentType } from "@prisma/client";
 
-const createDocumentSchema = z.object({
-  name: z.string().min(1),
-  type: z.enum(['INVOICE', 'CONTRACT', 'OTHER']),
-  url: z.string().url(),
-  projectId: z.string().optional(),
-  clientId: z.string().optional(),
-});
+function textQuery(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
 
-export const getClientDocuments: RequestHandler = async (req, res, next) => {
-  try {
-    const clientId = req.params.clientId as string;
-    const companyId = req.user?.companyId as string;
-    const options = parseListQuery(req.query as Record<string, unknown>);
-    const result = await documentService.getClientDocuments(clientId, companyId, options);
-    res.json(result);
-  } catch (error) {
-    next(error);
-  }
+export const getDocuments = async (req: Request, res: Response) => {
+  const options = {
+    ...parseListQuery(req.query as Record<string, unknown>),
+    companyId: req.user!.companyId!,
+    clientId: textQuery(req.query.clientId),
+    type: textQuery(req.query.type) as DocumentType | undefined,
+    enhancedType: textQuery(req.query.enhancedType) as EnhancedDocumentType | undefined,
+    projectId: textQuery(req.query.projectId),
+    tags: typeof req.query.tags === "string" ? req.query.tags.split(",") : undefined,
+    search: textQuery(req.query.search),
+  };
+  const result = await documentService.getAll(options, {
+    role: req.user!.role,
+    clientId: req.user!.clientId,
+  });
+  res.json({ data: result });
 };
 
-export const createDocument: RequestHandler = async (req, res, next) => {
-  try {
-    const data = createDocumentSchema.parse(req.body);
-    const companyId = req.user?.companyId as string;
-    const document = await documentService.createDocument({ ...data, companyId });
-    res.json({ data: document });
-  } catch (error) {
-    next(error);
-  }
+export const getDocumentById = async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const companyId = req.user!.companyId as string;
+  const document = await documentService.getById(id, companyId, {
+    role: req.user!.role,
+    clientId: req.user!.clientId,
+  });
+  // Don't log a VIEW (or leak existence) for a document the viewer isn't allowed to see.
+  if (!document) throw new HttpError(404, "Document not found");
+  await documentService.logAccess(id, companyId, {
+    action: "VIEW",
+    userId: req.user?.sub as string | undefined,
+    ipAddress: req.ip,
+    userAgent: req.get("User-Agent"),
+  });
+  res.json({ data: document });
+};
+
+export const createDocument = async (req: Request, res: Response) => {
+  const document = await documentService.create(
+    {
+      ...req.body,
+      uploadedById: req.user!.sub,
+    },
+    req.user!.companyId as string
+  );
+  res.status(201).json({ data: document });
+};
+
+export const updateDocument = async (req: Request, res: Response) => {
+  const document = await documentService.update(req.params.id as string, req.user!.companyId as string, req.body);
+  res.json({ data: document });
+};
+
+export const deleteDocument = async (req: Request, res: Response) => {
+  await documentService.delete(req.params.id as string, req.user!.companyId as string);
+  res.status(204).send();
+};
+
+export const createDocumentVersion = async (req: Request, res: Response) => {
+  const document = await documentService.createVersion(req.params.id as string, req.user!.companyId as string, {
+    ...req.body,
+    userId: req.user?.sub as string | undefined,
+    ipAddress: req.ip,
+    userAgent: req.get("User-Agent"),
+  });
+  res.status(201).json({ data: document });
+};
+
+export const signDocument = async (req: Request, res: Response) => {
+  const clientId = req.user!.clientId;
+  if (!clientId) throw new HttpError(403, "Client access required");
+  const document = await documentService.signDocument(
+    req.params.id as string,
+    clientId,
+    req.user!.companyId as string
+  );
+  res.json({ data: document });
+};
+
+export const downloadDocument = async (req: Request, res: Response) => {
+  const result = await documentService.getDownloadUrl(
+    req.params.id as string,
+    req.user!.companyId as string,
+    { role: req.user!.role, clientId: req.user!.clientId }
+  );
+  res.json({ data: result });
 };
