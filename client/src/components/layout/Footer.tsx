@@ -38,6 +38,7 @@ export function Footer() {
       titleKey: "home.footer.company",
       links: [
         { labelKey: "nav.contact", to: "/contact" },
+        { labelKey: "nav.joinUs", to: "/join-us" },
       ],
     },
   ];
