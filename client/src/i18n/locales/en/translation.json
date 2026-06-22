@@ -497,7 +497,7 @@
     "clients": "Clients",
     "projects": "Projects",
     "tasks": "Tasks",
-    "freelancers": "Freelancers"
+    "freelancers": "Team"
   },
   "settingsUsersTab": {
     "title": "Users",
@@ -534,7 +534,7 @@
     "clients": "Clients",
     "applications": "Applications",
     "onboarding": "Onboarding",
-    "freelancers": "Freelancers",
+    "freelancers": "Team",
     "missions": "Missions",
     "projects": "Projects",
     "tasks": "Tasks",
@@ -1224,6 +1224,9 @@
       "requestTitle": "Title",
       "titlePlaceholder": "Request title",
       "descriptionPlaceholder": "Describe your request in detail...",
+      "requestType": "Type",
+      "typeSupport": "Support",
+      "typeNewProject": "New Project",
       "send": "Send Request",
       "sending": "Sending...",
       "createdOn": "Created on",

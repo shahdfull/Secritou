@@ -95,7 +95,6 @@ const NEXT_STATUSES: Record<ServiceRequestStatus, ServiceRequestStatus[]> = {
   WAITING_CLIENT: ["IN_PROGRESS", "COMPLETED", "CANCELLED"],
   COMPLETED: [],
   CANCELLED: [],
-  DONE: ["COMPLETED"],
 };
 
 // ─── Utility helpers ──────────────────────────────────────────────────────────
