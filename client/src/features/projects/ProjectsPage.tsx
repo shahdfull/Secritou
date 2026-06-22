@@ -14,7 +14,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { TasksPage } from "@/features/tasks/TasksPage";
-import { EnhancedDocumentsPage } from "@/features/enhanced-documents/EnhancedDocumentsPage";
+import { DocumentsPage } from "@/features/documents/DocumentsPage";
 import {
   MoreHorizontal,
   Search,
@@ -69,6 +69,7 @@ import { useListParams } from "@/hooks/useListParams";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { Textarea } from "@/components/ui/textarea";
 import { useTranslation } from "react-i18next";
+import { usePermission } from "@/hooks/usePermission";
 
 const createProjectSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -84,6 +85,8 @@ type UpdateProjectForm = z.infer<typeof updateProjectSchema>;
 
 export function ProjectsPage() {
   const { t } = useTranslation();
+  const canCreate = usePermission("projects", "create");
+  const canDelete = usePermission("projects", "delete");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -220,12 +223,14 @@ export function ProjectsPage() {
         <TabsContent value="projects" className="space-y-6 mt-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t("projectsPage.newProject")}
-                </Button>
-              </DialogTrigger>
+              {canCreate && (
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t("projectsPage.newProject")}
+                  </Button>
+                </DialogTrigger>
+              )}
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>{t("projectsPage.createProject")}</DialogTitle>
@@ -371,10 +376,12 @@ export function ProjectsPage() {
                             <Edit className="h-4 w-4 mr-2" />
                             {t("common.edit")}
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDelete(project)} disabled={isDeleting} className="text-red-600">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            {t("common.delete")}
-                          </DropdownMenuItem>
+                          {canDelete && (
+                            <DropdownMenuItem onClick={() => handleDelete(project)} disabled={isDeleting} className="text-red-600">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              {t("common.delete")}
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -499,7 +506,7 @@ export function ProjectsPage() {
         </TabsContent>
         
         <TabsContent value="documents">
-          <EnhancedDocumentsPage />
+          <DocumentsPage />
         </TabsContent>
       </Tabs>
     </div>
