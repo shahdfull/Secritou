@@ -1,0 +1,42 @@
+// Manager Permission Repository - Data access layer
+import { prismaRead as prisma } from "../config/prisma.js";
+import { prismaWrite } from "../config/prisma.js";
+import type { ManagerPermission } from "@prisma/client";
+
+export const managerPermissionRepository = {
+  async findByUserId(userId: string): Promise<ManagerPermission | null> {
+    return prisma.managerPermission.findUnique({
+      where: { userId },
+      include: { profile: true },
+    });
+  },
+
+  async create(data: {
+    userId: string;
+    profileId?: string;
+    overrides?: any;
+  }): Promise<ManagerPermission> {
+    return prismaWrite.managerPermission.create({
+      data,
+      include: { profile: true },
+    });
+  },
+
+  async update(
+    userId: string,
+    data: Partial<{
+      profileId?: string | null;
+      overrides?: any;
+    }>
+  ): Promise<ManagerPermission> {
+    return prismaWrite.managerPermission.upsert({
+      where: { userId },
+      update: data,
+      create: {
+        userId,
+        ...data,
+      },
+      include: { profile: true },
+    });
+  },
+};

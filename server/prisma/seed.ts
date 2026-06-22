@@ -481,6 +481,75 @@ async function main() {
     console.log('Notifications already exist, skipping.');
   }
 
+  // ── Permission Profiles ──────────────────────────────────────────────────────
+  const FULL = { read: true, create: true, update: true, delete: true };
+  const READ_UPDATE = { read: true, create: false, update: true, delete: false };
+  const READ = { read: true, create: false, update: false, delete: false };
+  const NO_ACCESS = { read: false, create: false, update: false, delete: false };
+
+  const existingProfileCount = await prisma.permissionProfile.count();
+  if (existingProfileCount === 0) {
+    await Promise.all([
+      prisma.permissionProfile.create({
+        data: {
+          name: "Opérations",
+          description: "Accès complet aux projets, tâches, missions et freelances",
+          permissions: {
+            projects: FULL,
+            tasks: FULL,
+            missions: FULL,
+            freelancers: READ_UPDATE,
+            clients: NO_ACCESS,
+            leads: NO_ACCESS,
+            invoices: NO_ACCESS,
+            analytics: NO_ACCESS,
+            approvals: NO_ACCESS,
+            documents: NO_ACCESS,
+          },
+        },
+      }),
+      prisma.permissionProfile.create({
+        data: {
+          name: "Commercial",
+          description: "Accès aux leads, clients et propositions",
+          permissions: {
+            projects: NO_ACCESS,
+            tasks: NO_ACCESS,
+            missions: NO_ACCESS,
+            freelancers: NO_ACCESS,
+            clients: READ,
+            leads: FULL,
+            invoices: NO_ACCESS,
+            analytics: NO_ACCESS,
+            approvals: NO_ACCESS,
+            documents: NO_ACCESS,
+          },
+        },
+      }),
+      prisma.permissionProfile.create({
+        data: {
+          name: "Technique",
+          description: "Accès aux projets, tâches, missions et documents",
+          permissions: {
+            projects: READ_UPDATE,
+            tasks: FULL,
+            missions: READ,
+            freelancers: NO_ACCESS,
+            clients: NO_ACCESS,
+            leads: NO_ACCESS,
+            invoices: NO_ACCESS,
+            analytics: NO_ACCESS,
+            approvals: NO_ACCESS,
+            documents: FULL,
+          },
+        },
+      }),
+    ]);
+    console.log('Created permission profiles: 3');
+  } else {
+    console.log('Permission profiles already exist, skipping.');
+  }
+
   console.log('\n─────────────────────────────────────────');
   console.log('Database seed completed successfully!');
   console.log('─────────────────────────────────────────');

@@ -28,6 +28,8 @@ import summaryRoutes from "./summary.routes.js";
 import uploadRoutes from "./upload.routes.js";
 import aiConversationRoutes from "./aiConversation.routes.js";
 import customQuestionRoutes from "./customQuestion.routes.js";
+import permissionProfileRoutes from "./permissionProfile.routes.js";
+import managerPermissionRoutes from "./managerPermission.routes.js";
 
 export const apiRoutes = Router();
 
@@ -173,3 +175,7 @@ apiRoutes.use("/ai/conversations", aiConversationRoutes);
 
 // Custom question (FAQ) routes
 apiRoutes.use("/custom-questions", customQuestionRoutes);
+
+// Permission routes
+apiRoutes.use("/permission-profiles", permissionProfileRoutes);
+apiRoutes.use("/manager-permissions", managerPermissionRoutes);
