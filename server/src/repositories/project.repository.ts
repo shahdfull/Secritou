@@ -43,6 +43,10 @@ const projectListSelect = {
   updatedAt: true,
   budget: true,
   deadline: true,
+  serviceType: true,
+  briefData: true,
+  briefCompleted: true,
+  briefCompletedAt: true,
   client: { select: clientBriefSelect },
 } as const;
 

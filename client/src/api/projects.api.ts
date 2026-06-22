@@ -3,6 +3,26 @@ import type { Project, CreateProjectInput, UpdateProjectInput } from "../types/p
 import type { ApiResponse } from "../types/auth";
 import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 
+export type BriefQuestionType = "boolean" | "textarea" | "multiselect" | "number" | "text";
+
+export interface BriefQuestion {
+  key: string;
+  label: string;
+  type: BriefQuestionType;
+  options?: string[];
+  required?: boolean;
+}
+
+export interface BriefProject {
+  id: string;
+  name: string;
+  serviceType: string | null;
+  briefData: Record<string, unknown> | null;
+  briefCompleted: boolean;
+  briefCompletedAt: string | null;
+  clientId: string | null;
+}
+
 export const projectsApi = {
   getAll: async (params: ListQueryParams = {}): Promise<PaginatedResponse<Project>> => {
     const response = await apiClient.get<PaginatedResponse<Project>>("/projects", { params });
@@ -30,6 +50,16 @@ export const projectsApi = {
 
   getTimelineStatus: async (id: string): Promise<TimelineStep[]> => {
     const response = await apiClient.get<{ data: TimelineStep[] }>(`/projects/${id}/timeline-status`);
+    return response.data.data;
+  },
+
+  getBrief: async (id: string): Promise<{ project: BriefProject; questions: BriefQuestion[] }> => {
+    const response = await apiClient.get<{ data: { project: BriefProject; questions: BriefQuestion[] } }>(`/projects/${id}/brief`);
+    return response.data.data;
+  },
+
+  submitBrief: async (id: string, briefData: Record<string, unknown>): Promise<BriefProject> => {
+    const response = await apiClient.post<{ data: BriefProject }>(`/projects/${id}/brief/submit`, briefData);
     return response.data.data;
   },
 };

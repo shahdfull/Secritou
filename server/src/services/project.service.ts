@@ -1,6 +1,7 @@
 // Service for Projects - SaaS business logic
 import { projectRepository } from "../repositories/project.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
+import { clientRepository } from "../repositories/client.repository.js";
 import { tenantValidation } from "./tenantValidation.service.js";
 import { enqueueNotifications } from "../jobs/queues.js";
 import type { CreateProjectDTO } from "../types/entities.js";
@@ -9,7 +10,9 @@ import type { Role } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
-import { prismaRead } from "../config/prisma.js";
+import { prisma, prismaRead } from "../config/prisma.js";
+import { documentGeneratorService } from "./documentGenerator.service.js";
+import { getBriefQuestions } from "../constants/briefQuestions.js";
 
 export type TimelineStepStatus = "done" | "pending" | "locked";
 
@@ -129,6 +132,81 @@ export const projectService = {
     return archived;
   },
 
+  // Returns the brief questions for the project's serviceType + any saved answers.
+  async getBrief(id: string, companyId: string, role: Role, clientId?: string) {
+    const project = await prismaRead.project.findFirst({
+      where: {
+        id,
+        companyId,
+        ...(role === "CLIENT" ? { clientId: clientId ?? "__none__" } : {}),
+      },
+      select: { id: true, name: true, serviceType: true, briefData: true, briefCompleted: true, briefCompletedAt: true, clientId: true },
+    });
+    if (!project) throw new HttpError(404, "Project not found");
+    const questions = getBriefQuestions(project.serviceType);
+    return { project, questions };
+  },
+
+  // CLIENT submits the brief. Guards: project.clientId === req.user.clientId.
+  // On success: saves briefData, marks complete, generates PDF, notifies managers.
+  async submitBrief(
+    id: string,
+    companyId: string,
+    clientId: string,
+    uploadedById: string,
+    briefData: Record<string, unknown>
+  ) {
+    const project = await prismaRead.project.findFirst({
+      where: { id, companyId },
+      select: { id: true, name: true, description: true, clientId: true, serviceType: true, briefCompleted: true, budget: true, deadline: true, serviceId: true },
+    });
+    if (!project) throw new HttpError(404, "Project not found");
+    if (project.clientId !== clientId) throw new HttpError(403, "Forbidden");
+    if (project.briefCompleted) throw new HttpError(409, "Brief already submitted", "BRIEF_ALREADY_SUBMITTED");
+
+    const updated = await prisma.project.update({
+      where: { id, companyId },
+      data: { briefData, briefCompleted: true, briefCompletedAt: new Date() },
+    });
+
+    // Best-effort: generate PDF + notify managers (never fail the submission)
+    void (async () => {
+      try {
+        const client = project.clientId ? await clientRepository.findById(project.clientId, companyId) : null;
+        const docProject = {
+          id: project.id,
+          name: project.name,
+          description: project.description ?? undefined,
+          budget: project.budget ?? undefined,
+          deadline: project.deadline ?? undefined,
+          serviceId: project.serviceId ?? null,
+        };
+        const docClient = client
+          ? { id: client.id, name: client.name, email: client.email ?? undefined }
+          : { id: clientId, name: "Client", email: undefined };
+        await documentGeneratorService.generateClientBrief(docProject, docClient, companyId, uploadedById);
+      } catch (err) {
+        console.error("[submitBrief] PDF generation failed:", err);
+      }
+
+      try {
+        const managers = await userRepository.findAdminsByCompanyId(companyId);
+        await enqueueNotifications(
+          managers.map((u) => ({
+            userId: u.id,
+            title: "Brief client complété",
+            message: `Le client a complété son brief pour le projet « ${project.name} ».`,
+          }))
+        );
+      } catch (err) {
+        console.error("[submitBrief] Manager notification failed:", err);
+      }
+    })();
+
+    await invalidateTags([cacheTags.company(companyId), cacheTags.project(companyId, id)]);
+    return updated;
+  },
+
   // Derives the 7-step project timeline from existing project + document + task state.
   // No new DB columns — each step's "done" condition is computed from what already exists.
   // briefCompleted: proxied via CLIENT_BRIEF document existence (auto-generated at acceptance).
@@ -150,6 +228,8 @@ export const projectService = {
         id: true,
         status: true,
         createdAt: true,
+        briefCompleted: true,
+        briefCompletedAt: true,
         tasks: { select: { status: true, updatedAt: true } },
       },
     });
@@ -192,8 +272,8 @@ export const projectService = {
       {
         key: "brief",
         label: "Informations collectées",
-        done: !!briefDoc,
-        date: briefDoc?.createdAt,
+        done: project.briefCompleted || !!briefDoc,
+        date: project.briefCompletedAt ?? briefDoc?.createdAt,
       },
       {
         key: "production",
