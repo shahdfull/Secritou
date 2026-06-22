@@ -39,7 +39,7 @@ export const summaryRepository = {
       prisma.serviceRequest.count({
         where: { companyId, clientId },
       }),
-      prisma.enhancedDocument.count({
+      prisma.document.count({
         where: { companyId, clientId },
       }),
     ]);
@@ -49,7 +49,7 @@ export const summaryRepository = {
     const projectIds = projects.map((p) => p.id);
     const progressMap = await getProgressByProjectIds(projectIds);
 
-    const projectSummaries = projects.map((project) => ({
+    const projectSummaries = projects.map((project: any) => ({
       id: project.id,
       name: project.name,
       status: project.status,
@@ -89,7 +89,7 @@ export const summaryRepository = {
         where: { projectId },
         _count: { id: true },
       }),
-      prisma.enhancedDocument.count({
+      prisma.document.count({
         where: { projectId, companyId },
       }),
       prisma.invoice.count({
@@ -103,7 +103,7 @@ export const summaryRepository = {
     if (!project) return null;
 
     const taskCounts: Record<string, number> = {};
-    tasks.forEach((t) => {
+    tasks.forEach((t: any) => {
       taskCounts[t.status] = t._count.id;
     });
 

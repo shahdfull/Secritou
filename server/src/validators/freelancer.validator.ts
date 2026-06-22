@@ -1,9 +1,8 @@
 // Freelancer Validators - Validation schemas (profiles only; missions removed)
 import { z } from "zod";
+import { profileBaseSchema as sharedProfileBase } from "@secritou/shared";
 
-const freelancerProfileBaseSchema = z.object({
-  bio: z.string().optional(),
-  hourlyRate: z.number().positive().optional(),
+const freelancerProfileBaseSchema = sharedProfileBase.extend({
   skillIds: z.array(z.string().uuid()).optional(),
 });
 

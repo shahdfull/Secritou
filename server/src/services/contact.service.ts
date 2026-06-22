@@ -131,6 +131,7 @@ export class ContactService {
         orderBy: { createdAt: "desc" },
         skip,
         take: limit,
+        include: { convertedLead: true },
       }),
       prisma.contactRequest.count({ where }),
     ]);
@@ -150,6 +151,59 @@ export class ContactService {
     return prisma.contactRequest.update({
       where: { id },
       data: { status },
+    });
+  }
+
+  async convertToLead(
+    contactRequestId: string,
+    companyId: string,
+    assignedManagerId?: string,
+    department?: string
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const contactRequest = await tx.contactRequest.findUnique({
+        where: { id: contactRequestId },
+      });
+
+      if (!contactRequest) {
+        throw new Error("Contact request not found");
+      }
+
+      if (contactRequest.convertedAt) {
+        throw new Error("Contact request already converted");
+      }
+
+      const lead = await tx.lead.create({
+        data: {
+          name: contactRequest.name,
+          email: contactRequest.email,
+          phone: contactRequest.phone,
+          source: "Contact form",
+          status: "NEW",
+          notes: [
+            `Service: ${contactRequest.serviceType}`,
+            contactRequest.budget ? `Budget: ${contactRequest.budget}` : null,
+            `Company: ${contactRequest.company}`,
+            "",
+            contactRequest.message,
+          ]
+            .filter((line) => line !== null)
+            .join("\n"),
+          companyId,
+          sourceContactId: contactRequestId,
+          assignedManagerId,
+          department,
+        },
+      });
+
+      await tx.contactRequest.update({
+        where: { id: contactRequestId },
+        data: {
+          convertedAt: new Date(),
+        },
+      });
+
+      return lead;
     });
   }
 

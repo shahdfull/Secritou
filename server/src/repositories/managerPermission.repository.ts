@@ -1,6 +1,5 @@
 // Manager Permission Repository - Data access layer
-import { prismaRead as prisma } from "../config/prisma.js";
-import { prismaWrite } from "../config/prisma.js";
+import { prisma } from "../config/prisma.js";
 import type { ManagerPermission } from "@prisma/client";
 
 export const managerPermissionRepository = {
@@ -16,7 +15,7 @@ export const managerPermissionRepository = {
     profileId?: string;
     overrides?: any;
   }): Promise<ManagerPermission> {
-    return prismaWrite.managerPermission.create({
+    return prisma.managerPermission.create({
       data,
       include: { profile: true },
     });
@@ -29,7 +28,7 @@ export const managerPermissionRepository = {
       overrides?: any;
     }>
   ): Promise<ManagerPermission> {
-    return prismaWrite.managerPermission.upsert({
+    return prisma.managerPermission.upsert({
       where: { userId },
       update: data,
       create: {

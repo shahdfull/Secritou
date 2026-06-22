@@ -20,11 +20,12 @@ export function ClientDashboardPage() {
   const { data: projectsResult } = useProjects({ page: 1, pageSize: 100 });
   const projects = projectsResult?.data ?? [];
   const { data: requests } = useClientServiceRequests();
-  const { data: documents } = useQuery({
+  const { data: documentsResult } = useQuery({
     queryKey: ["clientDocuments", user?.clientId],
-    queryFn: () => user?.clientId ? documentsApi.getClientDocuments(user.clientId) : Promise.resolve([]),
+    queryFn: () => user?.clientId ? documentsApi.getDocuments({ clientId: user.clientId }) : Promise.resolve({ data: [], total: 0, page: 1, pageSize: 10 }),
     enabled: !!user?.clientId,
   });
+  const documents = documentsResult?.data ?? [];
 
   const stats = [
     {
@@ -49,11 +50,12 @@ export function ClientDashboardPage() {
     },
   ];
 
-  const getDocumentTypeLabel = (type: Document['type']) => {
-    switch (type) {
+  const getDocumentTypeLabel = (doc: Document) => {
+    switch (doc.enhancedType) {
       case 'INVOICE': return 'Facture';
       case 'CONTRACT': return 'Contrat';
       case 'OTHER': return 'Autre';
+      default: return 'Document';
     }
   };
 
@@ -96,11 +98,11 @@ export function ClientDashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {documents.map((doc) => (
+                {documents.map((doc: Document) => (
                   <TableRow key={doc.id}>
                     <TableCell className="font-medium">{doc.name}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{getDocumentTypeLabel(doc.type)}</Badge>
+                      <Badge variant="outline">{getDocumentTypeLabel(doc)}</Badge>
                     </TableCell>
                     <TableCell>{format(new Date(doc.createdAt), 'dd/MM/yyyy', { locale: fr })}</TableCell>
                     <TableCell className="text-right">

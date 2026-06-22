@@ -38,3 +38,21 @@ export const updateContactRequest: RequestHandler = async (req, res, next) => {
     next(error);
   }
 };
+
+export const convertToLead: RequestHandler = async (req, res, next) => {
+  try {
+    const companyId = req.user?.companyId!;
+    const contactRequestId = req.params.id as string;
+    const { assignedManagerId, department } = req.body;
+
+    const lead = await contactService.convertToLead(
+      contactRequestId,
+      companyId,
+      assignedManagerId,
+      department
+    );
+    res.status(201).json({ data: lead });
+  } catch (error) {
+    next(error);
+  }
+};

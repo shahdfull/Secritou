@@ -71,8 +71,8 @@ export const tenantValidation = {
     return invoice;
   },
 
-  async assertEnhancedDocumentInCompany(docId: string, companyId: string) {
-    const doc = await prisma.enhancedDocument.findFirst({
+  async assertDocumentInCompany(docId: string, companyId: string) {
+    const doc = await prisma.document.findFirst({
       where: { id: docId, companyId },
       select: { id: true, companyId: true },
     });

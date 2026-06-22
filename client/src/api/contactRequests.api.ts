@@ -1,5 +1,24 @@
 import apiClient from "./axios";
 
+export type Lead = {
+  id: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  source?: string | null;
+  status: string;
+  notes?: string | null;
+  companyId: string;
+  serviceId?: string | null;
+  convertedClientId?: string | null;
+  archivedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  sourceContactId?: string | null;
+  assignedManagerId?: string | null;
+  department?: string | null;
+};
+
 export type ContactRequest = {
   id: string;
   name: string;
@@ -12,6 +31,8 @@ export type ContactRequest = {
   status: "NEW" | "READ" | "ARCHIVED";
   createdAt: string;
   updatedAt: string;
+  convertedLead?: Lead | null;
+  convertedAt?: string | null;
 };
 
 export type PaginatedContactRequests = {
@@ -36,6 +57,13 @@ export const contactRequestsApi = {
   },
   updateStatus: async (id: string, status: ContactRequest["status"]): Promise<ContactRequest> => {
     const response = await apiClient.patch<ContactRequest>(`/contact/${id}`, { status });
+    return response.data;
+  },
+  convertToLead: async (
+    id: string,
+    data?: { assignedManagerId?: string; department?: string }
+  ): Promise<{ data: Lead }> => {
+    const response = await apiClient.post<{ data: Lead }>(`/contact/${id}/convert-to-lead`, data || {});
     return response.data;
   },
 };

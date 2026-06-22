@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Role } from "@prisma/client";
+import { userBaseSchema as sharedUserBase } from "@secritou/shared";
 
 export const updateMeSchema = z.object({
   body: z.object({
@@ -9,19 +10,16 @@ export const updateMeSchema = z.object({
   }),
 });
 
+const userBaseSchema = sharedUserBase.extend({
+  role: z.nativeEnum(Role),
+});
+
 export const createUserSchema = z.object({
-  body: z.object({
-    name: z.string().min(2),
-    email: z.string().email(),
-    role: z.nativeEnum(Role),
-  }),
+  body: userBaseSchema,
 });
 
 export const updateUserSchema = z.object({
-  body: z.object({
-    name: z.string().min(2).optional(),
-    role: z.nativeEnum(Role).optional(),
-  }),
+  body: userBaseSchema.partial(),
   params: z.object({
     id: z.string(),
   }),
