@@ -1482,6 +1482,15 @@
       "create": "Créer une proposition",
       "linkedProposals": "Propositions liées",
       "noProposals": "Aucune proposition liée à ce lead"
+    },
+    "acceptCascade": {
+      "title": "Accepter la proposition",
+      "description": "Cette action déclenche la création du projet, de la facture d'acompte et l'invitation du client.",
+      "willCreateProject": "Un projet « {{name}} » sera créé",
+      "willInvoiceDeposit": "Un acompte de 30% sera facturé",
+      "willInviteClient": "Le client sera invité sur son portail par email",
+      "confirm": "Accepter et lancer",
+      "clientInvited": "Client invité par email"
     }
   },
   "approvals": {
@@ -1690,6 +1699,21 @@
       "UNPAID": "Non payé",
       "PARTIAL": "Partiel",
       "PAID": "Payé"
+    }
+  },
+  "projects": {
+    "title": "Projets",
+    "notFound": "Projet introuvable",
+    "budget": "Budget",
+    "deadline": "Échéance",
+    "progress": "Avancement",
+    "tasks": "Tâches",
+    "noTasks": "Aucune tâche",
+    "status": {
+      "planning": "Planification",
+      "in_progress": "En cours",
+      "review": "Revue",
+      "completed": "Terminé"
     }
   }
 }

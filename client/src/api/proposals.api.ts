@@ -29,6 +29,19 @@ export interface Proposal {
   updatedAt: string;
 }
 
+// Returned by the acceptance cascade: ids of the auto-created project/invoice and whether the
+// client portal invitation was sent.
+export interface ProposalAcceptMeta {
+  projectId: string | null;
+  invoiceId: string | null;
+  clientInvited: boolean;
+}
+
+export interface AcceptProposalResult {
+  proposal: Proposal;
+  meta?: ProposalAcceptMeta;
+}
+
 export interface ProposalSection {
   id: string;
   title: string;
@@ -111,9 +124,11 @@ export const proposalsApi = {
     return response.data.data;
   },
 
-  acceptProposal: async (id: string) => {
-    const response = await apiClient.post<{ data: Proposal }>(`/proposals/${id}/accept`);
-    return response.data.data;
+  acceptProposal: async (id: string): Promise<AcceptProposalResult> => {
+    const response = await apiClient.post<{ data: Proposal; meta?: ProposalAcceptMeta }>(
+      `/proposals/${id}/accept`
+    );
+    return { proposal: response.data.data, meta: response.data.meta };
   },
 
   rejectProposal: async (id: string, comment?: string) => {

@@ -100,14 +100,23 @@ export const sendProposal = async (req: Request, res: Response) => {
 };
 
 export const acceptProposal = async (req: Request, res: Response) => {
-  // Guard manager scope before the (shared) accept logic.
+  // Guard manager scope before the cascade.
   await proposalService.getById(req.params.id as string, req.user!.companyId as string, await buildServiceScope(req));
-  const proposal = await proposalService.accept(
+  const result = await proposalService.acceptWithCascade(
     req.params.id as string,
     req.user!.companyId as string,
     req.body?.expectedVersion
   );
-  res.json({ data: proposal });
+  // `data` stays the proposal (backward compatible); `meta` carries the cascade results so the
+  // client can toast the invitation and navigate to the freshly-created project.
+  res.json({
+    data: result.proposal,
+    meta: {
+      projectId: result.projectId,
+      invoiceId: result.invoiceId,
+      clientInvited: result.clientInvited,
+    },
+  });
 };
 
 export const rejectProposal = async (req: Request, res: Response) => {

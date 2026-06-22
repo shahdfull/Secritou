@@ -481,4 +481,76 @@ export const invoiceService = {
       dueDate,
     });
   },
+
+  /**
+   * Transaction-aware deposit (acompte) invoice creator, used by the proposal-acceptance
+   * cascade. Mirrors createInvoiceWithGeneratedNumber's INV-YYYYMM-NNNN sequencing and P2002
+   * retry, but runs against the caller's `tx` so it commits atomically with the project/lead
+   * updates. The caller is responsible for the 30% calculation and for skipping when an invoice
+   * already exists; the Invoice.proposalId @unique constraint is the hard backstop (a P2002 on
+   * proposalId means a deposit was already created — the caller treats that as "already done").
+   */
+  async createDepositInvoiceTx(
+    tx: TxClient,
+    args: {
+      companyId: string;
+      title: string;
+      description?: string;
+      amount: number;
+      currency: string;
+      clientId: string;
+      projectId?: string;
+      proposalId: string;
+      dueInDays?: number;
+    }
+  ) {
+    const now = new Date();
+    const prefix = `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const dueDate = new Date(now);
+    dueDate.setDate(dueDate.getDate() + (args.dueInDays ?? 14));
+
+    const MAX_ATTEMPTS = 5;
+    let lastError: unknown;
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      const count = await tx.invoice.count({
+        where: { companyId: args.companyId, number: { startsWith: prefix } },
+      });
+      const number = `${prefix}-${String(count + 1 + attempt).padStart(4, "0")}`;
+      try {
+        return await tx.invoice.create({
+          data: {
+            number,
+            title: args.title,
+            description: args.description,
+            amount: args.amount,
+            currency: args.currency,
+            status: "DRAFT",
+            dueDate,
+            clientId: args.clientId,
+            companyId: args.companyId,
+            projectId: args.projectId,
+            proposalId: args.proposalId,
+          },
+        });
+      } catch (err) {
+        // P2002 on (companyId, number) → number race, retry. P2002 on proposalId → a deposit
+        // already exists; rethrow so the cascade can detect and skip it.
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === "P2002" &&
+          !(err.meta?.target as string[] | undefined)?.includes("proposalId")
+        ) {
+          lastError = err;
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw new HttpError(
+      409,
+      "Could not allocate a unique invoice number, please retry",
+      "INVOICE_NUMBER_CONFLICT",
+      lastError
+    );
+  },
 };

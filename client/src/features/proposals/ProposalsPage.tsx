@@ -1,5 +1,7 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import type { Proposal } from "@/api/proposals.api";
 import {
   useProposals,
@@ -66,6 +68,7 @@ const ALL_LEADS_VALUE = "__all__";
 
 export function ProposalsPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { page, pageSize, search, status, updateParams } = useListParams(10);
 
   // Lead filter (kept in local state — not part of the shared URL list params).
@@ -77,6 +80,10 @@ export function ProposalsPage() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const [rejectComment, setRejectComment] = useState("");
+
+  // Accept-cascade confirmation dialog
+  const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
+  const [acceptTarget, setAcceptTarget] = useState<Proposal | null>(null);
 
   // Generate invoice dialog
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
@@ -110,6 +117,23 @@ export function ProposalsPage() {
   const createInvoiceMutation = useCreateInvoiceFromProposal();
   const createProjectMutation = useCreateProject();
   const createOnboardingMutation = useCreateClientOnboarding();
+
+  // --- Accept (cascade) ---
+  const openAcceptDialog = (proposal: Proposal) => {
+    setAcceptTarget(proposal);
+    setAcceptDialogOpen(true);
+  };
+
+  const handleAccept = () => {
+    if (!acceptTarget) return;
+    acceptMutation.mutate(acceptTarget.id, {
+      onSuccess: (res) => {
+        setAcceptDialogOpen(false);
+        if (res.meta?.clientInvited) toast.success(t("proposals.acceptCascade.clientInvited"));
+        if (res.meta?.projectId) navigate(`/app/projects/${res.meta.projectId}`);
+      },
+    });
+  };
 
   // --- Reject ---
   const openRejectDialog = (proposal: Proposal) => {
@@ -359,7 +383,7 @@ export function ProposalsPage() {
                           {(proposal.status === "SENT" || proposal.status === "VIEWED") && (
                             <>
                               <DropdownMenuItem
-                                onClick={() => acceptMutation.mutate(proposal.id)}
+                                onClick={() => openAcceptDialog(proposal)}
                                 disabled={acceptMutation.isPending}
                               >
                                 <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
@@ -448,6 +472,49 @@ export function ProposalsPage() {
               </Button>
             </DialogFooter>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Accept (cascade) Dialog */}
+      <Dialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              {t("proposals.acceptCascade.title")}
+            </DialogTitle>
+            <DialogDescription>{t("proposals.acceptCascade.description")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-4 rounded-md border p-3 bg-muted/40 text-sm">
+              <div>
+                <p className="text-muted-foreground">{t("proposals.client")}</p>
+                <p className="font-medium">
+                  {acceptTarget?.client?.name ?? acceptTarget?.clientName ?? "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">{t("proposals.amount")}</p>
+                <p className="font-medium">
+                  {acceptTarget?.amount} {acceptTarget?.currency}
+                </p>
+              </div>
+            </div>
+            <ul className="text-sm text-muted-foreground list-disc pl-5 space-y-1">
+              <li>{t("proposals.acceptCascade.willCreateProject", { name: acceptTarget?.title ?? "" })}</li>
+              <li>{t("proposals.acceptCascade.willInvoiceDeposit")}</li>
+              <li>{t("proposals.acceptCascade.willInviteClient")}</li>
+            </ul>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAcceptDialogOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={handleAccept} disabled={acceptMutation.isPending}>
+              {acceptMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {t("proposals.acceptCascade.confirm")}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

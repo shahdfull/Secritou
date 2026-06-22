@@ -335,6 +335,10 @@ model Project {
   approvals         Approval[]
   invoices          Invoice[]
   clientOnboardings ClientOnboarding[]
+  // Snapshot from the accepted proposal (budget is free-text like Project elsewhere; deadline
+  // mirrors the proposal's expiry). Filled by the acceptance cascade, editable afterwards.
+  budget            String?               @db.VarChar(255)
+  deadline          DateTime?             @db.Timestamptz(6)
   archivedAt        DateTime?             @db.Timestamptz(6)
   createdAt         DateTime              @default(now()) @db.Timestamptz(6)
   updatedAt         DateTime              @updatedAt @db.Timestamptz(6)
