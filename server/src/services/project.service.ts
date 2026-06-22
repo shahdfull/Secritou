@@ -13,6 +13,13 @@ import { cacheTags } from "../cache/cacheKeys.js";
 import { prisma, prismaRead } from "../config/prisma.js";
 import { documentGeneratorService } from "./documentGenerator.service.js";
 import { getBriefQuestions } from "../constants/briefQuestions.js";
+import { invoiceService } from "./invoice.service.js";
+import { emailService } from "./email.service.js";
+import {
+  projectApprovedManagerTemplate,
+  projectApprovedClientTemplate,
+} from "./emailTemplates/index.js";
+import { env } from "../config/env.js";
 
 export type TimelineStepStatus = "done" | "pending" | "locked";
 
@@ -205,6 +212,172 @@ export const projectService = {
 
     await invalidateTags([cacheTags.company(companyId), cacheTags.project(companyId, id)]);
     return updated;
+  },
+
+  // Client approves the project: COMPLETED + balance invoice (70%) + missions closed.
+  // clientId = Client entity ID from JWT (req.user.clientId), userId = User.id for audit.
+  async clientApprove(projectId: string, clientId: string, userId: string) {
+    // Pre-read to get companyId and ownership (outside tx so we can 403 early)
+    const preread = await prismaRead.project.findFirst({
+      where: { id: projectId },
+      select: {
+        id: true,
+        name: true,
+        companyId: true,
+        clientId: true,
+        status: true,
+        clientApprovedAt: true,
+        budget: true,
+        client: { select: { id: true, name: true, email: true } },
+        proposal: { select: { amount: true, currency: true } },
+        invoices: { select: { id: true, title: true } },
+      },
+    });
+    if (!preread) throw new HttpError(404, "Project not found");
+    if (preread.clientId !== clientId) throw new HttpError(403, "Forbidden");
+    if (preread.clientApprovedAt) throw new HttpError(409, "Project already approved", "PROJECT_ALREADY_APPROVED");
+    if (preread.status === "COMPLETED") throw new HttpError(409, "Project is already completed", "PROJECT_ALREADY_COMPLETED");
+
+    // Pre-condition: all tasks must be DONE
+    const openTasks = await prismaRead.task.findMany({
+      where: { projectId, status: { not: "DONE" } },
+      select: { id: true, title: true, status: true },
+    });
+    if (openTasks.length > 0) {
+      throw new HttpError(
+        400,
+        `${openTasks.length} tâche(s) non terminée(s)`,
+        "OPEN_TASKS_REMAINING",
+        { tasks: openTasks.map((t) => ({ id: t.id, title: t.title, status: t.status })) }
+      );
+    }
+
+    const { companyId } = preread;
+
+    // Compute balance amount: prefer proposal.amount * 0.70, fall back to 0
+    const proposalAmount = preread.proposal?.amount != null ? Number(preread.proposal.amount) : 0;
+    const balanceAmount = proposalAmount > 0 ? Math.round(proposalAmount * 0.7 * 100) / 100 : 0;
+    const currency = preread.proposal?.currency ?? "TND";
+
+    // Check if a balance invoice already exists (title-based idempotency)
+    const balanceAlreadyExists = preread.invoices.some((inv) =>
+      inv.title.toLowerCase().includes("solde")
+    );
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Close the project
+      const project = await tx.project.update({
+        where: { id: projectId },
+        data: {
+          status: "COMPLETED",
+          clientApprovedAt: new Date(),
+          clientApprovedById: userId,
+        },
+        select: { id: true, name: true, companyId: true, clientId: true },
+      });
+
+      // 2. Create balance invoice if needed
+      let balanceInvoice: { id: string } | null = null;
+      if (!balanceAlreadyExists && balanceAmount > 0 && clientId) {
+        balanceInvoice = await invoiceService.createBalanceInvoiceTx(tx, {
+          companyId,
+          title: `Facture de solde — ${preread.name}`,
+          description: `Solde restant (70%) pour le projet ${preread.name}`,
+          amount: balanceAmount,
+          currency,
+          clientId,
+          projectId,
+          dueInDays: 30,
+        });
+      }
+
+      return { project, balanceInvoiceId: balanceInvoice?.id ?? null };
+    });
+
+    // After the transaction — best-effort side effects
+    void (async () => {
+      // 3. Generate balance invoice PDF
+      if (result.balanceInvoiceId) {
+        try {
+          const inv = await prismaRead.invoice.findUnique({
+            where: { id: result.balanceInvoiceId },
+            select: { id: true, number: true, amount: true, currency: true, dueDate: true },
+          });
+          if (inv) {
+            await documentGeneratorService.generateInvoicePDF(
+              {
+                id: inv.id,
+                number: inv.number,
+                amount: inv.amount != null ? Number(inv.amount) : null,
+                currency: inv.currency ?? "TND",
+                dueDate: inv.dueDate,
+              },
+              { id: projectId, name: preread.name, description: undefined, budget: preread.budget ?? undefined, deadline: undefined, serviceId: null },
+              { id: clientId, name: preread.client?.name ?? "Client", email: preread.client?.email ?? undefined },
+              companyId,
+              userId
+            );
+          }
+        } catch (err) {
+          console.error("[clientApprove] Balance invoice PDF generation failed:", err);
+        }
+      }
+
+      // 4. Notify managers
+      try {
+        const managers = await userRepository.findAdminsByCompanyId(companyId);
+        const dashboardUrl = env.FRONTEND_URL
+          ? `${env.FRONTEND_URL}/app/projects/${projectId}`
+          : `https://app.secritou.com/app/projects/${projectId}`;
+        await Promise.all(
+          managers.map((u) => {
+            const tpl = projectApprovedManagerTemplate({
+              managerName: u.name ?? u.email,
+              clientName: preread.client?.name ?? clientId,
+              projectName: preread.name,
+              dashboardUrl,
+            });
+            return emailService.send({ to: u.email, ...tpl });
+          })
+        );
+        await enqueueNotifications(
+          managers.map((u) => ({
+            userId: u.id,
+            title: "Projet approuvé par le client",
+            message: `Le client ${preread.client?.name ?? ""} a approuvé la livraison du projet « ${preread.name} ». Facture de solde générée.`,
+          }))
+        );
+      } catch (err) {
+        console.error("[clientApprove] Manager notification failed:", err);
+      }
+
+      // 5. Notify client
+      try {
+        const clientEmail = preread.client?.email;
+        if (clientEmail) {
+          const portalUrl = env.FRONTEND_URL
+            ? `${env.FRONTEND_URL}/client/invoices`
+            : `https://app.secritou.com/client/invoices`;
+          const tpl = projectApprovedClientTemplate({
+            clientName: preread.client?.name ?? "Client",
+            projectName: preread.name,
+            portalUrl,
+          });
+          await emailService.send({ to: clientEmail, ...tpl });
+        }
+      } catch (err) {
+        console.error("[clientApprove] Client email failed:", err);
+      }
+    })();
+
+    await invalidateTags([
+      cacheTags.company(companyId),
+      cacheTags.dashboard(companyId),
+      cacheTags.project(companyId, projectId),
+      ...(clientId ? [cacheTags.client(companyId, clientId)] : []),
+    ]);
+
+    return result;
   },
 
   // Derives the 7-step project timeline from existing project + document + task state.

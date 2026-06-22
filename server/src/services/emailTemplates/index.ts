@@ -612,3 +612,53 @@ export function customQuestionAnsweredTemplate(opts: {
     ),
   };
 }
+
+/** Notification to the manager when a client approves the project. */
+export function projectApprovedManagerTemplate(opts: {
+  managerName: string;
+  clientName: string;
+  projectName: string;
+  dashboardUrl: string;
+}): { subject: string; html: string } {
+  return {
+    subject: `Projet approuvé — ${opts.projectName}`,
+    html: baseTemplate(
+      `Approuvé : ${opts.projectName}`,
+      [
+        h1("Projet approuvé par le client ✅"),
+        p(`Bonjour ${opts.managerName},`),
+        p(`Le client <strong>${opts.clientName}</strong> a approuvé la livraison du projet suivant :`),
+        infoBox([
+          ["Projet", opts.projectName],
+          ["Client", opts.clientName],
+        ]),
+        p("Le projet est maintenant clôturé. La facture de solde a été générée et est disponible dans votre tableau de bord."),
+      ].join(""),
+      opts.dashboardUrl,
+      "Voir le projet"
+    ),
+  };
+}
+
+/** Confirmation to the client after they approve the project. */
+export function projectApprovedClientTemplate(opts: {
+  clientName: string;
+  projectName: string;
+  portalUrl: string;
+}): { subject: string; html: string } {
+  return {
+    subject: `Votre projet est terminé — ${opts.projectName}`,
+    html: baseTemplate(
+      `Projet terminé : ${opts.projectName}`,
+      [
+        h1("Votre projet est officiellement terminé 🎉"),
+        p(`Bonjour ${opts.clientName},`),
+        p(`Vous avez validé la livraison du projet <strong>${opts.projectName}</strong>. Merci pour votre confiance !`),
+        infoBox([["Projet", opts.projectName], ["Statut", "Terminé"]]),
+        p("Votre facture de solde est maintenant disponible dans votre espace client."),
+      ].join(""),
+      opts.portalUrl,
+      "Voir ma facture"
+    ),
+  };
+}

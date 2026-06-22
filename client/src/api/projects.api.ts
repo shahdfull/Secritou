@@ -62,6 +62,11 @@ export const projectsApi = {
     const response = await apiClient.post<{ data: BriefProject }>(`/projects/${id}/brief/submit`, briefData);
     return response.data.data;
   },
+
+  clientApprove: async (id: string): Promise<{ project: { id: string; name: string }; balanceInvoiceId: string | null }> => {
+    const response = await apiClient.post<{ data: { project: { id: string; name: string }; balanceInvoiceId: string | null } }>(`/projects/${id}/client-approve`);
+    return response.data.data;
+  },
 };
 
 export type TimelineStepStatus = "done" | "pending" | "locked";

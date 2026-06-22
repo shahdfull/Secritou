@@ -2,6 +2,7 @@
 import type { RequestHandler } from "express";
 import { projectService } from "../services/project.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
+import { HttpError } from "../utils/httpError.js";
 
 export const getAllProjects: RequestHandler = async (req, res, next) => {
   try {
@@ -113,6 +114,18 @@ export const submitBrief: RequestHandler = async (req, res, next) => {
       req.body as Record<string, unknown>
     );
     res.json({ data: updated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const clientApproveProject: RequestHandler = async (req, res, next) => {
+  try {
+    const clientId = req.user?.clientId;
+    if (!clientId) return next(new HttpError(403, "Client access required"));
+    const userId = req.user?.sub!;
+    const result = await projectService.clientApprove(req.params.id as string, clientId, userId);
+    res.json({ data: result });
   } catch (error) {
     next(error);
   }

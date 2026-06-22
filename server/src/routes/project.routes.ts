@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, archiveProject, getMyProjects, getTimelineStatus, getBrief, submitBrief } from "../controllers/project.controller.js";
+import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, archiveProject, getMyProjects, getTimelineStatus, getBrief, submitBrief, clientApproveProject } from "../controllers/project.controller.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { createProjectSchema, updateProjectSchema } from "../validators/project.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
@@ -17,6 +17,9 @@ router.get("/:id/timeline-status", authenticate, getTimelineStatus);
 // Brief questionnaire — CLIENT submits, MANAGER/ADMIN read
 router.get("/:id/brief", authenticate, getBrief);
 router.post("/:id/brief/submit", authenticate, authorize("CLIENT"), submitBrief);
+
+// Client final approval — triggers project COMPLETED + balance invoice
+router.post("/:id/client-approve", authenticate, authorize("CLIENT"), clientApproveProject);
 
 // Apply auth + tenant middleware to all admin/manager routes
 router.use(authenticate);
