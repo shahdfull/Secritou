@@ -43,6 +43,7 @@ export const importTalentPage = () => import("@/features/talent/TalentPage");
 export const importQuestionsClientPage = () => import("@/features/client-portal/QuestionsClientPage");
 export const importAdminQuestionsPage = () => import("@/features/questions/AdminQuestionsPage");
 export const importDocumentsClientPage = () => import("@/features/client-portal/DocumentsClientPage");
+export const importClientBriefPage = () => import("@/features/client-portal/ClientBriefPage");
 
 export const routePrefetch = {
   clientDocuments: () => void importDocumentsClientPage(),

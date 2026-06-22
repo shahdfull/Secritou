@@ -339,6 +339,11 @@ model Project {
   // mirrors the proposal's expiry). Filled by the acceptance cascade, editable afterwards.
   budget            String?               @db.VarChar(255)
   deadline          DateTime?             @db.Timestamptz(6)
+  // Client brief questionnaire
+  serviceType       String?               @db.VarChar(50)
+  briefData         Json?
+  briefCompleted    Boolean               @default(false)
+  briefCompletedAt  DateTime?             @db.Timestamptz(6)
   archivedAt        DateTime?             @db.Timestamptz(6)
   createdAt         DateTime              @default(now()) @db.Timestamptz(6)
   updatedAt         DateTime              @updatedAt @db.Timestamptz(6)
