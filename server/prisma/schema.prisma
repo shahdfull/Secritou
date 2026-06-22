@@ -173,6 +173,7 @@ model User {
   aiConversations     AiConversation[]
   customQuestions        CustomQuestion[]
   customQuestionMessages CustomQuestionMessage[]
+  managerPermission   ManagerPermission?
   createdAt           DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt           DateTime             @updatedAt @db.Timestamptz(6)
 
@@ -1127,4 +1128,26 @@ model CustomQuestionMessage {
 
   @@index([questionId])
   @@index([questionId, createdAt])
+}
+
+model PermissionProfile {
+  id          String             @id @default(cuid())
+  name        String             @unique
+  description String?
+  permissions Json
+  isDefault   Boolean            @default(false)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  managers    ManagerPermission[]
+}
+
+model ManagerPermission {
+  id        String             @id @default(cuid())
+  userId    String             @unique
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileId String?
+  profile   PermissionProfile? @relation(fields: [profileId], references: [id])
+  overrides Json?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
 }

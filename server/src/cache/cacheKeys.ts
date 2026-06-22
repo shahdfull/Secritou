@@ -5,6 +5,7 @@ export const cacheKeys = {
   successSummary: (companyId: string, clientId: string) => `cache:success:summary:${companyId}:${clientId}`,
   onboardingSummary: (companyId: string, clientId: string) => `cache:onboarding:summary:${companyId}:${clientId}`,
   authMe: (userId: string) => `cache:auth:me:${userId}`,
+  managerPermissions: (userId: string) => `cache:manager:permissions:${userId}`,
 };
 
 export const cacheTags = {
