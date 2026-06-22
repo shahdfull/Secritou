@@ -105,7 +105,8 @@ export const acceptProposal = async (req: Request, res: Response) => {
   const result = await proposalService.acceptWithCascade(
     req.params.id as string,
     req.user!.companyId as string,
-    req.body?.expectedVersion
+    req.body?.expectedVersion,
+    req.user!.id
   );
   // `data` stays the proposal (backward compatible); `meta` carries the cascade results so the
   // client can toast the invitation and navigate to the freshly-created project.
