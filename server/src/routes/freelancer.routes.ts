@@ -92,7 +92,7 @@ const router = Router();
  *     tags: [Freelancers]
  *     security:
  *       - bearerAuth: []
- *     description: FREELANCER sees open missions, ADMIN/CLIENT sees company missions
+ *     description: FREELANCER sees open missions, ADMIN/MANAGER see company missions
  *     parameters:
  *       - name: page
  *         in: query
@@ -149,7 +149,7 @@ router.get("/missions", authenticate, freelancerController.getMissions);
 router.get(
   "/missions/:id/applications",
   authenticate,
-  authorize("ADMIN", "CLIENT"),
+  authorize("ADMIN", "MANAGER"),
   freelancerController.getMissionApplications
 );
 
@@ -194,7 +194,7 @@ router.get(
 router.patch(
   "/missions/:id/applications/:applicationId",
   authenticate,
-  authorize("ADMIN", "CLIENT"),
+  authorize("ADMIN", "MANAGER"),
   validate(updateApplicationStatusSchema),
   freelancerController.updateApplicationStatus
 );
@@ -242,7 +242,7 @@ router.patch(
 router.post(
   "/missions",
   authenticate,
-  authorize("ADMIN", "CLIENT"),
+  authorize("ADMIN", "MANAGER"),
   validate(createMissionSchema),
   freelancerController.createMission
 );
@@ -295,7 +295,7 @@ router.post(
 router.put(
   "/missions/:id",
   authenticate,
-  authorize("ADMIN", "CLIENT"),
+  authorize("ADMIN", "MANAGER"),
   validate(updateMissionSchema),
   freelancerController.updateMission
 );
@@ -356,21 +356,21 @@ router.post(
 router.delete(
   "/missions/:id",
   authenticate,
-  authorize("ADMIN", "CLIENT"),
+  authorize("ADMIN", "MANAGER"),
   freelancerController.deleteMission
 );
 
 router.get(
   "/missions/unpaid",
   authenticate,
-  authorize("ADMIN", "CLIENT"),
+  authorize("ADMIN", "MANAGER"),
   freelancerController.getUnpaidMissions
 );
 
 router.patch(
   "/missions/:id/pay",
   authenticate,
-  authorize("ADMIN", "CLIENT"),
+  authorize("ADMIN", "MANAGER"),
   freelancerController.markMissionAsPaid
 );
 

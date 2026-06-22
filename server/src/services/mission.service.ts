@@ -27,11 +27,13 @@ export const missionService = {
   ) {
     if (userRole === "FREELANCER") {
       return missionRepository.findAllOpen(options);
-    } else if (companyId) {
-      return missionRepository.findAllByCompany(companyId, options);
-    } else {
-      throw new HttpError(403, "Forbidden");
     }
+    // The freelancer marketplace is internal: only agency staff (ADMIN/MANAGER) may list
+    // company missions. CLIENT must never see the freelancer pool or who is assigned.
+    if ((userRole === "ADMIN" || userRole === "MANAGER") && companyId) {
+      return missionRepository.findAllByCompany(companyId, options);
+    }
+    throw new HttpError(403, "Forbidden");
   },
 
   async getMissionApplications(missionId: string, companyId: string) {
@@ -102,15 +104,15 @@ export const missionService = {
   },
 
   async createMission(companyId: string, data: CreateMissionDTO, userRole: Role) {
-    if (!["ADMIN", "CLIENT"].includes(userRole)) {
-      throw new HttpError(403, "Only admins and clients can create missions");
+    if (!["ADMIN", "MANAGER"].includes(userRole)) {
+      throw new HttpError(403, "Only admins and managers can create missions");
     }
     return missionRepository.create({ ...data, companyId });
   },
 
   async updateMission(id: string, companyId: string, data: UpdateMissionDTO, userRole: Role) {
-    if (!["ADMIN", "CLIENT"].includes(userRole)) {
-      throw new HttpError(403, "Only admins and clients can update missions");
+    if (!["ADMIN", "MANAGER"].includes(userRole)) {
+      throw new HttpError(403, "Only admins and managers can update missions");
     }
     const mission = await missionRepository.findById(id);
     if (!mission) {
@@ -238,8 +240,8 @@ export const missionService = {
   },
 
   async deleteMission(id: string, companyId: string, userRole: Role) {
-    if (!["ADMIN", "CLIENT"].includes(userRole)) {
-      throw new HttpError(403, "Only admins and clients can delete missions");
+    if (!["ADMIN", "MANAGER"].includes(userRole)) {
+      throw new HttpError(403, "Only admins and managers can delete missions");
     }
     const mission = await missionRepository.findById(id);
     if (!mission) {
