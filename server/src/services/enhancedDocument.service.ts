@@ -1,7 +1,9 @@
 import { enhancedDocumentRepository } from "../repositories/enhancedDocument.repository.js";
-import type { EnhancedDocumentType, DocumentAccessLevel } from "@prisma/client";
+import type { EnhancedDocumentType, DocumentAccessLevel, Role } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { tenantValidation } from "./tenantValidation.service.js";
+
+type Viewer = { role: Role; clientId?: string | null };
 
 export const enhancedDocumentService = {
   async getAll(
@@ -11,13 +13,18 @@ export const enhancedDocumentService = {
       type?: EnhancedDocumentType;
       tags?: string[];
       search?: string;
-    }
+    },
+    viewer: Viewer
   ) {
-    return enhancedDocumentRepository.findAll(options);
+    return enhancedDocumentRepository.findAll({
+      ...options,
+      role: viewer.role,
+      viewerClientId: viewer.clientId,
+    });
   },
 
-  async getById(id: string, companyId: string) {
-    return enhancedDocumentRepository.findById(id, companyId);
+  async getById(id: string, companyId: string, viewer: Viewer) {
+    return enhancedDocumentRepository.findById(id, companyId, viewer);
   },
 
   async create(
