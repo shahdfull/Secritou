@@ -5,11 +5,11 @@ import { prisma } from "../config/prisma.js";
 import { getSignedReadUrl } from "./upload.service.js";
 import { HttpError } from "../utils/httpError.js";
 
-type Viewer = { role: Role; clientId?: string | null };
+type Viewer = { role: Role; clientId?: string | null; serviceId?: string | null };
 
 export const documentService = {
   async getAll(options: ListQueryOptions & { clientId?: string; type?: DocumentType; projectId?: string; tags?: string[]; search?: string }, viewer: Viewer) {
-    return documentRepository.findAll({ ...options, role: viewer.role, viewerClientId: viewer.clientId });
+    return documentRepository.findAll({ ...options, role: viewer.role, viewerClientId: viewer.clientId, viewerServiceId: viewer.serviceId });
   },
 
   async getById(id: string, viewer: Viewer) {

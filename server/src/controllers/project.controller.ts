@@ -12,7 +12,8 @@ export const getAllProjects: RequestHandler = async (req, res, next) => {
     const userRole = req.user?.role!;
     const clientId = req.user?.clientId as string | undefined;
     const options = parseListQuery(req.query as Record<string, unknown>);
-    const result = await projectService.getAllProjects(userId, userRole, options, clientId);
+    const scope = userRole === "MANAGER" ? await buildServiceScope(req) : undefined;
+    const result = await projectService.getAllProjects(userId, userRole, options, clientId, scope?.userServiceId);
     res.json(result);
   } catch (error) {
     next(error);
@@ -24,7 +25,8 @@ export const getProjectById: RequestHandler = async (req, res, next) => {
     const userId = req.user?.sub!;
     const userRole = req.user?.role!;
     const clientId = req.user?.clientId as string | undefined;
-    const project = await projectService.getProjectById(req.params.id as string, userId, userRole, clientId);
+    const scope = userRole === "MANAGER" ? await buildServiceScope(req) : undefined;
+    const project = await projectService.getProjectById(req.params.id as string, userId, userRole, clientId, scope?.userServiceId);
     res.json({ data: project });
   } catch (error) {
     next(error);
@@ -73,13 +75,7 @@ export const getMyProjects: RequestHandler = async (req, res, next) => {
   try {
     const clientId = req.user?.clientId!;
     const options = parseListQuery(req.query as Record<string, unknown>);
-    const result = await projectService.getAllProjects(
-      "",
-      req.user?.sub!,
-      "CLIENT",
-      options,
-      clientId
-    );
+    const result = await projectService.getAllProjects(req.user?.sub!, "CLIENT", options, clientId);
     res.json(result);
   } catch (error) {
     next(error);

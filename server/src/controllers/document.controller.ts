@@ -4,6 +4,7 @@ import { parseListQuery } from "../utils/listQuery.js";
 import { HttpError } from "../utils/httpError.js";
 import { DocumentType } from "@prisma/client";
 import { COMPANY_ID } from "../config/constants.js";
+import { buildServiceScope } from "../utils/serviceScope.js";
 
 function textQuery(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
@@ -18,9 +19,11 @@ export const getDocuments = async (req: Request, res: Response) => {
     tags: typeof req.query.tags === "string" ? req.query.tags.split(",") : undefined,
     search: textQuery(req.query.search),
   };
+  const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
   const result = await documentService.getAll(options, {
     role: req.user!.role,
     clientId: req.user!.clientId,
+    serviceId: scope?.userServiceId,
   });
   res.json({ data: result });
 };

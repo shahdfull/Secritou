@@ -28,12 +28,12 @@ export interface TimelineStep {
 }
 
 export const projectService = {
-  async getAllProjects(userId: string, userRole: Role, options: ListQueryOptions, clientId?: string) {
-    return projectRepository.findAll(userId, userRole, options, clientId);
+  async getAllProjects(userId: string, userRole: Role, options: ListQueryOptions, clientId?: string, serviceId?: string | null) {
+    return projectRepository.findAll(userId, userRole, options, clientId, serviceId);
   },
 
-  async getProjectById(id: string, userId: string, userRole: Role, clientId?: string) {
-    const project = await projectRepository.findById(id, userId, userRole, clientId);
+  async getProjectById(id: string, userId: string, userRole: Role, clientId?: string, serviceId?: string | null) {
+    const project = await projectRepository.findById(id, userId, userRole, clientId, serviceId);
     if (!project) throw new HttpError(404, "Project not found");
     return project;
   },

@@ -13,12 +13,13 @@ type ProjectWithProgress = Project & {
 
 const SORTABLE_FIELDS = ["name", "status", "createdAt"];
 
-function buildWhere(userId: string, userRole: Role, options: ListQueryOptions, clientId?: string) {
+function buildWhere(userId: string, userRole: Role, options: ListQueryOptions, clientId?: string, serviceId?: string | null) {
   const searchFilter = buildTextSearchFilter(options.search, ["name", "description"]);
   const statusFilter = options.status ? { status: options.status as ProjectStatus } : {};
   const base = { archivedAt: null, ...statusFilter, ...searchFilter };
 
-  if (userRole === "ADMIN" || userRole === "MANAGER") return base;
+  if (userRole === "ADMIN") return base;
+  if (userRole === "MANAGER") return { serviceId: serviceId ?? undefined, ...base };
   if (userRole === "FREELANCER") return { tasks: { some: { assigneeId: userId } }, ...base };
   return { clientId, ...base };
 }
@@ -50,9 +51,10 @@ export const projectRepository = {
     userId: string,
     userRole: Role,
     options: ListQueryOptions,
-    clientId?: string
+    clientId?: string,
+    serviceId?: string | null
   ): Promise<PaginatedResult<ProjectWithProgress>> {
-    const where = buildWhere(userId, userRole, options, clientId);
+    const where = buildWhere(userId, userRole, options, clientId, serviceId);
     const skip = (options.page - 1) * options.pageSize;
     const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
 
@@ -74,13 +76,16 @@ export const projectRepository = {
     id: string,
     userId: string,
     userRole: Role,
-    clientId?: string
+    clientId?: string,
+    serviceId?: string | null
   ): Promise<ProjectWithProgress | null> {
     const baseSelect = { ...projectListSelect, client: { select: clientBriefSelect } };
     let project: (Project & { client?: ProjectWithProgress["client"] }) | null;
 
-    if (userRole === "ADMIN" || userRole === "MANAGER") {
+    if (userRole === "ADMIN") {
       project = await prisma.project.findUnique({ where: { id }, select: baseSelect });
+    } else if (userRole === "MANAGER") {
+      project = await prisma.project.findFirst({ where: { id, serviceId: serviceId ?? undefined }, select: baseSelect });
     } else if (userRole === "FREELANCER") {
       project = await prisma.project.findFirst({
         where: { id, tasks: { some: { assigneeId: userId } } },

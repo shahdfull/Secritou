@@ -4,6 +4,7 @@ import { clientService } from "../services/client.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
 import { buildServiceScope } from "../utils/serviceScope.js";
 import { COMPANY_ID } from "../config/constants.js";
+import { HttpError } from "../utils/httpError.js";
 
 export const getClients: RequestHandler = async (req, res, next) => {
   try {
@@ -66,6 +67,10 @@ export const archiveClient: RequestHandler = async (req, res, next) => {
 export const inviteClientUser: RequestHandler = async (req, res, next) => {
   try {
     const { email, name } = req.body as { email: string; name: string };
+    if (req.user!.role === "MANAGER") {
+      const client = await clientService.getClient(req.params.id as string, await buildServiceScope(req));
+      if (!client) throw new HttpError(403, "Client not in your service scope");
+    }
     const result = await clientService.inviteClientUser(
       req.params.id as string,
       email,

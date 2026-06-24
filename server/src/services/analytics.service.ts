@@ -1,17 +1,16 @@
 import { analyticsRepository } from "../repositories/analytics.repository.js";
-import { COMPANY_ID } from "../config/constants.js";
 
 export const analyticsService = {
-  async getSummary(from?: Date, to?: Date) {
+  async getSummary(from?: Date, to?: Date, serviceId?: string | null) {
     const [leads, clients, projects, tasks, leadsByMonth, projectsByStatus, revenueByMonth] =
       await Promise.all([
-        analyticsRepository.getLeadStats(COMPANY_ID, from, to),
-        analyticsRepository.getClientStats(COMPANY_ID, from, to),
-        analyticsRepository.getProjectStats(COMPANY_ID, from, to),
-        analyticsRepository.getTaskStats(COMPANY_ID, from, to),
-        analyticsRepository.getLeadsByMonth(COMPANY_ID, from, to),
-        analyticsRepository.getProjectsByStatus(COMPANY_ID, from, to),
-        analyticsRepository.getRevenueByMonth(COMPANY_ID, from, to),
+        analyticsRepository.getLeadStats(from, to, serviceId),
+        analyticsRepository.getClientStats(from, to, serviceId),
+        analyticsRepository.getProjectStats(from, to, serviceId),
+        analyticsRepository.getTaskStats(from, to, serviceId),
+        analyticsRepository.getLeadsByMonth(from, to, serviceId),
+        analyticsRepository.getProjectsByStatus(from, to, serviceId),
+        analyticsRepository.getRevenueByMonth(from, to, serviceId),
       ]);
 
     return { leads, clients, projects, tasks, leadsByMonth, projectsByStatus, revenueByMonth };

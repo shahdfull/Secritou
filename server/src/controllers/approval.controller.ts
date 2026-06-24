@@ -4,6 +4,7 @@ import { parseListQuery } from "../utils/listQuery.js";
 import { ApprovalStatus } from "@prisma/client";
 import { HttpError } from "../utils/httpError.js";
 import { COMPANY_ID } from "../config/constants.js";
+import { buildServiceScope } from "../utils/serviceScope.js";
 
 function queryText(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
@@ -44,11 +45,13 @@ export const respondToApproval = async (req: Request, res: Response) => {
 };
 
 export const getApprovals = async (req: Request, res: Response) => {
+  const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
   const options = {
     ...parseListQuery(req.query as Record<string, unknown>),
     clientId: queryText(req.query.clientId),
     status: queryText(req.query.status) as ApprovalStatus | undefined,
     search: queryText(req.query.search),
+    serviceId: scope?.userServiceId,
   };
   const result = await approvalService.getAll(options);
   res.json({ data: result });

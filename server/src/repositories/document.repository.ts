@@ -27,6 +27,7 @@ export const documentRepository = {
       search?: string;
       role?: Role;
       viewerClientId?: string | null;
+      viewerServiceId?: string | null;
     }
   ): Promise<PaginatedResult<Document & { client: { name: string } | null }>> {
     const where: Prisma.DocumentWhereInput = {};
@@ -36,6 +37,8 @@ export const documentRepository = {
       where.accessLevel = { in: visibleAccessLevels(options.role) };
       if (options.role === "CLIENT") {
         where.clientId = options.viewerClientId ?? "__none__";
+      } else if (options.role === "MANAGER" && options.viewerServiceId !== undefined) {
+        where.client = { projects: { some: { serviceId: options.viewerServiceId ?? "__none__" } } };
       }
     }
     if (options.type) where.type = options.type;

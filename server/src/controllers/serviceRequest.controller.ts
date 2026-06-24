@@ -2,6 +2,7 @@ import type { RequestHandler } from "express";
 import { serviceRequestService } from "../services/serviceRequest.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
 import type { ServiceRequestStatus, Priority, ServiceRequestType } from "@prisma/client";
+import { buildServiceScope } from "../utils/serviceScope.js";
 
 // ─── Client handlers ──────────────────────────────────────────────────────────
 
@@ -31,6 +32,7 @@ export const createClientServiceRequest: RequestHandler = async (req, res, next)
 export const adminGetServiceRequests: RequestHandler = async (req, res, next) => {
   try {
     const query = req.query as Record<string, unknown>;
+    const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
     const options = {
       ...parseListQuery(query),
       status: (query.status as ServiceRequestStatus | undefined) ?? undefined,
@@ -38,6 +40,7 @@ export const adminGetServiceRequests: RequestHandler = async (req, res, next) =>
       assignedToId: (query.assignedToId as string | undefined) ?? undefined,
       priority: (query.priority as Priority | undefined) ?? undefined,
       type: (query.type as ServiceRequestType | undefined) ?? undefined,
+      serviceId: scope?.userServiceId,
     };
     const result = await serviceRequestService.getServiceRequestsByCompany(options);
     res.json(result);

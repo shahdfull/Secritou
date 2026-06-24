@@ -1,6 +1,5 @@
 // Analytics Repository - Data access layer
 import { prismaRead as prisma } from "../config/prisma.js";
-import { sqlDateRange } from "../utils/sqlHelpers.js";
 import { startOfBusinessMonth } from "../utils/dateRange.js";
 
 function getPreviousPeriod(from: Date, to: Date): { from: Date; to: Date } {
@@ -8,9 +7,14 @@ function getPreviousPeriod(from: Date, to: Date): { from: Date; to: Date } {
   return { from: new Date(from.getTime() - duration), to: new Date(to.getTime() - duration) };
 }
 
+function serviceFilter(serviceId?: string | null) {
+  return serviceId !== undefined ? { serviceId: serviceId ?? "__none__" } : {};
+}
+
 export const analyticsRepository = {
-  async getLeadStats(from?: Date, to?: Date) {
+  async getLeadStats(from?: Date, to?: Date, serviceId?: string | null) {
     const where = {
+      ...serviceFilter(serviceId),
       ...(from || to ? { createdAt: { ...(from && { gte: from }), ...(to && { lte: to }) } } : {}),
     };
 
@@ -38,8 +42,13 @@ export const analyticsRepository = {
     return { total, byStatus, wonCount, conversionRate, previousConversionRate };
   },
 
-  async getClientStats(from?: Date, to?: Date) {
+  async getClientStats(from?: Date, to?: Date, serviceId?: string | null) {
+    const sf = serviceFilter(serviceId);
+    const clientServiceFilter = serviceId !== undefined
+      ? { projects: { some: { serviceId: serviceId ?? "__none__" } } }
+      : {};
     const where = {
+      ...clientServiceFilter,
       ...(from || to ? { createdAt: { ...(from && { gte: from }), ...(to && { lte: to }) } } : {}),
     };
     const startOfMonth = startOfBusinessMonth();
@@ -47,20 +56,21 @@ export const analyticsRepository = {
 
     const [total, newThisMonth] = await Promise.all([
       prisma.client.count({ where }),
-      prisma.client.count({ where: { createdAt: { gte: monthFrom, ...(to && { lte: to }) } } }),
+      prisma.client.count({ where: { ...clientServiceFilter, createdAt: { gte: monthFrom, ...(to && { lte: to }) } } }),
     ]);
 
     let previousNew = 0;
     if (from && to) {
       const previous = getPreviousPeriod(from, to);
-      previousNew = await prisma.client.count({ where: { createdAt: { gte: previous.from, lte: previous.to } } });
+      previousNew = await prisma.client.count({ where: { ...clientServiceFilter, createdAt: { gte: previous.from, lte: previous.to } } });
     }
 
     return { total, newThisMonth, previousNew };
   },
 
-  async getProjectStats(from?: Date, to?: Date) {
+  async getProjectStats(from?: Date, to?: Date, serviceId?: string | null) {
     const where = {
+      ...serviceFilter(serviceId),
       ...(from || to ? { createdAt: { ...(from && { gte: from }), ...(to && { lte: to }) } } : {}),
     };
 
@@ -88,56 +98,55 @@ export const analyticsRepository = {
     return { total, byStatus, completedCount, completionRate, previousCompletionRate };
   },
 
-  async getTaskStats(from?: Date, to?: Date) {
-    const rows = await prisma.$queryRaw<Array<{ total: bigint; doneCount: bigint; overdueCount: bigint }>>`
-      SELECT
-        COUNT(*)::bigint AS total,
-        COUNT(*) FILTER (WHERE t.status = 'DONE')::bigint AS "doneCount",
-        COUNT(*) FILTER (WHERE t."dueDate" < NOW() AND t.status != 'DONE')::bigint AS "overdueCount"
-      FROM "Task" t
-      ${sqlDateRange("createdAt", from, to, "t")}
-    `;
+  async getTaskStats(from?: Date, to?: Date, serviceId?: string | null) {
+    const projectWhere = serviceId !== undefined ? { serviceId: serviceId ?? "__none__" } : {};
+    const taskWhere = {
+      project: { ...projectWhere },
+      ...(from || to ? { createdAt: { ...(from && { gte: from }), ...(to && { lte: to }) } } : {}),
+    };
 
-    const row = rows[0];
-    const total = Number(row?.total ?? 0);
-    const doneCount = Number(row?.doneCount ?? 0);
+    const [total, doneCount, overdueCount] = await Promise.all([
+      prisma.task.count({ where: taskWhere }),
+      prisma.task.count({ where: { ...taskWhere, status: "DONE" } }),
+      prisma.task.count({ where: { ...taskWhere, dueDate: { lt: new Date() }, status: { not: "DONE" } } }),
+    ]);
+
     const taskDonePct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
     let previousTaskDonePct = 0;
     if (from && to) {
       const previous = getPreviousPeriod(from, to);
-      const prevRows = await prisma.$queryRaw<Array<{ total: bigint; doneCount: bigint }>>`
-        SELECT
-          COUNT(*)::bigint AS total,
-          COUNT(*) FILTER (WHERE t.status = 'DONE')::bigint AS "doneCount"
-        FROM "Task" t
-        WHERE t."createdAt" >= ${previous.from.toISOString()} AND t."createdAt" <= ${previous.to.toISOString()}
-      `;
-      const prevRow = prevRows[0];
-      const prevTotal = Number(prevRow?.total ?? 0);
-      const prevDone = Number(prevRow?.doneCount ?? 0);
+      const prevWhere = { project: { ...projectWhere }, createdAt: { gte: previous.from, lte: previous.to } };
+      const [prevTotal, prevDone] = await Promise.all([
+        prisma.task.count({ where: prevWhere }),
+        prisma.task.count({ where: { ...prevWhere, status: "DONE" } }),
+      ]);
       previousTaskDonePct = prevTotal > 0 ? Math.round((prevDone / prevTotal) * 100) : 0;
     }
 
-    return { total, doneCount, overdueCount: Number(row?.overdueCount ?? 0), taskDonePct, previousTaskDonePct };
+    return { total, doneCount, overdueCount, taskDonePct, previousTaskDonePct };
   },
 
-  async getLeadsByMonth(from?: Date, to?: Date) {
-    const rows = await prisma.$queryRaw<Array<{ month: string; count: bigint; month_num: number }>>`
-      SELECT
-        TO_CHAR("createdAt", 'Mon') AS month,
-        COUNT(*)::bigint AS count,
-        EXTRACT(MONTH FROM "createdAt")::int AS month_num
-      FROM "Lead"
-      WHERE 1=1
-      ${sqlDateRange("createdAt", from, to)}
-      GROUP BY month_num, TO_CHAR("createdAt", 'Mon')
-      ORDER BY month_num
-    `;
-    return rows.map((row) => ({ month: row.month, count: Number(row.count) }));
+  async getLeadsByMonth(from?: Date, to?: Date, serviceId?: string | null) {
+    const where = {
+      ...serviceFilter(serviceId),
+      ...(from || to ? { createdAt: { ...(from && { gte: from }), ...(to && { lte: to }) } } : {}),
+    };
+    const rows = await prisma.lead.groupBy({
+      by: ["createdAt"],
+      where,
+      _count: { id: true },
+      orderBy: { createdAt: "asc" },
+    });
+    const byMonth = new Map<string, number>();
+    for (const row of rows) {
+      const month = new Date(row.createdAt).toLocaleString("en-US", { month: "short" });
+      byMonth.set(month, (byMonth.get(month) ?? 0) + row._count.id);
+    }
+    return Array.from(byMonth.entries()).map(([month, count]) => ({ month, count }));
   },
 
-  async getProjectsByStatus(from?: Date, to?: Date) {
+  async getProjectsByStatus(from?: Date, to?: Date, serviceId?: string | null) {
     const colorMap: Record<string, string> = {
       PLANNING: "#94a3b8",
       IN_PROGRESS: "#2563eb",
@@ -145,6 +154,7 @@ export const analyticsRepository = {
       COMPLETED: "#10b981",
     };
     const where = {
+      ...serviceFilter(serviceId),
       ...(from || to ? { createdAt: { ...(from && { gte: from }), ...(to && { lte: to }) } } : {}),
     };
     const byStatusRaw = await prisma.project.groupBy({ by: ["status"], where, _count: { status: true } });
@@ -155,19 +165,24 @@ export const analyticsRepository = {
     }));
   },
 
-  async getRevenueByMonth(from?: Date, to?: Date) {
-    const rows = await prisma.$queryRaw<Array<{ bucket: Date; month: string; revenue: number }>>`
-      SELECT
-        DATE_TRUNC('month', p."paidAt") AS bucket,
-        TO_CHAR(p."paidAt", 'Mon YYYY') AS month,
-        COALESCE(SUM(p."amount"), 0)::float AS revenue
-      FROM "Payment" p
-      INNER JOIN "Invoice" i ON i.id = p."invoiceId"
-      WHERE i.status <> 'CANCELLED'
-      ${sqlDateRange("paidAt", from, to, "p")}
-      GROUP BY bucket, month
-      ORDER BY bucket
-    `;
-    return rows.map((row) => ({ month: row.month, revenue: Number(row.revenue) }));
+  async getRevenueByMonth(from?: Date, to?: Date, serviceId?: string | null) {
+    const invoiceWhere = serviceId !== undefined
+      ? { status: { not: "CANCELLED" as const }, project: { serviceId: serviceId ?? "__none__" } }
+      : { status: { not: "CANCELLED" as const } };
+    const payments = await prisma.payment.findMany({
+      where: {
+        paidAt: { not: null, ...(from && { gte: from }), ...(to && { lte: to }) },
+        invoice: invoiceWhere,
+      },
+      select: { paidAt: true, amount: true },
+    });
+
+    const byMonth = new Map<string, number>();
+    for (const p of payments) {
+      if (!p.paidAt || p.amount == null) continue;
+      const label = new Date(p.paidAt).toLocaleString("en-US", { month: "short", year: "numeric" });
+      byMonth.set(label, (byMonth.get(label) ?? 0) + Number(p.amount));
+    }
+    return Array.from(byMonth.entries()).map(([month, revenue]) => ({ month, revenue }));
   },
 };

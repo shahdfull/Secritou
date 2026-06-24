@@ -27,7 +27,7 @@ export const serviceRequestService = {
     return serviceRequestRepository.findAllByClientId(clientId, options);
   },
 
-  async getServiceRequestsByCompany(options: ListQueryOptions & { status?: ServiceRequestStatus; clientId?: string; assignedToId?: string; priority?: Priority; type?: "SUPPORT" | "NEW_PROJECT" }) {
+  async getServiceRequestsByCompany(options: ListQueryOptions & { status?: ServiceRequestStatus; clientId?: string; assignedToId?: string; priority?: Priority; type?: "SUPPORT" | "NEW_PROJECT"; serviceId?: string | null }) {
     return serviceRequestRepository.findAll(options);
   },
 

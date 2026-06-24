@@ -5,11 +5,14 @@ import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 
 export const approvalRepository = {
   async findAll(
-    options: ListQueryOptions & { clientId?: string; status?: ApprovalStatus; search?: string }
+    options: ListQueryOptions & { clientId?: string; status?: ApprovalStatus; search?: string; serviceId?: string | null }
   ): Promise<PaginatedResult<Approval & { client: { name: string } }>> {
     const where: Prisma.ApprovalWhereInput = {};
     if (options.clientId) where.clientId = options.clientId;
     if (options.status) where.status = options.status;
+    if (options.serviceId !== undefined) {
+      where.project = { is: { serviceId: options.serviceId ?? "__none__" } };
+    }
     if (options.search) {
       where.OR = [
         { title: { contains: options.search, mode: "insensitive" } },

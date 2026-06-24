@@ -15,7 +15,7 @@ export const approvalService = {
     return approvalRepository.findByIdForClient(id, clientId);
   },
 
-  async getAll(options: ListQueryOptions & { clientId?: string; status?: ApprovalStatus; search?: string }) {
+  async getAll(options: ListQueryOptions & { clientId?: string; status?: ApprovalStatus; search?: string; serviceId?: string | null }) {
     return approvalRepository.findAll(options);
   },
 

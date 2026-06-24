@@ -3,15 +3,27 @@ import { prismaRead } from "../config/prisma.js";
 import { cacheGet, cacheSet, cacheTTL } from "../cache/cacheService.js";
 import { cacheKeys, cacheTags } from "../cache/cacheKeys.js";
 import { businessDashboardSummaryRecalculated } from "../observability/businessMetrics.js";
+import { analyticsService } from "./analytics.service.js";
 
 export const dashboardService = {
-  async getFullDashboard() {
+  async getFullDashboard(serviceId?: string | null) {
+    const approvalWhere = serviceId !== undefined
+      ? { status: "PENDING" as const, project: { serviceId: serviceId ?? "__none__" } }
+      : { status: "PENDING" as const };
+    const invoiceStatuses = ["SENT", "PARTIAL", "OVERDUE"] as ("SENT" | "PARTIAL" | "OVERDUE")[];
+    const invoiceWhere = serviceId !== undefined
+      ? { status: { in: invoiceStatuses }, dueDate: { lt: new Date() }, project: { serviceId: serviceId ?? "__none__" } }
+      : { status: { in: invoiceStatuses }, dueDate: { lt: new Date() } };
+    const leadWhere = serviceId !== undefined
+      ? { status: "QUALIFIED" as const, archivedAt: null, serviceId: serviceId ?? "__none__" }
+      : { status: "QUALIFIED" as const, archivedAt: null };
+
     const [summary, pendingApprovals, overdueInvoices, hotLeads] = await Promise.all([
-      this.getSummary(),
-      prismaRead.approval.count({ where: { status: "PENDING" } }),
+      this.getSummary(serviceId),
+      prismaRead.approval.count({ where: approvalWhere }),
       // Computed at read time so the dashboard is correct even between the daily overdue job runs.
-      prismaRead.invoice.count({ where: { status: { in: ["SENT", "PARTIAL", "OVERDUE"] }, dueDate: { lt: new Date() } } }),
-      prismaRead.lead.count({ where: { status: "QUALIFIED", archivedAt: null } }),
+      prismaRead.invoice.count({ where: invoiceWhere }),
+      prismaRead.lead.count({ where: leadWhere }),
     ]);
 
     return {
@@ -26,7 +38,12 @@ export const dashboardService = {
     };
   },
 
-  async getSummary() {
+  async getSummary(serviceId?: string | null) {
+    // MANAGER scope: bypass global cache and compute scoped analytics directly.
+    if (serviceId !== undefined) {
+      return analyticsService.getSummary(undefined, undefined, serviceId);
+    }
+
     const cacheKey = cacheKeys.dashboardSummary();
     const cached = await cacheGet<Awaited<ReturnType<typeof summaryRepository.getEnhancedDashboardSummary>>>(cacheKey);
     if (cached) return cached;

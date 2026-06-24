@@ -30,12 +30,16 @@ function serialize(raw: FreelancerRaw): FreelancerWithRelations {
 }
 
 export const freelancerRepository = {
-  async findAll(options: ListQueryOptions): Promise<PaginatedResult<FreelancerWithRelations>> {
+  async findAll(options: ListQueryOptions & { serviceId?: string | null }): Promise<PaginatedResult<FreelancerWithRelations>> {
     const skip = (options.page - 1) * options.pageSize;
     const searchFilter = buildTextSearchFilter(options.search, ["user.name", "bio"]);
-    const where = Object.keys(searchFilter).length
+    const baseWhere = Object.keys(searchFilter).length
       ? { OR: [{ user: { name: { contains: options.search, mode: "insensitive" as const } } }, { bio: { contains: options.search, mode: "insensitive" as const } }] }
       : {};
+    const serviceWhere = options.serviceId !== undefined
+      ? { user: { tasks: { some: { project: { serviceId: options.serviceId ?? "__none__" } } } } }
+      : {};
+    const where = { ...baseWhere, ...serviceWhere };
     const [raw, total] = await Promise.all([
       prismaRead.freelancerProfile.findMany({ where, include, skip, take: options.pageSize, orderBy: { createdAt: "desc" } }),
       prismaRead.freelancerProfile.count({ where }),

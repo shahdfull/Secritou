@@ -1,11 +1,13 @@
 import type { RequestHandler } from "express";
 import { freelancerService } from "../services/freelancer.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
+import { buildServiceScope } from "../utils/serviceScope.js";
 
 export const getFreelancers: RequestHandler = async (req, res, next) => {
   try {
     const options = parseListQuery(req.query as Record<string, unknown>);
-    const result = await freelancerService.getAll(options);
+    const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
+    const result = await freelancerService.getAll({ ...options, serviceId: scope?.userServiceId });
     res.json(result);
   } catch (error) {
     next(error);

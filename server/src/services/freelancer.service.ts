@@ -8,7 +8,7 @@ import type { Role } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 
 export const freelancerService = {
-  async getAll(options: ListQueryOptions) {
+  async getAll(options: ListQueryOptions & { serviceId?: string | null }) {
     return freelancerRepository.findAll(options);
   },
 
@@ -57,6 +57,6 @@ export const freelancerService = {
     if (!existingProfile) {
       throw new HttpError(404, "Freelancer profile not found");
     }
-    return freelancerRepository.delete(existingProfile.id);
+    return freelancerRepository.delete(existingProfile.id, userId);
   },
 };

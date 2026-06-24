@@ -81,6 +81,7 @@ export const serviceRequestRepository = {
       assignedToId?: string;
       priority?: Priority;
       type?: "SUPPORT" | "NEW_PROJECT";
+      serviceId?: string | null;
     }
   ): Promise<PaginatedResult<Prisma.ServiceRequestGetPayload<{ select: typeof listSelect }>>> {
     const textFilter = buildTextSearchFilter(options.search, ["title", "description"]);
@@ -91,6 +92,7 @@ export const serviceRequestRepository = {
       ...(options.assignedToId ? { assignedToId: options.assignedToId } : {}),
       ...(options.priority ? { priority: options.priority } : {}),
       ...(options.type ? { type: options.type } : {}),
+      ...(options.serviceId !== undefined ? { client: { projects: { some: { serviceId: options.serviceId ?? "__none__" } } } } : {}),
     };
 
     const skip = (options.page - 1) * options.pageSize;
