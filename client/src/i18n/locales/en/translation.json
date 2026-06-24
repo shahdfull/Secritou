@@ -1177,8 +1177,11 @@
       "createdOn": "Created on",
       "statuses": {
         "new": "New",
+        "inReview": "In Review",
         "inProgress": "In Progress",
-        "done": "Done"
+        "waitingClient": "Waiting for You",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
       }
     },
     "approvals": {

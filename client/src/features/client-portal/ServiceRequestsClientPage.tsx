@@ -12,10 +12,16 @@ const getStatusColor = (status: string) => {
   switch (status) {
     case "NEW":
       return "bg-blue-100 text-blue-800";
+    case "IN_REVIEW":
+      return "bg-purple-100 text-purple-800";
     case "IN_PROGRESS":
       return "bg-yellow-100 text-yellow-800";
-    case "DONE":
+    case "WAITING_CLIENT":
+      return "bg-orange-100 text-orange-800";
+    case "COMPLETED":
       return "bg-green-100 text-green-800";
+    case "CANCELLED":
+      return "bg-red-100 text-red-800";
     default:
       return "bg-gray-100 text-gray-800";
   }
@@ -25,10 +31,16 @@ const getStatusText = (status: string, t: (key: string) => string) => {
   switch (status) {
     case "NEW":
       return t("clientPortal.serviceRequests.statuses.new");
+    case "IN_REVIEW":
+      return t("clientPortal.serviceRequests.statuses.inReview");
     case "IN_PROGRESS":
       return t("clientPortal.serviceRequests.statuses.inProgress");
-    case "DONE":
-      return t("clientPortal.serviceRequests.statuses.done");
+    case "WAITING_CLIENT":
+      return t("clientPortal.serviceRequests.statuses.waitingClient");
+    case "COMPLETED":
+      return t("clientPortal.serviceRequests.statuses.completed");
+    case "CANCELLED":
+      return t("clientPortal.serviceRequests.statuses.cancelled");
     default:
       return status;
   }
