@@ -232,7 +232,7 @@ function QuestionsTable() {
                           <span className="text-xs">{q.user.email}</span>
                         </span>
                       ) : (
-                        "—"
+                        ":"
                       )}
                     </TableCell>
                     <TableCell>

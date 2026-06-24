@@ -20,8 +20,8 @@ export function Footer() {
       titleKey: "home.footer.solutions",
       links: [
         { labelKey: "home.footer.forSmes", to: "/solutions" },
-        { labelKey: "home.footer.forStartuppers", to: "/solutions" },
-        { labelKey: "home.footer.forBrands", to: "/solutions" },
+        { labelKey: "home.footer.forEntrepreneurs", to: "/solutions" },
+        { labelKey: "home.footer.forCreators", to: "/solutions" },
       ],
     },
     {
@@ -38,7 +38,7 @@ export function Footer() {
       titleKey: "home.footer.company",
       links: [
         { labelKey: "nav.contact", to: "/contact" },
-        { labelKey: "nav.joinUs", to: "/join-us" },
+        { labelKey: "nav.joinUs", to: "/rejoindre" },
       ],
     },
   ];

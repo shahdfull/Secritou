@@ -66,7 +66,7 @@ export function ProposalsClientPage() {
     },
     onError: (error: any) => {
       if (error?.response?.data?.error?.code === "PROPOSAL_VERSION_MISMATCH") {
-        // The proposal changed since it was loaded — refetch and ask the client to review again.
+        // The proposal changed since it was loaded : refetch and ask the client to review again.
         queryClient.invalidateQueries({ queryKey: ["my-proposals"] });
         setSelected(null);
         toast.error(t("clientPortal.proposals.versionMismatch"));
@@ -120,7 +120,7 @@ export function ProposalsClientPage() {
             <span className="text-xl font-semibold">
               {p.amount != null
                 ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: p.currency }).format(p.amount)
-                : "—"}
+                : ":"}
             </span>
             {p.status === "SENT" || p.status === "VIEWED" ? (
               <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>

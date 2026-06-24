@@ -94,11 +94,11 @@ export function CreateProposalFromLeadDialog({
           <div className="grid grid-cols-2 gap-4 rounded-md border p-3 bg-muted/40 text-sm">
             <div>
               <p className="text-muted-foreground">{t("common.name")}</p>
-              <p className="font-medium">{lead?.name ?? "—"}</p>
+              <p className="font-medium">{lead?.name ?? ":"}</p>
             </div>
             <div>
               <p className="text-muted-foreground">{t("common.email")}</p>
-              <p className="font-medium">{lead?.email ?? "—"}</p>
+              <p className="font-medium">{lead?.email ?? ":"}</p>
             </div>
           </div>
 

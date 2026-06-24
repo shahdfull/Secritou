@@ -11,7 +11,7 @@ import { trackContactFormSubmitted, trackContactFormFailed } from "@/services/an
 
 // Updated to use canonical names (will be mapped from translations)
 // Must stay identical (character for character) to the backend enum in
-// server/src/validators/contact.validator.ts — otherwise the contact form fails validation.
+// server/src/validators/contact.validator.ts : otherwise the contact form fails validation.
 const CANONICAL_SERVICE_TYPES = [
   "Business Performance",
   "Digital Growth",

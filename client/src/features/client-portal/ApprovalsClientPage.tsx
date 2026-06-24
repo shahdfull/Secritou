@@ -156,7 +156,7 @@ export function ApprovalsClientPage() {
                 : action === "reject"
                 ? t("clientPortal.approvals.dialogReject")
                 : t("clientPortal.approvals.dialogComment")}
-              {" — "}{dialogApproval?.title}
+              {" : "}{dialogApproval?.title}
             </DialogTitle>
           </DialogHeader>
           <Textarea

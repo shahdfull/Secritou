@@ -18,7 +18,7 @@ export const serviceRequestsApi = {
     params: ListQueryParams = { page: 1, pageSize: 100 }
   ): Promise<PaginatedResponse<ServiceRequest>> => {
     const response = await apiClient.get<PaginatedResponse<ServiceRequest>>(
-      "/service-requests/client",
+      "/service-requests/my",
       { params }
     );
     return response.data;
@@ -26,7 +26,7 @@ export const serviceRequestsApi = {
 
   createClientRequest: async (data: CreateServiceRequestInput): Promise<ServiceRequest> => {
     const response = await apiClient.post<ApiResponse<ServiceRequest>>(
-      "/service-requests/client",
+      "/service-requests/my",
       data
     );
     return response.data.data;

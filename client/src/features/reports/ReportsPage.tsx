@@ -327,7 +327,7 @@ export function ReportsPage() {
               ) : (
                 filteredInvoices.map((inv) => (
                   <div key={inv.id} className="grid grid-cols-2 px-4 items-center border-b h-11">
-                    <div className="truncate text-sm">{inv.number} — {inv.title}</div>
+                    <div className="truncate text-sm">{inv.number} : {inv.title}</div>
                     <div className="text-sm font-medium text-green-600">
                       {(inv.status === "PAID" ? Number(inv.amount) : Number(inv.amountPaid)).toLocaleString("fr-FR")} TND
                     </div>

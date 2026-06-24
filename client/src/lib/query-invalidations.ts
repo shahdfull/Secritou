@@ -24,17 +24,6 @@ export const queryInvalidations = {
     queryClient.invalidateQueries({ queryKey: queryKeys.lead(id) });
   },
   
-  // Missions
-  invalidateMissions: (queryClient: QueryClient) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.missions() });
-  },
-  invalidateMission: (queryClient: QueryClient, id: string) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.mission(id) });
-  },
-  invalidateMissionApplications: (queryClient: QueryClient, missionId: string) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.missionApplications(missionId) });
-  },
-  
   // Projects
   invalidateProjects: (queryClient: QueryClient) => {
     queryClient.invalidateQueries({ queryKey: queryKeys.projects() });

@@ -12,7 +12,7 @@ import { useSeoMeta } from "@/hooks/useSeoMeta";
 
 export function HomePage() {
   useSeoMeta({
-    title: "Secritou — Croissance & Transformation Digitale | PME Tunisie",
+    title: "Secritou : Croissance & Transformation Digitale | PME Tunisie",
     description: "Agence tunisienne B2B: stratégie, technologie, marketing. Aidons PME, startups & créateurs à s'organiser, se digitaliser et croître.",
     image: "https://secritou.com/og-image.jpg",
     url: "https://secritou.com"

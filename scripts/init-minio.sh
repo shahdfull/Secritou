@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Creates the local dev bucket in MinIO.
-# Requires: mc (MinIO Client) — install with: brew install minio/stable/mc
+# Requires: mc (MinIO Client) : install with: brew install minio/stable/mc
 # or: curl -sL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc && chmod +x /usr/local/bin/mc
 
 set -euo pipefail

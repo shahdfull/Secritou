@@ -53,11 +53,15 @@ export function Problems() {
               transition={{ duration: 0.5, delay: i * 0.06 }}
               className="rounded-2xl border border-border bg-card p-6 shadow-soft"
             >
-              <div className="grid h-11 w-11 place-items-center rounded-xl bg-accent-soft text-ink">
-                <p.icon className="h-5 w-5" />
+              <div className="flex gap-4">
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-accent-soft text-ink">
+                  <p.icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-display text-lg font-semibold text-ink">{p.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{p.body}</p>
+                </div>
               </div>
-              <h3 className="mt-5 font-display text-lg font-semibold text-ink">{p.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{p.body}</p>
             </motion.div>
           ))}
         </div>

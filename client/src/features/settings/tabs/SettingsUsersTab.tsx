@@ -36,7 +36,6 @@ type AppUser = {
 const MODULE_LABELS: Record<string, string> = {
   projects: "Projets",
   tasks: "Tâches",
-  missions: "Missions",
   freelancers: "Freelancers",
   clients: "Clients",
   leads: "Leads",
@@ -162,7 +161,7 @@ function ManagerPermissionsPanel({ userId }: { userId: string }) {
             {profiles.map((p) => (
               <SelectItem key={p.id} value={p.id}>
                 {p.name}
-                {p.description && <span className="text-muted-foreground ml-1 text-xs">— {p.description}</span>}
+                {p.description && <span className="text-muted-foreground ml-1 text-xs">: {p.description}</span>}
               </SelectItem>
             ))}
           </SelectContent>
@@ -601,7 +600,7 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
         </CardContent>
       </Card>
 
-      {/* Inline permissions panel — rendered outside the virtualized table */}
+      {/* Inline permissions panel : rendered outside the virtualized table */}
       {expandedPermissions && (() => {
         const u = filteredUsers.find((u) => u.id === expandedPermissions);
         if (!u || u.role !== "MANAGER") return null;
@@ -612,7 +611,7 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
                 <div>
                   <CardTitle className="text-base flex items-center gap-2">
                     <ShieldCheck className="h-4 w-4 text-blue-500" />
-                    Permissions — {u.name}
+                    Permissions : {u.name}
                   </CardTitle>
                   <CardDescription>Profil de base + ajustements individuels pour ce Manager</CardDescription>
                 </div>

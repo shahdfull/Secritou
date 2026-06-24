@@ -37,7 +37,7 @@ export function useUpload({ context, onSuccess, onError }: UseUploadOptions): Us
   const deleteMutation = useMutation({
     mutationFn: (key: string) => uploadApi.deleteFile(key),
     onError: () => {
-      // Non-fatal — just warn
+      // Non-fatal : just warn
       toast.warning(i18n.t("toasts.previousFileRemoveWarning"));
     },
   });

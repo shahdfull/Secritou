@@ -230,7 +230,7 @@ export function DocumentsClientPage() {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
 
-  // The client sees docs scoped to their own clientId — backend enforces this.
+  // The client sees docs scoped to their own clientId : backend enforces this.
   // No projectId filter here: show all docs across all their projects.
   const { data, isLoading, isError } = useClientDocuments();
 

@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 // `serviceType` is the canonical enum value sent to the backend (must match
-// server/src/validators/contact.validator.ts). `titleKey` is only for display — never
+// server/src/validators/contact.validator.ts). `titleKey` is only for display : never
 // pass the translated title as the serviceType, it would fail contact-form validation.
 const getServices = (t: any) => [
   {

@@ -1,7 +1,7 @@
 import apiClient from "@/api/axios";
 
 // Must stay identical (character for character) to the backend enum in
-// server/src/validators/contact.validator.ts — otherwise the contact form fails validation.
+// server/src/validators/contact.validator.ts : otherwise the contact form fails validation.
 const _serviceTypes = [
   "Business Performance",
   "Digital Growth",

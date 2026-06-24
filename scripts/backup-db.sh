@@ -2,14 +2,14 @@
 # PostgreSQL backup → S3 with retention policy
 #
 # Retention:
-#   daily/   — keep 7 most recent
-#   weekly/  — keep 4 most recent (runs on Sundays)
-#   monthly/ — keep 3 most recent (runs on 1st of month)
+#   daily/   : keep 7 most recent
+#   weekly/  : keep 4 most recent (runs on Sundays)
+#   monthly/ : keep 3 most recent (runs on 1st of month)
 #
 # Required env vars:
-#   DATABASE_URL     — PostgreSQL connection string
-#   S3_BUCKET        — target bucket
-#   S3_ENDPOINT      — (optional) for MinIO / R2 / Backblaze
+#   DATABASE_URL     : PostgreSQL connection string
+#   S3_BUCKET        : target bucket
+#   S3_ENDPOINT      : (optional) for MinIO / R2 / Backblaze
 #   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION
 #
 # Usage (cron):

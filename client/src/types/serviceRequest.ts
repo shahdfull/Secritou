@@ -58,12 +58,15 @@ export interface AdminUpdateServiceRequestInput {
   status?: ServiceRequestStatus;
   priority?: ServiceRequestPriority;
   assignedToId?: string | null;
+  // type is intentionally excluded — reclassifying a request requires creating a new one
 }
 
 export interface AddCommentInput {
   body: string;
   isInternal?: boolean;
 }
+
+export type ServiceRequestType = "SUPPORT" | "NEW_PROJECT";
 
 export interface AdminListServiceRequestsParams {
   page?: number;
@@ -75,4 +78,5 @@ export interface AdminListServiceRequestsParams {
   clientId?: string;
   assignedToId?: string;
   priority?: ServiceRequestPriority;
+  type?: ServiceRequestType;
 }

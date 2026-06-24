@@ -40,7 +40,7 @@ export function ProjectDetailPage() {
     );
   }
 
-  const deadline = project.deadline ? new Date(project.deadline).toLocaleDateString() : "—";
+  const deadline = project.deadline ? new Date(project.deadline).toLocaleDateString() : ":";
 
   return (
     <section className="space-y-6">
@@ -68,7 +68,7 @@ export function ProjectDetailPage() {
           <CardHeader>
             <CardTitle className="text-sm text-muted-foreground">{t("projects.budget")}</CardTitle>
           </CardHeader>
-          <CardContent className="text-lg font-semibold">{project.budget || "—"}</CardContent>
+          <CardContent className="text-lg font-semibold">{project.budget || ":"}</CardContent>
         </Card>
         <Card>
           <CardHeader>

@@ -314,16 +314,16 @@ export function ClientDetailPage() {
                 </div>
                 <div>
                   <p className="text-muted-foreground">{t("common.email")}</p>
-                  <p className="font-medium">{client.email || "—"}</p>
+                  <p className="font-medium">{client.email || ":"}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">{t("common.phone")}</p>
-                  <p className="font-medium">{client.phone || "—"}</p>
+                  <p className="font-medium">{client.phone || ":"}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">{t("clientsPage.detail.clientSince")}</p>
                   <p className="font-medium">
-                    {client.createdAt ? format(new Date(client.createdAt), "dd MMM yyyy", { locale: fr }) : "—"}
+                    {client.createdAt ? format(new Date(client.createdAt), "dd MMM yyyy", { locale: fr }) : ":"}
                   </p>
                 </div>
               </div>
@@ -360,7 +360,7 @@ export function ClientDetailPage() {
                     {proposals.map((p) => (
                       <TableRow key={p.id}>
                         <TableCell className="font-medium">{p.title}</TableCell>
-                        <TableCell>{p.amount != null ? `${p.amount} ${p.currency}` : "—"}</TableCell>
+                        <TableCell>{p.amount != null ? `${p.amount} ${p.currency}` : ":"}</TableCell>
                         <TableCell>{format(new Date(p.createdAt), "dd/MM/yyyy", { locale: fr })}</TableCell>
                         <TableCell>
                           <Badge className={PROPOSAL_STATUS_COLORS[p.status] ?? "bg-gray-100 text-gray-800"}>
@@ -409,7 +409,7 @@ export function ClientDetailPage() {
                         <TableCell className="font-medium">{inv.title}</TableCell>
                         <TableCell>{inv.amount} {inv.currency}</TableCell>
                         <TableCell>
-                          {inv.dueDate ? format(new Date(inv.dueDate), "dd/MM/yyyy", { locale: fr }) : "—"}
+                          {inv.dueDate ? format(new Date(inv.dueDate), "dd/MM/yyyy", { locale: fr }) : ":"}
                         </TableCell>
                         <TableCell>
                           <Badge className={INVOICE_STATUS_COLORS[inv.status] ?? "bg-gray-100 text-gray-800"}>
@@ -469,7 +469,7 @@ export function ClientDetailPage() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium">{t("clientsPage.detail.projectLabel", { name: onboarding.project?.name ?? "—" })}</p>
+                      <p className="font-medium">{t("clientsPage.detail.projectLabel", { name: onboarding.project?.name ?? ":" })}</p>
                       <p className="text-sm text-muted-foreground">
                         {t("clientsPage.detail.createdOn", { date: format(new Date(onboarding.createdAt), "dd/MM/yyyy", { locale: fr }) })}
                       </p>

@@ -12,6 +12,7 @@ import type {
   ServiceRequest,
   ServiceRequestStatus,
   ServiceRequestPriority,
+  ServiceRequestType,
   AdminListServiceRequestsParams,
 } from "@/types/serviceRequest";
 import { Button } from "@/components/ui/button";
@@ -85,6 +86,11 @@ const PRIORITY_OPTIONS: { value: ServiceRequestPriority; label: string }[] = [
   { value: "NORMAL", label: "Normal" },
   { value: "HIGH", label: "Élevée" },
   { value: "URGENT", label: "Urgent" },
+];
+
+const TYPE_OPTIONS: { value: ServiceRequestType; label: string }[] = [
+  { value: "SUPPORT", label: "Support" },
+  { value: "NEW_PROJECT", label: "Nouveau projet" },
 ];
 
 // Allowed transitions per status
@@ -409,11 +415,11 @@ function ServiceRequestDetail({
                 <span className="font-mono bg-muted rounded px-1">{h.field}</span>
                 <span>de</span>
                 <span className="font-mono bg-muted rounded px-1">
-                  {h.oldValue ?? "—"}
+                  {h.oldValue ?? ":"}
                 </span>
                 <span>→</span>
                 <span className="font-mono bg-muted rounded px-1">
-                  {h.newValue ?? "—"}
+                  {h.newValue ?? ":"}
                 </span>
               </div>
             ))}
@@ -522,6 +528,25 @@ export function ServiceRequestsAdminPage() {
           </Select>
 
           <Select
+            value={filters.type ?? "ALL"}
+            onValueChange={(v) =>
+              setFilter("type", v === "ALL" ? undefined : (v as ServiceRequestType))
+            }
+          >
+            <SelectTrigger className="h-9 w-44">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Tous les types</SelectItem>
+              {TYPE_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
             value={filters.orderDir ?? "desc"}
             onValueChange={(v) => setFilter("orderDir", v as "asc" | "desc")}
           >
@@ -581,7 +606,7 @@ export function ServiceRequestsAdminPage() {
                       <span className="font-medium line-clamp-1">{req.title}</span>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {req.client?.name ?? "—"}
+                      {req.client?.name ?? ":"}
                     </td>
                     <td className="px-4 py-3">
                       <Badge
@@ -645,7 +670,7 @@ export function ServiceRequestsAdminPage() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t">
               <p className="text-sm text-muted-foreground">
-                Page {currentPage} sur {totalPages} — {total} résultat{total !== 1 ? "s" : ""}
+                Page {currentPage} sur {totalPages} : {total} résultat{total !== 1 ? "s" : ""}
               </p>
               <div className="flex items-center gap-2">
                 <Button

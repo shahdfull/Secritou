@@ -82,7 +82,7 @@ export function Services() {
           </Link>
         </div>
 
-        <div className="mt-12 grid gap-4 sm:grid-cols-2">
+        <div className="mt-12 grid gap-4 grid-cols-1 md:grid-cols-2">
           {services.map((s, i) => (
             <motion.button
               key={s.title}

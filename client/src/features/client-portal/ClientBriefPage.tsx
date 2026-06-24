@@ -106,7 +106,7 @@ function QuestionField({
         ? "Non"
         : value != null
         ? String(value)
-        : "—";
+        : ":";
     return <p className="text-sm text-muted-foreground">{display}</p>;
   }
 

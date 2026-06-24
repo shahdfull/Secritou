@@ -86,7 +86,7 @@ export function LeadDetailDialog({ lead, open, onOpenChange }: LeadDetailDialogP
                         <p className="text-xs text-muted-foreground">
                           {proposal.amount != null
                             ? `${proposal.amount} ${proposal.currency}`
-                            : "—"}{" "}
+                            : ":"}{" "}
                           · {new Date(proposal.createdAt).toLocaleDateString()}
                         </p>
                       </div>

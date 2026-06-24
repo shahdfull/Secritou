@@ -8,11 +8,6 @@ export const queryKeys = {
   leads: <T extends object = object>(params?: T) => ["leads", params] as const,
   lead: (id: string) => ["lead", id] as const,
   
-  // Missions
-  missions: <T extends object = object>(params?: T) => ["missions", params] as const,
-  mission: (id: string) => ["mission", id] as const,
-  missionApplications: (missionId: string) => ["missionApplications", missionId] as const,
-  
   // Projects
   projects: <T extends object = object>(params?: T) => ["projects", params] as const,
   project: (id: string) => ["project", id] as const,

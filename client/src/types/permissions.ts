@@ -1,7 +1,6 @@
 export const MODULES = [
   "projects",
   "tasks",
-  "missions",
   "freelancers",
   "clients",
   "leads",

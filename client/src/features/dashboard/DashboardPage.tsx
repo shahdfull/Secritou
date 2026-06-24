@@ -61,7 +61,7 @@ function calculateGrowth(current: number, previous: number): {
   isPositive: boolean;
 } {
   if (previous === 0) {
-    return { value: "—", isPositive: false };
+    return { value: ":", isPositive: false };
   }
   const growth = ((current - previous) / previous) * 100;
   const rounded = Math.round(growth);
@@ -127,22 +127,22 @@ export function DashboardPage() {
 
   // Calculate growth stats
   const leadGrowth = useMemo(() => {
-    if (!analyticsData?.leads) return { value: "—", isPositive: false };
+    if (!analyticsData?.leads) return { value: ":", isPositive: false };
     return calculateGrowth(analyticsData.leads.conversionRate, analyticsData.leads.previousConversionRate ?? 0);
   }, [analyticsData?.leads]);
 
   const clientGrowth = useMemo(() => {
-    if (!analyticsData?.clients) return { value: "—", isPositive: false };
+    if (!analyticsData?.clients) return { value: ":", isPositive: false };
     return calculateGrowth(analyticsData.clients.newThisMonth, analyticsData.clients.previousNew ?? 0);
   }, [analyticsData?.clients]);
 
   const projectGrowth = useMemo(() => {
-    if (!analyticsData?.projects) return { value: "—", isPositive: false };
+    if (!analyticsData?.projects) return { value: ":", isPositive: false };
     return calculateGrowth(analyticsData.projects.completionRate, analyticsData.projects.previousCompletionRate ?? 0);
   }, [analyticsData?.projects]);
 
   const taskGrowth = useMemo(() => {
-    if (!analyticsData?.tasks) return { value: "—", isPositive: false };
+    if (!analyticsData?.tasks) return { value: ":", isPositive: false };
     return calculateGrowth(taskDonePct, analyticsData.tasks.previousTaskDonePct ?? 0);
   }, [analyticsData?.tasks, taskDonePct]);
 

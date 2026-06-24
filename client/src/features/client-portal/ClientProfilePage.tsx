@@ -217,15 +217,15 @@ export function ClientProfilePage() {
             <dl className="space-y-4">
               <div>
                 <dt className="text-sm text-muted-foreground">Nom complet</dt>
-                <dd className="font-medium">{user?.name ?? "—"}</dd>
+                <dd className="font-medium">{user?.name ?? ":"}</dd>
               </div>
               <div>
                 <dt className="text-sm text-muted-foreground">Email</dt>
-                <dd className="font-medium">{user?.email ?? "—"}</dd>
+                <dd className="font-medium">{user?.email ?? ":"}</dd>
               </div>
               <div>
                 <dt className="text-sm text-muted-foreground">Rôle</dt>
-                <dd className="font-medium capitalize">{user?.role?.toLowerCase() ?? "—"}</dd>
+                <dd className="font-medium capitalize">{user?.role?.toLowerCase() ?? ":"}</dd>
               </div>
             </dl>
           )}

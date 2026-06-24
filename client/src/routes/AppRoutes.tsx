@@ -170,7 +170,6 @@ export function AppRoutes() {
           <Route path="applications" element={<Navigate to="/app/talent" replace />} />
           <Route path="freelancers" element={<Navigate to="/app/talent" replace />} />
           <Route path="freelancers/:id" element={withBoundary(<FreelancerDetailPage />)} />
-          <Route path="missions" element={<Navigate to="/app/talent" replace />} />
           <Route path="projects" element={withBoundary(<ProjectsPage />)} />
           <Route path="projects/:id" element={withBoundary(<ProjectDetailPage />)} />
           <Route path="tasks" element={<Navigate to="/app/projects" replace />} />

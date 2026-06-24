@@ -71,7 +71,7 @@ export function ProposalsPage() {
   const navigate = useNavigate();
   const { page, pageSize, search, status, updateParams } = useListParams(10);
 
-  // Lead filter (kept in local state — not part of the shared URL list params).
+  // Lead filter (kept in local state : not part of the shared URL list params).
   const [leadFilter, setLeadFilter] = useState<string>(ALL_LEADS_VALUE);
   const { data: leadsResult } = useLeads({ pageSize: 200 });
   const leads = useMemo(() => leadsResult?.data ?? [], [leadsResult?.data]);
@@ -304,7 +304,7 @@ export function ProposalsPage() {
                     {proposal.lead ? (
                       <Badge variant="outline">{proposal.lead.name}</Badge>
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-muted-foreground">:</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -490,7 +490,7 @@ export function ProposalsPage() {
               <div>
                 <p className="text-muted-foreground">{t("proposals.client")}</p>
                 <p className="font-medium">
-                  {acceptTarget?.client?.name ?? acceptTarget?.clientName ?? "—"}
+                  {acceptTarget?.client?.name ?? acceptTarget?.clientName ?? ":"}
                 </p>
               </div>
               <div>
@@ -533,7 +533,7 @@ export function ProposalsPage() {
           <div className="grid grid-cols-2 gap-4 rounded-md border p-3 bg-muted/40 text-sm">
             <div>
               <p className="text-muted-foreground">Client</p>
-              <p className="font-medium">{invoiceProposal?.client?.name ?? "—"}</p>
+              <p className="font-medium">{invoiceProposal?.client?.name ?? ":"}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Montant</p>
@@ -581,7 +581,7 @@ export function ProposalsPage() {
             </div>
             <div className="rounded-md border p-3 bg-muted/40 text-sm">
               <p className="text-muted-foreground">Client</p>
-              <p className="font-medium">{projectProposal?.client?.name ?? "—"}</p>
+              <p className="font-medium">{projectProposal?.client?.name ?? ":"}</p>
             </div>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input

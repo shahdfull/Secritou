@@ -17,7 +17,7 @@ export interface Lead {
   notes?: string;
   createdAt: string;
   updatedAt: string;
-  // Present when fetched via getById (lead detail) — the proposals linked to this lead.
+  // Present when fetched via getById (lead detail) : the proposals linked to this lead.
   proposals?: LeadProposal[];
 }
 
