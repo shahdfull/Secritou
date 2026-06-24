@@ -117,12 +117,12 @@ export function InvoicesPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL_STATUSES_VALUE}>{t("invoices.allStatuses")}</SelectItem>
-            <SelectItem value="draft">{t("invoices.statuses.draft")}</SelectItem>
-            <SelectItem value="sent">{t("invoices.statuses.sent")}</SelectItem>
-            <SelectItem value="paid">{t("invoices.statuses.paid")}</SelectItem>
-            <SelectItem value="partial">{t("invoices.statuses.partial")}</SelectItem>
-            <SelectItem value="overdue">{t("invoices.statuses.overdue")}</SelectItem>
-            <SelectItem value="cancelled">{t("invoices.statuses.cancelled")}</SelectItem>
+            <SelectItem value="DRAFT">{t("invoices.statuses.draft")}</SelectItem>
+            <SelectItem value="SENT">{t("invoices.statuses.sent")}</SelectItem>
+            <SelectItem value="PAID">{t("invoices.statuses.paid")}</SelectItem>
+            <SelectItem value="PARTIAL">{t("invoices.statuses.partial")}</SelectItem>
+            <SelectItem value="OVERDUE">{t("invoices.statuses.overdue")}</SelectItem>
+            <SelectItem value="CANCELLED">{t("invoices.statuses.cancelled")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
