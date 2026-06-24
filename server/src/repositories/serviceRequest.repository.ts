@@ -10,6 +10,7 @@ const SORTABLE_FIELDS = ["title", "status", "priority", "createdAt", "updatedAt"
 const listSelect = {
   id: true,
   title: true,
+  type: true,
   status: true,
   priority: true,
   clientId: true,
@@ -24,6 +25,7 @@ const listSelect = {
 const detailSelect = {
   id: true,
   title: true,
+  type: true,
   description: true,
   status: true,
   priority: true,

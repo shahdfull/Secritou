@@ -29,7 +29,7 @@ async function main() {
   });
   console.log('Company ready:', company.name);
 
-  // ── Services (poles) ─────────────────────────────────────────────────────────
+  // ── Services (poles) ──────────────────────────────────────────────────────
   const SERVICE_NAMES = [
     'Business Performance',
     'Digital Growth',
@@ -39,101 +39,94 @@ async function main() {
   const services: Record<string, { id: string }> = {};
   for (const name of SERVICE_NAMES) {
     services[name] = await prisma.service.upsert({
-      where: { companyId_name: { companyId: company.id, name } },
+      where: { name },
       update: {},
-      create: { name, companyId: company.id },
+      create: { name },
     });
   }
   console.log('Services ready:', SERVICE_NAMES.join(', '));
 
   // ── Users ──────────────────────────────────────────────────────────────────
-  const adminPassword   = await bcrypt.hash('admin123',    10);
-  const managerPassword = await bcrypt.hash('manager123',  10);
-  const clientPassword  = await bcrypt.hash('client123',   10);
+  const adminPassword   = await bcrypt.hash('admin123',      10);
+  const managerPassword = await bcrypt.hash('manager123',    10);
+  const clientPassword  = await bcrypt.hash('client123',     10);
   const freelancerPass  = await bcrypt.hash('freelancer123', 10);
 
   const admin = await prisma.user.upsert({
-    where: { companyId_email: { companyId: company.id, email: 'admin@secritou.tn' } },
+    where: { email: 'admin@secritou.tn' },
     update: {},
     create: {
       email: 'admin@secritou.tn',
       name: 'Ahmed Ben Ali',
       passwordHash: adminPassword,
       role: Role.ADMIN,
-      companyId: company.id,
     },
   });
 
   const manager = await prisma.user.upsert({
-    where: { companyId_email: { companyId: company.id, email: 'manager@secritou.tn' } },
+    where: { email: 'manager@secritou.tn' },
     update: {},
     create: {
       email: 'manager@secritou.tn',
       name: 'Sarra Mansouri',
       passwordHash: managerPassword,
       role: Role.MANAGER,
-      companyId: company.id,
+      serviceId: services['Digital Growth'].id,
     },
   });
 
   const [clientUser1, clientUser2] = await Promise.all([
     prisma.user.upsert({
-      where: { companyId_email: { companyId: company.id, email: 'client1@example.tn' } },
+      where: { email: 'client1@example.tn' },
       update: {},
       create: {
         email: 'client1@example.tn',
         name: 'Fatma Khelifi',
         passwordHash: clientPassword,
         role: Role.CLIENT,
-        companyId: company.id,
       },
     }),
     prisma.user.upsert({
-      where: { companyId_email: { companyId: company.id, email: 'client2@example.tn' } },
+      where: { email: 'client2@example.tn' },
       update: {},
       create: {
         email: 'client2@example.tn',
         name: 'Mohamed Trabelsi',
         passwordHash: clientPassword,
         role: Role.CLIENT,
-        companyId: company.id,
       },
     }),
   ]);
 
-  // Freelancer user accounts
   const [freelancerUser1, freelancerUser2, freelancerUser3] = await Promise.all([
     prisma.user.upsert({
-      where: { companyId_email: { companyId: company.id, email: 'yassine.dev@freelance.tn' } },
+      where: { email: 'yassine.dev@freelance.tn' },
       update: {},
       create: {
         email: 'yassine.dev@freelance.tn',
         name: 'Yassine Gharbi',
         passwordHash: freelancerPass,
         role: Role.FREELANCER,
-        companyId: company.id,
       },
     }),
     prisma.user.upsert({
-      where: { companyId_email: { companyId: company.id, email: 'ines.design@freelance.tn' } },
+      where: { email: 'ines.design@freelance.tn' },
       update: {},
       create: {
         email: 'ines.design@freelance.tn',
         name: 'Inès Bouali',
         passwordHash: freelancerPass,
         role: Role.FREELANCER,
-        companyId: company.id,
       },
     }),
     prisma.user.upsert({
-      where: { companyId_email: { companyId: company.id, email: 'omar.data@freelance.tn' } },
+      where: { email: 'omar.data@freelance.tn' },
       update: {},
       create: {
         email: 'omar.data@freelance.tn',
         name: 'Omar Cherif',
         passwordHash: freelancerPass,
         role: Role.FREELANCER,
-        companyId: company.id,
       },
     }),
   ]);
@@ -141,55 +134,47 @@ async function main() {
   console.log('Users ready:', [admin, manager, clientUser1, clientUser2, freelancerUser1, freelancerUser2, freelancerUser3].map(u => u.email));
 
   // ── Leads ──────────────────────────────────────────────────────────────────
-  const existingLeadCount = await prisma.lead.count({ where: { companyId: company.id } });
+  const existingLeadCount = await prisma.lead.count();
   if (existingLeadCount === 0) {
     const leadsData = [
-      { name: 'Tunisie Telecom',            email: 'contact@tunisietelecom.tn',   phone: '+216 70 000 000', source: 'Website',  status: LeadStatus.NEW },
-      { name: 'Orange Tunisia',             email: 'info@orange.tn',              phone: '+216 71 000 000', source: 'LinkedIn', status: LeadStatus.CONTACTED },
-      { name: 'Ooredoo Tunisia',            email: 'support@ooredoo.tn',          phone: '+216 72 000 000', source: 'Referral', status: LeadStatus.QUALIFIED },
-      { name: 'Banque de Tunisie',          email: 'contact@banquetunisie.tn',    phone: '+216 71 234 567', source: 'Email',    status: LeadStatus.PROPOSAL },
-      { name: 'Société Tunisienne de Banque', email: 'info@stb.tn',              phone: '+216 71 345 678', source: 'Website',  status: LeadStatus.WON },
-      { name: 'Vermeg',                     email: 'contact@vermeg.com',          phone: '+216 71 456 789', source: 'LinkedIn', status: LeadStatus.NEW },
-      { name: 'Tunisie Lease',              email: 'info@tunisielease.tn',        phone: '+216 71 567 890', source: 'Referral', status: LeadStatus.CONTACTED },
-      { name: 'Sopra Banking Software TN',  email: 'contact@soprabanking.tn',     phone: '+216 71 678 901', source: 'Website',  status: LeadStatus.QUALIFIED },
-      { name: 'Tunisavia',                  email: 'info@tunisavia.tn',           phone: '+216 71 789 012', source: 'Email',    status: LeadStatus.LOST },
-      { name: 'STEG',                       email: 'contact@steg.tn',             phone: '+216 71 890 123', source: 'Referral', status: LeadStatus.NEW },
+      { name: 'Tunisie Telecom',              email: 'contact@tunisietelecom.tn',  phone: '+216 70 000 000', source: 'Website',  status: LeadStatus.NEW },
+      { name: 'Orange Tunisia',               email: 'info@orange.tn',             phone: '+216 71 000 000', source: 'LinkedIn', status: LeadStatus.CONTACTED },
+      { name: 'Ooredoo Tunisia',              email: 'support@ooredoo.tn',         phone: '+216 72 000 000', source: 'Referral', status: LeadStatus.QUALIFIED },
+      { name: 'Banque de Tunisie',            email: 'contact@banquetunisie.tn',   phone: '+216 71 234 567', source: 'Email',    status: LeadStatus.PROPOSAL },
+      { name: 'Société Tunisienne de Banque', email: 'info@stb.tn',               phone: '+216 71 345 678', source: 'Website',  status: LeadStatus.WON },
+      { name: 'Vermeg',                       email: 'contact@vermeg.com',         phone: '+216 71 456 789', source: 'LinkedIn', status: LeadStatus.NEW },
+      { name: 'Tunisie Lease',                email: 'info@tunisielease.tn',       phone: '+216 71 567 890', source: 'Referral', status: LeadStatus.CONTACTED },
+      { name: 'Sopra Banking Software TN',    email: 'contact@soprabanking.tn',    phone: '+216 71 678 901', source: 'Website',  status: LeadStatus.QUALIFIED },
+      { name: 'Tunisavia',                    email: 'info@tunisavia.tn',          phone: '+216 71 789 012', source: 'Email',    status: LeadStatus.LOST },
+      { name: 'STEG',                         email: 'contact@steg.tn',            phone: '+216 71 890 123', source: 'Referral', status: LeadStatus.NEW },
     ];
-    await Promise.all(leadsData.map(lead => prisma.lead.create({ data: { ...lead, companyId: company.id } })));
+    await Promise.all(leadsData.map(lead => prisma.lead.create({ data: lead })));
     console.log('Created leads:', leadsData.length);
   } else {
     console.log('Leads already exist, skipping.');
   }
 
   // ── Client companies ────────────────────────────────────────────────────────
+  const upsertClient = async (name: string, email: string, phone: string) => {
+    const existing = await prisma.client.findFirst({ where: { email } });
+    if (existing) return existing;
+    return prisma.client.create({ data: { name, email, phone } });
+  };
   const [carrefour, monoprix, geant] = await Promise.all([
-    prisma.client.upsert({
-      where: { companyId_email: { companyId: company.id, email: 'contact@carrefour.tn' } },
-      update: {},
-      create: { name: 'Carrefour Tunisia', email: 'contact@carrefour.tn', phone: '+216 71 901 234', companyId: company.id },
-    }),
-    prisma.client.upsert({
-      where: { companyId_email: { companyId: company.id, email: 'info@monoprix.tn' } },
-      update: {},
-      create: { name: 'Monoprix Tunisia',  email: 'info@monoprix.tn',     phone: '+216 71 012 345', companyId: company.id },
-    }),
-    prisma.client.upsert({
-      where: { companyId_email: { companyId: company.id, email: 'contact@geant.tn' } },
-      update: {},
-      create: { name: 'Geant Tunisia',     email: 'contact@geant.tn',     phone: '+216 71 123 456', companyId: company.id },
-    }),
+    upsertClient('Carrefour Tunisia', 'contact@carrefour.tn', '+216 71 901 234'),
+    upsertClient('Monoprix Tunisia',  'info@monoprix.tn',     '+216 71 012 345'),
+    upsertClient('Geant Tunisia',     'contact@geant.tn',     '+216 71 123 456'),
   ]);
-  const clientCompanies = [carrefour, monoprix, geant];
-  console.log('Client companies ready:', clientCompanies.map(c => c.name));
+  console.log('Client companies ready:', [carrefour, monoprix, geant].map(c => c.name));
 
   // ── Projects & Tasks ────────────────────────────────────────────────────────
-  const existingProjectCount = await prisma.project.count({ where: { companyId: company.id } });
+  const existingProjectCount = await prisma.project.count();
   let projects: { id: string }[] = [];
   if (existingProjectCount === 0) {
     projects = await Promise.all([
-      prisma.project.create({ data: { name: 'E-commerce Website Redesign',  description: 'Complete redesign of Carrefour Tunisia e-commerce platform', status: ProjectStatus.IN_PROGRESS, companyId: company.id, clientId: carrefour.id } }),
-      prisma.project.create({ data: { name: 'Mobile App Development',       description: 'Native mobile app for Monoprix Tunisia',                     status: ProjectStatus.PLANNING,     companyId: company.id, clientId: monoprix.id } }),
-      prisma.project.create({ data: { name: 'ERP System Integration',       description: 'Integration of ERP system for Geant Tunisia',                status: ProjectStatus.REVIEW,       companyId: company.id, clientId: geant.id } }),
+      prisma.project.create({ data: { name: 'E-commerce Website Redesign',  description: 'Complete redesign of Carrefour Tunisia e-commerce platform', status: ProjectStatus.IN_PROGRESS, clientId: carrefour.id } }),
+      prisma.project.create({ data: { name: 'Mobile App Development',       description: 'Native mobile app for Monoprix Tunisia',                     status: ProjectStatus.PLANNING,     clientId: monoprix.id } }),
+      prisma.project.create({ data: { name: 'ERP System Integration',       description: 'Integration of ERP system for Geant Tunisia',                status: ProjectStatus.REVIEW,       clientId: geant.id } }),
     ]);
     console.log('Created projects:', projects.length);
 
@@ -209,7 +194,7 @@ async function main() {
     console.log('Created tasks:', tasksData.length);
   } else {
     console.log('Projects already exist, skipping tasks.');
-    projects = await prisma.project.findMany({ where: { companyId: company.id }, select: { id: true } });
+    projects = await prisma.project.findMany({ select: { id: true } });
   }
 
   // ── Skills ──────────────────────────────────────────────────────────────────
@@ -254,13 +239,12 @@ async function main() {
       }),
     ]);
 
-    // Portfolio items
     await Promise.all([
-      prisma.portfolioItem.create({ data: { title: 'Dashboard SaaS',      description: 'Tableau de bord React/TypeScript pour une startup FinTech', freelancerId: fp1.id } }),
-      prisma.portfolioItem.create({ data: { title: 'API REST Express',     description: 'API REST pour une plateforme e-commerce', freelancerId: fp1.id } }),
-      prisma.portfolioItem.create({ data: { title: 'Application mobile UX', description: 'Refonte UX d\'une application de livraison', freelancerId: fp2.id } }),
-      prisma.portfolioItem.create({ data: { title: 'Design system',        description: 'Système de design complet avec Figma', freelancerId: fp2.id } }),
-      prisma.portfolioItem.create({ data: { title: 'Pipeline ETL',         description: 'Pipeline ETL Python pour une banque tunisienne', freelancerId: fp3.id } }),
+      prisma.portfolioItem.create({ data: { title: 'Dashboard SaaS',        description: 'Tableau de bord React/TypeScript pour une startup FinTech', freelancerId: fp1.id } }),
+      prisma.portfolioItem.create({ data: { title: 'API REST Express',       description: 'API REST pour une plateforme e-commerce',                   freelancerId: fp1.id } }),
+      prisma.portfolioItem.create({ data: { title: 'Application mobile UX',  description: 'Refonte UX d\'une application de livraison',                freelancerId: fp2.id } }),
+      prisma.portfolioItem.create({ data: { title: 'Design system',          description: 'Système de design complet avec Figma',                      freelancerId: fp2.id } }),
+      prisma.portfolioItem.create({ data: { title: 'Pipeline ETL',           description: 'Pipeline ETL Python pour une banque tunisienne',            freelancerId: fp3.id } }),
     ]);
 
     console.log('Created freelancer profiles.');
@@ -268,21 +252,19 @@ async function main() {
     console.log('Freelancer profiles already exist, skipping.');
   }
 
-  // ── Service Requests ─────────────────────────────────────────────────────────
-  const existingSRCount = await prisma.serviceRequest.count({ where: { companyId: company.id } });
+  // ── Service Requests ──────────────────────────────────────────────────────
+  const existingSRCount = await prisma.serviceRequest.count();
   if (existingSRCount === 0) {
     const srData = [
-      { title: 'Problème de connexion au portail client',      description: 'Le client ne parvient pas à se connecter depuis ce matin.', status: ServiceRequestStatus.IN_PROGRESS, priority: 'HIGH',   clientId: carrefour.id },
-      { title: 'Demande de rapport mensuel personnalisé',       description: 'Export Excel avec filtres par région et catégorie.',         status: ServiceRequestStatus.NEW,          priority: 'NORMAL', clientId: monoprix.id },
-      { title: 'Bug affichage sur mobile Safari',               description: 'Les images produits ne s\'affichent pas sur iPhone 14.',     status: ServiceRequestStatus.IN_REVIEW,    priority: 'HIGH',   clientId: carrefour.id },
-      { title: 'Ajout d\'un utilisateur supplémentaire',        description: 'Besoin d\'un accès pour un nouveau responsable régional.',  status: ServiceRequestStatus.COMPLETED,    priority: 'LOW',    clientId: geant.id },
-      { title: 'Intégration API livraison tierce partie',       description: 'Connecter l\'API de Aramex pour le suivi des colis.',       status: ServiceRequestStatus.WAITING_CLIENT, priority: 'NORMAL', clientId: monoprix.id },
+      { title: 'Problème de connexion au portail client',    description: 'Le client ne parvient pas à se connecter depuis ce matin.',  status: ServiceRequestStatus.IN_PROGRESS,    priority: 'HIGH'   as const, clientId: carrefour.id, type: 'SUPPORT'     as const },
+      { title: 'Demande de rapport mensuel personnalisé',    description: 'Export Excel avec filtres par région et catégorie.',          status: ServiceRequestStatus.NEW,            priority: 'NORMAL' as const, clientId: monoprix.id,  type: 'SUPPORT'     as const },
+      { title: 'Bug affichage sur mobile Safari',            description: 'Les images produits ne s\'affichent pas sur iPhone 14.',      status: ServiceRequestStatus.IN_REVIEW,      priority: 'HIGH'   as const, clientId: carrefour.id, type: 'SUPPORT'     as const },
+      { title: 'Ajout d\'un utilisateur supplémentaire',     description: 'Besoin d\'un accès pour un nouveau responsable régional.',   status: ServiceRequestStatus.COMPLETED,      priority: 'LOW'    as const, clientId: geant.id,     type: 'SUPPORT'     as const },
+      { title: 'Intégration API livraison tierce partie',    description: 'Connecter l\'API de Aramex pour le suivi des colis.',        status: ServiceRequestStatus.WAITING_CLIENT, priority: 'NORMAL' as const, clientId: monoprix.id,  type: 'NEW_PROJECT' as const },
     ];
     await Promise.all(
       srData.map(sr =>
-        prisma.serviceRequest.create({
-          data: { ...sr, companyId: company.id, assignedToId: manager.id },
-        })
+        prisma.serviceRequest.create({ data: { ...sr, assignedToId: manager.id } })
       )
     );
     console.log('Created service requests:', srData.length);
@@ -291,7 +273,7 @@ async function main() {
   }
 
   // ── Proposals ────────────────────────────────────────────────────────────────
-  const existingProposalCount = await prisma.proposal.count({ where: { companyId: company.id } });
+  const existingProposalCount = await prisma.proposal.count();
   if (existingProposalCount === 0) {
     const proposal1 = await prisma.proposal.create({
       data: {
@@ -301,15 +283,14 @@ async function main() {
         amount: 28500,
         currency: 'TND',
         acceptedAt: new Date('2026-01-15'),
-        companyId: company.id,
         clientId: carrefour.id,
         projectId: projects[0]?.id,
         sections: {
           create: [
-            { title: 'Contexte & Objectifs',   content: 'Moderniser l\'expérience d\'achat en ligne pour 2M+ d\'utilisateurs tunisiens.', orderIndex: 0 },
-            { title: 'Périmètre technique',    content: 'React 18, Node.js, PostgreSQL, CI/CD GitHub Actions, hébergement AWS.',          orderIndex: 1 },
-            { title: 'Planning & Livrables',   content: 'Phase 1 : Design (4 semaines). Phase 2 : Dev (12 semaines). Phase 3 : Recette.', orderIndex: 2 },
-            { title: 'Tarification',           content: 'Forfait global : 28 500 TND HT. Paiement en 3 tranches.',                       orderIndex: 3 },
+            { title: 'Contexte & Objectifs',  content: 'Moderniser l\'expérience d\'achat en ligne pour 2M+ d\'utilisateurs tunisiens.', orderIndex: 0 },
+            { title: 'Périmètre technique',   content: 'React 18, Node.js, PostgreSQL, CI/CD GitHub Actions, hébergement AWS.',          orderIndex: 1 },
+            { title: 'Planning & Livrables',  content: 'Phase 1 : Design (4 semaines). Phase 2 : Dev (12 semaines). Phase 3 : Recette.', orderIndex: 2 },
+            { title: 'Tarification',          content: 'Forfait global : 28 500 TND HT. Paiement en 3 tranches.',                       orderIndex: 3 },
           ],
         },
       },
@@ -322,14 +303,13 @@ async function main() {
         status: ProposalStatus.SENT,
         amount: 18000,
         currency: 'TND',
-        companyId: company.id,
         clientId: monoprix.id,
         projectId: projects[1]?.id,
         sections: {
           create: [
-            { title: 'Vision du projet',  content: 'Application de fidélité avec scan en magasin, promotions géolocalisées et paiement mobile.', orderIndex: 0 },
-            { title: 'Stack technique',   content: 'React Native + Expo, API REST Node.js, notifications push via Firebase.',                   orderIndex: 1 },
-            { title: 'Budget & délais',   content: '18 000 TND HT : livraison estimée en 5 mois.',                                             orderIndex: 2 },
+            { title: 'Vision du projet', content: 'Application de fidélité avec scan en magasin, promotions géolocalisées et paiement mobile.', orderIndex: 0 },
+            { title: 'Stack technique',  content: 'React Native + Expo, API REST Node.js, notifications push via Firebase.',                   orderIndex: 1 },
+            { title: 'Budget & délais',  content: '18 000 TND HT : livraison estimée en 5 mois.',                                             orderIndex: 2 },
           ],
         },
       },
@@ -342,14 +322,13 @@ async function main() {
         status: ProposalStatus.DRAFT,
         amount: 12000,
         currency: 'TND',
-        companyId: company.id,
         clientId: geant.id,
       },
     });
 
     console.log('Created proposals: 3');
 
-    // ── Invoices ────────────────────────────────────────────────────────────────
+    // ── Invoices ──────────────────────────────────────────────────────────────
     const inv1 = await prisma.invoice.create({
       data: {
         number: 'INV-2026-001',
@@ -360,14 +339,13 @@ async function main() {
         status: InvoiceStatus.PAID,
         paidAt: new Date('2026-01-20'),
         dueDate: new Date('2026-02-01'),
-        companyId: company.id,
         clientId: carrefour.id,
         projectId: projects[0]?.id,
         proposalId: proposal1.id,
         items: {
           create: [
-            { description: 'Phase Design : maquettes et prototypes',    quantity: 1, unitPrice: 6000, total: 6000 },
-            { description: 'Mise en place environnement dev/staging',   quantity: 1, unitPrice: 3500, total: 3500 },
+            { description: 'Phase Design : maquettes et prototypes',   quantity: 1, unitPrice: 6000, total: 6000 },
+            { description: 'Mise en place environnement dev/staging',  quantity: 1, unitPrice: 3500, total: 3500 },
           ],
         },
       },
@@ -383,7 +361,6 @@ async function main() {
         status: InvoiceStatus.PARTIAL,
         dueDate: new Date('2026-03-15'),
         sentAt: new Date('2026-02-28'),
-        companyId: company.id,
         clientId: carrefour.id,
         projectId: projects[0]?.id,
         items: {
@@ -404,7 +381,6 @@ async function main() {
         status: InvoiceStatus.SENT,
         dueDate: new Date('2026-04-01'),
         sentAt: new Date('2026-03-10'),
-        companyId: company.id,
         clientId: monoprix.id,
         projectId: projects[1]?.id,
         proposalId: proposal2.id,
@@ -426,7 +402,6 @@ async function main() {
         status: InvoiceStatus.OVERDUE,
         dueDate: new Date('2026-02-15'),
         sentAt: new Date('2026-01-30'),
-        companyId: company.id,
         clientId: geant.id,
         items: {
           create: [
@@ -436,7 +411,6 @@ async function main() {
       },
     });
 
-    // Payment for invoice 1
     await prisma.invoicePayment.create({
       data: { invoiceId: inv1.id, amount: 9500, method: 'Virement bancaire', reference: 'VIR-2026-0120', paidAt: new Date('2026-01-20') },
     });
@@ -447,17 +421,15 @@ async function main() {
   }
 
   // ── Approvals ────────────────────────────────────────────────────────────────
-  const existingApprovalCount = await prisma.approval.count({ where: { companyId: company.id } });
+  const existingApprovalCount = await prisma.approval.count();
   if (existingApprovalCount === 0) {
     const approvalData = [
-      { title: 'Validation maquettes homepage Carrefour',    description: 'Approbation des maquettes Figma avant passage en développement.', status: ApprovalStatus.APPROVED, clientId: carrefour.id, projectId: projects[0]?.id },
-      { title: 'Validation wireframes app mobile Monoprix',  description: 'Validation des wireframes basse fidélité pour toutes les vues.',   status: ApprovalStatus.PENDING,  clientId: monoprix.id,  projectId: projects[1]?.id },
-      { title: 'Validation du cahier des charges ERP Geant', description: 'Document de spécifications fonctionnelles à valider avant démarrage.', status: ApprovalStatus.COMMENTED, clientId: geant.id, projectId: projects[2]?.id },
+      { title: 'Validation maquettes homepage Carrefour',    description: 'Approbation des maquettes Figma avant passage en développement.', status: ApprovalStatus.APPROVED,  clientId: carrefour.id, projectId: projects[0]?.id },
+      { title: 'Validation wireframes app mobile Monoprix',  description: 'Validation des wireframes basse fidélité pour toutes les vues.',   status: ApprovalStatus.PENDING,   clientId: monoprix.id,  projectId: projects[1]?.id },
+      { title: 'Validation du cahier des charges ERP Geant', description: 'Document de spécifications fonctionnelles à valider.',             status: ApprovalStatus.COMMENTED, clientId: geant.id,     projectId: projects[2]?.id },
     ];
     await Promise.all(
-      approvalData.map(a =>
-        prisma.approval.create({ data: { ...a, companyId: company.id } })
-      )
+      approvalData.map(a => prisma.approval.create({ data: a }))
     );
     console.log('Created approvals:', approvalData.length);
   } else {
@@ -469,24 +441,23 @@ async function main() {
   if (existingNotifCount === 0) {
     await prisma.notification.createMany({
       data: [
-        { userId: admin.id,    title: 'Nouvelle demande de service',      message: 'Carrefour Tunisia a ouvert une demande de priorité haute.',    read: false },
-        { userId: admin.id,    title: 'Proposition acceptée',             message: 'Carrefour Tunisia a accepté la proposition INV-2026-001.',      read: true  },
-        { userId: admin.id,    title: 'Facture en retard',                message: 'La facture INV-2026-004 de Geant Tunisia est en retard.',       read: false },
-        { userId: manager.id,  title: 'Tâche assignée',                   message: 'Vous avez été assigné à la tâche "API integration planning".', read: false },
-        { userId: manager.id,  title: 'Mission freelance ouverte',         message: 'Nouvelle mission : Analyse et migration des données ERP.',     read: false },
-        { userId: clientUser1.id, title: 'Bienvenue sur Sécritou',       message: 'Votre compte a été créé avec succès.',                         read: true  },
+        { userId: admin.id,       title: 'Nouvelle demande de service', message: 'Carrefour Tunisia a ouvert une demande de priorité haute.',    read: false },
+        { userId: admin.id,       title: 'Proposition acceptée',        message: 'Carrefour Tunisia a accepté la proposition INV-2026-001.',      read: true  },
+        { userId: admin.id,       title: 'Facture en retard',           message: 'La facture INV-2026-004 de Geant Tunisia est en retard.',       read: false },
+        { userId: manager.id,     title: 'Tâche assignée',              message: 'Vous avez été assigné à la tâche "API integration planning".', read: false },
+        { userId: clientUser1.id, title: 'Bienvenue sur Sécritou',      message: 'Votre compte a été créé avec succès.',                         read: true  },
       ],
     });
-    console.log('Created notifications: 6');
+    console.log('Created notifications: 5');
   } else {
     console.log('Notifications already exist, skipping.');
   }
 
-  // ── Permission Profiles ──────────────────────────────────────────────────────
-  const FULL = { read: true, create: true, update: true, delete: true };
-  const READ_UPDATE = { read: true, create: false, update: true, delete: false };
-  const READ = { read: true, create: false, update: false, delete: false };
-  const NO_ACCESS = { read: false, create: false, update: false, delete: false };
+  // ── Permission Profiles ───────────────────────────────────────────────────
+  const FULL       = { read: true,  create: true,  update: true,  delete: true  };
+  const READ_UPDATE = { read: true,  create: false, update: true,  delete: false };
+  const READ       = { read: true,  create: false, update: false, delete: false };
+  const NO_ACCESS  = { read: false, create: false, update: false, delete: false };
 
   const existingProfileCount = await prisma.permissionProfile.count();
   if (existingProfileCount === 0) {
@@ -494,18 +465,17 @@ async function main() {
       prisma.permissionProfile.create({
         data: {
           name: "Opérations",
-          description: "Accès complet aux projets, tâches, missions et freelances",
+          description: "Accès complet aux projets, tâches et freelances",
           permissions: {
-            projects: FULL,
-            tasks: FULL,
-            missions: FULL,
+            projects:   FULL,
+            tasks:      FULL,
             freelancers: READ_UPDATE,
-            clients: NO_ACCESS,
-            leads: NO_ACCESS,
-            invoices: NO_ACCESS,
-            analytics: NO_ACCESS,
-            approvals: NO_ACCESS,
-            documents: NO_ACCESS,
+            clients:    NO_ACCESS,
+            leads:      NO_ACCESS,
+            invoices:   NO_ACCESS,
+            analytics:  NO_ACCESS,
+            approvals:  NO_ACCESS,
+            documents:  NO_ACCESS,
           },
         },
       }),
@@ -514,34 +484,32 @@ async function main() {
           name: "Commercial",
           description: "Accès aux leads, clients et propositions",
           permissions: {
-            projects: NO_ACCESS,
-            tasks: NO_ACCESS,
-            missions: NO_ACCESS,
+            projects:   NO_ACCESS,
+            tasks:      NO_ACCESS,
             freelancers: NO_ACCESS,
-            clients: READ,
-            leads: FULL,
-            invoices: NO_ACCESS,
-            analytics: NO_ACCESS,
-            approvals: NO_ACCESS,
-            documents: NO_ACCESS,
+            clients:    READ,
+            leads:      FULL,
+            invoices:   NO_ACCESS,
+            analytics:  NO_ACCESS,
+            approvals:  NO_ACCESS,
+            documents:  NO_ACCESS,
           },
         },
       }),
       prisma.permissionProfile.create({
         data: {
           name: "Technique",
-          description: "Accès aux projets, tâches, missions et documents",
+          description: "Accès aux projets, tâches et documents",
           permissions: {
-            projects: READ_UPDATE,
-            tasks: FULL,
-            missions: READ,
+            projects:   READ_UPDATE,
+            tasks:      FULL,
             freelancers: NO_ACCESS,
-            clients: NO_ACCESS,
-            leads: NO_ACCESS,
-            invoices: NO_ACCESS,
-            analytics: NO_ACCESS,
-            approvals: NO_ACCESS,
-            documents: FULL,
+            clients:    NO_ACCESS,
+            leads:      NO_ACCESS,
+            invoices:   NO_ACCESS,
+            analytics:  NO_ACCESS,
+            approvals:  NO_ACCESS,
+            documents:  FULL,
           },
         },
       }),
@@ -555,13 +523,13 @@ async function main() {
   console.log('Database seed completed successfully!');
   console.log('─────────────────────────────────────────');
   console.log('Credentials:');
-  console.log('  Admin    → admin@secritou.tn     / admin123');
-  console.log('  Manager  → manager@secritou.tn   / manager123');
-  console.log('  Client 1 → client1@example.tn    / client123');
-  console.log('  Client 2 → client2@example.tn    / client123');
-  console.log('  Freelancer 1 → yassine.dev@freelance.tn / freelancer123');
-  console.log('  Freelancer 2 → ines.design@freelance.tn / freelancer123');
-  console.log('  Freelancer 3 → omar.data@freelance.tn   / freelancer123');
+  console.log('  Admin       → admin@secritou.tn              / admin123');
+  console.log('  Manager     → manager@secritou.tn            / manager123');
+  console.log('  Client 1    → client1@example.tn             / client123');
+  console.log('  Client 2    → client2@example.tn             / client123');
+  console.log('  Freelancer 1 → yassine.dev@freelance.tn      / freelancer123');
+  console.log('  Freelancer 2 → ines.design@freelance.tn      / freelancer123');
+  console.log('  Freelancer 3 → omar.data@freelance.tn        / freelancer123');
 }
 
 main()
