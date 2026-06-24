@@ -384,7 +384,9 @@
     "tasksDone": "Tâches complétées",
     "overdueCount": "en retard",
     "chartsLoading": "Chargement des graphiques…",
-    "chartsLoadingDesc": "Préparation des visualisations"
+    "chartsLoadingDesc": "Préparation des visualisations",
+    "hotLeads": "leads qualifiés",
+    "overdueInvoices": "factures en retard"
   },
   "commercial": {
     "tabs": {
@@ -487,7 +489,8 @@
     "priority": "Priorité",
     "nameRequired": "Le nom est requis",
     "commentsCount": "Commentaires ({{count}})",
-    "details": "Détails"
+    "details": "Détails",
+    "sending": "Envoi..."
   },
   "search": {
     "placeholder": "Rechercher les leads, clients, projets...",
@@ -498,34 +501,6 @@
     "projects": "Projets",
     "tasks": "Tâches",
     "freelancers": "Équipe"
-  },
-  "settingsUsersTab": {
-    "title": "Utilisateurs",
-    "inviteUserButton": "Inviter un utilisateur",
-    "inviteDialogTitle": "Inviter un nouvel utilisateur",
-    "inviteDialogDesc": "Envoyer une invitation à un nouvel utilisateur",
-    "nameLabel": "Nom",
-    "emailLabel": "Email",
-    "roleLabel": "Rôle",
-    "selectRolePlaceholder": "Sélectionnez un rôle",
-    "admin": "Admin",
-    "manager": "Manager",
-    "client": "Client",
-    "freelancer": "Freelancer",
-    "cancel": "Annuler",
-    "sendInvitation": "Envoyer l'invitation",
-    "createdAt": "Créé le",
-    "actions": "Actions",
-    "editUser": "Modifier l'utilisateur",
-    "updateUserInfo": "Mettre à jour les informations de l'utilisateur",
-    "save": "Enregistrer",
-    "deleteUser": "Supprimer l'utilisateur",
-    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
-    "delete": "Supprimer",
-    "permissionsMatrix": "Matrice des permissions",
-    "permissionsPerRole": "Permissions par rôle",
-    "role": "Rôle",
-    "permissions": "Permissions"
   },
   "sidebar": {
     "title": "Navigation",
@@ -624,7 +599,8 @@
       "clear": "Effacer la conversation",
       "fullscreen": "Ouvrir en plein écran",
       "close": "Fermer"
-    }
+    },
+    "clearHistory": "Effacer l'historique"
   },
   "notifications": {
     "open": "Ouvrir les notifications",
@@ -1494,7 +1470,22 @@
     "deleted": "Approbation supprimée avec succès",
     "approved": "Approbation approuvée avec succès",
     "rejected": "Approbation refusée avec succès",
-    "commented": "Commentaire ajouté avec succès"
+    "commented": "Commentaire ajouté avec succès",
+    "approveModal": {
+      "title": "Approuver",
+      "description": "Confirmer l'approbation de cette demande ?",
+      "confirm": "Approuver"
+    },
+    "rejectModal": {
+      "title": "Rejeter",
+      "description": "Confirmer le rejet de cette demande ?",
+      "confirm": "Rejeter"
+    },
+    "commentModal": {
+      "title": "Ajouter un commentaire",
+      "description": "Votre commentaire...",
+      "confirm": "Envoyer"
+    }
   },
   "invoices": {
     "title": "Factures",
@@ -1580,30 +1571,6 @@
     "recommendationDeleted": "Recommandation supprimée avec succès",
     "timelineAdded": "Entrée timeline ajoutée avec succès",
     "timelineDeleted": "Entrée timeline supprimée avec succès"
-  },
-  "ratings": {
-    "title": "Avis",
-    "writeReview": "Écrire un avis",
-    "submitReview": "Soumettre l'avis",
-    "updateReview": "Mettre à jour",
-    "editReview": "Modifier l'avis",
-    "noReviews": "Aucun avis pour l'instant.",
-    "reviewCount_one": "{{count}} avis",
-    "reviewCount_other": "{{count}} avis",
-    "reviews": "avis",
-    "score": "Note",
-    "comment": "Commentaire",
-    "commentPlaceholder": "Partagez votre expérience avec ce freelancer...",
-    "created": "Avis soumis avec succès.",
-    "updated": "Avis mis à jour.",
-    "deleted": "Avis supprimé.",
-    "scoreLabel": {
-      "1": "Insuffisant",
-      "2": "Passable",
-      "3": "Bien",
-      "4": "Très bien",
-      "5": "Excellent"
-    }
   },
   "freelancers": {
     "available": "Disponible",

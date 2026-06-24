@@ -384,7 +384,9 @@
     "tasksDone": "Tasks Done",
     "overdueCount": "overdue",
     "chartsLoading": "Loading charts…",
-    "chartsLoadingDesc": "Preparing visualizations"
+    "chartsLoadingDesc": "Preparing visualizations",
+    "hotLeads": "qualified leads",
+    "overdueInvoices": "overdue invoices"
   },
   "commercial": {
     "tabs": {
@@ -487,7 +489,8 @@
     "priority": "Priority",
     "nameRequired": "Name is required",
     "commentsCount": "Comments ({{count}})",
-    "details": "Details"
+    "details": "Details",
+    "sending": "Sending..."
   },
   "search": {
     "placeholder": "Search leads, clients, projects...",
@@ -498,34 +501,6 @@
     "projects": "Projects",
     "tasks": "Tasks",
     "freelancers": "Team"
-  },
-  "settingsUsersTab": {
-    "title": "Users",
-    "inviteUserButton": "Invite User",
-    "inviteDialogTitle": "Invite New User",
-    "inviteDialogDesc": "Send an invitation to a new user",
-    "nameLabel": "Name",
-    "emailLabel": "Email",
-    "roleLabel": "Role",
-    "selectRolePlaceholder": "Select role",
-    "admin": "Admin",
-    "manager": "Manager",
-    "client": "Client",
-    "freelancer": "Freelancer",
-    "cancel": "Cancel",
-    "sendInvitation": "Send Invitation",
-    "createdAt": "Created At",
-    "actions": "Actions",
-    "editUser": "Edit User",
-    "updateUserInfo": "Update user information",
-    "save": "Save",
-    "deleteUser": "Delete User",
-    "deleteConfirm": "Are you sure you want to delete this user?",
-    "delete": "Delete",
-    "permissionsMatrix": "Permissions Matrix",
-    "permissionsPerRole": "Permissions per role",
-    "role": "Role",
-    "permissions": "Permissions"
   },
   "sidebar": {
     "title": "Navigation",
@@ -624,7 +599,8 @@
       "clear": "Clear conversation",
       "fullscreen": "Open fullscreen",
       "close": "Close"
-    }
+    },
+    "clearHistory": "Clear history"
   },
   "notifications": {
     "open": "Open notifications",
@@ -1494,7 +1470,22 @@
     "deleted": "Approval deleted successfully",
     "approved": "Approval approved successfully",
     "rejected": "Approval rejected successfully",
-    "commented": "Comment added successfully"
+    "commented": "Comment added successfully",
+    "approveModal": {
+      "title": "Approve",
+      "description": "Confirm approval of this request?",
+      "confirm": "Approve"
+    },
+    "rejectModal": {
+      "title": "Reject",
+      "description": "Confirm rejection of this request?",
+      "confirm": "Reject"
+    },
+    "commentModal": {
+      "title": "Add a comment",
+      "description": "Your comment...",
+      "confirm": "Send"
+    }
   },
   "invoices": {
     "title": "Invoices",
@@ -1580,30 +1571,6 @@
     "recommendationDeleted": "Recommendation deleted successfully",
     "timelineAdded": "Timeline entry added successfully",
     "timelineDeleted": "Timeline entry deleted successfully"
-  },
-  "ratings": {
-    "title": "Reviews",
-    "writeReview": "Write a Review",
-    "submitReview": "Submit Review",
-    "updateReview": "Update Review",
-    "editReview": "Edit Review",
-    "noReviews": "No reviews yet.",
-    "reviewCount_one": "{{count}} review",
-    "reviewCount_other": "{{count}} reviews",
-    "reviews": "reviews",
-    "score": "Score",
-    "comment": "Comment",
-    "commentPlaceholder": "Share your experience working with this freelancer...",
-    "created": "Review submitted successfully.",
-    "updated": "Review updated.",
-    "deleted": "Review deleted.",
-    "scoreLabel": {
-      "1": "Poor",
-      "2": "Fair",
-      "3": "Good",
-      "4": "Very Good",
-      "5": "Excellent"
-    }
   },
   "freelancers": {
     "available": "Available",
