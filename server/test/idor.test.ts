@@ -1,5 +1,5 @@
 // Tests for IDOR (Insecure Direct Object Reference) protection on invoice and proposal repositories
-// Pattern: stub prisma by injection — same as lead.repository.test.ts
+// Pattern: stub prisma by injection : same as lead.repository.test.ts
 // Source: src/repositories/invoice.repository.ts, src/repositories/proposal.repository.ts
 
 import test, { describe } from "node:test";
@@ -112,7 +112,7 @@ function makeProposal(overrides = {}) {
 
 // ─── Invoice IDOR tests ───────────────────────────────────────────────────────
 
-describe("invoice.repository — IDOR protection", () => {
+describe("invoice.repository : IDOR protection", () => {
   const INVOICE_ID = "inv-1";
   const COMPANY_ID = "company-1";
   const ATTACKER_COMPANY_ID = "company-attacker";
@@ -132,7 +132,7 @@ describe("invoice.repository — IDOR protection", () => {
     assert.deepEqual(capturedWhere, { id: INVOICE_ID, companyId: COMPANY_ID });
   });
 
-  test("update WHERE must contain companyId — not id alone", async () => {
+  test("update WHERE must contain companyId : not id alone", async () => {
     let capturedWhere: Record<string, unknown> | null = null;
     const fakePrisma: FakeInvoicePrisma = {
       invoice: {
@@ -164,7 +164,7 @@ describe("invoice.repository — IDOR protection", () => {
     assert.deepEqual(capturedWhere, { id: INVOICE_ID, companyId: COMPANY_ID });
   });
 
-  test("delete WHERE must contain companyId — not id alone", async () => {
+  test("delete WHERE must contain companyId : not id alone", async () => {
     let capturedWhere: Record<string, unknown> | null = null;
     const fakePrisma: FakeInvoicePrisma = {
       invoice: {
@@ -217,7 +217,7 @@ describe("invoice.repository — IDOR protection", () => {
 
 // ─── Proposal IDOR tests ──────────────────────────────────────────────────────
 
-describe("proposal.repository — IDOR protection", () => {
+describe("proposal.repository : IDOR protection", () => {
   const PROPOSAL_ID = "prop-1";
   const COMPANY_ID = "company-1";
   const ATTACKER_COMPANY_ID = "company-attacker";
@@ -237,7 +237,7 @@ describe("proposal.repository — IDOR protection", () => {
     assert.deepEqual(capturedWhere, { id: PROPOSAL_ID, companyId: COMPANY_ID });
   });
 
-  test("update WHERE must contain companyId — not id alone", async () => {
+  test("update WHERE must contain companyId : not id alone", async () => {
     let capturedWhere: Record<string, unknown> | null = null;
     const fakePrisma: FakeProposalPrisma = {
       proposal: {
@@ -268,7 +268,7 @@ describe("proposal.repository — IDOR protection", () => {
     assert.deepEqual(capturedWhere, { id: PROPOSAL_ID, companyId: COMPANY_ID });
   });
 
-  test("delete WHERE must contain companyId — not id alone", async () => {
+  test("delete WHERE must contain companyId : not id alone", async () => {
     let capturedWhere: Record<string, unknown> | null = null;
     const fakePrisma: FakeProposalPrisma = {
       proposal: {

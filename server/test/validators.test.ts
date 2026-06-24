@@ -1,4 +1,4 @@
-// Tests for Zod validators — no DB, no real imports beyond the validator files
+// Tests for Zod validators : no DB, no real imports beyond the validator files
 // Pattern: import the real schema, call .safeParse(), assert success/failure
 // Source: src/validators/auth.validator.ts, lead.validator.ts, rating.validator.ts
 
@@ -8,7 +8,7 @@ import { z } from "zod";
 
 // ─── Inline schemas mirroring the real validators ────────────────────────────
 // We inline them (not import) because the validators import @prisma/client enums
-// which requires a generated client — not available in test environment.
+// which requires a generated client : not available in test environment.
 // The schemas tested here are exact copies of the source.
 
 const registerSchema = z.object({
@@ -46,7 +46,7 @@ const createLeadSchema = z.object({
   }),
 });
 
-// ─── Invoice validator (inline — no dedicated file exists yet) ────────────────
+// ─── Invoice validator (inline : no dedicated file exists yet) ────────────────
 
 const createInvoiceSchema = z.object({
   body: z.object({
@@ -60,7 +60,7 @@ const createInvoiceSchema = z.object({
   }),
 });
 
-// ─── Proposal validator (inline — no dedicated file exists yet) ───────────────
+// ─── Proposal validator (inline : no dedicated file exists yet) ───────────────
 
 const createProposalSchema = z.object({
   body: z.object({

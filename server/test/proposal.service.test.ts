@@ -1,4 +1,4 @@
-// Tests for proposal.service business logic — no DB, no real imports
+// Tests for proposal.service business logic : no DB, no real imports
 // Pattern: stub dependencies inline, mirror real service logic
 // Source: src/services/proposal.service.ts
 
@@ -73,7 +73,7 @@ async function serviceReject(
     deps.enqueueEmails(
       admins.map((admin) => ({
         to: admin.email,
-        subject: `Proposition refusée — ${proposal.title}`,
+        subject: `Proposition refusée : ${proposal.title}`,
         html: `Bonjour ${admin.name}, ${client?.name ?? "Le client"} a refusé. ${comment ?? ""}`,
       }))
     );
@@ -289,7 +289,7 @@ describe("proposal.service.send", () => {
   });
 });
 
-// ─── Edit-after-send guards (P0 #1) — mirrors proposalService.update / accept ─────
+// ─── Edit-after-send guards (P0 #1) : mirrors proposalService.update / accept ─────
 
 type GuardProposal = ReturnType<typeof makeProposal>;
 
@@ -321,7 +321,7 @@ function assertVersionMatch(proposal: GuardProposal, expectedVersion?: number) {
   }
 }
 
-describe("proposal.service.update — edit-after-send guard", () => {
+describe("proposal.service.update : edit-after-send guard", () => {
   test("editing title on a SENT proposal reverts to DRAFT and bumps version", async () => {
     const history: Array<{ action: string }> = [];
     const result = await serviceUpdate(makeProposal({ status: "SENT", version: 1 }), { title: "Nouveau titre" }, history);
@@ -361,7 +361,7 @@ describe("proposal.service.update — edit-after-send guard", () => {
   });
 });
 
-describe("proposal.service.accept — version guard", () => {
+describe("proposal.service.accept : version guard", () => {
   test("accepts when expectedVersion matches", () => {
     assert.doesNotThrow(() => assertVersionMatch(makeProposal({ version: 2 }), 2));
   });

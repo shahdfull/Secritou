@@ -1,4 +1,4 @@
-// Tests for rating.service business logic — no DB, pure logic stubs.
+// Tests for rating.service business logic : no DB, pure logic stubs.
 // Pattern: node:test + assert, identical to invoice.service.test.ts.
 
 import test, { describe } from "node:test";
@@ -20,7 +20,7 @@ function computeAverageRating(scores: number[]): number | null {
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
-describe("ratingService.addRating — score validation", () => {
+describe("ratingService.addRating : score validation", () => {
   test("rejects score below 1", () => {
     assert.throws(() => validateScore(0), /integer between 1 and 5/);
   });
@@ -46,7 +46,7 @@ describe("ratingService.addRating — score validation", () => {
   });
 });
 
-describe("ratingService.updateFreelancerRatingAverage — average computation", () => {
+describe("ratingService.updateFreelancerRatingAverage : average computation", () => {
   test("returns null for no ratings", () => {
     assert.strictEqual(computeAverageRating([]), null);
   });

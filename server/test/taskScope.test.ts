@@ -1,4 +1,4 @@
-// Tests for task access scoping (RBAC fix) — pure logic, no DB.
+// Tests for task access scoping (RBAC fix) : pure logic, no DB.
 // Mirrors the project filter in task.repository.buildWhere and assertProjectInScope.
 
 import test, { describe } from "node:test";

@@ -1,5 +1,5 @@
-// Tests for invoice.service business logic — no DB, no imports of service
-// Pattern: same as rating.service.test.ts — pure logic stubs, node:test + assert
+// Tests for invoice.service business logic : no DB, no imports of service
+// Pattern: same as rating.service.test.ts : pure logic stubs, node:test + assert
 
 import test, { describe } from "node:test";
 import assert from "node:assert/strict";
@@ -80,7 +80,7 @@ async function runAddPayment(
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
-describe("addPayment — status logic", () => {
+describe("addPayment : status logic", () => {
   const INVOICE_ID = "inv-1";
   const COMPANY_ID = "company-1";
 
@@ -205,7 +205,7 @@ describe("addPayment — status logic", () => {
 
 // ─── Additional payment guard tests ──────────────────────────────────────────
 
-describe("addPayment — guard logic", () => {
+describe("addPayment : guard logic", () => {
   const INVOICE_ID = "inv-1";
   const COMPANY_ID = "company-1";
 
@@ -236,7 +236,7 @@ describe("addPayment — guard logic", () => {
 
 // ─── Unit tests for computeNewStatus ────────────────────────────────────────
 
-describe("computeNewStatus — pure logic", () => {
+describe("computeNewStatus : pure logic", () => {
   test("returns PAID when newAmountPaid equals invoiceAmount", () => {
     assert.equal(computeNewStatus(1000, 0, 1000, "SENT"), "PAID");
   });
@@ -258,7 +258,7 @@ describe("computeNewStatus — pure logic", () => {
   });
 });
 
-// ─── Line-item edit guard (P0 #2) — mirrors assertInvoiceDraft ───────────────
+// ─── Line-item edit guard (P0 #2) : mirrors assertInvoiceDraft ───────────────
 
 function assertInvoiceDraft(status: InvoiceStatus) {
   if (status !== "DRAFT") {
@@ -319,7 +319,7 @@ describe("invoice.service overpayment → credit note (P0 #3)", () => {
   });
 });
 
-describe("creditNoteService.create — amount validation", () => {
+describe("creditNoteService.create : amount validation", () => {
   test("accepts a credit within the amount paid", () => {
     assert.doesNotThrow(() => assertCreditAmount(200, 1000));
   });

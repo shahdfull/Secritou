@@ -1,4 +1,4 @@
-// Tests for proposal.service.acceptWithCascade business logic — no DB, no real imports.
+// Tests for proposal.service.acceptWithCascade business logic : no DB, no real imports.
 // Pattern (matches proposal.service.test.ts): mirror the service's transaction logic against
 // in-memory fakes injected as deps, and assert the cascade outcomes.
 // Source: src/services/proposal.service.ts (acceptWithCascade)
@@ -231,7 +231,7 @@ describe("proposal.service.acceptWithCascade", () => {
     assert.equal(res2.invoiceId, "invoice-1");
   });
 
-  test("reconcile: already ACCEPTED but missing invoice — backfills the invoice only", async () => {
+  test("reconcile: already ACCEPTED but missing invoice : backfills the invoice only", async () => {
     const world = makeWorld(makeProposal({ status: "ACCEPTED", linkedProject: { id: "project-9", serviceId: null } }));
     // Seed the pre-existing project so the cascade doesn't recreate it.
     world.state.projects.push({ id: "project-9", proposalId: "proposal-1", companyId: "company-1", status: "PLANNING", clientId: "client-1" });

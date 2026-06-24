@@ -1,4 +1,4 @@
-// Tests for finance/proposal access control — pure logic, no DB.
+// Tests for finance/proposal access control : pure logic, no DB.
 // Mirrors the invoice ADMIN-only gate and assertProposalInScope (manager pole scope).
 
 import test, { describe } from "node:test";
@@ -22,7 +22,7 @@ function proposalInScope(
   return proposal.projectServiceId === (scope.userServiceId ?? "__none__");
 }
 
-describe("invoice access — ADMIN only (no financial leak to MANAGER)", () => {
+describe("invoice access : ADMIN only (no financial leak to MANAGER)", () => {
   test("ADMIN may manage invoices", () => {
     assert.equal(canManageInvoices("ADMIN"), true);
   });

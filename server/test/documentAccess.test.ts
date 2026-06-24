@@ -1,4 +1,4 @@
-// Tests for document access-level enforcement — pure logic, no DB.
+// Tests for document access-level enforcement : pure logic, no DB.
 // Mirrors visibleAccessLevels in enhancedDocument.repository.
 
 import test, { describe } from "node:test";

@@ -1,4 +1,4 @@
-// Tests for the Lead↔Service bridge and MANAGER scoping — pure logic, no DB.
+// Tests for the Lead↔Service bridge and MANAGER scoping : pure logic, no DB.
 // Mirrors constants/serviceMapping.ts and the scope filter in lead.repository.buildWhere.
 
 import test, { describe } from "node:test";

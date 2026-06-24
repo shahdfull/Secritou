@@ -1,4 +1,4 @@
-// Tests for lead.repository IDOR protection — no real DB
+// Tests for lead.repository IDOR protection : no real DB
 // Pattern: stub prisma calls by passing a fake prisma client to extracted functions
 // Source: src/repositories/lead.repository.ts
 
@@ -61,7 +61,7 @@ async function repositoryFindById(
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
-describe("lead.repository — IDOR protection", () => {
+describe("lead.repository : IDOR protection", () => {
   const LEAD_ID = "lead-1";
   const COMPANY_ID = "company-1";
   const OTHER_COMPANY_ID = "company-attacker";
@@ -84,7 +84,7 @@ describe("lead.repository — IDOR protection", () => {
     assert.deepEqual(capturedWhere, { id: LEAD_ID, companyId: COMPANY_ID });
   });
 
-  test("update WHERE clause is NOT { id } alone — companyId must be present", async () => {
+  test("update WHERE clause is NOT { id } alone : companyId must be present", async () => {
     let capturedWhere: Record<string, unknown> | null = null;
     const fakePrisma = {
       lead: {
@@ -122,7 +122,7 @@ describe("lead.repository — IDOR protection", () => {
     assert.deepEqual(capturedWhere, { id: LEAD_ID, companyId: COMPANY_ID });
   });
 
-  test("delete WHERE clause is NOT { id } alone — companyId must be present", async () => {
+  test("delete WHERE clause is NOT { id } alone : companyId must be present", async () => {
     let capturedWhere: Record<string, unknown> | null = null;
     const fakePrisma = {
       lead: {
@@ -140,7 +140,7 @@ describe("lead.repository — IDOR protection", () => {
     assert.ok("companyId" in capturedWhere!, "companyId must be in DELETE WHERE clause");
   });
 
-  test("findById filters by companyId — cross-company lookup returns null", async () => {
+  test("findById filters by companyId : cross-company lookup returns null", async () => {
     const ownedLead = makeLead({ id: LEAD_ID, companyId: COMPANY_ID });
 
     const fakePrisma = {
@@ -161,7 +161,7 @@ describe("lead.repository — IDOR protection", () => {
     assert.equal(result, null, "Cross-company read must return null, not the lead");
   });
 
-  test("findById WHERE clause includes archivedAt: null — soft-deleted leads not returned", async () => {
+  test("findById WHERE clause includes archivedAt: null : soft-deleted leads not returned", async () => {
     let capturedWhere: Record<string, unknown> | null = null;
     const fakePrisma = {
       lead: {

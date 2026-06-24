@@ -1,4 +1,4 @@
-// Tests for role-scoped global search (P0 confidentiality fix) — pure logic, no DB.
+// Tests for role-scoped global search (P0 confidentiality fix) : pure logic, no DB.
 // Mirrors the routing decisions in search.repository.search / searchForStaff.
 
 import test, { describe } from "node:test";
@@ -15,14 +15,14 @@ function allowedCategories(role: Role): string[] {
       // Everything except the internal freelancer marketplace.
       return ["leads", "clients", "projects", "tasks", "proposals", "invoices", "serviceRequests", "approvals"];
     case "CLIENT":
-      // Only the client's own entities — never leads, other clients, or freelancers.
+      // Only the client's own entities : never leads, other clients, or freelancers.
       return ["projects", "proposals", "invoices", "serviceRequests", "approvals"];
     case "FREELANCER":
       return ["projects", "tasks"];
   }
 }
 
-describe("search scope — confidentiality (P0)", () => {
+describe("search scope : confidentiality (P0)", () => {
   test("CLIENT never receives leads, clients, or freelancers", () => {
     const allowed = allowedCategories("CLIENT");
     assert.ok(!allowed.includes("leads"), "client must not see leads");

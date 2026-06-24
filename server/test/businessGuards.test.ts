@@ -1,4 +1,4 @@
-// Tests for delete/archive business guards (P1 #6) — pure logic, no DB.
+// Tests for delete/archive business guards (P1 #6) : pure logic, no DB.
 // Mirrors guards in lead.service.deleteLead and project.service.deleteProject.
 
 import test, { describe } from "node:test";
