@@ -4,7 +4,6 @@ import { parseListQuery } from "../utils/listQuery.js";
 import { HttpError } from "../utils/httpError.js";
 import { ProposalStatus } from "@prisma/client";
 import { buildServiceScope } from "../utils/serviceScope.js";
-import { COMPANY_ID } from "../config/constants.js";
 
 function textQuery(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
@@ -113,20 +112,15 @@ export const acceptProposal = async (req: Request, res: Response) => {
 };
 
 export const rejectProposal = async (req: Request, res: Response) => {
-  // Guard manager scope before the (shared) reject logic.
-  await proposalService.getById(req.params.id as string, COMPANY_ID, await buildServiceScope(req));
-  const proposal = await proposalService.reject(
-    req.params.id as string,
-    COMPANY_ID,
-    req.body.comment
-  );
+  const scope = await buildServiceScope(req);
+  await proposalService.getById(req.params.id as string, scope);
+  const proposal = await proposalService.reject(req.params.id as string, req.body.comment);
   res.json({ data: proposal });
 };
 
 export const addProposalSection = async (req: Request, res: Response) => {
   const section = await proposalService.addSection(
     req.params.id as string,
-    COMPANY_ID,
     req.body,
     await buildServiceScope(req)
   );
@@ -136,7 +130,6 @@ export const addProposalSection = async (req: Request, res: Response) => {
 export const updateProposalSection = async (req: Request, res: Response) => {
   const section = await proposalService.updateSection(
     req.params.sectionId as string,
-    COMPANY_ID,
     req.body,
     req.user!.id,
     await buildServiceScope(req)
@@ -147,7 +140,6 @@ export const updateProposalSection = async (req: Request, res: Response) => {
 export const deleteProposalSection = async (req: Request, res: Response) => {
   await proposalService.deleteSection(
     req.params.sectionId as string,
-    COMPANY_ID,
     req.user!.id,
     await buildServiceScope(req)
   );

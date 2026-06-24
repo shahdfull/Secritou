@@ -39,6 +39,15 @@ export const projectService = {
   },
 
   async createProject(data: CreateProjectDTO, scope?: ServiceScope) {
+    const proposal = await prisma.proposal.findUnique({
+      where: { id: data.proposalId },
+      select: { id: true, status: true },
+    });
+    if (!proposal) throw new HttpError(404, "Proposal not found");
+    if (proposal.status !== "ACCEPTED") {
+      throw new HttpError(422, "A project can only be created from an accepted proposal", "PROPOSAL_NOT_ACCEPTED");
+    }
+
     if (scope?.userRole === "MANAGER" && scope.userServiceId) {
       data = { ...data, serviceId: scope.userServiceId };
     }

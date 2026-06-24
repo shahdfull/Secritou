@@ -53,6 +53,10 @@ export const leadService = {
     const lead = await leadRepository.findById(id, scope);
     if (!lead) throw new HttpError(404, "Lead not found");
 
+    if (lead.status !== "WON") {
+      throw new HttpError(422, "Only a WON lead can be converted to a client", "LEAD_NOT_WON");
+    }
+
     // Email is the uniqueness key for clients. A lead without an email cannot be converted.
     if (!lead.email) {
       throw new HttpError(422, "Lead has no email : an email is required to convert to a client", "LEAD_EMAIL_REQUIRED");
@@ -74,7 +78,7 @@ export const leadService = {
         data: { name: lead.name, email: lead.email ?? undefined, phone: lead.phone ?? undefined },
       });
 
-      await tx.lead.update({ where: { id }, data: { status: "WON", archivedAt: new Date(), convertedClientId: created.id } });
+      await tx.lead.update({ where: { id }, data: { archivedAt: new Date(), convertedClientId: created.id } });
 
       return created;
     });

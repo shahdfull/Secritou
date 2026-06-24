@@ -115,6 +115,7 @@ enum Priority {
 // Single-tenant Company model (one record for Secritou)
 model Company {
   id          String   @id @default(uuid())
+  singleton   Boolean  @default(true)
   name        String   @db.VarChar(255)
   website     String?  @db.VarChar(255)
   logoUrl     String?  @db.VarChar(255)
@@ -122,7 +123,7 @@ model Company {
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
-  @@index([name])
+  @@unique([singleton])
 }
 
 // User model for all platform users
@@ -239,7 +240,7 @@ model Client {
   createdAt        DateTime         @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime         @updatedAt @db.Timestamptz(6)
 
-  @@index([email])
+  @@unique([email])
   @@index([archivedAt])
   @@index([createdAt])
 }

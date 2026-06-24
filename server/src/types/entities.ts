@@ -84,6 +84,7 @@ export interface CreateProjectDTO {
   status?: ProjectStatus;
   clientId?: string;
   serviceId?: string;
+  proposalId: string;
 }
 
 export interface CreateTaskDTO {

@@ -9,7 +9,9 @@ const projectBaseSchema = sharedProjectBase.extend({
 });
 
 export const createProjectSchema = z.object({
-  body: projectBaseSchema,
+  body: projectBaseSchema.extend({
+    proposalId: z.string().uuid(),
+  }),
 });
 
 export const updateProjectSchema = z.object({

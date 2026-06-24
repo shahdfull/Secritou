@@ -12,7 +12,7 @@ export const createInvoiceSchema = z.object({
     amount: positiveDecimal,
     currency: currencyCode.default("TND"),
     clientId: z.string().uuid(),
-    projectId: z.string().uuid().optional(),
+    projectId: z.string().uuid(),
     dueDate: z.string().datetime({ offset: true }).optional(),
     items: z.array(z.object({
       description: z.string().min(1).max(500),
