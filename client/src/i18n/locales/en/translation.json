@@ -979,32 +979,6 @@
     "projectLabel": "Project",
     "dueDateLabel": "Due Date"
   },
-  "missionsPage": {
-    "title": "Missions",
-    "subtitle": "Find or publish missions for freelancers",
-    "newMission": "New Mission",
-    "createMission": "Create Mission",
-    "createMissionDesc": "Publish a mission to find a freelancer",
-    "editMission": "Edit Mission",
-    "editMissionDesc": "Update mission information",
-    "searchMissions": "Search missions...",
-    "titleRequired": "Title is required",
-    "titlePlaceholder": "React app development",
-    "descriptionPlaceholder": "Describe the expectations and context of the mission...",
-    "budgetPlaceholder": "1000",
-    "budgetLabel": "Budget (TND)",
-    "selectStatus": "Select a status",
-    "apply": "Apply",
-    "publishedOn": "Published on",
-    "noDescription": "No description",
-    "areYouSureDelete": "Are you sure you want to delete \"{title}\"?",
-    "statuses": {
-      "open": "Open",
-      "inProgress": "In Progress",
-      "completed": "Completed",
-      "cancelled": "Cancelled"
-    }
-  },
   "clientsPage": {
     "title": "Clients",
     "subtitle": "Manage your client relationships",

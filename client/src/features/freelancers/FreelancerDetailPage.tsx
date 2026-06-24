@@ -32,7 +32,7 @@ export function FreelancerDetailPage() {
       <div className="text-center py-20">
         <p className="text-muted-foreground">{t("freelancers.notFound")}</p>
         <Button asChild variant="outline" className="mt-4">
-          <Link to="/app/freelancers">
+          <Link to="/app/talent">
             <ArrowLeft className="h-4 w-4 mr-2" />
             {t("common.back")}
           </Link>
@@ -47,7 +47,7 @@ export function FreelancerDetailPage() {
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
         <Button asChild variant="ghost" size="sm" className="-ml-2">
-          <Link to="/app/freelancers">
+          <Link to="/app/talent">
             <ArrowLeft className="h-4 w-4 mr-1" />
             {t("common.back")}
           </Link>

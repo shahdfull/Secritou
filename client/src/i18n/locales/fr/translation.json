@@ -979,32 +979,6 @@
     "projectLabel": "Projet",
     "dueDateLabel": "Date d'échéance"
   },
-  "missionsPage": {
-    "title": "Missions",
-    "subtitle": "Trouvez ou publiez des missions pour les freelancers",
-    "newMission": "Nouvelle mission",
-    "createMission": "Créer une mission",
-    "createMissionDesc": "Publiez une mission pour trouver un freelancer",
-    "editMission": "Modifier la mission",
-    "editMissionDesc": "Mettez à jour les informations de la mission",
-    "searchMissions": "Rechercher des missions...",
-    "titleRequired": "Titre requis",
-    "titlePlaceholder": "Développement d'une application React",
-    "descriptionPlaceholder": "Décrivez les attentes et le contexte de la mission...",
-    "budgetPlaceholder": "1000",
-    "budgetLabel": "Budget (TND)",
-    "selectStatus": "Sélectionnez un statut",
-    "apply": "Candidater",
-    "publishedOn": "Publié le",
-    "noDescription": "Aucune description",
-    "areYouSureDelete": "Êtes-vous sûr de vouloir supprimer \"{title}\"?",
-    "statuses": {
-      "open": "Ouverte",
-      "inProgress": "En cours",
-      "completed": "Terminée",
-      "cancelled": "Annulée"
-    }
-  },
   "clientsPage": {
     "title": "Clients",
     "subtitle": "Gérez vos relations clients",
