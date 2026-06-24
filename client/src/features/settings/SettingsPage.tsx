@@ -46,11 +46,11 @@ export function SettingsPage() {
   const [lang, setLang] = useState(i18n.language);
 
   // Users state
-  const { data: users, isLoading: loadingUsers } = useUsers();
+  const { data: users, isLoading: loadingUsers, isError: usersError } = useUsers();
   const { mutate: inviteUser, isPending: invitingUser } = useInviteUser();
   const { mutate: updateUser, isPending: updatingUser } = useUpdateUser();
   const { mutate: deleteUser, isPending: deletingUser } = useDeleteUser();
-  const { data: permissions } = usePermissions();
+  const { data: permissions, isError: permissionsError } = usePermissions();
 
   const handleSavePrimaryColor = useCallback((color: string) => {
     localStorage.setItem("companyColor", color);
@@ -102,18 +102,26 @@ export function SettingsPage() {
                 </Card>
               }
             >
-              <SettingsUsersTab
-                currentUserId={currentUserId}
-                users={users}
-                loadingUsers={loadingUsers}
-                invitingUser={invitingUser}
-                updatingUser={updatingUser}
-                deletingUser={deletingUser}
-                inviteUser={(input) => inviteUser(input as any)}
-                updateUser={(input) => updateUser(input as any)}
-                deleteUser={(id) => deleteUser(id)}
-                permissions={permissions as any}
-              />
+              {usersError || permissionsError ? (
+                <Card>
+                  <CardContent className="py-10 text-center text-muted-foreground">
+                    {t("common.error")}
+                  </CardContent>
+                </Card>
+              ) : (
+                <SettingsUsersTab
+                  currentUserId={currentUserId}
+                  users={users}
+                  loadingUsers={loadingUsers}
+                  invitingUser={invitingUser}
+                  updatingUser={updatingUser}
+                  deletingUser={deletingUser}
+                  inviteUser={(input) => inviteUser(input as any)}
+                  updateUser={(input) => updateUser(input as any)}
+                  deleteUser={(id) => deleteUser(id)}
+                  permissions={permissions as any}
+                />
+              )}
             </Suspense>
           </TabsContent>
         )}

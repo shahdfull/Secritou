@@ -1379,7 +1379,8 @@
       "view": "View",
       "edit": "Edit",
       "delete": "Delete"
-    }
+    },
+    "notFound": "No onboarding found for this project."
   },
   "proposals": {
     "title": "Proposals",
@@ -1573,7 +1574,13 @@
     "recommendationUpdated": "Recommendation updated successfully",
     "recommendationDeleted": "Recommendation deleted successfully",
     "timelineAdded": "Timeline entry added successfully",
-    "timelineDeleted": "Timeline entry deleted successfully"
+    "timelineDeleted": "Timeline entry deleted successfully",
+    "noObjectives": "No objectives yet.",
+    "noMetrics": "No metrics yet.",
+    "noRecommendations": "No recommendations yet.",
+    "noTimeline": "No timeline entries yet.",
+    "initialValue": "Initial",
+    "currentValue": "Current"
   },
   "freelancers": {
     "available": "Available",

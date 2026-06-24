@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export function ClientSuccessPage() {
   const { t } = useTranslation();
   const { clientId } = useParams<{ clientId: string }>();
-  const { data, isLoading } = useClientSuccess(clientId!);
+  const { data, isLoading, isError } = useClientSuccess(clientId!);
   const calculateMutation = useCalculateClientSuccessScore();
 
   if (isLoading) {
@@ -16,6 +16,16 @@ export function ClientSuccessPage() {
       <section className="container-page py-8">
         <div className="flex items-center justify-center h-96">
           <p className="text-muted-foreground">{t("common.loading")}</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (isError) {
+    return (
+      <section className="container-page py-8">
+        <div className="flex items-center justify-center h-96">
+          <p className="text-muted-foreground">{t("common.error")}</p>
         </div>
       </section>
     );
@@ -68,7 +78,7 @@ export function ClientSuccessPage() {
           {data?.objectives?.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center text-muted-foreground">
-                No objectives yet
+                {t("clientSuccess.noObjectives")}
               </CardContent>
             </Card>
           ) : (
@@ -88,7 +98,7 @@ export function ClientSuccessPage() {
           {data?.metrics?.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center text-muted-foreground">
-                No metrics yet
+                {t("clientSuccess.noMetrics")}
               </CardContent>
             </Card>
           ) : (
@@ -101,7 +111,7 @@ export function ClientSuccessPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">
-                        Initial
+                        {t("clientSuccess.initialValue")}
                       </p>
                       <p className="text-lg font-bold">
                         {metric.initialValue} {metric.unit}
@@ -109,7 +119,7 @@ export function ClientSuccessPage() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">
-                        Current
+                        {t("clientSuccess.currentValue")}
                       </p>
                       <p className="text-lg font-bold">
                         {metric.currentValue} {metric.unit}
@@ -125,7 +135,7 @@ export function ClientSuccessPage() {
           {data?.recommendations?.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center text-muted-foreground">
-                No recommendations yet
+                {t("clientSuccess.noRecommendations")}
               </CardContent>
             </Card>
           ) : (
@@ -145,7 +155,7 @@ export function ClientSuccessPage() {
           {data?.timeline?.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center text-muted-foreground">
-                No timeline entries yet
+                {t("clientSuccess.noTimeline")}
               </CardContent>
             </Card>
           ) : (

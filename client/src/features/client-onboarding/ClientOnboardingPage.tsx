@@ -238,7 +238,17 @@ export function ClientOnboardingPage() {
                   {step.questionnaire.serviceType || "-"}
                 </p>
                 {step.questionnaire.isDraft && (
-                  <Button>{t("onboarding.questionnaire.saveDraft")}</Button>
+                  <Button
+                    onClick={() =>
+                      updateQuestionnaire.mutate({
+                        questionnaireId: step.questionnaire.id,
+                        data: { isDraft: true },
+                      })
+                    }
+                    disabled={updateQuestionnaire.isPending}
+                  >
+                    {t("onboarding.questionnaire.saveDraft")}
+                  </Button>
                 )}
               </div>
             ) : (
@@ -389,14 +399,14 @@ export function ClientOnboardingPage() {
         );
 
       default:
-        return <p>Coming soon</p>;
+        return null;
     }
   };
 
   if (isLoading) {
     return (
       <section className="container-page py-8">
-        <p>Loading...</p>
+        <p>{t("common.loading")}</p>
       </section>
     );
   }
@@ -404,7 +414,7 @@ export function ClientOnboardingPage() {
   if (!onboarding) {
     return (
       <section className="container-page py-8">
-        <p>No onboarding found</p>
+        <p>{t("onboarding.notFound")}</p>
       </section>
     );
   }
