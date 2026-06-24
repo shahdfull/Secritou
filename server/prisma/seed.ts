@@ -180,15 +180,15 @@ async function main() {
 
     const tasksData = [
       { title: 'Design homepage mockups',   description: 'Create high-fidelity mockups for homepage',           status: TaskStatus.DONE,        projectId: projects[0].id, assigneeId: admin.id },
-      { title: 'Develop product catalog',   description: 'Implement product catalog with filtering',             status: TaskStatus.IN_PROGRESS, projectId: projects[0].id, assigneeId: clientUser1.id },
+      { title: 'Develop product catalog',   description: 'Implement product catalog with filtering',             status: TaskStatus.IN_PROGRESS, projectId: projects[0].id, assigneeId: freelancerUser1.id },
       { title: 'Set up payment gateway',    description: 'Integrate payment gateway',                            status: TaskStatus.TODO,        projectId: projects[0].id, assigneeId: admin.id },
-      { title: 'Mobile app wireframes',     description: 'Create wireframes for mobile app screens',             status: TaskStatus.IN_PROGRESS, projectId: projects[1].id, assigneeId: clientUser2.id },
+      { title: 'Mobile app wireframes',     description: 'Create wireframes for mobile app screens',             status: TaskStatus.IN_PROGRESS, projectId: projects[1].id, assigneeId: freelancerUser2.id },
       { title: 'Choose tech stack',         description: 'Finalize technology stack',                            status: TaskStatus.TODO,        projectId: projects[1].id, assigneeId: manager.id },
       { title: 'API integration planning',  description: 'Plan API integration with ERP system',                 status: TaskStatus.REVIEW,      projectId: projects[2].id, assigneeId: manager.id },
-      { title: 'Data migration script',     description: 'Write script for data migration to ERP',               status: TaskStatus.DONE,        projectId: projects[2].id, assigneeId: clientUser1.id },
-      { title: 'User testing',              description: 'Conduct user testing sessions',                         status: TaskStatus.TODO,        projectId: projects[0].id, assigneeId: clientUser2.id },
+      { title: 'Data migration script',     description: 'Write script for data migration to ERP',               status: TaskStatus.DONE,        projectId: projects[2].id, assigneeId: freelancerUser3.id },
+      { title: 'User testing',              description: 'Conduct user testing sessions',                         status: TaskStatus.TODO,        projectId: projects[0].id, assigneeId: freelancerUser2.id },
       { title: 'Performance optimization',  description: 'Optimize website performance',                         status: TaskStatus.IN_PROGRESS, projectId: projects[0].id, assigneeId: admin.id },
-      { title: 'Security audit',            description: 'Perform security audit',                               status: TaskStatus.TODO,        projectId: projects[2].id, assigneeId: clientUser1.id },
+      { title: 'Security audit',            description: 'Perform security audit',                               status: TaskStatus.TODO,        projectId: projects[2].id, assigneeId: freelancerUser1.id },
     ];
     await Promise.all(tasksData.map(task => prisma.task.create({ data: task })));
     console.log('Created tasks:', tasksData.length);
@@ -254,21 +254,20 @@ async function main() {
 
   // ── Service Requests ──────────────────────────────────────────────────────
   const existingSRCount = await prisma.serviceRequest.count();
+  let srMonoprixNewProject: { id: string } | null = null;
   if (existingSRCount === 0) {
-    const srData = [
-      { title: 'Problème de connexion au portail client',    description: 'Le client ne parvient pas à se connecter depuis ce matin.',  status: ServiceRequestStatus.IN_PROGRESS,    priority: 'HIGH'   as const, clientId: carrefour.id, type: 'SUPPORT'     as const },
-      { title: 'Demande de rapport mensuel personnalisé',    description: 'Export Excel avec filtres par région et catégorie.',          status: ServiceRequestStatus.NEW,            priority: 'NORMAL' as const, clientId: monoprix.id,  type: 'SUPPORT'     as const },
-      { title: 'Bug affichage sur mobile Safari',            description: 'Les images produits ne s\'affichent pas sur iPhone 14.',      status: ServiceRequestStatus.IN_REVIEW,      priority: 'HIGH'   as const, clientId: carrefour.id, type: 'SUPPORT'     as const },
-      { title: 'Ajout d\'un utilisateur supplémentaire',     description: 'Besoin d\'un accès pour un nouveau responsable régional.',   status: ServiceRequestStatus.COMPLETED,      priority: 'LOW'    as const, clientId: geant.id,     type: 'SUPPORT'     as const },
-      { title: 'Intégration API livraison tierce partie',    description: 'Connecter l\'API de Aramex pour le suivi des colis.',        status: ServiceRequestStatus.WAITING_CLIENT, priority: 'NORMAL' as const, clientId: monoprix.id,  type: 'NEW_PROJECT' as const },
-    ];
-    await Promise.all(
-      srData.map(sr =>
-        prisma.serviceRequest.create({ data: { ...sr, assignedToId: manager.id } })
-      )
-    );
-    console.log('Created service requests:', srData.length);
+    const [sr1, sr2, sr3, sr4, sr5] = await Promise.all([
+      prisma.serviceRequest.create({ data: { title: 'Problème de connexion au portail client',    description: 'Le client ne parvient pas à se connecter depuis ce matin.',  status: ServiceRequestStatus.IN_PROGRESS,    priority: 'HIGH'   as const, clientId: carrefour.id, type: 'SUPPORT'     as const, assignedToId: manager.id } }),
+      prisma.serviceRequest.create({ data: { title: 'Demande de rapport mensuel personnalisé',    description: 'Export Excel avec filtres par région et catégorie.',          status: ServiceRequestStatus.NEW,            priority: 'NORMAL' as const, clientId: monoprix.id,  type: 'SUPPORT'     as const, assignedToId: manager.id } }),
+      prisma.serviceRequest.create({ data: { title: 'Bug affichage sur mobile Safari',            description: 'Les images produits ne s\'affichent pas sur iPhone 14.',      status: ServiceRequestStatus.IN_REVIEW,      priority: 'HIGH'   as const, clientId: carrefour.id, type: 'SUPPORT'     as const, assignedToId: manager.id } }),
+      prisma.serviceRequest.create({ data: { title: 'Ajout d\'un utilisateur supplémentaire',     description: 'Besoin d\'un accès pour un nouveau responsable régional.',   status: ServiceRequestStatus.COMPLETED,      priority: 'LOW'    as const, clientId: geant.id,     type: 'SUPPORT'     as const, assignedToId: manager.id } }),
+      prisma.serviceRequest.create({ data: { title: 'Intégration API livraison tierce partie',    description: 'Connecter l\'API de Aramex pour le suivi des colis.',        status: ServiceRequestStatus.WAITING_CLIENT, priority: 'NORMAL' as const, clientId: monoprix.id,  type: 'NEW_PROJECT' as const, assignedToId: manager.id } }),
+    ]);
+    void [sr1, sr2, sr3, sr4]; // suppress unused warnings
+    srMonoprixNewProject = sr5;
+    console.log('Created service requests: 5');
   } else {
+    srMonoprixNewProject = await prisma.serviceRequest.findFirst({ where: { type: 'NEW_PROJECT', clientId: monoprix.id }, select: { id: true } });
     console.log('Service requests already exist, skipping.');
   }
 
@@ -305,6 +304,7 @@ async function main() {
         currency: 'TND',
         clientId: monoprix.id,
         projectId: projects[1]?.id,
+        serviceRequestId: srMonoprixNewProject?.id,
         sections: {
           create: [
             { title: 'Vision du projet', content: 'Application de fidélité avec scan en magasin, promotions géolocalisées et paiement mobile.', orderIndex: 0 },
@@ -403,6 +403,7 @@ async function main() {
         dueDate: new Date('2026-02-15'),
         sentAt: new Date('2026-01-30'),
         clientId: geant.id,
+        projectId: projects[2]?.id,
         items: {
           create: [
             { description: 'Audit systèmes existants (5 jours)', quantity: 5, unitPrice: 700, total: 3500 },
@@ -441,11 +442,11 @@ async function main() {
   if (existingNotifCount === 0) {
     await prisma.notification.createMany({
       data: [
-        { userId: admin.id,       title: 'Nouvelle demande de service', message: 'Carrefour Tunisia a ouvert une demande de priorité haute.',    read: false },
-        { userId: admin.id,       title: 'Proposition acceptée',        message: 'Carrefour Tunisia a accepté la proposition INV-2026-001.',      read: true  },
-        { userId: admin.id,       title: 'Facture en retard',           message: 'La facture INV-2026-004 de Geant Tunisia est en retard.',       read: false },
-        { userId: manager.id,     title: 'Tâche assignée',              message: 'Vous avez été assigné à la tâche "API integration planning".', read: false },
-        { userId: clientUser1.id, title: 'Bienvenue sur Sécritou',      message: 'Votre compte a été créé avec succès.',                         read: true  },
+        { userId: admin.id,       title: 'Nouvelle demande de service', message: 'Carrefour Tunisia a ouvert une demande de priorité haute.',    read: false, type: 'SERVICE_REQUEST_CREATED',   link: '/app/service-requests' },
+        { userId: admin.id,       title: 'Proposition acceptée',        message: 'Carrefour Tunisia a accepté la proposition pour la refonte.',  read: true,  type: 'PROPOSAL_ACCEPTED',         link: '/app/proposals' },
+        { userId: admin.id,       title: 'Facture en retard',           message: 'La facture INV-2026-004 de Geant Tunisia est en retard.',      read: false, type: 'INVOICE_OVERDUE',           link: '/app/invoices' },
+        { userId: manager.id,     title: 'Tâche assignée',              message: 'Vous avez été assigné à la tâche "API integration planning".', read: false, type: 'TASK_ASSIGNED',             link: '/app/projects' },
+        { userId: clientUser1.id, title: 'Bienvenue sur Sécritou',      message: 'Votre compte a été créé avec succès.',                        read: true,  type: 'GENERAL' },
       ],
     });
     console.log('Created notifications: 5');
