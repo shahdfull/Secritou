@@ -33,8 +33,11 @@ export const getApplicationById: RequestHandler = async (req, res, next) => {
   }
 };
 
-// Multer for handling file uploads
-const upload = multer({ storage: multer.memoryStorage() });
+// Multer for handling file uploads - max 10MB per file
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }
+});
 
 export const createApplication: RequestHandler[] = [
   // Parse multipart form data with two files

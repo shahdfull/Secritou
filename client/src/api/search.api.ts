@@ -6,6 +6,9 @@ export interface SearchResultItem {
   name?: string;
   title?: string;
   email?: string;
+  number?: string;
+  status?: string;
+  amount?: number | string;
   user?: { id: string; name: string; email: string };
 }
 
@@ -15,6 +18,10 @@ export interface SearchResults {
   projects: SearchResultItem[];
   tasks: SearchResultItem[];
   freelancers: SearchResultItem[];
+  proposals: SearchResultItem[];
+  invoices: SearchResultItem[];
+  serviceRequests: SearchResultItem[];
+  approvals: SearchResultItem[];
 }
 
 export const searchApi = {

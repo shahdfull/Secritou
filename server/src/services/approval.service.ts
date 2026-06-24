@@ -57,10 +57,20 @@ export const approvalService = {
   },
 
   async update(id: string, data: Partial<{ title: string; description: string; status: ApprovalStatus; dueDate: Date }>) {
+    const approval = await approvalRepository.findById(id);
+    if (!approval) throw new Error("Approval not found");
+    if (approval.status !== "PENDING") {
+      throw new Error("Cannot update an approval that is not pending");
+    }
     return approvalRepository.update(id, data);
   },
 
   async delete(id: string) {
+    const approval = await approvalRepository.findById(id);
+    if (!approval) throw new Error("Approval not found");
+    if (approval.status !== "PENDING") {
+      throw new Error("Cannot delete an approval that is not pending");
+    }
     return approvalRepository.delete(id);
   },
 
@@ -143,8 +153,9 @@ export const approvalService = {
   },
 
   async comment(id: string, comment: string, userId?: string) {
-    const updated = await approvalRepository.update(id, { status: "COMMENTED" });
-    await approvalRepository.addTimeline(id, { action: "COMMENTED", comment, status: "COMMENTED", userId });
+    const updated = await approvalRepository.findById(id);
+    if (!updated) throw new Error("Approval not found");
+    await approvalRepository.addTimeline(id, { action: "COMMENTED", comment, status: updated.status, userId });
     return updated;
   },
 

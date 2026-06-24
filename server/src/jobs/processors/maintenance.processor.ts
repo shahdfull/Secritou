@@ -132,20 +132,25 @@ export async function warmDashboardSummaries() {
 export async function expireProposals() {
   const start = performance.now();
 
-  const expiring = await prisma.proposal.findMany({
-    where: { status: { in: ["SENT", "VIEWED"] }, expiresAt: { not: null, lt: new Date() } },
-    select: { id: true, title: true, clientId: true },
+  const now = new Date();
+  const expiring = await prisma.$transaction(async (tx) => {
+    // First, update the proposals atomically to EXPIRED, and return the ones that were updated
+    // This avoids race conditions where a proposal could be accepted between find and update
+    await tx.proposal.updateMany({
+      where: { status: { in: ["SENT", "VIEWED"] }, expiresAt: { not: null, lt: now } },
+      data: { status: "EXPIRED" },
+    });
+    // Now return the updated proposals for notifications
+    return tx.proposal.findMany({
+      where: { status: "EXPIRED", updatedAt: { gte: new Date(now.getTime() - 1000) } },
+      select: { id: true, title: true, clientId: true },
+    });
   });
 
   if (expiring.length === 0) {
     recordBullMQJob("maintenance", "expire-proposals", "completed", (performance.now() - start) / 1000);
     return 0;
   }
-
-  await prisma.proposal.updateMany({
-    where: { id: { in: expiring.map((p) => p.id) } },
-    data: { status: "EXPIRED" },
-  });
 
   const [admins, ...clientUserGroups] = await Promise.all([
     userRepository.findAdmins(),
@@ -197,19 +202,39 @@ export async function markOverdueInvoices() {
     data: { status: "OVERDUE" },
   });
 
-  const admins = await userRepository.findAdmins();
-  await enqueueNotifications(
-    admins.flatMap((admin) =>
-      newlyOverdue.map((inv) => ({
+  const [admins, ...clientUserGroups] = await Promise.all([
+    userRepository.findAdmins(),
+    ...newlyOverdue.map((inv) => userRepository.findByClientId(inv.clientId)),
+  ]);
+
+  const notifications: Parameters<typeof enqueueNotifications>[0] = [];
+  for (let i = 0; i < newlyOverdue.length; i++) {
+    const invoice = newlyOverdue[i];
+    const clientUsers = clientUserGroups[i];
+    const clientLink = `${env.FRONTEND_URL}/client/invoices/${invoice.id}`;
+    const adminLink = `${env.FRONTEND_URL}/app/invoices/${invoice.id}`;
+    for (const user of clientUsers) {
+      notifications.push({
+        userId: user.id,
+        title: "Facture en retard",
+        message: `La facture ${invoice.number} est désormais en retard de paiement.`,
+        type: "INVOICE_OVERDUE" as const,
+        entityId: invoice.id,
+        link: clientLink,
+      });
+    }
+    for (const admin of admins) {
+      notifications.push({
         userId: admin.id,
         title: "Facture en retard",
-        message: `La facture ${inv.number} est désormais en retard de paiement.`,
+        message: `La facture ${invoice.number} est désormais en retard de paiement.`,
         type: "INVOICE_OVERDUE" as const,
-        entityId: inv.id,
-        link: `${env.FRONTEND_URL}/app/invoices/${inv.id}`,
-      }))
-    )
-  );
+        entityId: invoice.id,
+        link: adminLink,
+      });
+    }
+  }
+  await enqueueNotifications(notifications);
 
   recordBullMQJob("maintenance", "mark-overdue-invoices", "completed", (performance.now() - start) / 1000);
   return newlyOverdue.length;

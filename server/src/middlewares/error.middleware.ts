@@ -7,6 +7,19 @@ import { HttpError } from "../utils/httpError.js";
 import { env } from "../config/env.js";
 
 export const errorMiddleware: ErrorRequestHandler = (error, _req, res, _next) => {
+  // Handle Prisma errors
+  if ((error as any).code === "P2002") {
+    appErrorsTotal.inc({ type: "prisma_p2002", source: "database" });
+    res.status(409).json({
+      error: {
+        code: "DUPLICATE_ENTRY",
+        message: "A record with this unique field already exists",
+      },
+      message: "A record with this unique field already exists",
+    });
+    return;
+  }
+
   // Handle Multer errors (file upload validation failures)
   if (error instanceof multer.MulterError) {
     let statusCode = 400;

@@ -68,16 +68,23 @@ export const freelancerRepository = {
     userId: string;
     bio?: string;
     hourlyRate?: number;
-    skillIds?: string[];
+    skillNames?: string[];
   }): Promise<FreelancerProfile & { skills: Skill[] }> {
+    let skills = undefined;
+    if (data.skillNames && data.skillNames.length > 0) {
+      const skillConnectOrCreate = data.skillNames.map((name) => ({
+        where: { name },
+        create: { name },
+      }));
+      skills = { connectOrCreate: skillConnectOrCreate };
+    }
+
     return prisma.freelancerProfile.create({
       data: {
         userId: data.userId,
         bio: data.bio,
         hourlyRate: data.hourlyRate ? String(data.hourlyRate) : undefined,
-        skills: data.skillIds
-          ? { connect: data.skillIds.map((id) => ({ id })) }
-          : undefined,
+        skills,
       },
       include: { skills: true },
     });
@@ -90,7 +97,7 @@ export const freelancerRepository = {
       bio?: string;
       hourlyRate?: number;
       availability?: boolean;
-      skillIds?: string[];
+      skillNames?: string[];
     }
   ): Promise<FreelancerProfile & { skills: Skill[] }> {
     const existing = await prismaRead.freelancerProfile.findFirst({
@@ -105,9 +112,13 @@ export const freelancerRepository = {
       availability: data.availability,
     };
 
-    if (data.skillIds) {
+    if (data.skillNames) {
+      const skillConnectOrCreate = data.skillNames.map((name) => ({
+        where: { name },
+        create: { name },
+      }));
       updateData.skills = {
-        set: data.skillIds.map((skillId) => ({ id: skillId })),
+        set: skillConnectOrCreate,
       };
     }
 

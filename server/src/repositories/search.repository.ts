@@ -42,7 +42,7 @@ export const searchRepository = {
     const clientId = actor.clientId;
 
     const [projects, proposals, invoices, serviceRequests, approvals] = await Promise.all([
-      prisma.project.findMany({ where: { clientId, name: contains }, select: { id: true, name: true }, take: SEARCH_LIMIT }),
+      prisma.project.findMany({ where: { clientId, archivedAt: null, name: contains }, select: { id: true, name: true }, take: SEARCH_LIMIT }),
       prisma.proposal.findMany({ where: { clientId, title: contains }, select: { id: true, title: true, status: true, amount: true }, take: SEARCH_LIMIT }),
       prisma.invoice.findMany({ where: { clientId, OR: [{ title: contains }, { number: contains }] }, select: { id: true, title: true, number: true, status: true, amount: true }, take: SEARCH_LIMIT }),
       prisma.serviceRequest.findMany({ where: { clientId, title: contains }, select: { id: true, title: true, status: true }, take: SEARCH_LIMIT }),
@@ -72,18 +72,18 @@ export const searchRepository = {
     const viaProject = svc ? { project: { is: { serviceId: svc } } } : {};
 
     const [leads, clients, projects, tasks, freelancers, proposals, invoices, serviceRequests, approvals] = await Promise.all([
-      prisma.lead.findMany({ where: { ...leadServiceFilter, OR: [{ name: contains }, { email: contains }] }, select: { id: true, name: true, email: true }, take: SEARCH_LIMIT }),
-      prisma.client.findMany({ where: { ...clientServiceFilter, OR: [{ name: contains }, { email: contains }] }, select: { id: true, name: true, email: true }, take: SEARCH_LIMIT }),
-      prisma.project.findMany({ where: { ...projectServiceFilter, name: contains }, select: { id: true, name: true }, take: SEARCH_LIMIT }),
-      prisma.task.findMany({ where: { title: contains, project: { is: projectServiceFilter } }, select: { id: true, title: true }, take: SEARCH_LIMIT }),
+      prisma.lead.findMany({ where: { ...leadServiceFilter, archivedAt: null, OR: [{ name: contains }, { email: contains }] }, select: { id: true, name: true, email: true }, take: SEARCH_LIMIT }),
+      prisma.client.findMany({ where: { ...clientServiceFilter, archivedAt: null, OR: [{ name: contains }, { email: contains }] }, select: { id: true, name: true, email: true }, take: SEARCH_LIMIT }),
+      prisma.project.findMany({ where: { ...projectServiceFilter, archivedAt: null, name: contains }, select: { id: true, name: true }, take: SEARCH_LIMIT }),
+      prisma.task.findMany({ where: { title: contains, project: { is: { ...projectServiceFilter, archivedAt: null } } }, select: { id: true, title: true }, take: SEARCH_LIMIT }),
       // Freelancer directory is internal: ADMIN only, never MANAGER.
       isManager
         ? Promise.resolve([])
         : prisma.freelancerProfile.findMany({ where: { user: { is: { name: contains } } }, select: { id: true, user: { select: { id: true, name: true, email: true } } }, take: SEARCH_LIMIT }),
       prisma.proposal.findMany({ where: { ...viaProject, title: contains }, select: { id: true, title: true, status: true, amount: true }, take: SEARCH_LIMIT }),
       prisma.invoice.findMany({ where: { ...viaProject, OR: [{ title: contains }, { number: contains }] }, select: { id: true, title: true, number: true, status: true, amount: true }, take: SEARCH_LIMIT }),
-      prisma.serviceRequest.findMany({ where: { ...(svc ? { client: { is: { projects: { some: { serviceId: svc } } } } } : {}), title: contains }, select: { id: true, title: true, status: true }, take: SEARCH_LIMIT }),
-      prisma.approval.findMany({ where: { ...(svc ? { client: { is: { projects: { some: { serviceId: svc } } } } } : {}), title: contains }, select: { id: true, title: true, status: true }, take: SEARCH_LIMIT }),
+      prisma.serviceRequest.findMany({ where: { ...(svc ? { client: { is: { projects: { some: { serviceId: svc, archivedAt: null } } } } } : {}), title: contains }, select: { id: true, title: true, status: true }, take: SEARCH_LIMIT }),
+      prisma.approval.findMany({ where: { ...(svc ? { client: { is: { projects: { some: { serviceId: svc, archivedAt: null } } } } } : {}), title: contains }, select: { id: true, title: true, status: true }, take: SEARCH_LIMIT }),
     ]);
 
     return { leads, clients, projects, tasks, freelancers, proposals, invoices, serviceRequests, approvals };

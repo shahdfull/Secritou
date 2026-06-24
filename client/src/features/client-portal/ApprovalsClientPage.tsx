@@ -7,17 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import apiClient from "@/api/axios";
+import type { Approval as ApiApproval, ApprovalTimeline } from "@/api/approvals.api";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CheckCircle, XCircle, MessageSquare, ClipboardCheck } from "lucide-react";
+import { CheckCircle, XCircle, MessageSquare, ClipboardCheck, Clock } from "lucide-react";
 
-type Approval = {
-  id: string;
-  title: string;
-  description: string | null;
-  status: string;
-  dueDate: string | null;
-  createdAt: string;
+type Approval = ApiApproval & {
   attachments: { id: string; name: string; url: string }[];
 };
 
@@ -34,6 +29,7 @@ export function ApprovalsClientPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [dialogApproval, setDialogApproval] = useState<Approval | null>(null);
+  const [timelineApproval, setTimelineApproval] = useState<Approval | null>(null);
   const [action, setAction] = useState<RespondAction>("comment");
   const [comment, setComment] = useState("");
 
@@ -117,32 +113,41 @@ export function ApprovalsClientPage() {
                 ))}
               </div>
             )}
-            {a.status === "PENDING" && (
-              <div className="flex gap-2 pt-1">
-                <Button
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                  onClick={() => openDialog(a, "approve")}
-                >
-                  <CheckCircle className="h-4 w-4 mr-1" /> {t("clientPortal.approvals.dialogApprove")}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-red-600 border-red-300 hover:bg-red-50"
-                  onClick={() => openDialog(a, "reject")}
-                >
-                  <XCircle className="h-4 w-4 mr-1" /> {t("clientPortal.approvals.dialogReject")}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => openDialog(a, "comment")}
-                >
-                  <MessageSquare className="h-4 w-4 mr-1" /> {t("clientPortal.approvals.dialogComment")}
-                </Button>
-              </div>
-            )}
+            <div className="flex flex-wrap gap-2 pt-1">
+              {a.status === "PENDING" && (
+                <>
+                  <Button
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    onClick={() => openDialog(a, "approve")}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1" /> {t("clientPortal.approvals.dialogApprove")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-red-600 border-red-300 hover:bg-red-50"
+                    onClick={() => openDialog(a, "reject")}
+                  >
+                    <XCircle className="h-4 w-4 mr-1" /> {t("clientPortal.approvals.dialogReject")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openDialog(a, "comment")}
+                  >
+                    <MessageSquare className="h-4 w-4 mr-1" /> {t("clientPortal.approvals.dialogComment")}
+                  </Button>
+                </>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setTimelineApproval(a)}
+              >
+                <Clock className="h-4 w-4 mr-1" /> {t("clientPortal.approvals.viewTimeline")}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ))}
@@ -189,6 +194,39 @@ export function ApprovalsClientPage() {
               disabled={respond.isPending || (action === "comment" && !comment.trim())}
             >
               {t("common.confirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!timelineApproval} onOpenChange={(o) => !o && setTimelineApproval(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {t("clientPortal.approvals.timelineTitle")}: {timelineApproval?.title}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 max-h-[500px] overflow-y-auto">
+            {timelineApproval?.timeline && timelineApproval.timeline.length > 0 ? (
+              timelineApproval.timeline.map((entry) => (
+                <div key={entry.id} className="p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-sm">{entry.action}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(entry.createdAt), "d MMMM yyyy HH:mm", { locale: fr })}
+                    </span>
+                  </div>
+                  {entry.user && <p className="text-sm text-muted-foreground mb-1">By: {entry.user.name}</p>}
+                  {entry.comment && <p className="text-sm">{entry.comment}</p>}
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-muted-foreground">No timeline entries yet</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTimelineApproval(null)}>
+              {t("common.close")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -35,12 +35,12 @@ export interface FreelancerProfile {
 export interface CreateFreelancerProfileInput {
   bio?: string;
   hourlyRate?: number;
-  skillIds?: string[];
+  skillNames?: string[];
 }
 
 export interface UpdateFreelancerProfileInput {
   bio?: string;
   hourlyRate?: number;
   availability?: boolean;
-  skillIds?: string[];
+  skillNames?: string[];
 }

@@ -1,12 +1,14 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useClientSuccess, useCalculateClientSuccessScore } from "@/hooks/useClientSuccess";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft } from "lucide-react";
 
 export function ClientSuccessPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { clientId } = useParams<{ clientId: string }>();
   const { data, isLoading, isError } = useClientSuccess(clientId!);
   const calculateMutation = useCalculateClientSuccessScore();
@@ -33,8 +35,12 @@ export function ClientSuccessPage() {
 
   return (
     <section className="container-page py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
+      <div className="flex items-center gap-4 mb-6">
+        <Button variant="ghost" onClick={() => navigate(-1)}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          {t("common.back")}
+        </Button>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold">{t("clientSuccess.title")}</h1>
           <p className="text-sm text-muted-foreground">
             {t("clientSuccess.subtitle")}

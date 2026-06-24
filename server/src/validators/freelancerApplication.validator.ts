@@ -22,8 +22,6 @@ export const updateFreelancerApplicationStatusValidator = z.object({
 
 export const acceptFreelancerApplicationValidator = z.object({
   body: z.object({
-    username: z.string().min(1, "Username is required"),
-    password: z.string().min(16, "Password must be at least 16 characters"),
     firstName: z.string().min(1, "First name is required"),
     lastName: z.string().min(1, "Last name is required"),
     email: z.string().email("Invalid email address"),

@@ -83,6 +83,24 @@ function startWorkers() {
     { connection, concurrency: 1 }
   );
 
+  // ── Maintenance queue failure event logger ─────────────────────────────────
+  const maintenanceEvents = new QueueEvents(queueNames.maintenance, { connection });
+
+  maintenanceEvents.on("failed", ({ jobId, failedReason }) => {
+    console.error(
+      `[jobs] Job ${jobId} in "${queueNames.maintenance}" permanently failed: ${failedReason}`
+    );
+    if (env.SENTRY_DSN) {
+      Sentry.captureException(new Error(`Maintenance job ${jobId} failed: ${failedReason}`));
+    }
+  });
+
+  maintenanceEvents.on("stalled", ({ jobId }) => {
+    console.warn(
+      `[jobs] Job ${jobId} in "${queueNames.maintenance}" stalled and will be re-queued`
+    );
+  });
+
   // ── Recurring maintenance jobs ──────────────────────────────────────────────
   void maintenanceQueue.add(
     jobNames.cleanupRefreshTokens,

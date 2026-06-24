@@ -116,6 +116,7 @@ export const clientSuccessService = {
   async updateMetric(id: string, data: Partial<{ name: string; initialValue: number; currentValue: number; unit: string }>) {
     const metric = await clientSuccessRepository.updateMetric(id, data);
     if (data.currentValue !== undefined) await clientSuccessRepository.addMetricHistory(id, { value: data.currentValue });
+    await this.recalcForSuccess(metric.successId);
     return metric;
   },
 

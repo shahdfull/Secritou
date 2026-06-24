@@ -2,12 +2,18 @@ import { freelancerApplicationRepository } from "../repositories/freelancerAppli
 import { userRepository } from "../repositories/user.repository.js";
 import { freelancerRepository } from "../repositories/freelancer.repository.js";
 import { enqueueEmail, enqueueEmails } from "../jobs/queues.js";
-import { applicationReceivedTemplate, applicationAcceptedTemplate, applicationRejectedTemplate, newApplicationAdminTemplate } from "./emailTemplates/index.js";
+import { applicationReceivedTemplate, applicationRejectedTemplate, newApplicationAdminTemplate, passwordResetTemplate } from "./emailTemplates/index.js";
 import { uploadService } from "./upload.service.js";
 import { env } from "../config/env.js";
 import bcrypt from "bcryptjs";
+import { randomBytes, createHash } from "node:crypto";
+import { prisma } from "../config/prisma.js";
 import type { ApplicationStatus } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
+
+function hashToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
 
 export const freelancerApplicationService = {
   async getAllApplications(options: ListQueryOptions & { search?: string; status?: ApplicationStatus }) {
@@ -46,14 +52,19 @@ export const freelancerApplicationService = {
   },
 
   async rejectApplication(id: string, rejectionReason?: string) {
+    if (!rejectionReason || rejectionReason.trim().length < 10) {
+      throw new Error("Rejection reason is required and must be at least 10 characters");
+    }
     const application = await freelancerApplicationRepository.update(id, { status: "REJECTED", rejectionReason });
     const { subject, html } = applicationRejectedTemplate(application.firstName, rejectionReason);
     void enqueueEmail({ to: application.email, subject, html });
     return application;
   },
 
-  async acceptApplication(id: string, data: { username: string; password: string; firstName: string; lastName: string; email: string; phone?: string; role: "FREELANCER" | "MANAGER" }) {
-    const passwordHash = await bcrypt.hash(data.password, 12);
+  async acceptApplication(id: string, data: { firstName: string; lastName: string; email: string; phone?: string; role: "FREELANCER" | "MANAGER" }) {
+    // Generate a random password, but we won't send it in clear
+    const tempPassword = randomBytes(16).toString("hex");
+    const passwordHash = await bcrypt.hash(tempPassword, 12);
 
     const user = await userRepository.create({ email: data.email, name: `${data.firstName} ${data.lastName}`, passwordHash, role: data.role, mustChangePassword: true });
 
@@ -63,8 +74,18 @@ export const freelancerApplicationService = {
 
     const application = await freelancerApplicationRepository.update(id, { status: "ACCEPTED", userId: user.id, accountCreatedAt: new Date() });
 
-    const loginUrl = `${env.FRONTEND_URL}/login`;
-    const { subject, html } = applicationAcceptedTemplate(data.firstName, data.username, data.password, loginUrl);
+    // Now generate password reset token
+    const resetToken = randomBytes(32).toString("hex");
+    const resetTokenHash = hashToken(resetToken);
+    const resetTokenExpiry = new Date(Date.now() + 1000 * 60 * 60 * 48); // 48 hours
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { resetToken: resetTokenHash, resetTokenExpiry },
+    });
+
+    const resetUrl = `${env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+    const { subject, html } = passwordResetTemplate(data.firstName, resetUrl);
     void enqueueEmail({ to: data.email, subject, html });
 
     return { user, application };

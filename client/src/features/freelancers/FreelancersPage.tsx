@@ -125,7 +125,7 @@ export function FreelancersPage() {
   });
 
   const handleCreate = useCallback(async (data: CreateProfileForm) => {
-    const skillIds = data.skills
+    const skillNames = data.skills
       ? data.skills.split(",").map((s) => s.trim()).filter(Boolean)
       : undefined;
 
@@ -133,7 +133,7 @@ export function FreelancersPage() {
       {
         bio: data.bio,
         hourlyRate: data.hourlyRate,
-        skillIds: skillIds,
+        skillNames: skillNames,
       },
       {
         onSuccess: () => {
@@ -156,7 +156,7 @@ export function FreelancersPage() {
   }, [editForm]);
 
   const handleUpdate = useCallback(async (data: UpdateProfileForm) => {
-    const skillIds = data.skills
+    const skillNames = data.skills
       ? data.skills.split(",").map((s) => s.trim()).filter(Boolean)
       : undefined;
 
@@ -165,7 +165,7 @@ export function FreelancersPage() {
         bio: data.bio,
         hourlyRate: data.hourlyRate,
         availability: data.availability,
-        skillIds: skillIds,
+        skillNames: skillNames,
       },
       {
         onSuccess: () => {

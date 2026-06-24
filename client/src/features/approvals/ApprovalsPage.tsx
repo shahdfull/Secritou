@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import type { Approval } from "@/api/approvals.api";
+import type { Approval, ApprovalTimeline } from "@/api/approvals.api";
 import {
   useApprovals,
   useDeleteApproval,
@@ -47,9 +47,12 @@ import {
   XCircle,
   MessageSquare,
   Eye,
+  Clock,
 } from "lucide-react";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { useListParams } from "@/hooks/useListParams";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 const ALL_STATUSES_VALUE = "__all__";
 
@@ -60,6 +63,7 @@ export function ApprovalsPage() {
     "reject" | "approve" | "comment" | null
   >(null);
   const [selectedApproval, setSelectedApproval] = useState<Approval | null>(null);
+  const [timelineApproval, setTimelineApproval] = useState<Approval | null>(null);
   const [comment, setComment] = useState("");
 
   const { data: approvalsResult, isLoading } = useApprovals({
@@ -233,6 +237,12 @@ export function ApprovalsPage() {
                           <Eye className="mr-2 h-4 w-4" />
                           {t("approvals.view")}
                         </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setTimelineApproval(approval)}
+                        >
+                          <Clock className="mr-2 h-4 w-4" />
+                          {t("approvals.viewTimeline")}
+                        </DropdownMenuItem>
                         {approval.status === "PENDING" && (
                           <>
                             <DropdownMenuItem
@@ -258,14 +268,16 @@ export function ApprovalsPage() {
                             </DropdownMenuItem>
                           </>
                         )}
-                        <DropdownMenuItem
-                          onClick={() => deleteMutation.mutate(approval.id)}
-                          disabled={deleteMutation.isPending}
-                          className="text-red-600"
-                        >
-                          <XCircle className="mr-2 h-4 w-4" />
-                          {t("approvals.delete")}
-                        </DropdownMenuItem>
+                        {approval.status === "PENDING" && (
+                          <DropdownMenuItem
+                            onClick={() => deleteMutation.mutate(approval.id)}
+                            disabled={deleteMutation.isPending}
+                            className="text-red-600"
+                          >
+                            <XCircle className="mr-2 h-4 w-4" />
+                            {t("approvals.delete")}
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -331,6 +343,43 @@ export function ApprovalsPage() {
               </Button>
             </DialogFooter>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Timeline Dialog */}
+      <Dialog
+        open={!!timelineApproval}
+        onOpenChange={(o) => !o && setTimelineApproval(null)}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {t("approvals.timelineTitle")}: {timelineApproval?.title}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 max-h-[500px] overflow-y-auto">
+            {timelineApproval?.timeline && timelineApproval.timeline.length > 0 ? (
+              timelineApproval.timeline.map((entry) => (
+                <div key={entry.id} className="p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-sm">{entry.action}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(entry.createdAt), "d MMMM yyyy HH:mm", { locale: fr })}
+                    </span>
+                  </div>
+                  {entry.user && <p className="text-sm text-muted-foreground mb-1">By: {entry.user.name}</p>}
+                  {entry.comment && <p className="text-sm">{entry.comment}</p>}
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-muted-foreground">No timeline entries yet</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTimelineApproval(null)}>
+              {t("common.close")}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </section>

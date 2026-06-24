@@ -12,6 +12,10 @@ const EMPTY_RESULTS: SearchResults = {
   projects: [],
   tasks: [],
   freelancers: [],
+  proposals: [],
+  invoices: [],
+  serviceRequests: [],
+  approvals: [],
 };
 
 export function GlobalSearch() {
@@ -79,7 +83,11 @@ export function GlobalSearch() {
     results.clients.length > 0 ||
     results.projects.length > 0 ||
     results.tasks.length > 0 ||
-    results.freelancers.length > 0;
+    results.freelancers.length > 0 ||
+    results.proposals.length > 0 ||
+    results.invoices.length > 0 ||
+    results.serviceRequests.length > 0 ||
+    results.approvals.length > 0;
 
   const handleNavigate = (path: string) => {
     navigate(path);
@@ -132,7 +140,7 @@ export function GlobalSearch() {
                     id: l.id,
                     label: l.name ?? "",
                     sub: l.email,
-                    path: `/app/leads`,
+                    path: `/app/crm`,
                   }))}
                   onNavigate={handleNavigate}
                 />
@@ -155,7 +163,7 @@ export function GlobalSearch() {
                   items={results.projects.map((p) => ({
                     id: p.id,
                     label: p.name ?? "",
-                    path: `/app/projects`,
+                    path: `/app/projects/${p.id}`,
                   }))}
                   onNavigate={handleNavigate}
                 />
@@ -166,7 +174,7 @@ export function GlobalSearch() {
                   items={results.tasks.map((t) => ({
                     id: t.id,
                     label: t.title ?? "",
-                    path: `/app/tasks`,
+                    path: `/app/projects`,
                   }))}
                   onNavigate={handleNavigate}
                 />
@@ -178,7 +186,55 @@ export function GlobalSearch() {
                     id: f.id,
                     label: f.user?.name ?? "",
                     sub: f.user?.email,
-                    path: `/app/freelancers`,
+                    path: `/app/freelancers/${f.id}`,
+                  }))}
+                  onNavigate={handleNavigate}
+                />
+              )}
+              {results.proposals.length > 0 && (
+                <ResultGroup
+                  title={`Proposals (${results.proposals.length})`}
+                  items={results.proposals.map((p) => ({
+                    id: p.id,
+                    label: p.title ?? "",
+                    sub: p.status,
+                    path: `/app/commercial`,
+                  }))}
+                  onNavigate={handleNavigate}
+                />
+              )}
+              {results.invoices.length > 0 && (
+                <ResultGroup
+                  title={`Invoices (${results.invoices.length})`}
+                  items={results.invoices.map((i) => ({
+                    id: i.id,
+                    label: i.title ?? i.number ?? "",
+                    sub: i.number,
+                    path: `/app/commercial`,
+                  }))}
+                  onNavigate={handleNavigate}
+                />
+              )}
+              {results.serviceRequests.length > 0 && (
+                <ResultGroup
+                  title={`Service Requests (${results.serviceRequests.length})`}
+                  items={results.serviceRequests.map((sr) => ({
+                    id: sr.id,
+                    label: sr.title ?? "",
+                    sub: sr.status,
+                    path: `/app/commercial`,
+                  }))}
+                  onNavigate={handleNavigate}
+                />
+              )}
+              {results.approvals.length > 0 && (
+                <ResultGroup
+                  title={`Approvals (${results.approvals.length})`}
+                  items={results.approvals.map((a) => ({
+                    id: a.id,
+                    label: a.title ?? "",
+                    sub: a.status,
+                    path: `/app/commercial`,
                   }))}
                   onNavigate={handleNavigate}
                 />

@@ -138,12 +138,12 @@ export interface FreelancerProfile extends BaseEntity {
 export interface CreateFreelancerProfileDTO {
   bio?: string;
   hourlyRate?: number;
-  skillIds?: string[];
+  skillNames?: string[];
 }
 
 export interface UpdateFreelancerProfileDTO {
   bio?: string;
   hourlyRate?: number;
   availability?: boolean;
-  skillIds?: string[];
+  skillNames?: string[];
 }
