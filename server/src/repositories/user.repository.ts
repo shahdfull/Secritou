@@ -1,6 +1,5 @@
 // User Repository - Data access layer
 import { prismaRead as prisma } from "../config/prisma.js";
-import { COMPANY_ID } from "../config/constants.js";
 import type { User, Role } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 
@@ -9,7 +8,6 @@ const userPublicFields = {
   email: true,
   name: true,
   role: true,
-  companyId: true,
   clientId: true,
   createdAt: true,
   updatedAt: true,
@@ -25,16 +23,7 @@ export const userRepository = {
   async findById(id: string): Promise<PublicUser | null> {
     return prisma.user.findFirst({
       where: { id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        companyId: true,
-        clientId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: userPublicFields,
     });
   },
 
@@ -44,21 +33,17 @@ export const userRepository = {
     return user?.serviceId ?? null;
   },
 
-  async findByCompanyId(companyId: string = COMPANY_ID, options: ListQueryOptions): Promise<PaginatedResult<PublicUser>> {
-    const where = { companyId };
+  async findAll(options: ListQueryOptions): Promise<PaginatedResult<PublicUser>> {
     const skip = (options.page - 1) * options.pageSize;
-
     const [data, total] = await Promise.all([
       prisma.user.findMany({
-        where,
         select: userPublicFields,
         orderBy: { createdAt: "desc" },
         skip,
         take: options.pageSize,
       }),
-      prisma.user.count({ where }),
+      prisma.user.count(),
     ]);
-
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
@@ -69,9 +54,9 @@ export const userRepository = {
     });
   },
 
-  async findAdminsByCompanyId(companyId: string = COMPANY_ID): Promise<PublicUser[]> {
+  async findAdmins(): Promise<PublicUser[]> {
     return prisma.user.findMany({
-      where: { companyId, role: { in: ["ADMIN", "MANAGER"] } },
+      where: { role: { in: ["ADMIN", "MANAGER"] } },
       select: userPublicFields,
     });
   },
@@ -85,22 +70,12 @@ export const userRepository = {
     name: string;
     passwordHash: string;
     role?: Role;
-    companyId?: string;
     clientId?: string;
     mustChangePassword?: boolean;
   }): Promise<PublicUser> {
     return prisma.user.create({
       data,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        companyId: true,
-        clientId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: userPublicFields,
     });
   },
 
@@ -114,16 +89,7 @@ export const userRepository = {
     return prisma.user.update({
       where: { id },
       data,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        companyId: true,
-        clientId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: userPublicFields,
     });
   },
 
@@ -134,16 +100,7 @@ export const userRepository = {
     return prisma.user.update({
       where: { id },
       data,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        companyId: true,
-        clientId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: userPublicFields,
     });
   },
 
@@ -157,16 +114,7 @@ export const userRepository = {
   async delete(id: string): Promise<PublicUser> {
     return prisma.user.delete({
       where: { id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        companyId: true,
-        clientId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: userPublicFields,
     });
   },
 };

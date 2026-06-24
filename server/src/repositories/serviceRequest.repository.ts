@@ -1,5 +1,4 @@
 import { prisma, prismaRead } from "../config/prisma.js";
-import { COMPANY_ID } from "../config/constants.js";
 import { Prisma } from "@prisma/client";
 import type { ServiceRequest, ServiceRequestStatus, Priority } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
@@ -14,7 +13,6 @@ const listSelect = {
   status: true,
   priority: true,
   clientId: true,
-  companyId: true,
   assignedToId: true,
   createdAt: true,
   updatedAt: true,
@@ -30,7 +28,6 @@ const detailSelect = {
   status: true,
   priority: true,
   clientId: true,
-  companyId: true,
   assignedToId: true,
   createdAt: true,
   updatedAt: true,
@@ -62,12 +59,7 @@ const detailSelect = {
 } as const;
 
 export const serviceRequestRepository = {
-  // ── Client-facing ────────────────────────────────────────────────────────────
-
-  async findAllByClientId(
-    clientId: string,
-    options: ListQueryOptions
-  ): Promise<PaginatedResult<ServiceRequest>> {
+  async findAllByClientId(clientId: string, options: ListQueryOptions): Promise<PaginatedResult<ServiceRequest>> {
     const where = { clientId };
     const skip = (options.page - 1) * options.pageSize;
     const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
@@ -80,56 +72,42 @@ export const serviceRequestRepository = {
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  // ── Admin / Manager facing ────────────────────────────────────────────────────
-
-  async findAllByCompanyId(
-    companyId: string,
+  async findAll(
     options: ListQueryOptions & {
       status?: ServiceRequestStatus;
       clientId?: string;
       assignedToId?: string;
       priority?: Priority;
+      type?: "SUPPORT" | "NEW_PROJECT";
     }
   ): Promise<PaginatedResult<Prisma.ServiceRequestGetPayload<{ select: typeof listSelect }>>> {
     const textFilter = buildTextSearchFilter(options.search, ["title", "description"]);
-
     const where: Record<string, unknown> = {
-      companyId,
       ...textFilter,
       ...(options.status ? { status: options.status } : {}),
       ...(options.clientId ? { clientId: options.clientId } : {}),
       ...(options.assignedToId ? { assignedToId: options.assignedToId } : {}),
       ...(options.priority ? { priority: options.priority } : {}),
+      ...(options.type ? { type: options.type } : {}),
     };
 
     const skip = (options.page - 1) * options.pageSize;
     const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
 
     const [data, total] = await Promise.all([
-      prismaRead.serviceRequest.findMany({
-        where,
-        orderBy,
-        skip,
-        take: options.pageSize,
-        select: listSelect,
-      }),
+      prismaRead.serviceRequest.findMany({ where, orderBy, skip, take: options.pageSize, select: listSelect }),
       prismaRead.serviceRequest.count({ where }),
     ]);
 
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(id: string, companyId: string = COMPANY_ID) {
-    return prismaRead.serviceRequest.findFirst({
-      where: { id, ...(companyId ? { companyId } : {}) },
-      select: detailSelect,
-    });
+  async findById(id: string) {
+    return prismaRead.serviceRequest.findFirst({ where: { id }, select: detailSelect });
   },
 
-  async findByIdSimple(id: string, companyId: string = COMPANY_ID): Promise<ServiceRequest | null> {
-    return prismaRead.serviceRequest.findFirst({
-      where: { id, ...(companyId ? { companyId } : {}) },
-    });
+  async findByIdSimple(id: string): Promise<ServiceRequest | null> {
+    return prismaRead.serviceRequest.findFirst({ where: { id } });
   },
 
   async create(data: {
@@ -137,46 +115,31 @@ export const serviceRequestRepository = {
     description?: string;
     type?: "SUPPORT" | "NEW_PROJECT";
     clientId: string;
-    companyId: string;
   }): Promise<ServiceRequest> {
     return prisma.serviceRequest.create({ data });
   },
 
-  async update(
-    id: string,
-    companyId: string = COMPANY_ID,
-    data: Partial<{
-      title: string;
-      description: string;
-      status: ServiceRequestStatus;
-      priority: Priority;
-      assignedToId: string | null;
-      type: "SUPPORT" | "NEW_PROJECT";
-    }>
-  ) {
-    const result = await prisma.serviceRequest.updateMany({
-      where: { id, companyId },
-      data,
-    });
+  async update(id: string, data: Partial<{
+    title: string;
+    description: string;
+    status: ServiceRequestStatus;
+    priority: Priority;
+    assignedToId: string | null;
+    type: "SUPPORT" | "NEW_PROJECT";
+  }>) {
+    const result = await prisma.serviceRequest.updateMany({ where: { id }, data });
     if (result.count === 0) throw new HttpError(404, "Service request not found");
-    return this.findById(id, companyId);
+    return this.findById(id);
   },
 
-  async delete(id: string, companyId: string = COMPANY_ID): Promise<ServiceRequest> {
-    const request = await prisma.serviceRequest.findFirst({ where: { id, companyId } });
+  async delete(id: string): Promise<ServiceRequest> {
+    const request = await prisma.serviceRequest.findFirst({ where: { id } });
     if (!request) throw new HttpError(404, "Service request not found");
     await prisma.serviceRequest.delete({ where: { id } });
     return request;
   },
 
-  // ── Comments ──────────────────────────────────────────────────────────────────
-
-  async addComment(data: {
-    serviceRequestId: string;
-    authorId: string;
-    body: string;
-    isInternal: boolean;
-  }) {
+  async addComment(data: { serviceRequestId: string; authorId: string; body: string; isInternal: boolean }) {
     return prisma.serviceRequestComment.create({
       data,
       select: {
@@ -197,15 +160,7 @@ export const serviceRequestRepository = {
     return prisma.serviceRequestComment.delete({ where: { id } });
   },
 
-  // ── History ───────────────────────────────────────────────────────────────────
-
-  async addHistory(data: {
-    serviceRequestId: string;
-    userId?: string;
-    field: string;
-    oldValue?: string | null;
-    newValue?: string | null;
-  }) {
+  async addHistory(data: { serviceRequestId: string; userId?: string; field: string; oldValue?: string | null; newValue?: string | null }) {
     return prisma.serviceRequestHistory.create({ data });
   },
 };

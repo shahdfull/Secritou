@@ -10,7 +10,6 @@ export const globalSearch: RequestHandler = async (req, res, next) => {
     const serviceId = user.role === "MANAGER" ? await userRepository.findServiceId(user.id) : null;
     const actor: SearchActor = {
       role: user.role,
-      companyId: user.companyId,
       clientId: user.clientId,
       userId: user.id,
       serviceId,

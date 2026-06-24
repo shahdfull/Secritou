@@ -1,4 +1,4 @@
-// Freelancer Validators - Validation schemas (profiles only; missions removed)
+// Freelancer Validators - Validation schemas for freelancer profiles
 import { z } from "zod";
 import { profileBaseSchema as sharedProfileBase } from "@secritou/shared";
 

@@ -7,64 +7,21 @@ import type { ContactStatus } from "@prisma/client";
 
 export class ContactService {
   async sendContactMessage(input: ContactRequestInput) {
-    // First: save to DB (critical operation). The contact form has two outcomes that must
-    // stay consistent: a ContactRequest record (admin inbox) AND a Lead in the internal
-    // agency company's CRM/Kanban. We create both in one transaction so a website submission
-    // always surfaces as a lead. Re-submissions by the same email upsert the existing lead
-    // instead of failing on the (companyId, email) unique constraint.
+    // First: save to DB (critical operation). ContactRequest + Lead created in one transaction.
+    // Re-submissions by the same email upsert the existing lead instead of failing on email unique constraint.
     const { contactRequest } = await prisma.$transaction(async (tx) => {
       const contactRequest = await tx.contactRequest.create({
-        data: {
-          name: input.name,
-          email: input.email,
-          phone: input.phone,
-          serviceType: input.serviceType,
-          budget: input.budget,
-          company: input.company,
-          message: input.message,
-        },
+        data: { name: input.name, email: input.email, phone: input.phone, serviceType: input.serviceType, budget: input.budget, company: input.company, message: input.message },
       });
 
-      const notes = [
-        `Service: ${input.serviceType}`,
-        input.budget ? `Budget: ${input.budget}` : null,
-        `Company: ${input.company}`,
-        "",
-        input.message,
-      ]
-        .filter((line) => line !== null)
-        .join("\n");
+      const notes = [`Service: ${input.serviceType}`, input.budget ? `Budget: ${input.budget}` : null, `Company: ${input.company}`, "", input.message].filter((line) => line !== null).join("\n");
 
-      // Attach the lead to the pole derived from the chosen serviceType (null for "Other" or
-      // an un-seeded service → unassigned, ADMIN triage). This is what lets a MANAGER later
-      // see only their pole's leads.
-      const serviceId = await serviceService.resolveServiceIdForType(
-        input.serviceType,
-        env.INTERNAL_COMPANY_ID,
-        tx
-      );
+      const serviceId = await serviceService.resolveServiceIdForType(input.serviceType, tx as any);
 
       await tx.lead.upsert({
-        where: {
-          companyId_email: { companyId: env.INTERNAL_COMPANY_ID, email: input.email },
-        },
-        update: {
-          // Refresh contact details and re-surface the lead if it had been archived.
-          name: input.name,
-          phone: input.phone,
-          notes,
-          serviceId,
-          archivedAt: null,
-        },
-        create: {
-          name: input.name,
-          email: input.email,
-          phone: input.phone,
-          source: "Website contact form",
-          notes,
-          serviceId,
-          companyId: env.INTERNAL_COMPANY_ID,
-        },
+        where: { email: input.email },
+        update: { name: input.name, phone: input.phone, notes, serviceId, archivedAt: null },
+        create: { name: input.name, email: input.email, phone: input.phone, source: "Website contact form", notes, serviceId },
       });
 
       return { contactRequest };
@@ -78,42 +35,15 @@ export class ContactService {
         return;
       }
 
-      const transporter = nodemailer.createTransport({
-        host: env.SMTP_HOST,
-        port: env.SMTP_PORT,
-        secure: env.SMTP_PORT === 465,
-        auth: {
-          user: env.SMTP_USER,
-          pass: env.SMTP_PASSWORD,
-        },
-      });
+      const transporter = nodemailer.createTransport({ host: env.SMTP_HOST, port: env.SMTP_PORT, secure: env.SMTP_PORT === 465, auth: { user: env.SMTP_USER, pass: env.SMTP_PASSWORD } });
 
       await transporter.sendMail({
         from: `"Secritou Website" <${env.SMTP_USER}>`,
         to: env.CONTACT_RECEIVER_EMAIL,
         replyTo: input.email,
         subject: `New consultation request - ${input.company}`,
-        text: [
-          `Name: ${input.name}`,
-          `Email: ${input.email}`,
-          `Phone: ${input.phone || "N/A"}`,
-          `Service Type: ${input.serviceType}`,
-          `Budget: ${input.budget || "N/A"}`,
-          `Company: ${input.company}`,
-          "",
-          input.message,
-        ].join("\n"),
-        html: `
-          <h2>New consultation request</h2>
-          <p><strong>Name:</strong> ${this.escapeHtml(input.name)}</p>
-          <p><strong>Email:</strong> ${this.escapeHtml(input.email)}</p>
-          <p><strong>Phone:</strong> ${this.escapeHtml(input.phone || "N/A")}</p>
-          <p><strong>Service Type:</strong> ${this.escapeHtml(input.serviceType)}</p>
-          <p><strong>Budget:</strong> ${this.escapeHtml(input.budget || "N/A")}</p>
-          <p><strong>Company:</strong> ${this.escapeHtml(input.company)}</p>
-          <p><strong>Message:</strong></p>
-          <p>${this.escapeHtml(input.message).replace(/\n/g, "<br />")}</p>
-        `,
+        text: [`Name: ${input.name}`, `Email: ${input.email}`, `Phone: ${input.phone || "N/A"}`, `Service Type: ${input.serviceType}`, `Budget: ${input.budget || "N/A"}`, `Company: ${input.company}`, "", input.message].join("\n"),
+        html: `<h2>New consultation request</h2><p><strong>Name:</strong> ${this.escapeHtml(input.name)}</p><p><strong>Email:</strong> ${this.escapeHtml(input.email)}</p><p><strong>Phone:</strong> ${this.escapeHtml(input.phone || "N/A")}</p><p><strong>Service Type:</strong> ${this.escapeHtml(input.serviceType)}</p><p><strong>Budget:</strong> ${this.escapeHtml(input.budget || "N/A")}</p><p><strong>Company:</strong> ${this.escapeHtml(input.company)}</p><p><strong>Message:</strong></p><p>${this.escapeHtml(input.message).replace(/\n/g, "<br />")}</p>`,
       });
       console.info("Contact request email sent successfully", { id: contactRequest.id });
     } catch (error) {
@@ -124,54 +54,22 @@ export class ContactService {
   async getContactRequests(status?: ContactStatus, page = 1, limit = 20) {
     const skip = (page - 1) * limit;
     const where = status ? { status } : {};
-
     const [requests, total] = await Promise.all([
-      prisma.contactRequest.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: limit,
-        include: { convertedLead: true },
-      }),
+      prisma.contactRequest.findMany({ where, orderBy: { createdAt: "desc" }, skip, take: limit, include: { convertedLead: true } }),
       prisma.contactRequest.count({ where }),
     ]);
-
-    return {
-      data: requests,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    return { data: requests, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
   async updateContactRequestStatus(id: string, status: ContactStatus) {
-    return prisma.contactRequest.update({
-      where: { id },
-      data: { status },
-    });
+    return prisma.contactRequest.update({ where: { id }, data: { status } });
   }
 
-  async convertToLead(
-    contactRequestId: string,
-    assignedManagerId?: string,
-    department?: string
-  ) {
-    const { COMPANY_ID } = await import("../config/constants.js");
+  async convertToLead(contactRequestId: string, assignedManagerId?: string, department?: string) {
     return prisma.$transaction(async (tx) => {
-      const contactRequest = await tx.contactRequest.findUnique({
-        where: { id: contactRequestId },
-      });
-
-      if (!contactRequest) {
-        throw new Error("Contact request not found");
-      }
-
-      if (contactRequest.convertedAt) {
-        throw new Error("Contact request already converted");
-      }
+      const contactRequest = await tx.contactRequest.findUnique({ where: { id: contactRequestId } });
+      if (!contactRequest) throw new Error("Contact request not found");
+      if (contactRequest.convertedAt) throw new Error("Contact request already converted");
 
       const lead = await tx.lead.create({
         data: {
@@ -180,28 +78,14 @@ export class ContactService {
           phone: contactRequest.phone,
           source: "Contact form",
           status: "NEW",
-          notes: [
-            `Service: ${contactRequest.serviceType}`,
-            contactRequest.budget ? `Budget: ${contactRequest.budget}` : null,
-            `Company: ${contactRequest.company}`,
-            "",
-            contactRequest.message,
-          ]
-            .filter((line) => line !== null)
-            .join("\n"),
-          companyId: COMPANY_ID,
+          notes: [`Service: ${contactRequest.serviceType}`, contactRequest.budget ? `Budget: ${contactRequest.budget}` : null, `Company: ${contactRequest.company}`, "", contactRequest.message].filter((line) => line !== null).join("\n"),
           sourceContactId: contactRequestId,
           assignedManagerId,
           department,
         },
       });
 
-      await tx.contactRequest.update({
-        where: { id: contactRequestId },
-        data: {
-          convertedAt: new Date(),
-        },
-      });
+      await tx.contactRequest.update({ where: { id: contactRequestId }, data: { convertedAt: new Date() } });
 
       return lead;
     });
@@ -212,11 +96,6 @@ export class ContactService {
   }
 
   private escapeHtml(value: string) {
-    return value
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+    return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
   }
 }

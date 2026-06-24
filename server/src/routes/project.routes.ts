@@ -6,17 +6,16 @@ import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
 const router = Router();
 
-// CLIENT route — scoped by clientId from token, no companyId needed
 router.get("/my", authenticate, authorize("CLIENT"), getMyProjects);
 
-// Timeline — accessible to CLIENT (own project only), MANAGER, ADMIN
+// Timeline : accessible to CLIENT (own project only), MANAGER, ADMIN
 router.get("/:id/timeline-status", authenticate, getTimelineStatus);
 
-// Brief questionnaire — CLIENT submits, MANAGER/ADMIN read
+// Brief questionnaire : CLIENT submits, MANAGER/ADMIN read
 router.get("/:id/brief", authenticate, getBrief);
 router.post("/:id/brief/submit", authenticate, authorize("CLIENT"), submitBrief);
 
-// Client final approval — triggers project COMPLETED + balance invoice
+// Client final approval : triggers project COMPLETED + balance invoice
 router.post("/:id/client-approve", authenticate, authorize("CLIENT"), clientApproveProject);
 
 // Apply auth middleware to all admin/manager routes

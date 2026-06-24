@@ -4,7 +4,7 @@ import { UPLOAD_CONTEXTS, type UploadContext } from "../services/upload.service.
 
 const MAX_FILE_SIZE = Number(process.env.UPLOAD_MAX_BYTES ?? 20 * 1024 * 1024);
 
-// Use memory storage — we stream the buffer straight to S3
+// Use memory storage : we stream the buffer straight to S3
 const storage = multer.memoryStorage();
 
 function fileFilter(allowedMimes: readonly string[]) {

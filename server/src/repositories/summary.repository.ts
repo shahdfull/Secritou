@@ -1,48 +1,27 @@
 import { prismaRead as prisma } from "../config/prisma.js";
-import { COMPANY_ID } from "../config/constants.js";
 import { getProgressByProjectIds } from "../utils/projectProgress.js";
 
 export const summaryRepository = {
-  async getClientSummary(companyId: string = COMPANY_ID, clientId: string) {
+  async getClientSummary(clientId: string) {
     const [client, projects, tasks, invoices, serviceRequests, documents] = await Promise.all([
       prisma.client.findUnique({
-        where: { id: clientId, companyId },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-          createdAt: true,
-        },
+        where: { id: clientId },
+        select: { id: true, name: true, email: true, phone: true, createdAt: true },
       }),
       prisma.project.findMany({
-        where: { companyId, clientId },
-        select: {
-          id: true,
-          name: true,
-          status: true,
-          createdAt: true,
-          tasks: {
-            select: { id: true, status: true },
-          },
-        },
+        where: { clientId },
+        select: { id: true, name: true, status: true, createdAt: true, tasks: { select: { id: true, status: true } } },
       }),
-      prisma.task.count({
-        where: { project: { companyId, clientId } },
-      }),
+      prisma.task.count({ where: { project: { clientId } } }),
       // Confirmed invoiced amount for this client (excludes unconfirmed DRAFT / voided
       // CANCELLED invoices). totalPaid here is cash recorded against those invoices.
       prisma.invoice.aggregate({
-        where: { companyId, clientId, status: { notIn: ["DRAFT", "CANCELLED"] } },
+        where: { clientId, status: { notIn: ["DRAFT", "CANCELLED"] } },
         _sum: { amount: true, amountPaid: true },
         _count: true,
       }),
-      prisma.serviceRequest.count({
-        where: { companyId, clientId },
-      }),
-      prisma.document.count({
-        where: { companyId, clientId },
-      }),
+      prisma.serviceRequest.count({ where: { clientId } }),
+      prisma.document.count({ where: { clientId } }),
     ]);
 
     if (!client) return null;
@@ -71,10 +50,10 @@ export const summaryRepository = {
     };
   },
 
-  async getProjectSummary(companyId: string = COMPANY_ID, projectId: string) {
+  async getProjectSummary(projectId: string) {
     const [project, tasks, documents, invoices, comments] = await Promise.all([
       prisma.project.findUnique({
-        where: { id: projectId, companyId },
+        where: { id: projectId },
         select: {
           id: true,
           name: true,
@@ -85,39 +64,21 @@ export const summaryRepository = {
           client: { select: { id: true, name: true } },
         },
       }),
-      prisma.task.groupBy({
-        by: ["status"],
-        where: { projectId },
-        _count: { id: true },
-      }),
-      prisma.document.count({
-        where: { projectId, companyId },
-      }),
-      prisma.invoice.count({
-        where: { projectId, companyId },
-      }),
-      prisma.comment.count({
-        where: { task: { projectId } },
-      }),
+      prisma.task.groupBy({ by: ["status"], where: { projectId }, _count: { id: true } }),
+      prisma.document.count({ where: { projectId } }),
+      prisma.invoice.count({ where: { projectId } }),
+      prisma.comment.count({ where: { task: { projectId } } }),
     ]);
 
     if (!project) return null;
 
     const taskCounts: Record<string, number> = {};
-    tasks.forEach((t: any) => {
-      taskCounts[t.status] = t._count.id;
-    });
+    tasks.forEach((t: any) => { taskCounts[t.status] = t._count.id; });
 
-    return {
-      project,
-      taskCounts,
-      documentCount: documents,
-      invoiceCount: invoices,
-      commentCount: comments,
-    };
+    return { project, taskCounts, documentCount: documents, invoiceCount: invoices, commentCount: comments };
   },
 
-  async getEnhancedDashboardSummary(companyId: string = COMPANY_ID) {
+  async getEnhancedDashboardSummary() {
     const [
       leadCounts,
       clientCounts,
@@ -128,65 +89,31 @@ export const summaryRepository = {
       recentTasks,
       invoiceMetrics,
     ] = await Promise.all([
-      prisma.lead.groupBy({
-        by: ["status"],
-        where: { companyId, archivedAt: null },
-        _count: true,
-      }),
-      prisma.client.count({ where: { companyId } }),
-      prisma.project.groupBy({
-        by: ["status"],
-        where: { companyId },
-        _count: true,
-      }),
-      prisma.task.groupBy({
-        by: ["status"],
-        where: { project: { companyId } },
-        _count: true,
-      }),
+      prisma.lead.groupBy({ by: ["status"], where: { archivedAt: null }, _count: true }),
+      prisma.client.count({}),
+      prisma.project.groupBy({ by: ["status"], _count: true }),
+      prisma.task.groupBy({ by: ["status"], _count: true }),
       prisma.project.findMany({
-        where: { companyId },
         take: 5,
         orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          name: true,
-          status: true,
-          createdAt: true,
-          client: { select: { id: true, name: true } },
-        },
+        select: { id: true, name: true, status: true, createdAt: true, client: { select: { id: true, name: true } } },
       }),
       prisma.lead.findMany({
-        where: { companyId, archivedAt: null },
+        where: { archivedAt: null },
         take: 5,
         orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          status: true,
-          createdAt: true,
-        },
+        select: { id: true, name: true, email: true, status: true, createdAt: true },
       }),
       prisma.task.findMany({
-        where: { project: { companyId } },
         take: 10,
         orderBy: { updatedAt: "desc" },
-        select: {
-          id: true,
-          title: true,
-          status: true,
-          updatedAt: true,
-          project: { select: { id: true, name: true } },
-        },
+        select: { id: true, title: true, status: true, updatedAt: true, project: { select: { id: true, name: true } } },
       }),
-      // "Invoiced (confirmed)" — sum of confirmed invoice amounts. DRAFT and CANCELLED are
-      // excluded because they are not money the business has actually committed to billing.
-      // NOTE: this is *invoiced* (billed), NOT *collected* cash. The "amount collected" figure
-      // lives in analytics.repository.getRevenueByMonth (keyed on real payment dates). The two
-      // are intentionally different concepts — do not merge them.
+      // "Invoiced (confirmed)": DRAFT and CANCELLED excluded — not committed billing.
+      // NOTE: this is *invoiced* (billed), NOT *collected* cash. Collected cash lives in
+      // analytics.repository.getRevenueByMonth (keyed on real payment dates).
       prisma.invoice.aggregate({
-        where: { companyId, status: { notIn: ["DRAFT", "CANCELLED"] } },
+        where: { status: { notIn: ["DRAFT", "CANCELLED"] } },
         _sum: { amount: true, amountPaid: true },
         _count: true,
       }),

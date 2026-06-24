@@ -2,11 +2,7 @@ import { proposalRepository } from "../repositories/proposal.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { clientRepository } from "../repositories/client.repository.js";
 import { enqueueEmail, enqueueEmails } from "../jobs/queues.js";
-import {
-  proposalSentTemplate,
-  proposalAcceptedTemplate,
-  proposalRejectedTemplate,
-} from "./emailTemplates/index.js";
+import { proposalSentTemplate, proposalAcceptedTemplate, proposalRejectedTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
 import type { ProposalStatus } from "@prisma/client";
 import { Prisma } from "@prisma/client";
@@ -19,67 +15,43 @@ import { clientService } from "./client.service.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
 import { documentGeneratorService } from "./documentGenerator.service.js";
-import { COMPANY_ID } from "../config/constants.js";
 
 // A MANAGER may only see/act on a proposal whose project is in their service. A proposal with
-// no project is ADMIN-only. ADMIN is unrestricted. Throws 404 (not 403) to avoid revealing
-// the existence of out-of-scope proposals.
-async function assertProposalInScope(
-  proposal: { projectId: string | null } | null,
-  scope?: ServiceScope
-) {
+// no project is ADMIN-only. Throws 404 (not 403) to avoid revealing existence of out-of-scope proposals.
+async function assertProposalInScope(proposal: { projectId: string | null } | null, scope?: ServiceScope) {
   if (!proposal) throw new HttpError(404, "Proposal not found");
   if (!scope || scope.userRole !== "MANAGER") return;
   if (!proposal.projectId) throw new HttpError(404, "Proposal not found");
   const { prismaRead: prisma } = await import("../config/prisma.js");
   const project = await prisma.project.findFirst({
-    where: { id: proposal.projectId, companyId: COMPANY_ID, serviceId: scope.userServiceId ?? "__none__" },
+    where: { id: proposal.projectId, serviceId: scope.userServiceId ?? "__none__" },
     select: { id: true },
   });
   if (!project) throw new HttpError(404, "Proposal not found");
 }
 
-// Shared logic for section edits: a section belongs to a proposal and is client-facing
-// content, so editing/deleting one on a SENT/VIEWED proposal reverts it to DRAFT, bumps the
-// version, and records history — mirroring the rule in proposalService.update().
-async function revertParentToDraftById(
-  parent: { id: string; status: ProposalStatus; version: number },
-  change: "edited" | "deleted",
-  userId?: string
-) {
+async function revertParentToDraftById(parent: { id: string; status: ProposalStatus; version: number }, change: "edited" | "deleted", userId?: string) {
   if (parent.status !== "SENT" && parent.status !== "VIEWED") return;
-  const updated = await proposalRepository.update(parent.id, COMPANY_ID, {
-    status: "DRAFT",
-    version: parent.version + 1,
-  });
+  const updated = await proposalRepository.update(parent.id, { status: "DRAFT", version: parent.version + 1 });
   await proposalRepository.addHistory(parent.id, {
     action: "REVERTED_TO_DRAFT",
-    comment: `Section ${change} while ${parent.status}; reverted to DRAFT (v${parent.version} → v${updated.version}). Must be re-sent.`,
+    comment: `Section ${change} while ${parent.status}; reverted to DRAFT (v${parent.version} → v${updated?.version}). Must be re-sent.`,
     userId,
   });
 }
 
-async function revertParentToDraftIfLive(
-  sectionId: string,
-  change: "edited" | "deleted",
-  userId?: string
-) {
-  const parent = await proposalRepository.findProposalBySectionId(sectionId, COMPANY_ID);
+async function revertParentToDraftIfLive(sectionId: string, change: "edited" | "deleted", userId?: string) {
+  const parent = await proposalRepository.findProposalBySectionId(sectionId);
   if (parent) await revertParentToDraftById(parent, change, userId);
 }
 
-// Emails every company admin that a proposal was accepted. Shared by accept() and
-// acceptWithCascade() so the notification content/recipients stay in one place.
-async function notifyAdminsAccepted(
-  proposal: { id: string; title: string; amount: unknown; currency: string | null; clientId: string }
-) {
+async function notifyAdminsAccepted(proposal: { id: string; title: string; amount: unknown; currency: string | null; clientId: string }) {
   const [admins, client] = await Promise.all([
-    userRepository.findAdminsByCompanyId(COMPANY_ID),
-    clientRepository.findById(proposal.clientId, COMPANY_ID),
+    userRepository.findAdmins(),
+    clientRepository.findById(proposal.clientId),
   ]);
   const dashboardUrl = `${env.FRONTEND_URL}/app/proposals/${proposal.id}`;
   const currency = proposal.currency ?? "TND";
-
   void enqueueEmails(
     admins.map((admin) => {
       const { subject, html } = proposalAcceptedTemplate(
@@ -96,10 +68,7 @@ async function notifyAdminsAccepted(
 }
 
 export const proposalService = {
-  async getAllByClientId(
-    clientId: string,
-    options: { page: number; pageSize: number; status?: ProposalStatus }
-  ) {
+  async getAllByClientId(clientId: string, options: { page: number; pageSize: number; status?: ProposalStatus }) {
     return proposalRepository.findAllByClientId(clientId, options);
   },
 
@@ -107,136 +76,70 @@ export const proposalService = {
     return proposalRepository.findByIdForClient(id, clientId);
   },
 
-  async getAll(
-    options: ListQueryOptions & {
-      clientId?: string;
-      status?: ProposalStatus;
-      search?: string;
-    },
-    scope?: ServiceScope
-  ) {
-    // A MANAGER only sees proposals whose project is in their service. ADMIN sees all.
-    const serviceId =
-      scope?.userRole === "MANAGER" ? (scope.userServiceId ?? "__none__") : undefined;
+  async getAll(options: ListQueryOptions & { clientId?: string; status?: ProposalStatus; search?: string }, scope?: ServiceScope) {
+    const serviceId = scope?.userRole === "MANAGER" ? (scope.userServiceId ?? "__none__") : undefined;
     return proposalRepository.findAll({ ...options, serviceId });
   },
 
   async getById(id: string, scope?: ServiceScope) {
-    const proposal = await proposalRepository.findById(id, COMPANY_ID);
+    const proposal = await proposalRepository.findById(id);
     assertProposalInScope(proposal, scope);
     return proposal;
   },
 
-  async create(
-    data: {
-      title: string;
-      description?: string;
-      amount?: number;
-      currency?: string;
-      expiresAt?: Date;
-      pdfUrl?: string;
-      clientId: string;
-      clientName?: string;
-      email?: string;
-      projectId?: string;
-      serviceRequestId?: string;
-    }
-  ) {
+  async create(data: { title: string; description?: string; amount?: number; currency?: string; expiresAt?: Date; pdfUrl?: string; clientId: string; clientName?: string; email?: string; projectId?: string; serviceRequestId?: string }) {
     if (data.serviceRequestId) {
       const serviceRequest = await prisma.serviceRequest.findFirst({
-        where: { id: data.serviceRequestId, companyId: COMPANY_ID },
+        where: { id: data.serviceRequestId },
         select: { id: true, type: true, proposal: { select: { id: true } } },
       });
       if (!serviceRequest) throw new HttpError(404, "Service request not found");
-      if (serviceRequest.type !== "NEW_PROJECT") {
-        throw new HttpError(
-          422,
-          "Support requests cannot generate proposals",
-          "SERVICE_REQUEST_NOT_PROPOSABLE"
-        );
-      }
-      if (serviceRequest.proposal) {
-        throw new HttpError(
-          409,
-          "Service request already linked to a proposal",
-          "SERVICE_REQUEST_ALREADY_LINKED"
-        );
-      }
+      if (serviceRequest.type !== "NEW_PROJECT") throw new HttpError(422, "Support requests cannot generate proposals", "SERVICE_REQUEST_NOT_PROPOSABLE");
+      if (serviceRequest.proposal) throw new HttpError(409, "Service request already linked to a proposal", "SERVICE_REQUEST_ALREADY_LINKED");
     }
-
-    return proposalRepository.create({ ...data, companyId: COMPANY_ID });
+    return proposalRepository.create(data);
   },
 
-  async update(
-    id: string,
-    data: Partial<{
-      title: string;
-      description: string;
-      status: ProposalStatus;
-      amount: number;
-      currency: string;
-      expiresAt: Date;
-      pdfUrl: string;
-    }>,
-    userId?: string,
-    scope?: ServiceScope
-  ) {
-    const proposal = await proposalRepository.findById(id, COMPANY_ID);
+  async update(id: string, data: Partial<{ title: string; description: string; status: ProposalStatus; amount: number; currency: string; expiresAt: Date; pdfUrl: string }>, userId?: string, scope?: ServiceScope) {
+    const proposal = await proposalRepository.findById(id);
     await assertProposalInScope(proposal, scope);
     if (!proposal) throw new HttpError(404, "Proposal not found");
 
-    // A proposal that's already in front of the client (SENT/VIEWED) must not be silently
-    // edited. If any *client-facing content* field actually changes, revert it to DRAFT,
-    // bump the version (invalidates in-flight acceptances), and record the change in history.
-    // Non-content fields (pdfUrl regeneration, currency, expiresAt, internal metadata) do NOT
-    // trigger a revert — they don't change what the client reviewed.
     const isLive = proposal.status === "SENT" || proposal.status === "VIEWED";
     const contentChanged =
       (data.title !== undefined && data.title !== proposal.title) ||
       (data.description !== undefined && data.description !== proposal.description) ||
-      (data.amount !== undefined &&
-        Number(data.amount) !== (proposal.amount != null ? Number(proposal.amount) : null));
+      (data.amount !== undefined && Number(data.amount) !== (proposal.amount != null ? Number(proposal.amount) : null));
 
     if (isLive && contentChanged && data.status === undefined) {
-      const updated = await proposalRepository.update(id, COMPANY_ID, {
-        ...data,
-        status: "DRAFT",
-        version: proposal.version + 1,
-      });
+      const updated = await proposalRepository.update(id, { ...data, status: "DRAFT", version: proposal.version + 1 });
       await proposalRepository.addHistory(id, {
         action: "REVERTED_TO_DRAFT",
-        comment: `Content edited while ${proposal.status}; reverted to DRAFT (v${proposal.version} → v${updated.version}). Must be re-sent.`,
+        comment: `Content edited while ${proposal.status}; reverted to DRAFT (v${proposal.version} → v${updated?.version}). Must be re-sent.`,
         userId,
       });
       return updated;
     }
 
-    return proposalRepository.update(id, COMPANY_ID, data);
+    return proposalRepository.update(id, data);
   },
 
   async delete(id: string) {
-    return proposalRepository.delete(id, COMPANY_ID);
+    return proposalRepository.delete(id);
   },
 
   async send(id: string, scope?: ServiceScope) {
-    const proposal = await proposalRepository.findById(id, COMPANY_ID);
+    const proposal = await proposalRepository.findById(id);
     await assertProposalInScope(proposal, scope);
-    const updated = await proposalRepository.update(id, COMPANY_ID, { status: "SENT" });
+    const updated = await proposalRepository.update(id, { status: "SENT" });
 
     if (proposal) {
       const clientUsers = await userRepository.findByClientId(proposal.clientId);
       const viewUrl = `${env.FRONTEND_URL}/client/proposals/${id}`;
       const currency = proposal.currency ?? "TND";
-
       void enqueueEmails(
         clientUsers.map((user) => {
-          const { subject, html } = proposalSentTemplate(
-            user.name ?? "Client",
-            proposal.title,
-            proposal.amount != null ? Number(proposal.amount) : null,
-            currency,
-            viewUrl
-          );
+          const { subject, html } = proposalSentTemplate(user.name ?? "Client", proposal.title, proposal.amount != null ? Number(proposal.amount) : null, currency, viewUrl);
           return { to: user.email, subject, html };
         })
       );
@@ -246,55 +149,26 @@ export const proposalService = {
   },
 
   async accept(id: string, expectedVersion?: number) {
-    const proposal = await proposalRepository.findById(id, COMPANY_ID);
+    const proposal = await proposalRepository.findById(id);
     if (!proposal) throw new HttpError(404, "Proposal not found");
-    // Optimistic concurrency: the client accepts the version they actually reviewed. If the
-    // proposal was edited (and version-bumped) since it was loaded, the acceptance refers to
-    // stale content — reject it so the client re-reads the current version.
     if (expectedVersion !== undefined && expectedVersion !== proposal.version) {
-      throw new HttpError(
-        409,
-        "This proposal was updated since you opened it. Please review the latest version.",
-        "PROPOSAL_VERSION_MISMATCH",
-        { currentVersion: proposal.version }
-      );
+      throw new HttpError(409, "This proposal was updated since you opened it. Please review the latest version.", "PROPOSAL_VERSION_MISMATCH", { currentVersion: proposal.version });
     }
-    // Only a live, client-facing proposal can be accepted. This blocks accepting a DRAFT
-    // (never sent), re-accepting an ACCEPTED one, or reviving a REJECTED/EXPIRED proposal.
     if (!["SENT", "VIEWED"].includes(proposal.status)) {
-      throw new HttpError(
-        409,
-        `Cannot accept a ${proposal.status} proposal`,
-        "INVALID_PROPOSAL_TRANSITION"
-      );
+      throw new HttpError(409, `Cannot accept a ${proposal.status} proposal`, "INVALID_PROPOSAL_TRANSITION");
     }
     if (proposal.expiresAt && proposal.expiresAt < new Date()) {
       throw new HttpError(409, "This proposal has expired", "PROPOSAL_EXPIRED");
     }
-    const updated = await proposalRepository.update(id, COMPANY_ID, {
-      status: "ACCEPTED",
-      acceptedAt: new Date(),
-    });
-
-    await notifyAdminsAccepted(
-      { id, title: proposal.title, amount: proposal.amount, currency: proposal.currency, clientId: proposal.clientId }
-    );
-
+    const updated = await proposalRepository.update(id, { status: "ACCEPTED", acceptedAt: new Date() });
+    await notifyAdminsAccepted({ id, title: proposal.title, amount: proposal.amount, currency: proposal.currency, clientId: proposal.clientId });
     return updated;
   },
 
-  // Admin/manager acceptance with the full downstream cascade: lead → WON, a pre-filled Project,
-  // a 30% deposit invoice, and a client-portal invitation. The data-layer writes (proposal,
-  // lead, project, invoice) run in ONE transaction so a failure rolls everything back; the
-  // side-effects (admin email, cache, client invite) run after commit and never undo the accept.
-  //
-  // Idempotency: a re-accept of an already-ACCEPTED proposal does not throw here — it runs in
-  // "reconcile" mode, backfilling a missing project/invoice from a prior partial cascade. The
-  // Project.proposalId / Invoice.proposalId @unique constraints are the hard backstops.
   async acceptWithCascade(id: string, expectedVersion?: number, uploadedById?: string) {
     const result = await prisma.$transaction(async (tx) => {
       const proposal = await tx.proposal.findUnique({
-        where: { id, companyId: COMPANY_ID },
+        where: { id },
         include: {
           linkedProject: { select: { id: true, serviceId: true } },
           invoice: { select: { id: true } },
@@ -305,35 +179,18 @@ export const proposalService = {
 
       const alreadyAccepted = proposal.status === "ACCEPTED";
       if (!alreadyAccepted) {
-        // Same guards as accept(), enforced against the row read inside the tx (closes the
-        // check-then-act race). Skipped entirely when reconciling an already-accepted proposal.
         if (expectedVersion !== undefined && expectedVersion !== proposal.version) {
-          throw new HttpError(
-            409,
-            "This proposal was updated since you opened it. Please review the latest version.",
-            "PROPOSAL_VERSION_MISMATCH",
-            { currentVersion: proposal.version }
-          );
+          throw new HttpError(409, "This proposal was updated since you opened it. Please review the latest version.", "PROPOSAL_VERSION_MISMATCH", { currentVersion: proposal.version });
         }
         if (!["SENT", "VIEWED"].includes(proposal.status)) {
-          throw new HttpError(
-            409,
-            `Cannot accept a ${proposal.status} proposal`,
-            "INVALID_PROPOSAL_TRANSITION"
-          );
+          throw new HttpError(409, `Cannot accept a ${proposal.status} proposal`, "INVALID_PROPOSAL_TRANSITION");
         }
         if (proposal.expiresAt && proposal.expiresAt < new Date()) {
           throw new HttpError(409, "This proposal has expired", "PROPOSAL_EXPIRED");
         }
-        await tx.proposal.update({
-          where: { id, companyId: COMPANY_ID },
-          data: { status: "ACCEPTED", acceptedAt: new Date() },
-        });
+        await tx.proposal.update({ where: { id }, data: { status: "ACCEPTED", acceptedAt: new Date() } });
       }
 
-      // Lead → WON (no-op without a lead, already-WON, or out-of-company id).
-      // Project — create only if none is linked yet. serviceId is inherited from the proposal's
-      // source project when there is one; otherwise the project carries no service.
       let projectId = proposal.linkedProject?.id ?? null;
       if (!projectId) {
         const serviceId = proposal.project?.serviceId ?? undefined;
@@ -345,23 +202,16 @@ export const proposalService = {
               status: "PLANNING",
               clientId: proposal.clientId,
               serviceId,
-              companyId: COMPANY_ID,
               proposalId: proposal.id,
               budget: proposal.amount != null ? String(proposal.amount) : undefined,
-              // `expiresAt` is the validity window of the commercial offer, not the project
-              // delivery deadline. Leave it unset unless the project has an explicit deadline.
               deadline: undefined,
             },
             select: { id: true },
           });
           projectId = project.id;
         } catch (err) {
-          // A concurrent cascade created the project first (proposalId @unique). Reuse it.
           if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-            const existing = await tx.project.findFirst({
-              where: { proposalId: proposal.id, companyId: COMPANY_ID },
-              select: { id: true },
-            });
+            const existing = await tx.project.findFirst({ where: { proposalId: proposal.id }, select: { id: true } });
             projectId = existing?.id ?? null;
           } else {
             throw err;
@@ -369,14 +219,12 @@ export const proposalService = {
         }
       }
 
-      // Deposit invoice — 30% of the proposal amount, only if there's an amount and no invoice.
       let invoiceId = proposal.invoice?.id ?? null;
       if (!invoiceId && proposal.amount != null) {
         const depositAmount = Math.round(Number(proposal.amount) * 0.3 * 100) / 100;
         try {
           const invoice = await invoiceService.createDepositInvoiceTx(tx, {
-            companyId: COMPANY_ID,
-            title: `Acompte 30% — ${proposal.title}`,
+            title: `Acompte 30% : ${proposal.title}`,
             description: proposal.description ?? undefined,
             amount: depositAmount,
             currency: proposal.currency,
@@ -387,12 +235,8 @@ export const proposalService = {
           });
           invoiceId = invoice.id;
         } catch (err) {
-          // Invoice.proposalId @unique → a deposit already exists; reuse it.
           if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-            const existing = await tx.invoice.findFirst({
-              where: { proposalId: proposal.id, companyId: COMPANY_ID },
-              select: { id: true },
-            });
+            const existing = await tx.invoice.findFirst({ where: { proposalId: proposal.id }, select: { id: true } });
             invoiceId = existing?.id ?? null;
           } else {
             throw err;
@@ -400,137 +244,73 @@ export const proposalService = {
         }
       }
 
-      return {
-        proposalId: id,
-        clientId: proposal.clientId,
-        title: proposal.title,
-        amount: proposal.amount,
-        currency: proposal.currency,
-        clientName: proposal.clientName,
-        email: proposal.email,
-        projectId,
-        invoiceId,
-      };
+      return { proposalId: id, clientId: proposal.clientId, title: proposal.title, amount: proposal.amount, currency: proposal.currency, clientName: proposal.clientName, email: proposal.email, projectId, invoiceId };
     });
 
-    // --- Post-commit side effects (never roll back the acceptance) ---
-    await notifyAdminsAccepted(
-      { id: result.proposalId, title: result.title, amount: result.amount, currency: result.currency, clientId: result.clientId }
-    );
+    await notifyAdminsAccepted({ id: result.proposalId, title: result.title, amount: result.amount, currency: result.currency, clientId: result.clientId });
+    await invalidateTags([cacheTags.company(), cacheTags.dashboard(), cacheTags.client(result.clientId)]);
 
-    await invalidateTags([
-      cacheTags.company(),
-      cacheTags.dashboard(),
-      cacheTags.client(result.clientId),
-    ]);
-
-    // Invite the client portal user. Best-effort: a missing email or an existing portal account
-    // (inviteClientUser throws 409) must not fail an otherwise-successful acceptance.
     let clientInvited = false;
-    const client = await clientRepository.findById(result.clientId, COMPANY_ID);
+    const client = await clientRepository.findById(result.clientId);
     const inviteEmail = result.email ?? client?.email ?? undefined;
     const inviteName = result.clientName ?? client?.name ?? undefined;
     if (inviteEmail && inviteName) {
       try {
-        await clientService.inviteClientUser(result.clientId, COMPANY_ID, inviteEmail, inviteName);
+        await clientService.inviteClientUser(result.clientId, inviteEmail, inviteName);
         clientInvited = true;
       } catch (err) {
         if (!(err instanceof HttpError && err.statusCode === 409)) throw err;
       }
     }
 
-    const proposal = await proposalRepository.findById(id, COMPANY_ID);
+    const proposal = await proposalRepository.findById(id);
 
-    // Generate the 7 onboarding PDFs. Best-effort: failures are logged but never undo the
-    // acceptance. We only generate when we have a project (no project = no folder to store into).
     if (result.projectId && uploadedById) {
-      const docProject = {
-        id: result.projectId,
-        name: result.title,
-        description: proposal?.description ?? undefined,
-        budget: proposal?.amount != null ? String(proposal.amount) : undefined,
-        deadline: proposal?.expiresAt ?? undefined,
-        serviceId: null as string | null,
-      };
+      const docProject = { id: result.projectId, name: result.title, description: proposal?.description ?? undefined, budget: proposal?.amount != null ? String(proposal.amount) : undefined, deadline: proposal?.expiresAt ?? undefined, serviceId: null as string | null };
       const docClient = client ?? { id: result.clientId, name: result.clientName ?? "Client", email: result.email ?? undefined };
       const manager = await userRepository.findById(uploadedById).catch(() => null);
-      const docManager = manager
-        ? { id: manager.id, name: manager.name ?? undefined, email: manager.email }
-        : { id: uploadedById, name: undefined, email: "" };
-      const docProposal = {
-        id,
-        title: result.title,
-        description: proposal?.description ?? undefined,
-        amount: result.amount != null ? Number(result.amount) : null,
-        currency: result.currency,
-        expiresAt: proposal?.expiresAt ?? undefined,
-      };
+      const docManager = manager ? { id: manager.id, name: manager.name ?? undefined, email: manager.email } : { id: uploadedById, name: undefined, email: "" };
+      const docProposal = { id, title: result.title, description: proposal?.description ?? undefined, amount: result.amount != null ? Number(result.amount) : null, currency: result.currency, expiresAt: proposal?.expiresAt ?? undefined };
 
       void Promise.allSettled([
-        documentGeneratorService.generateWelcomeLetter(docProposal, docProject, docClient, docManager, COMPANY_ID, uploadedById),
-        documentGeneratorService.generateContract(docProposal, docProject, docClient, COMPANY_ID, uploadedById),
-        documentGeneratorService.generateSpecs(docProject, docClient, COMPANY_ID, uploadedById),
-        documentGeneratorService.generateClientBrief(docProject, docClient, COMPANY_ID, uploadedById),
-        documentGeneratorService.generateQuotePDF(docProposal, docProject, docClient, COMPANY_ID, uploadedById),
+        documentGeneratorService.generateWelcomeLetter(docProposal, docProject, docClient, docManager, uploadedById),
+        documentGeneratorService.generateContract(docProposal, docProject, docClient, uploadedById),
+        documentGeneratorService.generateSpecs(docProject, docClient, uploadedById),
+        documentGeneratorService.generateClientBrief(docProject, docClient, uploadedById),
+        documentGeneratorService.generateQuotePDF(docProposal, docProject, docClient, uploadedById),
         ...(result.invoiceId
-          ? [
-              (async () => {
-                const { prismaRead } = await import("../config/prisma.js");
-                const inv = await prismaRead.invoice.findUnique({ where: { id: result.invoiceId! }, select: { id: true, number: true, amount: true, currency: true, dueDate: true } });
-                if (!inv) return;
-                return documentGeneratorService.generateInvoicePDF(
-                  { ...inv, amount: inv.amount != null ? Number(inv.amount) : null },
-                  docProject, docClient, COMPANY_ID, uploadedById
-                );
-              })(),
-            ]
+          ? [(async () => {
+              const { prismaRead } = await import("../config/prisma.js");
+              const inv = await prismaRead.invoice.findUnique({ where: { id: result.invoiceId! }, select: { id: true, number: true, amount: true, currency: true, dueDate: true } });
+              if (!inv) return;
+              return documentGeneratorService.generateInvoicePDF({ ...inv, amount: inv.amount != null ? Number(inv.amount) : null }, docProject, docClient, uploadedById);
+            })()]
           : []),
-        documentGeneratorService.generateRoadmap(docProject, COMPANY_ID, uploadedById),
+        documentGeneratorService.generateRoadmap(docProject, uploadedById),
       ]).then((results) => {
-        results.forEach((r, i) => {
-          if (r.status === "rejected") console.error(`[documentGenerator] PDF #${i} failed:`, r.reason);
-        });
+        results.forEach((r, i) => { if (r.status === "rejected") console.error(`[documentGenerator] PDF #${i} failed:`, r.reason); });
       });
     }
 
-    return {
-      proposal,
-      projectId: result.projectId,
-      invoiceId: result.invoiceId,
-      clientInvited,
-    };
+    return { proposal, projectId: result.projectId, invoiceId: result.invoiceId, clientInvited };
   },
 
   async reject(id: string, comment?: string) {
-    const proposal = await proposalRepository.findById(id, COMPANY_ID);
+    const proposal = await proposalRepository.findById(id);
     if (!proposal) throw new HttpError(404, "Proposal not found");
-    // Same source states as accept: only a sent/viewed proposal can be rejected.
     if (!["SENT", "VIEWED"].includes(proposal.status)) {
-      throw new HttpError(
-        409,
-        `Cannot reject a ${proposal.status} proposal`,
-        "INVALID_PROPOSAL_TRANSITION"
-      );
+      throw new HttpError(409, `Cannot reject a ${proposal.status} proposal`, "INVALID_PROPOSAL_TRANSITION");
     }
-    const updated = await proposalRepository.update(id, COMPANY_ID, {
-      status: "REJECTED",
-      rejectedAt: new Date(),
-    });
+    const updated = await proposalRepository.update(id, { status: "REJECTED", rejectedAt: new Date() });
 
     if (proposal) {
       const [admins, client] = await Promise.all([
-        userRepository.findAdminsByCompanyId(COMPANY_ID),
-        clientRepository.findById(proposal.clientId, COMPANY_ID),
+        userRepository.findAdmins(),
+        clientRepository.findById(proposal.clientId),
       ]);
-
       void enqueueEmails(
         admins.map((admin) => {
-          const { subject, html } = proposalRejectedTemplate(
-            admin.name ?? "Admin",
-            proposal.title,
-            client?.name ?? "Le client",
-            comment
-          );
+          const { subject, html } = proposalRejectedTemplate(admin.name ?? "Admin", proposal.title, client?.name ?? "Le client", comment);
           return { to: admin.email, subject, html };
         })
       );
@@ -539,42 +319,29 @@ export const proposalService = {
     return updated;
   },
 
-  async addSection(
-    proposalId: string,
-    data: { title: string; content?: string; orderIndex: number },
-    scope?: ServiceScope
-  ) {
-    const proposal = await proposalRepository.findById(proposalId, COMPANY_ID);
+  async addSection(proposalId: string, data: { title: string; content?: string; orderIndex: number }, scope?: ServiceScope) {
+    const proposal = await proposalRepository.findById(proposalId);
     await assertProposalInScope(proposal, scope);
-    return proposalRepository.addSection(proposalId, COMPANY_ID, data);
+    return proposalRepository.addSection(proposalId, data);
   },
 
-  async updateSection(
-    id: string,
-    data: { title?: string; content?: string; orderIndex?: number },
-    userId?: string,
-    scope?: ServiceScope
-  ) {
-    const parent = await proposalRepository.findProposalBySectionId(id, COMPANY_ID);
+  async updateSection(id: string, data: { title?: string; content?: string; orderIndex?: number }, userId?: string, scope?: ServiceScope) {
+    const parent = await proposalRepository.findProposalBySectionId(id);
     await assertProposalInScope(parent, scope);
-    const result = await proposalRepository.updateSection(id, COMPANY_ID, data);
+    const result = await proposalRepository.updateSection(id, data);
     await revertParentToDraftIfLive(id, "edited", userId);
     return result;
   },
 
   async deleteSection(id: string, userId?: string, scope?: ServiceScope) {
-    // Capture the parent before deletion (the section row is gone afterwards), then revert.
-    const parent = await proposalRepository.findProposalBySectionId(id, COMPANY_ID);
+    const parent = await proposalRepository.findProposalBySectionId(id);
     await assertProposalInScope(parent, scope);
-    const result = await proposalRepository.deleteSection(id, COMPANY_ID);
+    const result = await proposalRepository.deleteSection(id);
     if (parent) await revertParentToDraftById(parent, "deleted", userId);
     return result;
   },
 
-  async addHistory(
-    proposalId: string,
-    data: { action: string; comment?: string; userId?: string }
-  ) {
+  async addHistory(proposalId: string, data: { action: string; comment?: string; userId?: string }) {
     return proposalRepository.addHistory(proposalId, data);
   },
 };

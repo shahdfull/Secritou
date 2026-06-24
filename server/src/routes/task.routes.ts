@@ -12,7 +12,7 @@ router.use(authenticate);
 
 // Task routes. Reads are role-scoped in the repository (FREELANCER → own tasks, MANAGER → own
 // service); CLIENT has no operational task access. Writes are ADMIN or MANAGER (scoped to their
-// service in the service layer) — a service lead must be able to create/assign tasks.
+// service in the service layer) : a service lead must be able to create/assign tasks.
 router.get("/", authorize("ADMIN", "MANAGER", "FREELANCER"), getAllTasks);
 router.get("/:id", authorize("ADMIN", "MANAGER", "FREELANCER"), getTaskById);
 router.post("/", authorize("ADMIN", "MANAGER"), validate(createTaskSchema), createTask);

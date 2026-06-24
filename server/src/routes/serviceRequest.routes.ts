@@ -23,9 +23,9 @@ const router = Router();
 router.use(authenticate);
 
 // ── Client routes ─────────────────────────────────────────────────────────────
-router.get("/client", authorize("CLIENT"), getClientServiceRequests);
+router.get("/my", authorize("CLIENT"), getClientServiceRequests);
 router.post(
-  "/client",
+  "/my",
   authorize("CLIENT"),
   validate(createServiceRequestSchema),
   createClientServiceRequest

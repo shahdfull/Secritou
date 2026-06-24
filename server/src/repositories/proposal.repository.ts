@@ -1,5 +1,4 @@
 import { prisma, prismaRead } from "../config/prisma.js";
-import { COMPANY_ID } from "../config/constants.js";
 import { Prisma } from "@prisma/client";
 import type { Proposal, ProposalStatus } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
@@ -7,16 +6,13 @@ import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 export const proposalRepository = {
   async findAll(
     options: ListQueryOptions & {
-      companyId: string;
       clientId?: string;
       status?: ProposalStatus;
       search?: string;
-      // When set, restrict to proposals whose project is in this service (MANAGER scope).
-      // Proposals with no project are excluded for a scoped manager.
       serviceId?: string | null;
     }
   ): Promise<PaginatedResult<Proposal & { client: { name: string } }>> {
-    const where: Prisma.ProposalWhereInput = { companyId: options.companyId };
+    const where: Prisma.ProposalWhereInput = {};
     if (options.clientId) where.clientId = options.clientId;
     if (options.status) where.status = options.status;
     if (options.serviceId !== undefined) {
@@ -30,7 +26,6 @@ export const proposalRepository = {
     }
 
     const skip = (options.page - 1) * options.pageSize;
-
     const [data, total] = await Promise.all([
       prismaRead.proposal.findMany({
         where,
@@ -82,9 +77,9 @@ export const proposalRepository = {
     });
   },
 
-  async findById(id: string, companyId: string = COMPANY_ID) {
+  async findById(id: string) {
     return prismaRead.proposal.findUnique({
-      where: { id, companyId },
+      where: { id },
       include: {
         client: true,
         sections: { orderBy: { orderIndex: "asc" } },
@@ -105,93 +100,58 @@ export const proposalRepository = {
     clientId: string;
     clientName?: string;
     email?: string;
-    companyId: string;
     projectId?: string;
     serviceRequestId?: string;
   }) {
     return prisma.proposal.create({ data });
   },
 
-  async update(
-    id: string,
-    companyId: string = COMPANY_ID,
-    data: Partial<{
-      title: string;
-      description: string;
-      status: ProposalStatus;
-      version: number;
-      amount: number;
-      currency: string;
-      expiresAt: Date;
-      pdfUrl: string;
-      viewedAt: Date;
-      acceptedAt: Date;
-      rejectedAt: Date;
-    }>
-  ) {
-    return prisma.proposal.update({ where: { id, companyId }, data });
+  async update(id: string, data: Partial<{
+    title: string;
+    description: string;
+    status: ProposalStatus;
+    version: number;
+    amount: number;
+    currency: string;
+    expiresAt: Date;
+    pdfUrl: string;
+    viewedAt: Date;
+    acceptedAt: Date;
+    rejectedAt: Date;
+  }>) {
+    return prisma.proposal.update({ where: { id }, data });
   },
 
-  // Returns the parent proposal's status/version for a given section, scoped to the company.
-  // Used to enforce edit guards when a section (which is client-facing content) is changed.
-  async findProposalBySectionId(sectionId: string, companyId: string = COMPANY_ID) {
+  async findProposalBySectionId(sectionId: string) {
     const section = await prismaRead.proposalSection.findFirst({
-      where: { id: sectionId, proposal: { companyId } },
+      where: { id: sectionId },
       select: {
         proposal: {
-          select: { id: true, status: true, version: true, projectId: true, companyId: true },
+          select: { id: true, status: true, version: true, projectId: true },
         },
       },
     });
     return section?.proposal ?? null;
   },
 
-  async delete(id: string, companyId: string = COMPANY_ID) {
-    return prisma.proposal.delete({ where: { id, companyId } });
+  async delete(id: string) {
+    return prisma.proposal.delete({ where: { id } });
   },
 
-  async addSection(
-    proposalId: string,
-    companyId: string = COMPANY_ID,
-    data: { title: string; content?: string; orderIndex: number }
-  ) {
-    // Validate proposal exists in company first
-    await prismaRead.proposal.findUniqueOrThrow({
-      where: { id: proposalId, companyId },
-      select: { id: true }
-    });
+  async addSection(proposalId: string, data: { title: string; content?: string; orderIndex: number }) {
+    await prismaRead.proposal.findUniqueOrThrow({ where: { id: proposalId }, select: { id: true } });
     return prisma.proposalSection.create({ data: { ...data, proposalId } });
   },
 
-  async updateSection(
-    id: string,
-    companyId: string = COMPANY_ID,
-    data: { title?: string; content?: string; orderIndex?: number }
-  ) {
-    // Validate section belongs to a proposal in the company
-    return prisma.proposalSection.update({
-      where: {
-        id,
-        proposal: { companyId }
-      },
-      data
-    });
+  async updateSection(id: string, data: { title?: string; content?: string; orderIndex?: number }) {
+    return prisma.proposalSection.update({ where: { id }, data });
   },
 
-  async deleteSection(id: string, companyId: string = COMPANY_ID) {
-    // Validate section belongs to a proposal in the company
-    return prisma.proposalSection.delete({
-      where: {
-        id,
-        proposal: { companyId }
-      }
-    });
+  async deleteSection(id: string) {
+    return prisma.proposalSection.delete({ where: { id } });
   },
 
-  async addHistory(
-    proposalId: string,
-    data: { action: string; comment?: string; userId?: string }
-  ) {
+  async addHistory(proposalId: string, data: { action: string; comment?: string; userId?: string }) {
     return prisma.proposalHistory.create({ data: { ...data, proposalId } });
   },
 };

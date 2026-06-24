@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+const SERVICE_REQUEST_TYPES = ["SUPPORT", "NEW_PROJECT"] as const;
+
 const ADMIN_STATUSES = [
   "NEW",
   "IN_REVIEW",
@@ -73,5 +75,6 @@ export const adminListServiceRequestsSchema = z.object({
     clientId: z.string().optional(),
     assignedToId: z.string().optional(),
     priority: z.enum(PRIORITIES).optional(),
+    type: z.enum(SERVICE_REQUEST_TYPES).optional(),
   }),
 });

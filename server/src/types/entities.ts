@@ -12,7 +12,6 @@ export interface User extends BaseEntity {
   email: string;
   name: string;
   role: Role;
-  companyId?: string;
 }
 
 // Company entity
@@ -29,7 +28,6 @@ export interface Lead extends BaseEntity {
   source?: string;
   status: LeadStatus;
   notes?: string;
-  companyId: string;
 }
 
 // Client entity
@@ -37,7 +35,6 @@ export interface Client extends BaseEntity {
   name: string;
   email?: string;
   phone?: string;
-  companyId: string;
 }
 
 // Project entity
@@ -45,7 +42,6 @@ export interface Project extends BaseEntity {
   name: string;
   description?: string;
   status: ProjectStatus;
-  companyId: string;
   clientId?: string;
 }
 

@@ -1,5 +1,4 @@
 import type { ExtendedPrismaClient } from "../config/prisma.js";
-import { COMPANY_ID } from "../config/constants.js";
 import type { Role } from "@prisma/client";
 
 const userPublicSelect = {
@@ -29,7 +28,6 @@ export class AuthRepository {
         email: input.email,
         passwordHash: input.passwordHash,
         role: input.role ?? "ADMIN",
-        companyId: COMPANY_ID,
       },
       select: userPublicSelect,
     });

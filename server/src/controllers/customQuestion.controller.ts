@@ -3,7 +3,7 @@ import { customQuestionService } from "../services/customQuestion.service.js";
 import type { CustomQuestionStatus } from "@prisma/client";
 import { COMPANY_ID } from "../config/constants.js";
 
-// POST /api/custom-questions — any authenticated user
+// POST /api/custom-questions : any authenticated user
 export const createQuestion: RequestHandler = async (req, res, next) => {
   try {
     const result = await customQuestionService.createQuestion(req.user!.sub, req.body);
@@ -13,7 +13,7 @@ export const createQuestion: RequestHandler = async (req, res, next) => {
   }
 };
 
-// GET /api/custom-questions/my — the caller's own questions
+// GET /api/custom-questions/my : the caller's own questions
 export const getMyQuestions: RequestHandler = async (req, res, next) => {
   try {
     const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
@@ -25,7 +25,7 @@ export const getMyQuestions: RequestHandler = async (req, res, next) => {
   }
 };
 
-// GET /api/custom-questions/:id — owner or staff
+// GET /api/custom-questions/:id : owner or staff
 export const getQuestionById: RequestHandler = async (req, res, next) => {
   try {
     const result = await customQuestionService.getQuestionById(
@@ -39,7 +39,7 @@ export const getQuestionById: RequestHandler = async (req, res, next) => {
   }
 };
 
-// GET /api/custom-questions — staff only
+// GET /api/custom-questions : staff only
 export const getAllQuestions: RequestHandler = async (req, res, next) => {
   try {
     const status = req.query.status as CustomQuestionStatus | undefined;
@@ -56,7 +56,7 @@ export const getAllQuestions: RequestHandler = async (req, res, next) => {
   }
 };
 
-// POST /api/custom-questions/:id/messages — owner or staff
+// POST /api/custom-questions/:id/messages : owner or staff
 export const addMessage: RequestHandler = async (req, res, next) => {
   try {
     const { content } = req.body as { content: string };
@@ -72,7 +72,7 @@ export const addMessage: RequestHandler = async (req, res, next) => {
   }
 };
 
-// PATCH /api/custom-questions/:id/status — staff only
+// PATCH /api/custom-questions/:id/status : staff only
 export const updateQuestionStatus: RequestHandler = async (req, res, next) => {
   try {
     const { status } = req.body as { status: CustomQuestionStatus };

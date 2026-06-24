@@ -1,7 +1,5 @@
 import { approvalRepository } from "../repositories/approval.repository.js";
-import { COMPANY_ID } from "../config/constants.js";
 import { userRepository } from "../repositories/user.repository.js";
-import { clientRepository } from "../repositories/client.repository.js";
 import { enqueueEmail, enqueueEmails } from "../jobs/queues.js";
 import { approvalRequestedTemplate, approvalDecisionTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
@@ -9,10 +7,7 @@ import type { ApprovalStatus } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 
 export const approvalService = {
-  async getAllByClientId(
-    clientId: string,
-    options: { page: number; pageSize: number; status?: ApprovalStatus }
-  ) {
+  async getAllByClientId(clientId: string, options: { page: number; pageSize: number; status?: ApprovalStatus }) {
     return approvalRepository.findAllByClientId(clientId, options);
   },
 
@@ -20,31 +15,16 @@ export const approvalService = {
     return approvalRepository.findByIdForClient(id, clientId);
   },
 
-  async getAll(
-    options: ListQueryOptions & {
-      clientId?: string;
-      status?: ApprovalStatus;
-      search?: string;
-    }
-  ) {
-    return approvalRepository.findAll({ ...options, companyId: COMPANY_ID });
+  async getAll(options: ListQueryOptions & { clientId?: string; status?: ApprovalStatus; search?: string }) {
+    return approvalRepository.findAll(options);
   },
 
   async getById(id: string) {
-    return approvalRepository.findById(id, COMPANY_ID);
+    return approvalRepository.findById(id);
   },
 
-  async create(
-    data: {
-      title: string;
-      description?: string;
-      dueDate?: Date;
-      clientId: string;
-      projectId?: string;
-    },
-    requesterId?: string
-  ) {
-    const approval = await approvalRepository.create({ ...data, companyId: COMPANY_ID });
+  async create(data: { title: string; description?: string; dueDate?: Date; clientId: string; projectId?: string }, requesterId?: string) {
+    const approval = await approvalRepository.create(data);
 
     const [clientUsers, requester] = await Promise.all([
       userRepository.findByClientId(data.clientId),
@@ -52,19 +32,11 @@ export const approvalService = {
     ]);
 
     const approvalUrl = `${env.FRONTEND_URL}/client/approvals/${approval.id}`;
-    const dueDate = data.dueDate
-      ? new Date(data.dueDate).toLocaleDateString("fr-FR")
-      : "—";
+    const dueDate = data.dueDate ? new Date(data.dueDate).toLocaleDateString("fr-FR") : ":";
 
     void enqueueEmails(
       clientUsers.map((user) => {
-        const { subject, html } = approvalRequestedTemplate(
-          user.name ?? "Client",
-          approval.title,
-          requester?.name ?? "L'équipe Secritou",
-          dueDate,
-          approvalUrl
-        );
+        const { subject, html } = approvalRequestedTemplate(user.name ?? "Client", approval.title, requester?.name ?? "L'équipe Secritou", dueDate, approvalUrl);
         return { to: user.email, subject, html };
       })
     );
@@ -72,43 +44,24 @@ export const approvalService = {
     return approval;
   },
 
-  async update(
-    id: string,
-    data: Partial<{
-      title: string;
-      description: string;
-      status: ApprovalStatus;
-      dueDate: Date;
-    }>
-  ) {
-    return approvalRepository.update(id, COMPANY_ID, data);
+  async update(id: string, data: Partial<{ title: string; description: string; status: ApprovalStatus; dueDate: Date }>) {
+    return approvalRepository.update(id, data);
   },
 
   async delete(id: string) {
-    return approvalRepository.delete(id, COMPANY_ID);
+    return approvalRepository.delete(id);
   },
 
   async approve(id: string, comment?: string, userId?: string) {
-    const approval = await approvalRepository.findById(id, COMPANY_ID);
-    const updated = await approvalRepository.update(id, COMPANY_ID, { status: "APPROVED" });
-    await approvalRepository.addTimeline(id, {
-      action: "APPROVED",
-      comment,
-      status: "APPROVED",
-      userId,
-    });
+    const approval = await approvalRepository.findById(id);
+    const updated = await approvalRepository.update(id, { status: "APPROVED" });
+    await approvalRepository.addTimeline(id, { action: "APPROVED", comment, status: "APPROVED", userId });
 
     if (approval) {
       const decider = userId ? await userRepository.findById(userId) : null;
       const clientUsers = await userRepository.findByClientId(approval.clientId);
       for (const user of clientUsers) {
-        const { subject, html } = approvalDecisionTemplate(
-          user.name ?? "Client",
-          approval.title,
-          "APPROVED",
-          decider?.name ?? "L'équipe Secritou",
-          comment
-        );
+        const { subject, html } = approvalDecisionTemplate(user.name ?? "Client", approval.title, "APPROVED", decider?.name ?? "L'équipe Secritou", comment);
         void enqueueEmail({ to: user.email, subject, html });
       }
     }
@@ -117,26 +70,15 @@ export const approvalService = {
   },
 
   async reject(id: string, comment?: string, userId?: string) {
-    const approval = await approvalRepository.findById(id, COMPANY_ID);
-    const updated = await approvalRepository.update(id, COMPANY_ID, { status: "REJECTED" });
-    await approvalRepository.addTimeline(id, {
-      action: "REJECTED",
-      comment,
-      status: "REJECTED",
-      userId,
-    });
+    const approval = await approvalRepository.findById(id);
+    const updated = await approvalRepository.update(id, { status: "REJECTED" });
+    await approvalRepository.addTimeline(id, { action: "REJECTED", comment, status: "REJECTED", userId });
 
     if (approval) {
       const decider = userId ? await userRepository.findById(userId) : null;
       const clientUsers = await userRepository.findByClientId(approval.clientId);
       for (const user of clientUsers) {
-        const { subject, html } = approvalDecisionTemplate(
-          user.name ?? "Client",
-          approval.title,
-          "REJECTED",
-          decider?.name ?? "L'équipe Secritou",
-          comment
-        );
+        const { subject, html } = approvalDecisionTemplate(user.name ?? "Client", approval.title, "REJECTED", decider?.name ?? "L'équipe Secritou", comment);
         void enqueueEmail({ to: user.email, subject, html });
       }
     }
@@ -145,21 +87,16 @@ export const approvalService = {
   },
 
   async comment(id: string, comment: string, userId?: string) {
-    const updated = await approvalRepository.update(id, COMPANY_ID, { status: "COMMENTED" });
-    await approvalRepository.addTimeline(id, {
-      action: "COMMENTED",
-      comment,
-      status: "COMMENTED",
-      userId,
-    });
+    const updated = await approvalRepository.update(id, { status: "COMMENTED" });
+    await approvalRepository.addTimeline(id, { action: "COMMENTED", comment, status: "COMMENTED", userId });
     return updated;
   },
 
   async addAttachment(approvalId: string, data: { name: string; url: string }) {
-    return approvalRepository.addAttachment(approvalId, COMPANY_ID, data);
+    return approvalRepository.addAttachment(approvalId, data);
   },
 
   async deleteAttachment(id: string) {
-    return approvalRepository.deleteAttachment(id, COMPANY_ID);
+    return approvalRepository.deleteAttachment(id);
   },
 };

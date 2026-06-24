@@ -1,6 +1,5 @@
 // Task Repository - Data access layer
 import { prisma } from "../config/prisma.js";
-import { COMPANY_ID } from "../config/constants.js";
 import type { TaskStatus, Role, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildTextSearchFilter } from "../utils/listQuery.js";
@@ -12,7 +11,6 @@ const SORTABLE_FIELDS = ["title", "status", "dueDate", "createdAt"];
 type TaskWithRelations = Prisma.TaskGetPayload<{ select: typeof taskWithRelationsSelect }>;
 
 function buildWhere(
-  companyId: string,
   userId: string,
   userRole: Role,
   options: ListQueryOptions,
@@ -20,11 +18,11 @@ function buildWhere(
   userServiceId?: string | null
 ) {
   // A MANAGER only sees tasks whose project belongs to their service (pole). "__none__"
-  // guarantees no match when the manager has no service, rather than leaking the company.
+  // guarantees no match when the manager has no service.
   const projectFilter =
     userRole === "MANAGER"
-      ? { companyId, serviceId: userServiceId ?? "__none__" }
-      : { companyId };
+      ? { serviceId: userServiceId ?? "__none__" }
+      : {};
   const base = {
     project: projectFilter,
     ...(projectId && { projectId }),
@@ -38,34 +36,25 @@ function buildWhere(
 }
 
 function buildOrderBy(orderBy: string | undefined, orderDir: "asc" | "desc") {
-  if (orderBy === "project") {
-    return { project: { name: orderDir } };
-  }
+  if (orderBy === "project") return { project: { name: orderDir } };
   const field = orderBy && SORTABLE_FIELDS.includes(orderBy) ? orderBy : "createdAt";
   return { [field]: orderDir };
 }
 
 export const taskRepository = {
   async findAll(
-    companyId: string = COMPANY_ID,
     userId: string,
     userRole: Role,
     options: ListQueryOptions,
     projectId?: string,
     userServiceId?: string | null
   ): Promise<PaginatedResult<TaskWithRelations>> {
-    const where = buildWhere(companyId, userId, userRole, options, projectId, userServiceId);
+    const where = buildWhere(userId, userRole, options, projectId, userServiceId);
     const skip = (options.page - 1) * options.pageSize;
     const orderBy = buildOrderBy(options.orderBy, options.orderDir);
 
     const [data, total] = await Promise.all([
-      prisma.task.findMany({
-        where,
-        select: taskWithRelationsSelect,
-        orderBy,
-        skip,
-        take: options.pageSize,
-      }),
+      prisma.task.findMany({ where, select: taskWithRelationsSelect, orderBy, skip, take: options.pageSize }),
       prisma.task.count({ where }),
     ]);
 
@@ -74,99 +63,49 @@ export const taskRepository = {
 
   async findById(
     id: string,
-    companyId: string = COMPANY_ID,
     userId: string,
     userRole: Role,
     userServiceId?: string | null
   ): Promise<TaskWithRelations | null> {
     let where: Prisma.TaskWhereInput;
     if (userRole === "FREELANCER") {
-      where = { id, project: { companyId }, assigneeId: userId };
+      where = { id, assigneeId: userId };
     } else if (userRole === "MANAGER") {
-      where = { id, project: { companyId, serviceId: userServiceId ?? "__none__" } };
+      where = { id, project: { serviceId: userServiceId ?? "__none__" } };
     } else {
-      where = { id, project: { companyId } };
+      where = { id };
     }
-
-    return prisma.task.findFirst({
-      where,
-      select: taskWithRelationsSelect,
-    });
+    return prisma.task.findFirst({ where, select: taskWithRelationsSelect });
   },
 
-  async findByIdAdmin(id: string, companyId: string = COMPANY_ID): Promise<TaskWithRelations | null> {
-    return prisma.task.findFirst({
-      where: { id, project: { companyId } },
-      select: taskWithRelationsSelect,
-    });
+  async findByIdAdmin(id: string): Promise<TaskWithRelations | null> {
+    return prisma.task.findFirst({ where: { id }, select: taskWithRelationsSelect });
   },
 
-  async existsInCompany(id: string, companyId: string = COMPANY_ID, userId: string, userRole: Role): Promise<boolean> {
+  async existsInCompany(id: string, userId: string, userRole: Role): Promise<boolean> {
     const where =
       userRole === "FREELANCER"
-        ? { id, project: { companyId }, assigneeId: userId }
-        : { id, project: { companyId } };
-
+        ? { id, assigneeId: userId }
+        : { id };
     const count = await prisma.task.count({ where });
     return count > 0;
   },
 
-  async create(data: {
-    title: string;
-    description?: string;
-    status?: TaskStatus;
-    dueDate?: Date;
-    projectId: string;
-    assigneeId?: string;
-  }): Promise<TaskWithRelations> {
-    return prisma.task.create({
-      data,
-      select: taskWithRelationsSelect,
-    });
+  async create(data: { title: string; description?: string; status?: TaskStatus; dueDate?: Date; projectId: string; assigneeId?: string }): Promise<TaskWithRelations> {
+    return prisma.task.create({ data, select: taskWithRelationsSelect });
   },
 
-  async update(
-    id: string,
-    companyId: string = COMPANY_ID,
-    data: Partial<{
-      title?: string;
-      description?: string;
-      status?: TaskStatus;
-      dueDate?: Date;
-      assigneeId?: string;
-    }>
-  ): Promise<TaskWithRelations> {
-    const result = await prisma.task.updateMany({
-      where: { id, project: { companyId } },
-      data,
-    });
-
-    if (result.count === 0) {
-      throw new HttpError(404, "Task not found");
-    }
-
-    const task = await prisma.task.findFirst({
-      where: { id },
-      select: taskWithRelationsSelect,
-    });
-
-    if (!task) {
-      throw new HttpError(404, "Task not found");
-    }
-
+  async update(id: string, data: Partial<{ title?: string; description?: string; status?: TaskStatus; dueDate?: Date; assigneeId?: string }>): Promise<TaskWithRelations> {
+    const result = await prisma.task.updateMany({ where: { id }, data });
+    if (result.count === 0) throw new HttpError(404, "Task not found");
+    const task = await prisma.task.findFirst({ where: { id }, select: taskWithRelationsSelect });
+    if (!task) throw new HttpError(404, "Task not found");
     return task;
   },
 
-  async delete(id: string, companyId: string = COMPANY_ID): Promise<TaskWithRelations> {
-    const task = await prisma.task.findFirst({
-      where: { id, project: { companyId } },
-      select: taskWithRelationsSelect,
-    });
-
-    if (!task) {
-      throw new HttpError(404, "Task not found");
-    }
-
+  async delete(id: string): Promise<TaskWithRelations> {
+    const task = await prisma.task.findFirst({ where: { id }, select: taskWithRelationsSelect });
+    if (!task) throw new HttpError(404, "Task not found");
     await prisma.task.delete({ where: { id } });
     return task;
   },

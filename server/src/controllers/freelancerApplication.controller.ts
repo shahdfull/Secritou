@@ -57,8 +57,6 @@ export const createApplication: RequestHandler[] = [
         return;
       }
 
-      // Public route: no companyId at submission time.
-      // companyId is set when an admin accepts the application.
       const application = await freelancerApplicationService.createApplication(
         {
           firstName: req.body.firstName,

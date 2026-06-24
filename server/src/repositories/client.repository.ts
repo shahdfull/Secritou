@@ -4,7 +4,6 @@ import type { Client } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildOrderBy } from "../utils/listQuery.js";
 import { projectBriefSelect } from "../utils/prismaSelects.js";
-import { COMPANY_ID } from "../config/constants.js";
 
 const SORTABLE_FIELDS = ["name", "email", "phone", "createdAt"];
 
@@ -21,7 +20,6 @@ const clientListSelect = {
   name: true,
   email: true,
   phone: true,
-  companyId: true,
   serviceId: true,
   creditBalance: true,
   archivedAt: true,
@@ -35,7 +33,6 @@ const clientDetailSelect = {
   name: true,
   email: true,
   phone: true,
-  companyId: true,
   serviceId: true,
   creditBalance: true,
   archivedAt: true,
@@ -51,14 +48,11 @@ const clientDetailSelect = {
 
 export const clientRepository = {
   async findAll(
-    companyId: string = COMPANY_ID,
     options: ListQueryOptions & { includeArchived?: boolean; serviceId?: string | null }
   ): Promise<PaginatedResult<ClientListItem>> {
-    // Archived clients are hidden by default; pass includeArchived to surface them.
-    const where: Record<string, unknown> = { companyId };
+    const where: Record<string, unknown> = {};
     if (!options.includeArchived) where.archivedAt = null;
-    // MANAGER scope: a client is visible only if it has at least one project in the manager's
-    // service (a client is not tagged with a single service — it may buy from several poles).
+    // MANAGER scope: a client is visible only if it has at least one project in the manager's service
     if (options.serviceId !== undefined) {
       where.projects = { some: { serviceId: options.serviceId ?? "__none__" } };
     }
@@ -66,123 +60,46 @@ export const clientRepository = {
     const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
 
     const [data, total] = await Promise.all([
-      prisma.client.findMany({
-        where,
-        select: clientListSelect,
-        orderBy,
-        skip,
-        take: options.pageSize,
-      }),
+      prisma.client.findMany({ where, select: clientListSelect, orderBy, skip, take: options.pageSize }),
       prisma.client.count({ where }),
     ]);
 
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(
-    id: string,
-    companyId: string = COMPANY_ID,
-    serviceId?: string | null
-  ): Promise<ClientDetail | null> {
-    const where: Record<string, unknown> = { id, companyId };
-    // MANAGER scope: only reachable if the client has a project in the manager's service.
+  async findById(id: string, serviceId?: string | null): Promise<ClientDetail | null> {
+    const where: Record<string, unknown> = { id };
     if (serviceId !== undefined) {
       where.projects = { some: { serviceId: serviceId ?? "__none__" } };
     }
-    return prisma.client.findFirst({
-      where,
-      select: clientDetailSelect,
-    });
+    return prisma.client.findFirst({ where, select: clientDetailSelect });
   },
 
   async create(data: {
     name: string;
     email?: string;
     phone?: string;
-    companyId: string;
   }): Promise<Client> {
-    return prisma.client.create({
-      data,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        companyId: true,
-        serviceId: true,
-        creditBalance: true,
-        archivedAt: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+    return prisma.client.create({ data, select: clientListSelect });
   },
 
-  async update(
-    id: string,
-    companyId: string = COMPANY_ID,
-    data: Partial<{
-      name?: string;
-      email?: string;
-      phone?: string;
-    }>
-  ): Promise<Client> {
+  async update(id: string, data: Partial<{ name?: string; email?: string; phone?: string }>): Promise<Client> {
+    return prisma.client.update({ where: { id }, data, select: clientListSelect });
+  },
+
+  async countInvoices(id: string): Promise<number> {
+    return prisma.invoice.count({ where: { clientId: id } });
+  },
+
+  async archive(id: string): Promise<Client> {
     return prisma.client.update({
-      where: { id, companyId },
-      data,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        companyId: true,
-        serviceId: true,
-        creditBalance: true,
-        archivedAt: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-  },
-
-  async countInvoices(id: string, companyId: string = COMPANY_ID): Promise<number> {
-    return prisma.invoice.count({ where: { clientId: id, companyId } });
-  },
-
-  async archive(id: string, companyId: string = COMPANY_ID): Promise<Client> {
-    return prisma.client.update({
-      where: { id, companyId },
+      where: { id },
       data: { archivedAt: new Date() },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        companyId: true,
-        serviceId: true,
-        creditBalance: true,
-        archivedAt: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: clientListSelect,
     });
   },
 
-  async delete(id: string, companyId: string = COMPANY_ID): Promise<Client> {
-    return prisma.client.delete({
-      where: { id, companyId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        companyId: true,
-        serviceId: true,
-        creditBalance: true,
-        archivedAt: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+  async delete(id: string): Promise<Client> {
+    return prisma.client.delete({ where: { id }, select: clientListSelect });
   },
 };

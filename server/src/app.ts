@@ -80,7 +80,7 @@ if (process.env.NODE_ENV !== "production") {
   });
 }
 
-// Baseline DDoS protection — specific limiters (authRateLimit, aiRateLimit, etc.) remain in place
+// Baseline DDoS protection : specific limiters (authRateLimit, aiRateLimit, etc.) remain in place
 app.use("/api/", rateLimit({
   windowMs: 60_000,
   limit: 300,

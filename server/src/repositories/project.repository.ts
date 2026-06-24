@@ -1,6 +1,5 @@
 // Project Repository - Data access layer
 import { prismaRead as prisma } from "../config/prisma.js";
-import { COMPANY_ID } from "../config/constants.js";
 import type { Project, ProjectStatus, Role } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildOrderBy, buildTextSearchFilter } from "../utils/listQuery.js";
@@ -14,19 +13,13 @@ type ProjectWithProgress = Project & {
 
 const SORTABLE_FIELDS = ["name", "status", "createdAt"];
 
-function buildWhere(companyId: string, userId: string, userRole: Role, options: ListQueryOptions, clientId?: string) {
+function buildWhere(userId: string, userRole: Role, options: ListQueryOptions, clientId?: string) {
   const searchFilter = buildTextSearchFilter(options.search, ["name", "description"]);
   const statusFilter = options.status ? { status: options.status as ProjectStatus } : {};
-  // Archived (soft-deleted) projects are hidden from all list views.
   const base = { archivedAt: null, ...statusFilter, ...searchFilter };
 
-  if (userRole === "ADMIN" || userRole === "MANAGER") {
-    return { companyId, ...base };
-  }
-  if (userRole === "FREELANCER") {
-    return { companyId, tasks: { some: { assigneeId: userId } }, ...base };
-  }
-  // CLIENT role: scope by clientId only (no companyId — cross-tenant read scoped to this client)
+  if (userRole === "ADMIN" || userRole === "MANAGER") return base;
+  if (userRole === "FREELANCER") return { tasks: { some: { assigneeId: userId } }, ...base };
   return { clientId, ...base };
 }
 
@@ -36,7 +29,6 @@ const projectListSelect = {
   description: true,
   status: true,
   clientId: true,
-  companyId: true,
   serviceId: true,
   proposalId: true,
   archivedAt: true,
@@ -55,24 +47,17 @@ const projectListSelect = {
 
 export const projectRepository = {
   async findAll(
-    companyId: string = COMPANY_ID,
     userId: string,
     userRole: Role,
     options: ListQueryOptions,
     clientId?: string
   ): Promise<PaginatedResult<ProjectWithProgress>> {
-    const where = buildWhere(companyId, userId, userRole, options, clientId);
+    const where = buildWhere(userId, userRole, options, clientId);
     const skip = (options.page - 1) * options.pageSize;
     const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
 
     const [projects, total] = await Promise.all([
-      prisma.project.findMany({
-        where,
-        select: projectListSelect,
-        orderBy,
-        skip,
-        take: options.pageSize,
-      }),
+      prisma.project.findMany({ where, select: projectListSelect, orderBy, skip, take: options.pageSize }),
       prisma.project.count({ where }),
     ]);
 
@@ -87,58 +72,32 @@ export const projectRepository = {
 
   async findById(
     id: string,
-    companyId: string = COMPANY_ID,
     userId: string,
     userRole: Role,
     clientId?: string
   ): Promise<ProjectWithProgress | null> {
-    const baseSelect = {
-      ...projectListSelect,
-      client: { select: clientBriefSelect },
-    };
-
+    const baseSelect = { ...projectListSelect, client: { select: clientBriefSelect } };
     let project: (Project & { client?: ProjectWithProgress["client"] }) | null;
 
     if (userRole === "ADMIN" || userRole === "MANAGER") {
-      project = await prisma.project.findUnique({
-        where: { id, companyId },
-        select: baseSelect,
-      });
+      project = await prisma.project.findUnique({ where: { id }, select: baseSelect });
     } else if (userRole === "FREELANCER") {
       project = await prisma.project.findFirst({
-        where: {
-          id,
-          companyId,
-          tasks: { some: { assigneeId: userId } },
-        },
+        where: { id, tasks: { some: { assigneeId: userId } } },
         select: baseSelect,
       });
     } else {
-      project = await prisma.project.findUnique({
-        where: { id, companyId, clientId },
-        select: baseSelect,
-      });
+      project = await prisma.project.findUnique({ where: { id, clientId }, select: baseSelect });
     }
 
     if (!project) return null;
-
-    return {
-      ...project,
-      progress: await getProgressForProject(project.id),
-    };
+    return { ...project, progress: await getProgressForProject(project.id) };
   },
 
-  async findByIdAdmin(id: string, companyId: string = COMPANY_ID) {
+  async findByIdAdmin(id: string) {
     return prisma.project.findUnique({
-      where: { id, companyId },
-      select: {
-        id: true,
-        name: true,
-        status: true,
-        clientId: true,
-        serviceId: true,
-        companyId: true,
-      },
+      where: { id },
+      select: { id: true, name: true, status: true, clientId: true, serviceId: true },
     });
   },
 
@@ -148,7 +107,6 @@ export const projectRepository = {
     status?: ProjectStatus;
     clientId?: string;
     serviceId?: string;
-    companyId: string;
   }): Promise<Project> {
     return prisma.project.create({
       data,
@@ -156,43 +114,37 @@ export const projectRepository = {
     });
   },
 
-  async update(
-    id: string,
-    companyId: string = COMPANY_ID,
-    data: Partial<{
-      name?: string;
-      description?: string;
-      status?: ProjectStatus;
-      clientId?: string;
-      serviceId?: string;
-    }>
-  ): Promise<Project> {
+  async update(id: string, data: Partial<{
+    name?: string;
+    description?: string;
+    status?: ProjectStatus;
+    clientId?: string;
+    serviceId?: string;
+  }>): Promise<Project> {
     return prisma.project.update({
-      where: { id, companyId },
+      where: { id },
       data,
       include: { client: { select: clientBriefSelect } },
     });
   },
 
-  async delete(id: string, companyId: string = COMPANY_ID): Promise<Project> {
-    return prisma.project.delete({ where: { id, companyId } });
+  async delete(id: string): Promise<Project> {
+    return prisma.project.delete({ where: { id } });
   },
 
-  async archive(id: string, companyId: string = COMPANY_ID): Promise<Project> {
+  async archive(id: string): Promise<Project> {
     return prisma.project.update({
-      where: { id, companyId },
+      where: { id },
       data: { archivedAt: new Date() },
       include: { client: { select: clientBriefSelect } },
     });
   },
 
-  async countNonDraftInvoices(id: string, companyId: string = COMPANY_ID): Promise<number> {
-    return prisma.invoice.count({
-      where: { projectId: id, companyId, status: { not: "DRAFT" } },
-    });
+  async countNonDraftInvoices(id: string): Promise<number> {
+    return prisma.invoice.count({ where: { projectId: id, status: { not: "DRAFT" } } });
   },
 
-  async countOnboardings(id: string, companyId: string = COMPANY_ID): Promise<number> {
-    return prisma.clientOnboarding.count({ where: { projectId: id, companyId } });
+  async countOnboardings(id: string): Promise<number> {
+    return prisma.clientOnboarding.count({ where: { projectId: id } });
   },
 };

@@ -154,7 +154,7 @@ export async function markOverdueInvoices() {
       status: { in: ["SENT", "PARTIAL"] },
       dueDate: { not: null, lt: new Date() },
     },
-    select: { id: true, number: true, companyId: true, clientId: true },
+    select: { id: true, number: true, clientId: true },
   });
 
   if (newlyOverdue.length === 0) {
@@ -167,26 +167,16 @@ export async function markOverdueInvoices() {
     data: { status: "OVERDUE" },
   });
 
-  // Notify each company's admins about their newly-overdue invoices.
-  const byCompany = new Map<string, typeof newlyOverdue>();
-  for (const inv of newlyOverdue) {
-    const list = byCompany.get(inv.companyId) ?? [];
-    list.push(inv);
-    byCompany.set(inv.companyId, list);
-  }
-
-  for (const [companyId, invoices] of byCompany) {
-    const admins = await userRepository.findAdminsByCompanyId(companyId);
-    await enqueueNotifications(
-      admins.flatMap((admin) =>
-        invoices.map((inv) => ({
-          userId: admin.id,
-          title: "Facture en retard",
-          message: `La facture ${inv.number} est désormais en retard de paiement.`,
-        }))
-      )
-    );
-  }
+  const admins = await userRepository.findAdmins();
+  await enqueueNotifications(
+    admins.flatMap((admin) =>
+      newlyOverdue.map((inv) => ({
+        userId: admin.id,
+        title: "Facture en retard",
+        message: `La facture ${inv.number} est désormais en retard de paiement.`,
+      }))
+    )
+  );
 
   recordBullMQJob("maintenance", "mark-overdue-invoices", "completed", (performance.now() - start) / 1000);
   return newlyOverdue.length;
@@ -195,16 +185,13 @@ export async function markOverdueInvoices() {
 export async function recalculateClientScores() {
   const start = performance.now();
 
-  // Fetch all ClientSuccess records with their linked client (to get companyId)
-  const records = await prisma.clientSuccess.findMany({
-    select: { clientId: true, companyId: true },
-  });
+  const records = await prisma.clientSuccess.findMany({ select: { clientId: true } });
 
   let updated = 0;
   for (const record of records) {
     try {
-      const score = await clientSuccessService.calculateScore(record.clientId, record.companyId);
-      await clientSuccessService.updateScore(record.clientId, record.companyId, score);
+      const score = await clientSuccessService.calculateScore(record.clientId);
+      await clientSuccessService.updateScore(record.clientId, score);
       updated++;
     } catch {
       // Non-fatal: skip individual failures so one bad record doesn't abort the batch

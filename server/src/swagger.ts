@@ -144,11 +144,6 @@ const options = {
               enum: ["ADMIN", "MANAGER", "CLIENT", "FREELANCER"],
               example: "CLIENT",
             },
-            companyId: {
-              type: "string",
-              format: "uuid",
-              nullable: true,
-            },
             clientId: {
               type: "string",
               format: "uuid",
@@ -198,10 +193,6 @@ const options = {
               type: "string",
               format: "email",
             },
-            companyId: {
-              type: "string",
-              format: "uuid",
-            },
             createdAt: {
               type: "string",
               format: "date-time",
@@ -211,7 +202,7 @@ const options = {
               format: "date-time",
             },
           },
-          required: ["id", "name", "email", "companyId", "createdAt", "updatedAt"],
+          required: ["id", "name", "email", "createdAt", "updatedAt"],
         },
         Lead: {
           type: "object",
@@ -237,10 +228,6 @@ const options = {
               enum: ["NEW", "CONTACTED", "QUALIFIED", "CONVERTED", "LOST"],
               example: "NEW",
             },
-            companyId: {
-              type: "string",
-              format: "uuid",
-            },
             createdAt: {
               type: "string",
               format: "date-time",
@@ -250,7 +237,7 @@ const options = {
               format: "date-time",
             },
           },
-          required: ["id", "name", "email", "status", "companyId", "createdAt", "updatedAt"],
+          required: ["id", "name", "email", "status", "createdAt", "updatedAt"],
         },
         Project: {
           type: "object",
@@ -272,10 +259,6 @@ const options = {
               enum: ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED"],
               example: "IN_PROGRESS",
             },
-            companyId: {
-              type: "string",
-              format: "uuid",
-            },
             createdAt: {
               type: "string",
               format: "date-time",
@@ -285,7 +268,7 @@ const options = {
               format: "date-time",
             },
           },
-          required: ["id", "name", "status", "companyId", "createdAt", "updatedAt"],
+          required: ["id", "name", "status", "createdAt", "updatedAt"],
         },
         Task: {
           type: "object",
@@ -360,10 +343,6 @@ const options = {
               type: "string",
               format: "date",
             },
-            companyId: {
-              type: "string",
-              format: "uuid",
-            },
             clientId: {
               type: "string",
               format: "uuid",
@@ -377,7 +356,7 @@ const options = {
               format: "date-time",
             },
           },
-          required: ["id", "number", "status", "amount", "dueDate", "companyId", "clientId", "createdAt", "updatedAt"],
+          required: ["id", "number", "status", "amount", "dueDate", "clientId", "createdAt", "updatedAt"],
         },
         ServiceRequest: {
           type: "object",
@@ -408,10 +387,6 @@ const options = {
               type: "string",
               format: "uuid",
             },
-            companyId: {
-              type: "string",
-              format: "uuid",
-            },
             createdAt: {
               type: "string",
               format: "date-time",
@@ -421,7 +396,7 @@ const options = {
               format: "date-time",
             },
           },
-          required: ["id", "title", "status", "priority", "clientId", "companyId", "createdAt", "updatedAt"],
+          required: ["id", "title", "status", "priority", "clientId", "createdAt", "updatedAt"],
         },
       },
     },

@@ -164,7 +164,7 @@ export class AuthService {
       void enqueueEmail({ to: user.email, subject, html });
     } catch (error) {
       console.error("[auth] Failed to enqueue password reset email:", error);
-      // Non-fatal — le token est déjà persisté en base
+      // Non-fatal : le token est déjà persisté en base
     }
   }
 

@@ -40,7 +40,7 @@ export const respondToApproval = async (req: Request, res: Response) => {
     const result = await approvalService.comment(id, comment ?? "", userId);
     return res.json({ data: result });
   }
-  throw new HttpError(400, "Invalid action — use 'approve', 'reject', or 'comment'");
+  throw new HttpError(400, "Invalid action : use 'approve', 'reject', or 'comment'");
 };
 
 export const getApprovals = async (req: Request, res: Response) => {

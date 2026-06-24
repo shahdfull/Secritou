@@ -119,7 +119,6 @@ async function uploadAndCreate(
     description,
     projectId,
     clientId,
-    companyId,
     uploadedById,
   }: {
     type: DocumentType;
@@ -128,7 +127,6 @@ async function uploadAndCreate(
     description?: string;
     projectId?: string;
     clientId?: string;
-    companyId: string;
     uploadedById: string;
   }
 ): Promise<Document> {
@@ -150,7 +148,6 @@ async function uploadAndCreate(
     tags: [],
     projectId,
     clientId,
-    companyId,
     uploadedById,
   });
 }
@@ -175,13 +172,12 @@ export const documentGeneratorService = {
     project: GeneratorProject,
     client: GeneratorClient,
     manager: GeneratorManager,
-    companyId: string,
     uploadedById: string
   ): Promise<Document> {
     const buffer = await buildPdf((doc) => {
       header(doc, "Lettre de bienvenue");
       doc.text(`Date : ${fmtDate(new Date())}`).moveDown(0.5);
-      doc.text(`Objet : Bienvenue chez Secritou — projet « ${project.name} »`).moveDown(1);
+      doc.text(`Objet : Bienvenue chez Secritou : projet « ${project.name} »`).moveDown(1);
       doc.text(`Cher(e) ${client.name},`).moveDown(0.5);
       doc.text(
         `Nous sommes ravis de vous accueillir en tant que client Secritou et de vous accompagner dans la réalisation de votre projet. Votre proposition a été acceptée et nous allons désormais travailler ensemble pour atteindre vos objectifs.`
@@ -206,10 +202,9 @@ export const documentGeneratorService = {
     return uploadAndCreate(buffer, {
       type: "WELCOME_LETTER",
       filename: `lettre-bienvenue-${project.id}`,
-      title: `Lettre de bienvenue — ${project.name}`,
+      title: `Lettre de bienvenue : ${project.name}`,
       projectId: project.id,
       clientId: client.id,
-      companyId,
       uploadedById,
     });
   },
@@ -218,7 +213,6 @@ export const documentGeneratorService = {
     proposal: GeneratorProposal,
     project: GeneratorProject,
     client: GeneratorClient,
-    companyId: string,
     uploadedById: string
   ): Promise<Document> {
     const buffer = await buildPdf((doc) => {
@@ -227,7 +221,7 @@ export const documentGeneratorService = {
 
       sectionTitle(doc, "1. Parties");
       doc.text("Prestataire : Secritou, agence digitale & IA.");
-      doc.text(`Client : ${client.name}${client.email ? ` — ${client.email}` : ""}.`).moveDown(0.5);
+      doc.text(`Client : ${client.name}${client.email ? ` : ${client.email}` : ""}.`).moveDown(0.5);
 
       sectionTitle(doc, "2. Objet et prestations incluses");
       doc.text(`Réalisation du projet « ${project.name} ».`);
@@ -263,10 +257,9 @@ export const documentGeneratorService = {
     return uploadAndCreate(buffer, {
       type: "CONTRACT",
       filename: `contrat-${project.id}`,
-      title: `Contrat de service — ${project.name}`,
+      title: `Contrat de service : ${project.name}`,
       projectId: project.id,
       clientId: client.id,
-      companyId,
       uploadedById,
     });
   },
@@ -274,7 +267,6 @@ export const documentGeneratorService = {
   async generateSpecs(
     project: GeneratorProject,
     client: GeneratorClient,
-    companyId: string,
     uploadedById: string
   ): Promise<Document> {
     const buffer = await buildPdf((doc) => {
@@ -301,11 +293,10 @@ export const documentGeneratorService = {
     return uploadAndCreate(buffer, {
       type: "SPECS",
       filename: `cahier-des-charges-${project.id}`,
-      title: `Cahier des charges — ${project.name}`,
+      title: `Cahier des charges : ${project.name}`,
       description: project.description ?? undefined,
       projectId: project.id,
       clientId: client.id,
-      companyId,
       uploadedById,
     });
   },
@@ -313,7 +304,6 @@ export const documentGeneratorService = {
   async generateClientBrief(
     project: GeneratorProject,
     client: GeneratorClient,
-    companyId: string,
     uploadedById: string
   ): Promise<Document> {
     // Question sets differ by service type (heuristic on serviceId presence / naming)
@@ -358,10 +348,9 @@ export const documentGeneratorService = {
     return uploadAndCreate(buffer, {
       type: "CLIENT_BRIEF",
       filename: `brief-client-${project.id}`,
-      title: `Questionnaire brief — ${project.name}`,
+      title: `Questionnaire brief : ${project.name}`,
       projectId: project.id,
       clientId: client.id,
-      companyId,
       uploadedById,
     });
   },
@@ -370,7 +359,6 @@ export const documentGeneratorService = {
     proposal: GeneratorProposal,
     project: GeneratorProject,
     client: GeneratorClient,
-    companyId: string,
     uploadedById: string
   ): Promise<Document> {
     const totalHT = proposal.amount != null ? Number(proposal.amount) : 0;
@@ -384,7 +372,7 @@ export const documentGeneratorService = {
       header(doc, "Devis");
       field(doc, "Référence", `DEV-${proposal.id.slice(0, 8).toUpperCase()}`);
       field(doc, "Date", fmtDate(new Date()));
-      field(doc, "Client", `${client.name}${client.email ? ` — ${client.email}` : ""}`);
+      field(doc, "Client", `${client.name}${client.email ? ` : ${client.email}` : ""}`);
       field(doc, "Projet", project.name);
       doc.moveDown(1);
 
@@ -422,10 +410,9 @@ export const documentGeneratorService = {
     return uploadAndCreate(buffer, {
       type: "QUOTE",
       filename: `devis-${project.id}`,
-      title: `Devis — ${project.name}`,
+      title: `Devis : ${project.name}`,
       projectId: project.id,
       clientId: client.id,
-      companyId,
       uploadedById,
     });
   },
@@ -434,7 +421,6 @@ export const documentGeneratorService = {
     invoice: GeneratorInvoice,
     project: GeneratorProject,
     client: GeneratorClient,
-    companyId: string,
     uploadedById: string
   ): Promise<Document> {
     const buffer = await buildPdf((doc) => {
@@ -443,7 +429,7 @@ export const documentGeneratorService = {
       field(doc, "Date d'émission", fmtDate(new Date()));
       field(doc, "Date limite de paiement", fmtDate(invoice.dueDate));
       doc.moveDown(0.5);
-      field(doc, "Client", `${client.name}${client.email ? ` — ${client.email}` : ""}`);
+      field(doc, "Client", `${client.name}${client.email ? ` : ${client.email}` : ""}`);
       field(doc, "Projet", project.name);
       doc.moveDown(1);
 
@@ -464,17 +450,15 @@ export const documentGeneratorService = {
     return uploadAndCreate(buffer, {
       type: "INVOICE_DEPOSIT",
       filename: `facture-acompte-${project.id}`,
-      title: `Facture d'acompte — ${project.name}`,
+      title: `Facture d'acompte : ${project.name}`,
       projectId: project.id,
       clientId: client.id,
-      companyId,
       uploadedById,
     });
   },
 
   async generateRoadmap(
     project: GeneratorProject,
-    companyId: string,
     uploadedById: string
   ): Promise<Document> {
     const buffer = await buildPdf((doc) => {
@@ -500,10 +484,9 @@ export const documentGeneratorService = {
     return uploadAndCreate(buffer, {
       type: "ROADMAP",
       filename: `roadmap-${project.id}`,
-      title: `Roadmap — ${project.name}`,
+      title: `Roadmap : ${project.name}`,
       description: project.description ?? undefined,
       projectId: project.id,
-      companyId,
       uploadedById,
     });
   },

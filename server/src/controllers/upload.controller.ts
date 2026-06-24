@@ -11,7 +11,7 @@ import { createUploadMiddleware } from "../middlewares/upload.middleware.js";
 const VALID_CONTEXTS: UploadContext[] = ["cv", "portfolio", "document", "image"];
 
 export const uploadFile: RequestHandler[] = [
-  // Dynamic multer middleware — resolve context from route param
+  // Dynamic multer middleware : resolve context from route param
   (req, res, next) => {
     const ctx = req.params.context as UploadContext;
     if (!VALID_CONTEXTS.includes(ctx)) {

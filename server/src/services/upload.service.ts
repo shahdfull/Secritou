@@ -162,7 +162,7 @@ export async function uploadFile(
 
   // Verify actual file content matches declared MIME type (defense against spoofed Content-Type)
   const detected = await fileTypeFromBuffer(buffer);
-  // Some text/plain files have no magic bytes — only reject if detection succeeds but doesn't match
+  // Some text/plain files have no magic bytes : only reject if detection succeeds but doesn't match
   if (detected && !ALLOWED_MIME[detected.mime]) {
     throw Object.assign(
       new Error(`Invalid file content (detected: ${detected.mime})`),
@@ -197,7 +197,7 @@ export async function uploadFile(
         Body: buffer,
         ContentType: mimeType,
         ContentLength: size,
-        // Private by default — use signed URLs to serve
+        // Private by default : use signed URLs to serve
         ACL: env.S3_PUBLIC_ACL ? "public-read" : "private",
         Metadata: {
           originalName: encodedName,

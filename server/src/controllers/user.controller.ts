@@ -4,7 +4,7 @@ import { HttpError } from "../utils/httpError.js";
 import { parseListQuery } from "../utils/listQuery.js";
 import { COMPANY_ID } from "../config/constants.js";
 
-// GET /users/me — any authenticated role
+// GET /users/me : any authenticated role
 export const getMe: RequestHandler = async (req, res, next) => {
   try {
     const user = await userService.getMe(req.user!.sub);
@@ -14,7 +14,7 @@ export const getMe: RequestHandler = async (req, res, next) => {
   }
 };
 
-// PATCH /users/me — any authenticated role
+// PATCH /users/me : any authenticated role
 export const updateMe: RequestHandler = async (req, res, next) => {
   try {
     const { name, email, phone } = req.body as {

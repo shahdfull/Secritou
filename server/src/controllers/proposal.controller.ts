@@ -40,7 +40,7 @@ export const respondToProposal = async (req: Request, res: Response) => {
     const result = await proposalService.reject(id, comment);
     return res.json({ data: result });
   }
-  throw new HttpError(400, "Invalid action — use 'accept' or 'reject'");
+  throw new HttpError(400, "Invalid action : use 'accept' or 'reject'");
 };
 
 export const getProposals = async (req: Request, res: Response) => {

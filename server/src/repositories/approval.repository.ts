@@ -2,18 +2,12 @@ import { prisma } from "../config/prisma.js";
 import { Prisma } from "@prisma/client";
 import type { Approval, ApprovalStatus } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
-import { COMPANY_ID } from "../config/constants.js";
 
 export const approvalRepository = {
   async findAll(
-    options: ListQueryOptions & {
-      companyId?: string;
-      clientId?: string;
-      status?: ApprovalStatus;
-      search?: string;
-    }
+    options: ListQueryOptions & { clientId?: string; status?: ApprovalStatus; search?: string }
   ): Promise<PaginatedResult<Approval & { client: { name: string } }>> {
-    const where: Prisma.ApprovalWhereInput = { companyId: options.companyId ?? COMPANY_ID };
+    const where: Prisma.ApprovalWhereInput = {};
     if (options.clientId) where.clientId = options.clientId;
     if (options.status) where.status = options.status;
     if (options.search) {
@@ -24,7 +18,6 @@ export const approvalRepository = {
     }
 
     const skip = (options.page - 1) * options.pageSize;
-
     const [data, total] = await Promise.all([
       prisma.approval.findMany({
         where,
@@ -70,9 +63,9 @@ export const approvalRepository = {
     });
   },
 
-  async findById(id: string, companyId: string = COMPANY_ID) {
+  async findById(id: string) {
     return prisma.approval.findUnique({
-      where: { id, companyId },
+      where: { id },
       include: {
         client: true,
         attachments: true,
@@ -87,59 +80,34 @@ export const approvalRepository = {
     status?: ApprovalStatus;
     dueDate?: Date;
     clientId: string;
-    companyId: string;
     projectId?: string;
   }) {
     return prisma.approval.create({ data });
   },
 
-  async update(
-    id: string,
-    companyId: string = COMPANY_ID,
-    data: Partial<{
-      title: string;
-      description: string;
-      status: ApprovalStatus;
-      dueDate: Date;
-    }>
-  ) {
-    return prisma.approval.update({ where: { id, companyId }, data });
+  async update(id: string, data: Partial<{
+    title: string;
+    description: string;
+    status: ApprovalStatus;
+    dueDate: Date;
+  }>) {
+    return prisma.approval.update({ where: { id }, data });
   },
 
-  async delete(id: string, companyId: string = COMPANY_ID) {
-    return prisma.approval.delete({ where: { id, companyId } });
+  async delete(id: string) {
+    return prisma.approval.delete({ where: { id } });
   },
 
-  async addAttachment(
-    approvalId: string,
-    companyId: string = COMPANY_ID,
-    data: { name: string; url: string }
-  ) {
-    await prisma.approval.findUniqueOrThrow({
-      where: { id: approvalId, companyId },
-      select: { id: true }
-    });
+  async addAttachment(approvalId: string, data: { name: string; url: string }) {
+    await prisma.approval.findUniqueOrThrow({ where: { id: approvalId }, select: { id: true } });
     return prisma.approvalAttachment.create({ data: { ...data, approvalId } });
   },
 
-  async deleteAttachment(id: string, companyId: string = COMPANY_ID) {
-    return prisma.approvalAttachment.delete({
-      where: {
-        id,
-        approval: { companyId }
-      }
-    });
+  async deleteAttachment(id: string) {
+    return prisma.approvalAttachment.delete({ where: { id } });
   },
 
-  async addTimeline(
-    approvalId: string,
-    data: {
-      action: string;
-      comment?: string;
-      status: ApprovalStatus;
-      userId?: string;
-    }
-  ) {
+  async addTimeline(approvalId: string, data: { action: string; comment?: string; status: ApprovalStatus; userId?: string }) {
     return prisma.approvalTimeline.create({ data: { ...data, approvalId } });
   },
 };

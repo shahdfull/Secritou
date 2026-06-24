@@ -32,7 +32,7 @@ export function applicationReceivedTemplate(firstName: string): {
   html: string;
 } {
   return {
-    subject: "Nous avons bien reçu votre candidature — Secritou",
+    subject: "Nous avons bien reçu votre candidature : Secritou",
     html: baseTemplate(
       "Candidature reçue",
       [
@@ -54,7 +54,7 @@ export function applicationAcceptedTemplate(
   loginUrl: string
 ): { subject: string; html: string } {
   return {
-    subject: "Félicitations — Votre candidature a été acceptée",
+    subject: "Félicitations : Votre candidature a été acceptée",
     html: baseTemplate(
       "Candidature acceptée",
       [
@@ -82,7 +82,7 @@ export function applicationRejectedTemplate(
   reason?: string
 ): { subject: string; html: string } {
   return {
-    subject: "Suite donnée à votre candidature — Secritou",
+    subject: "Suite donnée à votre candidature : Secritou",
     html: baseTemplate(
       "Candidature étudiée",
       [
@@ -148,11 +148,11 @@ export function proposalAcceptedTemplate(
       : null;
 
   return {
-    subject: `Proposition acceptée — ${proposalTitle}`,
+    subject: `Proposition acceptée : ${proposalTitle}`,
     html: baseTemplate(
       `Acceptée : ${proposalTitle}`,
       [
-        h1("Bonne nouvelle — Proposition acceptée ✅"),
+        h1("Bonne nouvelle : Proposition acceptée ✅"),
         p(`Bonjour ${adminName},`),
         p(`Le client <strong>${clientName}</strong> a accepté la proposition suivante :`),
         infoBox([
@@ -175,7 +175,7 @@ export function proposalRejectedTemplate(
   comment?: string
 ): { subject: string; html: string } {
   return {
-    subject: `Proposition refusée — ${proposalTitle}`,
+    subject: `Proposition refusée : ${proposalTitle}`,
     html: baseTemplate(
       `Refusée : ${proposalTitle}`,
       [
@@ -202,7 +202,7 @@ export function userInvitationTemplate(
   loginUrl: string
 ): { subject: string; html: string } {
   return {
-    subject: "Bienvenue sur Secritou — Vos accès",
+    subject: "Bienvenue sur Secritou : Vos accès",
     html: baseTemplate(
       "Invitation Secritou",
       [
@@ -237,7 +237,7 @@ export function invoiceSentTemplate(
   }).format(amount);
 
   return {
-    subject: `Facture ${invoiceNumber} — ${formattedAmount}`,
+    subject: `Facture ${invoiceNumber} : ${formattedAmount}`,
     html: baseTemplate(
       `Facture ${invoiceNumber}`,
       [
@@ -271,9 +271,9 @@ export function invoiceReminderTemplate(
   }).format(amount);
 
   return {
-    subject: `Rappel de paiement — Facture ${invoiceNumber}`,
+    subject: `Rappel de paiement : Facture ${invoiceNumber}`,
     html: baseTemplate(
-      `Rappel — Facture ${invoiceNumber}`,
+      `Rappel : Facture ${invoiceNumber}`,
       [
         h1("Rappel de paiement"),
         p(`Bonjour ${clientName},`),
@@ -303,7 +303,7 @@ export function onboardingStartedTemplate(
   portalUrl: string
 ): { subject: string; html: string } {
   return {
-    subject: `Votre projet "${projectName}" démarre — Secritou`,
+    subject: `Votre projet "${projectName}" démarre : Secritou`,
     html: baseTemplate(
       "Démarrage de projet",
       [
@@ -329,7 +329,7 @@ export function onboardingStepCompletedTemplate(
   nextStepTitle?: string
 ): { subject: string; html: string } {
   return {
-    subject: `Étape validée : "${stepTitle}" — ${projectName}`,
+    subject: `Étape validée : "${stepTitle}" : ${projectName}`,
     html: baseTemplate(
       "Étape validée",
       [
@@ -390,7 +390,7 @@ export function approvalDecisionTemplate(
       : "commentée 💬";
 
   return {
-    subject: `Décision sur "${approvalTitle}" — ${decision === "APPROVED" ? "Approuvée" : decision === "REJECTED" ? "Refusée" : "Commentaire"}`,
+    subject: `Décision sur "${approvalTitle}" : ${decision === "APPROVED" ? "Approuvée" : decision === "REJECTED" ? "Refusée" : "Commentaire"}`,
     html: baseTemplate(
       `Décision : ${approvalTitle}`,
       [
@@ -428,7 +428,7 @@ export function passwordResetTemplate(
           "<strong>Ce lien expire dans 1 heure.</strong>"
         ),
         p(
-          "Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email — " +
+          "Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email : " +
           "votre mot de passe reste inchangé."
         ),
       ].join(""),
@@ -448,7 +448,7 @@ export function clientInvitationTemplate(opts: {
   companyName: string;
 }): { subject: string; html: string } {
   return {
-    subject: `Accès à votre portail client — ${opts.companyName}`,
+    subject: `Accès à votre portail client : ${opts.companyName}`,
     html: baseTemplate(
       "Invitation portail client",
       [
@@ -529,7 +529,7 @@ export function serviceRequestStatusTemplate(
 
 // ─── Custom question templates ────────────────────────────────────────────────
 
-/** Email 1 — confirmation to the user after they submit a custom question. */
+/** Email 1 : confirmation to the user after they submit a custom question. */
 export function customQuestionReceivedTemplate(opts: {
   userName: string;
   subject: string;
@@ -537,7 +537,7 @@ export function customQuestionReceivedTemplate(opts: {
   portalUrl: string;
 }): { subject: string; html: string } {
   return {
-    subject: "Nous avons bien reçu votre question — Secritou",
+    subject: "Nous avons bien reçu votre question : Secritou",
     html: baseTemplate(
       "Question reçue",
       [
@@ -558,7 +558,7 @@ export function customQuestionReceivedTemplate(opts: {
   };
 }
 
-/** Email 2 — notification to the admin when a new custom question is posted. */
+/** Email 2 : notification to the admin when a new custom question is posted. */
 export function customQuestionAdminNotificationTemplate(opts: {
   adminName: string;
   userName: string;
@@ -586,7 +586,7 @@ export function customQuestionAdminNotificationTemplate(opts: {
   );
 }
 
-/** Email 3 — notification to the user when the admin replies. */
+/** Email 3 : notification to the user when the admin replies. */
 export function customQuestionAnsweredTemplate(opts: {
   userName: string;
   subject: string;
@@ -594,7 +594,7 @@ export function customQuestionAnsweredTemplate(opts: {
   portalUrl: string;
 }): { subject: string; html: string } {
   return {
-    subject: "Nous avons répondu à votre question — Secritou",
+    subject: "Nous avons répondu à votre question : Secritou",
     html: baseTemplate(
       "Réponse à votre question",
       [
@@ -621,7 +621,7 @@ export function projectApprovedManagerTemplate(opts: {
   dashboardUrl: string;
 }): { subject: string; html: string } {
   return {
-    subject: `Projet approuvé — ${opts.projectName}`,
+    subject: `Projet approuvé : ${opts.projectName}`,
     html: baseTemplate(
       `Approuvé : ${opts.projectName}`,
       [
@@ -647,7 +647,7 @@ export function projectApprovedClientTemplate(opts: {
   portalUrl: string;
 }): { subject: string; html: string } {
   return {
-    subject: `Votre projet est terminé — ${opts.projectName}`,
+    subject: `Votre projet est terminé : ${opts.projectName}`,
     html: baseTemplate(
       `Projet terminé : ${opts.projectName}`,
       [

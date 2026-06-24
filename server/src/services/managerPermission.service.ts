@@ -7,7 +7,6 @@ import { cacheKeys } from "../cache/cacheKeys.js";
 const MODULES = [
   "projects",
   "tasks",
-  "missions",
   "freelancers",
   "clients",
   "leads",

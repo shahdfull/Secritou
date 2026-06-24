@@ -80,7 +80,7 @@ export const emailService = {
       if (previewUrl) {
         console.info(`[email] Preview: ${previewUrl}`);
       } else {
-        console.info(`[email] Sent to ${options.to} — messageId: ${info.messageId}`);
+        console.info(`[email] Sent to ${options.to} : messageId: ${info.messageId}`);
       }
     }
   },

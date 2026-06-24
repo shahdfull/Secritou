@@ -3,7 +3,6 @@ import { HttpError } from "../utils/httpError.js";
 import { enqueueEmail } from "../jobs/queues.js";
 import { userInvitationTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
-import { COMPANY_ID } from "../config/constants.js";
 import type { Role } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import bcrypt from "bcryptjs";
@@ -20,10 +19,7 @@ export const userService = {
     return user;
   },
 
-  async updateMe(
-    userId: string,
-    data: { name?: string; email?: string; phone?: string }
-  ) {
+  async updateMe(userId: string, data: { name?: string; email?: string; phone?: string }) {
     const user = await userRepository.findById(userId);
     if (!user) throw new HttpError(404, "User not found");
 
@@ -35,9 +31,8 @@ export const userService = {
     return userRepository.updateMe(userId, data);
   },
 
-
   async getUsersByCompany(options: ListQueryOptions) {
-    return userRepository.findByCompanyId(COMPANY_ID, options);
+    return userRepository.findAll(options);
   },
 
   async inviteUser(email: string, name: string, role: Role) {
@@ -47,14 +42,7 @@ export const userService = {
     const tempPassword = generateRandomPassword();
     const hashedPassword = await bcrypt.hash(tempPassword, 12);
 
-    const user = await userRepository.create({
-      name,
-      email,
-      passwordHash: hashedPassword,
-      role,
-      companyId: COMPANY_ID,
-      mustChangePassword: true,
-    });
+    const user = await userRepository.create({ name, email, passwordHash: hashedPassword, role, mustChangePassword: true });
 
     const loginUrl = `${env.FRONTEND_URL}/login`;
     const { subject, html } = userInvitationTemplate(name, email, tempPassword, loginUrl);
@@ -66,16 +54,12 @@ export const userService = {
   async updateUser(id: string, name?: string, role?: Role) {
     const user = await userRepository.findById(id);
     if (!user) throw new HttpError(404, "User not found");
-    if (user.companyId !== COMPANY_ID) throw new HttpError(403, "You cannot update this user");
-
     return userRepository.update(id, { name, role });
   },
 
   async deleteUser(id: string) {
     const user = await userRepository.findById(id);
     if (!user) throw new HttpError(404, "User not found");
-    if (user.companyId !== COMPANY_ID) throw new HttpError(403, "You cannot delete this user");
-
     return userRepository.delete(id);
   },
 };
