@@ -4,6 +4,7 @@ import { dashboardService } from "../../services/dashboard.service.js";
 import { clientSuccessService } from "../../services/clientSuccess.service.js";
 import { userRepository } from "../../repositories/user.repository.js";
 import { enqueueNotifications } from "../queues.js";
+import { env } from "../../config/env.js";
 
 export async function cleanupExpiredRefreshTokens() {
   const start = performance.now();
@@ -130,15 +131,44 @@ export async function warmDashboardSummaries() {
  */
 export async function expireProposals() {
   const start = performance.now();
-  const result = await prisma.proposal.updateMany({
-    where: {
-      status: { in: ["SENT", "VIEWED"] },
-      expiresAt: { not: null, lt: new Date() },
-    },
+
+  const expiring = await prisma.proposal.findMany({
+    where: { status: { in: ["SENT", "VIEWED"] }, expiresAt: { not: null, lt: new Date() } },
+    select: { id: true, title: true, clientId: true },
+  });
+
+  if (expiring.length === 0) {
+    recordBullMQJob("maintenance", "expire-proposals", "completed", (performance.now() - start) / 1000);
+    return 0;
+  }
+
+  await prisma.proposal.updateMany({
+    where: { id: { in: expiring.map((p) => p.id) } },
     data: { status: "EXPIRED" },
   });
+
+  const [admins, ...clientUserGroups] = await Promise.all([
+    userRepository.findAdmins(),
+    ...expiring.map((p) => userRepository.findByClientId(p.clientId)),
+  ]);
+
+  const notifications: Parameters<typeof enqueueNotifications>[0] = [];
+  for (let i = 0; i < expiring.length; i++) {
+    const proposal = expiring[i];
+    const clientUsers = clientUserGroups[i];
+    const clientLink = `${env.FRONTEND_URL}/client/proposals/${proposal.id}`;
+    const adminLink = `${env.FRONTEND_URL}/app/proposals/${proposal.id}`;
+    for (const user of clientUsers) {
+      notifications.push({ userId: user.id, title: "Proposition expirée", message: `La proposition "${proposal.title}" a expiré.`, type: "PROPOSAL_EXPIRED" as const, entityId: proposal.id, link: clientLink });
+    }
+    for (const admin of admins) {
+      notifications.push({ userId: admin.id, title: "Proposition expirée", message: `La proposition "${proposal.title}" a expiré sans réponse du client.`, type: "PROPOSAL_EXPIRED" as const, entityId: proposal.id, link: adminLink });
+    }
+  }
+  await enqueueNotifications(notifications);
+
   recordBullMQJob("maintenance", "expire-proposals", "completed", (performance.now() - start) / 1000);
-  return result.count;
+  return expiring.length;
 }
 
 /**
@@ -174,6 +204,9 @@ export async function markOverdueInvoices() {
         userId: admin.id,
         title: "Facture en retard",
         message: `La facture ${inv.number} est désormais en retard de paiement.`,
+        type: "INVOICE_OVERDUE" as const,
+        entityId: inv.id,
+        link: `${env.FRONTEND_URL}/app/invoices/${inv.id}`,
       }))
     )
   );

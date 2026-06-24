@@ -97,7 +97,7 @@ export const documentRepository = {
     accessLevel?: DocumentAccessLevel;
     clientId?: string;
     projectId?: string;
-    uploadedById: string;
+    uploadedById?: string;
     signedAt?: Date;
     signedByClientId?: string;
   }) {

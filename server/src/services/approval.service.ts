@@ -1,6 +1,6 @@
 import { approvalRepository } from "../repositories/approval.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
-import { enqueueEmail, enqueueEmails } from "../jobs/queues.js";
+import { enqueueEmail, enqueueEmails, enqueueNotifications } from "../jobs/queues.js";
 import { approvalRequestedTemplate, approvalDecisionTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
 import type { ApprovalStatus } from "@prisma/client";
@@ -34,12 +34,24 @@ export const approvalService = {
     const approvalUrl = `${env.FRONTEND_URL}/client/approvals/${approval.id}`;
     const dueDate = data.dueDate ? new Date(data.dueDate).toLocaleDateString("fr-FR") : ":";
 
-    void enqueueEmails(
-      clientUsers.map((user) => {
-        const { subject, html } = approvalRequestedTemplate(user.name ?? "Client", approval.title, requester?.name ?? "L'équipe Secritou", dueDate, approvalUrl);
-        return { to: user.email, subject, html };
-      })
-    );
+    void Promise.all([
+      enqueueEmails(
+        clientUsers.map((user) => {
+          const { subject, html } = approvalRequestedTemplate(user.name ?? "Client", approval.title, requester?.name ?? "L'équipe Secritou", dueDate, approvalUrl);
+          return { to: user.email, subject, html };
+        })
+      ),
+      enqueueNotifications(
+        clientUsers.map((user) => ({
+          userId: user.id,
+          title: "Validation requise",
+          message: `Une validation vous a été envoyée : "${approval.title}".`,
+          type: "APPROVAL_REQUESTED" as const,
+          entityId: approval.id,
+          link: approvalUrl,
+        }))
+      ),
+    ]);
 
     return approval;
   },
@@ -58,12 +70,34 @@ export const approvalService = {
     await approvalRepository.addTimeline(id, { action: "APPROVED", comment, status: "APPROVED", userId });
 
     if (approval) {
-      const decider = userId ? await userRepository.findById(userId) : null;
-      const clientUsers = await userRepository.findByClientId(approval.clientId);
-      for (const user of clientUsers) {
-        const { subject, html } = approvalDecisionTemplate(user.name ?? "Client", approval.title, "APPROVED", decider?.name ?? "L'équipe Secritou", comment);
-        void enqueueEmail({ to: user.email, subject, html });
-      }
+      const [decider, clientUsers, admins] = await Promise.all([
+        userId ? userRepository.findById(userId) : Promise.resolve(null),
+        userRepository.findByClientId(approval.clientId),
+        userRepository.findAdmins(),
+      ]);
+      const approvalUrl = `${env.FRONTEND_URL}/app/approvals/${approval.id}`;
+      void Promise.all([
+        enqueueEmails(clientUsers.map((user) => {
+          const { subject, html } = approvalDecisionTemplate(user.name ?? "Client", approval.title, "APPROVED", decider?.name ?? "L'équipe Secritou", comment);
+          return { to: user.email, subject, html };
+        })),
+        enqueueNotifications(clientUsers.map((user) => ({
+          userId: user.id,
+          title: "Validation acceptée",
+          message: `Votre validation "${approval.title}" a été acceptée.`,
+          type: "APPROVAL_ACCEPTED" as const,
+          entityId: approval.id,
+          link: `${env.FRONTEND_URL}/client/approvals/${approval.id}`,
+        }))),
+        enqueueNotifications(admins.map((admin) => ({
+          userId: admin.id,
+          title: "Validation acceptée par le client",
+          message: `Le client a accepté la validation "${approval.title}".`,
+          type: "APPROVAL_ACCEPTED" as const,
+          entityId: approval.id,
+          link: approvalUrl,
+        }))),
+      ]);
     }
 
     return updated;
@@ -75,12 +109,34 @@ export const approvalService = {
     await approvalRepository.addTimeline(id, { action: "REJECTED", comment, status: "REJECTED", userId });
 
     if (approval) {
-      const decider = userId ? await userRepository.findById(userId) : null;
-      const clientUsers = await userRepository.findByClientId(approval.clientId);
-      for (const user of clientUsers) {
-        const { subject, html } = approvalDecisionTemplate(user.name ?? "Client", approval.title, "REJECTED", decider?.name ?? "L'équipe Secritou", comment);
-        void enqueueEmail({ to: user.email, subject, html });
-      }
+      const [decider, clientUsers, admins] = await Promise.all([
+        userId ? userRepository.findById(userId) : Promise.resolve(null),
+        userRepository.findByClientId(approval.clientId),
+        userRepository.findAdmins(),
+      ]);
+      const approvalUrl = `${env.FRONTEND_URL}/app/approvals/${approval.id}`;
+      void Promise.all([
+        enqueueEmails(clientUsers.map((user) => {
+          const { subject, html } = approvalDecisionTemplate(user.name ?? "Client", approval.title, "REJECTED", decider?.name ?? "L'équipe Secritou", comment);
+          return { to: user.email, subject, html };
+        })),
+        enqueueNotifications(clientUsers.map((user) => ({
+          userId: user.id,
+          title: "Validation refusée",
+          message: `Votre validation "${approval.title}" a été refusée.`,
+          type: "APPROVAL_REJECTED" as const,
+          entityId: approval.id,
+          link: `${env.FRONTEND_URL}/client/approvals/${approval.id}`,
+        }))),
+        enqueueNotifications(admins.map((admin) => ({
+          userId: admin.id,
+          title: "Validation refusée par le client",
+          message: `Le client a refusé la validation "${approval.title}".`,
+          type: "APPROVAL_REJECTED" as const,
+          entityId: approval.id,
+          link: approvalUrl,
+        }))),
+      ]);
     }
 
     return updated;

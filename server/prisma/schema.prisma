@@ -449,16 +449,42 @@ model Rating {
   @@index([freelancerId])
 }
 
+enum NotificationType {
+  PROPOSAL_SENT
+  PROPOSAL_ACCEPTED
+  PROPOSAL_REJECTED
+  PROPOSAL_EXPIRED
+  APPROVAL_REQUESTED
+  APPROVAL_ACCEPTED
+  APPROVAL_REJECTED
+  INVOICE_SENT
+  INVOICE_OVERDUE
+  PAYMENT_RECEIVED
+  PROJECT_STATUS_CHANGED
+  TASK_ASSIGNED
+  SERVICE_REQUEST_CREATED
+  SERVICE_REQUEST_STATUS_CHANGED
+  SERVICE_REQUEST_COMMENT
+  BRIEF_COMPLETED
+  DOCUMENT_SIGNED
+  LEAD_CONVERTED
+  FREELANCER_APPLICATION
+  GENERAL
+}
+
 // Notification model for user notifications
 model Notification {
-  id        String   @id @default(uuid())
+  id        String             @id @default(uuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title     String   @db.VarChar(255)
-  message   String   @db.Text
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String             @db.VarChar(255)
+  message   String             @db.Text
+  type      NotificationType   @default(GENERAL)
+  entityId  String?            @db.VarChar(255)
+  link      String?            @db.VarChar(500)
+  read      Boolean            @default(false)
+  createdAt DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime           @updatedAt @db.Timestamptz(6)
 
   @@index([userId])
   @@index([userId, read])

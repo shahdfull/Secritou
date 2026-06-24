@@ -6,6 +6,9 @@ import type { ListQueryOptions } from "../utils/listQuery.js";
 import { prisma } from "../config/prisma.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
+import { userRepository } from "../repositories/user.repository.js";
+import { enqueueNotifications } from "../jobs/queues.js";
+import { env } from "../config/env.js";
 
 async function invalidateCompanyCache() {
   await invalidateTags([cacheTags.company(), cacheTags.dashboard()]);
@@ -84,6 +87,17 @@ export const leadService = {
     });
 
     await invalidateCompanyCache();
+
+    const admins = await userRepository.findAdmins();
+    void enqueueNotifications(admins.map((admin) => ({
+      userId: admin.id,
+      title: "Lead converti en client",
+      message: `Le lead "${lead.name}" a été converti en client.`,
+      type: "LEAD_CONVERTED" as const,
+      entityId: client.id,
+      link: `${env.FRONTEND_URL}/app/clients/${client.id}`,
+    })));
+
     return client;
   },
 };

@@ -1,6 +1,7 @@
 import { Queue } from "bullmq";
 import { jobNames, queueNames } from "./jobNames.js";
 import { getBullRedisConnection } from "./redisConnection.js";
+import type { NotificationType } from "@prisma/client";
 
 const connection = getBullRedisConnection();
 
@@ -29,6 +30,9 @@ export type NotificationJob = {
   userId: string;
   title: string;
   message: string;
+  type?: NotificationType;
+  entityId?: string;
+  link?: string;
 };
 
 export async function enqueueNotification(data: NotificationJob) {

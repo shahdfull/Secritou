@@ -4,6 +4,9 @@ import type { ListQueryOptions } from "../utils/listQuery.js";
 import { prisma } from "../config/prisma.js";
 import { getSignedReadUrl } from "./upload.service.js";
 import { HttpError } from "../utils/httpError.js";
+import { userRepository } from "../repositories/user.repository.js";
+import { enqueueNotifications } from "../jobs/queues.js";
+import { env } from "../config/env.js";
 
 type Viewer = { role: Role; clientId?: string | null; serviceId?: string | null };
 
@@ -46,7 +49,7 @@ export const documentService = {
       accessLevel: original.accessLevel,
       clientId: original.clientId ?? undefined,
       projectId: original.projectId ?? undefined,
-      uploadedById: data.userId || original.uploadedById,
+      uploadedById: data.userId || original.uploadedById || undefined,
     });
 
     await documentRepository.addAccessLog(id, { action: "VERSION_CREATED", userId: data.userId, ipAddress: data.ipAddress, userAgent: data.userAgent });
@@ -60,12 +63,22 @@ export const documentService = {
 
   // CLIENT-only: sign the contract document.
   async signDocument(documentId: string, clientId: string) {
-    const doc = await prisma.document.findFirst({ where: { id: documentId }, include: { project: { select: { clientId: true } } } });
+    const doc = await prisma.document.findFirst({ where: { id: documentId }, include: { project: { select: { clientId: true, name: true } } } });
     if (!doc) throw new HttpError(404, "Document not found");
     if (doc.project?.clientId !== clientId) throw new HttpError(403, "Forbidden");
     if (doc.type !== "CONTRACT") throw new HttpError(400, "Only the contract document can be signed", "NOT_A_CONTRACT");
     if (doc.signedAt) throw new HttpError(409, "Document already signed", "ALREADY_SIGNED");
-    return prisma.document.update({ where: { id: documentId }, data: { signedAt: new Date(), signedByClientId: clientId } });
+    const signed = await prisma.document.update({ where: { id: documentId }, data: { signedAt: new Date(), signedByClientId: clientId } });
+    const admins = await userRepository.findAdmins();
+    void enqueueNotifications(admins.map((admin) => ({
+      userId: admin.id,
+      title: "Contrat signé",
+      message: `Le contrat "${doc.title}" (projet : ${doc.project?.name ?? "?"}) a été signé par le client.`,
+      type: "DOCUMENT_SIGNED" as const,
+      entityId: documentId,
+      link: `${env.FRONTEND_URL}/app/documents/${documentId}`,
+    })));
+    return signed;
   },
 
   async getDownloadUrl(documentId: string, viewer: Viewer) {

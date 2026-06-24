@@ -1,7 +1,7 @@
 import { proposalRepository } from "../repositories/proposal.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { clientRepository } from "../repositories/client.repository.js";
-import { enqueueEmail, enqueueEmails } from "../jobs/queues.js";
+import { enqueueEmail, enqueueEmails, enqueueNotifications } from "../jobs/queues.js";
 import { proposalSentTemplate, proposalAcceptedTemplate, proposalRejectedTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
 import type { ProposalStatus } from "@prisma/client";
@@ -46,25 +46,45 @@ async function revertParentToDraftIfLive(sectionId: string, change: "edited" | "
 }
 
 async function notifyAdminsAccepted(proposal: { id: string; title: string; amount: unknown; currency: string | null; clientId: string }) {
-  const [admins, client] = await Promise.all([
+  const [admins, client, clientUsers] = await Promise.all([
     userRepository.findAdmins(),
     clientRepository.findById(proposal.clientId),
+    userRepository.findByClientId(proposal.clientId),
   ]);
   const dashboardUrl = `${env.FRONTEND_URL}/app/proposals/${proposal.id}`;
+  const clientUrl = `${env.FRONTEND_URL}/client/proposals/${proposal.id}`;
   const currency = proposal.currency ?? "TND";
-  void enqueueEmails(
-    admins.map((admin) => {
-      const { subject, html } = proposalAcceptedTemplate(
-        admin.name ?? "Admin",
-        proposal.title,
-        client?.name ?? "Le client",
-        proposal.amount != null ? Number(proposal.amount) : null,
-        currency,
-        dashboardUrl
-      );
-      return { to: admin.email, subject, html };
-    })
-  );
+  void Promise.all([
+    enqueueEmails(
+      admins.map((admin) => {
+        const { subject, html } = proposalAcceptedTemplate(
+          admin.name ?? "Admin",
+          proposal.title,
+          client?.name ?? "Le client",
+          proposal.amount != null ? Number(proposal.amount) : null,
+          currency,
+          dashboardUrl
+        );
+        return { to: admin.email, subject, html };
+      })
+    ),
+    enqueueNotifications(admins.map((admin) => ({
+      userId: admin.id,
+      title: "Proposition acceptée",
+      message: `${client?.name ?? "Le client"} a accepté la proposition "${proposal.title}".`,
+      type: "PROPOSAL_ACCEPTED" as const,
+      entityId: proposal.id,
+      link: dashboardUrl,
+    }))),
+    enqueueNotifications(clientUsers.map((user) => ({
+      userId: user.id,
+      title: "Proposition acceptée",
+      message: `Vous avez accepté la proposition "${proposal.title}". Un projet et une facture ont été créés.`,
+      type: "PROPOSAL_ACCEPTED" as const,
+      entityId: proposal.id,
+      link: clientUrl,
+    }))),
+  ]);
 }
 
 export const proposalService = {
@@ -145,12 +165,24 @@ export const proposalService = {
       const clientUsers = await userRepository.findByClientId(proposal.clientId);
       const viewUrl = `${env.FRONTEND_URL}/client/proposals/${id}`;
       const currency = proposal.currency ?? "TND";
-      void enqueueEmails(
-        clientUsers.map((user) => {
-          const { subject, html } = proposalSentTemplate(user.name ?? "Client", proposal.title, proposal.amount != null ? Number(proposal.amount) : null, currency, viewUrl);
-          return { to: user.email, subject, html };
-        })
-      );
+      void Promise.all([
+        enqueueEmails(
+          clientUsers.map((user) => {
+            const { subject, html } = proposalSentTemplate(user.name ?? "Client", proposal.title, proposal.amount != null ? Number(proposal.amount) : null, currency, viewUrl);
+            return { to: user.email, subject, html };
+          })
+        ),
+        enqueueNotifications(
+          clientUsers.map((user) => ({
+            userId: user.id,
+            title: "Nouvelle proposition",
+            message: `Une proposition "${proposal.title}" vous a été envoyée.`,
+            type: "PROPOSAL_SENT" as const,
+            entityId: id,
+            link: viewUrl,
+          }))
+        ),
+      ]);
     }
 
     return updated;
@@ -311,18 +343,36 @@ export const proposalService = {
     }
     const updated = await proposalRepository.update(id, { status: "REJECTED", rejectedAt: new Date() });
 
-    if (proposal) {
-      const [admins, client] = await Promise.all([
-        userRepository.findAdmins(),
-        clientRepository.findById(proposal.clientId),
-      ]);
-      void enqueueEmails(
+    const [admins, client] = await Promise.all([
+      userRepository.findAdmins(),
+      clientRepository.findById(proposal.clientId),
+    ]);
+    const adminLink = `${env.FRONTEND_URL}/app/proposals/${id}`;
+    const clientUsers = await userRepository.findByClientId(proposal.clientId);
+    void Promise.all([
+      enqueueEmails(
         admins.map((admin) => {
           const { subject, html } = proposalRejectedTemplate(admin.name ?? "Admin", proposal.title, client?.name ?? "Le client", comment);
           return { to: admin.email, subject, html };
         })
-      );
-    }
+      ),
+      enqueueNotifications(admins.map((admin) => ({
+        userId: admin.id,
+        title: "Proposition refusée",
+        message: `${client?.name ?? "Le client"} a refusé la proposition "${proposal.title}".`,
+        type: "PROPOSAL_REJECTED" as const,
+        entityId: id,
+        link: adminLink,
+      }))),
+      enqueueNotifications(clientUsers.map((user) => ({
+        userId: user.id,
+        title: "Proposition refusée",
+        message: `Vous avez refusé la proposition "${proposal.title}".`,
+        type: "PROPOSAL_REJECTED" as const,
+        entityId: id,
+        link: `${env.FRONTEND_URL}/client/proposals/${id}`,
+      }))),
+    ]);
 
     return updated;
   },

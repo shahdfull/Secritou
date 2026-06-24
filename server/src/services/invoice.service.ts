@@ -103,10 +103,20 @@ export const invoiceService = {
       const clientUsers = await userRepository.findByClientId(invoice.clientId);
       const dueDate = invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString("fr-FR") : ":";
       const invoiceUrl = `${env.FRONTEND_URL}/client/invoices`;
-      for (const user of clientUsers) {
-        const { subject, html } = invoiceSentTemplate(user.name ?? invoice.clientId, invoice.number, Number(invoice.amount), invoice.currency ?? "TND", dueDate, invoiceUrl);
-        void enqueueEmail({ to: user.email, subject, html });
-      }
+      void Promise.all([
+        ...clientUsers.map((user) => {
+          const { subject, html } = invoiceSentTemplate(user.name ?? invoice.clientId, invoice.number, Number(invoice.amount), invoice.currency ?? "TND", dueDate, invoiceUrl);
+          return enqueueEmail({ to: user.email, subject, html });
+        }),
+        enqueueNotifications(clientUsers.map((user) => ({
+          userId: user.id,
+          title: "Nouvelle facture",
+          message: `La facture ${invoice.number} de ${Number(invoice.amount).toFixed(2)} ${invoice.currency ?? "TND"} est disponible.`,
+          type: "INVOICE_SENT" as const,
+          entityId: id,
+          link: invoiceUrl,
+        }))),
+      ]);
     }
 
     return updated;
