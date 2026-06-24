@@ -10,7 +10,9 @@ import { authorize } from "../middlewares/rbac.middleware.js";
 
 const router = Router();
 
-// Freelancer profile routes (the mission/marketplace feature has been removed).
+router.get("/", authenticate, authorize("ADMIN", "MANAGER", "FREELANCER"), freelancerController.getFreelancers);
+router.get("/:id", authenticate, authorize("ADMIN", "MANAGER", "FREELANCER"), freelancerController.getFreelancerById);
+
 router.post(
   "/me",
   authenticate,

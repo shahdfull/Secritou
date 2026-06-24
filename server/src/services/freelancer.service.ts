@@ -5,8 +5,20 @@ import type {
 import { freelancerRepository } from "../repositories/freelancer.repository.js";
 import { HttpError } from "../utils/httpError.js";
 import type { Role } from "@prisma/client";
+import type { ListQueryOptions } from "../utils/listQuery.js";
 
 export const freelancerService = {
+  async getAll(options: ListQueryOptions) {
+    return freelancerRepository.findAll(options);
+  },
+
+  async getById(id: string) {
+    const profile = await freelancerRepository.findById(id);
+    if (!profile) throw new HttpError(404, "Freelancer not found");
+    return profile;
+  },
+
+
   async createMyProfile(
     userId: string,
     userRole: Role,

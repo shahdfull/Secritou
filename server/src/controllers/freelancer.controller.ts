@@ -1,5 +1,25 @@
 import type { RequestHandler } from "express";
 import { freelancerService } from "../services/freelancer.service.js";
+import { parseListQuery } from "../utils/listQuery.js";
+
+export const getFreelancers: RequestHandler = async (req, res, next) => {
+  try {
+    const options = parseListQuery(req.query as Record<string, unknown>);
+    const result = await freelancerService.getAll(options);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getFreelancerById: RequestHandler = async (req, res, next) => {
+  try {
+    const profile = await freelancerService.getById(req.params.id);
+    res.json({ data: profile });
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const createMyProfile: RequestHandler = async (req, res, next) => {
   try {
