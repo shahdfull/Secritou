@@ -32,8 +32,15 @@ export const respondToProposal = async (req: Request, res: Response) => {
   if (!proposal) throw new HttpError(404, "Proposal not found");
   if (proposal.clientId !== clientId) throw new HttpError(403, "Forbidden");
   if (action === "accept") {
-    const result = await proposalService.accept(id, expectedVersion);
-    return res.json({ data: result });
+    const result = await proposalService.acceptWithCascade(id, expectedVersion, req.user!.id);
+    return res.json({
+      data: result.proposal,
+      meta: {
+        projectId: result.projectId,
+        invoiceId: result.invoiceId,
+        clientInvited: result.clientInvited,
+      },
+    });
   }
   if (action === "reject") {
     const result = await proposalService.reject(id, comment);
@@ -91,6 +98,7 @@ export const deleteProposal = async (req: Request, res: Response) => {
 export const sendProposal = async (req: Request, res: Response) => {
   const proposal = await proposalService.send(
     req.params.id as string,
+    req.user!.id,
     await buildServiceScope(req)
   );
   res.json({ data: proposal });

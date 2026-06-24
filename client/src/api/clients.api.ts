@@ -4,13 +4,13 @@ import type { ApiResponse } from "../types/auth";
 import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 
 export const clientsApi = {
-  getAll: async (params: ListQueryParams = {}): Promise<PaginatedResponse<Client>> => {
+  getAll: async (params: ListQueryParams & { includeArchived?: boolean } = {}): Promise<PaginatedResponse<Client>> => {
     const response = await apiClient.get<PaginatedResponse<Client>>("/clients", { params });
     return response.data;
   },
 
-  getById: async (id: string): Promise<Client> => {
-    const response = await apiClient.get<ApiResponse<Client>>(`/clients/${id}`);
+  getById: async (id: string, options?: { includeArchived?: boolean }): Promise<Client> => {
+    const response = await apiClient.get<ApiResponse<Client>>(`/clients/${id}`, { params: { includeArchived: options?.includeArchived } });
     return response.data.data;
   },
 

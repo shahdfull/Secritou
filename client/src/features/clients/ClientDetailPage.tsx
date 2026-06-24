@@ -20,6 +20,7 @@ import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { documentsApi, type Document } from "@/api/documents.api";
 import { useTranslation } from "react-i18next";
+import apiClient from "@/api/axios";
 import {
   Select,
   SelectContent,
@@ -115,6 +116,17 @@ export function ClientDetailPage() {
     enabled: !!id,
   });
   const documents = documentsResult?.data ?? [];
+
+  const { data: creditNotesResult, isLoading: creditNotesLoading } = useQuery({
+    queryKey: ["clientCreditNotes", id],
+    queryFn: async () => {
+      if (!id) return { data: [] };
+      const res = await apiClient.get<{ data: any[] }>(`/clients/${id}/credit-notes`);
+      return res.data;
+    },
+    enabled: !!id,
+  });
+  const creditNotes = creditNotesResult?.data ?? [];
 
   const addDocumentMutation = useMutation({
     mutationFn: (data: Omit<Document, "id" | "createdAt" | "updatedAt">) =>
@@ -299,6 +311,12 @@ export function ClientDetailPage() {
               <Badge className="ml-1.5 h-4 px-1.5 text-[10px]">{documents.length}</Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="credit-notes">
+            Avoirs
+            {creditNotes.length > 0 && (
+              <Badge className="ml-1.5 h-4 px-1.5 text-[10px]">{creditNotes.length}</Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* ── Informations ── */}
@@ -324,7 +342,13 @@ export function ClientDetailPage() {
                 <div>
                   <p className="text-muted-foreground">{t("clientsPage.detail.clientSince")}</p>
                   <p className="font-medium">
-                    {client.createdAt ? format(new Date(client.createdAt), "dd MMM yyyy", { locale: fr }) : ":"}
+                    {client.createdAt ? format(new Date(client.createdAt), "dd MMM yyyy", { locale: fr }) : "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Solde d'avoirs</p>
+                  <p className="font-medium text-emerald-600 font-mono">
+                    {Number(client.creditBalance || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} TND
                   </p>
                 </div>
               </div>
@@ -579,6 +603,67 @@ export function ClientDetailPage() {
                 </Table>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-6">{t("clientsPage.detail.noDocuments")}</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Avoirs ── */}
+        <TabsContent value="credit-notes">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Avoirs (Credit Notes)</CardTitle>
+              <div className="text-right">
+                <span className="text-xs text-muted-foreground">Solde d'avoirs disponible :</span>
+                <p className="text-lg font-bold text-emerald-600 font-mono">
+                  {Number(client.creditBalance || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} TND
+                </p>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {creditNotesLoading ? (
+                <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              ) : creditNotes.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">Aucun avoir disponible pour ce client.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Numéro d'avoir</TableHead>
+                      <TableHead>Montant</TableHead>
+                      <TableHead>Motif</TableHead>
+                      <TableHead>Facture d'origine</TableHead>
+                      <TableHead>Facture d'application</TableHead>
+                      <TableHead>Statut d'application</TableHead>
+                      <TableHead>Date d'émission</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {creditNotes.map((cn: any) => (
+                      <TableRow key={cn.id}>
+                        <TableCell className="font-mono text-sm">{cn.number}</TableCell>
+                        <TableCell className="font-semibold text-emerald-600">
+                          {Number(cn.amount).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} TND
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate" title={cn.reason}>{cn.reason}</TableCell>
+                        <TableCell className="font-mono text-sm">{cn.invoice?.number || "-"}</TableCell>
+                        <TableCell className="font-mono text-sm">{cn.appliedToInvoice?.number || "-"}</TableCell>
+                        <TableCell>
+                          {cn.appliedAt ? (
+                            <Badge className="bg-green-100 text-green-800">
+                              Appliqué le {format(new Date(cn.appliedAt), "dd/MM/yyyy", { locale: fr })}
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-yellow-100 text-yellow-800">
+                              Disponible
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>{format(new Date(cn.createdAt), "dd/MM/yyyy", { locale: fr })}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
             </CardContent>
           </Card>

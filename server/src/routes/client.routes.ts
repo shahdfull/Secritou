@@ -75,7 +75,10 @@ router.get("/", authorize("ADMIN", "MANAGER"), requirePermission("clients", "rea
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
+router.get("/my", authorize("CLIENT"), clientController.getMyClient);
+router.get("/my/credit-notes", authorize("CLIENT"), clientController.getMyCreditNotes);
 router.get("/:id", authorize("ADMIN", "MANAGER"), requirePermission("clients", "read"), clientController.getClient);
+router.get("/:id/credit-notes", authorize("ADMIN", "MANAGER"), requirePermission("clients", "read"), clientController.getClientCreditNotes);
 
 /**
  * @swagger

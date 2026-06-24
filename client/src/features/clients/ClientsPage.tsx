@@ -75,13 +75,14 @@ export function ClientsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [includeArchived, setIncludeArchived] = useState(false);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
 
   const { page, pageSize, orderBy, orderDir, params, setPage, updateParams } = useListParams(12);
-  const { data: clientsResult, isLoading: clientsLoading } = useClients(params);
+  const { data: clientsResult, isLoading: clientsLoading } = useClients({ ...params, includeArchived });
   const clients = clientsResult?.data ?? [];
   const total = clientsResult?.total ?? 0;
   const { mutate: createClient, isPending: isCreating } = useCreateClient();
@@ -242,6 +243,9 @@ export function ClientsPage() {
             className="pl-10"
           />
         </div>
+        <Button variant={includeArchived ? "default" : "ghost"} onClick={() => setIncludeArchived(!includeArchived)}>
+          {t("clientsPage.showArchived", "Afficher les archivés")}
+        </Button>
         <Select
           value={`${orderBy ?? "createdAt"}-${orderDir}`}
           onValueChange={(v) => {

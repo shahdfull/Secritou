@@ -16,5 +16,6 @@ router.post("/", authorize("ADMIN", "MANAGER"), requirePermission("leads", "crea
 router.put("/:id", authorize("ADMIN", "MANAGER"), requirePermission("leads", "update"), validate(updateLeadSchema), leadController.updateLead);
 router.delete("/:id", authorize("ADMIN"), sensitiveWriteRateLimit, leadController.deleteLead);
 router.post("/:id/convert", authorize("ADMIN", "MANAGER"), requirePermission("leads", "update"), sensitiveWriteRateLimit, leadController.convertLeadToClient);
+router.post("/:id/reopen", authorize("ADMIN", "MANAGER"), requirePermission("leads", "update"), sensitiveWriteRateLimit, leadController.reopenLead);
 
 export default router;

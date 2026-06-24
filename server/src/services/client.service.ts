@@ -19,9 +19,9 @@ export const clientService = {
     return clientRepository.findAll({ ...options, serviceId });
   },
 
-  async getClient(id: string, scope?: ServiceScope) {
+  async getClient(id: string, scope?: ServiceScope, includeArchived?: boolean) {
     const serviceId = scope?.userRole === "MANAGER" ? (scope.userServiceId ?? "__none__") : undefined;
-    const client = await clientRepository.findById(id, serviceId);
+    const client = await clientRepository.findById(id, serviceId, includeArchived);
     if (!client) throw new HttpError(404, "Client not found");
     return client;
   },

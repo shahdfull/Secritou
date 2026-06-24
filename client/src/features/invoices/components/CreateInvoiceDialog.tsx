@@ -63,7 +63,6 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     await createInvoice.mutateAsync({
-      number: `INV-${Date.now()}`,
       title: values.title,
       description: values.description,
       amount: values.amount,

@@ -79,7 +79,7 @@ export const invoicesApi = {
   },
 
   createInvoice: async (data: {
-    number: string;
+    number?: string;
     title: string;
     description?: string;
     amount: number;

@@ -30,7 +30,22 @@ async function assertProposalInScope(proposal: { projectId: string | null } | nu
   if (!project) throw new HttpError(404, "Proposal not found");
 }
 
-async function revertParentToDraftById(parent: { id: string; status: ProposalStatus; version: number }, change: "edited" | "deleted", userId?: string) {
+async function notifyClientRevertedToDraft(proposal: { id: string; title: string; clientId: string }) {
+  const clientUsers = await userRepository.findByClientId(proposal.clientId);
+  const viewUrl = `${env.FRONTEND_URL}/client/proposals/${proposal.id}`;
+  void enqueueNotifications(
+    clientUsers.map((user) => ({
+      userId: user.id,
+      title: "Proposition modifiée",
+      message: `La proposition "${proposal.title}" a été modifiée et doit être renvoyée. Veuillez consulter la version la plus récente.`,
+      type: "PROPOSAL_UPDATED" as const,
+      entityId: proposal.id,
+      link: viewUrl,
+    }))
+  );
+}
+
+async function revertParentToDraftById(parent: { id: string; status: ProposalStatus; version: number; title: string; clientId: string }, change: "edited" | "deleted", userId?: string) {
   if (parent.status !== "SENT" && parent.status !== "VIEWED") return;
   const updated = await proposalRepository.update(parent.id, { status: "DRAFT", version: parent.version + 1 });
   await proposalRepository.addHistory(parent.id, {
@@ -38,6 +53,7 @@ async function revertParentToDraftById(parent: { id: string; status: ProposalSta
     comment: `Section ${change} while ${parent.status}; reverted to DRAFT (v${parent.version} → v${updated?.version}). Must be re-sent.`,
     userId,
   });
+  await notifyClientRevertedToDraft({ id: parent.id, title: parent.title, clientId: parent.clientId });
 }
 
 async function revertParentToDraftIfLive(sectionId: string, change: "edited" | "deleted", userId?: string) {
@@ -129,7 +145,10 @@ export const proposalService = {
     const contentChanged =
       (data.title !== undefined && data.title !== proposal.title) ||
       (data.description !== undefined && data.description !== proposal.description) ||
-      (data.amount !== undefined && Number(data.amount) !== (proposal.amount != null ? Number(proposal.amount) : null));
+      (data.amount !== undefined && Number(data.amount) !== (proposal.amount != null ? Number(proposal.amount) : null)) ||
+      (data.currency !== undefined && data.currency !== proposal.currency) ||
+      (data.expiresAt !== undefined && 
+        (proposal.expiresAt == null || data.expiresAt.getTime() !== proposal.expiresAt.getTime()));
 
     if (isLive && contentChanged && data.status === undefined) {
       const updated = await proposalRepository.update(id, { ...data, status: "DRAFT", version: proposal.version + 1 });
@@ -138,6 +157,7 @@ export const proposalService = {
         comment: `Content edited while ${proposal.status}; reverted to DRAFT (v${proposal.version} → v${updated?.version}). Must be re-sent.`,
         userId,
       });
+      await notifyClientRevertedToDraft({ id: proposal.id, title: proposal.title, clientId: proposal.clientId });
       return updated;
     }
 
@@ -156,12 +176,34 @@ export const proposalService = {
     return proposalRepository.delete(id);
   },
 
-  async send(id: string, scope?: ServiceScope) {
+  async send(id: string, uploadedById: string, scope?: ServiceScope) {
     const proposal = await proposalRepository.findById(id);
     await assertProposalInScope(proposal, scope);
     const updated = await proposalRepository.update(id, { status: "SENT" });
 
     if (proposal) {
+      // Generate quote PDF
+      const client = await clientRepository.findById(proposal.clientId);
+      if (client) {
+        const project = proposal.projectId
+          ? { id: proposal.projectId, name: proposal.title, description: proposal.description, budget: proposal.amount?.toString(), deadline: proposal.expiresAt, serviceId: null }
+          : null;
+
+        void documentGeneratorService.generateQuotePDF(
+          {
+            id: proposal.id,
+            title: proposal.title,
+            description: proposal.description,
+            amount: proposal.amount != null ? Number(proposal.amount) : null,
+            currency: proposal.currency,
+            expiresAt: proposal.expiresAt,
+          },
+          project,
+          { id: client.id, name: client.name, email: client.email },
+          uploadedById
+        );
+      }
+
       const clientUsers = await userRepository.findByClientId(proposal.clientId);
       const viewUrl = `${env.FRONTEND_URL}/client/proposals/${id}`;
       const currency = proposal.currency ?? "TND";
@@ -260,7 +302,7 @@ export const proposalService = {
       }
 
       let invoiceId = proposal.invoice?.id ?? null;
-      if (!invoiceId && proposal.amount != null) {
+      if (!invoiceId && proposal.amount != null && Number(proposal.amount) > 0) {
         const depositAmount = Math.round(Number(proposal.amount) * 0.3 * 100) / 100;
         try {
           const invoice = await invoiceService.createDepositInvoiceTx(tx, {
@@ -282,6 +324,9 @@ export const proposalService = {
             throw err;
           }
         }
+      } else if (!invoiceId) {
+        // proposal.amount is null or zero — no deposit invoice created (intentional for quote-less proposals).
+        console.warn(`[acceptWithCascade] proposal ${id} has no amount or amount is zero — skipping deposit invoice creation`);
       }
 
       return { proposalId: id, clientId: proposal.clientId, title: proposal.title, amount: proposal.amount, currency: proposal.currency, clientName: proposal.clientName, email: proposal.email, projectId, invoiceId };
@@ -341,7 +386,23 @@ export const proposalService = {
     if (!["SENT", "VIEWED"].includes(proposal.status)) {
       throw new HttpError(409, `Cannot reject a ${proposal.status} proposal`, "INVALID_PROPOSAL_TRANSITION");
     }
-    const updated = await proposalRepository.update(id, { status: "REJECTED", rejectedAt: new Date() });
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const updatedProposal = await tx.proposal.update({
+        where: { id },
+        data: { status: "REJECTED", rejectedAt: new Date() },
+      });
+
+      // Update linked service request to CANCELLED if it exists
+      if (proposal.serviceRequestId) {
+        await tx.serviceRequest.update({
+          where: { id: proposal.serviceRequestId },
+          data: { status: "CANCELLED" },
+        });
+      }
+
+      return updatedProposal;
+    });
 
     const [admins, client] = await Promise.all([
       userRepository.findAdmins(),

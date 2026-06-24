@@ -22,13 +22,13 @@ interface StatusConfig {
   bgColor: string;
 }
 
-const STATUS_CONFIG: Record<Lead["status"], StatusConfig> = {
-  NEW: { label: "Nouveau", bgColor: "bg-blue-100 text-blue-800" },
-  CONTACTED: { label: "Contacté", bgColor: "bg-yellow-100 text-yellow-800" },
-  QUALIFIED: { label: "Qualifié", bgColor: "bg-purple-100 text-purple-800" },
-  PROPOSAL: { label: "Proposition", bgColor: "bg-pink-100 text-pink-800" },
-  WON: { label: "Gagné", bgColor: "bg-green-100 text-green-800" },
-  LOST: { label: "Perdu", bgColor: "bg-red-100 text-red-800" },
+const STATUS_CONFIG: Record<Lead["status"], Omit<StatusConfig, "label">> = {
+  NEW: { bgColor: "bg-blue-100 text-blue-800" },
+  CONTACTED: { bgColor: "bg-yellow-100 text-yellow-800" },
+  QUALIFIED: { bgColor: "bg-purple-100 text-purple-800" },
+  PROPOSAL: { bgColor: "bg-pink-100 text-pink-800" },
+  WON: { bgColor: "bg-green-100 text-green-800" },
+  LOST: { bgColor: "bg-red-100 text-red-800" },
 };
 
 const COLUMN_STATUSES: Lead["status"][] = [
@@ -58,6 +58,25 @@ function SortableLeadCard({ lead, onCreateProposal }: SortableLeadCardProps) {
 
   const canCreateProposal = CAN_CREATE_PROPOSAL.includes(lead.status);
 
+  const getStatusLabel = (status: Lead["status"]) => {
+    switch (status) {
+      case "NEW":
+        return t("leadsPage.status.new");
+      case "CONTACTED":
+        return t("leadsPage.status.contacted");
+      case "QUALIFIED":
+        return t("leadsPage.status.qualified");
+      case "PROPOSAL":
+        return t("leadsPage.status.proposal");
+      case "WON":
+        return t("leadsPage.status.won");
+      case "LOST":
+        return t("leadsPage.status.lost");
+      default:
+        return status;
+    }
+  };
+
   return (
     <Card
       ref={setNodeRef}
@@ -74,7 +93,7 @@ function SortableLeadCard({ lead, onCreateProposal }: SortableLeadCardProps) {
         {lead.phone && (
           <div className="text-sm text-muted-foreground">{lead.phone}</div>
         )}
-        <Badge className={STATUS_CONFIG[lead.status].bgColor}>{STATUS_CONFIG[lead.status].label}</Badge>
+        <Badge className={STATUS_CONFIG[lead.status].bgColor}>{getStatusLabel(lead.status)}</Badge>
         {canCreateProposal && (
           <Button
             size="sm"
@@ -104,6 +123,7 @@ interface KanbanColumnProps {
 }
 
 function KanbanColumn({ status, leads, isDragging, onCreateProposal }: KanbanColumnProps) {
+  const { t } = useTranslation();
   const config = STATUS_CONFIG[status];
   const ids = useMemo(() => leads.map((lead) => lead.id), [leads]);
   const columnBg = status === "WON" ? "bg-green-50/50" : status === "LOST" ? "bg-red-50/50" : "bg-card";
@@ -116,10 +136,29 @@ function KanbanColumn({ status, leads, isDragging, onCreateProposal }: KanbanCol
     overscan: 10,
   });
 
+  const getStatusLabel = (status: Lead["status"]) => {
+    switch (status) {
+      case "NEW":
+        return t("leadsPage.status.new");
+      case "CONTACTED":
+        return t("leadsPage.status.contacted");
+      case "QUALIFIED":
+        return t("leadsPage.status.qualified");
+      case "PROPOSAL":
+        return t("leadsPage.status.proposal");
+      case "WON":
+        return t("leadsPage.status.won");
+      case "LOST":
+        return t("leadsPage.status.lost");
+      default:
+        return status;
+    }
+  };
+
   return (
     <div className="flex-1 min-w-[280px] max-w-[320px]">
       <div className={`p-3 rounded-t-lg border border-b-0 flex items-center justify-between ${columnBg}`}>
-        <h3 className="font-semibold text-ink">{config.label}</h3>
+        <h3 className="font-semibold text-ink">{getStatusLabel(status)}</h3>
         <span className="text-sm text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
           {leads.length}
         </span>
@@ -262,12 +301,31 @@ export const LeadsKanban = memo(function LeadsKanban({ filteredLeads }: { filter
     }
 
     setActiveId(null);
-  }, [leadIdToStatus, queryClient, updateLeadStatus]);
+  }, [leadIdToStatus, queryClient, updateLeadStatus, t]);
 
   const activeLead = useMemo(
     () => (activeId ? filteredLeads.find((lead) => lead.id === activeId) ?? null : null),
     [activeId, filteredLeads]
   );
+
+  const getStatusLabel = (status: Lead["status"]) => {
+    switch (status) {
+      case "NEW":
+        return t("leadsPage.status.new");
+      case "CONTACTED":
+        return t("leadsPage.status.contacted");
+      case "QUALIFIED":
+        return t("leadsPage.status.qualified");
+      case "PROPOSAL":
+        return t("leadsPage.status.proposal");
+      case "WON":
+        return t("leadsPage.status.won");
+      case "LOST":
+        return t("leadsPage.status.lost");
+      default:
+        return status;
+    }
+  };
 
   return (
     <div className="overflow-x-auto pb-4">
@@ -300,7 +358,7 @@ export const LeadsKanban = memo(function LeadsKanban({ filteredLeads }: { filter
                   <div className="text-sm text-muted-foreground">{activeLead.phone}</div>
                 )}
                 <Badge className={STATUS_CONFIG[activeLead.status].bgColor}>
-                  {STATUS_CONFIG[activeLead.status].label}
+                  {getStatusLabel(activeLead.status)}
                 </Badge>
               </CardContent>
             </Card>

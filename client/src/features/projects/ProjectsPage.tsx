@@ -156,13 +156,30 @@ export function ProjectsPage() {
           setEditDialogOpen(false);
           setEditingProject(null);
         },
+        onError: (error: any) => {
+          const errorCode = error?.response?.data?.error?.code;
+          if (errorCode === "COMPLETION_REQUIRES_CLIENT_APPROVAL") {
+            alert("Project can only be completed via client approval.");
+          } else if (errorCode === "INVALID_STATUS_TRANSITION") {
+            alert("Invalid status transition.");
+          }
+        },
       }
     );
   }, [editingProject, updateProject]);
 
   const handleDelete = useCallback((project: Project) => {
     if (confirm(`Are you sure you want to delete ${project.name}?`)) {
-      deleteProject(project.id);
+      deleteProject(project.id, {
+        onError: (error: any) => {
+          const errorCode = error?.response?.data?.error?.code;
+          if (errorCode === "PROJECT_HAS_INVOICES") {
+            alert("Project has issued invoices and cannot be deleted; archive it instead.");
+          } else if (errorCode === "PROJECT_HAS_ONBOARDING") {
+            alert("Project has an onboarding record and cannot be deleted; archive it instead.");
+          }
+        },
+      });
     }
   }, [deleteProject]);
 
@@ -446,25 +463,36 @@ export function ProjectsPage() {
                     <FormField
                       control={editForm.control}
                       name="status"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t("common.status")}</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder={t("projectsPage.selectStatus")} />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="PLANNING">{t("projectsPage.statuses.planning")}</SelectItem>
-                              <SelectItem value="IN_PROGRESS">{t("projectsPage.statuses.inProgress")}</SelectItem>
-                              <SelectItem value="REVIEW">{t("projectsPage.statuses.review")}</SelectItem>
-                              <SelectItem value="COMPLETED">{t("projectsPage.statuses.completed")}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                      render={({ field }) => {
+                        // Define valid options based on current status
+                        const validOptions: Record<string, string[]> = {
+                          PLANNING: ["PLANNING", "IN_PROGRESS"],
+                          IN_PROGRESS: ["PLANNING", "IN_PROGRESS", "REVIEW"],
+                          REVIEW: ["IN_PROGRESS", "REVIEW"],
+                          COMPLETED: ["COMPLETED"],
+                        };
+                        const availableStatuses = editingProject ? (validOptions[editingProject.status] || [editingProject.status]) : ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED"];
+
+                        return (
+                          <FormItem>
+                            <FormLabel>{t("common.status")}</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder={t("projectsPage.selectStatus")} />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {availableStatuses.includes("PLANNING") && <SelectItem value="PLANNING">{t("projectsPage.statuses.planning")}</SelectItem>}
+                                {availableStatuses.includes("IN_PROGRESS") && <SelectItem value="IN_PROGRESS">{t("projectsPage.statuses.inProgress")}</SelectItem>}
+                                {availableStatuses.includes("REVIEW") && <SelectItem value="REVIEW">{t("projectsPage.statuses.review")}</SelectItem>}
+                                {availableStatuses.includes("COMPLETED") && <SelectItem value="COMPLETED">{t("projectsPage.statuses.completed")}</SelectItem>}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
                     />
                     <FormField
                       control={editForm.control}

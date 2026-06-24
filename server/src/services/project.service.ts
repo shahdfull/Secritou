@@ -65,6 +65,29 @@ export const projectService = {
       throw new HttpError(404, "Project not found");
     }
 
+    // Validate status changes
+    if (data.status) {
+      // Block COMPLETED via regular update (must use clientApprove)
+      if (data.status === "COMPLETED") {
+        throw new HttpError(422, "Project can only be completed via client approval", "COMPLETION_REQUIRES_CLIENT_APPROVAL");
+      }
+
+      // Define valid status transitions
+      const validTransitions: Record<string, string[]> = {
+        PLANNING: ["IN_PROGRESS"],
+        IN_PROGRESS: ["PLANNING", "REVIEW"],
+        REVIEW: ["IN_PROGRESS"],
+        COMPLETED: [], // No transitions from completed
+      };
+
+      const currentStatus = project.status;
+      const newStatus = data.status;
+
+      if (currentStatus !== newStatus && !validTransitions[currentStatus]?.includes(newStatus)) {
+        throw new HttpError(422, `Invalid status transition from ${currentStatus} to ${newStatus}`, "INVALID_STATUS_TRANSITION");
+      }
+    }
+
     const updated = await projectRepository.update(id, data);
 
     if (data.status && data.status !== project.status && project.clientId) {
@@ -156,7 +179,7 @@ export const projectService = {
   async clientApprove(projectId: string, clientId: string, userId: string) {
     const preread = await prismaRead.project.findFirst({
       where: { id: projectId },
-      select: { id: true, name: true, clientId: true, status: true, clientApprovedAt: true, budget: true, client: { select: { id: true, name: true, email: true } }, proposal: { select: { amount: true, currency: true } }, invoices: { select: { id: true, title: true } } },
+      select: { id: true, name: true, clientId: true, status: true, clientApprovedAt: true, budget: true, client: { select: { id: true, name: true, email: true } }, proposal: { select: { id: true, amount: true, currency: true } }, invoices: { select: { id: true, title: true, invoiceType: true } } },
     });
     if (!preread) throw new HttpError(404, "Project not found");
     if (preread.clientId !== clientId) throw new HttpError(403, "Forbidden");
@@ -171,7 +194,8 @@ export const projectService = {
     const proposalAmount = preread.proposal?.amount != null ? Number(preread.proposal.amount) : 0;
     const balanceAmount = proposalAmount > 0 ? Math.round(proposalAmount * 0.7 * 100) / 100 : 0;
     const currency = preread.proposal?.currency ?? "TND";
-    const balanceAlreadyExists = preread.invoices.some((inv) => inv.title.toLowerCase().includes("solde"));
+    // Robust guard: rely on invoiceType field instead of title string-matching.
+    const balanceAlreadyExists = preread.invoices.some((inv) => inv.invoiceType === "BALANCE");
 
     const result = await prisma.$transaction(async (tx) => {
       const project = await tx.project.update({
@@ -189,6 +213,8 @@ export const projectService = {
           currency,
           clientId,
           projectId,
+          // Link back to the originating proposal for traceability.
+          proposalId: preread.proposal ? (preread as any).proposal.id : undefined,
           dueInDays: 30,
         });
       }

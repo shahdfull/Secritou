@@ -47,11 +47,18 @@ export function useCreateProposal() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
 
-  return useMutation<Proposal, Error, Parameters<typeof proposalsApi.createProposal>[0]>({
+  return useMutation<Proposal, any, Parameters<typeof proposalsApi.createProposal>[0]>({
     mutationFn: (data) => proposalsApi.createProposal(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["proposals"] });
       toast.success(t("proposals.created"));
+    },
+    onError: (error) => {
+      if (error.response?.data?.error?.code === "SERVICE_REQUEST_ALREADY_LINKED") {
+        toast.error("Cette demande de service est déjà liée à une proposition");
+      } else {
+        toast.error(error.message || "Erreur lors de la création de la proposition");
+      }
     },
   });
 }

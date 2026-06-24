@@ -454,6 +454,7 @@ enum NotificationType {
   PROPOSAL_ACCEPTED
   PROPOSAL_REJECTED
   PROPOSAL_EXPIRED
+  PROPOSAL_UPDATED
   APPROVAL_REQUESTED
   APPROVAL_ACCEPTED
   APPROVAL_REJECTED
@@ -897,6 +898,14 @@ enum InvoiceStatus {
   CANCELLED
 }
 
+// Differentiates automatically-created deposit/balance invoices from manual ones.
+// Used as a reliable duplicate guard instead of string-matching on title.
+enum InvoiceType {
+  STANDARD
+  DEPOSIT
+  BALANCE
+}
+
 model Invoice {
   id                String        @id @default(uuid())
   number            String        @db.VarChar(100) @unique
@@ -906,6 +915,7 @@ model Invoice {
   currency          String        @default("TND") @db.VarChar(10)
   amountPaid        Decimal       @default(0) @db.Decimal(12, 2)
   status            InvoiceStatus @default(DRAFT)
+  invoiceType       InvoiceType   @default(STANDARD)
   dueDate           DateTime?     @db.Timestamptz(6)
   sentAt            DateTime?     @db.Timestamptz(6)
   paidAt            DateTime?     @db.Timestamptz(6)
@@ -919,12 +929,14 @@ model Invoice {
   items             InvoiceItem[]
   payments          Payment[]
   reminders         InvoiceReminder[]
-  creditNotes       CreditNote[]
+  creditNotes       CreditNote[]  @relation("CreditNoteSource")
+  appliedCreditNotes CreditNote[] @relation("CreditNoteApplication")
   createdAt         DateTime      @default(now()) @db.Timestamptz(6)
   updatedAt         DateTime      @updatedAt @db.Timestamptz(6)
 
   @@index([clientId])
   @@index([status])
+  @@index([invoiceType])
   @@index([dueDate])
   @@index([createdAt])
   @@index([status, createdAt])
@@ -933,19 +945,25 @@ model Invoice {
 
 // A credit note records money owed back to a client : issued for an overpayment or as a
 // correction against an invoice. Issuing one increments Client.creditBalance.
+// When applyCredit() is called, appliedAt is set and creditBalance is decremented.
 model CreditNote {
-  id        String   @id @default(uuid())
-  number    String   @db.VarChar(100) @unique
-  amount    Decimal  @db.Decimal(12, 2)
-  reason    String   @db.Text
-  invoiceId String
-  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  clientId  String
-  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  id                  String    @id @default(uuid())
+  number              String    @db.VarChar(100) @unique
+  amount              Decimal   @db.Decimal(12, 2)
+  reason              String    @db.Text
+  invoiceId           String
+  invoice             Invoice   @relation("CreditNoteSource", fields: [invoiceId], references: [id], onDelete: Cascade)
+  clientId            String
+  client              Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  // Application tracking — null means not yet consumed
+  appliedAt           DateTime? @db.Timestamptz(6)
+  appliedToInvoiceId  String?
+  appliedToInvoice    Invoice?  @relation("CreditNoteApplication", fields: [appliedToInvoiceId], references: [id], onDelete: SetNull)
+  createdAt           DateTime  @default(now()) @db.Timestamptz(6)
 
   @@index([invoiceId])
   @@index([clientId])
+  @@index([appliedToInvoiceId])
 }
 
 model InvoiceItem {

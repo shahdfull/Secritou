@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import i18n from "@/i18n";
 import { queryKeys } from "@/lib/query-keys";
 
-export function useClients(params: ListQueryParams = {}) {
+export function useClients(params: ListQueryParams & { includeArchived?: boolean } = {}) {
   return useQuery<PaginatedResponse<Client>>({
     queryKey: queryKeys.clients(params),
     queryFn: () => clientsApi.getAll(params),
@@ -15,10 +15,10 @@ export function useClients(params: ListQueryParams = {}) {
   });
 }
 
-export function useClient(id: string) {
+export function useClient(id: string, options?: { includeArchived?: boolean }) {
   return useQuery<Client>({
-    queryKey: queryKeys.client(id),
-    queryFn: () => clientsApi.getById(id),
+    queryKey: queryKeys.client(id, options),
+    queryFn: () => clientsApi.getById(id, options),
     enabled: !!id,
     staleTime: 60_000,
   });

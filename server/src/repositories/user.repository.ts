@@ -112,6 +112,8 @@ export const userRepository = {
   },
 
   async delete(id: string): Promise<PublicUser> {
+    // Explicitly delete refresh tokens first to ensure revocation
+    await prisma.refreshToken.deleteMany({ where: { userId: id } });
     return prisma.user.delete({
       where: { id },
       select: userPublicFields,

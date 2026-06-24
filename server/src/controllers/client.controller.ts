@@ -1,6 +1,7 @@
 // Client Controller - HTTP request handlers
 import type { RequestHandler } from "express";
 import { clientService } from "../services/client.service.js";
+import { creditNoteService } from "../services/creditNote.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
 import { buildServiceScope } from "../utils/serviceScope.js";
 import { COMPANY_ID } from "../config/constants.js";
@@ -21,7 +22,8 @@ export const getClients: RequestHandler = async (req, res, next) => {
 
 export const getClient: RequestHandler = async (req, res, next) => {
   try {
-    const client = await clientService.getClient(req.params.id as string, await buildServiceScope(req));
+    const includeArchived = req.query.includeArchived === "true";
+    const client = await clientService.getClient(req.params.id as string, await buildServiceScope(req), includeArchived);
     res.json({ data: client });
   } catch (error) {
     next(error);
@@ -77,6 +79,42 @@ export const inviteClientUser: RequestHandler = async (req, res, next) => {
       name
     );
     res.status(201).json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMyClient: RequestHandler = async (req, res, next) => {
+  try {
+    const clientId = req.user!.clientId;
+    if (!clientId) throw new HttpError(400, "User has no associated client");
+    const client = await clientService.getClient(clientId);
+    res.json({ data: client });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMyCreditNotes: RequestHandler = async (req, res, next) => {
+  try {
+    const clientId = req.user!.clientId;
+    if (!clientId) throw new HttpError(400, "User has no associated client");
+    const creditNotes = await creditNoteService.listByClient(clientId);
+    res.json({ data: creditNotes });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getClientCreditNotes: RequestHandler = async (req, res, next) => {
+  try {
+    const clientId = req.params.id as string;
+    if (req.user!.role === "MANAGER") {
+      const client = await clientService.getClient(clientId, await buildServiceScope(req));
+      if (!client) throw new HttpError(403, "Client not in your service scope");
+    }
+    const creditNotes = await creditNoteService.listByClient(clientId);
+    res.json({ data: creditNotes });
   } catch (error) {
     next(error);
   }

@@ -38,4 +38,9 @@ export const leadsApi = {
     const response = await apiClient.patch<ApiResponse<Lead>>(`/leads/${id}`, { status });
     return response.data.data;
   },
+
+  reopen: async (id: string): Promise<Lead> => {
+    const response = await apiClient.post<ApiResponse<Lead>>(`/leads/${id}/reopen`);
+    return response.data.data;
+  },
 };

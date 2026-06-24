@@ -100,3 +100,19 @@ export const getInvoiceCreditNotes = async (req: Request, res: Response) => {
   const creditNotes = await creditNoteService.listByInvoice(req.params.id as string);
   res.json({ data: creditNotes });
 };
+
+export const applyCreditToInvoice = async (req: Request, res: Response) => {
+  const result = await creditNoteService.applyCredit(req.body.creditNoteId as string, req.params.id as string);
+  res.json({
+    data: {
+      creditNote: result.creditNote,
+      appliedAmount: result.appliedAmount,
+      invoiceStatus: result.invoiceStatus,
+    },
+  });
+};
+
+export const getAllCreditNotes = async (req: Request, res: Response) => {
+  const creditNotes = await creditNoteService.getAll();
+  res.json({ data: creditNotes });
+};

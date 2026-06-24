@@ -6,13 +6,13 @@ const currencyCode = z.string().length(3).toUpperCase();
 
 export const createInvoiceSchema = z.object({
   body: z.object({
-    number: z.string().min(1).max(100),
+    number: z.string().min(1).max(100).optional(),
     title: z.string().min(1).max(255),
     description: z.string().max(5000).optional(),
     amount: positiveDecimal,
     currency: currencyCode.default("TND"),
     clientId: z.string().uuid(),
-    projectId: z.string().uuid(),
+    projectId: z.string().uuid().optional(),
     dueDate: z.string().datetime({ offset: true }).optional(),
     items: z.array(z.object({
       description: z.string().min(1).max(500),
@@ -84,5 +84,12 @@ export const createCreditNoteSchema = z.object({
   body: z.object({
     amount: positiveDecimal,
     reason: z.string().min(1).max(2000),
+  }),
+});
+
+export const applyCreditSchema = z.object({
+  params: z.object({ id: uuidParam }),
+  body: z.object({
+    creditNoteId: z.string().uuid(),
   }),
 });

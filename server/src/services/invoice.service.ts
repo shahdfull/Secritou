@@ -69,8 +69,12 @@ export const invoiceService = {
     return invoiceRepository.findById(id);
   },
 
-  async create(data: { number: string; title: string; description?: string; amount: number; currency?: string; dueDate?: Date; pdfUrl?: string; clientId: string; projectId?: string; proposalId?: string }) {
-    return invoiceRepository.create(data);
+  async create(data: { number?: string; title: string; description?: string; amount: number; currency?: string; dueDate?: Date; pdfUrl?: string; clientId: string; projectId?: string; proposalId?: string }) {
+    if (!data.number) {
+      const { number, ...rest } = data;
+      return createInvoiceWithGeneratedNumber(rest);
+    }
+    return invoiceRepository.create(data as any);
   },
 
   async update(id: string, data: Partial<{ number: string; title: string; description: string; amount: number; currency: string; dueDate: Date; pdfUrl: string }>) {
@@ -259,7 +263,7 @@ export const invoiceService = {
       const count = await tx.invoice.count({ where: { number: { startsWith: prefix } } });
       const number = `${prefix}-${String(count + 1 + attempt).padStart(4, "0")}`;
       try {
-        return await tx.invoice.create({ data: { number, title: args.title, description: args.description, amount: args.amount, currency: args.currency, status: "DRAFT", dueDate, clientId: args.clientId, projectId: args.projectId, proposalId: args.proposalId } });
+        return await tx.invoice.create({ data: { number, title: args.title, description: args.description, amount: args.amount, currency: args.currency, status: "DRAFT", invoiceType: "DEPOSIT", dueDate, clientId: args.clientId, projectId: args.projectId, proposalId: args.proposalId } });
       } catch (err) {
         if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002" && !(err.meta?.target as string[] | undefined)?.includes("proposalId")) {
           lastError = err;
@@ -273,7 +277,7 @@ export const invoiceService = {
 
   async createBalanceInvoiceTx(
     tx: TxClient,
-    args: { title: string; description?: string; amount: number; currency: string; clientId: string; projectId: string; dueInDays?: number }
+    args: { title: string; description?: string; amount: number; currency: string; clientId: string; projectId: string; proposalId?: string; dueInDays?: number }
   ) {
     const now = new Date();
     const prefix = `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -286,7 +290,7 @@ export const invoiceService = {
       const count = await tx.invoice.count({ where: { number: { startsWith: prefix } } });
       const number = `${prefix}-${String(count + 1 + attempt).padStart(4, "0")}`;
       try {
-        return await tx.invoice.create({ data: { number, title: args.title, description: args.description, amount: args.amount, currency: args.currency, status: "DRAFT", dueDate, clientId: args.clientId, projectId: args.projectId } });
+        return await tx.invoice.create({ data: { number, title: args.title, description: args.description, amount: args.amount, currency: args.currency, status: "DRAFT", invoiceType: "BALANCE", dueDate, clientId: args.clientId, projectId: args.projectId, proposalId: args.proposalId ?? undefined } });
       } catch (err) {
         if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
           lastError = err;

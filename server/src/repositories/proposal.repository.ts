@@ -128,7 +128,7 @@ export const proposalRepository = {
       where: { id: sectionId },
       select: {
         proposal: {
-          select: { id: true, status: true, version: true, projectId: true },
+          select: { id: true, status: true, version: true, projectId: true, title: true, clientId: true },
         },
       },
     });

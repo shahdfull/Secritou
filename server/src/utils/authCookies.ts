@@ -25,6 +25,5 @@ export function clearRefreshTokenCookie(res: Response) {
 
 export function getRefreshTokenFromRequest(req: Request): string | undefined {
   const cookieToken = req.cookies?.[env.REFRESH_COOKIE_NAME];
-  const bodyToken = req.body?.refreshToken;
-  return (typeof cookieToken === "string" && cookieToken) || (typeof bodyToken === "string" && bodyToken) || undefined;
+  return typeof cookieToken === "string" && cookieToken ? cookieToken : undefined;
 }

@@ -8,7 +8,7 @@ const SORTABLE_FIELDS = ["name", "email", "status", "source", "createdAt"];
 
 export type LeadScope = { userRole: Role; userServiceId?: string | null; userId?: string };
 
-function buildWhere(options: ListQueryOptions, scope?: LeadScope) {
+function buildWhere(options: ListQueryOptions & { includeArchived?: boolean }, scope?: LeadScope) {
   const serviceFilter =
     scope?.userRole === "MANAGER"
       ? {
@@ -19,7 +19,7 @@ function buildWhere(options: ListQueryOptions, scope?: LeadScope) {
         }
       : {};
   return {
-    archivedAt: null,
+    ...(!options.includeArchived ? { archivedAt: null } : {}),
     ...serviceFilter,
     ...(options.status ? { status: options.status as LeadStatus } : {}),
     ...buildTextSearchFilter(options.search, ["name", "email", "source", "notes"]),
@@ -27,7 +27,7 @@ function buildWhere(options: ListQueryOptions, scope?: LeadScope) {
 }
 
 export const leadRepository = {
-  async findAll(options: ListQueryOptions, scope?: LeadScope): Promise<PaginatedResult<Lead>> {
+  async findAll(options: ListQueryOptions & { includeArchived?: boolean }, scope?: LeadScope): Promise<PaginatedResult<Lead>> {
     const where = buildWhere(options, scope);
     const skip = (options.page - 1) * options.pageSize;
     const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
@@ -40,7 +40,7 @@ export const leadRepository = {
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(id: string, scope?: LeadScope): Promise<Lead | null> {
+  async findById(id: string, scope?: LeadScope, includeArchived?: boolean): Promise<Lead | null> {
     const serviceFilter =
       scope?.userRole === "MANAGER"
         ? {
@@ -50,10 +50,16 @@ export const leadRepository = {
             ],
           }
         : {};
-    return prisma.lead.findFirst({ where: { id, archivedAt: null, ...serviceFilter } });
+    return prisma.lead.findFirst({ 
+      where: { 
+        id, 
+        ...(!includeArchived ? { archivedAt: null } : {}), 
+        ...serviceFilter 
+      } 
+    });
   },
 
-  async findByIdWithProposals(id: string, scope?: LeadScope) {
+  async findByIdWithProposals(id: string, scope?: LeadScope, includeArchived?: boolean) {
     const serviceFilter =
       scope?.userRole === "MANAGER"
         ? {
@@ -64,7 +70,11 @@ export const leadRepository = {
           }
         : {};
     return prisma.lead.findFirst({
-      where: { id, archivedAt: null, ...serviceFilter },
+      where: { 
+        id, 
+        ...(!includeArchived ? { archivedAt: null } : {}), 
+        ...serviceFilter 
+      },
       include: {
         convertedClient: { select: { id: true, name: true, email: true } },
       },
@@ -89,6 +99,7 @@ export const leadRepository = {
     source?: string;
     status?: LeadStatus;
     notes?: string;
+    archivedAt?: Date | null;
   }>): Promise<Lead> {
     return prisma.lead.update({ where: { id }, data });
   },

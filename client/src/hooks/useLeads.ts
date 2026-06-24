@@ -86,3 +86,15 @@ export function useUpdateLeadStatus() {
     },
   });
 }
+
+export function useReopenLead() {
+  const queryClient = useQueryClient();
+
+  return useMutation<Lead, Error, string>({
+    mutationFn: (id) => leadsApi.reopen(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.leads() });
+      toast.success(i18n.t("toasts.leadReopened"));
+    },
+  });
+}

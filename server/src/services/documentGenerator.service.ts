@@ -357,7 +357,7 @@ export const documentGeneratorService = {
 
   async generateQuotePDF(
     proposal: GeneratorProposal,
-    project: GeneratorProject,
+    project: GeneratorProject | null,
     client: GeneratorClient,
     uploadedById: string
   ): Promise<Document> {
@@ -373,7 +373,7 @@ export const documentGeneratorService = {
       field(doc, "Référence", `DEV-${proposal.id.slice(0, 8).toUpperCase()}`);
       field(doc, "Date", fmtDate(new Date()));
       field(doc, "Client", `${client.name}${client.email ? ` : ${client.email}` : ""}`);
-      field(doc, "Projet", project.name);
+      if (project) field(doc, "Projet", project.name);
       doc.moveDown(1);
 
       sectionTitle(doc, "Prestations");
@@ -409,9 +409,9 @@ export const documentGeneratorService = {
 
     return uploadAndCreate(buffer, {
       type: "QUOTE",
-      filename: `devis-${project.id}`,
-      title: `Devis : ${project.name}`,
-      projectId: project.id,
+      filename: project ? `devis-${project.id}` : `devis-proposal-${proposal.id}`,
+      title: project ? `Devis : ${project.name}` : `Devis : ${proposal.title}`,
+      projectId: project?.id,
       clientId: client.id,
       uploadedById,
     });

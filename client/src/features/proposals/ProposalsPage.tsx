@@ -416,15 +416,19 @@ export function ProposalsPage() {
                               </DropdownMenuItem>
                             </>
                           )}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => deleteMutation.mutate(proposal.id)}
-                            disabled={deleteMutation.isPending}
-                            className="text-red-600"
-                          >
-                            <XCircle className="mr-2 h-4 w-4" />
-                            {t("proposals.delete")}
-                          </DropdownMenuItem>
+                          {proposal.status === "DRAFT" && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => deleteMutation.mutate(proposal.id)}
+                                disabled={deleteMutation.isPending}
+                                className="text-red-600"
+                              >
+                                <XCircle className="mr-2 h-4 w-4" />
+                                {t("proposals.delete")}
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>

@@ -27,7 +27,7 @@ export class AuthRepository {
         name: input.name,
         email: input.email,
         passwordHash: input.passwordHash,
-        role: input.role ?? "ADMIN",
+        role: input.role ?? "CLIENT",
       },
       select: userPublicSelect,
     });

@@ -16,6 +16,8 @@ import {
   cancelInvoice,
   createCreditNote,
   getInvoiceCreditNotes,
+  applyCreditToInvoice,
+  getAllCreditNotes,
 } from "../controllers/invoice.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
@@ -31,6 +33,7 @@ import {
   updateInvoiceItemSchema,
   invoiceItemParamSchema,
   createCreditNoteSchema,
+  applyCreditSchema,
 } from "../validators/invoice.validator.js";
 
 const router = express.Router();
@@ -45,6 +48,7 @@ router.get("/my-service", authenticate, authorize("MANAGER"), requirePermission(
 router.use(authenticate);
 
 // Protected routes
+router.get("/credit-notes/all", authorize("ADMIN"), getAllCreditNotes);
 router.get("/", authorize("ADMIN"), getInvoices);
 router.get("/:id", authorize("ADMIN"), validate(invoiceIdParamSchema), getInvoiceById);
 router.post("/", sensitiveWriteRateLimit, authorize("ADMIN"), validate(createInvoiceSchema), createInvoice);
@@ -104,6 +108,15 @@ router.post(
   authorize("ADMIN"),
   validate(createCreditNoteSchema),
   createCreditNote
+);
+
+// Apply credit note to invoice (consumes creditBalance)
+router.post(
+  "/:id/apply-credit",
+  sensitiveWriteRateLimit,
+  authorize("ADMIN"),
+  validate(applyCreditSchema),
+  applyCreditToInvoice
 );
 
 export default router;

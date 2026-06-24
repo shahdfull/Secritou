@@ -7,20 +7,22 @@ import { prisma } from "../config/prisma.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
 import { userRepository } from "../repositories/user.repository.js";
+import { clientRepository } from "../repositories/client.repository.js";
 import { enqueueNotifications } from "../jobs/queues.js";
 import { env } from "../config/env.js";
+import { clientService } from "./client.service.js";
 
 async function invalidateCompanyCache() {
   await invalidateTags([cacheTags.company(), cacheTags.dashboard()]);
 }
 
 export const leadService = {
-  async getLeads(options: ListQueryOptions, scope?: LeadScope) {
+  async getLeads(options: ListQueryOptions & { includeArchived?: boolean }, scope?: LeadScope) {
     return leadRepository.findAll(options, scope);
   },
 
-  async getLead(id: string, scope?: LeadScope) {
-    const lead = await leadRepository.findByIdWithProposals(id, scope);
+  async getLead(id: string, scope?: LeadScope, includeArchived?: boolean) {
+    const lead = await leadRepository.findByIdWithProposals(id, scope, includeArchived);
     if (!lead) throw new HttpError(404, "Lead not found");
     return lead;
   },
@@ -52,6 +54,19 @@ export const leadService = {
     return deleted;
   },
 
+  async reopenLead(id: string, scope?: LeadScope) {
+    const lead = await leadRepository.findById(id, scope, true); // Allow finding archived leads
+    if (!lead) throw new HttpError(404, "Lead not found");
+
+    if (lead.convertedClientId) {
+      throw new HttpError(409, "Cannot reopen a lead that was converted to a client", "LEAD_ALREADY_CONVERTED");
+    }
+
+    const updated = await leadRepository.update(id, { status: "NEW", archivedAt: null });
+    await invalidateCompanyCache();
+    return updated;
+  },
+
   async convertLeadToClient(id: string, scope?: LeadScope) {
     const lead = await leadRepository.findById(id, scope);
     if (!lead) throw new HttpError(404, "Lead not found");
@@ -78,7 +93,12 @@ export const leadService = {
       }
 
       const created = await tx.client.create({
-        data: { name: lead.name, email: lead.email ?? undefined, phone: lead.phone ?? undefined },
+        data: { 
+          name: lead.name, 
+          email: lead.email ?? undefined, 
+          phone: lead.phone ?? undefined,
+          serviceId: lead.serviceId ?? undefined // Copy serviceId from lead to client
+        },
       });
 
       await tx.lead.update({ where: { id }, data: { archivedAt: new Date(), convertedClientId: created.id } });
@@ -97,6 +117,16 @@ export const leadService = {
       entityId: client.id,
       link: `${env.FRONTEND_URL}/app/clients/${client.id}`,
     })));
+
+    // Auto-invite client user if we have email and name
+    try {
+      await clientService.inviteClientUser(client.id, lead.email, lead.name);
+    } catch (err) {
+      // If user already invited (e.g., existing client merged), just log it and continue
+      if (!(err instanceof HttpError && err.code === "CLIENT_EMAIL_EXISTS")) {
+        console.error("Failed to auto-invite client user:", err);
+      }
+    }
 
     return client;
   },

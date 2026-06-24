@@ -58,6 +58,7 @@ import {
   List,
   KanbanSquare,
   Eye,
+  RefreshCw,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -68,6 +69,7 @@ import {
   useUpdateLead,
   useDeleteLead,
   useConvertLeadToClient,
+  useReopenLead,
 } from "@/hooks/useLeads";
 import type { Lead, CreateLeadInput, UpdateLeadInput } from "@/types/lead";
 import { LeadsKanban } from "./LeadsKanban";
@@ -97,6 +99,7 @@ export function LeadsPage() {
   const [searchInput, setSearchInput] = useState("");
   const [view, setView] = useState<"list" | "kanban">("list");
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
+  const [includeArchived, setIncludeArchived] = useState(false);
 
   const { page, pageSize, orderBy, orderDir, search, params, setPage, setSearch, setSort, updateParams } = useListParams(10);
   const debouncedSearch = useDebouncedValue(searchInput, 300);
@@ -118,8 +121,9 @@ export function LeadsPage() {
       orderDir,
       search,
       status: statusFilter === ALL_STATUSES_VALUE ? undefined : statusFilter,
+      includeArchived,
     }),
-    [params, view, pageSize, page, orderBy, orderDir, search, statusFilter],
+    [params, view, pageSize, page, orderBy, orderDir, search, statusFilter, includeArchived],
   );
 
   const { data: leadsResult, isLoading } = useLeads(listParams);
@@ -129,6 +133,7 @@ export function LeadsPage() {
   const { mutate: updateLead, isPending: isUpdating } = useUpdateLead();
   const { mutate: deleteLead, isPending: isDeleting } = useDeleteLead();
   const { mutate: convertLead, isPending: isConverting } = useConvertLeadToClient();
+  const { mutate: reopenLead, isPending: isReopening } = useReopenLead();
 
   const {
     createDialogOpen,
@@ -191,6 +196,12 @@ export function LeadsPage() {
       convertLead(lead.id);
     }
   }, [convertLead]);
+
+  const handleReopen = useCallback((lead: Lead) => {
+    if (confirm(`Are you sure you want to reopen ${lead.name}?`)) {
+      reopenLead(lead.id);
+    }
+  }, [reopenLead]);
 
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
@@ -412,6 +423,9 @@ export function LeadsPage() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <Button variant={includeArchived ? "default" : "ghost"} onClick={() => setIncludeArchived(!includeArchived)}>
+              {t('leadsPage.showArchived')}
+            </Button>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[180px]">
                 <Filter className="h-4 w-4 mr-2" />
@@ -517,11 +531,24 @@ export function LeadsPage() {
                             <Edit className="h-4 w-4 mr-2" />
                             {t('common.edit')}
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleConvert(lead)} disabled={isConverting}>
+                          <DropdownMenuItem 
+                            onClick={() => handleConvert(lead)} 
+                            disabled={isConverting || lead.status !== "WON" || !!lead.convertedClientId}
+                          >
                             <UserCheck className="h-4 w-4 mr-2" />
                             {t('leadsPage.convertToClient')}
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDelete(lead)} disabled={isDeleting} className="text-red-600">
+                          {lead.status === "LOST" && !lead.convertedClientId && (
+                            <DropdownMenuItem onClick={() => handleReopen(lead)} disabled={isReopening}>
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                              {t('leadsPage.reopenLead')}
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem 
+                            onClick={() => handleDelete(lead)} 
+                            disabled={isDeleting || !!lead.convertedClientId} 
+                            className="text-red-600"
+                          >
                             <Trash2 className="h-4 w-4 mr-2" />
                             {t('common.delete')}
                           </DropdownMenuItem>

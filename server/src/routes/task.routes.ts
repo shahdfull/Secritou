@@ -16,7 +16,7 @@ router.use(authenticate);
 router.get("/", authorize("ADMIN", "MANAGER", "FREELANCER"), requirePermission("tasks", "read"), getAllTasks);
 router.get("/:id", authorize("ADMIN", "MANAGER", "FREELANCER"), requirePermission("tasks", "read"), getTaskById);
 router.post("/", authorize("ADMIN", "MANAGER"), requirePermission("tasks", "create"), validate(createTaskSchema), createTask);
-router.put("/:id", authorize("ADMIN", "MANAGER"), requirePermission("tasks", "update"), validate(updateTaskSchema), updateTask);
+router.put("/:id", authorize("ADMIN", "MANAGER", "FREELANCER"), requirePermission("tasks", "update"), validate(updateTaskSchema), updateTask);
 router.delete("/:id", authorize("ADMIN", "MANAGER"), requirePermission("tasks", "delete"), deleteTask);
 
 // Comment routes — comments are internal; same access as the task itself

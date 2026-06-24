@@ -50,8 +50,8 @@ function signAccessToken(
   );
 }
 
-function signRefreshToken(userId: string) {
-  return jwt.sign({ sub: userId, tokenType: "refresh" as const }, env.JWT_REFRESH_SECRET, {
+function signRefreshToken(userId: string, familyId: string) {
+  return jwt.sign({ sub: userId, tokenType: "refresh" as const, familyId }, env.JWT_REFRESH_SECRET, {
     expiresIn: env.JWT_REFRESH_EXPIRES_IN as SignOptions["expiresIn"],
     issuer: env.JWT_ISSUER,
     audience: env.JWT_AUDIENCE,
@@ -68,7 +68,7 @@ export class AuthService {
     this.repo = new AuthRepository(db);
   }
 
-  async register(input: { email: string; password: string; name: string }) {
+  async register(input: { email: string; password: string; name: string; role?: string }) {
     const existing = await this.repo.findUserByEmail(input.email);
     if (existing) throw new HttpError(409, "Email is already registered");
 
@@ -77,6 +77,8 @@ export class AuthService {
       email: input.email,
       name: input.name,
       passwordHash,
+      // Hardcode role to CLIENT for public registration
+      role: "CLIENT",
     });
     return this.issueTokens(user);
   }
@@ -92,13 +94,13 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string) {
-    let decoded: jwt.JwtPayload & { tokenType?: string; jti?: string };
+    let decoded: jwt.JwtPayload & { tokenType?: string; jti?: string; familyId?: string };
     try {
       decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET, {
         issuer: env.JWT_ISSUER,
         audience: env.JWT_AUDIENCE,
         algorithms: ["HS256"],
-      }) as jwt.JwtPayload & { tokenType?: string; jti?: string };
+      }) as jwt.JwtPayload & { tokenType?: string; jti?: string; familyId?: string };
 
       if (decoded.tokenType !== "refresh" || typeof decoded.sub !== "string") {
         throw new Error("Invalid token type");
@@ -112,8 +114,8 @@ export class AuthService {
 
     if (!stored) {
       // Reuse detected - revoke entire family!
-      if (decoded.jti) {
-        await this.repo.revokeTokenFamily(decoded.jti);
+      if (decoded.familyId) {
+        await this.repo.revokeTokenFamily(decoded.familyId);
       }
       throw new HttpError(401, "Refresh token is no longer valid");
     }
@@ -208,9 +210,9 @@ export class AuthService {
     user: Pick<User, "id" | "email" | "name" | "role" | "clientId" | "mustChangePassword">,
     existingFamilyId?: string
   ) {
-    const accessToken = signAccessToken(user);
-    const refreshToken = signRefreshToken(user.id);
     const familyId = existingFamilyId || randomBytes(16).toString("hex");
+    const accessToken = signAccessToken(user);
+    const refreshToken = signRefreshToken(user.id, familyId);
 
     await this.repo.createRefreshToken({
       tokenHash: hashToken(refreshToken),

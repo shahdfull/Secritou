@@ -47,7 +47,24 @@ export const taskService = {
   async updateTask(id: string, data: Partial<CreateTaskDTO>, scope?: ServiceScope) {
     const task = await taskRepository.findByIdAdmin(id);
     if (!task) throw new HttpError(404, "Task not found");
-    await assertProjectInScope(task.projectId, scope);
+    
+    // If user is FREELANCER
+    if (scope?.userRole === "FREELANCER") {
+      // Check if task is assigned to them
+      if (task.assigneeId !== scope.userId) {
+        throw new HttpError(403, "You can only update tasks assigned to you", "TASK_NOT_ASSIGNED_TO_YOU");
+      }
+      // Only allow updating status
+      const allowedFields = ["status"];
+      const dataKeys = Object.keys(data);
+      const hasDisallowedFields = dataKeys.some(key => !allowedFields.includes(key));
+      if (hasDisallowedFields) {
+        throw new HttpError(403, "You can only update task status as a freelancer", "DISALLOWED_FIELD_UPDATE");
+      }
+    } else {
+      // For ADMIN/MANAGER, enforce project scope
+      await assertProjectInScope(task.projectId, scope);
+    }
 
     const updated = await taskRepository.update(id, data);
     if (data.assigneeId && data.assigneeId !== task.assigneeId) {
