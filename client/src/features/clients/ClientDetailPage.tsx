@@ -91,6 +91,7 @@ export function ClientDetailPage() {
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
+  const [selectedOnboardingProjectId, setSelectedOnboardingProjectId] = useState<string>("");
   const { data: onboarding, isLoading: onboardingLoading } = useClientOnboardingByClientId(id ?? "");
   const createOnboarding = useCreateClientOnboarding();
 
@@ -501,19 +502,31 @@ export function ClientDetailPage() {
                 <div className="flex flex-col items-center justify-center py-8 gap-4">
                   <p className="text-muted-foreground">{t("clientsPage.detail.noOnboarding")}</p>
                   {client.projects && client.projects.length > 0 ? (
-                    <Button
-                      onClick={() =>
-                        createOnboarding.mutate(
-                          { projectId: client.projects![0].id },
-                          { onSuccess: () => queryClient.invalidateQueries({ queryKey: ["clientOnboardingByClient", id] }) }
-                        )
-                      }
-                      disabled={createOnboarding.isPending}
-                    >
-                      {createOnboarding.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                      <Plus className="h-4 w-4 mr-2" />
-                      {t("clientsPage.detail.createOnboarding")}
-                    </Button>
+                    <div className="flex flex-col gap-2 w-full max-w-xs">
+                      <Select value={selectedOnboardingProjectId} onValueChange={setSelectedOnboardingProjectId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder={t("common.selectProject")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {client.projects.map((p: any) => (
+                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        onClick={() =>
+                          createOnboarding.mutate(
+                            { projectId: selectedOnboardingProjectId },
+                            { onSuccess: () => queryClient.invalidateQueries({ queryKey: ["clientOnboardingByClient", id] }) }
+                          )
+                        }
+                        disabled={!selectedOnboardingProjectId || createOnboarding.isPending}
+                      >
+                        {createOnboarding.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t("clientsPage.detail.createOnboarding")}
+                      </Button>
+                    </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">{t("clientsPage.detail.linkProjectFirst")}</p>
                   )}

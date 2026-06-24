@@ -244,7 +244,7 @@ export const proposalService = {
               serviceId,
               proposalId: proposal.id,
               budget: proposal.amount != null ? String(proposal.amount) : undefined,
-              deadline: undefined,
+              deadline: proposal.expiresAt ?? undefined,
             },
             select: { id: true },
           });

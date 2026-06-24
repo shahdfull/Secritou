@@ -66,6 +66,13 @@ export function AdminOnboardingPage() {
     return Math.round((completed / onboarding.steps.length) * 100);
   };
 
+  const getOnboardingStatus = (steps: any[]) => {
+    if (steps.every((s) => s.status === "COMPLETED")) return t("onboarding.timeline.statuses.completed");
+    if (steps.some((s) => s.status === "REJECTED")) return t("onboarding.timeline.statuses.rejected");
+    if (steps.some((s) => s.status === "IN_PROGRESS" || s.status === "COMPLETED")) return t("onboarding.timeline.statuses.inProgress");
+    return t("onboarding.timeline.statuses.pending");
+  };
+
   return (
     <section className="space-y-6">
       <div className="flex items-center justify-between mb-6">
@@ -158,9 +165,7 @@ export function AdminOnboardingPage() {
                   </TableCell>
                   <TableCell>{onboarding.project.name}</TableCell>
                   <TableCell>
-                    {onboarding.steps.some((s: any) => s.status === "COMPLETED")
-                      ? "In progress"
-                      : "Pending"}
+                    {getOnboardingStatus(onboarding.steps)}
                   </TableCell>
                   <TableCell>
                     <div className="w-full bg-gray-200 rounded-full h-2.5">

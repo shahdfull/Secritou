@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams, Link } from "react-router-dom";
 import {
-  useClientOnboardingByProjectId,
+  useClientOnboarding,
   useUpdateOnboardingStep,
   useUpdateContract,
   useUpdatePayment,
@@ -17,6 +17,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   CheckCircle2,
   Circle,
   ArrowRight,
@@ -29,13 +36,106 @@ import {
   Download,
 } from "lucide-react";
 
+function QuestionnaireStep({ step, updateQuestionnaire, t }: { step: any; updateQuestionnaire: any; t: any }) {
+  const [serviceType, setServiceType] = useState(step.questionnaire?.serviceType || "");
+  const [fields, setFields] = useState<Record<string, string>>({});
+
+  const handleSave = (isDraft: boolean) => {
+    updateQuestionnaire.mutate({
+      questionnaireId: step.questionnaire.id,
+      data: { serviceType, ...fields, isDraft },
+    });
+  };
+
+  if (!step.questionnaire) return <p>{t("onboarding.admin.createOnboarding")}</p>;
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-2xl font-bold">{t("onboarding.questionnaire.title")}</h3>
+      <p className="text-muted-foreground">{t("onboarding.questionnaire.subtitle")}</p>
+
+      <div className="space-y-4">
+        <div>
+          <label className="text-sm font-medium">{t("onboarding.questionnaire.serviceType")}</label>
+          <Select value={serviceType} onValueChange={setServiceType}>
+            <SelectTrigger className="mt-1">
+              <SelectValue placeholder={t("onboarding.questionnaire.serviceType")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="website">{t("onboarding.questionnaire.services.website")}</SelectItem>
+              <SelectItem value="marketing">{t("onboarding.questionnaire.services.marketing")}</SelectItem>
+              <SelectItem value="analytics">{t("onboarding.questionnaire.services.analytics")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {serviceType === "website" && (
+          <div className="space-y-3">
+            {(["companyName", "colors", "references", "pages"] as const).map((key) => (
+              <div key={key}>
+                <label className="text-sm font-medium">{t(`onboarding.questionnaire.website.${key}`)}</label>
+                <Input
+                  className="mt-1"
+                  value={fields[key] || ""}
+                  onChange={(e) => setFields((f) => ({ ...f, [key]: e.target.value }))}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {serviceType === "marketing" && (
+          <div className="space-y-3">
+            {(["budget", "competitors", "objectives"] as const).map((key) => (
+              <div key={key}>
+                <label className="text-sm font-medium">{t(`onboarding.questionnaire.marketing.${key}`)}</label>
+                <Textarea
+                  className="mt-1"
+                  value={fields[key] || ""}
+                  onChange={(e) => setFields((f) => ({ ...f, [key]: e.target.value }))}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {serviceType === "analytics" && (
+          <div className="space-y-3">
+            {(["kpis", "tools", "dataSources"] as const).map((key) => (
+              <div key={key}>
+                <label className="text-sm font-medium">{t(`onboarding.questionnaire.analytics.${key}`)}</label>
+                <Input
+                  className="mt-1"
+                  value={fields[key] || ""}
+                  onChange={(e) => setFields((f) => ({ ...f, [key]: e.target.value }))}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-2 pt-2">
+        {step.questionnaire.isDraft && (
+          <Button variant="outline" onClick={() => handleSave(true)} disabled={updateQuestionnaire.isPending}>
+            {t("onboarding.questionnaire.saveDraft")}
+          </Button>
+        )}
+        <Button onClick={() => handleSave(false)} disabled={!serviceType || updateQuestionnaire.isPending}>
+          {t("onboarding.questionnaire.submit")}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function ClientOnboardingPage() {
   const { t } = useTranslation();
-  const { projectId } = useParams<{ projectId: string }>();
+  const { onboardingId } = useParams<{ onboardingId: string }>();
   const [activeStep, setActiveStep] = useState<string | null>(null);
 
-  const { data: onboarding, isLoading } = useClientOnboardingByProjectId(
-    projectId || ""
+  const { data: onboarding, isLoading } = useClientOnboarding(
+    onboardingId || ""
   );
   const updateStep = useUpdateOnboardingStep();
   const updateContract = useUpdateContract();
@@ -56,25 +156,29 @@ export function ClientOnboardingPage() {
   }, [onboarding]);
 
   const renderStepIcon = (type: string, status: string) => {
-    const isCompleted = status === "COMPLETED";
+    const color =
+      status === "COMPLETED" ? "text-green-500" :
+      status === "IN_PROGRESS" ? "text-blue-500" :
+      status === "REJECTED" ? "text-red-500" :
+      "text-gray-300";
 
     switch (type) {
       case "welcome":
-        return <CheckCircle2 className={`h-6 w-6 ${isCompleted ? "text-green-500" : "text-gray-300"}`} />;
+        return <CheckCircle2 className={`h-6 w-6 ${color}`} />;
       case "contract":
-        return <FileText className={`h-6 w-6 ${isCompleted ? "text-green-500" : "text-gray-300"}`} />;
+        return <FileText className={`h-6 w-6 ${color}`} />;
       case "payment":
-        return <CreditCard className={`h-6 w-6 ${isCompleted ? "text-green-500" : "text-gray-300"}`} />;
+        return <CreditCard className={`h-6 w-6 ${color}`} />;
       case "questionnaire":
-        return <FileQuestion className={`h-6 w-6 ${isCompleted ? "text-green-500" : "text-gray-300"}`} />;
+        return <FileQuestion className={`h-6 w-6 ${color}`} />;
       case "specifications":
-        return <Briefcase className={`h-6 w-6 ${isCompleted ? "text-green-500" : "text-gray-300"}`} />;
+        return <Briefcase className={`h-6 w-6 ${color}`} />;
       case "kickoff":
-        return <Calendar className={`h-6 w-6 ${isCompleted ? "text-green-500" : "text-gray-300"}`} />;
+        return <Calendar className={`h-6 w-6 ${color}`} />;
       case "production":
-        return <LineChart className={`h-6 w-6 ${isCompleted ? "text-green-500" : "text-gray-300"}`} />;
+        return <LineChart className={`h-6 w-6 ${color}`} />;
       case "delivery":
-        return <Download className={`h-6 w-6 ${isCompleted ? "text-green-500" : "text-gray-300"}`} />;
+        return <Download className={`h-6 w-6 ${color}`} />;
       default:
         return <Circle className="h-6 w-6 text-gray-300" />;
     }
@@ -227,34 +331,11 @@ export function ClientOnboardingPage() {
 
       case "questionnaire":
         return (
-          <div className="space-y-4">
-            <h3 className="text-2xl font-bold">{t("onboarding.questionnaire.title")}</h3>
-            <p className="text-muted-foreground">{t("onboarding.questionnaire.subtitle")}</p>
-
-            {step.questionnaire ? (
-              <div className="space-y-2">
-                <p>
-                  <strong>{t("onboarding.questionnaire.serviceType")}: </strong>
-                  {step.questionnaire.serviceType || "-"}
-                </p>
-                {step.questionnaire.isDraft && (
-                  <Button
-                    onClick={() =>
-                      updateQuestionnaire.mutate({
-                        questionnaireId: step.questionnaire.id,
-                        data: { isDraft: true },
-                      })
-                    }
-                    disabled={updateQuestionnaire.isPending}
-                  >
-                    {t("onboarding.questionnaire.saveDraft")}
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <p>{t("onboarding.admin.createOnboarding")}</p>
-            )}
-          </div>
+          <QuestionnaireStep
+            step={step}
+            updateQuestionnaire={updateQuestionnaire}
+            t={t}
+          />
         );
 
       case "specifications":

@@ -55,6 +55,7 @@ import {
   importAdminQuestionsPage,
   importDocumentsClientPage,
   importClientBriefPage,
+  importOnboardingClientPage,
 } from "./routePrefetch";
 
 // Lazy load route components for code splitting (handle named exports)
@@ -108,6 +109,7 @@ const QuestionsClientPage = lazy(() => importQuestionsClientPage().then((m) => (
 const AdminQuestionsPage = lazy(() => importAdminQuestionsPage().then((m) => ({ default: m.AdminQuestionsPage })));
 const DocumentsClientPage = lazy(() => importDocumentsClientPage().then((m) => ({ default: m.DocumentsClientPage })));
 const ClientBriefPage = lazy(() => importClientBriefPage().then((m) => ({ default: m.ClientBriefPage })));
+const OnboardingClientPage = lazy(() => importOnboardingClientPage().then((m) => ({ default: m.OnboardingClientPage })));
 
 function PageLoader() {
   return (
@@ -187,7 +189,7 @@ export function AppRoutes() {
               <Route path="documents" element={<Navigate to="/app/projects" replace />} />
               <Route path="client-success/:clientId" element={withBoundary(<ClientSuccessPage />)} />
               <Route path="client-onboardings" element={<Navigate to="/app/crm" replace />} />
-              <Route path="client-onboarding/:id" element={withBoundary(<ClientOnboardingPage />)} />
+              <Route path="client-onboarding/:onboardingId" element={withBoundary(<ClientOnboardingPage />)} />
               <Route path="settings" element={withBoundary(<SettingsPage />)} />
               <Route path="questions" element={withBoundary(<AdminQuestionsPage />)} />
               <Route path="questions/:id" element={withBoundary(<AdminQuestionsPage />)} />
@@ -212,6 +214,7 @@ export function AppRoutes() {
           <Route path="questions/:id" element={withBoundary(<QuestionsClientPage />)} />
           <Route path="documents" element={withBoundary(<DocumentsClientPage />)} />
           <Route path="brief/:projectId" element={withBoundary(<ClientBriefPage />)} />
+          <Route path="onboarding" element={withBoundary(<OnboardingClientPage />)} />
         </Route>
       </Route>
 
