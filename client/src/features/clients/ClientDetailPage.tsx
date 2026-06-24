@@ -539,7 +539,7 @@ export function ClientDetailPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>{t("common.name")}</TableHead>
-                      <TableHead>{t("enhancedDocuments.type")}</TableHead>
+                      <TableHead>{t("documents.type")}</TableHead>
                       <TableHead>{t("applications.date")}</TableHead>
                       <TableHead className="text-right">{t("clientsPage.detail.action")}</TableHead>
                     </TableRow>
@@ -605,7 +605,7 @@ export function ClientDetailPage() {
                 name="type"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("enhancedDocuments.type")}</FormLabel>
+                    <FormLabel>{t("documents.type")}</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
