@@ -55,6 +55,32 @@ export const invoiceRepository = {
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
+  async findAllByServiceId(
+    serviceId: string,
+    options: ListQueryOptions & { status?: InvoiceStatus; search?: string }
+  ): Promise<PaginatedResult<Invoice & { client: { name: string } }>> {
+    const where: Prisma.InvoiceWhereInput = { project: { serviceId } };
+    if (options.status) where.status = options.status;
+    if (options.search) {
+      where.OR = [
+        { title: { contains: options.search, mode: "insensitive" } },
+        { number: { contains: options.search, mode: "insensitive" } },
+      ];
+    }
+    const skip = (options.page - 1) * options.pageSize;
+    const [data, total] = await Promise.all([
+      prismaRead.invoice.findMany({
+        where,
+        skip,
+        take: options.pageSize,
+        orderBy: { [options.orderBy || "createdAt"]: options.orderDir || "desc" },
+        include: { client: { select: { name: true } } },
+      }),
+      prismaRead.invoice.count({ where }),
+    ]);
+    return { data, total, page: options.page, pageSize: options.pageSize };
+  },
+
   async findById(id: string) {
     return prismaRead.invoice.findUnique({
       where: { id },

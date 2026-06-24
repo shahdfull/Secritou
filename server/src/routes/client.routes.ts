@@ -3,7 +3,7 @@ import * as clientController from "../controllers/client.controller.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { createClientSchema, updateClientSchema } from "../validators/client.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
-import { authorize } from "../middlewares/rbac.middleware.js";
+import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
 import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 
 const router = Router();
@@ -43,7 +43,7 @@ router.use(authenticate);
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-router.get("/", authorize("ADMIN", "MANAGER"), clientController.getClients);
+router.get("/", authorize("ADMIN", "MANAGER"), requirePermission("clients", "read"), clientController.getClients);
 
 /**
  * @swagger
@@ -75,7 +75,7 @@ router.get("/", authorize("ADMIN", "MANAGER"), clientController.getClients);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.get("/:id", authorize("ADMIN", "MANAGER"), clientController.getClient);
+router.get("/:id", authorize("ADMIN", "MANAGER"), requirePermission("clients", "read"), clientController.getClient);
 
 /**
  * @swagger
@@ -194,6 +194,6 @@ router.delete("/:id", sensitiveWriteRateLimit, authorize("ADMIN"), clientControl
  */
 router.post("/:id/archive", sensitiveWriteRateLimit, authorize("ADMIN"), clientController.archiveClient);
 
-router.post("/:id/invite", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), clientController.inviteClientUser);
+router.post("/:id/invite", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("clients", "update"), clientController.inviteClientUser);
 
 export default router;

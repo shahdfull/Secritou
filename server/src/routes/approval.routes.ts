@@ -14,7 +14,7 @@ import {
   respondToApproval,
 } from "../controllers/approval.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
-import { authorize } from "../middlewares/rbac.middleware.js";
+import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
 import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import {
@@ -37,19 +37,20 @@ router.post("/:id/respond", authenticate, authorize("CLIENT"), sensitiveWriteRat
 router.use(authenticate);
 
 // Protected routes
-router.get("/", authorize("ADMIN", "MANAGER"), getApprovals);
-router.get("/:id", authorize("ADMIN", "MANAGER"), validate(approvalIdParamSchema), getApprovalById);
-router.post("/", authorize("ADMIN", "MANAGER"), validate(createApprovalSchema), createApproval);
-router.put("/:id", authorize("ADMIN", "MANAGER"), validate(updateApprovalSchema), updateApproval);
+router.get("/", authorize("ADMIN", "MANAGER"), requirePermission("approvals", "read"), getApprovals);
+router.get("/:id", authorize("ADMIN", "MANAGER"), requirePermission("approvals", "read"), validate(approvalIdParamSchema), getApprovalById);
+router.post("/", authorize("ADMIN", "MANAGER"), requirePermission("approvals", "create"), validate(createApprovalSchema), createApproval);
+router.put("/:id", authorize("ADMIN", "MANAGER"), requirePermission("approvals", "update"), validate(updateApprovalSchema), updateApproval);
 router.delete("/:id", authorize("ADMIN"), validate(approvalIdParamSchema), deleteApproval);
-router.post("/:id/approve", authorize("ADMIN", "MANAGER"), validate(approvalActionSchema), approveApproval);
-router.post("/:id/reject", authorize("ADMIN", "MANAGER"), validate(approvalActionSchema), rejectApproval);
-router.post("/:id/comment", authorize("ADMIN", "MANAGER"), validate(approvalActionSchema), commentApproval);
+router.post("/:id/approve", authorize("ADMIN", "MANAGER"), requirePermission("approvals", "update"), validate(approvalActionSchema), approveApproval);
+router.post("/:id/reject", authorize("ADMIN", "MANAGER"), requirePermission("approvals", "update"), validate(approvalActionSchema), rejectApproval);
+router.post("/:id/comment", authorize("ADMIN", "MANAGER"), requirePermission("approvals", "update"), validate(approvalActionSchema), commentApproval);
 
 // Attachments
 router.post(
   "/:id/attachments",
   authorize("ADMIN", "MANAGER"),
+  requirePermission("approvals", "update"),
   validate(addAttachmentSchema),
   addApprovalAttachment
 );

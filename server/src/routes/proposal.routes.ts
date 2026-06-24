@@ -16,7 +16,7 @@ import {
 } from "../controllers/proposal.controller.js";
 import { createInvoiceFromProposal } from "../controllers/invoice.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
-import { authorize } from "../middlewares/rbac.middleware.js";
+import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
 import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import {
@@ -40,14 +40,14 @@ router.post("/:id/respond", authenticate, authorize("CLIENT"), sensitiveWriteRat
 router.use(authenticate);
 
 // Protected routes
-router.get("/", authorize("ADMIN", "MANAGER"), getProposals);
-router.get("/:id", authorize("ADMIN", "MANAGER"), validate(proposalIdParamSchema), getProposalById);
-router.post("/", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), validate(createProposalSchema), createProposal);
-router.put("/:id", authorize("ADMIN", "MANAGER"), validate(updateProposalSchema), updateProposal);
+router.get("/", authorize("ADMIN", "MANAGER"), requirePermission("projects", "read"), getProposals);
+router.get("/:id", authorize("ADMIN", "MANAGER"), requirePermission("projects", "read"), validate(proposalIdParamSchema), getProposalById);
+router.post("/", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("projects", "create"), validate(createProposalSchema), createProposal);
+router.put("/:id", authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(updateProposalSchema), updateProposal);
 router.delete("/:id", sensitiveWriteRateLimit, authorize("ADMIN"), validate(proposalIdParamSchema), deleteProposal);
-router.post("/:id/send", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), validate(proposalIdParamSchema), sendProposal);
-router.post("/:id/accept", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), validate(proposalIdParamSchema), acceptProposal);
-router.post("/:id/reject", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), validate(rejectProposalSchema), rejectProposal);
+router.post("/:id/send", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(proposalIdParamSchema), sendProposal);
+router.post("/:id/accept", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(proposalIdParamSchema), acceptProposal);
+router.post("/:id/reject", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(rejectProposalSchema), rejectProposal);
 // Creating an invoice is a financial action : ADMIN only, like the invoice routes.
 router.post("/:id/create-invoice", sensitiveWriteRateLimit, authorize("ADMIN"), validate(proposalIdParamSchema), createInvoiceFromProposal);
 
@@ -56,12 +56,14 @@ router.post(
   "/:id/sections",
   sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
+  requirePermission("projects", "update"),
   validate(addSectionSchema),
   addProposalSection
 );
 router.put(
   "/:id/sections/:sectionId",
   authorize("ADMIN", "MANAGER"),
+  requirePermission("projects", "update"),
   validate(updateSectionSchema),
   updateProposalSection
 );

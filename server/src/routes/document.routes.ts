@@ -10,7 +10,7 @@ import {
   downloadDocument,
 } from "../controllers/document.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
-import { authorize } from "../middlewares/rbac.middleware.js";
+import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import {
   createDocumentSchema,
@@ -25,17 +25,19 @@ const router = express.Router();
 router.use(authenticate);
 
 // Protected routes
-router.get("/", authorize("ADMIN", "MANAGER", "CLIENT"), getDocuments);
-router.get("/:id", validate(documentIdParamSchema), getDocumentById);
+router.get("/", authorize("ADMIN", "MANAGER", "CLIENT"), requirePermission("documents", "read"), getDocuments);
+router.get("/:id", requirePermission("documents", "read"), validate(documentIdParamSchema), getDocumentById);
 router.post(
   "/",
   authorize("ADMIN", "MANAGER"),
+  requirePermission("documents", "create"),
   validate(createDocumentSchema),
   createDocument
 );
 router.put(
   "/:id",
   authorize("ADMIN", "MANAGER"),
+  requirePermission("documents", "update"),
   validate(updateDocumentSchema),
   updateDocument
 );
@@ -43,6 +45,7 @@ router.delete("/:id", authorize("ADMIN"), validate(documentIdParamSchema), delet
 router.post(
   "/:id/versions",
   authorize("ADMIN", "MANAGER"),
+  requirePermission("documents", "update"),
   validate(createDocumentVersionSchema),
   createDocumentVersion
 );

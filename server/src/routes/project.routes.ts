@@ -3,7 +3,7 @@ import { getAllProjects, getProjectById, createProject, updateProject, deletePro
 import { validate } from "../middlewares/validate.middleware.js";
 import { createProjectSchema, updateProjectSchema } from "../validators/project.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
-import { authorize } from "../middlewares/rbac.middleware.js";
+import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
 const router = Router();
 
 router.get("/my", authenticate, authorize("CLIENT"), getMyProjects);
@@ -57,7 +57,7 @@ router.use(authenticate);
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-router.get("/", getAllProjects);
+router.get("/", requirePermission("projects", "read"), getAllProjects);
 
 /**
  * @swagger
@@ -87,7 +87,7 @@ router.get("/", getAllProjects);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.get("/:id", getProjectById);
+router.get("/:id", requirePermission("projects", "read"), getProjectById);
 
 /**
  * @swagger
@@ -116,7 +116,7 @@ router.get("/:id", getProjectById);
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-router.post("/", validate(createProjectSchema), authorize("ADMIN", "MANAGER"), createProject);
+router.post("/", validate(createProjectSchema), authorize("ADMIN", "MANAGER"), requirePermission("projects", "create"), createProject);
 
 /**
  * @swagger
@@ -152,7 +152,7 @@ router.post("/", validate(createProjectSchema), authorize("ADMIN", "MANAGER"), c
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.put("/:id", validate(updateProjectSchema), authorize("ADMIN", "MANAGER"), updateProject);
+router.put("/:id", validate(updateProjectSchema), authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), updateProject);
 
 /**
  * @swagger

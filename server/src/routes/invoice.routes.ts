@@ -12,12 +12,13 @@ import {
   updateInvoiceItem,
   deleteInvoiceItem,
   getMyInvoices,
+  getManagerInvoices,
   cancelInvoice,
   createCreditNote,
   getInvoiceCreditNotes,
 } from "../controllers/invoice.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
-import { authorize } from "../middlewares/rbac.middleware.js";
+import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
 import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import {
@@ -36,6 +37,9 @@ const router = express.Router();
 
 // CLIENT routes
 router.get("/my", authenticate, authorize("CLIENT"), getMyInvoices);
+
+// MANAGER route — invoices scoped to the manager's own service via project.serviceId
+router.get("/my-service", authenticate, authorize("MANAGER"), requirePermission("invoices", "read"), getManagerInvoices);
 
 // Apply base middleware to all admin/manager routes
 router.use(authenticate);

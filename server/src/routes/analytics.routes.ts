@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { authenticate } from "../middlewares/auth.middleware.js";
+import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
 import { getSummary } from "../controllers/analytics.controller.js";
 import { httpCache } from "../middlewares/cache.middleware.js";
 import { cacheTTL } from "../cache/cacheService.js";
@@ -10,6 +11,8 @@ const router = Router();
 router.use(authenticate);
 router.get(
   "/summary",
+  authorize("ADMIN", "MANAGER"),
+  requirePermission("analytics", "read"),
   httpCache(
     (req) => {
       const from = typeof req.query.from === "string" ? req.query.from : "";

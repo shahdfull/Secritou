@@ -3,10 +3,20 @@ import { invoiceService } from "../services/invoice.service.js";
 import { creditNoteService } from "../services/creditNote.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
 import { InvoiceStatus } from "@prisma/client";
+import { buildServiceScope } from "../utils/serviceScope.js";
+import { HttpError } from "../utils/httpError.js";
 
 function textQuery(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
+
+export const getManagerInvoices = async (req: Request, res: Response) => {
+  const scope = await buildServiceScope(req);
+  if (!scope.userServiceId) throw new HttpError(403, "Manager has no service assigned");
+  const options = { ...parseListQuery(req.query as Record<string, unknown>), status: textQuery(req.query.status) as InvoiceStatus | undefined, search: textQuery(req.query.search) };
+  const result = await invoiceService.getAllByServiceId(scope.userServiceId, options);
+  res.json(result);
+};
 
 export const getMyInvoices = async (req: Request, res: Response) => {
   const clientId = req.user!.clientId!;

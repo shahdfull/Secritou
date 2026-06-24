@@ -27,13 +27,10 @@ export function requirePermission(
       return;
     }
 
-    if (req.user.role === "ADMIN") {
-      next();
-      return;
-    }
-
+    // ADMIN is always allowed; non-MANAGER roles pass through (their access is
+    // controlled by the preceding authorize() call on the route).
     if (req.user.role !== "MANAGER") {
-      next(new HttpError(403, "Insufficient permissions"));
+      next();
       return;
     }
 

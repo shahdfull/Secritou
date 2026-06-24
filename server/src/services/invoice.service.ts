@@ -57,6 +57,10 @@ export const invoiceService = {
     return invoiceRepository.findAllByClientId(clientId, options);
   },
 
+  async getAllByServiceId(serviceId: string, options: ListQueryOptions & { status?: InvoiceStatus; search?: string }) {
+    return invoiceRepository.findAllByServiceId(serviceId, options);
+  },
+
   async getAll(options: ListQueryOptions & { clientId?: string; status?: InvoiceStatus; search?: string }) {
     return invoiceRepository.findAll(options);
   },
