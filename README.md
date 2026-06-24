@@ -1,20 +1,20 @@
-# Secritou — Growth & Digital Transformation Platform
+# Secritou : Growth & Digital Transformation Platform
 
-A full-stack SaaS platform for agencies and SMEs: CRM, project management, client portal, freelancer marketplace, and document automation — all in one multi-tenant workspace.
+A full-stack SaaS platform for agencies and SMEs: CRM, project management, client portal, freelancer marketplace, and document automation : all in one multi-tenant workspace.
 
 ## Features
 
 ### Admin & Manager Dashboard
-- **CRM** — lead pipeline (kanban + list), client management, contact-to-lead conversion
-- **Commercial** — proposals with e-signature flow, acceptance cascade (lead → project → 30% deposit invoice), approvals
-- **Projects** — full project lifecycle: planning → production → review → client approval
-- **Tasks** — kanban board with assignees, comments, and status tracking
-- **Talent** — freelancer profiles, mission marketplace, ratings
-- **Invoices** — deposit + balance invoices, payment tracking, credit notes
-- **Documents** — auto-generated PDFs (welcome letter, contract, specs, client brief, quote, invoices, roadmap) stored in MinIO/S3
-- **Analytics & Reports** — dashboard metrics, Excel/PDF exports
-- **AI Assistant** — contextual chat assistant
-- **Settings** — company branding, user management, dynamic RBAC for Managers
+- **CRM** : lead pipeline (kanban + list), client management, contact-to-lead conversion
+- **Commercial** : proposals with e-signature flow, acceptance cascade (lead → project → 30% deposit invoice), approvals
+- **Projects** : full project lifecycle: planning → production → review → client approval
+- **Tasks** : kanban board with assignees, comments, and status tracking
+- **Talent** : freelancer profiles, mission marketplace, ratings
+- **Invoices** : deposit + balance invoices, payment tracking, credit notes
+- **Documents** : auto-generated PDFs (welcome letter, contract, specs, client brief, quote, invoices, roadmap) stored in MinIO/S3
+- **Analytics & Reports** : dashboard metrics, Excel/PDF exports
+- **AI Assistant** : contextual chat assistant
+- **Settings** : company branding, user management, dynamic RBAC for Managers
 
 ### Client Portal
 - Project timeline (7 interactive steps with 30s polling)
@@ -34,10 +34,10 @@ A full-stack SaaS platform for agencies and SMEs: CRM, project management, clien
 | Client approves project | Project → COMPLETED · 70% balance invoice · Manager + client emails |
 
 ### Permissions (RBAC)
-- **ADMIN** — full access, never blocked
-- **MANAGER** — dynamic permissions per module (projects, tasks, leads, clients, invoices, documents, etc.) configurable via profiles + individual overrides
-- **CLIENT** — scoped to own projects/documents/invoices
-- **FREELANCER** — marketplace access only
+- **ADMIN** : full access, never blocked
+- **MANAGER** : dynamic permissions per module (projects, tasks, leads, clients, invoices, documents, etc.) configurable via profiles + individual overrides
+- **CLIENT** : scoped to own projects/documents/invoices
+- **FREELANCER** : marketplace access only
 
 ---
 
@@ -268,16 +268,16 @@ npm run prisma:seed --workspace server
 ## Architecture Notes
 
 ### Read/Write Prisma split
-`prismaRead` points to a replica (or same DB in dev) for all read queries; `prisma` (write client) is used only for mutations — enabling future read-replica scaling with no code change.
+`prismaRead` points to a replica (or same DB in dev) for all read queries; `prisma` (write client) is used only for mutations : enabling future read-replica scaling with no code change.
 
 ### PDF generation
-`documentGenerator.service.ts` generates in-memory PDF buffers via `pdfkit`, uploads them to MinIO via `@aws-sdk/client-s3`, then creates `Document` records in the DB. All 7 PDF types are triggered automatically after proposal acceptance using `Promise.allSettled` — failures never roll back the acceptance.
+`documentGenerator.service.ts` generates in-memory PDF buffers via `pdfkit`, uploads them to MinIO via `@aws-sdk/client-s3`, then creates `Document` records in the DB. All 7 PDF types are triggered automatically after proposal acceptance using `Promise.allSettled` : failures never roll back the acceptance.
 
 ### Permission resolution
 `managerPermissionService.resolvePermissions(userId)`:
 1. Check Redis cache (`manager_perms:{userId}`, TTL 5 min)
 2. Load `ManagerPermission` with linked `PermissionProfile`
-3. `deepMerge(profile.permissions, mp.overrides)` — individual overrides win
+3. `deepMerge(profile.permissions, mp.overrides)` : individual overrides win
 4. Cache result and return
 
 ---

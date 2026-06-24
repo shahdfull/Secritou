@@ -14,8 +14,8 @@ npm run build      # production build
 
 ## Key scripts
 
-- `npm run dev` — start Vite dev server
-- `npm run build` — build for production
-- `npm run preview` — preview production build
-- `npm run typecheck` — TypeScript check
-- `npm run lint` — ESLint
+- `npm run dev` : start Vite dev server
+- `npm run build` : build for production
+- `npm run preview` : preview production build
+- `npm run typecheck` : TypeScript check
+- `npm run lint` : ESLint
