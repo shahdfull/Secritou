@@ -12,7 +12,7 @@ ALTER TABLE "Document"              DROP CONSTRAINT IF EXISTS "Document_companyI
 ALTER TABLE "ClientOnboarding"      DROP CONSTRAINT IF EXISTS "ClientOnboarding_companyId_fkey";
 ALTER TABLE "Proposal"              DROP CONSTRAINT IF EXISTS "Proposal_companyId_fkey";
 ALTER TABLE "Approval"              DROP CONSTRAINT IF EXISTS "Approval_companyId_fkey";
-ALTER TABLE "EnhancedDocument"      DROP CONSTRAINT IF EXISTS "EnhancedDocument_companyId_fkey";
+ALTER TABLE IF EXISTS "EnhancedDocument" DROP CONSTRAINT IF EXISTS "EnhancedDocument_companyId_fkey";
 ALTER TABLE "Invoice"               DROP CONSTRAINT IF EXISTS "Invoice_companyId_fkey";
 ALTER TABLE "ClientSuccess"         DROP CONSTRAINT IF EXISTS "ClientSuccess_companyId_fkey";
 ALTER TABLE "FreelancerApplication" DROP CONSTRAINT IF EXISTS "FreelancerApplication_companyId_fkey";
@@ -76,7 +76,7 @@ ALTER TABLE "Document"              DROP COLUMN IF EXISTS "companyId";
 ALTER TABLE "ClientOnboarding"      DROP COLUMN IF EXISTS "companyId";
 ALTER TABLE "Proposal"              DROP COLUMN IF EXISTS "companyId";
 ALTER TABLE "Approval"              DROP COLUMN IF EXISTS "companyId";
-ALTER TABLE "EnhancedDocument"      DROP COLUMN IF EXISTS "companyId";
+ALTER TABLE IF EXISTS "EnhancedDocument" DROP COLUMN IF EXISTS "companyId";
 ALTER TABLE "Invoice"               DROP COLUMN IF EXISTS "companyId";
 ALTER TABLE "ClientSuccess"         DROP COLUMN IF EXISTS "companyId";
 ALTER TABLE "FreelancerApplication" DROP COLUMN IF EXISTS "companyId";

@@ -2,7 +2,7 @@
 -- The DocumentType enum already contains all values from both columns, so no enum change needed.
 
 -- Step 1: Copy enhancedType into type (in case any query reads type before the rename)
-UPDATE "Document" SET "type" = "enhancedType";
+UPDATE "Document" SET "type" = "enhancedType"::text::"DocumentType";
 
 -- Step 2: Drop old indexes on type and enhancedType
 DROP INDEX IF EXISTS "Document_type_idx";

@@ -51,7 +51,7 @@ export const clientSuccessService = {
     }
     if (success.metrics.length > 0) manualScore += Math.min((totalImprovement / success.metrics.length) * 0.15, 15);
 
-    const doneRecs = success.recommendations.filter((r) => r.status === "DONE" || r.status === "COMPLETED").length;
+    const doneRecs = success.recommendations.filter((r) => r.status === "DONE").length;
     if (success.recommendations.length > 0) manualScore += (doneRecs / success.recommendations.length) * 15;
 
     const twelveMonthsAgo = new Date();
@@ -123,12 +123,12 @@ export const clientSuccessService = {
     return clientSuccessRepository.deleteMetric(id);
   },
 
-  async addRecommendation(clientId: string, data: { title: string; description?: string; priority?: number; status?: string }) {
+  async addRecommendation(clientId: string, data: { title: string; description?: string; priority?: "LOW" | "MEDIUM" | "HIGH"; status?: "PENDING" | "IN_PROGRESS" | "DONE" }) {
     const success = await this.getByClientId(clientId);
     return clientSuccessRepository.addRecommendation(success!.id, data);
   },
 
-  async updateRecommendation(id: string, data: Partial<{ title: string; description: string; priority: number; status: string }>) {
+  async updateRecommendation(id: string, data: Partial<{ title: string; description: string; priority: "LOW" | "MEDIUM" | "HIGH"; status: "PENDING" | "IN_PROGRESS" | "DONE" }>) {
     const recommendation = await clientSuccessRepository.updateRecommendation(id, data);
     if (data.status !== undefined) await this.recalcForSuccess(recommendation.successId);
     return recommendation;

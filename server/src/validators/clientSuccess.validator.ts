@@ -39,9 +39,9 @@ export const addMetricSchema = z.object({
   params: z.object({ clientId: uuidParam }),
   body: z.object({
     name: z.string().min(1).max(255),
-    value: z.number(),
+    initialValue: positiveDecimal,
+    currentValue: positiveDecimal,
     unit: z.string().max(50).optional(),
-    period: z.string().max(100).optional(),
   }),
 });
 
@@ -49,9 +49,9 @@ export const updateMetricSchema = z.object({
   params: z.object({ clientId: uuidParam, metricId: uuidParam }),
   body: z.object({
     name: z.string().min(1).max(255).optional(),
-    value: z.number().optional(),
+    initialValue: positiveDecimal.optional(),
+    currentValue: positiveDecimal.optional(),
     unit: z.string().max(50).optional(),
-    period: z.string().max(100).optional(),
   }),
 });
 

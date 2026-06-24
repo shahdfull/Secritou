@@ -9,7 +9,7 @@ export const clientSuccessRepository = {
         client: true,
         objectives: { orderBy: { createdAt: "desc" } },
         metrics: { include: { history: { orderBy: { date: "desc" }, take: 30 } } },
-        recommendations: { orderBy: { priority: "desc" } },
+        recommendations: { orderBy: { createdAt: "desc" } },
         timeline: { orderBy: { date: "desc" } },
       },
     });
@@ -54,12 +54,12 @@ export const clientSuccessRepository = {
     return prisma.metricHistory.create({ data: { ...data, metricId } });
   },
 
-  async addRecommendation(successId: string, data: { title: string; description?: string; priority?: number; status?: string }) {
+  async addRecommendation(successId: string, data: { title: string; description?: string; priority?: "LOW" | "MEDIUM" | "HIGH"; status?: "PENDING" | "IN_PROGRESS" | "DONE" }) {
     await prisma.clientSuccess.findUniqueOrThrow({ where: { id: successId }, select: { id: true } });
     return prisma.successRecommendation.create({ data: { ...data, successId } });
   },
 
-  async updateRecommendation(id: string, data: Partial<{ title: string; description: string; priority: number; status: string }>) {
+  async updateRecommendation(id: string, data: Partial<{ title: string; description: string; priority: "LOW" | "MEDIUM" | "HIGH"; status: "PENDING" | "IN_PROGRESS" | "DONE" }>) {
     return prisma.successRecommendation.update({ where: { id }, data });
   },
 

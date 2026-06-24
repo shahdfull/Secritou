@@ -1005,16 +1005,28 @@ model MetricHistory {
   @@index([metricId, date])
 }
 
+enum RecommendationPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum RecommendationStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+}
+
 model SuccessRecommendation {
-  id          String        @id @default(uuid())
-  title       String        @db.VarChar(255)
-  description String?       @db.Text
-  priority    Int           @default(0)
-  status      String        @default("PENDING") @db.VarChar(50)
+  id          String                 @id @default(uuid())
+  title       String                 @db.VarChar(255)
+  description String?                @db.Text
+  priority    RecommendationPriority @default(MEDIUM)
+  status      RecommendationStatus   @default(PENDING)
   successId   String
-  success     ClientSuccess @relation(fields: [successId], references: [id], onDelete: Cascade)
-  createdAt   DateTime      @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime      @updatedAt @db.Timestamptz(6)
+  success     ClientSuccess          @relation(fields: [successId], references: [id], onDelete: Cascade)
+  createdAt   DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime               @updatedAt @db.Timestamptz(6)
 
   @@index([successId])
   @@index([successId, priority])
