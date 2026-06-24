@@ -92,7 +92,7 @@ export function SettingsJoinRequestsTab() {
       setSelectedForConvert(null);
       queryClient.invalidateQueries({ queryKey: ["contact-requests"] });
       queryClient.invalidateQueries({ queryKey: ["leads"] });
-      navigate(`/crm/leads/${result.data.id}`);
+      navigate(`/app/crm/leads/${result.data.id}`);
     },
   });
 
@@ -124,7 +124,7 @@ export function SettingsJoinRequestsTab() {
                       className="cursor-pointer"
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/crm/leads/${request.convertedLead?.id}`);
+                        navigate(`/app/crm/leads/${request.convertedLead?.id}`);
                       }}
                     >
                         <CheckCircle2 className="h-3 w-3 mr-1" />

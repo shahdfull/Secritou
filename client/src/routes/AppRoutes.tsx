@@ -14,6 +14,7 @@ import {
   importClientDetailPage,
   importClientProfilePage,
   importClientsPage,
+  importCaseStudiesPage,
   importContactPage,
   importDashboardPage,
   importForgotPasswordPage,
@@ -60,6 +61,7 @@ import {
 const HomePage = lazy(() => importHomePage().then((m) => ({ default: m.HomePage })));
 const ServicesPage = lazy(() => importServicesPage().then((m) => ({ default: m.ServicesPage })));
 const SolutionsPage = lazy(() => importSolutionsPage().then((m) => ({ default: m.SolutionsPage })));
+const CaseStudiesPage = lazy(() => importCaseStudiesPage().then((m) => ({ default: m.CaseStudiesPage })));
 const ContactPage = lazy(() => importContactPage().then((m) => ({ default: m.ContactPage })));
 const LoginPage = lazy(() => importLoginPage().then((m) => ({ default: m.LoginPage })));
 const JoinUsPage = lazy(() => importJoinUsPage().then((m) => ({ default: m.JoinUsPage })));
@@ -143,6 +145,7 @@ export function AppRoutes() {
         <Route index element={withBoundary(<HomePage />)} />
         <Route path="services" element={withBoundary(<ServicesPage />)} />
         <Route path="solutions" element={withBoundary(<SolutionsPage />)} />
+        <Route path="case-studies" element={withBoundary(<CaseStudiesPage />)} />
         <Route path="contact" element={withBoundary(<ContactPage />)} />
         <Route path="login" element={withBoundary(<LoginPage />)} />
         <Route path="rejoindre" element={withBoundary(<JoinUsPage />)} />

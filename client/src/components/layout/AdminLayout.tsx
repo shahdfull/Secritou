@@ -67,6 +67,7 @@ const menuItems: MenuItem[] = [
   { key: "commercial", url: "/app/commercial", icon: FileText,   permModule: "leads"   },
   { key: "talent",     url: "/app/talent",    icon: Briefcase,   permModule: "freelancers" },
   { key: "projects",   url: "/app/projects",  icon: FolderOpen,  permModule: "projects" },
+  { key: "reports",    url: "/app/reports",   icon: BarChart3 },
   { key: "questions",  url: "/app/questions", icon: HelpCircle },
   { key: "settings",   url: "/app/settings",  icon: Settings },
 ];
