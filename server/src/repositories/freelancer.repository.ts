@@ -4,10 +4,15 @@ import type { FreelancerProfile, Skill, PortfolioItem } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildTextSearchFilter } from "../utils/listQuery.js";
 
-type FreelancerWithRelations = FreelancerProfile & {
+type FreelancerRaw = FreelancerProfile & {
   user: { id: string; name: string; email: string };
   skills: Skill[];
   portfolio?: PortfolioItem[];
+};
+
+export type FreelancerWithRelations = Omit<FreelancerRaw, "hourlyRate" | "rating"> & {
+  hourlyRate: number | null;
+  rating: number | null;
 };
 
 const include = {
@@ -16,6 +21,14 @@ const include = {
   portfolio: true,
 } as const;
 
+function serialize(raw: FreelancerRaw): FreelancerWithRelations {
+  return {
+    ...raw,
+    hourlyRate: raw.hourlyRate != null ? Number(raw.hourlyRate) : null,
+    rating: raw.rating != null ? Number(raw.rating) : null,
+  };
+}
+
 export const freelancerRepository = {
   async findAll(options: ListQueryOptions): Promise<PaginatedResult<FreelancerWithRelations>> {
     const skip = (options.page - 1) * options.pageSize;
@@ -23,19 +36,20 @@ export const freelancerRepository = {
     const where = Object.keys(searchFilter).length
       ? { OR: [{ user: { name: { contains: options.search, mode: "insensitive" as const } } }, { bio: { contains: options.search, mode: "insensitive" as const } }] }
       : {};
-    const [data, total] = await Promise.all([
+    const [raw, total] = await Promise.all([
       prismaRead.freelancerProfile.findMany({ where, include, skip, take: options.pageSize, orderBy: { createdAt: "desc" } }),
       prismaRead.freelancerProfile.count({ where }),
     ]);
-    return { data, total, page: options.page, pageSize: options.pageSize };
+    return { data: raw.map(serialize), total, page: options.page, pageSize: options.pageSize };
   },
 
   async findById(id: string): Promise<FreelancerWithRelations | null> {
-    return prismaRead.freelancerProfile.findUnique({ where: { id }, include });
+    const raw = await prismaRead.freelancerProfile.findUnique({ where: { id }, include });
+    return raw ? serialize(raw) : null;
   },
 
   async findByUserId(userId: string): Promise<FreelancerWithRelations | null> {
-    return prismaRead.freelancerProfile.findUnique({
+    const raw = await prismaRead.freelancerProfile.findUnique({
       where: { userId },
       include: {
         user: { select: { id: true, name: true, email: true } },
@@ -43,6 +57,7 @@ export const freelancerRepository = {
         portfolio: true,
       },
     });
+    return raw ? serialize(raw) : null;
   },
 
   async create(data: {

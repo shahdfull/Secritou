@@ -4,6 +4,7 @@ export interface User {
   name: string;
   role: "ADMIN" | "MANAGER" | "CLIENT" | "FREELANCER";
   clientId?: string;
+  serviceId?: string | null;
   mustChangePassword?: boolean;
   createdAt: string;
   updatedAt: string;

@@ -89,6 +89,10 @@ export const serviceRequestService = {
   async deleteServiceRequest(id: string) {
     const req = await serviceRequestRepository.findByIdSimple(id);
     if (!req) throw new HttpError(404, "Service request not found");
+    const linked = await serviceRequestRepository.findLinkedProposal(id);
+    if (linked) {
+      throw new HttpError(409, "Cannot delete a service request that has a linked proposal");
+    }
     return serviceRequestRepository.delete(id);
   },
 

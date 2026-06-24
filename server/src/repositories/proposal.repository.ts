@@ -85,6 +85,7 @@ export const proposalRepository = {
         sections: { orderBy: { orderIndex: "asc" } },
         history: { include: { user: true }, orderBy: { createdAt: "desc" } },
         invoice: { select: { id: true } },
+        linkedProject: { select: { id: true } },
       },
     });
   },

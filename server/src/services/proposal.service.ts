@@ -125,6 +125,14 @@ export const proposalService = {
   },
 
   async delete(id: string) {
+    const proposal = await proposalRepository.findById(id);
+    if (!proposal) throw new HttpError(404, "Proposal not found");
+    if (proposal.linkedProject) {
+      throw new HttpError(409, "Cannot delete a proposal that has generated a project");
+    }
+    if (proposal.invoice) {
+      throw new HttpError(409, "Cannot delete a proposal that has a linked invoice");
+    }
     return proposalRepository.delete(id);
   },
 

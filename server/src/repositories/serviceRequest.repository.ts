@@ -112,6 +112,10 @@ export const serviceRequestRepository = {
     return prismaRead.serviceRequest.findFirst({ where: { id } });
   },
 
+  async findLinkedProposal(id: string) {
+    return prismaRead.proposal.findFirst({ where: { serviceRequestId: id }, select: { id: true } });
+  },
+
   async create(data: {
     title: string;
     description?: string;

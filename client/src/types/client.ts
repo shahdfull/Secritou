@@ -13,6 +13,8 @@ export interface Client {
   name: string;
   email?: string;
   phone?: string;
+  creditBalance?: string;
+  serviceId?: string | null;
   archivedAt?: string | null;
   createdAt: string;
   updatedAt: string;

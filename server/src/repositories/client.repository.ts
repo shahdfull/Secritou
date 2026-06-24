@@ -68,7 +68,7 @@ export const clientRepository = {
   },
 
   async findById(id: string, serviceId?: string | null): Promise<ClientDetail | null> {
-    const where: Record<string, unknown> = { id };
+    const where: Record<string, unknown> = { id, archivedAt: null };
     if (serviceId !== undefined) {
       where.projects = { some: { serviceId: serviceId ?? "__none__" } };
     }

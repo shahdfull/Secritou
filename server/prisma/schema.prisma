@@ -135,7 +135,7 @@ model User {
   role                Role                 @default(CLIENT)
   mustChangePassword  Boolean              @default(false)
   clientId            String?
-  client              Client?              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client              Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
   serviceId           String?
   service             Service?             @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   tasks               Task[]               @relation("AssignedTasks")
@@ -275,8 +275,8 @@ model ServiceRequestComment {
   isInternal       Boolean        @default(false)
   serviceRequestId String
   serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
-  authorId         String
-  author           User           @relation("ServiceRequestCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  authorId         String?
+  author           User?          @relation("ServiceRequestCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
   createdAt        DateTime       @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime       @updatedAt @db.Timestamptz(6)
 
@@ -366,8 +366,8 @@ model Comment {
   content   String   @db.Text
   taskId    String
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  String?
+  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now()) @db.Timestamptz(6)
 
   @@index([taskId])
@@ -484,8 +484,8 @@ model Document {
   client           Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
   projectId        String?
   project          Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  uploadedById     String
-  uploadedBy       User                 @relation("UploadedDocuments", fields: [uploadedById], references: [id], onDelete: Cascade)
+  uploadedById     String?
+  uploadedBy       User?                @relation("UploadedDocuments", fields: [uploadedById], references: [id], onDelete: SetNull)
   signedAt         DateTime?            @db.Timestamptz(6)
   signedByClientId String?
   signedByClient   User?                @relation("SignedDocuments", fields: [signedByClientId], references: [id], onDelete: SetNull)

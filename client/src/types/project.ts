@@ -7,6 +7,13 @@ export interface Project {
   description?: string;
   status: "PLANNING" | "IN_PROGRESS" | "REVIEW" | "COMPLETED";
   clientId?: string;
+  serviceId?: string | null;
+  proposalId?: string | null;
+  serviceType?: string | null;
+  briefData?: Record<string, unknown> | null;
+  briefCompleted?: boolean;
+  briefCompletedAt?: string | null;
+  clientApprovedAt?: string | null;
   budget?: string | null;
   deadline?: string | null;
   createdAt: string;

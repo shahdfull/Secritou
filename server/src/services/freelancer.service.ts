@@ -46,7 +46,7 @@ export const freelancerService = {
     if (!existingProfile) {
       throw new HttpError(404, "Freelancer profile not found");
     }
-    return freelancerRepository.update(existingProfile.id, data);
+    return freelancerRepository.update(existingProfile.id, userId, data);
   },
 
   async deleteMyProfile(userId: string, userRole: Role) {
