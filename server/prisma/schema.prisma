@@ -112,34 +112,16 @@ enum Priority {
   URGENT
 }
 
-// Multi-tenant Company model
+// Single-tenant Company model (one record for Secritou)
 model Company {
-  id                  String                @id @default(uuid())
-  name                String                @db.VarChar(255)
-  website             String?               @db.VarChar(255)
-  logoUrl             String?               @db.VarChar(255)
-  primaryColor        String?               @db.VarChar(20)
-  users               User[]
-  services            Service[]
-  leads               Lead[]
-  clients             Client[]
-  projects            Project[]
-  serviceRequests     ServiceRequest[]
-  documents           Document[]
-  proposals           Proposal[]
-  approvals           Approval[]
-  invoices            Invoice[]
-  creditNotes         CreditNote[]
-  clientSuccess       ClientSuccess[]
-  clientOnboardings        ClientOnboarding[]
-  freelancerApplications   FreelancerApplication[]
-  aiConversations      AiConversation[]
-  customQuestions      CustomQuestion[]
-  ratings              Rating[]
-  createdAt           DateTime              @default(now()) @db.Timestamptz(6)
-  updatedAt           DateTime              @updatedAt @db.Timestamptz(6)
+  id          String   @id @default(uuid())
+  name        String   @db.VarChar(255)
+  website     String?  @db.VarChar(255)
+  logoUrl     String?  @db.VarChar(255)
+  primaryColor String? @db.VarChar(20)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
-  // Indexes for faster queries
   @@index([name])
 }
 
@@ -151,8 +133,6 @@ model User {
   passwordHash        String               @db.VarChar(255)
   role                Role                 @default(CLIENT)
   mustChangePassword  Boolean              @default(false)
-  companyId           String?
-  company             Company?             @relation(fields: [companyId], references: [id], onDelete: SetNull)
   clientId            String?
   client              Client?              @relation(fields: [clientId], references: [id], onDelete: Cascade)
   serviceId           String?
@@ -185,33 +165,25 @@ model User {
   createdAt           DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt           DateTime             @updatedAt @db.Timestamptz(6)
 
-  @@unique([companyId, email])
+  @@unique([email])
 
   // Indexes for faster queries
-  @@index([companyId])
   @@index([clientId])
   @@index([email])
-  @@index([companyId, role])
   @@index([resetToken])
-  @@index([companyId, createdAt])
   @@index([serviceId])
 }
 
-// Service (business pole/department) — e.g. "Technology Solutions", "AI & Automation".
+// Service (business pole/department) : e.g. "Technology Solutions", "AI & Automation".
 // Leads, clients and users are attached to a service so MANAGERs can be scoped to their pole.
 model Service {
   id        String   @id @default(uuid())
-  name      String   @db.VarChar(100)
-  companyId String
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String   @db.VarChar(100) @unique
   leads     Lead[]
   projects  Project[]
   users     User[]
   clients   Client[]
   createdAt DateTime @default(now()) @db.Timestamptz(6)
-
-  @@unique([companyId, name])
-  @@index([companyId])
 }
 
 // Lead model for potential clients/sales pipeline
@@ -223,25 +195,22 @@ model Lead {
   source            String?    @db.VarChar(100)
   status            LeadStatus @default(NEW)
   notes             String?    @db.Text
-  companyId         String
-  company           Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   serviceId         String?
   service           Service?   @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   convertedClientId String?
   convertedClient   Client?    @relation("ConvertedLead", fields: [convertedClientId], references: [id], onDelete: SetNull)
   archivedAt        DateTime?  @db.Timestamptz(6)
-  sourceContactId   String?               @unique
-  sourceContact     ContactRequest?       @relation(fields: [sourceContactId], references: [id])
+  sourceContactId   String?    @unique
+  sourceContact     ContactRequest? @relation(fields: [sourceContactId], references: [id])
   assignedManagerId String?
-  assignedManager   User?                 @relation("ManagerLeads", fields: [assignedManagerId], references: [id])
-  department        String?               @db.VarChar(255)
+  assignedManager   User?      @relation("ManagerLeads", fields: [assignedManagerId], references: [id])
+  department        String?    @db.VarChar(255)
   createdAt         DateTime   @default(now()) @db.Timestamptz(6)
   updatedAt         DateTime   @updatedAt @db.Timestamptz(6)
 
-  @@unique([companyId, email])
-  @@index([companyId, status])
-  @@index([companyId, createdAt])
-  @@index([companyId, status, createdAt])
+  @@index([status])
+  @@index([createdAt])
+  @@index([status, createdAt])
   @@index([email])
   @@index([archivedAt])
 }
@@ -252,8 +221,6 @@ model Client {
   name             String           @db.VarChar(255)
   email            String?          @db.VarChar(255)
   phone            String?          @db.VarChar(50)
-  companyId        String
-  company          Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   projects         Project[]
   users            User[]
   serviceRequests  ServiceRequest[]
@@ -265,32 +232,28 @@ model Client {
   creditBalance    Decimal          @default(0) @db.Decimal(12, 2)
   clientSuccess    ClientSuccess?
   clientOnboardings ClientOnboarding[]
-  serviceId         String?
-  service           Service?         @relation(fields: [serviceId], references: [id], onDelete: SetNull)
-  convertedLeads    Lead[]           @relation("ConvertedLead")
+  serviceId        String?
+  service          Service?         @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  convertedLeads   Lead[]           @relation("ConvertedLead")
   archivedAt       DateTime?        @db.Timestamptz(6)
   createdAt        DateTime         @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime         @updatedAt @db.Timestamptz(6)
 
-  @@unique([companyId, email])
-  @@index([companyId])
-  @@index([companyId, createdAt])
   @@index([email])
   @@index([archivedAt])
+  @@index([createdAt])
 }
 model ServiceRequest {
   id           String               @id @default(uuid())
   title        String               @db.VarChar(255)
   description  String?              @db.Text
-  type         ServiceRequestType    @default(NEW_PROJECT)
+  type         ServiceRequestType   @default(NEW_PROJECT)
   status       ServiceRequestStatus @default(NEW)
   priority     Priority             @default(NORMAL)
   assignedToId String?
   assignedTo   User?                @relation("ServiceRequestAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
   clientId     String
   client       Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  companyId    String
-  company      Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
   createdAt    DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt    DateTime             @updatedAt @db.Timestamptz(6)
 
@@ -299,9 +262,9 @@ model ServiceRequest {
   proposal  Proposal?
 
   @@index([clientId])
-  @@index([companyId, status])
-  @@index([companyId, createdAt])
-  @@index([companyId, status, createdAt])
+  @@index([status])
+  @@index([createdAt])
+  @@index([status, createdAt])
   @@index([assignedToId])
 }
 
@@ -339,8 +302,6 @@ model Project {
   name              String                @db.VarChar(255)
   description       String?               @db.Text
   status            ProjectStatus         @default(PLANNING)
-  companyId         String
-  company           Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   clientId          String?
   client            Client?               @relation(fields: [clientId], references: [id], onDelete: SetNull)
   serviceId         String?
@@ -371,9 +332,9 @@ model Project {
   updatedAt         DateTime              @updatedAt @db.Timestamptz(6)
 
   // Indexes for faster queries
-  @@index([companyId, status])
-  @@index([companyId, status, updatedAt])
-  @@index([companyId, createdAt])
+  @@index([status])
+  @@index([status, updatedAt])
+  @@index([createdAt])
   @@index([clientId])
   @@index([archivedAt])
   @@index([serviceId])
@@ -482,12 +443,9 @@ model Rating {
   freelancer      FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
   ratedByUserId   String?
   ratedByUser     User?             @relation("RatedByUser", fields: [ratedByUserId], references: [id], onDelete: SetNull)
-  companyId       String
-  company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   createdAt       DateTime          @default(now()) @db.Timestamptz(6)
 
   @@index([freelancerId])
-  @@index([companyId])
 }
 
 // Notification model for user notifications
@@ -523,8 +481,6 @@ model Document {
   accessLevel      DocumentAccessLevel  @default(CLIENT_ADMIN)
   clientId         String?
   client           Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  companyId        String
-  company          Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
   projectId        String?
   project          Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
   uploadedById     String
@@ -536,13 +492,11 @@ model Document {
   createdAt        DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime             @updatedAt @db.Timestamptz(6)
 
-  @@index([companyId])
-  @@index([companyId, createdAt])
   @@index([clientId])
   @@index([projectId])
   @@index([type])
   @@index([tags])
-  @@index([companyId, type])
+  @@index([createdAt])
 }
 model RefreshToken {
   id        String    @id @default(uuid())
@@ -575,9 +529,6 @@ model FreelancerApplication {
   rejectionReason String?           @db.Text
   userId          String?
   user            User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  // Nullable: set at submission time when known, or at acceptance time by the admin
-  companyId       String?
-  company         Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
   accountCreatedAt DateTime?
   createdAt       DateTime          @default(now()) @db.Timestamptz(6)
   updatedAt       DateTime          @updatedAt @db.Timestamptz(6)
@@ -587,8 +538,6 @@ model FreelancerApplication {
   @@index([status])
   @@index([createdAt])
   @@index([status, createdAt])
-  @@index([companyId])
-  @@index([companyId, status])
 }
 
 // Client Onboarding model
@@ -600,8 +549,6 @@ model ClientOnboarding {
   project       Project          @relation(fields: [projectId], references: [id], onDelete: Restrict)
   clientId      String
   client        Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  companyId     String
-  company       Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   assignedUserId String?
   assignedUser  User?            @relation("ClientOnboardingAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
   steps         OnboardingStep[]
@@ -610,7 +557,6 @@ model ClientOnboarding {
 
   @@index([projectId])
   @@index([clientId])
-  @@index([companyId])
 }
 
 // Onboarding Step model
@@ -773,8 +719,6 @@ model Proposal {
   email            String?        @db.VarChar(255)
   clientId         String
   client           Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  companyId        String
-  company          Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   projectId        String?
   project          Project?       @relation("ProjectProposals", fields: [projectId], references: [id], onDelete: SetNull)
   serviceRequestId String?         @unique
@@ -787,11 +731,9 @@ model Proposal {
   updatedAt        DateTime       @updatedAt @db.Timestamptz(6)
 
   @@index([clientId])
-  @@index([companyId])
   @@index([status])
   @@index([expiresAt])
   @@index([createdAt])
-  @@index([companyId, status])
   @@index([serviceRequestId])
 }
 
@@ -839,8 +781,6 @@ model Approval {
   dueDate     DateTime?      @db.Timestamptz(6)
   clientId    String
   client      Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  companyId   String
-  company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   projectId   String?
   project     Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
   attachments ApprovalAttachment[]
@@ -849,11 +789,9 @@ model Approval {
   updatedAt   DateTime       @updatedAt @db.Timestamptz(6)
 
   @@index([clientId])
-  @@index([companyId])
   @@index([status])
   @@index([dueDate])
   @@index([createdAt])
-  @@index([companyId, status])
 }
 
 model ApprovalAttachment {
@@ -934,7 +872,7 @@ enum InvoiceStatus {
 
 model Invoice {
   id                String        @id @default(uuid())
-  number            String        @db.VarChar(100)
+  number            String        @db.VarChar(100) @unique
   title             String        @db.VarChar(255)
   description       String?       @db.Text
   amount            Decimal       @db.Decimal(12, 2)
@@ -947,8 +885,6 @@ model Invoice {
   pdfUrl            String?       @db.VarChar(500)
   clientId          String
   client            Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  companyId         String
-  company           Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   projectId         String?
   project           Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
   proposalId        String?       @unique
@@ -961,35 +897,28 @@ model Invoice {
   updatedAt         DateTime      @updatedAt @db.Timestamptz(6)
 
   @@index([clientId])
-  @@index([companyId])
   @@index([status])
   @@index([dueDate])
   @@index([createdAt])
-  @@unique([companyId, number])
-  @@index([companyId, status])
-  @@index([companyId, status, createdAt])
+  @@index([status, createdAt])
   @@index([number])
 }
 
-// A credit note records money owed back to a client — issued for an overpayment or as a
+// A credit note records money owed back to a client : issued for an overpayment or as a
 // correction against an invoice. Issuing one increments Client.creditBalance.
 model CreditNote {
   id        String   @id @default(uuid())
-  number    String   @db.VarChar(100)
+  number    String   @db.VarChar(100) @unique
   amount    Decimal  @db.Decimal(12, 2)
   reason    String   @db.Text
   invoiceId String
   invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   clientId  String
   client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  companyId String
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now()) @db.Timestamptz(6)
 
-  @@unique([companyId, number])
   @@index([invoiceId])
   @@index([clientId])
-  @@index([companyId])
 }
 
 model InvoiceItem {
@@ -1021,8 +950,6 @@ model ClientSuccess {
   id              String             @id @default(uuid())
   clientId        String             @unique
   client          Client             @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  companyId       String
-  company         Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
   score           Int                @default(0)
   objectives      SuccessObjective[]
   metrics         SuccessMetric[]
@@ -1032,7 +959,6 @@ model ClientSuccess {
   updatedAt       DateTime           @updatedAt @db.Timestamptz(6)
 
   @@index([clientId])
-  @@index([companyId])
 }
 
 model SuccessObjective {
@@ -1108,7 +1034,7 @@ model SuccessTimeline {
   @@index([successId, date])
 }
 
-// AI Conversation history — persisted per user + company
+// AI Conversation history : persisted per user
 enum AiMessageRole {
   USER
   ASSISTANT
@@ -1117,16 +1043,14 @@ enum AiMessageRole {
 model AiConversation {
   id        String      @id @default(uuid())
   title     String      @db.VarChar(255)
-  companyId String
-  company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   userId    String
   user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages  AiMessage[]
   createdAt DateTime    @default(now()) @db.Timestamptz(6)
   updatedAt DateTime    @updatedAt @db.Timestamptz(6)
 
-  @@index([companyId, userId])
-  @@index([companyId, userId, createdAt])
+  @@index([userId])
+  @@index([userId, createdAt])
 }
 
 model AiMessage {
@@ -1148,14 +1072,11 @@ model CustomQuestion {
   status    CustomQuestionStatus    @default(OPEN)
   userId    String
   user      User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  companyId String?
-  company   Company?                @relation(fields: [companyId], references: [id], onDelete: SetNull)
   messages  CustomQuestionMessage[]
   createdAt DateTime                @default(now()) @db.Timestamptz(6)
   updatedAt DateTime                @updatedAt @db.Timestamptz(6)
 
   @@index([userId])
-  @@index([companyId])
   @@index([status])
   @@index([createdAt])
 }

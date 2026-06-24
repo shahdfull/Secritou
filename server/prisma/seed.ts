@@ -329,7 +329,7 @@ async function main() {
           create: [
             { title: 'Vision du projet',  content: 'Application de fidélité avec scan en magasin, promotions géolocalisées et paiement mobile.', orderIndex: 0 },
             { title: 'Stack technique',   content: 'React Native + Expo, API REST Node.js, notifications push via Firebase.',                   orderIndex: 1 },
-            { title: 'Budget & délais',   content: '18 000 TND HT — livraison estimée en 5 mois.',                                             orderIndex: 2 },
+            { title: 'Budget & délais',   content: '18 000 TND HT : livraison estimée en 5 mois.',                                             orderIndex: 2 },
           ],
         },
       },
@@ -353,7 +353,7 @@ async function main() {
     const inv1 = await prisma.invoice.create({
       data: {
         number: 'INV-2026-001',
-        title: 'Acompte 1/3 — Refonte e-commerce Carrefour',
+        title: 'Acompte 1/3 : Refonte e-commerce Carrefour',
         amount: 9500,
         currency: 'TND',
         amountPaid: 9500,
@@ -366,7 +366,7 @@ async function main() {
         proposalId: proposal1.id,
         items: {
           create: [
-            { description: 'Phase Design — maquettes et prototypes',    quantity: 1, unitPrice: 6000, total: 6000 },
+            { description: 'Phase Design : maquettes et prototypes',    quantity: 1, unitPrice: 6000, total: 6000 },
             { description: 'Mise en place environnement dev/staging',   quantity: 1, unitPrice: 3500, total: 3500 },
           ],
         },
@@ -376,7 +376,7 @@ async function main() {
     await prisma.invoice.create({
       data: {
         number: 'INV-2026-002',
-        title: 'Acompte 2/3 — Refonte e-commerce Carrefour',
+        title: 'Acompte 2/3 : Refonte e-commerce Carrefour',
         amount: 9500,
         currency: 'TND',
         amountPaid: 4750,
@@ -398,7 +398,7 @@ async function main() {
     await prisma.invoice.create({
       data: {
         number: 'INV-2026-003',
-        title: 'Développement App Mobile — Monoprix (acompte)',
+        title: 'Développement App Mobile : Monoprix (acompte)',
         amount: 6000,
         currency: 'TND',
         status: InvoiceStatus.SENT,

@@ -20,6 +20,6 @@ DROP TABLE IF EXISTS "FreelancerRating";
 DROP TABLE IF EXISTS "MissionApplication";
 DROP TABLE IF EXISTS "FreelancerMission";
 
--- DropEnum (mission-only enums; PaymentStatus is kept — still used by onboarding Payment)
+-- DropEnum (mission-only enums; PaymentStatus is kept : still used by onboarding Payment)
 DROP TYPE IF EXISTS "MissionStatus";
 DROP TYPE IF EXISTS "MissionApplicationStatus";
