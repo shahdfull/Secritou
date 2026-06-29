@@ -29,3 +29,16 @@ export const acceptFreelancerApplicationValidator = z.object({
     role: z.enum(["FREELANCER", "MANAGER"]),
   }),
 });
+
+export const assignFreelancerApplicationValidator = z.object({
+  params: z.object({ id: z.string().uuid() }).strict(),
+});
+
+export const rejectFreelancerApplicationValidator = z.object({
+  params: z.object({ id: z.string().uuid() }).strict(),
+  body: z
+    .object({
+      rejectionReason: z.string().max(2000).optional(),
+    })
+    .strict(),
+});

@@ -17,3 +17,12 @@ export const updateLeadSchema = z.object({
     id: z.string(),
   }),
 });
+
+// Param-only schemas for the id-based actions (no request body).
+const idParamSchema = z.object({
+  params: z.object({ id: z.string().uuid() }).strict(),
+});
+
+export const deleteLeadSchema = idParamSchema;
+export const convertLeadSchema = idParamSchema;
+export const reopenLeadSchema = idParamSchema;

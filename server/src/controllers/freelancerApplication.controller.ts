@@ -6,6 +6,8 @@ import { validate } from "../middlewares/validate.middleware.js";
 import {
   createFreelancerApplicationValidator,
   acceptFreelancerApplicationValidator,
+  assignFreelancerApplicationValidator,
+  rejectFreelancerApplicationValidator,
 } from "../validators/freelancerApplication.validator.js";
 import { COMPANY_ID } from "../config/constants.js";
 
@@ -45,6 +47,8 @@ export const createApplication: RequestHandler[] = [
     { name: "cvFile", maxCount: 1 },
     { name: "portfolioFile", maxCount: 1 },
   ]),
+  // Validate text fields after multer has populated req.body from the multipart form.
+  validate(createFreelancerApplicationValidator),
 
   async (req, res, next) => {
     try {
@@ -89,28 +93,34 @@ export const getPendingApplications: RequestHandler = async (req, res, next) => 
   }
 };
 
-export const assignApplication: RequestHandler = async (req, res, next) => {
-  try {
-    const application = await freelancerApplicationService.assignApplicationToCompany(
-      req.params.id as string
-    );
-    res.json({ data: application });
-  } catch (error) {
-    next(error);
-  }
-};
+export const assignApplication: RequestHandler[] = [
+  validate(assignFreelancerApplicationValidator),
+  async (req, res, next) => {
+    try {
+      const application = await freelancerApplicationService.assignApplicationToCompany(
+        req.params.id as string
+      );
+      res.json({ data: application });
+    } catch (error) {
+      next(error);
+    }
+  },
+];
 
-export const rejectApplication: RequestHandler = async (req, res, next) => {
-  try {
-    const application = await freelancerApplicationService.rejectApplication(
-      req.params.id as string,
-      req.body.rejectionReason
-    );
-    res.json({ data: application });
-  } catch (error) {
-    next(error);
-  }
-};
+export const rejectApplication: RequestHandler[] = [
+  validate(rejectFreelancerApplicationValidator),
+  async (req, res, next) => {
+    try {
+      const application = await freelancerApplicationService.rejectApplication(
+        req.params.id as string,
+        req.body.rejectionReason
+      );
+      res.json({ data: application });
+    } catch (error) {
+      next(error);
+    }
+  },
+];
 
 export const acceptApplication: RequestHandler[] = [
   validate(acceptFreelancerApplicationValidator),
