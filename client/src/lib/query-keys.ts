@@ -14,7 +14,7 @@ export const queryKeys = {
   
   // Clients
   clients: <T extends object = object>(params?: T) => ["clients", params] as const,
-  client: (id: string) => ["client", id] as const,
+  client: (id: string, options?: object) => ["client", id, options] as const,
   clientDocuments: (clientId: string) => ["clientDocuments", clientId] as const,
   
   // Freelancers
@@ -51,4 +51,13 @@ export const queryKeys = {
     ["freelancerRatings", freelancerId, params] as const,
   freelancerRatingStats: (freelancerId: string) =>
     ["freelancerRatingStats", freelancerId] as const,
+
+  // CEO views
+  healthBoard: () => ["health-board"] as const,
+  revenueForecast: () => ["revenue-forecast"] as const,
+  clientProfitability: () => ["client-profitability"] as const,
+  projectTimeEntries: (projectId: string, params?: object) =>
+    ["timeEntries", projectId, params] as const,
+  projectTimeSummary: (projectId: string) => ["timeSummary", projectId] as const,
+  globalTimeSummary: (params?: object) => ["globalTimeSummary", params] as const,
 } as const;

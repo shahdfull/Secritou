@@ -92,13 +92,6 @@ export const freelancerApplicationsApi = {
     );
     return response.data.data;
   },
-
-  assignApplication: async (id: string) => {
-    const response = await apiClient.patch<{ data: FreelancerApplication }>(
-      `/freelancer-applications/${id}/assign`
-    );
-    return response.data.data;
-  },
 };
 
 // Auth API additions

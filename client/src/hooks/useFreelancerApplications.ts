@@ -106,18 +106,6 @@ export function usePendingApplications() {
   });
 }
 
-export function useAssignApplication() {
-  const queryClient = useQueryClient();
-  const { t } = useTranslation();
-
-  return useMutation<FreelancerApplication, Error, string>({
-    mutationFn: (id) => freelancerApplicationsApi.assignApplication(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["freelancerApplications"] });
-      toast.success(t("applications.assigned", "Candidature assignée à votre entreprise"));
-    },
-  });
-}
 
 export function useChangePassword() {
   const { t } = useTranslation();

@@ -20,12 +20,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useUser } from "@/hooks/use-user";
+import { useMe } from "@/hooks/useAuth";
 
 export function FreelancerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
-  const { user } = useUser();
+  const { user } = useMe();
   const queryClient = useQueryClient();
   const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
   const [newScore, setNewScore] = useState(5);

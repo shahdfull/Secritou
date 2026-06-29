@@ -6,7 +6,6 @@ import { validate } from "../middlewares/validate.middleware.js";
 import {
   createFreelancerApplicationValidator,
   acceptFreelancerApplicationValidator,
-  assignFreelancerApplicationValidator,
   rejectFreelancerApplicationValidator,
 } from "../validators/freelancerApplication.validator.js";
 import { COMPANY_ID } from "../config/constants.js";
@@ -92,20 +91,6 @@ export const getPendingApplications: RequestHandler = async (req, res, next) => 
     next(error);
   }
 };
-
-export const assignApplication: RequestHandler[] = [
-  validate(assignFreelancerApplicationValidator),
-  async (req, res, next) => {
-    try {
-      const application = await freelancerApplicationService.assignApplicationToCompany(
-        req.params.id as string
-      );
-      res.json({ data: application });
-    } catch (error) {
-      next(error);
-    }
-  },
-];
 
 export const rejectApplication: RequestHandler[] = [
   validate(rejectFreelancerApplicationValidator),

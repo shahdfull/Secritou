@@ -13,7 +13,6 @@ import type { FreelancerApplication } from "@/api/freelancerApplications.api";
 import {
   useFreelancerApplications,
   usePendingApplications,
-  useAssignApplication,
   useRejectFreelancerApplication,
   useAcceptFreelancerApplication,
 } from "@/hooks/useFreelancerApplications";
@@ -65,7 +64,6 @@ import {
   Eye,
   FileText,
   Copy,
-  UserPlus,
   Inbox,
 } from "lucide-react";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
@@ -99,7 +97,6 @@ export function ApplicationsPage() {
 
   const rejectMutation = useRejectFreelancerApplication();
   const acceptMutation = useAcceptFreelancerApplication();
-  const assignMutation = useAssignApplication();
 
   // Create schemas with translated messages
   const acceptFormSchema = createAcceptFormSchema(t);
@@ -202,7 +199,7 @@ export function ApplicationsPage() {
           <div className="flex items-center gap-2 px-4 py-3 bg-yellow-50 border-b">
             <Inbox className="h-4 w-4 text-yellow-600" />
             <span className="font-medium text-yellow-800 text-sm">
-              Nouvelles candidatures non assignées ({pendingUnassigned.length})
+              Nouvelles candidatures ({pendingUnassigned.length})
             </span>
           </div>
           <Table>
@@ -253,16 +250,6 @@ export function ApplicationsPage() {
                       >
                         <Eye className="h-3.5 w-3.5" />
                         Portfolio
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="default"
-                        className="h-7 px-2 text-xs gap-1"
-                        disabled={assignMutation.isPending}
-                        onClick={() => assignMutation.mutate(app.id)}
-                      >
-                        <UserPlus className="h-3.5 w-3.5" />
-                        Assigner
                       </Button>
                     </div>
                   </TableCell>

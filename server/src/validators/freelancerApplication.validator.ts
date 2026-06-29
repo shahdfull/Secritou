@@ -30,10 +30,6 @@ export const acceptFreelancerApplicationValidator = z.object({
   }),
 });
 
-export const assignFreelancerApplicationValidator = z.object({
-  params: z.object({ id: z.string().uuid() }).strict(),
-});
-
 export const rejectFreelancerApplicationValidator = z.object({
   params: z.object({ id: z.string().uuid() }).strict(),
   body: z

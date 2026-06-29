@@ -44,6 +44,7 @@ import {
   MessageSquare,
   Eye,
   Clock,
+  Trash2,
 } from "lucide-react";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { useListParams } from "@/hooks/useListParams";

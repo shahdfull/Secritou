@@ -3,7 +3,6 @@ import {
   getApplications,
   getApplicationById,
   getPendingApplications,
-  assignApplication,
   createApplication,
   rejectApplication,
   acceptApplication,
@@ -41,7 +40,6 @@ router.post("/", sensitiveWriteRateLimit, createApplication);
  */
 router.get("/", authenticate, authorize("ADMIN"), getApplications);
 router.get("/pending", authenticate, authorize("ADMIN"), getPendingApplications);
-router.patch("/:id/assign", authenticate, authorize("ADMIN"), assignApplication);
 router.get("/:id", authenticate, authorize("ADMIN"), getApplicationById);
 router.post("/:id/reject", authenticate, sensitiveWriteRateLimit, authorize("ADMIN"), rejectApplication);
 router.post("/:id/accept", authenticate, sensitiveWriteRateLimit, authorize("ADMIN"), acceptApplication);

@@ -19,11 +19,20 @@ export class ContactService {
 
       const serviceId = await serviceService.resolveServiceIdForType(input.serviceType, tx as any);
 
-      await tx.lead.upsert({
-        where: { email: input.email },
-        update: { name: input.name, phone: input.phone, notes, serviceId, archivedAt: null },
-        create: { name: input.name, email: input.email, phone: input.phone, source: "Website contact form", notes, serviceId },
-      });
+      // Lead.email is not a unique column, so upsert-by-email is not available.
+      // Emulate find-or-create: re-submissions by the same email update the
+      // existing lead instead of creating a duplicate.
+      const existingLead = await tx.lead.findFirst({ where: { email: input.email } });
+      if (existingLead) {
+        await tx.lead.update({
+          where: { id: existingLead.id },
+          data: { name: input.name, phone: input.phone, notes, serviceId, archivedAt: null },
+        });
+      } else {
+        await tx.lead.create({
+          data: { name: input.name, email: input.email, phone: input.phone, source: "Website contact form", notes, serviceId },
+        });
+      }
 
       return { contactRequest };
     });

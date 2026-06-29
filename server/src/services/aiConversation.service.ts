@@ -1,5 +1,4 @@
 import { aiConversationRepository } from "../repositories/aiConversation.repository.js";
-import { COMPANY_ID } from "../config/constants.js";
 import { env } from "../config/env.js";
 import { HttpError } from "../utils/httpError.js";
 
@@ -40,11 +39,11 @@ function toOpenAIRole(role: string): "user" | "assistant" | "system" {
 
 export const aiConversationService = {
   async list(userId: string, page: number, pageSize: number) {
-    return aiConversationRepository.findAll(COMPANY_ID, userId, page, pageSize);
+    return aiConversationRepository.findAll(userId, page, pageSize);
   },
 
   async getById(id: string, userId: string) {
-    const conv = await aiConversationRepository.findById(id, COMPANY_ID, userId);
+    const conv = await aiConversationRepository.findById(id, userId);
     if (!conv) throw new HttpError(404, "Conversation not found");
     return conv;
   },
@@ -52,7 +51,7 @@ export const aiConversationService = {
   async create(userId: string, firstMessage: string) {
     // Auto-generate title from the first message (truncate to 60 chars)
     const title = firstMessage.slice(0, 60) + (firstMessage.length > 60 ? "…" : "");
-    const conv = await aiConversationRepository.create(COMPANY_ID, userId, title);
+    const conv = await aiConversationRepository.create(userId, title);
 
     // Persist user message, call OpenAI, persist reply
     await aiConversationRepository.addMessage(conv.id, "USER", firstMessage);
@@ -68,7 +67,7 @@ export const aiConversationService = {
   },
 
   async addMessage(id: string, userId: string, content: string) {
-    const conv = await aiConversationRepository.findById(id, COMPANY_ID, userId);
+    const conv = await aiConversationRepository.findById(id, userId);
     if (!conv) throw new HttpError(404, "Conversation not found");
 
     await aiConversationRepository.addMessage(conv.id, "USER", content);
@@ -87,9 +86,9 @@ export const aiConversationService = {
   },
 
   async delete(id: string, userId: string) {
-    const conv = await aiConversationRepository.findById(id, COMPANY_ID, userId);
+    const conv = await aiConversationRepository.findById(id, userId);
     if (!conv) throw new HttpError(404, "Conversation not found");
-    await aiConversationRepository.delete(id, COMPANY_ID, userId);
+    await aiConversationRepository.delete(id, userId);
   },
 
   async importFromLocalStorage(
@@ -97,7 +96,7 @@ export const aiConversationService = {
     messages: { role: "user" | "assistant"; content: string }[]
   ) {
     if (!messages.length) return null;
-    const conv = await aiConversationRepository.create(COMPANY_ID, userId, "Historique importé");
+    const conv = await aiConversationRepository.create(userId, "Historique importé");
     for (const msg of messages) {
       await aiConversationRepository.addMessage(
         conv.id,
