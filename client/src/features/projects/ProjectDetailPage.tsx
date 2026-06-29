@@ -1,4 +1,5 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { formatDate } from "@/utils/format";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -101,7 +102,7 @@ export function ProjectDetailPage() {
   const isFreelancer = user?.role === "FREELANCER";
   const canChangeStatus = isAdminOrManager && project.status !== "COMPLETED";
   const validTransitions = VALID_TRANSITIONS[project.status] ?? [];
-  const deadline = project.deadline ? new Date(project.deadline).toLocaleDateString("fr-FR") : "—";
+  const deadline = project.deadline ? formatDate(project.deadline) : "—";
 
   const tasks = project.tasks ?? [];
   const taskCountByStatus = tasks.reduce<Record<string, number>>((acc, task) => {

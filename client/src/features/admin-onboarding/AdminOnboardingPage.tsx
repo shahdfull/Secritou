@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatDate } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import {
@@ -179,7 +180,7 @@ export function AdminOnboardingPage() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    {new Date(onboarding.createdAt).toLocaleDateString()}
+                    {formatDate(onboarding.createdAt)}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button asChild variant="ghost" size="icon">

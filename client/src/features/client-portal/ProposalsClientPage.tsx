@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { formatCurrency } from "@/utils/format";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import apiClient from "@/api/axios";
 import { format } from "date-fns";
@@ -26,17 +28,18 @@ type Proposal = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  DRAFT: "bg-gray-100 text-gray-700",
-  SENT: "bg-blue-100 text-blue-700",
-  VIEWED: "bg-purple-100 text-purple-700",
-  ACCEPTED: "bg-green-100 text-green-700",
+  DRAFT: "bg-muted text-muted-foreground",
+  SENT: "bg-primary-soft text-primary",
+  VIEWED: "bg-primary-soft text-primary",
+  ACCEPTED: "bg-green-100 text-green-800",
   REJECTED: "bg-red-100 text-red-700",
-  EXPIRED: "bg-orange-100 text-orange-700",
+  EXPIRED: "bg-accent-soft text-accent-foreground",
 };
 
 export function ProposalsClientPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const { id } = useParams<{ id?: string }>();
   const [selected, setSelected] = useState<Proposal | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [comment, setComment] = useState("");
@@ -48,6 +51,15 @@ export function ProposalsClientPage() {
       return res.data.data;
     },
   });
+
+  useEffect(() => {
+    if (id && data) {
+      const proposal = data.data?.find((p) => p.id === id);
+      if (proposal) {
+        setSelected(proposal);
+      }
+    }
+  }, [id, data]);
 
   const respond = useMutation({
     mutationFn: (vars: { id: string; action: "accept" | "reject"; comment?: string; expectedVersion?: number }) =>
@@ -119,14 +131,14 @@ export function ProposalsClientPage() {
           <CardContent className="flex items-center justify-between">
             <span className="text-xl font-semibold">
               {p.amount != null
-                ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: p.currency }).format(p.amount)
+                ? formatCurrency(p.amount, p.currency)
                 : ":"}
             </span>
             {p.status === "SENT" || p.status === "VIEWED" ? (
               <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                 <Button
                   size="sm"
-                  className="bg-green-600 hover:bg-green-700 text-white"
+                  className="bg-ink hover:bg-ink/90 text-white rounded-full"
                   onClick={() => respond.mutate({ id: p.id, action: "accept", expectedVersion: p.version })}
                   disabled={respond.isPending}
                 >
@@ -183,7 +195,7 @@ export function ProposalsClientPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>{t("common.cancel")}</Button>
             <Button
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-red-600 hover:bg-red-700 text-white rounded-full"
               onClick={() => selected && respond.mutate({ id: selected.id, action: "reject", comment })}
               disabled={respond.isPending}
             >

@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { formatDate } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 import { useClientSuccess, useCalculateClientSuccessScore } from "@/hooks/useClientSuccess";
 import { Button } from "@/components/ui/button";
@@ -170,7 +171,7 @@ export function ClientSuccessPage() {
                 <CardHeader>
                   <CardTitle>{entry.title}</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    {new Date(entry.date).toLocaleDateString()}
+                    {formatDate(entry.date)}
                   </p>
                 </CardHeader>
                 <CardContent>

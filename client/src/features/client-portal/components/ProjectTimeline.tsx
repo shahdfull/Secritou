@@ -1,6 +1,8 @@
+// Mobile-responsive: updated 2026-06-29
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Clock, Lock } from "lucide-react";
 import { projectsApi, TimelineStep } from "@/api/projects.api";
+import { formatDate } from "@/utils/format";
 
 // ---------------------------------------------------------------------------
 // Hook
@@ -73,7 +75,7 @@ function TimelineStepItem({ step, isLast }: { step: TimelineStep; isLast: boolea
         </p>
         {isDone && step.date && (
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {new Date(step.date).toLocaleDateString("fr-FR")}
+            {formatDate(step.date)}
           </p>
         )}
         {isPending && (
@@ -127,7 +129,9 @@ export function ProjectTimeline({ projectId }: { projectId: string }) {
           {doneCount}/{steps.length} étapes
         </span>
       </div>
-      <div>
+      {/* overflow-x-auto guards against horizontal overflow on narrow phones
+          (long step labels / dates) without breaking the surrounding layout. */}
+      <div className="overflow-x-auto">
         {steps.map((step, i) => (
           <TimelineStepItem key={step.key} step={step} isLast={i === steps.length - 1} />
         ))}

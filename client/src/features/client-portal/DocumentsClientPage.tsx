@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatDate } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -188,7 +189,7 @@ function DocumentRow({ doc }: { doc: Document }) {
   const [signOpen, setSignOpen] = useState(false);
   const isSigned = !!doc.signedAt;
   const isContract = doc.type === "CONTRACT";
-  const signedDate = doc.signedAt ? new Date(doc.signedAt).toLocaleDateString("fr-FR") : null;
+  const signedDate = doc.signedAt ? formatDate(doc.signedAt) : null;
 
   return (
     <div className="flex items-center justify-between py-3 px-1 gap-3 border-b last:border-0">
@@ -197,7 +198,7 @@ function DocumentRow({ doc }: { doc: Document }) {
         <div className="min-w-0">
           <p className="text-sm font-medium truncate">{doc.title}</p>
           <p className="text-xs text-muted-foreground">
-            {new Date(doc.createdAt).toLocaleDateString("fr-FR")}
+            {formatDate(doc.createdAt)}
           </p>
         </div>
       </div>

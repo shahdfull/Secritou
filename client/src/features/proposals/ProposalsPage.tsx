@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { formatDate } from "@/utils/format";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -11,8 +12,6 @@ import {
   useRejectProposal,
   useCreateInvoiceFromProposal,
 } from "@/hooks/useProposals";
-import { useCreateProject } from "@/hooks/useProjects";
-import { useCreateClientOnboarding } from "@/hooks/useClientOnboarding";
 import {
   Table,
   TableBody,
@@ -23,7 +22,6 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -40,23 +38,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  MoreHorizontal,
   Send,
   CheckCircle2,
   XCircle,
   Eye,
   Download,
   Receipt,
-  FolderPlus,
+  ExternalLink,
   Loader2,
 } from "lucide-react";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
@@ -91,13 +83,6 @@ export function ProposalsPage() {
   // Track proposals that have just had an invoice created (session-local, backed by invoice.proposalId on refresh)
   const [invoicedProposalIds, setInvoicedProposalIds] = useState<Set<string>>(() => new Set());
 
-  // Create project dialog
-  const [projectDialogOpen, setProjectDialogOpen] = useState(false);
-  const [projectProposal, setProjectProposal] = useState<Proposal | null>(null);
-  const [projectName, setProjectName] = useState("");
-  const [projectDescription, setProjectDescription] = useState("");
-  const [withOnboarding, setWithOnboarding] = useState(true);
-
   const { data: proposalsResult, isLoading } = useProposals({
     page,
     pageSize,
@@ -115,8 +100,6 @@ export function ProposalsPage() {
   const acceptMutation = useAcceptProposal();
   const rejectMutation = useRejectProposal();
   const createInvoiceMutation = useCreateInvoiceFromProposal();
-  const createProjectMutation = useCreateProject();
-  const createOnboardingMutation = useCreateClientOnboarding();
 
   // --- Accept (cascade) ---
   const openAcceptDialog = (proposal: Proposal) => {
@@ -166,58 +149,26 @@ export function ProposalsPage() {
     });
   };
 
-  // --- Create Project ---
-  const openProjectDialog = (proposal: Proposal) => {
-    setProjectProposal(proposal);
-    setProjectName(proposal.title);
-    setProjectDescription(proposal.description ?? "");
-    setWithOnboarding(true);
-    setProjectDialogOpen(true);
-  };
-
-  const handleCreateProject = () => {
-    if (!projectProposal) return;
-    createProjectMutation.mutate(
-      {
-        name: projectName,
-        description: projectDescription || undefined,
-        clientId: projectProposal.clientId,
-        status: "PLANNING",
-      },
-      {
-        onSuccess: (project) => {
-          setProjectDialogOpen(false);
-          if (withOnboarding) {
-            createOnboardingMutation.mutate({ projectId: project.id });
-          }
-        },
-      }
-    );
-  };
-
   // --- Status color ---
   const getStatusColor = (s: string) => {
     switch (s) {
-      case "DRAFT":    return "bg-gray-100 text-gray-800";
-      case "SENT":     return "bg-blue-100 text-blue-800";
-      case "VIEWED":   return "bg-yellow-100 text-yellow-800";
+      case "DRAFT":    return "bg-muted text-muted-foreground";
+      case "SENT":     return "bg-primary-soft text-primary";
+      case "VIEWED":   return "bg-accent-soft text-accent-foreground";
       case "ACCEPTED": return "bg-green-100 text-green-800";
-      case "REJECTED": return "bg-red-100 text-red-800";
-      case "EXPIRED":  return "bg-orange-100 text-orange-800";
-      default:         return "bg-gray-100 text-gray-800";
+      case "REJECTED": return "bg-red-100 text-red-700";
+      case "EXPIRED":  return "bg-muted text-muted-foreground";
+      default:         return "bg-muted text-muted-foreground";
     }
   };
 
-  const isActing =
-    createInvoiceMutation.isPending ||
-    createProjectMutation.isPending ||
-    createOnboardingMutation.isPending;
+  const isActing = createInvoiceMutation.isPending;
 
   return (
     <section className="space-y-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">{t("proposals.title")}</h1>
+          <h1 className="text-2xl font-bold text-ink">{t("proposals.title")}</h1>
           <p className="text-sm text-muted-foreground">{t("proposals.subtitle")}</p>
         </div>
       </div>
@@ -310,7 +261,7 @@ export function ProposalsPage() {
                   <TableCell>
                     {proposal.amount} {proposal.currency}
                   </TableCell>
-                  <TableCell>{new Date(proposal.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatDate(proposal.createdAt)}</TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-1">
                       <Badge className={getStatusColor(proposal.status)}>
@@ -340,97 +291,64 @@ export function ProposalsPage() {
                             <Receipt className="h-3.5 w-3.5" />
                             Facture
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2 text-xs gap-1"
-                            onClick={() => openProjectDialog(proposal)}
-                          >
-                            <FolderPlus className="h-3.5 w-3.5" />
-                            Projet
-                          </Button>
+                          {proposal.linkedProject && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs gap-1"
+                              onClick={() => navigate(`/app/projects/${proposal.linkedProject!.id}`)}
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              Projet
+                            </Button>
+                          )}
                         </>
                       )}
 
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
+                      <div className="flex items-center gap-1">
+                        {proposal.pdfUrl && (
+                          <>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("proposals.view")} onClick={() => window.open(proposal.pdfUrl, "_blank")}>
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("proposals.download")} onClick={() => window.open(proposal.pdfUrl, "_blank")}>
+                              <Download className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        )}
+                        {proposal.status === "DRAFT" && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title={t("proposals.send")} onClick={() => sendMutation.mutate(proposal.id)} disabled={sendMutation.isPending}>
+                            <Send className="h-3.5 w-3.5" />
                           </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {proposal.pdfUrl && (
-                            <>
-                              <DropdownMenuItem onClick={() => window.open(proposal.pdfUrl, "_blank")}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                {t("proposals.view")}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => window.open(proposal.pdfUrl, "_blank")}>
-                                <Download className="mr-2 h-4 w-4" />
-                                {t("proposals.download")}
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                          {proposal.status === "DRAFT" && (
-                            <DropdownMenuItem
-                              onClick={() => sendMutation.mutate(proposal.id)}
-                              disabled={sendMutation.isPending}
-                            >
-                              <Send className="mr-2 h-4 w-4" />
-                              {t("proposals.send")}
-                            </DropdownMenuItem>
-                          )}
-                          {(proposal.status === "SENT" || proposal.status === "VIEWED") && (
-                            <>
-                              <DropdownMenuItem
-                                onClick={() => openAcceptDialog(proposal)}
-                                disabled={acceptMutation.isPending}
-                              >
-                                <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
-                                {t("proposals.accept")}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => openRejectDialog(proposal)}
-                                disabled={rejectMutation.isPending}
-                              >
-                                <XCircle className="mr-2 h-4 w-4 text-red-600" />
-                                {t("proposals.reject")}
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                          {proposal.status === "ACCEPTED" && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => openInvoiceDialog(proposal)}
-                                disabled={!!(proposal.invoice || invoicedProposalIds.has(proposal.id))}
-                              >
-                                <Receipt className="mr-2 h-4 w-4 text-blue-600" />
-                                {proposal.invoice || invoicedProposalIds.has(proposal.id)
-                                  ? "Facture déjà créée"
-                                  : "Générer une facture"}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openProjectDialog(proposal)}>
-                                <FolderPlus className="mr-2 h-4 w-4 text-purple-600" />
-                                Créer un projet
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                          {proposal.status === "DRAFT" && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => deleteMutation.mutate(proposal.id)}
-                                disabled={deleteMutation.isPending}
-                                className="text-red-600"
-                              >
-                                <XCircle className="mr-2 h-4 w-4" />
-                                {t("proposals.delete")}
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                        )}
+                        {(proposal.status === "SENT" || proposal.status === "VIEWED") && (
+                          <>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600 hover:bg-green-50" title={t("proposals.accept")} onClick={() => openAcceptDialog(proposal)} disabled={acceptMutation.isPending}>
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:bg-red-50" title={t("proposals.reject")} onClick={() => openRejectDialog(proposal)} disabled={rejectMutation.isPending}>
+                              <XCircle className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        )}
+                        {proposal.status === "ACCEPTED" && (
+                          <>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:bg-blue-50" title={proposal.invoice || invoicedProposalIds.has(proposal.id) ? "Facture déjà créée" : "Générer une facture"} onClick={() => openInvoiceDialog(proposal)} disabled={!!(proposal.invoice || invoicedProposalIds.has(proposal.id))}>
+                              <Receipt className="h-3.5 w-3.5" />
+                            </Button>
+                            {proposal.linkedProject && (
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-purple-600 hover:bg-purple-50" title="Voir le projet" onClick={() => navigate(`/app/projects/${proposal.linkedProject!.id}`)}>
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </>
+                        )}
+                        {proposal.status === "DRAFT" && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("proposals.delete")} onClick={() => deleteMutation.mutate(proposal.id)} disabled={deleteMutation.isPending}>
+                            <XCircle className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -471,7 +389,11 @@ export function ProposalsPage() {
               <Button variant="ghost" onClick={() => setRejectDialogOpen(false)}>
                 {t("common.cancel")}
               </Button>
-              <Button onClick={handleReject} disabled={rejectMutation.isPending}>
+              <Button
+                onClick={handleReject}
+                disabled={rejectMutation.isPending}
+                className="bg-red-600 hover:bg-red-700 text-white rounded-full"
+              >
                 {t("proposals.rejectModal.confirm")}
               </Button>
             </DialogFooter>
@@ -514,7 +436,11 @@ export function ProposalsPage() {
             <Button variant="ghost" onClick={() => setAcceptDialogOpen(false)}>
               {t("common.cancel")}
             </Button>
-            <Button onClick={handleAccept} disabled={acceptMutation.isPending}>
+            <Button
+              onClick={handleAccept}
+              disabled={acceptMutation.isPending}
+              className="bg-ink hover:bg-ink/90 text-white rounded-full"
+            >
               {acceptMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {t("proposals.acceptCascade.confirm")}
             </Button>
@@ -550,7 +476,11 @@ export function ProposalsPage() {
             <Button variant="ghost" onClick={() => setInvoiceDialogOpen(false)}>
               Annuler
             </Button>
-            <Button onClick={handleCreateInvoice} disabled={isActing}>
+            <Button
+              onClick={handleCreateInvoice}
+              disabled={isActing}
+              className="bg-ink hover:bg-ink/90 text-white rounded-full"
+            >
               {createInvoiceMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Créer la facture
             </Button>
@@ -558,58 +488,6 @@ export function ProposalsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Create Project Dialog */}
-      <Dialog open={projectDialogOpen} onOpenChange={setProjectDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FolderPlus className="h-5 w-5 text-purple-600" />
-              Créer un projet
-            </DialogTitle>
-            <DialogDescription>
-              Projet pré-rempli depuis la proposition <strong>{projectProposal?.title}</strong>
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Nom du projet</Label>
-              <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Description</Label>
-              <Textarea
-                rows={3}
-                value={projectDescription}
-                onChange={(e) => setProjectDescription(e.target.value)}
-              />
-            </div>
-            <div className="rounded-md border p-3 bg-muted/40 text-sm">
-              <p className="text-muted-foreground">Client</p>
-              <p className="font-medium">{projectProposal?.client?.name ?? ":"}</p>
-            </div>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={withOnboarding}
-                onChange={(e) => setWithOnboarding(e.target.checked)}
-                className="rounded"
-              />
-              Créer l'onboarding associé automatiquement
-            </label>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setProjectDialogOpen(false)}>
-              Annuler
-            </Button>
-            <Button onClick={handleCreateProject} disabled={isActing || !projectName.trim()}>
-              {(createProjectMutation.isPending || createOnboardingMutation.isPending) && (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              )}
-              Créer le projet
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </section>
   );
 }

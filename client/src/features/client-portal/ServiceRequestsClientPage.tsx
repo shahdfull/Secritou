@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { formatDate } from "@/utils/format";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { useClientServiceRequests, useCreateClientServiceRequest } from "@/hooks/useServiceRequests";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,6 +50,7 @@ const getStatusText = (status: string, t: (key: string) => string) => {
 
 export function ServiceRequestsClientPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { data: requests, isLoading } = useClientServiceRequests();
   const { mutate: createRequest, isPending } = useCreateClientServiceRequest();
   const [title, setTitle] = useState("");
@@ -145,8 +148,16 @@ export function ServiceRequestsClientPage() {
                   {request.description && (
                     <p className="text-muted-foreground">{request.description}</p>
                   )}
+                  {request.proposal && (
+                    <button
+                      className="mt-3 text-sm text-primary underline underline-offset-2 hover:opacity-75 block"
+                      onClick={() => navigate(`/client/proposals/${request.proposal!.id}`)}
+                    >
+                      {t("clientPortal.serviceRequests.viewProposal")} : {request.proposal.title}
+                    </button>
+                  )}
                   <p className="text-xs text-muted-foreground mt-3">
-                    {t("clientPortal.serviceRequests.createdOn")} {new Date(request.createdAt).toLocaleDateString("fr-FR")}
+                    {t("clientPortal.serviceRequests.createdOn")} {formatDate(request.createdAt)}
                   </p>
                 </CardContent>
               </Card>

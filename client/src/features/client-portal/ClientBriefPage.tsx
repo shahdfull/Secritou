@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatDate } from "@/utils/format";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -253,7 +254,7 @@ export function ClientBriefPage() {
               <p className="font-semibold text-green-800">Brief soumis</p>
               {project.briefCompletedAt && (
                 <p className="text-xs text-green-600">
-                  Le {new Date(project.briefCompletedAt).toLocaleDateString("fr-FR")}
+                  Le {formatDate(project.briefCompletedAt)}
                 </p>
               )}
             </div>

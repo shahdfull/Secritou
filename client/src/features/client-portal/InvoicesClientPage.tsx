@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import apiClient from "@/api/axios";
+import { formatCurrency } from "@/utils/format";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Receipt } from "lucide-react";
@@ -134,11 +135,11 @@ export function InvoicesClientPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-xl font-semibold text-ink">
-                        {new Intl.NumberFormat("fr-FR", { style: "currency", currency: inv.currency }).format(inv.amount)}
+                        {formatCurrency(inv.amount, inv.currency)}
                       </span>
                       {inv.amountPaid > 0 && inv.amountPaid < inv.amount && (
                         <span className="text-sm text-muted-foreground ml-2">
-                          ({new Intl.NumberFormat("fr-FR", { style: "currency", currency: inv.currency }).format(inv.amountPaid)} {t("clientPortal.invoices.paidSuffix")})
+                          ({formatCurrency(inv.amountPaid, inv.currency)} {t("clientPortal.invoices.paidSuffix")})
                         </span>
                       )}
                     </div>
@@ -153,11 +154,11 @@ export function InvoicesClientPage() {
                             <div>
                               <p className="font-medium text-ink">{item.description}</p>
                               <p className="text-xs text-muted-foreground">
-                                {item.quantity} x {new Intl.NumberFormat("fr-FR", { style: "currency", currency: inv.currency }).format(Number(item.unitPrice))}
+                                {item.quantity} x {formatCurrency(Number(item.unitPrice), inv.currency)}
                               </p>
                             </div>
                             <span className="font-medium text-ink">
-                              {new Intl.NumberFormat("fr-FR", { style: "currency", currency: inv.currency }).format(Number(item.total))}
+                              {formatCurrency(Number(item.total), inv.currency)}
                             </span>
                           </div>
                         ))}
@@ -177,7 +178,7 @@ export function InvoicesClientPage() {
                               {format(new Date(payment.paidAt), "d MMMM yyyy", { locale: fr })}
                             </span>
                             <span className="font-semibold text-emerald-600">
-                              -{new Intl.NumberFormat("fr-FR", { style: "currency", currency: inv.currency }).format(Number(payment.amount))}
+                              -{formatCurrency(Number(payment.amount), inv.currency)}
                             </span>
                           </div>
                         ))}
@@ -200,7 +201,7 @@ export function InvoicesClientPage() {
                 </p>
               </div>
               <span className="text-2xl font-bold text-emerald-600 font-mono">
-                {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "TND" }).format(myClient?.creditBalance || 0)}
+                {formatCurrency(myClient?.creditBalance || 0, "TND")}
               </span>
             </CardHeader>
           </Card>
@@ -244,7 +245,7 @@ export function InvoicesClientPage() {
                   </CardHeader>
                   <CardContent className="flex items-center justify-between">
                     <span className="text-xl font-semibold text-emerald-600">
-                      {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "TND" }).format(Number(cn.amount))}
+                      {formatCurrency(Number(cn.amount), "TND")}
                     </span>
                   </CardContent>
                 </Card>

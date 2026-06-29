@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatDate } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Send } from "lucide-react";
@@ -241,7 +242,7 @@ function QuestionsTable() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {new Date(q.updatedAt).toLocaleDateString("fr-FR")}
+                      {formatDate(q.updatedAt)}
                     </TableCell>
                   </TableRow>
                 ))}

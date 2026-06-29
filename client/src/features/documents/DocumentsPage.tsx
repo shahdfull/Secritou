@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo } from "react";
+import { formatDate } from "@/utils/format";
 import { useAuthStore } from "@/store/auth.store";
 import { useTranslation } from "react-i18next";
 import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialog";
@@ -226,7 +227,7 @@ export function DocumentsPage() {
                     ))}
                   </TableCell>
                   <TableCell>
-                    {new Date(doc.createdAt).toLocaleDateString()}
+                    {formatDate(doc.createdAt)}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center gap-1">

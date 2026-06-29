@@ -1,5 +1,8 @@
 import { useState, useMemo } from "react";
+import { formatDate } from "@/utils/format";
 import { useTranslation } from "react-i18next";
+import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialog";
+import { toast } from "sonner";
 import type { Invoice } from "@/api/invoices.api";
 import { useInvoices, useDeleteInvoice, useSendInvoice, useCancelInvoice } from "@/hooks/useInvoices";
 import { useQuery } from "@tanstack/react-query";
@@ -26,19 +29,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import {
-  MoreHorizontal,
   Eye,
   Download,
   Send,
   Plus,
   Ban,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { useListParams } from "@/hooks/useListParams";
@@ -53,6 +53,7 @@ export function InvoicesPage() {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [deleteInvoiceTarget, setDeleteInvoiceTarget] = useState<Invoice | null>(null);
 
   const { data: invoicesResult, isLoading } = useInvoices({
     page,
@@ -86,19 +87,19 @@ export function InvoicesPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "DRAFT":
-        return "bg-gray-100 text-gray-800";
+        return "bg-muted text-muted-foreground";
       case "SENT":
-        return "bg-blue-100 text-blue-800";
+        return "bg-primary-soft text-primary";
       case "PAID":
         return "bg-green-100 text-green-800";
       case "PARTIAL":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-accent-soft text-accent-foreground";
       case "OVERDUE":
-        return "bg-red-100 text-red-800";
+        return "bg-red-100 text-red-700";
       case "CANCELLED":
-        return "bg-orange-100 text-orange-800";
+        return "bg-muted text-muted-foreground line-through";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-muted text-muted-foreground";
     }
   };
 
@@ -106,12 +107,15 @@ export function InvoicesPage() {
     <section className="space-y-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">{t("invoices.title")}</h1>
+          <h1 className="text-2xl font-bold text-ink">{t("invoices.title")}</h1>
           <p className="text-sm text-muted-foreground">
             {t("invoices.subtitle")}
           </p>
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)}>
+        <Button
+          onClick={() => setCreateDialogOpen(true)}
+          className="bg-ink text-white rounded-full hover:bg-ink/90"
+        >
           <Plus className="h-4 w-4 mr-2" />
           Créer une facture
         </Button>
@@ -191,7 +195,7 @@ export function InvoicesPage() {
                       </TableCell>
                       <TableCell>
                         {invoice.dueDate
-                          ? new Date(invoice.dueDate).toLocaleDateString()
+                          ? formatDate(invoice.dueDate)
                           : "-"}
                       </TableCell>
                       <TableCell>
@@ -200,71 +204,38 @@ export function InvoicesPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
+                        <div className="flex items-center gap-1">
+                          {invoice.pdfUrl && (
+                            <>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" title={t("invoices.view")} onClick={() => window.open(invoice.pdfUrl, "_blank")}>
+                                <Eye className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" title={t("invoices.download")} onClick={() => window.open(invoice.pdfUrl, "_blank")}>
+                                <Download className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          )}
+                          {invoice.status === "DRAFT" && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("invoices.send")} onClick={() => sendMutation.mutate(invoice.id)} disabled={sendMutation.isPending}>
+                              <Send className="h-3.5 w-3.5" />
                             </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {invoice.pdfUrl && (
-                              <>
-                                <DropdownMenuItem
-                                  onClick={() => window.open(invoice.pdfUrl, "_blank")}
-                                >
-                                  <Eye className="mr-2 h-4 w-4" />
-                                  {t("invoices.view")}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => window.open(invoice.pdfUrl, "_blank")}
-                                >
-                                  <Download className="mr-2 h-4 w-4" />
-                                  {t("invoices.download")}
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                            {invoice.status === "DRAFT" && (
-                              <DropdownMenuItem
-                                onClick={() => sendMutation.mutate(invoice.id)}
-                                disabled={sendMutation.isPending}
-                              >
-                                <Send className="mr-2 h-4 w-4" />
-                                {t("invoices.send")}
-                              </DropdownMenuItem>
-                            )}
-                            {["SENT", "PARTIAL", "OVERDUE"].includes(invoice.status) && (
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSelectedInvoice(invoice);
-                                  setPaymentDialogOpen(true);
-                                }}
-                              >
-                                <Plus className="mr-2 h-4 w-4" />
-                                {t("invoices.addPayment")}
-                              </DropdownMenuItem>
-                            )}
-                            {!["PAID", "CANCELLED", "DRAFT"].includes(invoice.status) && (
-                              <DropdownMenuItem
-                                onClick={() => cancelMutation.mutate(invoice.id)}
-                                disabled={cancelMutation.isPending}
-                                className="text-amber-600"
-                              >
-                                <Ban className="mr-2 h-4 w-4" />
-                                {t("invoices.cancel", "Annuler")}
-                              </DropdownMenuItem>
-                            )}
-                            {invoice.status === "DRAFT" && (
-                              <DropdownMenuItem
-                                onClick={() => deleteMutation.mutate(invoice.id)}
-                                disabled={deleteMutation.isPending}
-                                className="text-red-600"
-                              >
-                                <MoreHorizontal className="mr-2 h-4 w-4" />
-                                {t("invoices.delete")}
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                          )}
+                          {["SENT", "PARTIAL", "OVERDUE"].includes(invoice.status) && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("invoices.addPayment")} onClick={() => { setSelectedInvoice(invoice); setPaymentDialogOpen(true); }}>
+                              <Plus className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {!["PAID", "CANCELLED", "DRAFT"].includes(invoice.status) && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:bg-amber-50" title={t("invoices.cancel", "Annuler")} onClick={() => cancelMutation.mutate(invoice.id)} disabled={cancelMutation.isPending}>
+                              <Ban className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {invoice.status === "DRAFT" && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("invoices.delete")} onClick={() => setDeleteInvoiceTarget(invoice)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -324,11 +295,11 @@ export function InvoicesPage() {
                       <TableCell className="font-mono text-sm">{cn.appliedToInvoice?.number || "-"}</TableCell>
                       <TableCell>
                         {cn.appliedAt ? (
-                          <Badge className="bg-green-100 text-green-800">
+                          <Badge className="bg-primary-soft text-primary">
                             Appliqué le {format(new Date(cn.appliedAt), "dd/MM/yyyy", { locale: fr })}
                           </Badge>
                         ) : (
-                          <Badge className="bg-yellow-100 text-yellow-800">
+                          <Badge className="bg-accent-soft text-accent-foreground">
                             Disponible
                           </Badge>
                         )}
@@ -352,6 +323,27 @@ export function InvoicesPage() {
         open={paymentDialogOpen}
         onOpenChange={setPaymentDialogOpen}
         invoice={selectedInvoice}
+      />
+
+      <ConfirmDeleteDialog
+        open={!!deleteInvoiceTarget}
+        onOpenChange={(open) => { if (!open) setDeleteInvoiceTarget(null); }}
+        onConfirm={() => {
+          if (!deleteInvoiceTarget) return;
+          deleteMutation.mutate(deleteInvoiceTarget.id, {
+            onSuccess: () => {
+              toast.success("Facture supprimée.");
+              setDeleteInvoiceTarget(null);
+            },
+            onError: () => {
+              toast.error("Impossible de supprimer cette facture.");
+              setDeleteInvoiceTarget(null);
+            },
+          });
+        }}
+        title={`Supprimer la facture "${deleteInvoiceTarget?.number ?? ""}" ?`}
+        description="Cette action est irréversible. La facture brouillon sera définitivement supprimée."
+        isDeleting={deleteMutation.isPending}
       />
     </section>
   );

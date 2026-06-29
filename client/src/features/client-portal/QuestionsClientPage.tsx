@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatDate } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { ArrowLeft, Send } from "lucide-react";
@@ -166,7 +167,7 @@ function QuestionsList() {
                   </p>
                 )}
                 <p className="mt-3 text-xs text-muted-foreground">
-                  {new Date(q.updatedAt).toLocaleDateString("fr-FR")} ·{" "}
+                  {formatDate(q.updatedAt)} ·{" "}
                   {t("questions.messageCount", { count: q._count?.messages ?? 0 })}
                 </p>
               </CardContent>

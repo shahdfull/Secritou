@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { formatDate } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 import type { Approval, ApprovalTimeline } from "@/api/approvals.api";
 import {
@@ -34,15 +35,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  MoreHorizontal,
   CheckCircle2,
   XCircle,
   MessageSquare,
@@ -121,15 +117,15 @@ export function ApprovalsPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "PENDING":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-accent-soft text-accent-foreground";
       case "APPROVED":
         return "bg-green-100 text-green-800";
       case "REJECTED":
-        return "bg-red-100 text-red-800";
+        return "bg-red-100 text-red-700";
       case "COMMENTED":
-        return "bg-blue-100 text-blue-800";
+        return "bg-primary-soft text-primary";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-muted text-muted-foreground";
     }
   };
 
@@ -137,7 +133,7 @@ export function ApprovalsPage() {
     <section className="space-y-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">{t("approvals.title")}</h1>
+          <h1 className="text-2xl font-bold text-ink">{t("approvals.title")}</h1>
           <p className="text-sm text-muted-foreground">
             {t("approvals.subtitle")}
           </p>
@@ -213,7 +209,7 @@ export function ApprovalsPage() {
                   <TableCell>{approval.client?.name}</TableCell>
                   <TableCell>
                     {approval.dueDate
-                      ? new Date(approval.dueDate).toLocaleDateString()
+                      ? formatDate(approval.dueDate)
                       : "-"}
                   </TableCell>
                   <TableCell>
@@ -222,64 +218,30 @@ export function ApprovalsPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() =>
-                            window.open(`/approvals/${approval.id}`, "_blank")
-                          }
-                        >
-                          <Eye className="mr-2 h-4 w-4" />
-                          {t("approvals.view")}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => setTimelineApproval(approval)}
-                        >
-                          <Clock className="mr-2 h-4 w-4" />
-                          {t("approvals.viewTimeline")}
-                        </DropdownMenuItem>
-                        {approval.status === "PENDING" && (
-                          <>
-                            <DropdownMenuItem
-                              onClick={() => openDialog("approve", approval)}
-                              disabled={approveMutation.isPending}
-                            >
-                              <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
-                              {t("approvals.approve")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => openDialog("reject", approval)}
-                              disabled={rejectMutation.isPending}
-                            >
-                              <XCircle className="mr-2 h-4 w-4 text-red-600" />
-                              {t("approvals.reject")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => openDialog("comment", approval)}
-                              disabled={commentMutation.isPending}
-                            >
-                              <MessageSquare className="mr-2 h-4 w-4" />
-                              {t("approvals.comment")}
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                        {approval.status === "PENDING" && (
-                          <DropdownMenuItem
-                            onClick={() => deleteMutation.mutate(approval.id)}
-                            disabled={deleteMutation.isPending}
-                            className="text-red-600"
-                          >
-                            <XCircle className="mr-2 h-4 w-4" />
-                            {t("approvals.delete")}
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title={t("approvals.view")} onClick={() => window.open(`/approvals/${approval.id}`, "_blank")}>
+                        <Eye className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title={t("approvals.viewTimeline")} onClick={() => setTimelineApproval(approval)}>
+                        <Clock className="h-3.5 w-3.5" />
+                      </Button>
+                      {approval.status === "PENDING" && (
+                        <>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600 hover:bg-green-50" title={t("approvals.approve")} onClick={() => openDialog("approve", approval)} disabled={approveMutation.isPending}>
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:bg-red-50" title={t("approvals.reject")} onClick={() => openDialog("reject", approval)} disabled={rejectMutation.isPending}>
+                            <XCircle className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title={t("approvals.comment")} onClick={() => openDialog("comment", approval)} disabled={commentMutation.isPending}>
+                            <MessageSquare className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("approvals.delete")} onClick={() => deleteMutation.mutate(approval.id)} disabled={deleteMutation.isPending}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -334,7 +296,15 @@ export function ApprovalsPage() {
               >
                 {t("common.cancel")}
               </Button>
-              <Button type="button" onClick={handleSubmit}>
+              <Button
+                type="button"
+                onClick={handleSubmit}
+                className={
+                  dialogType === "reject"
+                    ? "bg-red-600 hover:bg-red-700 text-white rounded-full"
+                    : "bg-ink hover:bg-ink/90 text-white rounded-full"
+                }
+              >
                 {dialogType === "approve"
                   ? t("approvals.approveModal.confirm")
                   : dialogType === "reject"

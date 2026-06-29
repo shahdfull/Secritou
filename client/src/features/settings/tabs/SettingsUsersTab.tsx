@@ -1,4 +1,5 @@
 import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { formatDate } from "@/utils/format";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
@@ -502,7 +503,7 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
                           <TableCell>
                             <Badge className={getRoleColor(u.role)}>{u.role}</Badge>
                           </TableCell>
-                          <TableCell>{new Date(u.createdAt).toLocaleDateString("fr-FR")}</TableCell>
+                          <TableCell>{formatDate(u.createdAt)}</TableCell>
                           <TableCell className="text-right flex justify-end gap-1">
                             {u.role === "MANAGER" && (
                               <Button

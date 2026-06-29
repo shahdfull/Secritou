@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatDate } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 import {
   Dialog,
@@ -87,7 +88,7 @@ export function LeadDetailDialog({ lead, open, onOpenChange }: LeadDetailDialogP
                           {proposal.amount != null
                             ? `${proposal.amount} ${proposal.currency}`
                             : ":"}{" "}
-                          · {new Date(proposal.createdAt).toLocaleDateString()}
+                          · {formatDate(proposal.createdAt)}
                         </p>
                       </div>
                     </div>
