@@ -1,9 +1,17 @@
 import { z } from "zod";
 
+export const TASK_STATUSES = ["TODO", "IN_PROGRESS", "REVIEW", "DONE"] as const;
+export const TaskStatusEnum = z.enum(TASK_STATUSES);
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+export const TASK_PRIORITIES = ["LOW", "NORMAL", "HIGH", "URGENT"] as const;
+export type TaskPriority = (typeof TASK_PRIORITIES)[number];
+
 export const taskBaseSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
-  status: z.enum(["TODO", "IN_PROGRESS", "REVIEW", "DONE"]),
+  status: TaskStatusEnum,
+  priority: z.enum(TASK_PRIORITIES).optional(),
   projectId: z.string().min(1),
   assigneeId: z.string().optional(),
   dueDate: z.string().optional(),

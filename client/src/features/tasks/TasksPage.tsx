@@ -1,20 +1,25 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { getTaskStatusBadgeClass } from "@/utils/statusColors";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Layout, KanbanSquare, Plus, UserCheck, MoreHorizontal } from "lucide-react";
+import { Layout, KanbanSquare, Plus, UserCheck } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from "@/hooks/useTasks";
 import type { Task } from "@/types/task";
+import { TASK_STATUSES, TASK_PRIORITIES } from "@secritou/shared";
 import { useProjects } from "@/hooks/useProjects";
 import { useListParams } from "@/hooks/useListParams";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { SortableTableHead } from "@/components/common/SortableTableHead";
 import { useTranslation } from "react-i18next";
 import { TasksKanban } from "./TasksKanban";
+import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialog";
+import { toast } from "sonner";
+import { usePermission } from "@/hooks/usePermission";
 import { usersApi } from "@/api/users.api";
 import { commentsApi } from "@/api/comments.api";
 import type { User } from "@/types/auth";
@@ -52,10 +57,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Sheet,
@@ -138,17 +139,28 @@ function getInitials(name: string) {
     .slice(0, 2);
 }
 
-const STATUS_OPTIONS: Task["status"][] = ["TODO", "IN_PROGRESS", "REVIEW", "DONE"];
+const STATUS_OPTIONS: Task["status"][] = [...TASK_STATUSES];
+const PRIORITY_OPTIONS: Task["priority"][] = [...TASK_PRIORITIES];
+const PRIORITY_BADGE: Record<Task["priority"], string> = {
+  LOW: "bg-gray-100 text-gray-600",
+  NORMAL: "bg-blue-100 text-blue-600",
+  HIGH: "bg-orange-100 text-orange-700",
+  URGENT: "bg-red-100 text-red-700 font-semibold",
+};
 
 export function TasksPage() {
   const { t } = useTranslation();
   const currentUser = useAuthStore((s) => s.user);
+  const canCreateTask = usePermission("tasks", "create");
+  const canDeleteTask = usePermission("tasks", "delete");
+  const isFreelancer = currentUser?.role === "FREELANCER";
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [isViewTransitionPending, startViewTransition] = useTransition();
   const [searchInput, setSearchInput] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [deleteTaskTarget, setDeleteTaskTarget] = useState<Task | null>(null);
   const selectedTaskId = selectedTask?.id ?? null;
   const queryClient = useQueryClient();
 
@@ -264,6 +276,7 @@ export function TasksPage() {
       title: "",
       description: "",
       status: "TODO",
+      priority: "NORMAL",
       projectId: "",
       dueDate: "",
     },
@@ -313,12 +326,21 @@ export function TasksPage() {
 
   const handleDelete = useCallback(
     (task: Task) => {
-      if (confirm(`Are you sure you want to delete "${task.title}"?`)) {
-        deleteTask(task.id);
-      }
+      setDeleteTaskTarget(task);
     },
-    [deleteTask]
+    []
   );
+
+  const handleConfirmDeleteTask = useCallback(() => {
+    if (!deleteTaskTarget) return;
+    deleteTask(deleteTaskTarget.id, {
+      onSuccess: () => setDeleteTaskTarget(null),
+      onError: () => {
+        toast.error("Une erreur est survenue lors de la suppression.");
+        setDeleteTaskTarget(null);
+      },
+    });
+  }, [deleteTaskTarget, deleteTask]);
 
   const handleView = useCallback((task: Task) => {
     setSelectedTask(task);
@@ -368,20 +390,7 @@ export function TasksPage() {
     overscan: 8,
   });
 
-  const getStatusBadgeClass = (status: Task["status"]) => {
-    switch (status) {
-      case "TODO":
-        return "bg-gray-100 text-gray-800";
-      case "IN_PROGRESS":
-        return "bg-blue-100 text-blue-800";
-      case "REVIEW":
-        return "bg-yellow-100 text-yellow-800";
-      case "DONE":
-        return "bg-green-100 text-green-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
+  const getStatusBadgeClass = getTaskStatusBadgeClass;
 
   const getStatusLabel = (status: Task["status"]) => {
     switch (status) {
@@ -423,12 +432,14 @@ export function TasksPage() {
             </ToggleGroupItem>
           </ToggleGroup>
           <Dialog open={createDialogOpen} onOpenChange={closeCreateDialog}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                {t("tasksPage.newTask")}
-              </Button>
-            </DialogTrigger>
+            {canCreateTask && (
+              <DialogTrigger asChild>
+                <Button className="bg-ink text-white hover:bg-ink/90 rounded-full">
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t("tasksPage.newTask")}
+                </Button>
+              </DialogTrigger>
+            )}
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{t("tasksPage.createTask")}</DialogTitle>
@@ -462,36 +473,62 @@ export function TasksPage() {
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={createForm.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("common.status")}</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder={t("tasksPage.selectStatus")} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {STATUS_OPTIONS.map((status) => (
-                              <SelectItem key={status} value={status}>
-                                {getStatusLabel(status)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={createForm.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("common.status")}</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder={t("tasksPage.selectStatus")} />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {STATUS_OPTIONS.map((status) => (
+                                <SelectItem key={status} value={status}>
+                                  {getStatusLabel(status)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={createForm.control}
+                      name="priority"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("common.priority")}</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder={t("tasksPage.selectPriority")} />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {PRIORITY_OPTIONS.map((p) => (
+                                <SelectItem key={p} value={p}>
+                                  <Badge className={PRIORITY_BADGE[p] + " text-xs"}>{t("tasks.priorities." + p, p)}</Badge>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   <FormField
                     control={createForm.control}
                     name="projectId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t("common.project")}</FormLabel>
+                        <FormLabel>{t("common.project")} <span className="text-red-500">*</span></FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
@@ -506,6 +543,7 @@ export function TasksPage() {
                             ))}
                           </SelectContent>
                         </Select>
+                        <p className="text-xs text-muted-foreground">Une tâche doit être liée à un projet.</p>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -621,7 +659,11 @@ export function TasksPage() {
                     sortOrder={orderDir}
                     onSort={handleSort}
                   />
-                  <TableHead>Assigné à</TableHead>
+                  {isFreelancer ? (
+                    <TableHead>{t("common.priority")}</TableHead>
+                  ) : (
+                    <TableHead>Assigné à</TableHead>
+                  )}
                   <SortableTableHead
                     column="dueDate"
                     label={t("common.dueDate")}
@@ -629,6 +671,15 @@ export function TasksPage() {
                     sortOrder={orderDir}
                     onSort={handleSort}
                   />
+                  {!isFreelancer && (
+                    <SortableTableHead
+                      column="priority"
+                      label={t("common.priority")}
+                      sortBy={orderBy ?? "createdAt"}
+                      sortOrder={orderDir}
+                      onSort={handleSort}
+                    />
+                  )}
                   <TableHead className="text-right">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -660,7 +711,7 @@ export function TasksPage() {
                       }}
                     >
                       <div className="border-b">
-                        <div className="grid grid-cols-[minmax(220px,2fr)_minmax(180px,1.2fr)_140px_220px_160px_90px] items-center gap-0 px-4 h-14">
+                        <div className={(isFreelancer ? "grid grid-cols-[minmax(220px,2fr)_minmax(180px,1.2fr)_140px_120px_160px_90px]" : "grid grid-cols-[minmax(220px,2fr)_minmax(180px,1.2fr)_140px_220px_160px_120px_90px]") + " items-center gap-0 px-4 h-14"}>
                           <div className="font-medium truncate pr-4">{task.title}</div>
                           <div className="truncate pr-4">{projectName ?? "-"}</div>
                           <div>
@@ -668,47 +719,52 @@ export function TasksPage() {
                               {getStatusLabel(task.status)}
                             </Badge>
                           </div>
-                          <div>
-                            {assignee ? (
-                              <div className="flex items-center gap-2 min-w-0">
-                                <Avatar className="h-6 w-6 text-xs shrink-0">
-                                  <span>{getInitials(assignee.name)}</span>
-                                </Avatar>
-                                <span className="text-sm truncate">{assignee.name}</span>
-                              </div>
-                            ) : (
-                              "-"
-                            )}
-                          </div>
+                          {isFreelancer ? (
+                            <div>
+                              <Badge className={PRIORITY_BADGE[task.priority] + " text-xs"}>
+                                {t("tasks.priorities." + task.priority, task.priority)}
+                              </Badge>
+                            </div>
+                          ) : (
+                            <div>
+                              {assignee ? (
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <Avatar className="h-6 w-6 text-xs shrink-0">
+                                    <span>{getInitials(assignee.name)}</span>
+                                  </Avatar>
+                                  <span className="text-sm truncate">{assignee.name}</span>
+                                </div>
+                              ) : (
+                                "-"
+                              )}
+                            </div>
+                          )}
                           <div className={dueDateColor}>
                             {task.dueDate ? format(new Date(task.dueDate), "dd MMM yyyy") : "-"}
                           </div>
+                          {!isFreelancer && (
+                            <div>
+                              <Badge className={PRIORITY_BADGE[task.priority] + " text-xs"}>
+                                {t("tasks.priorities." + task.priority, task.priority)}
+                              </Badge>
+                            </div>
+                          )}
                           <div className="flex justify-end">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreHorizontal className="h-4 w-4" />
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Voir" onClick={() => handleView(task)}>
+                                <Eye className="h-3.5 w-3.5" />
+                              </Button>
+                              {(currentUser?.role !== "FREELANCER" || task.assigneeId === currentUser?.id) && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" title={t("common.edit")} onClick={() => handleEditTask(task)}>
+                                  <Edit className="h-3.5 w-3.5" />
                                 </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleView(task)}>
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  Voir
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleEditTask(task)}>
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  {t("common.edit")}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleDelete(task)}
-                                  disabled={isDeleting}
-                                  className="text-red-600"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  {t("common.delete")}
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                              )}
+                              {canDeleteTask && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("common.delete")} onClick={() => handleDelete(task)}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -721,7 +777,11 @@ export function TasksPage() {
           </CardContent>
         </Card>
       ) : (
-        <TasksKanban filteredTasks={filteredTasks} onTaskClick={handleView} />
+        <TasksKanban
+          filteredTasks={filteredTasks}
+          onTaskClick={handleView}
+          restrictDragToUserId={isFreelancer ? currentUser?.id : undefined}
+        />
       )}
 
       {/* Edit Dialog */}
@@ -729,143 +789,168 @@ export function TasksPage() {
         <Dialog open={editDialogOpen} onOpenChange={closeEditDialog}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{t("tasksPage.editTask")}</DialogTitle>
-              <DialogDescription>{t("tasksPage.editTaskDesc")}</DialogDescription>
+              <DialogTitle>{currentUser?.role === "FREELANCER" ? t("tasksPage.updateStatus") : t("tasksPage.editTask")}</DialogTitle>
+              <DialogDescription>{currentUser?.role === "FREELANCER" ? t("tasksPage.updateStatusDesc") : t("tasksPage.editTaskDesc")}</DialogDescription>
             </DialogHeader>
-            <Form {...editForm}>
-              <form onSubmit={editForm.handleSubmit(handleUpdate)} className="space-y-4">
-                {currentUser?.role !== "FREELANCER" && (
-                  <>
-                    <FormField
-                      control={editForm.control}
-                      name="title"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t("common.title")}</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={editForm.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t("common.description")}</FormLabel>
-                          <FormControl>
-                            <Textarea {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </>
-                )}
-                <FormField
-                  control={editForm.control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("common.status")}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder={t("tasksPage.selectStatus")} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {STATUS_OPTIONS.map((status) => (
-                            <SelectItem key={status} value={status}>
-                              {getStatusLabel(status)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                {currentUser?.role !== "FREELANCER" && (
-                  <>
-                    <FormField
-                      control={editForm.control}
-                      name="projectId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t("common.project")}</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder={t("tasksPage.selectProject")} />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {projects?.map((project) => (
-                                <SelectItem key={project.id} value={project.id}>
-                                  {project.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={editForm.control}
-                      name="assigneeId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Assigné à</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder={t("common.selectUser")} />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {users?.map((user) => (
-                                <SelectItem key={user.id} value={user.id}>
-                                  <div className="flex items-center gap-2">
-                                    <Avatar className="h-6 w-6 text-xs">
-                                      <span>{getInitials(user.name)}</span>
-                                    </Avatar>
-                                    {user.name}
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={editForm.control}
-                      name="dueDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t("common.dueDate")}</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </>
-                )}
+            {isFreelancer ? (
+              <div className="space-y-4 py-2">
+                <p className="text-sm font-medium">{t("common.status")}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {STATUS_OPTIONS.map((s) => {
+                    const current = editForm.watch("status");
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => editForm.setValue("status", s)}
+                        className={"w-full text-left px-4 py-3 rounded-lg border transition-colors " + (current === s ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40")}
+                      >
+                        <Badge className={getStatusBadgeClass(s)}>{getStatusLabel(s)}</Badge>
+                      </button>
+                    );
+                  })}
+                </div>
                 <DialogFooter>
-                  <Button type="submit" disabled={isUpdating}>
+                  <Button onClick={() => editForm.handleSubmit(handleUpdate)()} disabled={isUpdating}>
                     {isUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     {t("common.save")}
                   </Button>
                 </DialogFooter>
-              </form>
-            </Form>
+              </div>
+            ) : (
+              <Form {...editForm}>
+                <form onSubmit={editForm.handleSubmit(handleUpdate)} className="space-y-4">
+                  <FormField
+                    control={editForm.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("common.title")}</FormLabel>
+                        <FormControl><Input {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("common.description")}</FormLabel>
+                        <FormControl><Textarea {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={editForm.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("common.status")}</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger><SelectValue placeholder={t("tasksPage.selectStatus")} /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {STATUS_OPTIONS.map((s) => (
+                                <SelectItem key={s} value={s}>{getStatusLabel(s)}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={editForm.control}
+                      name="priority"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("common.priority")}</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger><SelectValue placeholder={t("tasksPage.selectPriority")} /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {PRIORITY_OPTIONS.map((p) => (
+                                <SelectItem key={p} value={p}>
+                                  <Badge className={PRIORITY_BADGE[p] + " text-xs"}>{t("tasks.priorities." + p, p)}</Badge>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={editForm.control}
+                    name="projectId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("common.project")}</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger><SelectValue placeholder={t("tasksPage.selectProject")} /></SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {projects?.map((project) => (
+                              <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="assigneeId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("tasksPage.assignedTo")}</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger><SelectValue placeholder={t("common.selectUser")} /></SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {users?.map((user) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-6 w-6 text-xs"><span>{getInitials(user.name)}</span></Avatar>
+                                  {user.name}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="dueDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("common.dueDate")}</FormLabel>
+                        <FormControl><Input type="date" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter>
+                    <Button type="submit" disabled={isUpdating}>
+                      {isUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      {t("common.save")}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            )}
           </DialogContent>
         </Dialog>
       )}
@@ -976,6 +1061,15 @@ export function TasksPage() {
           </SheetContent>
         </Sheet>
       )}
+
+      <ConfirmDeleteDialog
+        open={!!deleteTaskTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTaskTarget(null); }}
+        onConfirm={handleConfirmDeleteTask}
+        title={`Supprimer "${deleteTaskTarget?.title}" ?`}
+        description="Cette action est irréversible. La tâche sera définitivement supprimée."
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

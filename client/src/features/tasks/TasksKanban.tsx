@@ -22,11 +22,13 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { useUpdateTask } from "@/hooks/useTasks";
 import type { Task } from "@/types/task";
+import { TASK_STATUSES } from "@secritou/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { format, isPast } from "date-fns";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { Lock } from "lucide-react";
 
 interface StatusConfig {
   label: string;
@@ -40,11 +42,12 @@ const STATUS_CONFIG: Record<Task["status"], StatusConfig> = {
   DONE: { label: "Terminé", bgColor: "bg-green-100 text-green-800" },
 };
 
-const COLUMN_STATUSES: Task["status"][] = ["TODO", "IN_PROGRESS", "REVIEW", "DONE"];
+const COLUMN_STATUSES: Task["status"][] = [...TASK_STATUSES];
 
 interface SortableTaskCardProps {
   task: Task;
   onClick?: () => void;
+  draggable: boolean;
 }
 
 function getInitials(name: string) {
@@ -56,9 +59,17 @@ function getInitials(name: string) {
     .slice(0, 2);
 }
 
-const SortableTaskCard = memo(function SortableTaskCard({ task, onClick }: SortableTaskCardProps) {
+const PRIORITY_LABEL: Record<Task["priority"], string> = {
+  LOW: "Faible",
+  NORMAL: "Normale",
+  HIGH: "Haute",
+  URGENT: "Urgente",
+};
+
+const SortableTaskCard = memo(function SortableTaskCard({ task, onClick, draggable }: SortableTaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
+    disabled: !draggable,
   });
 
   const style = {
@@ -75,12 +86,31 @@ const SortableTaskCard = memo(function SortableTaskCard({ task, onClick }: Sorta
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
+      {...(draggable ? listeners : {})}
       onClick={onClick}
-      className="cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow"
+      className={draggable
+        ? "cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow"
+        : "cursor-default shadow-sm opacity-75 border-dashed"
+      }
     >
       <CardContent className="p-4 space-y-2">
-        <div className="font-medium text-ink">{task.title}</div>
+        <div className="flex items-start justify-between gap-2">
+          <div className="font-medium text-ink flex-1">{task.title}</div>
+          <div className="flex items-center gap-1 shrink-0">
+            {task.priority && task.priority !== "NORMAL" && (
+              <Badge className={
+                task.priority === "URGENT" ? "bg-red-100 text-red-700 text-[10px]" :
+                task.priority === "HIGH" ? "bg-orange-100 text-orange-700 text-[10px]" :
+                "bg-gray-100 text-gray-600 text-[10px]"
+              }>
+                {PRIORITY_LABEL[task.priority]}
+              </Badge>
+            )}
+            {!draggable && (
+              <Lock className="h-3 w-3 text-muted-foreground/50 shrink-0" />
+            )}
+          </div>
+        </div>
         {task.project && (
           <Badge variant="secondary" className="text-xs">
             {task.project.name}
@@ -109,9 +139,10 @@ interface KanbanColumnProps {
   tasks: Task[];
   onTaskClick?: (task: Task) => void;
   isDragging: boolean;
+  currentUserId?: string;
 }
 
-const KanbanColumn = memo(function KanbanColumn({ status, tasks, onTaskClick, isDragging }: KanbanColumnProps) {
+const KanbanColumn = memo(function KanbanColumn({ status, tasks, onTaskClick, isDragging, currentUserId }: KanbanColumnProps) {
   const config = STATUS_CONFIG[status];
   const ids = useMemo(() => tasks.map((task) => task.id), [tasks]);
   const columnBg = status === "DONE" ? "bg-green-50/50" : "bg-card";
@@ -126,9 +157,7 @@ const KanbanColumn = memo(function KanbanColumn({ status, tasks, onTaskClick, is
 
   return (
     <div className="flex-1 min-w-[280px] max-w-[320px]">
-      <div
-        className={`p-3 rounded-t-lg border border-b-0 flex items-center justify-between ${columnBg}`}
-      >
+      <div className={`p-3 rounded-t-lg border border-b-0 flex items-center justify-between ${columnBg}`}>
         <h3 className="font-semibold text-ink">{config.label}</h3>
         <span className="text-sm text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
           {tasks.length}
@@ -145,6 +174,7 @@ const KanbanColumn = memo(function KanbanColumn({ status, tasks, onTaskClick, is
               {virtualizer.getVirtualItems().map((virtualRow) => {
                 const task = tasks[virtualRow.index];
                 if (!task) return null;
+                const draggable = !currentUserId || task.assigneeId === currentUserId;
                 return (
                   <div
                     key={task.id}
@@ -160,6 +190,7 @@ const KanbanColumn = memo(function KanbanColumn({ status, tasks, onTaskClick, is
                     <SortableTaskCard
                       task={task}
                       onClick={onTaskClick ? () => onTaskClick(task) : undefined}
+                      draggable={draggable}
                     />
                   </div>
                 );
@@ -167,13 +198,17 @@ const KanbanColumn = memo(function KanbanColumn({ status, tasks, onTaskClick, is
             </div>
           ) : (
             <div className="space-y-2">
-              {tasks.map((task) => (
-                <SortableTaskCard
-                  key={task.id}
-                  task={task}
-                  onClick={onTaskClick ? () => onTaskClick(task) : undefined}
-                />
-              ))}
+              {tasks.map((task) => {
+                const draggable = !currentUserId || task.assigneeId === currentUserId;
+                return (
+                  <SortableTaskCard
+                    key={task.id}
+                    task={task}
+                    onClick={onTaskClick ? () => onTaskClick(task) : undefined}
+                    draggable={draggable}
+                  />
+                );
+              })}
             </div>
           )}
         </SortableContext>
@@ -185,9 +220,11 @@ const KanbanColumn = memo(function KanbanColumn({ status, tasks, onTaskClick, is
 interface TasksKanbanProps {
   filteredTasks: Task[];
   onTaskClick?: (task: Task) => void;
+  /** When provided, only tasks assigned to this user ID can be dragged */
+  restrictDragToUserId?: string;
 }
 
-export const TasksKanban = memo(function TasksKanban({ filteredTasks, onTaskClick }: TasksKanbanProps) {
+export const TasksKanban = memo(function TasksKanban({ filteredTasks, onTaskClick, restrictDragToUserId }: TasksKanbanProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { mutate: updateTask } = useUpdateTask();
@@ -198,25 +235,34 @@ export const TasksKanban = memo(function TasksKanban({ filteredTasks, onTaskClic
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const { groupedTasks, taskIdToStatus } = useMemo(() => {
+  const { groupedTasks, taskIdToStatus, taskIdToAssignee } = useMemo(() => {
     const groups: Record<Task["status"], Task[]> = { TODO: [], IN_PROGRESS: [], REVIEW: [], DONE: [] };
-    const map = new Map<string, Task["status"]>();
+    const statusMap = new Map<string, Task["status"]>();
+    const assigneeMap = new Map<string, string | undefined>();
     for (const task of filteredTasks) {
       groups[task.status].push(task);
-      map.set(task.id, task.status);
+      statusMap.set(task.id, task.status);
+      assigneeMap.set(task.id, task.assigneeId);
     }
-    return { groupedTasks: groups, taskIdToStatus: map };
+    return { groupedTasks: groups, taskIdToStatus: statusMap, taskIdToAssignee: assigneeMap };
   }, [filteredTasks]);
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  }, []);
+    const id = event.active.id as string;
+    // Guard: don't allow drag if restricted to a user and this task isn't theirs
+    if (restrictDragToUserId && taskIdToAssignee.get(id) !== restrictDragToUserId) return;
+    setActiveId(id);
+  }, [restrictDragToUserId, taskIdToAssignee]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
+    setActiveId(null);
     if (!over) return;
 
     const activeId = active.id as string;
+    // Guard: silently reject if drag was initiated on a non-owned task
+    if (restrictDragToUserId && taskIdToAssignee.get(activeId) !== restrictDragToUserId) return;
+
     const activeStatus = taskIdToStatus.get(activeId) ?? null;
     const overId = over.id as string;
     let overStatus = taskIdToStatus.get(overId) ?? null;
@@ -227,49 +273,44 @@ export const TasksKanban = memo(function TasksKanban({ filteredTasks, onTaskClic
       overStatus = overId as Task["status"];
     }
 
-    if (!overStatus) return;
+    if (!overStatus || activeStatus === overStatus) return;
 
-    if (activeStatus !== overStatus) {
-      // Optimistic update
-      const snapshots = queryClient.getQueriesData({ queryKey: ["tasks"], exact: false });
-      queryClient.setQueriesData({ queryKey: ["tasks"], exact: false }, (old: unknown) => {
-        if (!old) return old;
-        if (Array.isArray(old)) {
-          return old.map((task) => (task?.id === activeId ? { ...task, status: overStatus } : task));
+    // Optimistic update
+    const snapshots = queryClient.getQueriesData({ queryKey: ["tasks"], exact: false });
+    queryClient.setQueriesData({ queryKey: ["tasks"], exact: false }, (old: unknown) => {
+      if (!old) return old;
+      if (Array.isArray(old)) {
+        return old.map((task) => (task?.id === activeId ? { ...task, status: overStatus } : task));
+      }
+      if (typeof old === "object" && old !== null && "data" in old) {
+        const o = old as { data?: unknown };
+        if (Array.isArray(o.data)) {
+          return {
+            ...(old as object),
+            data: o.data.map((task) => {
+              if (typeof task === "object" && task !== null && "id" in task && (task as { id?: unknown }).id === activeId) {
+                return { ...(task as object), status: overStatus };
+              }
+              return task;
+            }),
+          };
         }
-        if (typeof old === "object" && old !== null && "data" in old) {
-          const o = old as { data?: unknown };
-          if (Array.isArray(o.data)) {
-            return {
-              ...(old as object),
-              data: o.data.map((task) => {
-                if (typeof task === "object" && task !== null && "id" in task && (task as { id?: unknown }).id === activeId) {
-                  return { ...(task as object), status: overStatus };
-                }
-                return task;
-              }),
-            };
+      }
+      return old;
+    });
+
+    updateTask(
+      { id: activeId, data: { status: overStatus } },
+      {
+        onError: () => {
+          for (const [key, data] of snapshots) {
+            queryClient.setQueryData(key, data);
           }
-        }
-        return old;
-      });
-
-      updateTask(
-        { id: activeId, data: { status: overStatus } },
-        {
-          onError: () => {
-            // Rollback
-            for (const [key, data] of snapshots) {
-              queryClient.setQueryData(key, data);
-            }
-            toast.error(t("toasts.taskStatusUpdateError"));
-          },
-        }
-      );
-    }
-
-    setActiveId(null);
-  }, [queryClient, taskIdToStatus, updateTask]);
+          toast.error(t("toasts.taskStatusUpdateError"));
+        },
+      }
+    );
+  }, [queryClient, taskIdToStatus, taskIdToAssignee, restrictDragToUserId, updateTask, t]);
 
   const activeTask = useMemo(
     () => (activeId ? filteredTasks.find((task) => task.id === activeId) ?? null : null),
@@ -278,6 +319,12 @@ export const TasksKanban = memo(function TasksKanban({ filteredTasks, onTaskClic
 
   return (
     <div className="overflow-x-auto pb-4">
+      {restrictDragToUserId && (
+        <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1.5">
+          <Lock className="h-3 w-3" />
+          {t("tasksPage.kanbanDragHint")}
+        </p>
+      )}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -292,6 +339,7 @@ export const TasksKanban = memo(function TasksKanban({ filteredTasks, onTaskClic
               tasks={groupedTasks[status]}
               onTaskClick={onTaskClick}
               isDragging={!!activeId}
+              currentUserId={restrictDragToUserId}
             />
           ))}
         </div>
