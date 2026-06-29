@@ -1,3 +1,4 @@
+import compression from "compression";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
@@ -52,6 +53,18 @@ app.use(
           includeSubDomains: true,
           preload: true,
         },
+  }),
+);
+
+// Compress JSON/text responses. Registered right after helmet, before routes.
+app.use(
+  compression({
+    level: 6, // balanced speed vs ratio
+    threshold: 1024, // only compress responses > 1KB
+    filter: (req, res) => {
+      if (req.headers["x-no-compression"]) return false;
+      return compression.filter(req, res);
+    },
   }),
 );
 
