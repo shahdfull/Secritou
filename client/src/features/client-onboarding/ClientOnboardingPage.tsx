@@ -221,7 +221,7 @@ export function ClientOnboardingPage() {
                   <CardTitle className="text-sm">{t("onboarding.welcome.projectSummary")}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold">{onboarding?.project.name}</p>
+                  <p className="text-2xl font-bold">{onboarding?.project?.name ?? "—"}</p>
                 </CardContent>
               </Card>
               <Card>

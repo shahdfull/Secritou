@@ -109,7 +109,7 @@ export const clientOnboardingRepository = {
     });
   },
 
-  async update(id: string, data: Prisma.ClientOnboardingUpdateInput): Promise<FullOnboarding> {
+  async update(id: string, data: { assignedUserId?: string }): Promise<FullOnboarding> {
     return prisma.clientOnboarding.update({ where: { id }, data, include: fullOnboardingInclude });
   },
 
@@ -148,13 +148,32 @@ export const clientOnboardingRepository = {
     return prisma.payment.update({ where: { id: paymentId }, data });
   },
 
-  async createQuestionnaire(stepId: string, data: Omit<Prisma.QuestionnaireCreateInput, "onboardingStep">): Promise<Questionnaire> {
+  async createQuestionnaire(
+    stepId: string,
+    data: { serviceType?: string; data?: unknown; isDraft?: boolean }
+  ): Promise<Questionnaire> {
     await prisma.onboardingStep.findUniqueOrThrow({ where: { id: stepId }, select: { id: true } });
-    return prisma.questionnaire.create({ data: { onboardingStep: { connect: { id: stepId } }, ...data } });
+    // serviceType is required at the DB level; cast keeps the original behaviour
+    // (Prisma rejects at runtime if it is genuinely missing) instead of masking it.
+    const createData = {
+      onboardingStep: { connect: { id: stepId } },
+      serviceType: data.serviceType,
+      isDraft: data.isDraft,
+    } as Prisma.QuestionnaireCreateInput;
+    if (data.data !== undefined) createData.data = data.data as Prisma.InputJsonValue;
+    return prisma.questionnaire.create({ data: createData });
   },
 
-  async updateQuestionnaire(questionnaireId: string, data: Prisma.QuestionnaireUpdateInput): Promise<Questionnaire> {
-    return prisma.questionnaire.update({ where: { id: questionnaireId }, data });
+  async updateQuestionnaire(
+    questionnaireId: string,
+    data: { serviceType?: string; data?: unknown; isDraft?: boolean }
+  ): Promise<Questionnaire> {
+    const updateData: Prisma.QuestionnaireUpdateInput = {
+      serviceType: data.serviceType,
+      isDraft: data.isDraft,
+    };
+    if (data.data !== undefined) updateData.data = data.data as Prisma.InputJsonValue;
+    return prisma.questionnaire.update({ where: { id: questionnaireId }, data: updateData });
   },
 
   async createSpecifications(stepId: string, data: Omit<Prisma.SpecificationsCreateInput, "onboardingStep">): Promise<Specifications> {

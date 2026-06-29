@@ -163,7 +163,7 @@ export function AdminOnboardingPage() {
                   <TableCell className="font-medium">
                     {onboarding.client.name}
                   </TableCell>
-                  <TableCell>{onboarding.project.name}</TableCell>
+                  <TableCell>{onboarding.project?.name ?? "—"}</TableCell>
                   <TableCell>
                     {getOnboardingStatus(onboarding.steps)}
                   </TableCell>

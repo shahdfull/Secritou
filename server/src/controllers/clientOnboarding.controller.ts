@@ -5,13 +5,23 @@ import { validate } from "../middlewares/validate.middleware.js";
 import {
   createOnboardingValidator,
   updateOnboardingValidator,
+  deleteOnboardingValidator,
+  getOnboardingByIdValidator,
+  getOnboardingByProjectIdValidator,
   updateStepValidator,
+  createContractValidator,
   updateContractValidator,
+  createPaymentValidator,
   updatePaymentValidator,
+  createQuestionnaireValidator,
   updateQuestionnaireValidator,
+  createSpecificationsValidator,
   updateSpecificationsValidator,
+  createKickoffValidator,
   updateKickoffValidator,
+  createProductionValidator,
   updateProductionValidator,
+  createDeliveryValidator,
   updateDeliveryValidator,
 } from "../validators/clientOnboarding.validator.js";
 import { COMPANY_ID } from "../config/constants.js";
@@ -28,27 +38,33 @@ export const getOnboardings: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const getOnboardingById: RequestHandler = async (req, res, next) => {
-  try {
-    const onboarding = await clientOnboardingService.getOnboardingById(
-      req.params.id as string
-    );
-    res.json({ data: onboarding });
-  } catch (error) {
-    next(error);
-  }
-};
+export const getOnboardingById: RequestHandler[] = [
+  validate(getOnboardingByIdValidator),
+  async (req, res, next) => {
+    try {
+      const onboarding = await clientOnboardingService.getOnboardingById(
+        req.params.id as string
+      );
+      res.json({ data: onboarding });
+    } catch (error) {
+      next(error);
+    }
+  },
+];
 
-export const getOnboardingByProjectId: RequestHandler = async (req, res, next) => {
-  try {
-    const onboarding = await clientOnboardingService.getOnboardingByProjectId(
-      req.params.projectId as string
-    );
-    res.json({ data: onboarding });
-  } catch (error) {
-    next(error);
-  }
-};
+export const getOnboardingByProjectId: RequestHandler[] = [
+  validate(getOnboardingByProjectIdValidator),
+  async (req, res, next) => {
+    try {
+      const onboarding = await clientOnboardingService.getOnboardingByProjectId(
+        req.params.projectId as string
+      );
+      res.json({ data: onboarding });
+    } catch (error) {
+      next(error);
+    }
+  },
+];
 
 export const createOnboarding: RequestHandler[] = [
   validate(createOnboardingValidator),
@@ -79,16 +95,19 @@ export const updateOnboarding: RequestHandler[] = [
   },
 ];
 
-export const deleteOnboarding: RequestHandler = async (req, res, next) => {
-  try {
-    await clientOnboardingService.deleteOnboarding(
-      req.params.id as string
-    );
-    res.status(204).send();
-  } catch (error) {
-    next(error);
-  }
-};
+export const deleteOnboarding: RequestHandler[] = [
+  validate(deleteOnboardingValidator),
+  async (req, res, next) => {
+    try {
+      await clientOnboardingService.deleteOnboarding(
+        req.params.id as string
+      );
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  },
+];
 
 // Step operations
 export const updateStep: RequestHandler[] = [
@@ -108,7 +127,7 @@ export const updateStep: RequestHandler[] = [
 
 // Contract operations
 export const createContract: RequestHandler[] = [
-  validate(updateContractValidator),
+  validate(createContractValidator),
   async (req, res, next) => {
     try {
       const contract = await clientOnboardingService.createContract(
@@ -139,7 +158,7 @@ export const updateContract: RequestHandler[] = [
 
 // Payment operations
 export const createPayment: RequestHandler[] = [
-  validate(updatePaymentValidator),
+  validate(createPaymentValidator),
   async (req, res, next) => {
     try {
       const payment = await clientOnboardingService.createPayment(
@@ -170,7 +189,7 @@ export const updatePayment: RequestHandler[] = [
 
 // Questionnaire operations
 export const createQuestionnaire: RequestHandler[] = [
-  validate(updateQuestionnaireValidator),
+  validate(createQuestionnaireValidator),
   async (req, res, next) => {
     try {
       const questionnaire = await clientOnboardingService.createQuestionnaire(
@@ -201,7 +220,7 @@ export const updateQuestionnaire: RequestHandler[] = [
 
 // Specifications operations
 export const createSpecifications: RequestHandler[] = [
-  validate(updateSpecificationsValidator),
+  validate(createSpecificationsValidator),
   async (req, res, next) => {
     try {
       const specifications = await clientOnboardingService.createSpecifications(
@@ -232,7 +251,7 @@ export const updateSpecifications: RequestHandler[] = [
 
 // Kickoff operations
 export const createKickoff: RequestHandler[] = [
-  validate(updateKickoffValidator),
+  validate(createKickoffValidator),
   async (req, res, next) => {
     try {
       const kickoff = await clientOnboardingService.createKickoff(
@@ -263,7 +282,7 @@ export const updateKickoff: RequestHandler[] = [
 
 // Production operations
 export const createProduction: RequestHandler[] = [
-  validate(updateProductionValidator),
+  validate(createProductionValidator),
   async (req, res, next) => {
     try {
       const production = await clientOnboardingService.createProduction(
@@ -294,7 +313,7 @@ export const updateProduction: RequestHandler[] = [
 
 // Delivery operations
 export const createDelivery: RequestHandler[] = [
-  validate(updateDeliveryValidator),
+  validate(createDeliveryValidator),
   async (req, res, next) => {
     try {
       const delivery = await clientOnboardingService.createDelivery(

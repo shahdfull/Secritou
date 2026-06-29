@@ -8,3 +8,4 @@ export * from "./schemas/document.schema.js";
 export * from "./schemas/proposal.schema.js";
 export * from "./schemas/invoice.schema.js";
 export * from "./schemas/user.schema.js";
+export * from "./schemas/clientOnboarding.schema.js";

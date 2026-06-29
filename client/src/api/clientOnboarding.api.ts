@@ -1,38 +1,48 @@
 import apiClient from "./axios";
+import type {
+  ClientOnboarding,
+  OnboardingStep,
+  Contract,
+  Payment,
+  Questionnaire,
+  Specifications,
+  KickoffMeeting,
+  ProductionProgress,
+  Delivery,
+  CreateOnboardingPayload,
+  UpdateOnboardingPayload,
+  UpdateStepPayload,
+  ContractPayload,
+  PaymentPayload,
+  QuestionnairePayload,
+  SpecificationsPayload,
+  KickoffPayload,
+  ProductionPayload,
+  DeliveryPayload,
+} from "@secritou/shared";
 
-export interface ClientOnboarding {
-  id: string;
-  projectId: string;
-  clientId: string;
-  assignedUserId?: string;
-  createdAt: string;
-  updatedAt: string;
-  project: any;
-  client: any;
-  assignedUser?: any;
-  steps: OnboardingStep[];
-}
-
-export interface OnboardingStep {
-  id: string;
-  onboardingId: string;
-  stepType: string;
-  title: string;
-  description?: string;
-  status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "REJECTED";
-  orderIndex: number;
-  deadline?: string;
-  completedAt?: string;
-  contract?: any;
-  payment?: any;
-  questionnaire?: any;
-  specifications?: any;
-  kickoff?: any;
-  production?: any;
-  delivery?: any;
-  createdAt: string;
-  updatedAt: string;
-}
+// Re-export the shared response types so existing local imports keep working.
+export type {
+  ClientOnboarding,
+  OnboardingStep,
+  Contract,
+  Payment,
+  Questionnaire,
+  Specifications,
+  KickoffMeeting,
+  ProductionProgress,
+  Delivery,
+  CreateOnboardingPayload,
+  UpdateOnboardingPayload,
+  UpdateStepPayload,
+  ContractPayload,
+  PaymentPayload,
+  QuestionnairePayload,
+  SpecificationsPayload,
+  KickoffPayload,
+  ProductionPayload,
+  DeliveryPayload,
+};
 
 export interface PaginatedResponse<T> {
   data: T[];
@@ -42,7 +52,7 @@ export interface PaginatedResponse<T> {
 }
 
 export const clientOnboardingApi = {
-  createOnboarding: async (data: { projectId: string; assignedUserId?: string }) => {
+  createOnboarding: async (data: CreateOnboardingPayload) => {
     const response = await apiClient.post<{ data: ClientOnboarding }>(
       "/client-onboardings",
       data
@@ -84,7 +94,7 @@ export const clientOnboardingApi = {
     return response.data.data[0] ?? null;
   },
 
-  updateOnboarding: async (id: string, data: any) => {
+  updateOnboarding: async (id: string, data: UpdateOnboardingPayload) => {
     const response = await apiClient.put<{ data: ClientOnboarding }>(
       `/client-onboardings/${id}`,
       data
@@ -96,7 +106,7 @@ export const clientOnboardingApi = {
     await apiClient.delete(`/client-onboardings/${id}`);
   },
 
-  updateStep: async (stepId: string, data: any) => {
+  updateStep: async (stepId: string, data: UpdateStepPayload) => {
     const response = await apiClient.put<{ data: OnboardingStep }>(
       `/client-onboardings/steps/${stepId}`,
       data
@@ -104,112 +114,112 @@ export const clientOnboardingApi = {
     return response.data.data;
   },
 
-  createContract: async (stepId: string, data: any) => {
-    const response = await apiClient.post<{ data: any }>(
+  createContract: async (stepId: string, data: ContractPayload) => {
+    const response = await apiClient.post<{ data: Contract }>(
       `/client-onboardings/steps/${stepId}/contract`,
       data
     );
     return response.data.data;
   },
 
-  updateContract: async (contractId: string, data: any) => {
-    const response = await apiClient.put<{ data: any }>(
+  updateContract: async (contractId: string, data: ContractPayload) => {
+    const response = await apiClient.put<{ data: Contract }>(
       `/client-onboardings/contracts/${contractId}`,
       data
     );
     return response.data.data;
   },
 
-  createPayment: async (stepId: string, data: any) => {
-    const response = await apiClient.post<{ data: any }>(
+  createPayment: async (stepId: string, data: PaymentPayload) => {
+    const response = await apiClient.post<{ data: Payment }>(
       `/client-onboardings/steps/${stepId}/payment`,
       data
     );
     return response.data.data;
   },
 
-  updatePayment: async (paymentId: string, data: any) => {
-    const response = await apiClient.put<{ data: any }>(
+  updatePayment: async (paymentId: string, data: PaymentPayload) => {
+    const response = await apiClient.put<{ data: Payment }>(
       `/client-onboardings/payments/${paymentId}`,
       data
     );
     return response.data.data;
   },
 
-  createQuestionnaire: async (stepId: string, data: any) => {
-    const response = await apiClient.post<{ data: any }>(
+  createQuestionnaire: async (stepId: string, data: QuestionnairePayload) => {
+    const response = await apiClient.post<{ data: Questionnaire }>(
       `/client-onboardings/steps/${stepId}/questionnaire`,
       data
     );
     return response.data.data;
   },
 
-  updateQuestionnaire: async (questionnaireId: string, data: any) => {
-    const response = await apiClient.put<{ data: any }>(
+  updateQuestionnaire: async (questionnaireId: string, data: QuestionnairePayload) => {
+    const response = await apiClient.put<{ data: Questionnaire }>(
       `/client-onboardings/questionnaires/${questionnaireId}`,
       data
     );
     return response.data.data;
   },
 
-  createSpecifications: async (stepId: string, data: any) => {
-    const response = await apiClient.post<{ data: any }>(
+  createSpecifications: async (stepId: string, data: SpecificationsPayload) => {
+    const response = await apiClient.post<{ data: Specifications }>(
       `/client-onboardings/steps/${stepId}/specifications`,
       data
     );
     return response.data.data;
   },
 
-  updateSpecifications: async (specificationsId: string, data: any) => {
-    const response = await apiClient.put<{ data: any }>(
+  updateSpecifications: async (specificationsId: string, data: SpecificationsPayload) => {
+    const response = await apiClient.put<{ data: Specifications }>(
       `/client-onboardings/specifications/${specificationsId}`,
       data
     );
     return response.data.data;
   },
 
-  createKickoff: async (stepId: string, data: any) => {
-    const response = await apiClient.post<{ data: any }>(
+  createKickoff: async (stepId: string, data: KickoffPayload) => {
+    const response = await apiClient.post<{ data: KickoffMeeting }>(
       `/client-onboardings/steps/${stepId}/kickoff`,
       data
     );
     return response.data.data;
   },
 
-  updateKickoff: async (kickoffId: string, data: any) => {
-    const response = await apiClient.put<{ data: any }>(
+  updateKickoff: async (kickoffId: string, data: KickoffPayload) => {
+    const response = await apiClient.put<{ data: KickoffMeeting }>(
       `/client-onboardings/kickoffs/${kickoffId}`,
       data
     );
     return response.data.data;
   },
 
-  createProduction: async (stepId: string, data: any) => {
-    const response = await apiClient.post<{ data: any }>(
+  createProduction: async (stepId: string, data: ProductionPayload) => {
+    const response = await apiClient.post<{ data: ProductionProgress }>(
       `/client-onboardings/steps/${stepId}/production`,
       data
     );
     return response.data.data;
   },
 
-  updateProduction: async (productionId: string, data: any) => {
-    const response = await apiClient.put<{ data: any }>(
+  updateProduction: async (productionId: string, data: ProductionPayload) => {
+    const response = await apiClient.put<{ data: ProductionProgress }>(
       `/client-onboardings/productions/${productionId}`,
       data
     );
     return response.data.data;
   },
 
-  createDelivery: async (stepId: string, data: any) => {
-    const response = await apiClient.post<{ data: any }>(
+  createDelivery: async (stepId: string, data: DeliveryPayload) => {
+    const response = await apiClient.post<{ data: Delivery }>(
       `/client-onboardings/steps/${stepId}/delivery`,
       data
     );
     return response.data.data;
   },
 
-  updateDelivery: async (deliveryId: string, data: any) => {
-    const response = await apiClient.put<{ data: any }>(
+  updateDelivery: async (deliveryId: string, data: DeliveryPayload) => {
+    const response = await apiClient.put<{ data: Delivery }>(
       `/client-onboardings/deliveries/${deliveryId}`,
       data
     );

@@ -2,6 +2,24 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   clientOnboardingApi,
   type ClientOnboarding,
+  type OnboardingStep,
+  type Contract,
+  type Payment,
+  type Questionnaire,
+  type Specifications,
+  type KickoffMeeting,
+  type ProductionProgress,
+  type Delivery,
+  type CreateOnboardingPayload,
+  type UpdateOnboardingPayload,
+  type UpdateStepPayload,
+  type ContractPayload,
+  type PaymentPayload,
+  type QuestionnairePayload,
+  type SpecificationsPayload,
+  type KickoffPayload,
+  type ProductionPayload,
+  type DeliveryPayload,
 } from "../api/clientOnboarding.api";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -53,7 +71,7 @@ export function useCreateClientOnboarding() {
   return useMutation<
     ClientOnboarding,
     Error,
-    { projectId: string; assignedUserId?: string }
+    CreateOnboardingPayload
   >({
     mutationFn: (data) => clientOnboardingApi.createOnboarding(data),
     onSuccess: () => {
@@ -69,7 +87,7 @@ export function useUpdateClientOnboarding() {
   return useMutation<
     ClientOnboarding,
     Error,
-    { id: string; data: any }
+    { id: string; data: UpdateOnboardingPayload }
   >({
     mutationFn: ({ id, data }) => clientOnboardingApi.updateOnboarding(id, data),
     onSuccess: (_, { id }) => {
@@ -93,7 +111,7 @@ export function useDeleteClientOnboarding() {
 export function useUpdateOnboardingStep() {
   const queryClient = useQueryClient();
 
-  return useMutation<any, Error, { stepId: string; data: any }>({
+  return useMutation<OnboardingStep, Error, { stepId: string; data: UpdateStepPayload }>({
     mutationFn: ({ stepId, data }) => clientOnboardingApi.updateStep(stepId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clientOnboardings"] });
@@ -106,7 +124,7 @@ export function useUpdateOnboardingStep() {
 export function useUpdateContract() {
   const queryClient = useQueryClient();
 
-  return useMutation<any, Error, { contractId: string; data: any }>({
+  return useMutation<Contract, Error, { contractId: string; data: ContractPayload }>({
     mutationFn: ({ contractId, data }) =>
       clientOnboardingApi.updateContract(contractId, data),
     onSuccess: () => {
@@ -120,7 +138,7 @@ export function useUpdateContract() {
 export function useUpdatePayment() {
   const queryClient = useQueryClient();
 
-  return useMutation<any, Error, { paymentId: string; data: any }>({
+  return useMutation<Payment, Error, { paymentId: string; data: PaymentPayload }>({
     mutationFn: ({ paymentId, data }) =>
       clientOnboardingApi.updatePayment(paymentId, data),
     onSuccess: () => {
@@ -134,7 +152,7 @@ export function useUpdatePayment() {
 export function useUpdateQuestionnaire() {
   const queryClient = useQueryClient();
 
-  return useMutation<any, Error, { questionnaireId: string; data: any }>({
+  return useMutation<Questionnaire, Error, { questionnaireId: string; data: QuestionnairePayload }>({
     mutationFn: ({ questionnaireId, data }) =>
       clientOnboardingApi.updateQuestionnaire(questionnaireId, data),
     onSuccess: () => {
@@ -148,7 +166,7 @@ export function useUpdateQuestionnaire() {
 export function useUpdateSpecifications() {
   const queryClient = useQueryClient();
 
-  return useMutation<any, Error, { specificationsId: string; data: any }>({
+  return useMutation<Specifications, Error, { specificationsId: string; data: SpecificationsPayload }>({
     mutationFn: ({ specificationsId, data }) =>
       clientOnboardingApi.updateSpecifications(specificationsId, data),
     onSuccess: () => {
@@ -162,7 +180,7 @@ export function useUpdateSpecifications() {
 export function useUpdateKickoff() {
   const queryClient = useQueryClient();
 
-  return useMutation<any, Error, { kickoffId: string; data: any }>({
+  return useMutation<KickoffMeeting, Error, { kickoffId: string; data: KickoffPayload }>({
     mutationFn: ({ kickoffId, data }) =>
       clientOnboardingApi.updateKickoff(kickoffId, data),
     onSuccess: () => {
@@ -176,7 +194,7 @@ export function useUpdateKickoff() {
 export function useUpdateProduction() {
   const queryClient = useQueryClient();
 
-  return useMutation<any, Error, { productionId: string; data: any }>({
+  return useMutation<ProductionProgress, Error, { productionId: string; data: ProductionPayload }>({
     mutationFn: ({ productionId, data }) =>
       clientOnboardingApi.updateProduction(productionId, data),
     onSuccess: () => {
@@ -190,7 +208,7 @@ export function useUpdateProduction() {
 export function useUpdateDelivery() {
   const queryClient = useQueryClient();
 
-  return useMutation<any, Error, { deliveryId: string; data: any }>({
+  return useMutation<Delivery, Error, { deliveryId: string; data: DeliveryPayload }>({
     mutationFn: ({ deliveryId, data }) =>
       clientOnboardingApi.updateDelivery(deliveryId, data),
     onSuccess: () => {
