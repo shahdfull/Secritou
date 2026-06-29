@@ -64,10 +64,10 @@ export function ClientDashboardPage() {
       <h1 className="text-3xl font-bold text-ink">Tableau de bord</h1>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {stats.map((stat, idx) => {
+        {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <Card key={idx} className="rounded-3xl border border-border shadow-soft hover:shadow-md transition-shadow cursor-pointer" onClick={stat.onClick}>
+            <Card key={stat.title} className="rounded-3xl border border-border shadow-soft hover:shadow-md transition-shadow cursor-pointer" onClick={stat.onClick}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
                 <div className={`p-2 rounded-full ${stat.color}`}>

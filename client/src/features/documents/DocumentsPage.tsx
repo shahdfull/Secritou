@@ -1,5 +1,8 @@
 import { useState, useRef, useMemo } from "react";
+import { useAuthStore } from "@/store/auth.store";
 import { useTranslation } from "react-i18next";
+import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialog";
+import { toast } from "sonner";
 import type { Document } from "@/api/documents.api";
 import {
   useDocuments,
@@ -40,21 +43,16 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { MoreHorizontal, Eye, Download, Plus, Loader2 } from "lucide-react";
+import { Eye, Download, Plus, Loader2, Trash2 } from "lucide-react";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { FileUploadField } from "@/components/common/FileUploadField";
 import { useListParams } from "@/hooks/useListParams";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { toast } from "sonner";
 import type { UploadResult } from "@/api/upload.api";
 
 const ALL_TYPES_VALUE = "__all__";
@@ -70,6 +68,8 @@ type CreateDocForm = z.infer<typeof createDocSchema>;
 
 export function DocumentsPage() {
   const { t } = useTranslation();
+  const currentUser = useAuthStore((s) => s.user);
+  const isFreelancer = currentUser?.role === "FREELANCER";
   const docSchema = z.object({
     name: z.string().min(1, t("common.nameRequired")),
     description: z.string().optional(),
@@ -79,6 +79,7 @@ export function DocumentsPage() {
   });
   const { page, pageSize, search, status, updateParams } = useListParams(10);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [deleteDocTarget, setDeleteDocTarget] = useState<Document | null>(null);
   const uploadedFile = useRef<UploadResult | null>(null);
 
   const { data: documentsResult, isLoading } = useDocuments({
@@ -144,10 +145,12 @@ export function DocumentsPage() {
             {t("documents.subtitle")}
           </p>
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          {t("documents.add")}
-        </Button>
+        {!isFreelancer && (
+          <Button onClick={() => setCreateDialogOpen(true)} className="bg-ink text-white hover:bg-ink/90 rounded-full">
+            <Plus className="h-4 w-4 mr-2" />
+            {t("documents.add")}
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -168,12 +171,12 @@ export function DocumentsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL_TYPES_VALUE}>{t("documents.allTypes")}</SelectItem>
-            <SelectItem value="contract">{t("documents.types.contract")}</SelectItem>
-            <SelectItem value="deliverable">{t("documents.types.deliverable")}</SelectItem>
-            <SelectItem value="guide">{t("documents.types.guide")}</SelectItem>
-            <SelectItem value="report">{t("documents.types.report")}</SelectItem>
-            <SelectItem value="invoice">{t("documents.types.invoice")}</SelectItem>
-            <SelectItem value="other">{t("documents.types.other")}</SelectItem>
+            <SelectItem value="CONTRACT">{t("documents.types.contract")}</SelectItem>
+            <SelectItem value="DELIVERABLE">{t("documents.types.deliverable")}</SelectItem>
+            <SelectItem value="GUIDE">{t("documents.types.guide")}</SelectItem>
+            <SelectItem value="REPORT">{t("documents.types.report")}</SelectItem>
+            <SelectItem value="INVOICE">{t("documents.types.invoice")}</SelectItem>
+            <SelectItem value="OTHER">{t("documents.types.other")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -216,8 +219,8 @@ export function DocumentsPage() {
                   </TableCell>
                   <TableCell>{doc.version}</TableCell>
                   <TableCell>
-                    {doc.tags.map((tag, idx) => (
-                      <Badge key={idx} variant="secondary" className="mr-1">
+                    {doc.tags.map((tag) => (
+                      <Badge key={tag} variant="secondary" className="mr-1">
                         {tag}
                       </Badge>
                     ))}
@@ -226,31 +229,19 @@ export function DocumentsPage() {
                     {new Date(doc.createdAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title={t("documents.view")} onClick={() => window.open(doc.url, "_blank")}>
+                        <Eye className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title={t("documents.download")} onClick={() => { const a = document.createElement("a"); a.href = doc.url; a.download = doc.name; a.target = "_blank"; a.click(); }}>
+                        <Download className="h-3.5 w-3.5" />
+                      </Button>
+                      {!isFreelancer && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("documents.delete")} onClick={() => setDeleteDocTarget(doc)}>
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => window.open(doc.url, "_blank")}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          {t("documents.view")}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => window.open(doc.url, "_blank")}>
-                          <Download className="mr-2 h-4 w-4" />
-                          {t("documents.download")}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => deleteMutation.mutate(doc.id)}
-                          disabled={deleteMutation.isPending}
-                          className="text-red-600"
-                        >
-                          <MoreHorizontal className="mr-2 h-4 w-4" />
-                          {t("documents.delete")}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -416,6 +407,21 @@ export function DocumentsPage() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={!!deleteDocTarget}
+        onOpenChange={(open) => { if (!open) setDeleteDocTarget(null); }}
+        onConfirm={() => {
+          if (!deleteDocTarget) return;
+          deleteMutation.mutate(deleteDocTarget.id, {
+            onSuccess: () => { setDeleteDocTarget(null); toast.success("Document supprimé."); },
+            onError: () => { toast.error("Erreur lors de la suppression."); setDeleteDocTarget(null); },
+          });
+        }}
+        title={`Supprimer "${deleteDocTarget?.name}" ?`}
+        description="Cette action est irréversible. Le document sera définitivement supprimé."
+        isDeleting={deleteMutation.isPending}
+      />
     </section>
   );
 }

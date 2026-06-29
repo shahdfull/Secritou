@@ -95,8 +95,10 @@ function CompactChat({
           </div>
         ) : (
           <div className="space-y-3">
+            {/* Chat is append-only (no reorder/filter); ChatMessage has no id,
+                so a role+index composite is the stable key here. */}
             {messages.map((msg, i) => (
-              <MessageBubble key={i} msg={msg} compact />
+              <MessageBubble key={`${msg.role}-${i}`} msg={msg} compact />
             ))}
             {isLoading && <ThinkingBubble compact />}
             <div ref={scrollRef} />
