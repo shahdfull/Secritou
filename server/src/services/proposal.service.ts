@@ -1,4 +1,5 @@
 import { proposalRepository } from "../repositories/proposal.repository.js";
+import logger from "../utils/logger.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { clientRepository } from "../repositories/client.repository.js";
 import { enqueueEmail, enqueueEmails, enqueueNotifications } from "../jobs/queues.js";
@@ -67,7 +68,7 @@ async function notifyAdminsAccepted(proposal: { id: string; title: string; amoun
     clientRepository.findById(proposal.clientId),
     userRepository.findByClientId(proposal.clientId),
   ]);
-  const dashboardUrl = `${env.FRONTEND_URL}/app/proposals/${proposal.id}`;
+  const dashboardUrl = `${env.FRONTEND_URL}/app/commercial?tab=proposals`;
   const clientUrl = `${env.FRONTEND_URL}/client/proposals/${proposal.id}`;
   const currency = proposal.currency ?? "TND";
   void Promise.all([
@@ -112,6 +113,31 @@ export const proposalService = {
     return proposalRepository.findByIdForClient(id, clientId);
   },
 
+  async markViewed(id: string, clientId: string) {
+    const proposal = await proposalRepository.findByIdForClient(id, clientId);
+    if (!proposal) throw new HttpError(404, "Proposal not found");
+
+    if (proposal.status !== "SENT") return proposal;
+
+    const now = new Date();
+    const updated = await proposalRepository.update(id, { status: "VIEWED", viewedAt: now });
+
+    const admins = await userRepository.findAdmins();
+    const adminLink = `${env.FRONTEND_URL}/app/commercial?tab=proposals`;
+    void enqueueNotifications(
+      admins.map((admin) => ({
+        userId: admin.id,
+        title: "Proposition consultée",
+        message: `Le client a consulté la proposition "${proposal.title}".`,
+        type: "PROPOSAL_VIEWED" as const,
+        entityId: id,
+        link: adminLink,
+      }))
+    );
+
+    return updated;
+  },
+
   async getAll(options: ListQueryOptions & { clientId?: string; status?: ProposalStatus; search?: string }, scope?: ServiceScope) {
     const serviceId = scope?.userRole === "MANAGER" ? (scope.userServiceId ?? "__none__") : undefined;
     return proposalRepository.findAll({ ...options, serviceId });
@@ -123,17 +149,39 @@ export const proposalService = {
     return proposal;
   },
 
-  async create(data: { title: string; description?: string; amount?: number; currency?: string; expiresAt?: Date; pdfUrl?: string; clientId: string; clientName?: string; email?: string; projectId?: string; serviceRequestId?: string }) {
-    if (data.serviceRequestId) {
-      const serviceRequest = await prisma.serviceRequest.findFirst({
-        where: { id: data.serviceRequestId },
-        select: { id: true, type: true, proposal: { select: { id: true } } },
-      });
-      if (!serviceRequest) throw new HttpError(404, "Service request not found");
-      if (serviceRequest.type !== "NEW_PROJECT") throw new HttpError(422, "Support requests cannot generate proposals", "SERVICE_REQUEST_NOT_PROPOSABLE");
-      if (serviceRequest.proposal) throw new HttpError(409, "Service request already linked to a proposal", "SERVICE_REQUEST_ALREADY_LINKED");
-    }
-    return proposalRepository.create(data);
+  async create(data: { title: string; description?: string; amount?: number; currency?: string; expiresAt?: Date; pdfUrl?: string; clientId: string; clientName?: string; email?: string; projectId?: string; serviceRequestId?: string; leadId?: string }) {
+    return prisma.$transaction(async (tx) => {
+      if (data.serviceRequestId) {
+        const serviceRequest = await tx.serviceRequest.findFirst({
+          where: { id: data.serviceRequestId },
+          select: { id: true, type: true, proposal: { select: { id: true } } },
+        });
+        if (!serviceRequest) throw new HttpError(404, "Service request not found");
+        if (serviceRequest.type !== "NEW_PROJECT") throw new HttpError(422, "Support requests cannot generate proposals", "SERVICE_REQUEST_NOT_PROPOSABLE");
+        if (serviceRequest.proposal) throw new HttpError(409, "Service request already linked to a proposal", "SERVICE_REQUEST_ALREADY_LINKED");
+      }
+
+      if (data.leadId) {
+        const lead = await tx.lead.findUnique({
+          where: { id: data.leadId },
+          select: { id: true, status: true, convertedClientId: true, convertedClient: { select: { id: true } } },
+        });
+        if (!lead) throw new HttpError(404, "Lead not found");
+        if (lead.convertedClientId) throw new HttpError(422, "Lead already converted", "LEAD_ALREADY_CONVERTED");
+        if (lead.status === "WON") throw new HttpError(422, "Lead is already won", "LEAD_ALREADY_WON");
+        // Prevent cross-client contamination: the lead must belong to the same client as the proposal
+        if (lead.convertedClient && lead.convertedClient.id !== data.clientId) {
+          throw new HttpError(422, "Lead does not belong to this client", "LEAD_CLIENT_MISMATCH");
+        }
+
+        await tx.lead.update({
+          where: { id: data.leadId },
+          data: { status: "PROPOSAL" },
+        });
+      }
+
+      return tx.proposal.create({ data });
+    });
   },
 
   async update(id: string, data: Partial<{ title: string; description: string; status: ProposalStatus; amount: number; currency: string; expiresAt: Date; pdfUrl: string }>, userId?: string, scope?: ServiceScope) {
@@ -255,6 +303,7 @@ export const proposalService = {
           linkedProject: { select: { id: true, serviceId: true } },
           invoice: { select: { id: true } },
           project: { select: { serviceId: true } },
+          lead: { select: { id: true } },
         },
       });
       if (!proposal) throw new HttpError(404, "Proposal not found");
@@ -271,6 +320,14 @@ export const proposalService = {
           throw new HttpError(409, "This proposal has expired", "PROPOSAL_EXPIRED");
         }
         await tx.proposal.update({ where: { id }, data: { status: "ACCEPTED", acceptedAt: new Date() } });
+      }
+
+      // If this proposal was linked to a lead, mark the lead as WON
+      if (proposal.leadId) {
+        await tx.lead.update({
+          where: { id: proposal.leadId },
+          data: { status: "WON" },
+        });
       }
 
       let projectId = proposal.linkedProject?.id ?? null;
@@ -326,7 +383,7 @@ export const proposalService = {
         }
       } else if (!invoiceId) {
         // proposal.amount is null or zero — no deposit invoice created (intentional for quote-less proposals).
-        console.warn(`[acceptWithCascade] proposal ${id} has no amount or amount is zero — skipping deposit invoice creation`);
+        logger.warn({ proposalId: id }, "[acceptWithCascade] proposal has no amount or amount is zero — skipping deposit invoice creation");
       }
 
       return { proposalId: id, clientId: proposal.clientId, title: proposal.title, amount: proposal.amount, currency: proposal.currency, clientName: proposal.clientName, email: proposal.email, projectId, invoiceId };
@@ -373,7 +430,7 @@ export const proposalService = {
           : []),
         documentGeneratorService.generateRoadmap(docProject, uploadedById),
       ]).then((results) => {
-        results.forEach((r, i) => { if (r.status === "rejected") console.error(`[documentGenerator] PDF #${i} failed:`, r.reason); });
+        results.forEach((r, i) => { if (r.status === "rejected") logger.error({ err: r.reason, index: i }, "[documentGenerator] PDF generation failed"); });
       });
     }
 
@@ -408,7 +465,7 @@ export const proposalService = {
       userRepository.findAdmins(),
       clientRepository.findById(proposal.clientId),
     ]);
-    const adminLink = `${env.FRONTEND_URL}/app/proposals/${id}`;
+    const adminLink = `${env.FRONTEND_URL}/app/commercial?tab=proposals`;
     const clientUsers = await userRepository.findByClientId(proposal.clientId);
     void Promise.all([
       enqueueEmails(

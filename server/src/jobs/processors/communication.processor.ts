@@ -1,6 +1,7 @@
 import { notificationRepository } from "../../repositories/notification.repository.js";
 import { emailService } from "../../services/email.service.js";
 import { recordBullMQJob } from "../../observability/collectors.js";
+import logger from "../../utils/logger.js";
 import type { NotificationJob, EmailJob } from "../queues.js";
 import { jobNames } from "../jobNames.js";
 
@@ -53,7 +54,7 @@ export async function processEmailJob(data: EmailJob): Promise<void> {
       "failed",
       (performance.now() - start) / 1000
     );
-    console.error(`[email] Failed to deliver to ${toLabel}: ${(error as Error).message}`);
+    logger.error({ err: error, to: toLabel }, "[email] Failed to deliver");
     throw error; // BullMQ will retry per job options
   }
 }

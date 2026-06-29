@@ -5,8 +5,9 @@ import * as Sentry from "@sentry/node";
 import { appErrorsTotal } from "../observability/metrics.js";
 import { HttpError } from "../utils/httpError.js";
 import { env } from "../config/env.js";
+import logger from "../utils/logger.js";
 
-export const errorMiddleware: ErrorRequestHandler = (error, _req, res, _next) => {
+export const errorMiddleware: ErrorRequestHandler = (error, req, res, _next) => {
   // Handle Prisma errors
   if ((error as any).code === "P2002") {
     appErrorsTotal.inc({ type: "prisma_p2002", source: "database" });
@@ -90,7 +91,7 @@ export const errorMiddleware: ErrorRequestHandler = (error, _req, res, _next) =>
   }
 
   appErrorsTotal.inc({ type: "unhandled", source: "server" });
-  console.error(error);
+  logger.error({ err: error, path: req.path, method: req.method }, "Unhandled error");
   if (env.SENTRY_DSN) Sentry.captureException(error);
   res.status(500).json({
     error: {

@@ -1,4 +1,5 @@
 import { env } from "../config/env.js";
+import logger from "../utils/logger.js";
 import { prisma } from "../config/prisma.js";
 import { serviceService } from "./service.service.js";
 import { enqueueEmail } from "../jobs/queues.js";
@@ -26,7 +27,7 @@ export class ContactService {
 
       return { contactRequest };
     });
-    console.info("Contact request saved to DB", { id: contactRequest.id });
+    logger.info({ id: contactRequest.id }, "Contact request saved to DB");
 
     // Second: enqueue the notification email (off the request path) — best effort.
     // The communication worker handles SMTP delivery + retries; we never block the
@@ -39,9 +40,9 @@ export class ContactService {
         text: [`Name: ${input.name}`, `Email: ${input.email}`, `Phone: ${input.phone || "N/A"}`, `Service Type: ${input.serviceType}`, `Budget: ${input.budget || "N/A"}`, `Company: ${input.company}`, "", input.message].join("\n"),
         html: `<h2>New consultation request</h2><p><strong>Name:</strong> ${this.escapeHtml(input.name)}</p><p><strong>Email:</strong> ${this.escapeHtml(input.email)}</p><p><strong>Phone:</strong> ${this.escapeHtml(input.phone || "N/A")}</p><p><strong>Service Type:</strong> ${this.escapeHtml(input.serviceType)}</p><p><strong>Budget:</strong> ${this.escapeHtml(input.budget || "N/A")}</p><p><strong>Company:</strong> ${this.escapeHtml(input.company)}</p><p><strong>Message:</strong></p><p>${this.escapeHtml(input.message).replace(/\n/g, "<br />")}</p>`,
       });
-      console.info("Contact request email enqueued", { id: contactRequest.id });
+      logger.info({ id: contactRequest.id }, "Contact request email enqueued");
     } catch (error) {
-      console.warn("Failed to enqueue contact email, but request was saved to DB", { id: contactRequest.id, error });
+      logger.warn({ err: error, id: contactRequest.id }, "Failed to enqueue contact email, but request was saved to DB");
     }
   }
 

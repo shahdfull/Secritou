@@ -1,4 +1,5 @@
 // Service for Projects - SaaS business logic
+import logger from "../utils/logger.js";
 import { projectRepository } from "../repositories/project.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { clientRepository } from "../repositories/client.repository.js";
@@ -161,14 +162,14 @@ export const projectService = {
         const docClient = client ? { id: client.id, name: client.name, email: client.email ?? undefined } : { id: clientId, name: "Client", email: undefined };
         await documentGeneratorService.generateClientBrief(docProject, docClient, uploadedById);
       } catch (err) {
-        console.error("[submitBrief] PDF generation failed:", err);
+        logger.error({ err }, "[submitBrief] PDF generation failed");
       }
 
       try {
         const managers = await userRepository.findAdmins();
         await enqueueNotifications(managers.map((u) => ({ userId: u.id, title: "Brief client complété", message: `Le client a complété son brief pour le projet « ${project.name} ».` })));
       } catch (err) {
-        console.error("[submitBrief] Manager notification failed:", err);
+        logger.error({ err }, "[submitBrief] Manager notification failed");
       }
     })();
 
@@ -235,7 +236,7 @@ export const projectService = {
             );
           }
         } catch (err) {
-          console.error("[clientApprove] Balance invoice PDF generation failed:", err);
+          logger.error({ err }, "[clientApprove] Balance invoice PDF generation failed");
         }
       }
 
@@ -250,7 +251,7 @@ export const projectService = {
         );
         await enqueueNotifications(managers.map((u) => ({ userId: u.id, title: "Projet approuvé par le client", message: `Le client ${preread.client?.name ?? ""} a approuvé la livraison du projet « ${preread.name} ». Facture de solde générée.` })));
       } catch (err) {
-        console.error("[clientApprove] Manager notification failed:", err);
+        logger.error({ err }, "[clientApprove] Manager notification failed");
       }
 
       try {
@@ -261,7 +262,7 @@ export const projectService = {
           await emailService.send({ to: clientEmail, ...tpl });
         }
       } catch (err) {
-        console.error("[clientApprove] Client email failed:", err);
+        logger.error({ err }, "[clientApprove] Client email failed");
       }
     })();
 

@@ -1,4 +1,5 @@
 import type { Role, User } from "@prisma/client";
+import logger from "../utils/logger.js";
 import bcrypt from "bcryptjs";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { randomBytes, createHash } from "node:crypto";
@@ -165,7 +166,7 @@ export class AuthService {
       );
       void enqueueEmail({ to: user.email, subject, html });
     } catch (error) {
-      console.error("[auth] Failed to enqueue password reset email:", error);
+      logger.error({ err: error }, "[auth] Failed to enqueue password reset email");
       // Non-fatal : le token est déjà persisté en base
     }
   }

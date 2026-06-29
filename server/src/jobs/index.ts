@@ -1,6 +1,7 @@
 import { Worker, QueueEvents } from "bullmq";
 import * as Sentry from "@sentry/node";
 import { env } from "../config/env.js";
+import logger from "../utils/logger.js";
 import { jobNames, queueNames } from "./jobNames.js";
 import { maintenanceQueue } from "./queues.js";
 import { getBullRedisConnection } from "./redisConnection.js";
@@ -16,6 +17,13 @@ import {
   expireProposals,
   markOverdueInvoices,
 } from "./processors/maintenance.processor.js";
+import {
+  checkStaleProjects,
+  checkOverdueDeadlines,
+  checkInvoiceFollowup,
+  weeklyCeoReport,
+  checkTaskDeadlines,
+} from "./processors/ceoAlerts.processor.js";
 import type { NotificationJob, EmailJob } from "./queues.js";
 
 const connection = getBullRedisConnection();
@@ -42,8 +50,9 @@ function startWorkers() {
   const communicationEvents = new QueueEvents(queueNames.communication, { connection });
 
   communicationEvents.on("failed", ({ jobId, failedReason }) => {
-    console.error(
-      `[jobs] Job ${jobId} in "${queueNames.communication}" permanently failed: ${failedReason}`
+    logger.error(
+      { jobId, queue: queueNames.communication, failedReason },
+      `[jobs] Job ${jobId} in "${queueNames.communication}" permanently failed`
     );
     if (env.SENTRY_DSN) {
       Sentry.captureException(new Error(`Job ${jobId} failed: ${failedReason}`));
@@ -51,7 +60,8 @@ function startWorkers() {
   });
 
   communicationEvents.on("stalled", ({ jobId }) => {
-    console.warn(
+    logger.warn(
+      { jobId, queue: queueNames.communication },
       `[jobs] Job ${jobId} in "${queueNames.communication}" stalled and will be re-queued`
     );
   });
@@ -78,6 +88,21 @@ function startWorkers() {
       if (job.name === jobNames.markOverdueInvoices) {
         return markOverdueInvoices();
       }
+      if (job.name === jobNames.checkStaleProjects) {
+        return checkStaleProjects();
+      }
+      if (job.name === jobNames.checkOverdueDeadlines) {
+        return checkOverdueDeadlines();
+      }
+      if (job.name === jobNames.checkInvoiceFollowup) {
+        return checkInvoiceFollowup();
+      }
+      if (job.name === jobNames.weeklyCeoReport) {
+        return weeklyCeoReport();
+      }
+      if (job.name === jobNames.checkTaskDeadlines) {
+        return checkTaskDeadlines();
+      }
       throw new Error(`Unknown job: ${job.name}`);
     },
     { connection, concurrency: 1 }
@@ -87,8 +112,9 @@ function startWorkers() {
   const maintenanceEvents = new QueueEvents(queueNames.maintenance, { connection });
 
   maintenanceEvents.on("failed", ({ jobId, failedReason }) => {
-    console.error(
-      `[jobs] Job ${jobId} in "${queueNames.maintenance}" permanently failed: ${failedReason}`
+    logger.error(
+      { jobId, queue: queueNames.maintenance, failedReason },
+      `[jobs] Job ${jobId} in "${queueNames.maintenance}" permanently failed`
     );
     if (env.SENTRY_DSN) {
       Sentry.captureException(new Error(`Maintenance job ${jobId} failed: ${failedReason}`));
@@ -96,7 +122,8 @@ function startWorkers() {
   });
 
   maintenanceEvents.on("stalled", ({ jobId }) => {
-    console.warn(
+    logger.warn(
+      { jobId, queue: queueNames.maintenance },
       `[jobs] Job ${jobId} in "${queueNames.maintenance}" stalled and will be re-queued`
     );
   });
@@ -133,6 +160,33 @@ function startWorkers() {
     jobNames.markOverdueInvoices,
     {},
     { repeat: { pattern: "15 4 * * *" }, jobId: "mark-overdue-invoices-daily" }
+  );
+
+  // ── CEO Alerts ──────────────────────────────────────────────────────────────
+  void maintenanceQueue.add(
+    jobNames.checkStaleProjects,
+    {},
+    { repeat: { pattern: "0 8 * * *" }, jobId: "check-stale-projects-daily" }
+  );
+  void maintenanceQueue.add(
+    jobNames.checkOverdueDeadlines,
+    {},
+    { repeat: { pattern: "30 8 * * *" }, jobId: "check-overdue-deadlines-daily" }
+  );
+  void maintenanceQueue.add(
+    jobNames.checkInvoiceFollowup,
+    {},
+    { repeat: { pattern: "0 9 * * 1" }, jobId: "check-invoice-followup-weekly" }
+  );
+  void maintenanceQueue.add(
+    jobNames.weeklyCeoReport,
+    {},
+    { repeat: { pattern: "30 7 * * 1" }, jobId: "weekly-ceo-report" }
+  );
+  void maintenanceQueue.add(
+    jobNames.checkTaskDeadlines,
+    {},
+    { repeat: { pattern: "0 * * * *" }, jobId: "check-task-deadlines-hourly" }
   );
 }
 

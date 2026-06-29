@@ -1,4 +1,5 @@
 // Lead Service - Business logic
+import logger from "../utils/logger.js";
 import type { CreateLeadDTO } from "../types/entities.js";
 import { leadRepository, type LeadScope } from "../repositories/lead.repository.js";
 import { HttpError } from "../utils/httpError.js";
@@ -38,6 +39,19 @@ export const leadService = {
     if (!lead) throw new HttpError(404, "Lead not found");
     const updated = await leadRepository.update(id, data);
     await invalidateCompanyCache();
+
+    if (data.status === "LOST" && lead.status !== "LOST") {
+      const admins = await userRepository.findAdmins();
+      void enqueueNotifications(admins.map((admin) => ({
+        userId: admin.id,
+        title: "Lead perdu",
+        message: `Le lead "${lead.name}" a été marqué comme perdu.${data.lostReason ? ` Raison : ${data.lostReason}` : ""}`,
+        type: "GENERAL" as const,
+        entityId: id,
+        link: `${env.FRONTEND_URL}/app/leads`,
+      })));
+    }
+
     return updated;
   },
 
@@ -124,7 +138,7 @@ export const leadService = {
     } catch (err) {
       // If user already invited (e.g., existing client merged), just log it and continue
       if (!(err instanceof HttpError && err.code === "CLIENT_EMAIL_EXISTS")) {
-        console.error("Failed to auto-invite client user:", err);
+        logger.error({ err }, "Failed to auto-invite client user");
       }
     }
 

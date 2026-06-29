@@ -1,4 +1,5 @@
 import nodemailer, { type Transporter, type SendMailOptions } from "nodemailer";
+import logger from "../utils/logger.js";
 import { env } from "../config/env.js";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -78,9 +79,9 @@ export const emailService = {
     if (env.NODE_ENV !== "production") {
       const previewUrl = nodemailer.getTestMessageUrl(info);
       if (previewUrl) {
-        console.info(`[email] Preview: ${previewUrl}`);
+        logger.info({ previewUrl }, "[email] Preview");
       } else {
-        console.info(`[email] Sent to ${options.to} : messageId: ${info.messageId}`);
+        logger.info({ to: options.to, messageId: info.messageId }, "[email] Sent");
       }
     }
   },

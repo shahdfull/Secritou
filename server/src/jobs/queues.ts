@@ -3,6 +3,7 @@ import * as Sentry from "@sentry/node";
 import { jobNames, queueNames } from "./jobNames.js";
 import { getBullRedisConnection } from "./redisConnection.js";
 import { env } from "../config/env.js";
+import logger from "../utils/logger.js";
 import type { NotificationType } from "@prisma/client";
 
 const connection = getBullRedisConnection();
@@ -41,7 +42,7 @@ export async function enqueueNotification(data: NotificationJob) {
   try {
     await communicationQueue.add(jobNames.sendNotification, data);
   } catch (error) {
-    console.error("[jobs] Failed to enqueue notification:", error);
+    logger.error({ err: error }, "[jobs] Failed to enqueue notification");
     if (env.SENTRY_DSN) {
       Sentry.captureException(error);
     }
@@ -55,7 +56,7 @@ export async function enqueueNotifications(items: NotificationJob[]) {
       items.map((data) => ({ name: jobNames.sendNotification, data }))
     );
   } catch (error) {
-    console.error("[jobs] Failed to enqueue notifications:", error);
+    logger.error({ err: error }, "[jobs] Failed to enqueue notifications");
     if (env.SENTRY_DSN) {
       Sentry.captureException(error);
     }
@@ -81,7 +82,7 @@ export async function enqueueEmail(data: EmailJob): Promise<void> {
       backoff: { type: "exponential", delay: 5000 },
     });
   } catch (error) {
-    console.error("[jobs] Failed to enqueue email:", error);
+    logger.error({ err: error }, "[jobs] Failed to enqueue email");
     if (env.SENTRY_DSN) {
       Sentry.captureException(error);
     }
@@ -99,7 +100,7 @@ export async function enqueueEmails(items: EmailJob[]): Promise<void> {
       }))
     );
   } catch (error) {
-    console.error("[jobs] Failed to enqueue emails:", error);
+    logger.error({ err: error }, "[jobs] Failed to enqueue emails");
     if (env.SENTRY_DSN) {
       Sentry.captureException(error);
     }
