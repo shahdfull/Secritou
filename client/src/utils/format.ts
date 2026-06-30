@@ -13,7 +13,7 @@ const FALLBACK = "—";
  * Format a monetary amount, e.g. formatCurrency(1234.5) → "1 234,500 TND".
  * @param amount   The numeric amount. null/undefined/NaN → "—".
  * @param currency ISO currency code (default "TND").
- * @param locale   BCP-47 locale (default "fr-TN").
+ * @param locale   BCP-47 locale (default "fr-FR").
  */
 export function formatCurrency(
   amount: number | null | undefined,
@@ -32,7 +32,7 @@ export function formatCurrency(
  * Format a date with consistent defaults (day/month/year).
  * @param date    Date object or parseable string. null/undefined/invalid → "—".
  * @param options Intl.DateTimeFormatOptions to override the defaults.
- * @param locale  BCP-47 locale (default "fr-TN").
+ * @param locale  BCP-47 locale (default "fr-FR").
  */
 export function formatDate(
   date: Date | string | null | undefined,
@@ -57,7 +57,7 @@ export function formatDate(
 /**
  * Format a date as a relative string, e.g. "il y a 2 jours" / "dans 3 heures".
  * @param date   Date object or parseable string. null/undefined/invalid → "—".
- * @param locale BCP-47 locale (default "fr-TN").
+ * @param locale BCP-47 locale (default "fr-FR").
  */
 export function formatRelativeDate(
   date: Date | string | null | undefined,
@@ -93,7 +93,7 @@ export function formatRelativeDate(
  * Format a number as a percentage string, e.g. formatPercent(15) → "15,0 %".
  * @param value    The percentage value (already 0-100, not a 0-1 fraction).
  * @param decimals Number of fraction digits (default 1). null/undefined/NaN → "—".
- * @param locale   BCP-47 locale (default "fr-TN").
+ * @param locale   BCP-47 locale (default "fr-FR").
  */
 export function formatPercent(
   value: number | null | undefined,
