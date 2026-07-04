@@ -23,52 +23,65 @@ import type { Task } from "@/types/task";
 import type { User } from "@/types/auth";
 import { getInitials, getStatusLabel, STATUS_OPTIONS, PRIORITY_BADGE } from "../taskUtils";
 
-interface TasksListViewProps {
-  tasks: Task[];
-  projectNameById: Map<string, string>;
-  userById: Map<string, User>;
-  searchInput: string;
+export interface TasksFilters {
+  search: string;
   onSearchChange: (value: string) => void;
-  statusFilter: string;
-  onStatusFilterChange: (value: string) => void;
+  status: string;
+  onStatusChange: (value: string) => void;
+}
+
+export interface TasksSort {
   orderBy: string | undefined;
   orderDir: "asc" | "desc";
   onSort: (col: string) => void;
+}
+
+export interface TasksPagination {
   page: number;
   pageSize: number;
   total: number;
   onPageChange: (page: number) => void;
+}
+
+export interface TaskRowPermissions {
   isFreelancer: boolean;
   currentUserId: string | undefined;
   canDelete: boolean;
+}
+
+export interface TaskRowActions {
   onView: (task: Task) => void;
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
+}
+
+interface TasksListViewProps {
+  tasks: Task[];
+  projectNameById: Map<string, string>;
+  userById: Map<string, User>;
+  filters: TasksFilters;
+  sort: TasksSort;
+  pagination: TasksPagination;
+  permissions: TaskRowPermissions;
+  actions: TaskRowActions;
 }
 
 export function TasksListView({
   tasks,
   projectNameById,
   userById,
-  searchInput,
-  onSearchChange,
-  statusFilter,
-  onStatusFilterChange,
-  orderBy,
-  orderDir,
-  onSort,
-  page,
-  pageSize,
-  total,
-  onPageChange,
-  isFreelancer,
-  currentUserId,
-  canDelete,
-  onView,
-  onEdit,
-  onDelete,
+  filters,
+  sort,
+  pagination,
+  permissions,
+  actions,
 }: TasksListViewProps) {
   const { t } = useTranslation();
+  const { search: searchInput, onSearchChange, status: statusFilter, onStatusChange: onStatusFilterChange } = filters;
+  const { orderBy, orderDir, onSort } = sort;
+  const { page, pageSize, total, onPageChange } = pagination;
+  const { isFreelancer, currentUserId, canDelete } = permissions;
+  const { onView, onEdit, onDelete } = actions;
   const tableScrollElementRef = useRef<HTMLDivElement>(null);
   const tableVirtualizer = useVirtualizer({
     count: tasks.length,

@@ -1,31 +1,19 @@
 import { Layout, KanbanSquare, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useCreateTask, useUpdateTask, useDeleteTask } from "@/hooks/useTasks";
-import type { Task } from "@/types/task";
+import { useEffect, useMemo, useState, useTransition, useCallback } from "react";
 import { useListParams } from "@/hooks/useListParams";
 import { useTranslation } from "react-i18next";
 import { TasksKanban } from "./TasksKanban";
 import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialog";
-import { toast } from "sonner";
 import { usePermission } from "@/hooks/usePermission";
 import { useAuthStore } from "@/store/auth.store";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import {
-  createTaskSchema,
-  updateTaskSchema,
-  type CreateTaskForm,
-  type UpdateTaskForm,
-} from "@/schemas/task.schema";
 import { useDebouncedValue } from "@/hooks/shared/useDebouncedValue";
-import { useCrudDialogState } from "@/hooks/shared/useCrudDialogState";
 import { TaskCreateDialog } from "./components/TaskCreateDialog";
 import { TaskEditDialog } from "./components/TaskEditDialog";
 import { TaskDetailDrawer } from "./components/TaskDetailDrawer";
 import { TasksListView } from "./components/TasksListView";
 import { useTasksPageData } from "./hooks/useTasksPageData";
-import { useTaskCommentMutation } from "./hooks/useTaskCommentMutation";
+import { useTaskActions } from "./hooks/useTaskActions";
 
 export function TasksPage() {
   const { t } = useTranslation();
@@ -37,10 +25,6 @@ export function TasksPage() {
   const [isViewTransitionPending, startViewTransition] = useTransition();
   const [searchInput, setSearchInput] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
-  const [detailSheetOpen, setDetailSheetOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [deleteTaskTarget, setDeleteTaskTarget] = useState<Task | null>(null);
-  const selectedTaskId = selectedTask?.id ?? null;
 
   const { page, pageSize, orderBy, orderDir, search, params, setPage, setSearch, setSort } = useListParams(10);
   const debouncedSearch = useDebouncedValue(searchInput, 300);
@@ -62,104 +46,9 @@ export function TasksPage() {
     [params, viewMode, pageSize, page, orderBy, orderDir, search, statusFilter]
   );
 
+  const actions = useTaskActions();
   const { tasks, total, projects, users, comments, projectNameById, userById, isLoading } =
-    useTasksPageData(listParams, selectedTaskId);
-
-  const { mutate: createTask, isPending: isCreating } = useCreateTask();
-  const { mutate: updateTask, isPending: isUpdating } = useUpdateTask();
-  const { mutate: deleteTask, isPending: isDeleting } = useDeleteTask();
-  const createCommentMutation = useTaskCommentMutation();
-
-  const {
-    createDialogOpen,
-    editDialogOpen,
-    editingEntity: editingTask,
-    closeCreateDialog,
-    openEditDialog,
-    closeEditDialog,
-  } = useCrudDialogState<Task>();
-
-  const createForm = useForm<CreateTaskForm>({
-    resolver: zodResolver(createTaskSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      status: "TODO",
-      priority: "NORMAL",
-      projectId: "",
-      dueDate: "",
-    },
-  });
-
-  const editForm = useForm<UpdateTaskForm>({
-    resolver: zodResolver(updateTaskSchema),
-  });
-
-  const handleCreate = useCallback(
-    (data: CreateTaskForm) => {
-      createTask(data, {
-        onSuccess: () => {
-          closeCreateDialog();
-          createForm.reset();
-        },
-      });
-    },
-    [createForm, createTask, closeCreateDialog]
-  );
-
-  const handleEditTask = useCallback(
-    (task: Task) => {
-      openEditDialog(task);
-      editForm.reset({
-        ...task,
-        dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split("T")[0] : "",
-      });
-    },
-    [editForm, openEditDialog]
-  );
-
-  const handleUpdate = useCallback(
-    (data: UpdateTaskForm) => {
-      if (!editingTask) return;
-      updateTask(
-        { id: editingTask.id, data },
-        {
-          onSuccess: () => {
-            closeEditDialog();
-          },
-        }
-      );
-    },
-    [editingTask, updateTask, closeEditDialog]
-  );
-
-  const handleDelete = useCallback((task: Task) => {
-    setDeleteTaskTarget(task);
-  }, []);
-
-  const handleConfirmDeleteTask = useCallback(() => {
-    if (!deleteTaskTarget) return;
-    deleteTask(deleteTaskTarget.id, {
-      onSuccess: () => setDeleteTaskTarget(null),
-      onError: () => {
-        toast.error("Une erreur est survenue lors de la suppression.");
-        setDeleteTaskTarget(null);
-      },
-    });
-  }, [deleteTaskTarget, deleteTask]);
-
-  const handleView = useCallback((task: Task) => {
-    setSelectedTask(task);
-    setDetailSheetOpen(true);
-  }, []);
-
-  const handleAddComment = useCallback(
-    (content: string) => {
-      if (!selectedTaskId || !content.trim()) return;
-      createCommentMutation.mutate({ taskId: selectedTaskId, content });
-    },
-    [createCommentMutation, selectedTaskId]
-  );
+    useTasksPageData(listParams, actions.selectedTaskId);
 
   const handleViewModeChange = useCallback((v: string) => {
     if (!v) return;
@@ -198,14 +87,14 @@ export function TasksPage() {
             </ToggleGroupItem>
           </ToggleGroup>
           <TaskCreateDialog
-            open={createDialogOpen}
-            onOpenChange={closeCreateDialog}
-            form={createForm}
+            open={actions.createDialogOpen}
+            onOpenChange={actions.closeCreateDialog}
+            form={actions.createForm}
             projects={projects}
             users={users}
             canCreate={canCreateTask}
-            isCreating={isCreating}
-            onSubmit={handleCreate}
+            isCreating={actions.isCreating}
+            onSubmit={actions.handleCreate}
           />
         </div>
       </div>
@@ -215,63 +104,56 @@ export function TasksPage() {
           tasks={tasks}
           projectNameById={projectNameById}
           userById={userById}
-          searchInput={searchInput}
-          onSearchChange={setSearchInput}
-          statusFilter={statusFilter}
-          onStatusFilterChange={setStatusFilter}
-          orderBy={orderBy}
-          orderDir={orderDir}
-          onSort={handleSort}
-          page={page}
-          pageSize={pageSize}
-          total={total}
-          onPageChange={setPage}
-          isFreelancer={isFreelancer}
-          currentUserId={currentUser?.id}
-          canDelete={canDeleteTask}
-          onView={handleView}
-          onEdit={handleEditTask}
-          onDelete={handleDelete}
+          filters={{
+            search: searchInput,
+            onSearchChange: setSearchInput,
+            status: statusFilter,
+            onStatusChange: setStatusFilter,
+          }}
+          sort={{ orderBy, orderDir, onSort: handleSort }}
+          pagination={{ page, pageSize, total, onPageChange: setPage }}
+          permissions={{ isFreelancer, currentUserId: currentUser?.id, canDelete: canDeleteTask }}
+          actions={{ onView: actions.handleView, onEdit: actions.handleEditTask, onDelete: actions.handleDelete }}
         />
       ) : (
         <TasksKanban
           filteredTasks={tasks}
-          onTaskClick={handleView}
+          onTaskClick={actions.handleView}
           restrictDragToUserId={isFreelancer ? currentUser?.id : undefined}
         />
       )}
 
-      {editingTask && (
+      {actions.editingTask && (
         <TaskEditDialog
-          open={editDialogOpen}
-          onOpenChange={closeEditDialog}
-          form={editForm}
+          open={actions.editDialogOpen}
+          onOpenChange={actions.closeEditDialog}
+          form={actions.editForm}
           projects={projects}
           users={users}
           isFreelancer={isFreelancer}
-          isUpdating={isUpdating}
-          onSubmit={handleUpdate}
+          isUpdating={actions.isUpdating}
+          onSubmit={actions.handleUpdate}
         />
       )}
 
       <TaskDetailDrawer
-        open={detailSheetOpen}
-        onOpenChange={setDetailSheetOpen}
-        task={selectedTask}
-        projectName={selectedTask ? projectNameById.get(selectedTask.projectId) : undefined}
+        open={actions.detailSheetOpen}
+        onOpenChange={actions.setDetailSheetOpen}
+        task={actions.selectedTask}
+        projectName={actions.selectedTask ? projectNameById.get(actions.selectedTask.projectId) : undefined}
         userById={userById}
         comments={comments ?? []}
-        onAddComment={handleAddComment}
-        createCommentMutation={createCommentMutation}
+        onAddComment={actions.handleAddComment}
+        createCommentMutation={actions.createCommentMutation}
       />
 
       <ConfirmDeleteDialog
-        open={!!deleteTaskTarget}
-        onOpenChange={(open) => { if (!open) setDeleteTaskTarget(null); }}
-        onConfirm={handleConfirmDeleteTask}
-        title={`Supprimer "${deleteTaskTarget?.title}" ?`}
+        open={!!actions.deleteTaskTarget}
+        onOpenChange={(open) => { if (!open) actions.setDeleteTaskTarget(null); }}
+        onConfirm={actions.handleConfirmDeleteTask}
+        title={`Supprimer "${actions.deleteTaskTarget?.title}" ?`}
         description="Cette action est irréversible. La tâche sera définitivement supprimée."
-        isDeleting={isDeleting}
+        isDeleting={actions.isDeleting}
       />
     </div>
   );
