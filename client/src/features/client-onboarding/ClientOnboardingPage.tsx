@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams, Link } from "react-router-dom";
+import { formatDateTime } from "@/utils/format";
 import {
   useClientOnboarding,
   useUpdateOnboardingStep,
@@ -375,7 +376,7 @@ export function ClientOnboardingPage() {
               <div className="space-y-2">
                 <p>
                   <strong>{t("onboarding.kickoff.meetingDate")}: </strong>
-                  {step.kickoff.meetingDate ? new Date(step.kickoff.meetingDate).toLocaleString() : "-"}
+                  {step.kickoff.meetingDate ? formatDateTime(step.kickoff.meetingDate) : "-"}
                 </p>
                 {step.kickoff.meetingLink && (
                   <Button asChild>

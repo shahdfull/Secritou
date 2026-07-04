@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatNumber } from "@/utils/format";
 import { formatDate } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 import { useClientProfitability } from "@/hooks/useClientProfitability";
@@ -42,11 +43,11 @@ function ClientDetailModal({
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Revenus encaissés</p>
-              <p className="font-semibold text-ink">{client.totalRevenue.toLocaleString("fr-FR")} TND</p>
+              <p className="font-semibold text-ink">{formatNumber(client.totalRevenue)} TND</p>
             </div>
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">En attente</p>
-              <p className="font-semibold text-ink">{client.pendingRevenue.toLocaleString("fr-FR")} TND</p>
+              <p className="font-semibold text-ink">{formatNumber(client.pendingRevenue)} TND</p>
             </div>
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Projets</p>
@@ -129,11 +130,11 @@ export function ClientProfitabilityPage() {
                     >
                       <td className="px-5 py-3 font-medium text-ink">{item.clientName}</td>
                       <td className="px-5 py-3 text-right font-semibold text-ink tabular-nums">
-                        {item.totalRevenue.toLocaleString("fr-FR")} TND
+                        {formatNumber(item.totalRevenue)} TND
                       </td>
                       <td className="px-5 py-3 text-right text-muted-foreground tabular-nums">
                         {item.pendingRevenue > 0
-                          ? `${item.pendingRevenue.toLocaleString("fr-FR")} TND`
+                          ? `${formatNumber(item.pendingRevenue)} TND`
                           : "—"}
                       </td>
                       <td className="px-5 py-3 text-center text-muted-foreground">

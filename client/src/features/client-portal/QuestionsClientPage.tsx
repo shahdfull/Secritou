@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { formatDate } from "@/utils/format";
+import { formatDate, formatDateTime } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { ArrowLeft, Send } from "lucide-react";
@@ -100,7 +100,7 @@ function QuestionThread({ id }: { id: string }) {
                   <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
                 </div>
                 <span className="mt-1 text-[11px] text-muted-foreground">
-                  {new Date(m.createdAt).toLocaleString("fr-FR")}
+                  {formatDateTime(m.createdAt)}
                 </span>
               </div>
             );

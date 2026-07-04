@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { formatDate } from "@/utils/format";
+import { formatDate, formatNumber } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialog";
 import { toast } from "sonner";
@@ -288,7 +288,7 @@ export function InvoicesPage() {
                       <TableCell className="font-mono text-sm">{cn.number}</TableCell>
                       <TableCell>{cn.client?.name}</TableCell>
                       <TableCell className="font-semibold text-emerald-600">
-                        {Number(cn.amount).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} TND
+                        {formatNumber(Number(cn.amount), { minimumFractionDigits: 2 })} TND
                       </TableCell>
                       <TableCell className="max-w-xs truncate" title={cn.reason}>{cn.reason}</TableCell>
                       <TableCell className="font-mono text-sm">{cn.invoice?.number || "-"}</TableCell>

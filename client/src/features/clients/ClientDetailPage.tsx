@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { formatNumber } from "@/utils/format";
 import { useClient, useDeleteClient, useArchiveClient, useInviteClientUser } from "@/hooks/useClients";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -348,7 +349,7 @@ export function ClientDetailPage() {
                 <div>
                   <p className="text-muted-foreground">Solde d'avoirs</p>
                   <p className="font-medium text-emerald-600 font-mono">
-                    {Number(client.creditBalance || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} TND
+                    {formatNumber(Number(client.creditBalance || 0), { minimumFractionDigits: 2 })} TND
                   </p>
                 </div>
               </div>
@@ -616,7 +617,7 @@ export function ClientDetailPage() {
               <div className="text-right">
                 <span className="text-xs text-muted-foreground">Solde d'avoirs disponible :</span>
                 <p className="text-lg font-bold text-emerald-600 font-mono">
-                  {Number(client.creditBalance || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} TND
+                  {formatNumber(Number(client.creditBalance || 0), { minimumFractionDigits: 2 })} TND
                 </p>
               </div>
             </CardHeader>
@@ -643,7 +644,7 @@ export function ClientDetailPage() {
                       <TableRow key={cn.id}>
                         <TableCell className="font-mono text-sm">{cn.number}</TableCell>
                         <TableCell className="font-semibold text-emerald-600">
-                          {Number(cn.amount).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} TND
+                          {formatNumber(Number(cn.amount), { minimumFractionDigits: 2 })} TND
                         </TableCell>
                         <TableCell className="max-w-xs truncate" title={cn.reason}>{cn.reason}</TableCell>
                         <TableCell className="font-mono text-sm">{cn.invoice?.number || "-"}</TableCell>

@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState, useTransition } from "react";
 import { useTranslation } from "react-i18next";
+import { formatNumber } from "@/utils/format";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DateFilter, DateRange } from "@/components/DateFilter";
@@ -305,7 +306,7 @@ export function ReportsPage() {
             <div className="flex justify-between items-center mb-4">
               <div className="text-2xl font-bold">{filteredInvoices.length}</div>
               <div className="text-3xl font-bold text-green-600">
-                {totalRevenue.toLocaleString("fr-FR", { minimumFractionDigits: 0 })} TND
+                {formatNumber(totalRevenue, { minimumFractionDigits: 0 })} TND
               </div>
             </div>
             <CardDescription className="text-sm text-muted-foreground">
@@ -329,7 +330,7 @@ export function ReportsPage() {
                   <div key={inv.id} className="grid grid-cols-2 px-4 items-center border-b h-11">
                     <div className="truncate text-sm">{inv.number} : {inv.title}</div>
                     <div className="text-sm font-medium text-green-600">
-                      {(inv.status === "PAID" ? Number(inv.amount) : Number(inv.amountPaid)).toLocaleString("fr-FR")} TND
+                      {formatNumber(inv.status === "PAID" ? Number(inv.amount) : Number(inv.amountPaid))} TND
                     </div>
                   </div>
                 ))

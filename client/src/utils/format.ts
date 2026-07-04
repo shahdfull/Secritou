@@ -55,6 +55,44 @@ export function formatDate(
 }
 
 /**
+ * Format a plain number with locale grouping (no currency symbol), e.g.
+ * formatNumber(1234.5) → "1 234,5". Use this for values rendered next to a
+ * manual unit suffix (e.g. `${formatNumber(x)} TND`).
+ * @param value   The number. null/undefined/NaN → "—".
+ * @param options Intl.NumberFormatOptions to override defaults (e.g. minimumFractionDigits).
+ * @param locale  BCP-47 locale (default "fr-FR").
+ */
+export function formatNumber(
+  value: number | null | undefined,
+  options?: Intl.NumberFormatOptions,
+  locale = "fr-FR",
+): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return FALLBACK;
+  try {
+    return new Intl.NumberFormat(locale, options).format(value);
+  } catch {
+    return String(value);
+  }
+}
+
+/**
+ * Format a date with both date and time parts, e.g. formatDateTime(x) →
+ * "04/07/2026 14:30". null/undefined/invalid → "—".
+ * @param date   Date object or parseable string.
+ * @param locale BCP-47 locale (default "fr-FR").
+ */
+export function formatDateTime(
+  date: Date | string | null | undefined,
+  locale = "fr-FR",
+): string {
+  return formatDate(
+    date,
+    { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" },
+    locale,
+  );
+}
+
+/**
  * Format a date as a relative string, e.g. "il y a 2 jours" / "dans 3 heures".
  * @param date   Date object or parseable string. null/undefined/invalid → "—".
  * @param locale BCP-47 locale (default "fr-FR").

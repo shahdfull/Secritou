@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatNumber } from "@/utils/format";
 import { formatDate } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 import { useTimeEntries, useTimeSummary, useCreateTimeEntry } from "@/hooks/useTimeEntries";
@@ -98,7 +99,7 @@ export function TimeTrackingTab({ projectId, budget, tasks = [], readOnly = fals
           <CardContent className="pt-5 px-5 pb-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Budget</p>
             <p className="text-2xl font-bold text-ink">
-              {budgetTND ? `${budgetTND.toLocaleString("fr-FR")} TND` : "—"}
+              {budgetTND ? `${formatNumber(budgetTND)} TND` : "—"}
             </p>
           </CardContent>
         </Card>
@@ -106,7 +107,7 @@ export function TimeTrackingTab({ projectId, budget, tasks = [], readOnly = fals
           <CardContent className="pt-5 px-5 pb-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">TJM implicite</p>
             <p className="text-2xl font-bold text-ink">
-              {implicitTJM ? `${implicitTJM.toLocaleString("fr-FR")} TND` : "—"}
+              {implicitTJM ? `${formatNumber(implicitTJM)} TND` : "—"}
             </p>
           </CardContent>
         </Card>
