@@ -17,7 +17,7 @@ import {
   addCommentSchema,
 } from "../validators/serviceRequest.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
-import { authorize } from "../middlewares/rbac.middleware.js";
+import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
 const router = Router();
 
 router.use(authenticate);
@@ -35,22 +35,26 @@ router.post(
 router.get(
   "/admin",
   authorize("ADMIN", "MANAGER"),
+  requirePermission("service-requests", "read"),
   adminGetServiceRequests
 );
 router.get(
   "/admin/:id",
   authorize("ADMIN", "MANAGER"),
+  requirePermission("service-requests", "read"),
   adminGetServiceRequestById
 );
 router.patch(
   "/admin/:id",
   authorize("ADMIN", "MANAGER"),
+  requirePermission("service-requests", "update"),
   validate(adminUpdateServiceRequestSchema),
   adminUpdateServiceRequest
 );
 router.delete(
   "/admin/:id",
   authorize("ADMIN"),
+  requirePermission("service-requests", "delete"),
   adminDeleteServiceRequest
 );
 
@@ -58,12 +62,14 @@ router.delete(
 router.post(
   "/admin/:id/comments",
   authorize("ADMIN", "MANAGER"),
+  requirePermission("service-requests", "update"),
   validate(addCommentSchema),
   addComment
 );
 router.delete(
   "/admin/:id/comments/:commentId",
   authorize("ADMIN", "MANAGER"),
+  requirePermission("service-requests", "update"),
   deleteComment
 );
 

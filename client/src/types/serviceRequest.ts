@@ -12,6 +12,7 @@ export interface ServiceRequest {
   id: string;
   title: string;
   description?: string;
+  type: ServiceRequestType;
   status: ServiceRequestStatus;
   priority: ServiceRequestPriority;
   clientId: string;

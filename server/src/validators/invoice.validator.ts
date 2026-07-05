@@ -93,3 +93,11 @@ export const applyCreditSchema = z.object({
     creditNoteId: z.string().uuid(),
   }),
 });
+
+export const fromTimeEntriesSchema = z.object({
+  params: z.object({ id: uuidParam }),
+  body: z.object({
+    projectId: z.string().uuid(),
+    defaultHourlyRate: z.number().positive().default(50),
+  }),
+});

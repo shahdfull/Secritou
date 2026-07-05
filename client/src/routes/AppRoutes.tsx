@@ -1,15 +1,22 @@
 import { lazy, memo } from "react";
+import { Loader2 } from "lucide-react";
 import { Outlet, Route, Routes, Navigate } from "react-router-dom";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
+import { LandingCmsProvider } from "@/providers/LandingCmsProvider";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { ClientLayout } from "@/components/layout/ClientLayout";
+import { FreelancerLayout } from "@/components/layout/FreelancerLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { WhatsAppButton } from "@/components/WhatsAppButton";
+
+const LegalPage = lazy(() => import("@/features/landing/pages/LegalPage").then((m) => ({ default: m.LegalPage })));
+const PrivacyPage = lazy(() => import("@/features/landing/pages/PrivacyPage").then((m) => ({ default: m.PrivacyPage })));
 import { RouteBoundary } from "@/components/common/RouteBoundary";
 import { MustChangePasswordGuard } from "@/components/MustChangePasswordGuard";
+import { useAuthStore } from "@/store/auth.store";
 import {
-  importAIAssistantPage,
   importClientDashboardPage,
   importClientDetailPage,
   importClientProfilePage,
@@ -34,7 +41,6 @@ import {
   importServicesPage,
   importSettingsPage,
   importSolutionsPage,
-  importTasksPage,
   importApplicationsPage,
   importChangePasswordPage,
   importClientOnboardingPage,
@@ -47,6 +53,7 @@ import {
   importServiceRequestsAdminPage,
   importCommercialPage,
   importCRMPage,
+  importAIAssistantPage,
   importTalentPage,
   importProposalsClientPage,
   importApprovalsClientPage,
@@ -56,6 +63,7 @@ import {
   importDocumentsClientPage,
   importClientBriefPage,
   importOnboardingClientPage,
+  importFreelancerDashboardPage,
 } from "./routePrefetch";
 
 // Lazy load route components for code splitting (handle named exports)
@@ -76,7 +84,6 @@ const FreelancersPage = lazy(() => importFreelancersPage().then((m) => ({ defaul
 const FreelancerDetailPage = lazy(() => importFreelancerDetailPage().then((m) => ({ default: m.FreelancerDetailPage })));
 const ProjectsPage = lazy(() => importProjectsPage().then((m) => ({ default: m.ProjectsPage })));
 const ProjectDetailPage = lazy(() => importProjectDetailPage().then((m) => ({ default: m.ProjectDetailPage })));
-const TasksPage = lazy(() => importTasksPage().then((m) => ({ default: m.TasksPage })));
 const SettingsPage = lazy(() => importSettingsPage().then((m) => ({ default: m.SettingsPage })));
 const NotFoundPage = lazy(() => importNotFoundPage().then((m) => ({ default: m.NotFoundPage })));
 const ClientDashboardPage = lazy(() => importClientDashboardPage().then((m) => ({ default: m.ClientDashboardPage })));
@@ -84,7 +91,6 @@ const ProjectsClientPage = lazy(() => importProjectsClientPage().then((m) => ({ 
 const ServiceRequestsClientPage = lazy(() => importServiceRequestsClientPage().then((m) => ({ default: m.ServiceRequestsClientPage })));
 const ClientProfilePage = lazy(() => importClientProfilePage().then((m) => ({ default: m.ClientProfilePage })));
 const ReportsPage = lazy(() => importReportsPage().then((m) => ({ default: m.ReportsPage })));
-const AIAssistantPage = lazy(() => importAIAssistantPage().then((m) => ({ default: m.AIAssistantPage })));
 const ApplicationsPage = lazy(() => importApplicationsPage().then((m) => ({ default: m.ApplicationsPage })));
 const ChangePasswordPage = lazy(() => importChangePasswordPage().then((m) => ({ default: m.ChangePasswordPage })));
 const ClientOnboardingPage = lazy(() => importClientOnboardingPage().then((m) => ({ default: m.ClientOnboardingPage })));
@@ -101,6 +107,7 @@ const CommercialPage = lazy(() =>
   importCommercialPage().then((m) => ({ default: m.CommercialPage }))
 );
 const CRMPage = lazy(() => importCRMPage().then((m) => ({ default: m.CRMPage })));
+const AIAssistantPage = lazy(() => importAIAssistantPage().then((m) => ({ default: m.AIAssistantPage })));
 const TalentPage = lazy(() => importTalentPage().then((m) => ({ default: m.TalentPage })));
 const ProposalsClientPage = lazy(() => importProposalsClientPage().then((m) => ({ default: m.ProposalsClientPage })));
 const ApprovalsClientPage = lazy(() => importApprovalsClientPage().then((m) => ({ default: m.ApprovalsClientPage })));
@@ -110,27 +117,37 @@ const AdminQuestionsPage = lazy(() => importAdminQuestionsPage().then((m) => ({ 
 const DocumentsClientPage = lazy(() => importDocumentsClientPage().then((m) => ({ default: m.DocumentsClientPage })));
 const ClientBriefPage = lazy(() => importClientBriefPage().then((m) => ({ default: m.ClientBriefPage })));
 const OnboardingClientPage = lazy(() => importOnboardingClientPage().then((m) => ({ default: m.OnboardingClientPage })));
+const FreelancerDashboardPage = lazy(() => importFreelancerDashboardPage().then((m) => ({ default: m.FreelancerDashboardPage })));
+const TasksPage = lazy(() => import("@/features/tasks/TasksPage").then((m) => ({ default: m.TasksPage })));
+const ClientProfitabilityPage = lazy(() =>
+  import("@/features/analytics/ClientProfitabilityPage").then((m) => ({ default: m.ClientProfitabilityPage }))
+);
+
+function AppLayout() {
+  const role = useAuthStore((s) => s.user?.role);
+  return role === "FREELANCER" ? <FreelancerLayout /> : <AdminLayout />;
+}
 
 function PageLoader() {
   return (
     <div className="container-page py-20 flex items-center justify-center min-h-[400px]">
-      <div className="text-center">
-        <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-sm text-muted-foreground">Loading...</p>
-      </div>
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
     </div>
   );
 }
 
 const MarketingLayout = memo(function MarketingLayout() {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
-      <main className="flex-1">
-        <Outlet />
-      </main>
-      <Footer />
-    </div>
+    <LandingCmsProvider>
+      <div className="flex min-h-screen flex-col bg-background">
+        <Header />
+        <main className="flex-1">
+          <Outlet />
+        </main>
+        <Footer />
+        <WhatsAppButton />
+      </div>
+    </LandingCmsProvider>
   );
 });
 
@@ -149,6 +166,8 @@ export function AppRoutes() {
         <Route path="solutions" element={withBoundary(<SolutionsPage />)} />
         <Route path="case-studies" element={withBoundary(<CaseStudiesPage />)} />
         <Route path="contact" element={withBoundary(<ContactPage />)} />
+        <Route path="mentions-legales" element={withBoundary(<LegalPage />)} />
+        <Route path="confidentialite" element={withBoundary(<PrivacyPage />)} />
         <Route path="login" element={withBoundary(<LoginPage />)} />
         <Route path="rejoindre" element={withBoundary(<JoinUsPage />)} />
         <Route path="forgot-password" element={withBoundary(<ForgotPasswordPage />)} />
@@ -162,12 +181,14 @@ export function AppRoutes() {
           path="app"
           element={
             <ProtectedRoute>
-              <AdminLayout />
+              <AppLayout />
             </ProtectedRoute>
           }
         >
+          <Route path="freelancer-dashboard" element={withBoundary(<FreelancerDashboardPage />)} />
           <Route index element={withBoundary(<DashboardPage />)} />
           <Route path="crm" element={withBoundary(<CRMPage />)} />
+          <Route path="ai" element={withBoundary(<AIAssistantPage />)} />
           <Route path="leads" element={<Navigate to="/app/crm" replace />} />
           <Route path="clients" element={<Navigate to="/app/crm" replace />} />
           <Route path="clients/:id" element={withBoundary(<ClientDetailPage />)} />
@@ -177,16 +198,16 @@ export function AppRoutes() {
           <Route path="freelancers/:id" element={withBoundary(<FreelancerDetailPage />)} />
           <Route path="projects" element={withBoundary(<ProjectsPage />)} />
           <Route path="projects/:id" element={withBoundary(<ProjectDetailPage />)} />
-          <Route path="tasks" element={<Navigate to="/app/projects" replace />} />
-          <Route path="ai" element={withBoundary(<AIAssistantPage />)} />
+          <Route path="tasks" element={withBoundary(<TasksPage />)} />
               <Route path="analytics" element={<Navigate to="/app" replace />} />
+              <Route path="analytics/clients" element={withBoundary(<ClientProfitabilityPage />)} />
               <Route path="reports" element={withBoundary(<ReportsPage />)} />
               <Route path="commercial" element={withBoundary(<CommercialPage />)} />
-              <Route path="service-requests" element={<Navigate to="/app/commercial" replace />} />
+              <Route path="service-requests" element={withBoundary(<ServiceRequestsAdminPage />)} />
+              <Route path="invoices" element={withBoundary(<InvoicesPage />)} />
+              <Route path="approvals" element={<Navigate to="/app/projects" replace />} />
               <Route path="proposals" element={<Navigate to="/app/commercial" replace />} />
-              <Route path="approvals" element={<Navigate to="/app/commercial" replace />} />
-              <Route path="invoices" element={<Navigate to="/app/commercial" replace />} />
-              <Route path="documents" element={<Navigate to="/app/projects" replace />} />
+              <Route path="documents" element={withBoundary(<DocumentsPage />)} />
               <Route path="client-success/:clientId" element={withBoundary(<ClientSuccessPage />)} />
               <Route path="client-onboardings" element={<Navigate to="/app/crm" replace />} />
               <Route path="client-onboarding/:onboardingId" element={withBoundary(<ClientOnboardingPage />)} />
@@ -207,6 +228,7 @@ export function AppRoutes() {
           <Route path="projects" element={withBoundary(<ProjectsClientPage />)} />
           <Route path="requests" element={withBoundary(<ServiceRequestsClientPage />)} />
           <Route path="proposals" element={withBoundary(<ProposalsClientPage />)} />
+          <Route path="proposals/:id" element={withBoundary(<ProposalsClientPage />)} />
           <Route path="approvals" element={withBoundary(<ApprovalsClientPage />)} />
           <Route path="invoices" element={withBoundary(<InvoicesClientPage />)} />
           <Route path="profile" element={withBoundary(<ClientProfilePage />)} />

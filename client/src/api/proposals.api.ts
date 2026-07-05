@@ -20,6 +20,7 @@ export interface Proposal {
   projectId?: string;
   serviceRequestId?: string;
   invoice?: { id: string } | null;
+  linkedProject?: { id: string } | null;
   client?: { name: string };
   lead?: { id: string; name: string } | null;
   sections?: ProposalSection[];

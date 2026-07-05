@@ -76,7 +76,7 @@ export const documentService = {
       message: `Le contrat "${doc.title}" (projet : ${doc.project?.name ?? "?"}) a été signé par le client.`,
       type: "DOCUMENT_SIGNED" as const,
       entityId: documentId,
-      link: `${env.FRONTEND_URL}/app/documents/${documentId}`,
+      link: doc.projectId ? `${env.FRONTEND_URL}/app/projects/${doc.projectId}` : `${env.FRONTEND_URL}/app/projects`,
     })));
     return signed;
   },

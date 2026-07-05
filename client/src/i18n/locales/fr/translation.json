@@ -7,7 +7,8 @@
     "joinUs": "Nous rejoindre",
     "scheduleCall": "Prendre rendez-vous",
     "bookConsultation": "Réserver une consultation gratuite",
-    "caseStudies": "Études de cas"
+    "caseStudies": "Études de cas",
+    "dashboard": "Tableau de bord"
   },
   "auth": {
     "signIn": "Se connecter",
@@ -111,7 +112,7 @@
     "subtitle": "30 minutes. Pas de slides, pas de pitch. Juste une conversation sur où vous en êtes, où vous voulez aller, et ce qui vous en empêche.",
     "name": "Votre nom",
     "email": "Email",
-    "phone": "Numéro de téléphone",
+    "phone": "Téléphone",
     "serviceType": "Type de service",
     "message": "Parlez-nous de votre situation",
     "budget": "Budget",
@@ -121,7 +122,22 @@
     "replyTime": "Nous répondons généralement dans un délai d'un jour ouvrable.",
     "emailInfo": "hello@secritou.com",
     "bookCall": "Appel de découverte de 30 minutes, gratuit.",
+    "bookCallTitle": "Prendre RDV",
     "whereWeWork": "Tunis · À distance partout en Tunisie.",
+    "whereWeWorkTitle": "Où nous travaillons",
+    "booking": {
+      "badge": "Prise de rendez-vous",
+      "heading": "Réservez votre RDV découverte (≈ 30 min)",
+      "whyTitle": "Pourquoi prendre un RDV ?",
+      "reasons": [
+        "Pas de pitch, pas de slides — juste une vraie conversation.",
+        "On cartographie votre situation et on identifie les 1–2 leviers les plus importants.",
+        "Vous repartez avec une vision claire de la prochaine étape, que vous travailliez avec nous ou non.",
+        "Gratuit, sans engagement."
+      ],
+      "footer": "Les créneaux sont limités. Réservez tôt pour assurer votre place.",
+      "fallback": "Le calendrier n'est pas encore configuré. Contactez-nous directement à"
+    },
     "pleaseEnterName": "Veuillez saisir votre nom.",
     "pleaseEnterEmail": "Veuillez saisir une adresse email valide.",
     "pleaseEnterServiceType": "Veuillez sélectionner un type de service.",
@@ -133,7 +149,8 @@
       "1000To5000": "1 000–5 000 DT",
       "5000To15000": "5 000–15 000 DT",
       "moreThan15000": "+15 000 DT"
-    }
+    },
+    "whatsappLabel": "WhatsApp / Téléphone"
   },
   "home": {
     "hero": {
@@ -294,6 +311,9 @@
       "testimonial": "Secritou nous a aidés à remettre de l'ordre dans notre croissance. En quelques mois, nos décisions sont devenues plus claires et notre organisation beaucoup plus fluide.",
       "testimonialAuthor": "Nadia Ben Salah",
       "testimonialRole": "Fondatrice, Boutique de marque",
+      "prev": "Précédent",
+      "next": "Suivant",
+      "testimonialN": "Témoignage {{n}}",
       "testimonials": [
         {
           "quote": "Secritou nous a aidés à remettre de l'ordre dans notre croissance. En quelques mois, nos décisions sont devenues plus claires et notre organisation beaucoup plus fluide.",
@@ -322,8 +342,58 @@
         }
       ]
     },
+    "packs": {
+      "badge": "Nos offres",
+      "title": "Des tarifs simples et transparents",
+      "subtitle": "Choisissez le pack adapté à votre ambition. Tous les packs incluent un kickoff gratuit de 30 min.",
+      "cta": "Commencer",
+      "popular": "Le plus populaire",
+      "items": [
+        {
+          "name": "Starter",
+          "price": "990",
+          "currency": "TND",
+          "period": "/ mois",
+          "description": "Pour les entreprises qui font leurs premiers pas structurés.",
+          "features": [
+            "1 chantier actif",
+            "Tableau de bord KPI mensuel",
+            "Support email & WhatsApp",
+            "Revue mensuelle de 30 min"
+          ]
+        },
+        {
+          "name": "Croissance",
+          "price": "2 490",
+          "currency": "TND",
+          "period": "/ mois",
+          "description": "Pour les entreprises prêtes à passer à l'échelle avec un partenaire complet.",
+          "features": [
+            "Jusqu'à 3 chantiers actifs",
+            "Tableau de bord KPI hebdomadaire",
+            "Support prioritaire (< 4h)",
+            "Session stratégie bi-mensuelle",
+            "Une automatisation sur mesure incluse"
+          ]
+        },
+        {
+          "name": "Transformation",
+          "price": "Sur devis",
+          "currency": "",
+          "period": "",
+          "description": "Engagements sur mesure pour projets ambitieux et transformation digitale complète.",
+          "features": [
+            "Chantiers illimités",
+            "Chef de projet dédié",
+            "Support prioritaire 24/7",
+            "Présentation CODIR mensuelle",
+            "Stack complet IA & automatisation"
+          ]
+        }
+      ]
+    },
     "cta": {
-      "primary": "Réserver une consultation gratuite",
+      "primary": "Obtenir mon diagnostic gratuit",
       "secondary": "Voir nos services"
     },
     "footer": {
@@ -342,8 +412,10 @@
         "retail": "Commerce de détail",
         "startups": "Startups"
       },
-      "copyright": "© {year} Secritou. Tous droits réservés.",
-      "builtFor": "Une approche claire, mesurable et pensée pour convertir."
+      "copyright": "© {{year}} Secritou. Tous droits réservés.",
+      "builtFor": "Une approche claire, mesurable et pensée pour convertir.",
+      "legal": "Mentions légales",
+      "privacy": "Confidentialité"
     }
   },
   "dashboard": {
@@ -386,7 +458,18 @@
     "chartsLoading": "Chargement des graphiques…",
     "chartsLoadingDesc": "Préparation des visualisations",
     "hotLeads": "leads qualifiés",
-    "overdueInvoices": "factures en retard"
+    "overdueInvoices": "factures en retard",
+    "happeningToday": "voici ce qui se passe aujourd'hui.",
+    "months": "mois",
+    "noLeadsYet": "Aucune donnée — les leads apparaîtront ici une fois ajoutés",
+    "leadsByStatusAllTime": "Répartition par statut — depuis le début",
+    "allTime": "Depuis le début",
+    "leadsLabel": "leads",
+    "tabHealthBoard": "Tableau de santé",
+    "tabExecutive": "Vue Dirigeant",
+    "noOverdue": "Aucun retard",
+    "welcomeName": "Bon retour, {{name}} — voici ce qui se passe aujourd'hui.",
+    "welcomeAnon": "Bon retour — voici ce qui se passe aujourd'hui."
   },
   "commercial": {
     "tabs": {
@@ -395,6 +478,61 @@
       "approvals": "Approbations",
       "invoices": "Factures"
     }
+  },
+  "pagination": {
+    "results": "{{start}}–{{end}} sur {{total}} résultats",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "pageOf": "Page {{page}} / {{totalPages}}"
+  },
+  "analytics": {
+    "leadsByMonth": "Leads par mois",
+    "leadsByMonthDesc": "Nouveaux leads par mois",
+    "revenueByMonth": "Revenus par mois",
+    "revenueByMonthDesc": "Revenus encaissés",
+    "revenueTooltipLabel": "Revenus",
+    "leadsByStatus": "Leads par statut",
+    "leadsByStatusDesc": "Répartition des leads par statut",
+    "projectsByStatus": "Répartition des projets",
+    "projectsByStatusDesc": "État des projets"
+  },
+  "forecast": {
+    "title": "Prévisionnel de revenus",
+    "viewClientProfitability": "Voir rentabilité clients",
+    "overdueAlert": "Impayés en retard : {{amount}} TND",
+    "followUp": "Relancer",
+    "next30Days": "30 prochains jours",
+    "next60Days": "60 prochains jours",
+    "next90Days": "90 prochains jours",
+    "topClients": "Top clients — factures à venir (90j)",
+    "invoicesDue_one": "{{count}} facture",
+    "invoicesDue_other": "{{count}} factures",
+    "viewFollowUps": "Voir les relances clients",
+    "invoicesDue_label": "Factures dues",
+    "proposalsPipeline": "Pipeline propositions"
+  },
+  "permissions": {
+    "modules": {
+      "projects": "Projets",
+      "tasks": "Tâches",
+      "freelancers": "Freelancers",
+      "clients": "Clients",
+      "leads": "Leads",
+      "invoices": "Factures",
+      "analytics": "Analytics",
+      "approvals": "Approbations",
+      "documents": "Documents",
+      "proposals": "Propositions",
+      "service-requests": "Demandes de service"
+    },
+    "actions": {
+      "read": "Voir",
+      "create": "Créer",
+      "update": "Modifier",
+      "delete": "Supprimer"
+    },
+    "updateSuccess": "Permissions mises à jour",
+    "updateError": "Erreur lors de la mise à jour des permissions"
   },
   "dateFilter": {
     "last7Days": "7 derniers jours",
@@ -469,7 +607,7 @@
     "dueDate": "Date d'échéance",
     "selectPlaceholder": "Sélectionnez...",
     "noDescription": "Aucune description fournie",
-    "areYouSureDelete": "Êtes-vous sûr de vouloir supprimer {name}?",
+    "areYouSureDelete": "Êtes-vous sûr de vouloir supprimer {{name}} ?",
     "actions": "Actions",
     "saving": "Enregistrement...",
     "optional": "optionnel",
@@ -490,7 +628,9 @@
     "nameRequired": "Le nom est requis",
     "commentsCount": "Commentaires ({{count}})",
     "details": "Détails",
-    "sending": "Envoi..."
+    "sending": "Envoi...",
+    "total": "Total",
+    "close": "Fermer"
   },
   "search": {
     "placeholder": "Rechercher les leads, clients, projets...",
@@ -505,6 +645,7 @@
   "sidebar": {
     "title": "Navigation",
     "dashboard": "Tableau de bord",
+    "freelancerDashboard": "Mon espace",
     "leads": "Prospects",
     "clients": "Clients",
     "applications": "Candidatures",
@@ -516,7 +657,8 @@
     "analytics": "Analytiques",
     "reports": "Rapports",
     "settings": "Paramètres",
-    "commercial": "Commercial",
+    "commercial": "Propositions",
+    "service-requests": "Demandes clients",
     "approvals": "Approbations",
     "invoices": "Factures",
     "documents": "Documents",
@@ -524,6 +666,17 @@
     "crm": "CRM",
     "talent": "Talent",
     "questions": "Questions"
+  },
+  "clientNav": {
+    "projects": "Mes projets",
+    "requests": "Mes demandes",
+    "proposals": "Propositions",
+    "approvals": "Approbations",
+    "invoices": "Factures",
+    "documents": "Documents",
+    "onboarding": "Onboarding",
+    "questions": "Mes questions",
+    "profile": "Mon profil"
   },
   "userMenu": {
     "myAccount": "Mon compte",
@@ -949,7 +1102,12 @@
     },
     "titleLabel": "Titre",
     "projectLabel": "Projet",
-    "dueDateLabel": "Date d'échéance"
+    "dueDateLabel": "Date d'échéance",
+    "updateStatus": "Mettre à jour le statut",
+    "updateStatusDesc": "Vous pouvez uniquement modifier le statut des tâches qui vous sont assignées.",
+    "assignedTo": "Assigné à",
+    "selectPriority": "Sélectionner la priorité",
+    "kanbanDragHint": "Seules vos tâches assignées peuvent être déplacées. Les autres sont en lecture seule."
   },
   "clientsPage": {
     "title": "Clients",
@@ -967,7 +1125,7 @@
     "phonePlaceholder": "+1234567890",
     "emailLabel": "Email",
     "phoneLabel": "Téléphone",
-    "areYouSureDelete": "Êtes-vous sûr de vouloir supprimer {name}?",
+    "areYouSureDelete": "Êtes-vous sûr de vouloir supprimer {{name}} ?",
     "detail": {
       "notFound": "Client introuvable",
       "tabInfo": "Informations",
@@ -1175,6 +1333,7 @@
       "send": "Envoyer la demande",
       "sending": "Envoi en cours...",
       "createdOn": "Créée le",
+      "viewProposal": "Voir la proposition",
       "statuses": {
         "new": "Nouveau",
         "inReview": "En revue",
@@ -1194,6 +1353,8 @@
       "commentOptional": "Commentaire (optionnel)",
       "rejectReason": "Motif du rejet (optionnel)",
       "yourComment": "Votre commentaire",
+      "viewTimeline": "Voir le fil",
+      "timelineTitle": "Historique",
       "statuses": {
         "PENDING": "En attente",
         "APPROVED": "Approuvé",
@@ -1523,6 +1684,28 @@
     "deleted": "Facture supprimée avec succès",
     "sent": "Facture envoyée avec succès",
     "paymentAdded": "Paiement ajouté avec succès",
+    "cancel": "Annuler",
+    "createInvoice": "Créer une facture",
+    "tabInvoices": "Factures",
+    "tabCreditNotes": "Avoirs",
+    "creditNotes": {
+      "number": "Numéro d'avoir",
+      "client": "Client",
+      "amount": "Montant",
+      "reason": "Motif",
+      "sourceInvoice": "Facture source",
+      "appliedToInvoice": "Facture d'application",
+      "applicationStatus": "Statut d'application",
+      "issueDate": "Date d'émission",
+      "loading": "Chargement des avoirs…",
+      "empty": "Aucun avoir disponible.",
+      "applied": "Appliqué le {{date}}",
+      "available": "Disponible"
+    },
+    "deleteTitle": "Supprimer la facture « {{number}} » ?",
+    "deleteDesc": "Cette action est irréversible. La facture brouillon sera définitivement supprimée.",
+    "deleteSuccess": "Facture supprimée.",
+    "deleteError": "Impossible de supprimer cette facture.",
     "createDialog": {
       "title": "Créer une facture",
       "description": "Créez une nouvelle facture pour un client",
@@ -1585,7 +1768,15 @@
   "freelancers": {
     "available": "Disponible",
     "busy": "Occupé",
-    "notFound": "Freelancer introuvable."
+    "notFound": "Freelancer introuvable.",
+    "ratingsAndReviews": "Notes & Avis",
+    "rateFreelancer": "Évaluer",
+    "rateDialogDesc": "Évaluez {{name}} en fonction de votre expérience.",
+    "commentOptional": "Ajouter un commentaire (optionnel)",
+    "noRatings": "Aucune évaluation pour le moment",
+    "submit": "Envoyer",
+    "cancel": "Annuler",
+    "infoOnlyAdmins": "Seuls les managers et les administrateurs peuvent évaluer les freelancers."
   },
   "errors": {
     "tabLoadFailed": "Cette section n'a pas pu se charger. Veuillez réessayer."
@@ -1663,5 +1854,97 @@
     "updated": "Document mis à jour avec succès",
     "deleted": "Document supprimé avec succès",
     "versionCreated": "Nouvelle version téléchargée avec succès"
+  },
+  "exec": {
+    "dataUpdatedAt": "Données actualisées à {{time}}",
+    "overdueInvoices": "facture(s) en retard",
+    "pendingApprovals": "approbation(s) en attente",
+    "criticalProjects": "projet(s) critique(s)",
+    "hotLeads": "lead(s) qualifié(s)",
+    "sectionFinance": "Finance",
+    "cashMTD": "Encaissé ce mois",
+    "billedMTD": "Facturé ce mois",
+    "overdueAmount": "Impayés",
+    "pendingAmount": "En attente",
+    "invoices": "factures",
+    "sectionForecast": "Prévisionnel",
+    "forecast30": "J+30",
+    "forecast60": "J+60",
+    "forecast90": "J+90",
+    "pipeline": "Pipeline propositions",
+    "convRate": "Conv.",
+    "confidence": "Indice de confiance",
+    "sectionClients": "Clients",
+    "activeClients": "Clients actifs",
+    "total": "Total",
+    "newClientsMTD": "Nouveaux ce mois",
+    "thisMonth": "ce mois",
+    "atRiskClients": "Clients à risque",
+    "champions": "Champions",
+    "retention": "Rétention",
+    "churnRate": "Churn",
+    "topClients": "Top clients par revenu",
+    "projects": "projets",
+    "health": {
+      "champion": "Champion",
+      "good": "Actif",
+      "at-risk": "À risque",
+      "lost": "Inactif"
+    },
+    "sectionProjects": "Projets",
+    "inProgress": "En cours",
+    "review": "En révision",
+    "overdueProjects": "Projets en retard",
+    "stale": "Inactifs",
+    "criticalProjects2": "Critiques",
+    "watch": "Surveillance",
+    "taskProgress": "Avancement tâches",
+    "tasksOverdue": "tâche(s) en retard",
+    "sectionRisks": "Risques",
+    "critical": "critique(s)"
+  },
+  "tasks": {
+    "statuses": {
+      "TODO": "À faire",
+      "IN_PROGRESS": "En cours",
+      "REVIEW": "En révision",
+      "DONE": "Terminé"
+    },
+    "priorities": {
+      "LOW": "Faible",
+      "NORMAL": "Normale",
+      "HIGH": "Haute",
+      "URGENT": "Urgente"
+    }
+  },
+  "freelancerDashboard": {
+    "greeting": "Bienvenue, {{name}} 👋",
+    "subtitle": "Voici un aperçu de votre travail aujourd'hui.",
+    "inProgress": "En cours",
+    "completed": "Terminées",
+    "activeProjects": "Projets actifs",
+    "completionRate": "Taux de complétion",
+    "myTasks": "Mes tâches",
+    "myProjects": "Mes projets",
+    "overdue": "en retard",
+    "noTasks": "Aucune tâche en cours.",
+    "noProjects": "Aucun projet actif.",
+    "reviews": "avis",
+    "available": "Disponible",
+    "unavailable": "Indisponible",
+    "seeAll": "Voir tout",
+    "completedThisMonth": "Terminées ce mois",
+    "completionRateHint": "Mois en cours",
+    "noTasksHint": "Votre manager va vous assigner des tâches — en attendant, complétez votre profil !",
+    "completeProfile": "Compléter mon profil",
+    "noProjectsHint": "Vous n'avez pas encore été assigné à un projet.",
+    "availabilityTooltip": "Visible par votre manager. Mettez à jour pour indiquer que vous êtes prêt à recevoir de nouvelles missions.",
+    "lastReview": "Dernier avis",
+    "seeReviews": "Voir tous les avis",
+    "anonymous": "Anonyme"
+  },
+  "whatsapp": {
+    "ariaLabel": "Contactez-nous sur WhatsApp",
+    "prefilledMessage": "Bonjour Secritou, je souhaite obtenir un diagnostic gratuit pour mon projet."
   }
 }

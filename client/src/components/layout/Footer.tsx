@@ -39,6 +39,8 @@ export function Footer() {
       links: [
         { labelKey: "nav.contact", to: "/contact" },
         { labelKey: "nav.joinUs", to: "/rejoindre" },
+        { labelKey: "home.footer.legal", to: "/mentions-legales" },
+        { labelKey: "home.footer.privacy", to: "/confidentialite" },
       ],
     },
   ];
@@ -94,9 +96,17 @@ export function Footer() {
           <p className="text-xs text-muted-foreground">
             {t("home.footer.copyright", { year: new Date().getFullYear() })}
           </p>
-          <p className="text-xs text-muted-foreground">
-            {t("home.footer.builtFor")}
-          </p>
+          <div className="flex flex-wrap items-center gap-4">
+            <Link to="/mentions-legales" className="text-xs text-muted-foreground hover:text-ink transition-colors">
+              {t("home.footer.legal")}
+            </Link>
+            <Link to="/confidentialite" className="text-xs text-muted-foreground hover:text-ink transition-colors">
+              {t("home.footer.privacy")}
+            </Link>
+            <p className="text-xs text-muted-foreground">
+              {t("home.footer.builtFor")}
+            </p>
+          </div>
         </div>
       </div>
     </footer>

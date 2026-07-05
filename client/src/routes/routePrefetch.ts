@@ -15,7 +15,6 @@ export const importFreelancersPage = () => import("@/features/freelancers/Freela
 export const importFreelancerDetailPage = () => import("@/features/freelancers/FreelancerDetailPage");
 export const importProjectsPage = () => import("@/features/projects/ProjectsPage");
 export const importProjectDetailPage = () => import("@/features/projects/ProjectDetailPage");
-export const importTasksPage = () => import("@/features/tasks/TasksPage");
 export const importSettingsPage = () => import("@/features/settings/SettingsPage");
 export const importNotFoundPage = () => import("@/features/landing/pages/NotFoundPage");
 export const importClientDashboardPage = () => import("@/features/client-portal/ClientDashboardPage");
@@ -45,6 +44,7 @@ export const importAdminQuestionsPage = () => import("@/features/questions/Admin
 export const importDocumentsClientPage = () => import("@/features/client-portal/DocumentsClientPage");
 export const importClientBriefPage = () => import("@/features/client-portal/ClientBriefPage");
 export const importOnboardingClientPage = () => import("@/features/client-portal/OnboardingClientPage");
+export const importFreelancerDashboardPage = () => import("@/features/dashboard/FreelancerDashboardPage");
 
 export const routePrefetch = {
   clientDocuments: () => void importDocumentsClientPage(),
@@ -63,7 +63,6 @@ export const routePrefetch = {
   clientDetail: () => void importClientDetailPage(),
   freelancers: () => void importFreelancersPage(),
   projects: () => void importProjectsPage(),
-  tasks: () => void importTasksPage(),
   settings: () => void importSettingsPage(),
   reports: () => void importReportsPage(),
   ai: () => void importAIAssistantPage(),

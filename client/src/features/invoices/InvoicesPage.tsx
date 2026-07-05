@@ -117,14 +117,14 @@ export function InvoicesPage() {
           className="bg-ink text-white rounded-full hover:bg-ink/90"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Créer une facture
+          {t("invoices.createInvoice")}
         </Button>
       </div>
 
       <Tabs defaultValue="invoices" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="invoices">Factures</TabsTrigger>
-          <TabsTrigger value="credit-notes">Avoirs</TabsTrigger>
+          <TabsTrigger value="invoices">{t("invoices.tabInvoices")}</TabsTrigger>
+          <TabsTrigger value="credit-notes">{t("invoices.tabCreditNotes")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="invoices" className="space-y-6">
@@ -259,27 +259,27 @@ export function InvoicesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Numéro d'avoir</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Montant</TableHead>
-                  <TableHead>Motif</TableHead>
-                  <TableHead>Facture source</TableHead>
-                  <TableHead>Facture d'application</TableHead>
-                  <TableHead>Statut d'application</TableHead>
-                  <TableHead>Date d'émission</TableHead>
+                  <TableHead>{t("invoices.creditNotes.number")}</TableHead>
+                  <TableHead>{t("invoices.client")}</TableHead>
+                  <TableHead>{t("invoices.amount")}</TableHead>
+                  <TableHead>{t("invoices.creditNotes.reason")}</TableHead>
+                  <TableHead>{t("invoices.creditNotes.sourceInvoice")}</TableHead>
+                  <TableHead>{t("invoices.creditNotes.appliedInvoice")}</TableHead>
+                  <TableHead>{t("invoices.creditNotes.applicationStatus")}</TableHead>
+                  <TableHead>{t("invoices.creditNotes.issueDate")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {creditNotesLoading ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-10">
-                      Chargement des avoirs...
+                      {t("invoices.creditNotes.loading")}
                     </TableCell>
                   </TableRow>
                 ) : creditNotes.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-10">
-                      Aucun avoir disponible.
+                      {t("invoices.creditNotes.empty")}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -296,11 +296,11 @@ export function InvoicesPage() {
                       <TableCell>
                         {cn.appliedAt ? (
                           <Badge className="bg-primary-soft text-primary">
-                            Appliqué le {format(new Date(cn.appliedAt), "dd/MM/yyyy", { locale: fr })}
+                            {t("invoices.creditNotes.applied", { date: format(new Date(cn.appliedAt), "dd/MM/yyyy", { locale: fr }) })}
                           </Badge>
                         ) : (
                           <Badge className="bg-accent-soft text-accent-foreground">
-                            Disponible
+                            {t("invoices.creditNotes.available")}
                           </Badge>
                         )}
                       </TableCell>
@@ -332,17 +332,17 @@ export function InvoicesPage() {
           if (!deleteInvoiceTarget) return;
           deleteMutation.mutate(deleteInvoiceTarget.id, {
             onSuccess: () => {
-              toast.success("Facture supprimée.");
+              toast.success(t("invoices.deleteSuccess"));
               setDeleteInvoiceTarget(null);
             },
             onError: () => {
-              toast.error("Impossible de supprimer cette facture.");
+              toast.error(t("invoices.deleteError"));
               setDeleteInvoiceTarget(null);
             },
           });
         }}
-        title={`Supprimer la facture "${deleteInvoiceTarget?.number ?? ""}" ?`}
-        description="Cette action est irréversible. La facture brouillon sera définitivement supprimée."
+        title={t("invoices.deleteTitle", { number: deleteInvoiceTarget?.number ?? "" })}
+        description={t("invoices.deleteDesc")}
         isDeleting={deleteMutation.isPending}
       />
     </section>

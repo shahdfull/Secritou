@@ -2,6 +2,10 @@ import { Router } from "express";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
 import { getSummary } from "../controllers/analytics.controller.js";
+import { getRevenueForecast } from "../controllers/revenueForecast.controller.js";
+import { getClientProfitability } from "../controllers/clientProfitability.controller.js";
+import { getGlobalTimeSummary } from "../controllers/timeEntry.controller.js";
+import { getExecutiveMetrics } from "../controllers/executiveMetrics.controller.js";
 import { httpCache } from "../middlewares/cache.middleware.js";
 import { cacheTTL } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
@@ -24,4 +28,8 @@ router.get(
   ),
   getSummary,
 );
+router.get("/revenue-forecast", authorize("ADMIN"), getRevenueForecast);
+router.get("/client-profitability", authorize("ADMIN"), getClientProfitability);
+router.get("/time-summary", authorize("ADMIN"), getGlobalTimeSummary);
+router.get("/executive", authorize("ADMIN"), getExecutiveMetrics);
 export default router;

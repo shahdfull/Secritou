@@ -1,4 +1,5 @@
 import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { formatDate } from "@/utils/format";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -34,24 +35,7 @@ type AppUser = {
   createdAt: string;
 };
 
-const MODULE_LABELS: Record<string, string> = {
-  projects: "Projets",
-  tasks: "Tâches",
-  freelancers: "Freelancers",
-  clients: "Clients",
-  leads: "Leads",
-  invoices: "Factures",
-  analytics: "Analytics",
-  approvals: "Approbations",
-  documents: "Documents",
-};
-
-const ACTION_LABELS = {
-  read: "Voir",
-  create: "Créer",
-  update: "Modifier",
-  delete: "Supprimer",
-};
+const ACTION_KEYS = ["read", "create", "update", "delete"] as const;
 
 const getRoleColor = (role: string) => {
   switch (role) {
@@ -66,6 +50,7 @@ const getRoleColor = (role: string) => {
 // ─── Manager Permissions Panel ──────────────────────────────────────────────
 
 function ManagerPermissionsPanel({ userId }: { userId: string }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
 
   const { data: profiles = [] } = useQuery({
@@ -84,10 +69,10 @@ function ManagerPermissionsPanel({ userId }: { userId: string }) {
     mutationFn: (data: { profileId?: string | null; overrides?: Partial<PermissionsMap> }) =>
       managerPermissionsApi.update(userId, data),
     onSuccess: () => {
-      toast.success("Permissions mises à jour");
+      toast.success(t("permissions.updateSuccess"));
       void qc.invalidateQueries({ queryKey: ["manager-permissions", userId] });
     },
-    onError: () => toast.error("Erreur lors de la mise à jour des permissions"),
+    onError: () => toast.error(t("permissions.updateError")),
   });
 
   // Build the effective overrides state from current managerPerm
@@ -181,8 +166,8 @@ function ManagerPermissionsPanel({ userId }: { userId: string }) {
             <TableHeader>
               <TableRow className="bg-muted/40">
                 <TableHead className="w-36">Module</TableHead>
-                {Object.entries(ACTION_LABELS).map(([k, label]) => (
-                  <TableHead key={k} className="text-center w-24">{label}</TableHead>
+                {ACTION_KEYS.map((k) => (
+                  <TableHead key={k} className="text-center w-24">{t(`permissions.actions.${k}`)}</TableHead>
                 ))}
               </TableRow>
             </TableHeader>
@@ -191,8 +176,8 @@ function ManagerPermissionsPanel({ userId }: { userId: string }) {
                 const modOverride = overrides[mod] ?? { read: false, create: false, update: false, delete: false };
                 return (
                   <TableRow key={mod}>
-                    <TableCell className="font-medium text-sm">{MODULE_LABELS[mod] ?? mod}</TableCell>
-                    {(Object.keys(ACTION_LABELS) as Array<keyof typeof ACTION_LABELS>).map((action) => {
+                    <TableCell className="font-medium text-sm">{t(`permissions.modules.${mod}`, mod)}</TableCell>
+                    {ACTION_KEYS.map((action) => {
                       const checked = !!(modOverride as Record<string, boolean>)[action];
                       const customized = isCustomized(mod, action as any);
                       return (

@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 type LeadsByMonthItem = { month: string; count: number };
 type RevenueByMonthItem = { month: string; revenue: number };
@@ -34,6 +35,8 @@ export const AnalyticsCharts = memo(function AnalyticsCharts({
   leadsByStatus,
   projectsByStatus,
 }: AnalyticsChartsProps) {
+  const { t } = useTranslation();
+
   const projectCells = useMemo(
     () => projectsByStatus.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />),
     [projectsByStatus]
@@ -44,8 +47,8 @@ export const AnalyticsCharts = memo(function AnalyticsCharts({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Leads par mois</CardTitle>
-            <CardDescription>Nouveaux leads par mois</CardDescription>
+            <CardTitle>{t("analytics.leadsByMonth")}</CardTitle>
+            <CardDescription>{t("analytics.leadsByMonthDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-80">
@@ -76,8 +79,8 @@ export const AnalyticsCharts = memo(function AnalyticsCharts({
         <Card>
           <CardHeader className="flex flex-row items-center gap-2">
             <DollarSign className="h-4 w-4 text-muted-foreground" />
-            <CardTitle>Revenus par mois</CardTitle>
-            <CardDescription>Revenus encaissés</CardDescription>
+            <CardTitle>{t("analytics.revenueByMonth")}</CardTitle>
+            <CardDescription>{t("analytics.revenueByMonthDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-80">
@@ -91,7 +94,7 @@ export const AnalyticsCharts = memo(function AnalyticsCharts({
                       backgroundColor: "hsl(var(--background))",
                       border: "1px solid hsl(var(--border))",
                     }}
-                    formatter={(value: number) => [`${value} TND`, "Revenus"]}
+                    formatter={(value: number) => [`${value} TND`, t("analytics.revenueTooltipLabel")]}
                   />
                   <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} />
                 </BarChart>
@@ -104,8 +107,8 @@ export const AnalyticsCharts = memo(function AnalyticsCharts({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Leads par statut</CardTitle>
-            <CardDescription>Répartition des leads par statut</CardDescription>
+            <CardTitle>{t("analytics.leadsByStatus")}</CardTitle>
+            <CardDescription>{t("analytics.leadsByStatusDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-80">
@@ -129,8 +132,8 @@ export const AnalyticsCharts = memo(function AnalyticsCharts({
 
         <Card>
           <CardHeader>
-            <CardTitle>Répartition des projets</CardTitle>
-            <CardDescription>État des projets</CardDescription>
+            <CardTitle>{t("analytics.projectsByStatus")}</CardTitle>
+            <CardDescription>{t("analytics.projectsByStatusDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-center h-80">
@@ -163,4 +166,3 @@ export const AnalyticsCharts = memo(function AnalyticsCharts({
     </>
   );
 });
-

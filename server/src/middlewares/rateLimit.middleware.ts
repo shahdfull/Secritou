@@ -6,11 +6,22 @@ export const rateLimitKeyGenerator = (req: Request) =>
 
 export const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 10,
+  limit: 30,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: rateLimitKeyGenerator,
   message: { message: "Too many authentication attempts, please try again later" },
+});
+
+// Refresh tokens are gated by the HTTP-only cookie — brute-force isn't a concern here.
+// 30/15min is generous enough for normal SPA navigation while still limiting stolen-cookie replay.
+export const refreshRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: rateLimitKeyGenerator,
+  message: { message: "Too many token refresh attempts, please try again later" },
 });
 
 export const contactRateLimit = rateLimit({

@@ -12,4 +12,9 @@ export const jobNames = {
   recalculateClientScores: "recalculate-client-scores",
   expireProposals: "expire-proposals",
   markOverdueInvoices: "mark-overdue-invoices",
+  checkStaleProjects: "check-stale-projects",
+  checkOverdueDeadlines: "check-overdue-deadlines",
+  checkInvoiceFollowup: "check-invoice-followup",
+  weeklyCeoReport: "weekly-ceo-report",
+  checkTaskDeadlines: "check-task-deadlines",
 } as const;

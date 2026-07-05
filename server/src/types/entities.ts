@@ -70,6 +70,7 @@ export interface CreateLeadDTO {
   source?: string;
   status?: LeadStatus;
   notes?: string;
+  lostReason?: string;
 }
 
 export interface CreateClientDTO {

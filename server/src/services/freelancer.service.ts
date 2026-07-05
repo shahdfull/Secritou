@@ -18,6 +18,12 @@ export const freelancerService = {
     return profile;
   },
 
+  async getByUserId(userId: string) {
+    const profile = await freelancerRepository.findByUserId(userId);
+    if (!profile) throw new HttpError(404, "Freelancer profile not found");
+    return profile;
+  },
+
 
   async createMyProfile(
     userId: string,

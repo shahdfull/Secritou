@@ -96,10 +96,16 @@ export const useAuthStore = create<AuthStore>()(
     {
       name: "auth-store",
       storage: createJSONStorage(() => localStorage),
+      // FIX: `bootstrapped` and `accessToken` are intentionally NOT persisted.
+      // - `accessToken` is an in-memory-only token (short-lived, security best practice).
+      // - `bootstrapped` must reset to false on every page reload so that
+      //   useBootstrapSession always calls /auth/refresh to obtain a fresh token
+      //   via the HTTP-only cookie. Persisting it caused the app to skip the
+      //   refresh call, leaving accessToken as null and causing 401 errors on all
+      //   protected API requests.
       partialize: (state) => ({
         user: state.user,
         status: state.status,
-        bootstrapped: state.bootstrapped,
       }),
     }
   )

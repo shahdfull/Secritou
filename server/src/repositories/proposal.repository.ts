@@ -103,6 +103,7 @@ export const proposalRepository = {
     email?: string;
     projectId?: string;
     serviceRequestId?: string;
+    leadId?: string;
   }) {
     return prisma.proposal.create({ data });
   },

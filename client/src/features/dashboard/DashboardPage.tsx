@@ -622,7 +622,7 @@ export function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold text-ink">{t("dashboard.overview")}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {t("dashboard.welcome")}{firstName ? `, ${firstName}` : ""} — {t("dashboard.happeningToday")}
+            {firstName ? t("dashboard.welcomeName", { name: firstName }) : t("dashboard.welcomeAnon")}
           </p>
         </div>
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground border border-border rounded-md px-3 py-1.5 bg-surface shrink-0">

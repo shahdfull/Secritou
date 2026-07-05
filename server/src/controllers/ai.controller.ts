@@ -1,6 +1,7 @@
 import type { RequestHandler } from "express";
 import { env } from "../config/env.js";
 import { HttpError } from "../utils/httpError.js";
+import { agentOrchestratorService } from "../services/agentOrchestrator.service.js";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -59,6 +60,44 @@ export const chat: RequestHandler = async (req, res, next) => {
     const reply = data.choices[0]?.message?.content ?? "Désolé, je n'ai pas pu générer de réponse.";
 
     res.json({ data: { message: reply } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const generateBrief: RequestHandler = async (req, res, next) => {
+  try {
+    const { context } = req.body as {
+      context: Record<string, any>;
+    };
+
+    const result = await agentOrchestratorService.executeAgent(
+      "brief-generator",
+      context,
+      req.user!.sub,
+      req.user!.role
+    );
+
+    res.json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const generateTasks: RequestHandler = async (req, res, next) => {
+  try {
+    const { context } = req.body as {
+      context: Record<string, any>;
+    };
+
+    const result = await agentOrchestratorService.executeAgent(
+      "task-planner",
+      context,
+      req.user!.sub,
+      req.user!.role
+    );
+
+    res.json({ data: result });
   } catch (error) {
     next(error);
   }

@@ -3,15 +3,17 @@ import { BarChart3, Rocket, Monitor, Sparkles, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { trackServiceCardClicked } from "@/services/analytics.service";
 import { useTranslation } from "react-i18next";
+import { useLandingCms } from "@/providers/LandingCmsProvider";
 
 export function Services() {
   const { t } = useTranslation();
-  
+  const { cms } = useLandingCms();
+
   const services = [
     {
       icon: BarChart3,
-      title: t("home.services.items.0.title"),
-      body: t("home.services.items.0.body"),
+      title: cms("services.items.0.title", t("home.services.items.0.title")),
+      body:  cms("services.items.0.body",  t("home.services.items.0.body")),
       items: [
         t("home.services.items.0.items.0"),
         t("home.services.items.0.items.1"),
@@ -21,8 +23,8 @@ export function Services() {
     },
     {
       icon: Rocket,
-      title: t("home.services.items.1.title"),
-      body: t("home.services.items.1.body"),
+      title: cms("services.items.1.title", t("home.services.items.1.title")),
+      body:  cms("services.items.1.body",  t("home.services.items.1.body")),
       items: [
         t("home.services.items.1.items.0"),
         t("home.services.items.1.items.1"),
@@ -32,8 +34,8 @@ export function Services() {
     },
     {
       icon: Monitor,
-      title: t("home.services.items.2.title"),
-      body: t("home.services.items.2.body"),
+      title: cms("services.items.2.title", t("home.services.items.2.title")),
+      body:  cms("services.items.2.body",  t("home.services.items.2.body")),
       items: [
         t("home.services.items.2.items.0"),
         t("home.services.items.2.items.1"),
@@ -43,8 +45,8 @@ export function Services() {
     },
     {
       icon: Sparkles,
-      title: t("home.services.items.3.title"),
-      body: t("home.services.items.3.body"),
+      title: cms("services.items.3.title", t("home.services.items.3.title")),
+      body:  cms("services.items.3.body",  t("home.services.items.3.body")),
       items: [
         t("home.services.items.3.items.0"),
         t("home.services.items.3.items.1"),
@@ -54,23 +56,16 @@ export function Services() {
     },
   ];
 
-  const highlights = [
-    t("home.services.highlights.0"),
-    t("home.services.highlights.1"),
-    t("home.services.highlights.2"),
-    t("home.services.highlights.3"),
-  ];
-
   return (
     <section id="services" className="bg-surface-warm/40 py-14 sm:py-20">
       <div className="container-page">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-              {t("home.services.subtitle")}
+              {cms("services.subtitle", t("home.services.subtitle"))}
             </p>
             <h2 className="mt-3 font-display text-3xl font-bold text-ink sm:text-4xl lg:text-5xl">
-              {t("home.services.title")}
+              {cms("services.title", t("home.services.title"))}
             </h2>
           </div>
           <Link
@@ -101,9 +96,7 @@ export function Services() {
                   </div>
                   <h3 className="font-display text-xl font-bold text-ink">{s.title}</h3>
                 </div>
-                <span className="text-xs font-semibold text-muted-foreground">
-                  0{i + 1}
-                </span>
+                <span className="text-xs font-semibold text-muted-foreground">0{i + 1}</span>
               </div>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
               <ul className="mt-5 grid grid-cols-2 gap-y-2 gap-x-3 text-xs text-ink">
@@ -117,8 +110,6 @@ export function Services() {
             </motion.button>
           ))}
         </div>
-
-        
       </div>
     </section>
   );

@@ -18,6 +18,7 @@ import {
   getInvoiceCreditNotes,
   applyCreditToInvoice,
   getAllCreditNotes,
+  addItemsFromTimeEntries,
 } from "../controllers/invoice.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
@@ -34,6 +35,7 @@ import {
   invoiceItemParamSchema,
   createCreditNoteSchema,
   applyCreditSchema,
+  fromTimeEntriesSchema,
 } from "../validators/invoice.validator.js";
 
 const router = express.Router();
@@ -49,48 +51,61 @@ router.use(authenticate);
 
 // Protected routes
 router.get("/credit-notes/all", authorize("ADMIN"), getAllCreditNotes);
-router.get("/", authorize("ADMIN"), getInvoices);
-router.get("/:id", authorize("ADMIN"), validate(invoiceIdParamSchema), getInvoiceById);
+router.get("/", authorize("ADMIN", "MANAGER"), requirePermission("invoices", "read"), getInvoices);
+router.get("/:id", authorize("ADMIN", "MANAGER"), requirePermission("invoices", "read"), validate(invoiceIdParamSchema), getInvoiceById);
 router.post("/", sensitiveWriteRateLimit, authorize("ADMIN"), validate(createInvoiceSchema), createInvoice);
 router.put("/:id", authorize("ADMIN"), validate(updateInvoiceSchema), updateInvoice);
 router.delete("/:id", sensitiveWriteRateLimit, authorize("ADMIN"), validate(invoiceIdParamSchema), deleteInvoice);
-router.post("/:id/send", sensitiveWriteRateLimit, authorize("ADMIN"), validate(invoiceIdParamSchema), sendInvoice);
+router.post("/:id/send", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("invoices", "update"), validate(invoiceIdParamSchema), sendInvoice);
 router.post("/:id/cancel", sensitiveWriteRateLimit, authorize("ADMIN"), validate(invoiceIdParamSchema), cancelInvoice);
 
 // Payments & Reminders
 router.post(
   "/:id/payments",
   sensitiveWriteRateLimit,
-  authorize("ADMIN"),
+  authorize("ADMIN", "MANAGER"),
+  requirePermission("invoices", "update"),
   validate(addPaymentSchema),
   addPayment
 );
 router.post(
   "/:id/reminders",
   sensitiveWriteRateLimit,
-  authorize("ADMIN"),
+  authorize("ADMIN", "MANAGER"),
+  requirePermission("invoices", "update"),
   validate(addReminderSchema),
   addInvoiceReminder
 );
 
 // Items
 router.post(
+  "/:id/items/from-time-entries",
+  sensitiveWriteRateLimit,
+  authorize("ADMIN", "MANAGER"),
+  requirePermission("invoices", "update"),
+  validate(fromTimeEntriesSchema),
+  addItemsFromTimeEntries
+);
+router.post(
   "/:id/items",
   sensitiveWriteRateLimit,
-  authorize("ADMIN"),
+  authorize("ADMIN", "MANAGER"),
+  requirePermission("invoices", "update"),
   validate(addInvoiceItemSchema),
   addInvoiceItem
 );
 router.put(
   "/:id/items/:itemId",
-  authorize("ADMIN"),
+  authorize("ADMIN", "MANAGER"),
+  requirePermission("invoices", "update"),
   validate(updateInvoiceItemSchema),
   updateInvoiceItem
 );
 router.delete(
   "/:id/items/:itemId",
   sensitiveWriteRateLimit,
-  authorize("ADMIN"),
+  authorize("ADMIN", "MANAGER"),
+  requirePermission("invoices", "update"),
   validate(invoiceItemParamSchema),
   deleteInvoiceItem
 );
@@ -98,7 +113,8 @@ router.delete(
 // Credit notes
 router.get(
   "/:id/credit-notes",
-  authorize("ADMIN"),
+  authorize("ADMIN", "MANAGER"),
+  requirePermission("invoices", "read"),
   validate(invoiceIdParamSchema),
   getInvoiceCreditNotes
 );

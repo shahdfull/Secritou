@@ -110,7 +110,7 @@ export const approvalRepository = {
     return prisma.approvalAttachment.delete({ where: { id } });
   },
 
-  async addTimeline(approvalId: string, data: { action: string; comment?: string; status: ApprovalStatus; userId?: string }) {
+  async addTimeline(approvalId: string, data: { action: string; comment?: string; status: string; userId?: string }) {
     return prisma.approvalTimeline.create({ data: { ...data, approvalId } });
   },
 };

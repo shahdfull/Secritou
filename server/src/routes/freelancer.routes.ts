@@ -11,6 +11,15 @@ import { authorize } from "../middlewares/rbac.middleware.js";
 const router = Router();
 
 router.get("/", authenticate, authorize("ADMIN", "MANAGER", "FREELANCER"), freelancerController.getFreelancers);
+router.get("/skills", authenticate, authorize("ADMIN", "MANAGER", "FREELANCER"), freelancerController.getSkills);
+
+router.get(
+  "/me",
+  authenticate,
+  authorize("FREELANCER"),
+  freelancerController.getMyProfile
+);
+
 router.get("/:id", authenticate, authorize("ADMIN", "MANAGER", "FREELANCER"), freelancerController.getFreelancerById);
 
 router.post(

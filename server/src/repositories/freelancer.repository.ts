@@ -112,14 +112,12 @@ export const freelancerRepository = {
       availability: data.availability,
     };
 
-    if (data.skillNames) {
+    if (data.skillNames && data.skillNames.length > 0) {
       const skillConnectOrCreate = data.skillNames.map((name) => ({
         where: { name },
         create: { name },
       }));
-      updateData.skills = {
-        set: skillConnectOrCreate,
-      };
+      updateData.skills = { set: skillConnectOrCreate };
     }
 
     return prisma.freelancerProfile.update({

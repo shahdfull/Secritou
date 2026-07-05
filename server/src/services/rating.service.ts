@@ -17,6 +17,14 @@ export const ratingService = {
     return rating;
   },
 
+  async getRatingsByFreelancerId(freelancerId: string) {
+    return prisma.rating.findMany({
+      where: { freelancerId },
+      include: { ratedByUser: { select: { id: true, name: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+  },
+
   async updateFreelancerRatingAverage(freelancerId: string) {
     const ratings = await prisma.rating.findMany({ where: { freelancerId }, select: { score: true } });
 

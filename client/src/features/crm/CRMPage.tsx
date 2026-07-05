@@ -7,7 +7,7 @@ export function CRMPage() {
   const { t } = useTranslation();
   return (
     <Tabs defaultValue="leads" className="space-y-6">
-      <TabsList>
+      <TabsList className="bg-primary-soft/30 border border-primary/10">
         <TabsTrigger value="leads">{t("sidebar.leads")}</TabsTrigger>
         <TabsTrigger value="clients">{t("sidebar.clients")}</TabsTrigger>
       </TabsList>

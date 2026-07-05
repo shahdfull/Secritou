@@ -31,9 +31,9 @@ export const aiConversationRepository = {
     });
   },
 
-  async create(userId: string, title: string) {
+  async create(userId: string, title: string, persona?: string) {
     return prisma.aiConversation.create({
-      data: { userId, title },
+      data: { userId, title, persona },
       include: { messages: true },
     });
   },

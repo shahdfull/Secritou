@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { absoluteUrl, getSeoConfig } from "@/lib/seo";
+import i18n from "@/i18n";
 
 function setMetaAttribute(selector: string, attribute: "content" | "href", value: string) {
   let element = document.head.querySelector(selector) as HTMLMetaElement | HTMLLinkElement | null;
@@ -36,7 +37,15 @@ function setStructuredData() {
     url: siteUrl,
     logo: logoUrl,
     description:
-      "Secritou helps SMEs, startuppers and creators organize, digitize and grow through strategy, technology, marketing and data-driven decisions.",
+      "Agence digitale tunisienne — nous aidons les PME, startups et créateurs à s'organiser, se digitaliser et croître.",
+    telephone: "+21694243333",
+    email: "hello@secritou.com",
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: "Tunis",
+      addressCountry: "TN",
+    },
+    sameAs: [],
   };
 
   // ProfessionalService Schema
@@ -45,25 +54,27 @@ function setStructuredData() {
     "@type": "ProfessionalService",
     name: "Secritou",
     description:
-      "Secritou helps SMEs, startuppers and creators organize, digitize and grow through strategy, technology, marketing and data-driven decisions.",
+      "Agence digitale tunisienne — nous aidons les PME, startups et créateurs à s'organiser, se digitaliser et croître.",
     url: siteUrl,
+    telephone: "+21694243333",
     provider: {
       "@type": "Organization",
       name: "Secritou",
       url: siteUrl,
     },
-    areaServed: "Worldwide",
+    areaServed: { "@type": "Country", name: "Tunisia" },
     serviceType: [
-      "Business Performance & KPI Tracking",
-      "Digital Growth & Marketing",
-      "Technology Solutions & Websites",
-      "AI & Automation",
+      "Tableau de bord KPI & Performance",
+      "Croissance digitale & Marketing",
+      "Création site web & E-commerce Tunisie",
+      "IA & Automatisation",
     ],
     contactPoint: {
       "@type": "ContactPoint",
+      telephone: "+21694243333",
       email: "hello@secritou.com",
       contactType: "customer service",
-      availableLanguage: ["English"],
+      availableLanguage: ["French", "Arabic", "English"],
     },
   };
 
@@ -119,6 +130,7 @@ export function SEO() {
     document.title = seo.title;
 
     setMetaAttribute('meta[name="description"]', "content", seo.description);
+    setMetaAttribute('meta[name="keywords"]', "content", seo.keywords ?? "");
     setMetaAttribute('meta[name="robots"]', "content", robots);
     setMetaAttribute('link[rel="canonical"]', "href", canonicalUrl);
 
@@ -128,6 +140,9 @@ export function SEO() {
     setMetaAttribute('meta[property="og:description"]', "content", seo.description);
     setMetaAttribute('meta[property="og:url"]', "content", canonicalUrl);
     setMetaAttribute('meta[property="og:image"]', "content", image);
+    setMetaAttribute('meta[property="og:image:width"]', "content", "1200");
+    setMetaAttribute('meta[property="og:image:height"]', "content", "630");
+    setMetaAttribute('meta[property="og:locale"]', "content", (i18n.resolvedLanguage ?? i18n.language ?? "fr").split("-")[0] === "en" ? "en_US" : "fr_TN");
 
     setMetaAttribute('meta[name="twitter:card"]', "content", "summary_large_image");
     setMetaAttribute('meta[name="twitter:title"]', "content", seo.title);

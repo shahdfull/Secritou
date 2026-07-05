@@ -64,7 +64,7 @@ export const summaryRepository = {
           client: { select: { id: true, name: true } },
         },
       }),
-      prisma.task.groupBy({ by: ["status"], where: { projectId }, _count: { id: true } }),
+      prisma.task.groupBy({ by: ["status"], where: { projectId }, _count: { id: true }, orderBy: { status: "asc" } }),
       prisma.document.count({ where: { projectId } }),
       prisma.invoice.count({ where: { projectId } }),
       prisma.comment.count({ where: { task: { projectId } } }),
@@ -89,10 +89,10 @@ export const summaryRepository = {
       recentTasks,
       invoiceMetrics,
     ] = await Promise.all([
-      prisma.lead.groupBy({ by: ["status"], where: { archivedAt: null }, _count: true }),
+      prisma.lead.groupBy({ by: ["status"], where: { archivedAt: null }, _count: true, orderBy: { status: "asc" } }),
       prisma.client.count({}),
-      prisma.project.groupBy({ by: ["status"], _count: true }),
-      prisma.task.groupBy({ by: ["status"], _count: true }),
+      prisma.project.groupBy({ by: ["status"], _count: true, orderBy: { status: "asc" } }),
+      prisma.task.groupBy({ by: ["status"], _count: true, orderBy: { status: "asc" } }),
       prisma.project.findMany({
         take: 5,
         orderBy: { createdAt: "desc" },

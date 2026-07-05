@@ -1,4 +1,4 @@
-import { Bell, Check, FileText, CheckCircle, XCircle, Clock, CreditCard, FolderOpen, ClipboardList, MessageSquare, Users, FileSignature, TrendingUp, AlertCircle } from "lucide-react";
+import { Bell, Check, FileText, CheckCircle, XCircle, CreditCard, FolderOpen, ClipboardList, MessageSquare, Users, FileSignature, TrendingUp, AlertCircle, AlertTriangle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { notificationsApi, type Notification, type NotificationType } from "../api/notifications.api";
 import { Button } from "./ui/button";
@@ -10,6 +10,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "@/store/auth.store";
 
 function getNotificationIcon(type: NotificationType) {
   switch (type) {
@@ -45,6 +46,13 @@ function getNotificationIcon(type: NotificationType) {
       return <TrendingUp className="h-4 w-4 text-emerald-500 shrink-0" />;
     case "FREELANCER_APPLICATION":
       return <Users className="h-4 w-4 text-violet-500 shrink-0" />;
+    case "PROJECT_STALE":
+    case "PROJECT_DEADLINE_SOON":
+      return <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />;
+    case "TASK_DEADLINE_SOON":
+      return <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0" />;
+    case "INVOICE_FOLLOWUP":
+      return <CreditCard className="h-4 w-4 text-red-400 shrink-0" />;
     default:
       return <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0" />;
   }
@@ -59,6 +67,8 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const currentUser = useAuthStore((s) => s.user);
+  const isFreelancer = currentUser?.role === "FREELANCER";
 
   const { data: notifications, isLoading } = useQuery({
     queryKey: ["notifications"],
@@ -66,7 +76,13 @@ export function NotificationBell() {
     refetchInterval: 30000,
   });
 
+  // Freelancers only see task/project notifications as critical, not admin-only alerts
+  const CRITICAL_TYPES: NotificationType[] = isFreelancer
+    ? ["TASK_DEADLINE_SOON"]
+    : ["PROJECT_STALE", "PROJECT_DEADLINE_SOON", "INVOICE_OVERDUE", "INVOICE_FOLLOWUP"];
+
   const unreadCount = notifications?.filter((n) => !n.read).length || 0;
+  const hasCritical = notifications?.some((n) => !n.read && CRITICAL_TYPES.includes(n.type)) ?? false;
 
   const markAsReadMutation = useMutation({
     mutationFn: notificationsApi.markAsRead,
@@ -107,7 +123,10 @@ export function NotificationBell() {
         <Button variant="ghost" size="icon" className="relative" aria-label={t("notifications.open")}>
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
-            <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs">
+            <Badge
+              variant="destructive"
+              className={`absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center${hasCritical ? " animate-pulse" : ""}`}
+            >
               {unreadCount}
             </Badge>
           )}
@@ -132,7 +151,13 @@ export function NotificationBell() {
             notifications?.map((notification) => (
               <Card
                 key={notification.id}
-                className={`mb-2 p-3 transition-colors ${!notification.read ? "bg-primary/5" : ""} ${notification.link ? "cursor-pointer hover:bg-accent" : ""}`}
+                className={`mb-2 p-3 transition-colors cursor-pointer hover:bg-accent ${
+                  !notification.read && CRITICAL_TYPES.includes(notification.type)
+                    ? "bg-red-50 border-red-200"
+                    : !notification.read
+                    ? "bg-primary/5"
+                    : ""
+                }`}
                 onClick={() => handleNotificationClick(notification)}
               >
                 <div className="flex items-start gap-2">

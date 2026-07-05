@@ -3,49 +3,74 @@ export type SeoConfig = {
   description: string;
   path: string;
   image?: string;
+  keywords?: string;
   noindex?: boolean;
 };
 
-const siteUrl = (import.meta.env.VITE_SITE_URL ?? "https://secritou.com").replace(/\/$/, "");
-const defaultImage = `${siteUrl}/secritou-logo.png`;
+const siteUrl = (import.meta.env.VITE_SITE_URL ?? "https://secritou.tn").replace(/\/$/, "");
+const defaultImage = `${siteUrl}/secritou-og.png`;
 
 export const defaultSeo: SeoConfig = {
-  title: "Secritou - Growth & Digital Transformation Platform",
+  title: "Secritou - Agence digitale en Tunisie | Croissance & Transformation",
   description:
-    "Secritou helps SMEs, entrepreneurs and creators organize, digitize and grow through strategy, technology, marketing and data-driven decisions.",
+    "Secritou, agence digitale en Tunisie : nous aidons les PME, startups et créateurs à s'organiser, se digitaliser et croître grâce à la stratégie, la technologie, le marketing et la data.",
   path: "/",
   image: defaultImage,
+  keywords:
+    "agence digitale Tunisie, digitalisation PME Tunisie, transformation digitale Tunisie, agence marketing Tunisie, croissance entreprise Tunisie",
 };
 
 export const seoByPath: Record<string, SeoConfig> = {
   "/": defaultSeo,
   "/services": {
-    title: "Services - Secritou",
+    title: "Services - Création site web & community management en Tunisie | Secritou",
     description:
-      "Explore Secritou services across business performance, digital growth, technology solutions, AI and automation.",
+      "Découvrez les services Secritou en Tunisie : création de site web, community management, solutions technologiques, IA et automatisation pour votre entreprise.",
     path: "/services",
     image: defaultImage,
+    keywords:
+      "community management Tunisie, création site web Tunisie, développement web Tunisie, agence SEO Tunisie, automatisation IA Tunisie",
   },
   "/solutions": {
-    title: "Solutions for SMEs, Entrepreneurs and Creators - Secritou",
+    title: "Solutions PME, Startups & Créateurs en Tunisie | Secritou",
     description:
-      "Growth and digital transformation solutions tailored for SMEs, entrepreneurs and content creators.",
+      "Solutions de croissance et de transformation digitale adaptées aux PME, entrepreneurs et créateurs de contenu en Tunisie.",
     path: "/solutions",
     image: defaultImage,
+    keywords:
+      "solutions digitales PME Tunisie, transformation digitale startup Tunisie, agence digitale créateurs Tunisie",
   },
   "/case-studies": {
-    title: "Case Studies - Secritou",
+    title: "Études de cas — Résultats clients | Secritou Tunisie",
     description:
-      "See how Secritou helps businesses improve performance, launch digital systems and unlock measurable growth.",
+      "Découvrez comment Secritou aide les entreprises tunisiennes à améliorer leurs performances, lancer des systèmes digitaux et atteindre une croissance mesurable.",
     path: "/case-studies",
     image: defaultImage,
+    keywords:
+      "études de cas agence digitale Tunisie, résultats transformation digitale, success stories PME Tunisie",
   },
   "/contact": {
-    title: "Contact Secritou",
+    title: "Contact - Agence digitale à Tunis | Secritou",
     description:
-      "Book a free consultation with Secritou to discuss strategy, technology, marketing, AI and business growth.",
+      "Contactez Secritou, agence digitale à Tunis. Réservez une consultation gratuite pour discuter stratégie, technologie, marketing, IA et croissance de votre entreprise.",
     path: "/contact",
     image: defaultImage,
+    keywords:
+      "agence digitale Tunis, contact Secritou, consultation digitale Tunisie, rendez-vous agence Tunis",
+  },
+  "/mentions-legales": {
+    title: "Mentions légales | Secritou",
+    description: "Mentions légales du site Secritou, agence digitale en Tunisie.",
+    path: "/mentions-legales",
+    image: defaultImage,
+    noindex: true,
+  },
+  "/confidentialite": {
+    title: "Politique de confidentialité | Secritou",
+    description: "Politique de confidentialité et gestion des données personnelles — Secritou, agence digitale Tunisie.",
+    path: "/confidentialite",
+    image: defaultImage,
+    noindex: true,
   },
   "/login": {
     title: "Sign in - Secritou",

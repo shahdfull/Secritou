@@ -40,14 +40,14 @@ router.post("/:id/respond", authenticate, authorize("CLIENT"), sensitiveWriteRat
 router.use(authenticate);
 
 // Protected routes
-router.get("/", authorize("ADMIN", "MANAGER"), requirePermission("projects", "read"), getProposals);
-router.get("/:id", authorize("ADMIN", "MANAGER"), requirePermission("projects", "read"), validate(proposalIdParamSchema), getProposalById);
-router.post("/", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("projects", "create"), validate(createProposalSchema), createProposal);
-router.put("/:id", authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(updateProposalSchema), updateProposal);
+router.get("/", authorize("ADMIN", "MANAGER"), requirePermission("proposals", "read"), getProposals);
+router.get("/:id", authorize("ADMIN", "MANAGER"), requirePermission("proposals", "read"), validate(proposalIdParamSchema), getProposalById);
+router.post("/", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("proposals", "create"), validate(createProposalSchema), createProposal);
+router.put("/:id", authorize("ADMIN", "MANAGER"), requirePermission("proposals", "update"), validate(updateProposalSchema), updateProposal);
 router.delete("/:id", sensitiveWriteRateLimit, authorize("ADMIN"), validate(proposalIdParamSchema), deleteProposal);
-router.post("/:id/send", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(proposalIdParamSchema), sendProposal);
-router.post("/:id/accept", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(proposalIdParamSchema), acceptProposal);
-router.post("/:id/reject", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(rejectProposalSchema), rejectProposal);
+router.post("/:id/send", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("proposals", "update"), validate(proposalIdParamSchema), sendProposal);
+router.post("/:id/accept", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("proposals", "update"), validate(proposalIdParamSchema), acceptProposal);
+router.post("/:id/reject", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("proposals", "update"), validate(rejectProposalSchema), rejectProposal);
 // Creating an invoice is a financial action : ADMIN only, like the invoice routes.
 router.post("/:id/create-invoice", sensitiveWriteRateLimit, authorize("ADMIN"), validate(proposalIdParamSchema), createInvoiceFromProposal);
 
@@ -56,14 +56,14 @@ router.post(
   "/:id/sections",
   sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
-  requirePermission("projects", "update"),
+  requirePermission("proposals", "update"),
   validate(addSectionSchema),
   addProposalSection
 );
 router.put(
   "/:id/sections/:sectionId",
   authorize("ADMIN", "MANAGER"),
-  requirePermission("projects", "update"),
+  requirePermission("proposals", "update"),
   validate(updateSectionSchema),
   updateProposalSection
 );

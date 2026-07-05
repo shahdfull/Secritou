@@ -378,19 +378,14 @@ export function approvalRequestedTemplate(
 export function approvalDecisionTemplate(
   requesterName: string,
   approvalTitle: string,
-  decision: "APPROVED" | "REJECTED" | "COMMENTED",
+  decision: "APPROVED" | "REJECTED",
   deciderName: string,
   comment?: string
 ): { subject: string; html: string } {
-  const decisionLabel =
-    decision === "APPROVED"
-      ? "approuvée ✅"
-      : decision === "REJECTED"
-      ? "refusée ❌"
-      : "commentée 💬";
+  const decisionLabel = decision === "APPROVED" ? "approuvée ✅" : "refusée ❌";
 
   return {
-    subject: `Décision sur "${approvalTitle}" : ${decision === "APPROVED" ? "Approuvée" : decision === "REJECTED" ? "Refusée" : "Commentaire"}`,
+    subject: `Décision sur "${approvalTitle}" : ${decision === "APPROVED" ? "Approuvée" : "Refusée"}`,
     html: baseTemplate(
       `Décision : ${approvalTitle}`,
       [

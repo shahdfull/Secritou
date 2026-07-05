@@ -20,7 +20,7 @@ export const analyticsRepository = {
 
     const [total, byStatusRaw] = await Promise.all([
       prisma.lead.count({ where }),
-      prisma.lead.groupBy({ by: ["status"], where, _count: { status: true } }),
+      prisma.lead.groupBy({ by: ["status"], where, _count: { status: true }, orderBy: { status: "asc" } }),
     ]);
 
     const byStatus = byStatusRaw.map((item) => ({ status: item.status, count: item._count.status }));
@@ -33,7 +33,7 @@ export const analyticsRepository = {
       const previousWhere = { createdAt: { gte: previous.from, lte: previous.to } };
       const [prevTotal, prevByStatusRaw] = await Promise.all([
         prisma.lead.count({ where: previousWhere }),
-        prisma.lead.groupBy({ by: ["status"], where: previousWhere, _count: { status: true } }),
+        prisma.lead.groupBy({ by: ["status"], where: previousWhere, _count: { status: true }, orderBy: { status: "asc" } }),
       ]);
       const prevWonCount = prevByStatusRaw.find((s) => s.status === "WON")?._count?.status || 0;
       previousConversionRate = prevTotal > 0 ? Math.round((prevWonCount / prevTotal) * 100) : 0;
@@ -76,7 +76,7 @@ export const analyticsRepository = {
 
     const [total, byStatusRaw] = await Promise.all([
       prisma.project.count({ where }),
-      prisma.project.groupBy({ by: ["status"], where, _count: { status: true } }),
+      prisma.project.groupBy({ by: ["status"], where, _count: { status: true }, orderBy: { status: "asc" } }),
     ]);
 
     const byStatus = byStatusRaw.map((item) => ({ status: item.status, count: item._count.status }));
@@ -89,7 +89,7 @@ export const analyticsRepository = {
       const previousWhere = { createdAt: { gte: previous.from, lte: previous.to } };
       const [prevTotal, prevByStatusRaw] = await Promise.all([
         prisma.project.count({ where: previousWhere }),
-        prisma.project.groupBy({ by: ["status"], where: previousWhere, _count: { status: true } }),
+        prisma.project.groupBy({ by: ["status"], where: previousWhere, _count: { status: true }, orderBy: { status: "asc" } }),
       ]);
       const prevCompletedCount = prevByStatusRaw.find((s) => s.status === "COMPLETED")?._count?.status || 0;
       previousCompletionRate = prevTotal > 0 ? Math.round((prevCompletedCount / prevTotal) * 100) : 0;
@@ -157,7 +157,7 @@ export const analyticsRepository = {
       ...serviceFilter(serviceId),
       ...(from || to ? { createdAt: { ...(from && { gte: from }), ...(to && { lte: to }) } } : {}),
     };
-    const byStatusRaw = await prisma.project.groupBy({ by: ["status"], where, _count: { status: true } });
+    const byStatusRaw = await prisma.project.groupBy({ by: ["status"], where, _count: { status: true }, orderBy: { status: "asc" } });
     return byStatusRaw.map((item) => ({
       status: item.status,
       count: item._count.status,

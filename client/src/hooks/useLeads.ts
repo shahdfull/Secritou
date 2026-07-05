@@ -78,8 +78,8 @@ export function useConvertLeadToClient() {
 export function useUpdateLeadStatus() {
   const queryClient = useQueryClient();
 
-  return useMutation<Lead, Error, { id: string; status: Lead["status"] }>({
-    mutationFn: ({ id, status }) => leadsApi.updateLeadStatus(id, status),
+  return useMutation<Lead, Error, { id: string; status: Lead["status"]; lostReason?: string }>({
+    mutationFn: ({ id, status, lostReason }) => leadsApi.updateLeadStatus(id, status, lostReason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.leads() });
       toast.success(i18n.t("toasts.leadStatusUpdated"));

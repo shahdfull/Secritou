@@ -1,13 +1,17 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRight, Calendar, Mail, MapPin, Check } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { ArrowRight, Calendar, Mail, MapPin, Check, CheckCircle2, Phone } from "lucide-react";
+import { type ReactNode, useState, useEffect } from "react";
 import { useForm, type UseFormRegisterReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
+import Cal, { getCalApi } from "@calcom/embed-react";
 import { submitContactRequest, type ServiceType, type BudgetOption } from "@/services/contact.service";
+
+const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER as string | undefined;
 import { trackContactFormSubmitted, trackContactFormFailed } from "@/services/analytics.service";
+import { useLandingCms } from "@/providers/LandingCmsProvider";
 
 // Updated to use canonical names (will be mapped from translations)
 // Must stay identical (character for character) to the backend enum in
@@ -27,10 +31,21 @@ const budgetOptions: BudgetOption[] = [
   "+15 000 DT"
 ];
 
+const CALCOM_LINK = import.meta.env.VITE_CALCOM_LINK as string | undefined;
+
 export function ContactPage() {
   const { t } = useTranslation();
+  const { cms } = useLandingCms();
   const location = useLocation();
   const [showSuccess, setShowSuccess] = useState(false);
+
+  // Initialise Cal.com embed namespace once
+  useEffect(() => {
+    if (!CALCOM_LINK) return;
+    getCalApi({ namespace: "discovery" }).then((cal) => {
+      cal("ui", { hideEventTypeDetails: false, layout: "month_view" });
+    });
+  }, []);
 
   const contactSchema = z.object({
     name: z.string().trim().min(2, t("contact.pleaseEnterName")),
@@ -87,15 +102,15 @@ export function ContactPage() {
             {t("nav.contact")}
           </p>
           <h1 className="mt-3 font-display text-4xl font-bold text-ink sm:text-5xl lg:text-6xl">
-            {t("contact.title")}
+            {cms("contact.title", t("contact.title"))}
           </h1>
           <p className="mt-5 text-base text-muted-foreground sm:text-lg">
-            {t("contact.subtitle")}
+            {cms("contact.subtitle", t("contact.subtitle"))}
           </p>
         </div>
       </section>
 
-      <section className="bg-background pb-24">
+      <section className="bg-background pb-12">
         <div className="container-page grid gap-8 lg:grid-cols-[1.4fr_1fr]">
           <form
             onSubmit={onSubmit}
@@ -202,24 +217,110 @@ export function ContactPage() {
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </button>
             <p className="mt-3 text-xs text-muted-foreground">
-              {t("contact.replyTime")}
+              {cms("contact.replyTime", t("contact.replyTime"))}
             </p>
           </form>
 
           <aside className="space-y-4">
             <InfoCard icon={Mail} title="Email">
-              <span>{t("contact.emailInfo")}</span>
+              <span>{cms("contact.email", t("contact.emailInfo"))}</span>
             </InfoCard>
-            <InfoCard icon={Calendar} title="Book a call">
+            {WHATSAPP_NUMBER && (
+              <InfoCard icon={Phone} title={t("contact.whatsappLabel")}>
+                <a
+                  href={`tel:${WHATSAPP_NUMBER}`}
+                  className="font-semibold text-ink hover:text-primary transition-colors"
+                >
+                  {WHATSAPP_NUMBER}
+                </a>
+                {" · "}
+                <a
+                  href={`https://wa.me/${WHATSAPP_NUMBER.replace(/\D/g, "")}?text=${encodeURIComponent(t("whatsapp.prefilledMessage"))}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-[#25D366] hover:underline"
+                >
+                  WhatsApp
+                </a>
+              </InfoCard>
+            )}
+            <InfoCard icon={Calendar} title={t("contact.bookCallTitle")}>
               {t("contact.bookCall")}
             </InfoCard>
-            <InfoCard icon={MapPin} title="Where we work">
-              {t("contact.whereWeWork")}
+            <InfoCard icon={MapPin} title={t("contact.whereWeWorkTitle")}>
+              {cms("contact.location", t("contact.whereWeWork"))}
             </InfoCard>
           </aside>
         </div>
       </section>
+
+      {/* ── Cal.com Booking Section ─────────────────────────────────────── */}
+      <CalBookingSection calLink={CALCOM_LINK} />
     </>
+  );
+}
+
+function CalBookingSection({ calLink }: { calLink: string | undefined }) {
+  const { t } = useTranslation();
+
+  const whyReasons: string[] = t("contact.booking.reasons", { returnObjects: true }) as string[];
+
+  return (
+    <section className="bg-surface-warm/40 pb-24 pt-10">
+      <div className="container-page">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+          {t("contact.booking.badge")}
+        </p>
+        <h2 className="mt-2 font-display text-3xl font-bold text-ink sm:text-4xl">
+          {t("contact.booking.heading")}
+        </h2>
+
+        <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_1.6fr] lg:items-start">
+          {/* Why block */}
+          <div className="space-y-5">
+            <h3 className="font-display text-xl font-semibold text-ink">
+              {t("contact.booking.whyTitle")}
+            </h3>
+            <ul className="space-y-3">
+              {Array.isArray(whyReasons) && whyReasons.map((reason) => (
+                <li key={reason} className="flex items-start gap-3 text-sm text-muted-foreground">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  {reason}
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-muted-foreground pt-2 border-t border-border">
+              {t("contact.booking.footer")}
+            </p>
+          </div>
+
+          {/* Cal embed or fallback */}
+          {calLink ? (
+            <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft">
+              <Cal
+                namespace="discovery"
+                calLink={calLink}
+                style={{ width: "100%", height: "600px", overflow: "auto" }}
+                config={{ layout: "month_view" }}
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-border bg-card p-12 text-center shadow-soft">
+              <Calendar className="h-10 w-10 text-primary/40" />
+              <p className="text-sm text-muted-foreground">
+                {t("contact.booking.fallback")}{" "}
+                <a
+                  href="mailto:hello@secritou.com"
+                  className="font-semibold text-primary underline underline-offset-2"
+                >
+                  hello@secritou.com
+                </a>
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 

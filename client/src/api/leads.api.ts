@@ -34,8 +34,8 @@ export const leadsApi = {
     return response.data.data;
   },
 
-  updateLeadStatus: async (id: string, status: Lead["status"]): Promise<Lead> => {
-    const response = await apiClient.patch<ApiResponse<Lead>>(`/leads/${id}`, { status });
+  updateLeadStatus: async (id: string, status: Lead["status"], lostReason?: string): Promise<Lead> => {
+    const response = await apiClient.put<ApiResponse<Lead>>(`/leads/${id}`, { status, ...(lostReason ? { lostReason } : {}) });
     return response.data.data;
   },
 

@@ -11,3 +11,15 @@ export const chatSchema = z.object({
     history: z.array(chatMessage).max(20).default([]),
   }),
 });
+
+export const generateBriefSchema = z.object({
+  body: z.object({
+    context: z.record(z.any()),
+  }),
+});
+
+export const generateTasksSchema = z.object({
+  body: z.object({
+    context: z.record(z.any()),
+  }),
+});

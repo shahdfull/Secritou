@@ -19,7 +19,8 @@ export function LoginPage() {
   const { mutate: login, isPending } = useLogin();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const redirectTo = searchParams.get("redirect");
+  const raw = searchParams.get("redirect");
+  const redirectTo = raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : null;
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
@@ -28,7 +29,7 @@ export function LoginPage() {
   const onSubmit = (data: LoginForm) => {
     login(data, {
       onSuccess: (response) =>
-        navigate(redirectTo || getRedirectPathForRole(response.user.role)),
+        navigate(redirectTo ?? getRedirectPathForRole(response.user.role)),
     });
   };
 

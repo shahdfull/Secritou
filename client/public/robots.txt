@@ -1,6 +1,20 @@
 User-agent: *
 Allow: /
-Disallow: /app/
-Disallow: /login
 
-Sitemap: https://secritou.com/sitemap.xml
+# Private application areas — never index
+Disallow: /admin/
+Disallow: /admin
+Disallow: /app/
+Disallow: /app
+Disallow: /client/
+Disallow: /client
+Disallow: /freelancer/
+Disallow: /freelancer
+
+# Authentication pages
+Disallow: /login
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /change-password
+
+Sitemap: https://secritou.tn/sitemap.xml

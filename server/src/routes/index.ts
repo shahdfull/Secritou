@@ -28,6 +28,9 @@ import aiConversationRoutes from "./aiConversation.routes.js";
 import customQuestionRoutes from "./customQuestion.routes.js";
 import permissionProfileRoutes from "./permissionProfile.routes.js";
 import managerPermissionRoutes from "./managerPermission.routes.js";
+import ratingRoutes from "./rating.routes.js";
+import portfolioRoutes from "./portfolio.routes.js";
+import { siteContentPublicRoutes, siteContentAdminRoutes } from "./siteContent.routes.js";
 
 export const apiRoutes = Router();
 
@@ -180,3 +183,13 @@ apiRoutes.use("/custom-questions", customQuestionRoutes);
 // Permission routes
 apiRoutes.use("/permission-profiles", permissionProfileRoutes);
 apiRoutes.use("/manager-permissions", managerPermissionRoutes);
+
+// Rating routes
+apiRoutes.use("/ratings", ratingRoutes);
+
+// Portfolio routes (freelancer-only)
+apiRoutes.use("/portfolio", portfolioRoutes);
+
+// Site Content CMS routes (public read + admin write)
+apiRoutes.use("/site-content", siteContentPublicRoutes);
+apiRoutes.use("/admin/site-content", siteContentAdminRoutes);

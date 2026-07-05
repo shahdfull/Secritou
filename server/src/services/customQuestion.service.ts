@@ -40,7 +40,7 @@ class CustomQuestionService {
     try {
       const admins = await userRepository.findAdmins();
       if (admins.length > 0) {
-        await notificationRepository.createMany(admins.map((admin) => ({ userId: admin.id, title: "Nouvelle question", message: `${user.name ?? "Un client"} a posé une question : "${input.subject}"` })));
+        await notificationRepository.createMany(admins.map((admin) => ({ userId: admin.id, title: "Nouvelle question", message: `${user.name ?? "Un client"} a posé une question : "${input.subject}"`, link: `/app/questions/${question.id}` })));
       }
     } catch {
       // notifications are best-effort
@@ -104,7 +104,7 @@ class CustomQuestionService {
       const answered = customQuestionAnsweredTemplate({ userName: question.user.name ?? "Client", subject: question.subject, adminReply: content, portalUrl });
       void enqueueEmail({ to: question.user.email, subject: answered.subject, html: answered.html });
       try {
-        await notificationRepository.create({ userId: question.userId, title: "Réponse à votre question", message: `Nous avons répondu à votre question : "${question.subject}"` });
+        await notificationRepository.create({ userId: question.userId, title: "Réponse à votre question", message: `Nous avons répondu à votre question : "${question.subject}"`, link: `/client/questions/${questionId}` });
       } catch {
         // best effort
       }

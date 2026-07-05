@@ -34,7 +34,14 @@ export const taskService = {
     await assertProjectInScope(data.projectId, scope);
     const task = await taskRepository.create(data);
     if (data.assigneeId) {
-      await enqueueNotification({ userId: data.assigneeId, title: "Nouvelle tâche assignée", message: `La tâche "${task.title}" vous a été assignée.` });
+      await enqueueNotification({
+        userId: data.assigneeId,
+        title: "Nouvelle tâche assignée",
+        message: `La tâche "${task.title}" vous a été assignée.`,
+        type: "TASK_ASSIGNED",
+        entityId: task.id,
+        link: `/app/tasks?taskId=${task.id}`,
+      });
     }
     const { prismaRead: prisma } = await import("../config/prisma.js");
     const project = await prisma.project.findUnique({ where: { id: data.projectId }, select: { id: true, clientId: true } });
@@ -68,7 +75,14 @@ export const taskService = {
 
     const updated = await taskRepository.update(id, data);
     if (data.assigneeId && data.assigneeId !== task.assigneeId) {
-      await enqueueNotification({ userId: data.assigneeId, title: "Tâche assignée", message: `La tâche "${updated.title}" vous a été assignée.` });
+      await enqueueNotification({
+        userId: data.assigneeId,
+        title: "Tâche assignée",
+        message: `La tâche "${updated.title}" vous a été assignée.`,
+        type: "TASK_ASSIGNED",
+        entityId: updated.id,
+        link: `/app/tasks?taskId=${updated.id}`,
+      });
     }
     const { prismaRead: prisma } = await import("../config/prisma.js");
     const project = await prisma.project.findUnique({ where: { id: task.projectId }, select: { id: true, clientId: true } });

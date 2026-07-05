@@ -25,7 +25,7 @@ const router = express.Router();
 router.use(authenticate);
 
 // Protected routes
-router.get("/", authorize("ADMIN", "MANAGER", "CLIENT"), requirePermission("documents", "read"), getDocuments);
+router.get("/", authorize("ADMIN", "MANAGER", "CLIENT", "FREELANCER"), requirePermission("documents", "read"), getDocuments);
 router.get("/:id", requirePermission("documents", "read"), validate(documentIdParamSchema), getDocumentById);
 router.post(
   "/",

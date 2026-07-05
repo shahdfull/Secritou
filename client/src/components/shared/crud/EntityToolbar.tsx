@@ -1,12 +1,6 @@
 import { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Edit, Trash2, Eye } from "lucide-react";
+import { Edit, Trash2, Eye } from "lucide-react";
 
 interface EntityToolbarProps {
   onView?: () => void;
@@ -30,33 +24,23 @@ export function EntityToolbar({
   children,
 }: EntityToolbarProps) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <MoreHorizontal className="h-4 w-4" />
+    <div className="flex items-center gap-1">
+      {onView && (
+        <Button variant="ghost" size="icon" className="h-7 w-7" title={viewLabel} onClick={onView}>
+          <Eye className="h-3.5 w-3.5" />
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {onView && (
-          <DropdownMenuItem onClick={onView}>
-            <Eye className="h-4 w-4 mr-2" />
-            {viewLabel}
-          </DropdownMenuItem>
-        )}
-        {onEdit && (
-          <DropdownMenuItem onClick={onEdit}>
-            <Edit className="h-4 w-4 mr-2" />
-            {editLabel}
-          </DropdownMenuItem>
-        )}
-        {children}
-        {onDelete && (
-          <DropdownMenuItem onClick={onDelete} disabled={isDeleting} className="text-red-600">
-            <Trash2 className="h-4 w-4 mr-2" />
-            {deleteLabel}
-          </DropdownMenuItem>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      )}
+      {onEdit && (
+        <Button variant="ghost" size="icon" className="h-7 w-7" title={editLabel} onClick={onEdit}>
+          <Edit className="h-3.5 w-3.5" />
+        </Button>
+      )}
+      {children}
+      {onDelete && (
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={deleteLabel} onClick={onDelete} disabled={isDeleting}>
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      )}
+    </div>
   );
 }

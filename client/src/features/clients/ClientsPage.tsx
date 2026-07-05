@@ -7,7 +7,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  MoreHorizontal,
   Search,
   Plus,
   Edit,
@@ -15,7 +14,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { memo, useCallback, useDeferredValue, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -44,12 +43,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -57,6 +50,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTranslation } from "react-i18next";
+import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialog";
+import { toast } from "sonner";
 import { useListParams } from "@/hooks/useListParams";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 
@@ -73,13 +68,13 @@ type UpdateClientForm = z.infer<typeof updateClientSchema>;
 
 export function ClientsPage() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [includeArchived, setIncludeArchived] = useState(false);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
 
   const { page, pageSize, orderBy, orderDir, params, setPage, updateParams } = useListParams(12);
   const { data: clientsResult, isLoading: clientsLoading } = useClients({ ...params, includeArchived });
@@ -142,14 +137,28 @@ export function ClientsPage() {
   }, [editingClient, updateClient]);
 
   const handleDelete = useCallback((client: Client) => {
-    if (confirm(`Are you sure you want to delete ${client.name}?`)) {
-      deleteClient(client.id);
-    }
-  }, [deleteClient]);
+    setDeleteTarget(client);
+  }, []);
 
-  const handleOpenClient = useCallback((id: string) => {
-    navigate(`/app/clients/${id}`);
-  }, [navigate]);
+  const handleConfirmDelete = useCallback(() => {
+    if (!deleteTarget) return;
+    deleteClient(deleteTarget.id, {
+      onSuccess: () => setDeleteTarget(null),
+      onError: (error: any) => {
+        const code = error?.response?.data?.error?.code;
+        if (code === "CLIENT_HAS_PROJECTS") {
+          toast.error("Ce client a des projets actifs et ne peut pas être supprimé.");
+        } else if (code === "CLIENT_HAS_INVOICES") {
+          toast.error("Ce client a des factures et ne peut pas être supprimé.");
+        } else {
+          toast.error("Impossible de supprimer ce client.");
+        }
+        setDeleteTarget(null);
+      },
+    });
+  }, [deleteTarget, deleteClient]);
+
+
 
   if (clientsLoading) {
     return (
@@ -270,43 +279,28 @@ export function ClientsPage() {
         {filteredClients.map((client) => (
           <Card
             key={client.id}
-            className="hover:shadow-md transition-shadow cursor-pointer"
-            onClick={() => handleOpenClient(client.id)}
+            className="hover:shadow-md transition-shadow"
           >
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div>
-                  <CardTitle className="text-lg">{client.name}</CardTitle>
+                  <CardTitle className="text-lg">
+                    <Link
+                      to={`/app/clients/${client.id}`}
+                      className="hover:underline"
+                    >
+                      {client.name}
+                    </Link>
+                  </CardTitle>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(client);
-                      }}
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      {t("common.edit")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(client);
-                      }}
-                      disabled={isDeleting}
-                      className="text-red-600"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      {t("common.delete")}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" title={t("common.edit")} onClick={(e) => { e.stopPropagation(); handleEdit(client); }}>
+                    <Edit className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("common.delete")} onClick={(e) => { e.stopPropagation(); handleDelete(client); }} disabled={isDeleting}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -387,6 +381,15 @@ export function ClientsPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onConfirm={handleConfirmDelete}
+        title={`Supprimer "${deleteTarget?.name}" ?`}
+        description="Cette action est irréversible. Le client et toutes ses données associées seront définitivement supprimés."
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

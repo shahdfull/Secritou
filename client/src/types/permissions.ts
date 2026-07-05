@@ -8,6 +8,8 @@ export const MODULES = [
   "analytics",
   "approvals",
   "documents",
+  "proposals",
+  "service-requests",
 ] as const;
 
 export type Module = (typeof MODULES)[number];

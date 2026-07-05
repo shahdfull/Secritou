@@ -39,15 +39,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
-  MoreHorizontal,
   Search,
   Filter,
   Plus,
@@ -59,6 +54,7 @@ import {
   KanbanSquare,
   Eye,
   RefreshCw,
+  RotateCcw,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -87,6 +83,9 @@ import { useDebouncedValue } from "@/hooks/shared/useDebouncedValue";
 import { useCrudDialogState } from "@/hooks/shared/useCrudDialogState";
 import { useTranslation } from "react-i18next";
 import { usePermission } from "@/hooks/usePermission";
+import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialog";
+import { ConfirmActionDialog } from "@/components/shared/crud/ConfirmActionDialog";
+import { toast } from "sonner";
 
 const STATUS_OPTIONS = ["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "WON", "LOST"] as const;
 const SOURCE_OPTIONS = ["Site web", "LinkedIn", "Recommandation", "Email", "Appel entrant", "Autre"] as const;
@@ -100,6 +99,9 @@ export function LeadsPage() {
   const [view, setView] = useState<"list" | "kanban">("list");
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
   const [includeArchived, setIncludeArchived] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null);
+  const [convertTarget, setConvertTarget] = useState<Lead | null>(null);
+  const [reopenTarget, setReopenTarget] = useState<Lead | null>(null);
 
   const { page, pageSize, orderBy, orderDir, search, params, setPage, setSearch, setSort, updateParams } = useListParams(10);
   const debouncedSearch = useDebouncedValue(searchInput, 300);
@@ -186,22 +188,55 @@ export function LeadsPage() {
   }, [editingLead, updateLead, closeEditDialog]);
 
   const handleDelete = useCallback((lead: Lead) => {
-    if (confirm(`Are you sure you want to delete ${lead.name}?`)) {
-      deleteLead(lead.id);
-    }
-  }, [deleteLead]);
+    setDeleteTarget(lead);
+  }, []);
+
+  const handleConfirmDelete = useCallback(() => {
+    if (!deleteTarget) return;
+    deleteLead(deleteTarget.id, {
+      onSuccess: () => setDeleteTarget(null),
+      onError: () => {
+        toast.error("Impossible de supprimer ce lead.");
+        setDeleteTarget(null);
+      },
+    });
+  }, [deleteTarget, deleteLead]);
 
   const handleConvert = useCallback((lead: Lead) => {
-    if (confirm(`Are you sure you want to convert ${lead.name} to a client?`)) {
-      convertLead(lead.id);
-    }
-  }, [convertLead]);
+    setConvertTarget(lead);
+  }, []);
+
+  const handleConfirmConvert = useCallback(() => {
+    if (!convertTarget) return;
+    convertLead(convertTarget.id, {
+      onSuccess: () => {
+        toast.success(`${convertTarget.name} a été converti en client.`);
+        setConvertTarget(null);
+      },
+      onError: () => {
+        toast.error("Impossible de convertir ce lead.");
+        setConvertTarget(null);
+      },
+    });
+  }, [convertTarget, convertLead]);
 
   const handleReopen = useCallback((lead: Lead) => {
-    if (confirm(`Are you sure you want to reopen ${lead.name}?`)) {
-      reopenLead(lead.id);
-    }
-  }, [reopenLead]);
+    setReopenTarget(lead);
+  }, []);
+
+  const handleConfirmReopen = useCallback(() => {
+    if (!reopenTarget) return;
+    reopenLead(reopenTarget.id, {
+      onSuccess: () => {
+        toast.success(`${reopenTarget.name} a été rouvert.`);
+        setReopenTarget(null);
+      },
+      onError: () => {
+        toast.error("Impossible de rouvrir ce lead.");
+        setReopenTarget(null);
+      },
+    });
+  }, [reopenTarget, reopenLead]);
 
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
@@ -516,44 +551,25 @@ export function LeadsPage() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" title={t('common.details')} onClick={() => setDetailLead(lead)}>
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" title={t('common.edit')} onClick={() => handleEdit(lead)}>
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" title={t('leadsPage.convertToClient')} onClick={() => handleConvert(lead)} disabled={isConverting || lead.status !== "WON" || !!lead.convertedClient}>
+                          <UserCheck className="h-3.5 w-3.5" />
+                        </Button>
+                        {lead.status === "LOST" && !lead.convertedClient && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title={t('leadsPage.reopenLead')} onClick={() => handleReopen(lead)} disabled={isReopening}>
+                            <RefreshCw className="h-3.5 w-3.5" />
                           </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setDetailLead(lead)}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            {t('common.details')}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEdit(lead)}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            {t('common.edit')}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleConvert(lead)} 
-                            disabled={isConverting || lead.status !== "WON" || !!lead.convertedClientId}
-                          >
-                            <UserCheck className="h-4 w-4 mr-2" />
-                            {t('leadsPage.convertToClient')}
-                          </DropdownMenuItem>
-                          {lead.status === "LOST" && !lead.convertedClientId && (
-                            <DropdownMenuItem onClick={() => handleReopen(lead)} disabled={isReopening}>
-                              <RefreshCw className="h-4 w-4 mr-2" />
-                              {t('leadsPage.reopenLead')}
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem 
-                            onClick={() => handleDelete(lead)} 
-                            disabled={isDeleting || !!lead.convertedClientId} 
-                            className="text-red-600"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            {t('common.delete')}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                        )}
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t('common.delete')} onClick={() => handleDelete(lead)} disabled={isDeleting || !!lead.convertedClient}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -701,6 +717,39 @@ export function LeadsPage() {
         onOpenChange={(open) => {
           if (!open) setDetailLead(null);
         }}
+      />
+
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onConfirm={handleConfirmDelete}
+        title={`Supprimer "${deleteTarget?.name}" ?`}
+        description="Cette action est irréversible. Le lead sera définitivement supprimé."
+        isDeleting={isDeleting}
+      />
+
+      <ConfirmActionDialog
+        open={!!convertTarget}
+        onOpenChange={(open) => { if (!open) setConvertTarget(null); }}
+        onConfirm={handleConfirmConvert}
+        title={`Convertir "${convertTarget?.name}" en client ?`}
+        description="Ceci créera un nouveau client et déclenchera automatiquement un processus d'onboarding. Cette action ne peut pas être annulée."
+        isLoading={isConverting}
+        icon={UserCheck}
+        confirmLabel="Convertir"
+        variant="default"
+      />
+
+      <ConfirmActionDialog
+        open={!!reopenTarget}
+        onOpenChange={(open) => { if (!open) setReopenTarget(null); }}
+        onConfirm={handleConfirmReopen}
+        title={`Rouvrir "${reopenTarget?.name}" ?`}
+        description="Le lead repassera en statut actif et sera à nouveau visible dans le pipeline."
+        isLoading={isReopening}
+        icon={RotateCcw}
+        confirmLabel="Rouvrir"
+        variant="default"
       />
     </div>
   );

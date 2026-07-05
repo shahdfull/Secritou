@@ -48,10 +48,10 @@ export const aiConversationService = {
     return conv;
   },
 
-  async create(userId: string, firstMessage: string) {
+  async create(userId: string, firstMessage: string, persona?: string) {
     // Auto-generate title from the first message (truncate to 60 chars)
     const title = firstMessage.slice(0, 60) + (firstMessage.length > 60 ? "…" : "");
-    const conv = await aiConversationRepository.create(userId, title);
+    const conv = await aiConversationRepository.create(userId, title, persona);
 
     // Persist user message, call OpenAI, persist reply
     await aiConversationRepository.addMessage(conv.id, "USER", firstMessage);

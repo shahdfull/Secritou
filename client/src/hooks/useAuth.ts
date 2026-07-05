@@ -8,26 +8,41 @@ import i18n from "@/i18n";
 import { useEffect } from "react";
 
 // ============ BOOTSTRAP SESSION ============
-// Called once on app startup to restore session from localStorage/HTTP-only cookie
+// Called once on app startup to restore session from the HTTP-only refresh cookie.
+//
+// FIX: The previous implementation had two bugs:
+//
+// 1. `enabled: !bootstrapped && !accessToken` — because `bootstrapped` was
+//    persisted in localStorage, it was already `true` on every page reload,
+//    which caused the condition to be `false` immediately. The refresh query
+//    was therefore never fired, leaving `accessToken` as null in memory while
+//    `status` was still "authenticated" from localStorage — producing 401s on
+//    every protected API call.
+//
+// 2. `accessToken` was included in the `enabled` guard, but it is never
+//    persisted (by design), so it is always `null` on startup and should not
+//    be used as a skip signal here.
+//
+// Fix: `bootstrapped` is no longer persisted (see auth.store.ts), so it always
+// starts as `false`. The `enabled` condition now only checks `!bootstrapped`,
+// which correctly runs the refresh once per page load and never again.
 export function useBootstrapSession() {
-  const status = useAuthStore((state) => state.status);
   const bootstrapped = useAuthStore((state) => state.bootstrapped);
   const markBootstrapped = useAuthStore((state) => state.markBootstrapped);
-  const accessToken = useAuthStore((state) => state.accessToken);
 
   // Query to refresh session using HTTP-only cookie
   const query = useQuery({
     queryKey: ["auth.bootstrap"],
     queryFn: async () => {
-      // Try to refresh using HTTP-only cookie
       const data = await authApi.refresh();
       return data;
     },
-    // Only run if haven't bootstrapped yet and have no token in storage
-    enabled: !bootstrapped && !accessToken,
+    // FIX: only skip if already bootstrapped this session.
+    // `bootstrapped` is no longer persisted, so this is always false on first load.
+    enabled: !bootstrapped,
     retry: false,
     staleTime: Infinity, // Never stale, only runs once
-    gcTime: 0, // Don't keep in cache
+    gcTime: 0,           // Don't keep in cache
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -35,24 +50,21 @@ export function useBootstrapSession() {
 
   // Handle bootstrap completion
   useEffect(() => {
-    if (bootstrapped) return; // already done
+    if (bootstrapped) return; // already done this session
 
-    if (accessToken) {
-      // Token restored from localStorage, no need to refresh
-      markBootstrapped();
-    } else if (query.isSuccess && query.data) {
-      // Successfully refreshed session
+    if (query.isSuccess && query.data) {
+      // Successfully refreshed — store the new token and user
       useAuthStore.getState().setSession({
         user: query.data.user,
         accessToken: query.data.tokens.accessToken,
       });
       markBootstrapped();
     } else if (query.isError) {
-      // Failed to refresh, mark as unauthenticated
+      // Refresh cookie missing or expired — user must log in again
       useAuthStore.getState().setUnauthenticated();
       markBootstrapped();
     }
-  }, [query.isSuccess, query.isError, query.data, bootstrapped, markBootstrapped, accessToken]);
+  }, [query.isSuccess, query.isError, query.data, bootstrapped, markBootstrapped]);
 
   return query;
 }
@@ -63,7 +75,6 @@ export function useMe() {
   const user = useAuthStore((state) => state.user);
   const status = useAuthStore((state) => state.status);
 
-  // Return cached data from store
   return {
     user,
     status,
@@ -92,7 +103,7 @@ export function getRedirectPathForRole(role: string) {
     case "CLIENT":
       return "/client";
     case "FREELANCER":
-      return "/app/tasks";
+      return "/app/freelancer-dashboard";
     case "ADMIN":
     case "MANAGER":
     default:

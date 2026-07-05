@@ -10,8 +10,26 @@ import { prisma } from "../config/prisma.js";
 import { HttpError } from "../utils/httpError.js";
 import { clientSuccessService } from "./clientSuccess.service.js";
 import { creditNoteService } from "./creditNote.service.js";
+import type { ServiceScope } from "../utils/serviceScope.js";
 
 type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+// A MANAGER may only act on invoices whose project belongs to their service.
+// Throws 404 (not 403) to avoid leaking existence of out-of-scope invoices.
+async function assertInvoiceInScope(
+  invoice: { projectId?: string | null } | null,
+  scope?: ServiceScope
+) {
+  if (!invoice) throw new HttpError(404, "Invoice not found");
+  if (!scope || scope.userRole !== "MANAGER") return;
+  if (!invoice.projectId) throw new HttpError(404, "Invoice not found");
+  const { prismaRead } = await import("../config/prisma.js");
+  const project = await prismaRead.project.findFirst({
+    where: { id: invoice.projectId, serviceId: scope.userServiceId ?? "__none__" },
+    select: { id: true },
+  });
+  if (!project) throw new HttpError(404, "Invoice not found");
+}
 
 /**
  * Line items may only be added/changed/removed while the invoice is a DRAFT.
@@ -65,8 +83,10 @@ export const invoiceService = {
     return invoiceRepository.findAll(options);
   },
 
-  async getById(id: string) {
-    return invoiceRepository.findById(id);
+  async getById(id: string, scope?: ServiceScope) {
+    const invoice = await invoiceRepository.findById(id);
+    await assertInvoiceInScope(invoice, scope);
+    return invoice;
   },
 
   async create(data: { number?: string; title: string; description?: string; amount: number; currency?: string; dueDate?: Date; pdfUrl?: string; clientId: string; projectId?: string; proposalId?: string }) {
@@ -99,8 +119,9 @@ export const invoiceService = {
     return invoiceRepository.update(id, { status: "CANCELLED" });
   },
 
-  async send(id: string) {
+  async send(id: string, scope?: ServiceScope) {
     const invoice = await invoiceRepository.findById(id);
+    await assertInvoiceInScope(invoice, scope);
     const updated = await invoiceRepository.update(id, { status: "SENT", sentAt: new Date() });
 
     if (invoice) {
@@ -126,7 +147,9 @@ export const invoiceService = {
     return updated;
   },
 
-  async addPayment(id: string, data: { amount: number; method?: string; reference?: string; paidAt?: Date }, recordedById?: string) {
+  async addPayment(id: string, data: { amount: number; method?: string; reference?: string; paidAt?: Date }, recordedById?: string, scope?: ServiceScope) {
+    const invoiceForScope = await invoiceRepository.findById(id);
+    await assertInvoiceInScope(invoiceForScope, scope);
     const result = await prisma.$transaction(async (tx) => {
       const invoice = await tx.invoice.findUnique({ where: { id }, select: { id: true, clientId: true, amount: true, amountPaid: true, status: true, currency: true } });
       if (!invoice) throw new Error("Invoice not found");
@@ -172,8 +195,9 @@ export const invoiceService = {
     return result;
   },
 
-  async addReminder(id: string, type: string) {
+  async addReminder(id: string, type: string, scope?: ServiceScope) {
     const invoice = await invoiceRepository.findById(id);
+    await assertInvoiceInScope(invoice, scope);
     const reminder = await invoiceRepository.addReminder(id, { type, sentAt: new Date() });
 
     if (invoice) {
@@ -191,7 +215,9 @@ export const invoiceService = {
     return reminder;
   },
 
-  async addItem(invoiceId: string, data: { description: string; quantity: number; unitPrice: number }) {
+  async addItem(invoiceId: string, data: { description: string; quantity: number; unitPrice: number }, scope?: ServiceScope) {
+    const invoiceForScope = await invoiceRepository.findById(invoiceId);
+    await assertInvoiceInScope(invoiceForScope, scope);
     const total = data.quantity * data.unitPrice;
     return prisma.$transaction(async (tx) => {
       const invoice = await tx.invoice.findUniqueOrThrow({ where: { id: invoiceId }, select: { status: true } });
@@ -202,9 +228,10 @@ export const invoiceService = {
     });
   },
 
-  async updateItem(id: string, data: { description?: string; quantity?: number; unitPrice?: number }) {
+  async updateItem(id: string, data: { description?: string; quantity?: number; unitPrice?: number }, scope?: ServiceScope) {
     return prisma.$transaction(async (tx) => {
-      const invoiceItem = await tx.invoiceItem.findUnique({ where: { id }, include: { invoice: { select: { status: true } } } });
+      const invoiceItem = await tx.invoiceItem.findUnique({ where: { id }, include: { invoice: { select: { status: true, projectId: true } } } });
+      if (invoiceItem) await assertInvoiceInScope(invoiceItem.invoice, scope);
       if (!invoiceItem) throw new Error("Item not found");
       assertInvoiceDraft(invoiceItem.invoice.status);
       const updatedQuantity = data.quantity ?? invoiceItem.quantity;
@@ -216,14 +243,63 @@ export const invoiceService = {
     });
   },
 
-  async deleteItem(id: string) {
+  async deleteItem(id: string, scope?: ServiceScope) {
     return prisma.$transaction(async (tx) => {
-      const existing = await tx.invoiceItem.findUnique({ where: { id }, include: { invoice: { select: { status: true } } } });
+      const existing = await tx.invoiceItem.findUnique({ where: { id }, include: { invoice: { select: { status: true, projectId: true } } } });
+      if (existing) await assertInvoiceInScope(existing.invoice, scope);
       if (!existing) throw new HttpError(404, "Item not found");
       assertInvoiceDraft(existing.invoice.status);
       const item = await tx.invoiceItem.delete({ where: { id } });
       await recomputeInvoiceAmount(tx, item.invoiceId);
       return item;
+    });
+  },
+
+  async addItemsFromTimeEntries(
+    invoiceId: string,
+    projectId: string,
+    defaultHourlyRate: number,
+    scope?: ServiceScope
+  ) {
+    const invoice = await invoiceRepository.findById(invoiceId);
+    await assertInvoiceInScope(invoice, scope);
+    if (!invoice) throw new HttpError(404, "Invoice not found");
+    assertInvoiceDraft(invoice.status);
+    if (invoice.projectId !== projectId) throw new HttpError(422, "Invoice does not belong to the specified project", "INVOICE_PROJECT_MISMATCH");
+
+    const entries = await prisma.timeEntry.findMany({
+      where: { projectId, billed: false },
+      include: { user: { include: { freelancerProfile: { select: { hourlyRate: true } } } } },
+    });
+
+    if (entries.length === 0) throw new HttpError(422, "No unbilled time entries found for this project", "NO_UNBILLED_ENTRIES");
+
+    return prisma.$transaction(async (tx) => {
+      const createdItems = [];
+
+      for (const entry of entries) {
+        const rate = entry.user.freelancerProfile?.hourlyRate
+          ? Number(entry.user.freelancerProfile.hourlyRate)
+          : defaultHourlyRate;
+        const hours = entry.minutes / 60;
+        const total = Math.round(hours * rate * 100) / 100;
+        const description = entry.description
+          ? `${entry.user.name ?? entry.userId} – ${entry.description} (${entry.minutes} min)`
+          : `${entry.user.name ?? entry.userId} – ${entry.minutes} min @ ${rate}/h`;
+
+        const item = await tx.invoiceItem.create({
+          data: { invoiceId, description, quantity: 1, unitPrice: total, total },
+        });
+        createdItems.push(item);
+      }
+
+      await tx.timeEntry.updateMany({
+        where: { id: { in: entries.map((e) => e.id) } },
+        data: { billed: true, billedInvoiceId: invoiceId },
+      });
+
+      await recomputeInvoiceAmount(tx, invoiceId);
+      return { items: createdItems, billedCount: entries.length };
     });
   },
 

@@ -9,6 +9,8 @@ import { clientBriefSelect } from "../utils/prismaSelects.js";
 type ProjectWithProgress = Project & {
   client?: { id: string; name: string; email: string | null; phone: string | null } | null;
   progress: number;
+  taskDone: number;
+  taskTotal: number;
 };
 
 const SORTABLE_FIELDS = ["name", "status", "createdAt"];
@@ -64,10 +66,10 @@ export const projectRepository = {
     ]);
 
     const progressMap = await getProgressByProjectIds(projects.map((p) => p.id));
-    const data = projects.map((project) => ({
-      ...project,
-      progress: progressMap.get(project.id) ?? 0,
-    }));
+    const data = projects.map((project) => {
+      const pd = progressMap.get(project.id) ?? { progress: 0, taskDone: 0, taskTotal: 0 };
+      return { ...project, ...pd };
+    });
 
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
@@ -96,7 +98,8 @@ export const projectRepository = {
     }
 
     if (!project) return null;
-    return { ...project, progress: await getProgressForProject(project.id) };
+    const pd = await getProgressForProject(project.id);
+    return { ...project, ...pd };
   },
 
   async findByIdAdmin(id: string) {

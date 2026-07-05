@@ -1,31 +1,39 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Secritou helps SMEs, entrepreneurs and creators organize, digitize and grow through strategy, technology, marketing and data-driven decisions."
+      content="Secritou, agence digitale en Tunisie : stratégie, technologie, marketing et IA pour PME, startups et créateurs. Tableau de bord KPI, site e-commerce, automatisation."
     />
     <meta name="robots" content="index,follow" />
-    <link rel="canonical" href="https://secritou.com" />
+    <link rel="canonical" href="https://secritou.tn" />
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/secritou-logo.png" />
+    <link rel="apple-touch-icon" href="/secritou-logo.png" />
+    <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Secritou" />
-    <meta property="og:title" content="Secritou - Growth & Digital Transformation Platform" />
+    <meta property="og:title" content="Secritou — Agence digitale Tunisie | Croissance & Transformation" />
     <meta
       property="og:description"
-      content="Secritou helps SMEs, entrepreneurs and creators organize, digitize and grow through strategy, technology, marketing and data-driven decisions."
+      content="Secritou, agence digitale en Tunisie : stratégie, technologie, marketing et IA pour PME, startups et créateurs. Tableau de bord KPI, site e-commerce, automatisation."
     />
-    <meta property="og:url" content="https://secritou.com" />
-    <meta property="og:image" content="https://secritou.com/secritou-logo.png" />
+    <meta property="og:url" content="https://secritou.tn" />
+    <meta property="og:image" content="https://secritou.tn/secritou-og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="fr_TN" />
+    <!-- Twitter / X card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Secritou - Growth & Digital Transformation Platform" />
+    <meta name="twitter:title" content="Secritou — Agence digitale Tunisie | Croissance & Transformation" />
     <meta
       name="twitter:description"
-      content="Secritou helps SMEs, entrepreneurs and creators organize, digitize and grow through strategy, technology, marketing and data-driven decisions."
+      content="Secritou, agence digitale en Tunisie : stratégie, technologie, marketing et IA pour PME, startups et créateurs."
     />
-    <meta name="twitter:image" content="https://secritou.com/secritou-logo.png" />
-    <title>Secritou - Growth & Digital Transformation Platform</title>
+    <meta name="twitter:image" content="https://secritou.tn/secritou-og.png" />
+    <title>Secritou — Agence digitale Tunisie | Croissance & Transformation</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -33,10 +41,13 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
     />
     
-    <!-- Google Analytics -->
+    <!-- Google Analytics 4 -->
     <script>
-      const gaId = '%VITE_GA_ID%';
-      if (gaId && gaId !== 'G-XXXXXXXXXX') {
+      // Prefer VITE_GA4_ID; fall back to legacy VITE_GA_ID for backward compatibility.
+      const ga4Id = '%VITE_GA4_ID%';
+      const legacyGaId = '%VITE_GA_ID%';
+      const gaId = (ga4Id && ga4Id !== 'G-XXXXXXXXXX' && ga4Id !== '%VITE_GA4_ID' + '%') ? ga4Id : legacyGaId;
+      if (gaId && gaId !== 'G-XXXXXXXXXX' && gaId.indexOf('%VITE_') === -1) {
         const script = document.createElement('script');
         script.async = true;
         script.src = 'https://www.googletagmanager.com/gtag/js?id=' + gaId;

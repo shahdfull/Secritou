@@ -41,9 +41,9 @@ export const serviceRequestService = {
     const request = await serviceRequestRepository.create({ ...data, type: data.type ?? "NEW_PROJECT" });
 
     const admins = await userRepository.findAdmins();
-    await notificationRepository.createMany(admins.map((admin) => ({ userId: admin.id, title: "Nouvelle demande de service", message: `Une nouvelle demande de service "${data.title}" a été soumise.` })));
+    await notificationRepository.createMany(admins.map((admin) => ({ userId: admin.id, title: "Nouvelle demande de service", message: `Une nouvelle demande de service "${data.title}" a été soumise.`, link: "/app/commercial?tab=service-requests" })));
 
-    const dashboardUrl = `${env.FRONTEND_URL}/app/service-requests`;
+    const dashboardUrl = `${env.FRONTEND_URL}/app/commercial?tab=service-requests`;
     for (const admin of admins) {
       const { subject, html } = serviceRequestReceivedTemplate(admin.name ?? "Admin", "un client", data.title, dashboardUrl);
       void enqueueEmail({ to: admin.email, subject, html });
@@ -76,7 +76,7 @@ export const serviceRequestService = {
 
     if (data.status && data.status !== current.status) {
       const clientUsers = await userRepository.findByClientId(current.clientId);
-      await notificationRepository.createMany(clientUsers.map((user) => ({ userId: user.id, title: "Mise à jour de votre demande", message: `La demande "${current.title}" est maintenant : ${data.status}` })));
+      await notificationRepository.createMany(clientUsers.map((user) => ({ userId: user.id, title: "Mise à jour de votre demande", message: `La demande "${current.title}" est maintenant : ${data.status}`, link: "/client/requests" })));
       for (const user of clientUsers) {
         const { subject, html } = serviceRequestStatusTemplate(user.name ?? "Client", current.title, data.status);
         void enqueueEmail({ to: user.email, subject, html });
@@ -104,7 +104,7 @@ export const serviceRequestService = {
 
     if (!isInternal) {
       const clientUsers = await userRepository.findByClientId(req.clientId);
-      await notificationRepository.createMany(clientUsers.map((user) => ({ userId: user.id, title: "Nouveau message sur votre demande", message: `Un message a été ajouté à la demande "${req.title}"` })));
+      await notificationRepository.createMany(clientUsers.map((user) => ({ userId: user.id, title: "Nouveau message sur votre demande", message: `Un message a été ajouté à la demande "${req.title}"`, link: "/client/requests" })));
     }
 
     return comment;

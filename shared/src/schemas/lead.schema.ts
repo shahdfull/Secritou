@@ -8,6 +8,7 @@ export const leadBaseSchema = z.object({
   source: z.string().optional(),
   status: z.enum(["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "WON", "LOST"]).default("NEW"),
   notes: z.string().optional(),
+  lostReason: z.string().max(500).optional(),
 });
 
 // Client-side schemas

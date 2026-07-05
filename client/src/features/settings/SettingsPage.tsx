@@ -1,4 +1,5 @@
 import React, { Suspense, lazy, useCallback, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@/store/auth.store";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -26,6 +27,7 @@ import {
   Loader2,
   Palette,
   Image as ImageIcon,
+  Globe,
 } from "lucide-react";
 import i18n from "@/i18n";
 import { toast } from "sonner";
@@ -36,14 +38,22 @@ const SettingsUsersTab = lazy(() =>
 const SettingsJoinRequestsTab = lazy(() =>
   import("./tabs/SettingsJoinRequestsTab").then((m) => ({ default: m.SettingsJoinRequestsTab }))
 );
+const SettingsSiteContentTab = lazy(() =>
+  import("./tabs/SettingsSiteContentTab").then((m) => ({ default: m.SettingsSiteContentTab }))
+);
 import { SettingsProfileTab } from "./tabs/SettingsProfileTab";
 import { SettingsAppearanceTab } from "./tabs/SettingsAppearanceTab";
+const FreelancerProfileTab = lazy(() =>
+  import("./tabs/FreelancerProfileTab").then((m) => ({ default: m.FreelancerProfileTab }))
+);
 
 export function SettingsPage() {
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const { theme, setTheme } = useTheme();
   const [lang, setLang] = useState(i18n.language);
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
 
   // Users state
   const { data: users, isLoading: loadingUsers, isError: usersError } = useUsers();
@@ -64,6 +74,7 @@ export function SettingsPage() {
   }, []);
 
   const isAdmin = user?.role === "ADMIN";
+  const isFreelancer = user?.role === "FREELANCER";
   const currentUserId = user?.id ?? "";
 
   return (
@@ -73,14 +84,21 @@ export function SettingsPage() {
         <p className="text-muted-foreground">{t("settings.description")}</p>
       </div>
 
-      <Tabs defaultValue="profile">
-        <TabsList className="grid w-full grid-cols-3 md:grid-cols-4">
+      <Tabs defaultValue={tabParam ?? "profile"}>
+        <TabsList className={`grid w-full ${isAdmin ? "grid-cols-3 md:grid-cols-5" : isFreelancer ? "grid-cols-3" : "grid-cols-2"}`}>
           <TabsTrigger value="profile">{t("settingsTabs.profile")}</TabsTrigger>
           {isAdmin && (
             <>
               <TabsTrigger value="users">{t("settingsTabs.users")}</TabsTrigger>
               <TabsTrigger value="requests">{t("settingsTabs.requests")}</TabsTrigger>
+              <TabsTrigger value="site-content" className="gap-1.5">
+                <Globe className="h-3.5 w-3.5" />
+                Site vitrine
+              </TabsTrigger>
             </>
+          )}
+          {isFreelancer && (
+            <TabsTrigger value="freelancer-profile">Mon profil</TabsTrigger>
           )}
           <TabsTrigger value="appearance">{t("settingsTabs.appearance")}</TabsTrigger>
         </TabsList>
@@ -89,6 +107,15 @@ export function SettingsPage() {
         <TabsContent value="profile" className="space-y-4">
           <SettingsProfileTab name={user?.name} email={user?.email} />
         </TabsContent>
+
+        {/* Freelancer Profile Tab */}
+        {isFreelancer && (
+          <TabsContent value="freelancer-profile" className="space-y-4">
+            <Suspense fallback={<Card><CardContent className="py-10 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></CardContent></Card>}>
+              <FreelancerProfileTab />
+            </Suspense>
+          </TabsContent>
+        )}
 
         {/* Users Tab (ADMIN only) */}
         {isAdmin && (
@@ -138,6 +165,23 @@ export function SettingsPage() {
               }
             >
               <SettingsJoinRequestsTab />
+            </Suspense>
+          </TabsContent>
+        )}
+
+        {/* Site vitrine CMS Tab (ADMIN only) */}
+        {isAdmin && (
+          <TabsContent value="site-content" className="space-y-4">
+            <Suspense
+              fallback={
+                <Card>
+                  <CardContent className="py-10 flex items-center justify-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </CardContent>
+                </Card>
+              }
+            >
+              <SettingsSiteContentTab />
             </Suspense>
           </TabsContent>
         )}

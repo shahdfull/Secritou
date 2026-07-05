@@ -137,6 +137,11 @@ html.dark {
   }
 }
 
+/* Remove internal scrollbar from shadcn Sidebar content */
+[data-sidebar="content"] {
+  overflow: hidden !important;
+}
+
 @utility container-page {
   width: 100%;
   margin-inline: auto;

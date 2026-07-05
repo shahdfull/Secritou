@@ -2,6 +2,7 @@ import { Hero } from "@/features/landing/components/Hero";
 import { SocialProof } from "@/features/landing/components/SocialProof";
 import { Problems } from "@/features/landing/components/Problems";
 import { Services } from "@/features/landing/components/Services";
+import { PacksSection } from "@/features/landing/components/PacksSection";
 import { HowItWorks } from "@/features/landing/components/HowItWorks";
 import { SolutionsTeaser } from "@/features/landing/components/SolutionsTeaser";
 import { Differentiators } from "@/features/landing/components/Differentiators";
@@ -23,6 +24,7 @@ export function HomePage() {
       <SocialProof />
       <Problems />
       <Services />
+      <PacksSection />
       <SolutionsTeaser />
       <HowItWorks />
       <Differentiators />

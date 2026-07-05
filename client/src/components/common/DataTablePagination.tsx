@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface DataTablePaginationProps {
   page: number;
@@ -14,6 +15,7 @@ export function DataTablePagination({
   total,
   onPageChange,
 }: DataTablePaginationProps) {
+  const { t } = useTranslation();
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, total);
@@ -21,7 +23,7 @@ export function DataTablePagination({
   return (
     <div className="flex items-center justify-between px-2 py-4">
       <p className="text-sm text-muted-foreground">
-        {start}–{end} sur {total} résultats
+        {t("pagination.results", { start, end, total })}
       </p>
       <div className="flex items-center gap-2">
         <Button
@@ -31,10 +33,10 @@ export function DataTablePagination({
           disabled={page <= 1}
         >
           <ChevronLeft className="h-4 w-4 mr-1" />
-          Précédent
+          {t("pagination.previous")}
         </Button>
         <span className="text-sm text-muted-foreground">
-          Page {page} / {totalPages}
+          {t("pagination.pageOf", { page, totalPages })}
         </span>
         <Button
           variant="outline"
@@ -42,7 +44,7 @@ export function DataTablePagination({
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages}
         >
-          Suivant
+          {t("pagination.next")}
           <ChevronRight className="h-4 w-4 ml-1" />
         </Button>
       </div>

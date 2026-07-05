@@ -61,13 +61,26 @@ const detailSelect = {
 } as const;
 
 export const serviceRequestRepository = {
-  async findAllByClientId(clientId: string, options: ListQueryOptions): Promise<PaginatedResult<ServiceRequest>> {
+  async findAllByClientId(clientId: string, options: ListQueryOptions) {
     const where = { clientId };
     const skip = (options.page - 1) * options.pageSize;
     const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
 
+    const clientListSelect = {
+      id: true,
+      title: true,
+      description: true,
+      type: true,
+      status: true,
+      priority: true,
+      clientId: true,
+      createdAt: true,
+      updatedAt: true,
+      proposal: { select: { id: true, title: true } },
+    } as const;
+
     const [data, total] = await Promise.all([
-      prismaRead.serviceRequest.findMany({ where, orderBy, skip, take: options.pageSize }),
+      prismaRead.serviceRequest.findMany({ where, orderBy, skip, take: options.pageSize, select: clientListSelect }),
       prismaRead.serviceRequest.count({ where }),
     ]);
 

@@ -15,6 +15,7 @@ export interface Lead {
   source?: "Site web" | "LinkedIn" | "Recommandation" | "Email" | "Appel entrant" | "Autre";
   status: "NEW" | "CONTACTED" | "QUALIFIED" | "PROPOSAL" | "WON" | "LOST";
   notes?: string;
+  lostReason?: string;
   createdAt: string;
   updatedAt: string;
   convertedClient?: { id: string; name: string; email: string | null } | null;

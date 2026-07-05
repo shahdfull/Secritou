@@ -15,6 +15,7 @@ export const createProposalSchema = z.object({
     email: z.string().email().max(255).optional(),
     projectId: z.string().uuid().optional(),
     serviceRequestId: z.string().uuid().optional(),
+    leadId: z.string().uuid().optional(),
     expiresAt: z.string().datetime({ offset: true }).optional(),
     sections: z.array(z.object({
       title: z.string().min(1).max(255),

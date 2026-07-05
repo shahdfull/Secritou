@@ -21,6 +21,8 @@ export interface Project {
   client?: Client;
   tasks?: Task[];
   progress: number;
+  taskDone: number;
+  taskTotal: number;
 }
 
 export interface CreateProjectInput {

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authenticate } from "../middlewares/auth.middleware.js";
-import { authRateLimit } from "../middlewares/rateLimit.middleware.js";
+import { authRateLimit, refreshRateLimit } from "../middlewares/rateLimit.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import {
   login,
@@ -145,7 +145,7 @@ authRoutes.post("/login", authRateLimit, validate(loginSchema), login);
  *       429:
  *         description: Too many requests
  */
-authRoutes.post("/refresh", authRateLimit, validate(refreshSchema), refresh);
+authRoutes.post("/refresh", refreshRateLimit, validate(refreshSchema), refresh);
 
 /**
  * @swagger

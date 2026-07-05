@@ -55,6 +55,8 @@ const envSchema = z.object({
     .transform((v) => v === "true"),
   UPLOAD_MAX_BYTES: z.coerce.number().default(20 * 1024 * 1024),
   SENTRY_DSN: z.string().url().optional(),
+  OLLAMA_URL: z.string().url().default("http://localhost:11434"),
+  OLLAMA_MODEL: z.string().default("mistral"),
 });
 
 export const env = envSchema.parse(process.env);

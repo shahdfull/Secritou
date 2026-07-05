@@ -1,0 +1,20 @@
+{
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -c \"import sys,json,re; d=json.load(sys.stdin); cmd=d.get('tool_input',{}).get('command',''); r=re.search(r'git\\s+(checkout\\s+-[bB]|switch\\s+-c)',cmd); sys.stdout.write(json.dumps({'decision':'block','reason':'Forbidden: creating new branches is not allowed. Work only on existing branches (fix/business-logic-audit or claude/*).'}) + '\\n') if r else sys.exit(0)\"",
+            "shell": "bash"
+          }
+        ]
+      }
+    ]
+  }
+}

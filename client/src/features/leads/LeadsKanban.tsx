@@ -5,6 +5,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { FileText } from "lucide-react";
 import { useUpdateLeadStatus } from "@/hooks/useLeads";
 import type { Lead } from "@/types/lead";
@@ -14,8 +16,8 @@ import { useTranslation } from "react-i18next";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { CreateProposalFromLeadDialog } from "./CreateProposalFromLeadDialog";
 
-// A Proposal can only be created from a lead that is being actively pursued.
-const CAN_CREATE_PROPOSAL: Lead["status"][] = ["CONTACTED", "QUALIFIED"];
+// A Proposal can only be created from a lead that has been WON and converted to a client.
+const CAN_CREATE_PROPOSAL: Lead["status"][] = ["WON"];
 
 interface StatusConfig {
   label: string;
@@ -26,7 +28,7 @@ const STATUS_CONFIG: Record<Lead["status"], Omit<StatusConfig, "label">> = {
   NEW: { bgColor: "bg-blue-100 text-blue-800" },
   CONTACTED: { bgColor: "bg-yellow-100 text-yellow-800" },
   QUALIFIED: { bgColor: "bg-purple-100 text-purple-800" },
-  PROPOSAL: { bgColor: "bg-pink-100 text-pink-800" },
+  PROPOSAL: { bgColor: "bg-orange-100 text-orange-800" },
   WON: { bgColor: "bg-green-100 text-green-800" },
   LOST: { bgColor: "bg-red-100 text-red-800" },
 };
@@ -210,6 +212,9 @@ export const LeadsKanban = memo(function LeadsKanban({ filteredLeads }: { filter
   const { mutate: updateLeadStatus } = useUpdateLeadStatus();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [proposalLead, setProposalLead] = useState<Lead | null>(null);
+  const [lostDialogOpen, setLostDialogOpen] = useState(false);
+  const [lostReason, setLostReason] = useState("");
+  const pendingLostRef = useRef<{ leadId: string; snapshots: ReturnType<typeof queryClient.getQueriesData> } | null>(null);
 
   const handleCreateProposal = useCallback((lead: Lead) => {
     setProposalLead(lead);
@@ -240,6 +245,22 @@ export const LeadsKanban = memo(function LeadsKanban({ filteredLeads }: { filter
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id as string);
   }, []);
+
+  const applyStatusChange = useCallback((leadId: string, overStatus: Lead["status"], lostReasonText?: string, snapshots?: ReturnType<typeof queryClient.getQueriesData>) => {
+    updateLeadStatus(
+      { id: leadId, status: overStatus, lostReason: lostReasonText || undefined },
+      {
+        onError: () => {
+          if (snapshots) {
+            for (const [key, data] of snapshots) {
+              queryClient.setQueryData(key, data);
+            }
+          }
+          toast.error(t("toasts.leadStatusUpdateError"));
+        },
+      }
+    );
+  }, [updateLeadStatus, queryClient, t]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
@@ -286,22 +307,17 @@ export const LeadsKanban = memo(function LeadsKanban({ filteredLeads }: { filter
         }
       );
 
-      updateLeadStatus(
-        { id: activeId, status: overStatus },
-        {
-          onError: () => {
-            // Rollback
-            for (const [key, data] of snapshots) {
-              queryClient.setQueryData(key, data);
-            }
-            toast.error(t("toasts.leadStatusUpdateError"));
-          },
-        }
-      );
+      if (overStatus === "LOST") {
+        pendingLostRef.current = { leadId: activeId, snapshots };
+        setLostReason("");
+        setLostDialogOpen(true);
+      } else {
+        applyStatusChange(activeId, overStatus, undefined, snapshots);
+      }
     }
 
     setActiveId(null);
-  }, [leadIdToStatus, queryClient, updateLeadStatus, t]);
+  }, [leadIdToStatus, queryClient, applyStatusChange]);
 
   const activeLead = useMemo(
     () => (activeId ? filteredLeads.find((lead) => lead.id === activeId) ?? null : null),
@@ -373,6 +389,66 @@ export const LeadsKanban = memo(function LeadsKanban({ filteredLeads }: { filter
           if (!open) setProposalLead(null);
         }}
       />
+
+      <Dialog
+        open={lostDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            // Rollback optimistic update on cancel
+            if (pendingLostRef.current) {
+              for (const [key, data] of pendingLostRef.current.snapshots) {
+                queryClient.setQueryData(key, data);
+              }
+              pendingLostRef.current = null;
+            }
+            setLostDialogOpen(false);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Marquer comme perdu</DialogTitle>
+            <DialogDescription>
+              Indiquez la raison pour laquelle ce lead est perdu (optionnel).
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="Ex : budget insuffisant, projet annulé, concurrent choisi..."
+            value={lostReason}
+            onChange={(e) => setLostReason(e.target.value)}
+            rows={3}
+            maxLength={500}
+          />
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                if (pendingLostRef.current) {
+                  for (const [key, data] of pendingLostRef.current.snapshots) {
+                    queryClient.setQueryData(key, data);
+                  }
+                  pendingLostRef.current = null;
+                }
+                setLostDialogOpen(false);
+              }}
+            >
+              Annuler
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => {
+                if (!pendingLostRef.current) return;
+                const { leadId, snapshots } = pendingLostRef.current;
+                pendingLostRef.current = null;
+                setLostDialogOpen(false);
+                applyStatusChange(leadId, "LOST", lostReason || undefined, snapshots);
+              }}
+            >
+              Confirmer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 });

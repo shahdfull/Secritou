@@ -1,11 +1,15 @@
 import { Router } from "express";
 import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, archiveProject, getMyProjects, getTimelineStatus, getBrief, submitBrief, clientApproveProject } from "../controllers/project.controller.js";
+import { getHealthBoard } from "../controllers/healthBoard.controller.js";
+import { createTimeEntry, listTimeEntries, getTimeSummary } from "../controllers/timeEntry.controller.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { createProjectSchema, updateProjectSchema } from "../validators/project.validator.js";
+import { createTimeEntrySchema } from "../validators/timeEntry.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
 const router = Router();
 
+router.get("/health-board", authenticate, authorize("ADMIN"), getHealthBoard);
 router.get("/my", authenticate, authorize("CLIENT"), getMyProjects);
 
 // Timeline : accessible to CLIENT (own project only), MANAGER, ADMIN
@@ -179,5 +183,10 @@ router.put("/:id", validate(updateProjectSchema), authorize("ADMIN", "MANAGER"),
  */
 router.delete("/:id", authorize("ADMIN"), deleteProject);
 router.post("/:id/archive", authorize("ADMIN"), archiveProject);
+
+// Time tracking
+router.post("/:id/time-entries", authorize("ADMIN", "MANAGER", "FREELANCER"), validate(createTimeEntrySchema), createTimeEntry);
+router.get("/:id/time-entries", authorize("ADMIN", "MANAGER", "FREELANCER"), listTimeEntries);
+router.get("/:id/time-summary", authorize("ADMIN"), getTimeSummary);
 
 export default router;

@@ -41,3 +41,6 @@ dist-ssr
 APP.zip
 *.zip
 app/
+
+# Reference-only code, not part of this project's history (see CLAUDE.md)
+reference/

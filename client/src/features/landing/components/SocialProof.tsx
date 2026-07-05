@@ -134,7 +134,7 @@ export function SocialProof() {
           <button
             type="button"
             onClick={scrollPrev}
-            aria-label="Précédent"
+            aria-label={t("home.socialProof.prev")}
             className="absolute left-0 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-ink shadow-soft transition-colors hover:bg-surface lg:flex lg:items-center lg:justify-center"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -142,7 +142,7 @@ export function SocialProof() {
           <button
             type="button"
             onClick={scrollNext}
-            aria-label="Suivant"
+            aria-label={t("home.socialProof.next")}
             className="absolute right-0 top-1/2 hidden -translate-y-1/2 translate-x-1/2 grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-ink shadow-soft transition-colors hover:bg-surface lg:flex lg:items-center lg:justify-center"
           >
             <ChevronRight className="h-5 w-5" />
@@ -155,7 +155,7 @@ export function SocialProof() {
                 key={i}
                 type="button"
                 onClick={() => scrollTo(i)}
-                aria-label={`Témoignage ${i + 1}`}
+                aria-label={t("home.socialProof.testimonialN", { n: i + 1 })}
                 className={`h-2 rounded-full transition-all ${
                   i === selectedIndex ? "w-6 bg-primary" : "w-2 bg-border hover:bg-muted-foreground/40"
                 }`}

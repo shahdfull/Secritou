@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import React, { memo, useCallback, useMemo, useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -18,24 +18,17 @@ import logoAsset from "@/assets/secritou-logo.png";
 import {
   Home,
   Users,
-  UserPlus,
   FolderOpen,
-  CheckSquare,
   BarChart3,
   FileText,
+  Files,
   Settings,
   LogOut,
   Briefcase,
-  ClipboardList,
-  Bot,
-  UserCheck,
-  Rocket,
-  File,
-  Check,
-  Receipt,
-  Star,
-  Inbox,
   HelpCircle,
+  MessageSquare,
+  Receipt,
+  CheckSquare,
 } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -58,39 +51,31 @@ import { useTranslation } from "react-i18next";
 import { AIAssistantFloat } from "./AIAssistantFloat";
 import { type ChatMessage } from "@/api/ai.api";
 
-// Keys that map to a permission module (undefined = always visible for MANAGER)
-type MenuItem = { key: string; url: string; icon: React.ElementType; permModule?: Module };
+type MenuItem = { key: string; url: string; icon: React.ElementType; permModule?: Module; group: "manage" | "analytics" | "other" };
 
 const menuItems: MenuItem[] = [
-  { key: "dashboard",  url: "/app",          icon: Home },
-  { key: "crm",        url: "/app/crm",       icon: Users,       permModule: "clients" },
-  { key: "commercial", url: "/app/commercial", icon: FileText,   permModule: "leads"   },
-  { key: "talent",     url: "/app/talent",    icon: Briefcase,   permModule: "freelancers" },
-  { key: "projects",   url: "/app/projects",  icon: FolderOpen,  permModule: "projects" },
-  { key: "reports",    url: "/app/reports",   icon: BarChart3 },
-  { key: "questions",  url: "/app/questions", icon: HelpCircle },
-  { key: "settings",   url: "/app/settings",  icon: Settings },
+  { key: "dashboard",              url: "/app",                          icon: Home,          group: "manage" },
+  { key: "freelancerDashboard",    url: "/app/freelancer-dashboard",     icon: Home,          group: "manage" },
+  { key: "crm",              url: "/app/crm",                icon: Users,         group: "manage", permModule: "clients" },
+  { key: "commercial",       url: "/app/commercial",         icon: FileText,      group: "manage", permModule: "leads" },
+  { key: "service-requests", url: "/app/service-requests",  icon: MessageSquare, group: "manage", permModule: "service-requests" },
+  { key: "invoices",         url: "/app/invoices",           icon: Receipt,       group: "manage", permModule: "invoices" },
+  { key: "talent",           url: "/app/talent",             icon: Briefcase,     group: "manage", permModule: "freelancers" },
+  { key: "projects",         url: "/app/projects",           icon: FolderOpen,    group: "manage", permModule: "projects" },
+  { key: "tasks",            url: "/app/tasks",              icon: CheckSquare,   group: "manage", permModule: "tasks" },
+  { key: "documents",        url: "/app/documents",          icon: Files,         group: "manage", permModule: "documents" },
+  { key: "reports",          url: "/app/reports",            icon: BarChart3,     group: "analytics" },
+  { key: "questions",        url: "/app/questions",          icon: HelpCircle,    group: "analytics" },
+  { key: "settings",         url: "/app/settings",           icon: Settings,      group: "other" },
 ];
 
 export const AdminLayout = memo(function AdminLayout() {
   const user = useAuthStore((state) => state.user);
   const { mutate: logout, isPending } = useLogout();
   const [aiOpen, setAiOpen] = useState(false);
-  const [aiMessages, setAiMessages] = useState<ChatMessage[]>(() => {
-    try {
-      const saved = localStorage.getItem("ai_chat_history");
-      return saved ? (JSON.parse(saved) as ChatMessage[]) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem("ai_chat_history", JSON.stringify(aiMessages.slice(-50)));
-  }, [aiMessages]);
+  const [aiMessages, setAiMessages] = useState<ChatMessage[]>([]);
 
   const handleAiMessagesChange = useCallback((next: ChatMessage[]) => {
-    if (next.length === 0) localStorage.removeItem("ai_chat_history");
     setAiMessages(next);
   }, []);
   const navigate = useNavigate();
@@ -105,14 +90,16 @@ export const AdminLayout = memo(function AdminLayout() {
 
     if (role === "MANAGER") {
       return menuItems.filter((item) => {
-        // Items without a permModule are always visible (dashboard, questions, settings)
+        if (item.key === "commercial") {
+          return can("leads", "read") || can("proposals", "read");
+        }
         if (!item.permModule) return true;
         return can(item.permModule, "read");
       });
     }
 
     if (role === "FREELANCER") {
-      return menuItems.filter((item) => ["dashboard", "talent", "settings"].includes(item.key));
+      return menuItems.filter((item) => ["freelancerDashboard", "projects", "tasks", "documents", "settings"].includes(item.key));
     }
 
     return menuItems;
@@ -145,7 +132,10 @@ export const AdminLayout = memo(function AdminLayout() {
         routePrefetch.crm?.();
         break;
       case "/app/service-requests":
-        routePrefetch.serviceRequests?.();
+        routePrefetch.serviceRequests();
+        break;
+      case "/app/invoices":
+        routePrefetch.invoices();
         break;
       case "/app/talent":
         routePrefetch.talent?.();
@@ -164,99 +154,176 @@ export const AdminLayout = memo(function AdminLayout() {
     }
   }, []);
 
+  const manageItems   = filteredMenuItems.filter((i) => i.group === "manage");
+  const analyticsItems = filteredMenuItems.filter((i) => i.group === "analytics");
+  const otherItems    = filteredMenuItems.filter((i) => i.group === "other");
+
+  const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+    [
+      "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full",
+      isActive
+        ? "bg-primary text-primary-foreground"
+        : "text-muted-foreground hover:bg-muted hover:text-ink",
+    ].join(" ");
+
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="flex h-screen w-full bg-background">
-        <Sidebar className="border-r">
-          <SidebarHeader className="border-b p-4">
-            <div className="flex items-center gap-2 font-display text-xl font-bold text-ink">
-              <img src={logoAsset} alt="Secritou" className="h-8 w-8 object-contain" loading="lazy" />
+      <div className="flex h-screen w-full overflow-hidden bg-background">
+        <Sidebar className="border-r border-border bg-surface-warm w-56 shrink-0">
+          {/* Logo */}
+          <SidebarHeader className="px-5 py-4 border-b border-border bg-surface-warm">
+            <div className="flex items-center gap-2.5 font-display text-lg font-bold text-ink">
+              <img src={logoAsset} alt="Secritou" className="h-7 w-7 object-contain" loading="lazy" />
               Secritou
             </div>
           </SidebarHeader>
-          <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupLabel>{t("sidebar.title")}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {filteredMenuItems.map((item) => (
-                    <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton asChild isActive={false}>
-                        <NavLink
-                          to={item.url}
-                          end={item.url === "/app"}
-                          onMouseEnter={() => handlePrefetch(item.url)}
-                          onFocus={() => handlePrefetch(item.url)}
-                          className={({ isActive }) =>
-                            isActive ? "data-[active=true]" : ""
-                          }
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{t(`sidebar.${item.key}`)}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+
+          <SidebarContent className="flex-1 px-3 py-4 space-y-5 bg-surface-warm">
+            {/* MANAGE group */}
+            {manageItems.length > 0 && (
+              <SidebarGroup>
+                <SidebarGroupLabel className="px-3 mb-1 text-[10px] font-semibold tracking-widest uppercase text-muted-foreground/70">
+                  {t("sidebar.groupManage", "Manage")}
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu className="space-y-0.5">
+                    {manageItems.map((item) => (
+                      <SidebarMenuItem key={item.key}>
+                        <SidebarMenuButton asChild isActive={false} className="p-0 h-auto hover:bg-transparent">
+                          <NavLink
+                            to={item.url}
+                            end={item.url === "/app"}
+                            onMouseEnter={() => handlePrefetch(item.url)}
+                            onFocus={() => handlePrefetch(item.url)}
+                            className={navLinkClass}
+                          >
+                            <item.icon className="h-4 w-4 shrink-0" />
+                            <span>{t(`sidebar.${item.key}`)}</span>
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
+
+            {/* ANALYTICS group */}
+            {analyticsItems.length > 0 && (
+              <SidebarGroup>
+                <SidebarGroupLabel className="px-3 mb-1 text-[10px] font-semibold tracking-widest uppercase text-muted-foreground/70">
+                  {t("sidebar.groupAnalytics", "Analytics")}
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu className="space-y-0.5">
+                    {analyticsItems.map((item) => (
+                      <SidebarMenuItem key={item.key}>
+                        <SidebarMenuButton asChild isActive={false} className="p-0 h-auto hover:bg-transparent">
+                          <NavLink
+                            to={item.url}
+                            end={false}
+                            onMouseEnter={() => handlePrefetch(item.url)}
+                            onFocus={() => handlePrefetch(item.url)}
+                            className={navLinkClass}
+                          >
+                            <item.icon className="h-4 w-4 shrink-0" />
+                            <span>{t(`sidebar.${item.key}`)}</span>
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
+
+            {/* Settings (bottom of content) */}
+            {otherItems.length > 0 && (
+              <SidebarGroup>
+                <SidebarGroupContent>
+                  <SidebarMenu className="space-y-0.5">
+                    {otherItems.map((item) => (
+                      <SidebarMenuItem key={item.key}>
+                        <SidebarMenuButton asChild isActive={false} className="p-0 h-auto hover:bg-transparent">
+                          <NavLink
+                            to={item.url}
+                            end={false}
+                            className={navLinkClass}
+                          >
+                            <item.icon className="h-4 w-4 shrink-0" />
+                            <span>{t(`sidebar.${item.key}`)}</span>
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
           </SidebarContent>
-          <SidebarFooter className="border-t p-4">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10">
-                <AvatarFallback>{initials}</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">{user?.name}</span>
-                <span className="text-xs text-muted-foreground">
-                  {user?.email}
-                </span>
-              </div>
-            </div>
+
+          {/* Footer — user info + dropdown */}
+          <SidebarFooter className="border-t border-border px-3 py-3 bg-surface-warm">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-3 w-full rounded-lg px-2 py-2 hover:bg-muted transition-colors text-left">
+                  <Avatar className="h-8 w-8 shrink-0">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-ink truncate leading-tight">{user?.name}</p>
+                    <p className="text-xs text-muted-foreground truncate leading-tight">{user?.email}</p>
+                  </div>
+                  <svg className="h-4 w-4 text-muted-foreground shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <circle cx="12" cy="5" r="1" fill="currentColor" />
+                    <circle cx="12" cy="12" r="1" fill="currentColor" />
+                    <circle cx="12" cy="19" r="1" fill="currentColor" />
+                  </svg>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" side="top" className="w-52 mb-1">
+                <DropdownMenuLabel>{t("userMenu.myAccount")}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate("/app/settings")}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  {t("userMenu.settings")}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} disabled={isPending} className="text-red-600">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  {isPending ? t("userMenu.loggingOut") : t("userMenu.logout")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </SidebarFooter>
         </Sidebar>
 
-        <SidebarInset className="flex flex-col">
+        <SidebarInset className="flex flex-col flex-1 min-w-0">
           {/* Topbar */}
-          <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background px-6">
-            <SidebarTrigger className="md:hidden" />
-            <div className="flex items-center gap-4 flex-1">
+          <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background px-5 gap-4">
+            <SidebarTrigger className="md:hidden shrink-0" />
+            <div className="flex-1 max-w-sm">
               <GlobalSearch />
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 shrink-0">
               <NotificationBell />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full">
-                    <Avatar className="h-9 w-9">
-                      <AvatarFallback>{initials}</AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>{t("userMenu.myAccount")}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate("/app/settings")}>{t("userMenu.settings")}</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleLogout}
-                    disabled={isPending}
-                    className="text-red-600"
-                  >
-                    <LogOut className="h-4 w-4 mr-2" />
-                    {isPending ? t("userMenu.loggingOut") : t("userMenu.logout")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Avatar className="h-8 w-8 cursor-pointer" onClick={() => navigate("/app/settings")}>
+                <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
             </div>
           </header>
 
-          {/* Main Content */}
-          <main className="flex-1 overflow-auto p-6">
+          {/* Page content */}
+          <main className="flex-1 overflow-auto p-6 bg-surface-warm/10">
             <Outlet />
           </main>
         </SidebarInset>
       </div>
+
       <AIAssistantFloat
         open={aiOpen}
         onOpenChange={setAiOpen}
