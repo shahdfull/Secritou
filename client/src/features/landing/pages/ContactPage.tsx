@@ -165,6 +165,7 @@ export function ContactPage() {
               <div className="space-y-2">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {t("contact.serviceType")}
+                  <span aria-hidden="true"> *</span>
                 </label>
                 <select
                   {...register("serviceType")}
@@ -198,7 +199,7 @@ export function ContactPage() {
                   {...register("budget")}
                   className="mt-2 h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-ink outline-none transition-shadow focus:border-primary focus:shadow-soft"
                 >
-                  <option value="">{t("contact.budget")}</option>
+                  <option value="">{t("contact.budgetPlaceholder")}</option>
                   {budgetOptions.map((budget) => (
                     <option key={budget} value={budget}>
                       {budget}
@@ -215,6 +216,7 @@ export function ContactPage() {
             <div className="mt-5">
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {t("contact.message")}
+                <span aria-hidden="true"> *</span>
               </label>
               <textarea
                 {...register("message")}

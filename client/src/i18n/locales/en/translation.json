@@ -118,6 +118,7 @@
     "serviceType": "Service type",
     "message": "Tell us about your situation",
     "budget": "Budget",
+    "budgetPlaceholder": "Not specified",
     "send": "Send & schedule",
     "sending": "Sending...",
     "successMessage": "Thank you! We'll be in touch soon.",

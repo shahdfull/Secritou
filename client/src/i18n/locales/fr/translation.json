@@ -118,6 +118,7 @@
     "serviceType": "Type de service",
     "message": "Parlez-nous de votre situation",
     "budget": "Budget",
+    "budgetPlaceholder": "Non précisé",
     "send": "Envoyer et planifier",
     "sending": "Envoi en cours...",
     "successMessage": "Merci ! Nous vous recontacterons bientôt.",
