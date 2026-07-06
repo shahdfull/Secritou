@@ -188,7 +188,7 @@ function FullChat() {
   const messages: AiMessage[] = activeConv?.messages ?? [];
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] gap-4">
+    <div className="flex h-chat-safe gap-4">
       {/* Sidebar */}
       <aside
         className={cn(

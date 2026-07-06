@@ -28,7 +28,7 @@ export function ProtectedRoute({ children, redirectTo = "/login" }: ProtectedRou
   // Still loading bootstrap
   if (status === "unknown" || !bootstrapped) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen-safe items-center justify-center">
         <Loader2 className="size-10 animate-spin" />
       </div>
     );

@@ -103,7 +103,7 @@ export const ClientLayout = memo(function ClientLayout() {
       >
         {t("a11y.skipToContent")}
       </a>
-      <div className="flex h-screen w-full overflow-hidden bg-background">
+      <div className="flex h-screen-safe w-full overflow-hidden bg-background">
         <Sidebar className="border-r border-border bg-surface-warm w-56 shrink-0">
           {/* Logo */}
           <SidebarHeader className="px-5 py-4 border-b border-border bg-surface-warm">

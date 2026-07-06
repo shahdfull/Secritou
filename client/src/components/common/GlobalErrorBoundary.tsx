@@ -28,7 +28,7 @@ export class GlobalErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 py-20">
+        <div className="flex min-h-screen-safe flex-col items-center justify-center bg-background px-6 py-20">
           <div className="w-full max-w-md text-center">
             <h1 className="font-display text-8xl font-bold text-primary">500</h1>
             <h2 className="mt-4 font-display text-3xl font-bold text-ink">

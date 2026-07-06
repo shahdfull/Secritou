@@ -66,7 +66,7 @@ export function ChangePasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="min-h-screen-safe flex items-center justify-center bg-background">
       <div className="w-full max-w-md p-8 space-y-6 rounded-3xl border bg-card shadow-soft">
         <div className="space-y-2 text-center">
           <h1 className="text-2xl font-bold">{t("auth.changePassword")}</h1>

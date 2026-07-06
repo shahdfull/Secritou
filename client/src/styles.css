@@ -186,3 +186,47 @@ html.dark {
 @utility safe-top {
   padding-top: env(safe-area-inset-top, 0px);
 }
+
+/* h-screen (100vh) is set once at load and doesn't react to the mobile
+   address bar showing/hiding, which can crop or leave a gap in fixed-height
+   layouts. 100dvh tracks the actual visible viewport (Safari 15.4+/Chrome
+   108+). @supports is required here rather than two same-property
+   declarations: Lightning CSS (Tailwind v4's CSS engine) dedupes repeated
+   declarations for the same property at build time and keeps only the last
+   one, silently dropping the vh fallback for older browsers. */
+@utility h-screen-safe {
+  height: 100vh;
+  @supports (height: 100dvh) {
+    height: 100dvh;
+  }
+}
+
+/* Same fix for min-h-screen call sites (loading/error/auth screens). Lower
+   risk than h-screen since min- never crops content, only leaves a possible
+   residual gap — fixed for consistency rather than urgency. */
+@utility min-h-screen-safe {
+  min-height: 100vh;
+  @supports (height: 100dvh) {
+    min-height: 100dvh;
+  }
+}
+
+/* Same fix, sized for LoginPage's centered-card layout (72vh of the
+   viewport, not the full screen — the header/footer take the rest). */
+@utility min-h-login-safe {
+  min-height: 72vh;
+  @supports (height: 100dvh) {
+    min-height: 72dvh;
+  }
+}
+
+/* Same 100vh -> 100dvh fix, sized for the AI assistant page's fixed topbar
+   offset (see AIAssistantPage.tsx). Most at risk of the vh bug in practice:
+   a chat view whose input/last message can end up hidden behind the mobile
+   keyboard if the viewport height was computed before the keyboard opened. */
+@utility h-chat-safe {
+  height: calc(100vh - 8rem);
+  @supports (height: 100dvh) {
+    height: calc(100dvh - 8rem);
+  }
+}

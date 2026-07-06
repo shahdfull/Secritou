@@ -36,7 +36,7 @@ export function LoginPage() {
   };
 
   return (
-    <section className="container-page grid min-h-[72vh] place-items-center py-16">
+    <section className="container-page grid min-h-login-safe place-items-center py-16">
       <form className="w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-soft" onSubmit={handleSubmit(onSubmit)}>
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Secritou</p>
         <h1 className="mt-2 font-display text-3xl font-bold text-ink">{t("auth.signIn")}</h1>

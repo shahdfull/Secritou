@@ -69,7 +69,7 @@ export const FreelancerLayout = memo(function FreelancerLayout() {
       >
         {t("a11y.skipToContent")}
       </a>
-      <div className="flex h-screen w-full overflow-hidden bg-background">
+      <div className="flex h-screen-safe w-full overflow-hidden bg-background">
         <Sidebar className="border-r border-border bg-surface-warm w-56 shrink-0">
           <SidebarHeader className="px-5 py-4 border-b border-border bg-surface-warm">
             <div className="flex items-center gap-2.5 font-display text-lg font-bold text-ink">
