@@ -5,6 +5,9 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "scripts": {
+    "test": "node --test --import tsx src/constants/phone.test.ts"
+  },
   "dependencies": {
     "zod": "^3.24.2"
   },

@@ -26,6 +26,7 @@ import { useNavigate } from "react-router-dom";
 import { useCreateFreelancerApplication } from "@/hooks/useFreelancerApplications";
 import { FileUploadField } from "@/components/common/FileUploadField";
 import { useRef, useState } from "react";
+import { isValidTunisianPhone } from "@secritou/shared";
 
 export function JoinUsPage() {
   const { t } = useTranslation();
@@ -41,7 +42,13 @@ export function JoinUsPage() {
     firstName: z.string().min(1, t("auth.nameMinLength")),
     lastName: z.string().min(1, t("auth.nameMinLength")),
     email: z.string().email(t("auth.validEmail")),
-    phone: z.string().optional(),
+    // Accepts "+216XXXXXXXX" or a bare 8-digit local number (2-9 leading
+    // digit); "216XXXXXXXX" without the + is rejected as ambiguous with a
+    // local number. See shared/src/constants/phone.ts.
+    phone: z.string().trim().optional().refine(
+      (value) => !value || isValidTunisianPhone(value),
+      t("contact.invalidPhone")
+    ),
     role: z.enum(["FREELANCER", "MANAGER"]),
     bio: z.string().min(20, t("joinUs.bioMinLength")),
     // Honeypot: hidden field a human never fills in. Left unconstrained so a

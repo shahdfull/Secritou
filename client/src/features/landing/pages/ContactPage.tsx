@@ -7,6 +7,7 @@ import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import Cal, { getCalApi } from "@calcom/embed-react";
+import { isValidTunisianPhone } from "@secritou/shared";
 import { submitContactRequest, type ServiceType, type BudgetOption } from "@/services/contact.service";
 
 const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER as string | undefined;
@@ -50,7 +51,13 @@ export function ContactPage() {
   const contactSchema = z.object({
     name: z.string().trim().min(2, t("contact.pleaseEnterName")),
     email: z.string().trim().email(t("contact.pleaseEnterEmail")),
-    phone: z.string().optional(),
+    // Accepts "+216XXXXXXXX" or a bare 8-digit local number (2-9 leading
+    // digit); "216XXXXXXXX" without the + is rejected as ambiguous with a
+    // local number. See shared/src/constants/phone.ts.
+    phone: z.string().trim().optional().refine(
+      (value) => !value || isValidTunisianPhone(value),
+      t("contact.invalidPhone")
+    ),
     serviceType: z.enum(CANONICAL_SERVICE_TYPES, {
       required_error: t("contact.pleaseEnterServiceType")
     }),

@@ -10,3 +10,4 @@ export * from "./schemas/invoice.schema.js";
 export * from "./schemas/user.schema.js";
 export * from "./schemas/clientOnboarding.schema.js";
 export * from "./constants/auth.js";
+export * from "./constants/phone.js";
