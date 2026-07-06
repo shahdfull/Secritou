@@ -7,7 +7,7 @@ import { aiConversationService } from "./aiConversation.service.js";
 import { HttpError } from "../utils/httpError.js";
 import { businessMetrics } from "../observability/businessMetrics.js";
 
-function extractJson(text: string): string {
+export function extractJson(text: string): string {
   // Remove markdown code blocks (both ```json and ```)
   let cleaned = text.replace(/```(?:json)?\s*([\s\S]*?)\s*```/g, "$1").trim();
 

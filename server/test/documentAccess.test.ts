@@ -1,9 +1,9 @@
 // Tests for document access-level enforcement : pure logic, no DB.
-// Mirrors visibleAccessLevels in enhancedDocument.repository.
+// Mirrors visibleAccessLevels in document.repository.
 
 import test, { describe } from "node:test";
 import assert from "node:assert/strict";
-import { visibleAccessLevels } from "../src/repositories/enhancedDocument.repository.js";
+import { visibleAccessLevels } from "../src/repositories/document.repository.js";
 
 describe("document access levels by role", () => {
   test("ADMIN sees every access level (incl. ADMIN_ONLY)", () => {
