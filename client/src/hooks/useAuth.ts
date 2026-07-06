@@ -1,11 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { AxiosError } from "axios";
 import { authApi } from "../api/auth.api";
 import { usersApi, type UpdateMeInput } from "../api/users.api";
 import { useAuthStore } from "../store/auth.store";
-import type { LoginCredentials, RegisterCredentials, User } from "../types/auth";
+import type { AuthTokens, LoginCredentials, RegisterCredentials, User } from "../types/auth";
 import { toast } from "sonner";
 import i18n from "@/i18n";
 import { useEffect } from "react";
+
+// Maps a failed login's HTTP status to a translated, user-facing toast message.
+function loginErrorMessage(error: AxiosError): string {
+  const status = error.response?.status;
+  if (status === 401) return i18n.t("auth.invalidCredentials");
+  if (status === 429) return i18n.t("auth.tooManyAttempts");
+  if (!error.response) return i18n.t("errors.network");
+  return i18n.t("toasts.genericError");
+}
 
 // ============ BOOTSTRAP SESSION ============
 // Called once on app startup to restore session from the HTTP-only refresh cookie.
@@ -88,12 +98,15 @@ export function useLogin() {
   const queryClient = useQueryClient();
   const setSession = useAuthStore((state) => state.setSession);
 
-  return useMutation({
+  return useMutation<{ user: User; tokens: AuthTokens }, AxiosError, LoginCredentials>({
     mutationFn: async (credentials: LoginCredentials) => authApi.login(credentials),
     onSuccess: async (data) => {
       setSession({ user: data.user, accessToken: data.tokens.accessToken });
       queryClient.setQueryData(["auth.bootstrap"], data);
       toast.success(i18n.t("toasts.loginSuccess"));
+    },
+    onError: (error) => {
+      toast.error(loginErrorMessage(error));
     },
   });
 }

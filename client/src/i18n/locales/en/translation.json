@@ -31,6 +31,8 @@
     "nameMinLength": "Name must be at least 2 characters",
     "companyNameMinLength": "Company name must be at least 2 characters",
     "passwordResetLinkSent": "Password reset link sent to your email",
+    "invalidCredentials": "Invalid email or password.",
+    "tooManyAttempts": "Too many attempts. Try again in a few minutes.",
     "checkYourEmail": "Check your email",
     "passwordResetSent": "If an account exists for that email, we've sent a link to reset your password.",
     "backToLogin": "Back to sign in",
@@ -1779,7 +1781,8 @@
     "infoOnlyAdmins": "Only managers and admins can rate freelancers."
   },
   "errors": {
-    "tabLoadFailed": "This section failed to load. Please try again."
+    "tabLoadFailed": "This section failed to load. Please try again.",
+    "network": "Couldn't reach the server. Check your connection and try again."
   },
   "payments": {
     "tab": "Payments",

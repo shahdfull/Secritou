@@ -31,6 +31,8 @@
     "nameMinLength": "Le nom doit contenir au moins 2 caractères",
     "companyNameMinLength": "Le nom de l'entreprise doit contenir au moins 2 caractères",
     "passwordResetLinkSent": "Lien de réinitialisation du mot de passe envoyé à votre email",
+    "invalidCredentials": "Email ou mot de passe incorrect.",
+    "tooManyAttempts": "Trop de tentatives. Réessayez dans quelques minutes.",
     "checkYourEmail": "Vérifiez votre email",
     "passwordResetSent": "Si un compte existe pour cet email, nous vous avons envoyé un lien pour réinitialiser votre mot de passe.",
     "backToLogin": "Retour à la connexion",
@@ -1779,7 +1781,8 @@
     "infoOnlyAdmins": "Seuls les managers et les administrateurs peuvent évaluer les freelancers."
   },
   "errors": {
-    "tabLoadFailed": "Cette section n'a pas pu se charger. Veuillez réessayer."
+    "tabLoadFailed": "Cette section n'a pas pu se charger. Veuillez réessayer.",
+    "network": "Impossible de contacter le serveur. Vérifiez votre connexion et réessayez."
   },
   "payments": {
     "tab": "Paiements",
