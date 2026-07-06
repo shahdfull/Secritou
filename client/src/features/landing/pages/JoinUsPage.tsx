@@ -207,6 +207,7 @@ export function JoinUsPage() {
                 context="cv"
                 accept=".pdf"
                 label={t("joinUs.uploadCv")}
+                maxSizeMb={10}
                 onUploaded={(result) => {
                   uploadedCv.current = result as File;
                 }}
@@ -222,6 +223,7 @@ export function JoinUsPage() {
                 context="portfolio"
                 accept=".pdf,.zip"
                 label={t("joinUs.uploadPortfolio")}
+                maxSizeMb={20}
                 onUploaded={(result) => {
                   uploadedPortfolio.current = result as File;
                 }}

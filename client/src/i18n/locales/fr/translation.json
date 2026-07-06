@@ -632,7 +632,8 @@
     "details": "Détails",
     "sending": "Envoi...",
     "total": "Total",
-    "close": "Fermer"
+    "close": "Fermer",
+    "fileTooLargeMax": "Fichier trop volumineux (max {{max}} Mo)."
   },
   "search": {
     "placeholder": "Rechercher les leads, clients, projets...",

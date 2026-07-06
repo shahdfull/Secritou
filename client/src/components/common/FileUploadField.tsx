@@ -3,6 +3,7 @@ import { Upload, Loader2, CheckCircle2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { useUpload } from "@/hooks/useUpload";
 import type { UploadContext, UploadResult } from "@/api/upload.api";
 
@@ -19,6 +20,8 @@ interface FileUploadFieldProps {
   className?: string;
   // Set this to true to use old upload-immediately behavior
   uploadImmediately?: boolean;
+  // Rejects the file client-side before it is stored/uploaded if it exceeds this size.
+  maxSizeMb?: number;
 }
 
 export function FileUploadField({
@@ -30,7 +33,9 @@ export function FileUploadField({
   disabled,
   className,
   uploadImmediately = false,
+  maxSizeMb,
 }: FileUploadFieldProps) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -56,6 +61,11 @@ export function FileUploadField({
 
     if (acceptedTypes.length > 0 && !acceptedTypes.includes(fileExt)) {
       toast.error(`Fichier non accepté. Types acceptés: ${accept}`);
+      return;
+    }
+
+    if (maxSizeMb !== undefined && file.size > maxSizeMb * 1024 * 1024) {
+      toast.error(t("common.fileTooLargeMax", { max: maxSizeMb }));
       return;
     }
 

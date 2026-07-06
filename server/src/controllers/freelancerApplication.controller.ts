@@ -9,6 +9,21 @@ import {
   rejectFreelancerApplicationValidator,
 } from "../validators/freelancerApplication.validator.js";
 import { COMPANY_ID } from "../config/constants.js";
+import { HttpError } from "../utils/httpError.js";
+
+export const CV_MAX_BYTES = 10 * 1024 * 1024;
+export const PORTFOLIO_MAX_BYTES = 20 * 1024 * 1024;
+
+// Multer has no per-field size limit, so each file is checked individually
+// against its own cap after the (shared, larger) Multer-level limit passes.
+export function assertFileSizeLimits(cvFile: { size: number }, portfolioFile: { size: number }): void {
+  if (cvFile.size > CV_MAX_BYTES) {
+    throw new HttpError(413, "CV file exceeds the 10MB limit", "CV_TOO_LARGE", { maxMb: 10 });
+  }
+  if (portfolioFile.size > PORTFOLIO_MAX_BYTES) {
+    throw new HttpError(413, "Portfolio file exceeds the 20MB limit", "PORTFOLIO_TOO_LARGE", { maxMb: 20 });
+  }
+}
 
 export const getApplications: RequestHandler = async (req, res, next) => {
   try {
@@ -34,10 +49,11 @@ export const getApplicationById: RequestHandler = async (req, res, next) => {
   }
 };
 
-// Multer for handling file uploads - max 10MB per file
-const upload = multer({ 
+// Multer's own limit is set to the larger of the two (portfolio); each field
+// is then checked individually below since Multer has no per-field limit.
+const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }
+  limits: { fileSize: PORTFOLIO_MAX_BYTES }
 });
 
 export const createApplication: RequestHandler[] = [
@@ -62,6 +78,7 @@ export const createApplication: RequestHandler[] = [
         res.status(400).json({ error: "Portfolio file is required" });
         return;
       }
+      assertFileSizeLimits(cvFile, portfolioFile);
 
       const application = await freelancerApplicationService.createApplication(
         {
