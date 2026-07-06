@@ -372,7 +372,6 @@ function ExecutiveTab() {
             value={clients.active}
             sub={`${t("exec.total")} : ${clients.total}`}
             icon={Users}
-            growth={clients.newGrowthMoM}
             accent="green"
             onClick={() => navigate("/app/clients")}
           />
@@ -381,6 +380,7 @@ function ExecutiveTab() {
             value={clients.newMTD}
             sub={t("exec.thisMonth")}
             icon={UserPlus}
+            growth={clients.newGrowthMoM}
             accent="primary"
             onClick={() => navigate("/app/clients")}
           />
@@ -655,7 +655,7 @@ export function DashboardPage() {
           {hotLeadsCount > 0 && (
             <button
               onClick={() => navigate("/app/crm")}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary-soft border border-primary/20 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary-soft border border-primary/20 text-primary-strong text-xs font-medium hover:bg-primary/20 transition-colors"
             >
               <UserPlus className="h-3.5 w-3.5" />
               {hotLeadsCount} {t("dashboard.hotLeads", { count: hotLeadsCount })}

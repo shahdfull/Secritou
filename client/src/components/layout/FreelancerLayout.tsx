@@ -63,6 +63,12 @@ export const FreelancerLayout = memo(function FreelancerLayout() {
 
   return (
     <SidebarProvider defaultOpen={true}>
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-ink focus:px-4 focus:py-2 focus:text-white"
+      >
+        {t("a11y.skipToContent")}
+      </a>
       <div className="flex h-screen w-full overflow-hidden bg-background">
         <Sidebar className="border-r border-border bg-surface-warm w-56 shrink-0">
           <SidebarHeader className="px-5 py-4 border-b border-border bg-surface-warm">
@@ -146,7 +152,7 @@ export const FreelancerLayout = memo(function FreelancerLayout() {
             </div>
           </header>
 
-          <main className="flex-1 overflow-auto p-6 bg-surface-warm/10">
+          <main id="main" className="flex-1 overflow-auto p-6 bg-surface-warm/10">
             <Outlet />
           </main>
         </SidebarInset>

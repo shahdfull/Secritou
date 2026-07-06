@@ -1,21 +1,26 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
-import enTranslation from "./locales/en/translation.json";
+import resourcesToBackend from "i18next-resources-to-backend";
 import frTranslation from "./locales/fr/translation.json";
 
+// FR (primary + fallback language) is bundled statically so the majority of
+// visitors get synchronous rendering with zero extra request. Other languages
+// (EN) are code-split by Vite and fetched on demand, keeping ~10 KB gzip of
+// English strings out of the entry chunk.
 i18n
+  .use(
+    resourcesToBackend((lng: string) => import(`./locales/${lng}/translation.json`))
+  )
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     resources: {
-      en: {
-        translation: enTranslation,
-      },
       fr: {
         translation: frTranslation,
       },
     },
+    partialBundledLanguages: true,
     fallbackLng: "fr",
     debug: false,
     interpolation: {
@@ -25,6 +30,12 @@ i18n
       order: ["localStorage", "navigator"],
       caches: ["localStorage"],
       lookupLocalStorage: "lang",
+    },
+    react: {
+      // Without suspense, components outside route boundaries (Header/Footer)
+      // render FR fallbacks for the instant it takes to load a lazy language,
+      // instead of throwing to the nearest Suspense.
+      useSuspense: false,
     },
   });
 

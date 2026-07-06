@@ -80,9 +80,9 @@ export const seoByPath: Record<string, SeoConfig> = {
     noindex: true,
   },
   "/rejoindre": {
-    title: "Join Secritou as Freelancer or Manager - Secritou",
+    title: "Rejoindre Secritou — Freelances & Managers en Tunisie",
     description:
-      "Apply to join Secritou as a freelancer or manager. Submit your profile, CV, and portfolio to our team.",
+      "Rejoignez le réseau Secritou : missions pour freelances (dev, design, data, marketing) et postes de managers. Postulez avec votre CV et portfolio.",
     path: "/rejoindre",
     image: defaultImage,
   },
@@ -280,6 +280,18 @@ export function getSeoConfig(pathname: string) {
         };
       }
     }
+  }
+
+  // Internal app routes without a dedicated entry (e.g. /app/talent, /app/crm,
+  // /client/invoices) are valid pages — never label them "Page Not Found".
+  if (/^\/(app|client)(\/|$)/.test(pathname)) {
+    return {
+      ...defaultSeo,
+      title: "Secritou",
+      description: "Secritou workspace.",
+      path: pathname,
+      noindex: true,
+    };
   }
 
   // Fallback for truly unknown routes

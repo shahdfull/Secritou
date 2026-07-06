@@ -29,46 +29,49 @@ function setStructuredData() {
   const siteUrl = absoluteUrl("/");
   const logoUrl = absoluteUrl("/secritou-logo.png");
 
-  // Organization Schema
   const organizationSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",
+    "@id": `${siteUrl}#organization`,
     name: "Secritou",
     url: siteUrl,
-    logo: logoUrl,
+    logo: { "@type": "ImageObject", url: logoUrl },
     description:
-      "Agence digitale tunisienne — nous aidons les PME, startups et créateurs à s'organiser, se digitaliser et croître.",
+      "Agence digitale tunisienne — stratégie, technologie, marketing et IA pour PME, startups et créateurs.",
+    email: "hello@secritou.com",
+    telephone: "+21694243333",
+    sameAs: [
+      // à compléter : page LinkedIn de l'agence, Facebook, Instagram
+    ],
+  };
+
+  const localBusinessSchema = {
+    "@context": "https://schema.org",
+    "@type": "ProfessionalService",
+    "@id": `${siteUrl}#localbusiness`,
+    name: "Secritou",
+    image: absoluteUrl("/secritou-og.png"),
+    url: siteUrl,
     telephone: "+21694243333",
     email: "hello@secritou.com",
+    priceRange: "990 TND - sur devis",
     address: {
       "@type": "PostalAddress",
       addressLocality: "Tunis",
+      addressRegion: "Tunis",
       addressCountry: "TN",
     },
-    sameAs: [],
-  };
-
-  // ProfessionalService Schema
-  const professionalServiceSchema = {
-    "@context": "https://schema.org",
-    "@type": "ProfessionalService",
-    name: "Secritou",
-    description:
-      "Agence digitale tunisienne — nous aidons les PME, startups et créateurs à s'organiser, se digitaliser et croître.",
-    url: siteUrl,
-    telephone: "+21694243333",
-    provider: {
-      "@type": "Organization",
-      name: "Secritou",
-      url: siteUrl,
-    },
-    areaServed: { "@type": "Country", name: "Tunisia" },
-    serviceType: [
-      "Tableau de bord KPI & Performance",
-      "Croissance digitale & Marketing",
-      "Création site web & E-commerce Tunisie",
-      "IA & Automatisation",
+    geo: { "@type": "GeoCoordinates", latitude: 36.8065, longitude: 10.1815 },
+    openingHoursSpecification: [
+      {
+        "@type": "OpeningHoursSpecification",
+        dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        opens: "09:00",
+        closes: "18:00",
+      },
     ],
+    areaServed: { "@type": "Country", name: "Tunisia" },
+    parentOrganization: { "@id": `${siteUrl}#organization` },
     contactPoint: {
       "@type": "ContactPoint",
       telephone: "+21694243333",
@@ -78,44 +81,62 @@ function setStructuredData() {
     },
   };
 
-  // Website Schema
+  // One Service node per pôle, aligned with the four internal service lines.
+  const serviceSchemas = [
+    {
+      name: "Tableaux de bord KPI & pilotage de la performance",
+      description:
+        "Mise en place de tableaux de bord KPI, objectifs et analytics business pour PME tunisiennes : une seule source de vérité pour vos chiffres.",
+      slug: "services#performance",
+    },
+    {
+      name: "Croissance digitale & marketing",
+      description:
+        "Réseaux sociaux, contenu, SEO et acquisition payante coordonnés pour générer des leads qualifiés en Tunisie.",
+      slug: "services#digital-growth",
+    },
+    {
+      name: "Création de sites web & e-commerce",
+      description:
+        "Création de sites vitrines et boutiques e-commerce en Tunisie : développement sur mesure, paiement local, inventaire.",
+      slug: "services#technology",
+    },
+    {
+      name: "IA & automatisation",
+      description:
+        "Chatbots IA, automatisation de processus et assistants intelligents pour compresser des heures de travail manuel.",
+      slug: "services#ai-automation",
+    },
+  ].map((s) => ({
+    "@context": "https://schema.org",
+    "@type": "Service",
+    name: s.name,
+    description: s.description,
+    url: absoluteUrl(`/${s.slug}`),
+    provider: { "@id": `${siteUrl}#localbusiness` },
+    areaServed: { "@type": "Country", name: "Tunisia" },
+    availableChannel: { "@type": "ServiceChannel", serviceUrl: absoluteUrl("/contact") },
+  }));
+
   const websiteSchema = {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: "Secritou",
     url: siteUrl,
-    publisher: {
-      "@type": "Organization",
-      name: "Secritou",
-      logo: logoUrl,
-    },
-    potentialAction: {
-      "@type": "SearchAction",
-      target: `${siteUrl}/search?q={search_term_string}`,
-      "query-input": "required name=search_term_string",
-    },
+    inLanguage: "fr",
+    publisher: { "@id": `${siteUrl}#organization` },
+    // No SearchAction: the site has no public /search page.
   };
 
-  // Remove existing script tags if any
+  // Remove existing script tags if any, then inject the full graph.
   document.querySelectorAll('script[type="application/ld+json"]').forEach((el) => el.remove());
 
-  // Add Organization Schema
-  const orgScript = document.createElement("script");
-  orgScript.type = "application/ld+json";
-  orgScript.text = JSON.stringify(organizationSchema);
-  document.head.appendChild(orgScript);
-
-  // Add ProfessionalService Schema
-  const serviceScript = document.createElement("script");
-  serviceScript.type = "application/ld+json";
-  serviceScript.text = JSON.stringify(professionalServiceSchema);
-  document.head.appendChild(serviceScript);
-
-  // Add Website Schema
-  const websiteScript = document.createElement("script");
-  websiteScript.type = "application/ld+json";
-  websiteScript.text = JSON.stringify(websiteSchema);
-  document.head.appendChild(websiteScript);
+  for (const schema of [organizationSchema, localBusinessSchema, ...serviceSchemas, websiteSchema]) {
+    const script = document.createElement("script");
+    script.type = "application/ld+json";
+    script.text = JSON.stringify(schema);
+    document.head.appendChild(script);
+  }
 }
 
 export function SEO() {
@@ -130,7 +151,8 @@ export function SEO() {
     document.title = seo.title;
 
     setMetaAttribute('meta[name="description"]', "content", seo.description);
-    setMetaAttribute('meta[name="keywords"]', "content", seo.keywords ?? "");
+    // meta keywords: ignored by search engines since 2009 — removed on purpose.
+    document.head.querySelector('meta[name="keywords"]')?.remove();
     setMetaAttribute('meta[name="robots"]', "content", robots);
     setMetaAttribute('link[rel="canonical"]', "href", canonicalUrl);
 

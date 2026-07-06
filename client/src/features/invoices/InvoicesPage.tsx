@@ -89,7 +89,7 @@ export function InvoicesPage() {
       case "DRAFT":
         return "bg-muted text-muted-foreground";
       case "SENT":
-        return "bg-primary-soft text-primary";
+        return "bg-primary-soft text-primary-strong";
       case "PAID":
         return "bg-green-100 text-green-800";
       case "PARTIAL":
@@ -199,9 +199,22 @@ export function InvoicesPage() {
                           : "-"}
                       </TableCell>
                       <TableCell>
-                        <Badge className={getStatusColor(invoice.status)}>
-                          {t(`invoices.statuses.${invoice.status.toLowerCase()}`)}
-                        </Badge>
+                        {(() => {
+                          // The daily job flips SENT/PARTIAL to OVERDUE; between runs the
+                          // dashboard already counts them as overdue at read time, so the
+                          // list derives the same status to stay consistent.
+                          const effectiveStatus =
+                            ["SENT", "PARTIAL"].includes(invoice.status) &&
+                            invoice.dueDate &&
+                            new Date(invoice.dueDate) < new Date()
+                              ? "OVERDUE"
+                              : invoice.status;
+                          return (
+                            <Badge className={getStatusColor(effectiveStatus)}>
+                              {t(`invoices.statuses.${effectiveStatus.toLowerCase()}`)}
+                            </Badge>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center gap-1">
@@ -295,7 +308,7 @@ export function InvoicesPage() {
                       <TableCell className="font-mono text-sm">{cn.appliedToInvoice?.number || "-"}</TableCell>
                       <TableCell>
                         {cn.appliedAt ? (
-                          <Badge className="bg-primary-soft text-primary">
+                          <Badge className="bg-primary-soft text-primary-strong">
                             {t("invoices.creditNotes.applied", { date: format(new Date(cn.appliedAt), "dd/MM/yyyy", { locale: fr }) })}
                           </Badge>
                         ) : (

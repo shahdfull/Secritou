@@ -33,7 +33,7 @@ export function ApprovalsClientPage() {
   const [action, setAction] = useState<RespondAction>("comment");
   const [comment, setComment] = useState("");
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["my-approvals"],
     queryFn: async () => {
       const res = await apiClient.get<{ data: { data: Approval[]; total: number } }>("/approvals/my");
@@ -56,6 +56,12 @@ export function ApprovalsClientPage() {
       <div className="flex items-center justify-center min-h-[300px]">
         <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <p className="text-muted-foreground text-center py-20">{t("errors.loadFailed")}</p>
     );
   }
 

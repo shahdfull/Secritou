@@ -59,14 +59,23 @@ export const invoiceRepository = {
     serviceId: string,
     options: ListQueryOptions & { status?: InvoiceStatus; search?: string }
   ): Promise<PaginatedResult<Invoice & { client: { name: string } }>> {
-    const where: Prisma.InvoiceWhereInput = { project: { serviceId } };
-    if (options.status) where.status = options.status;
+    // Invoices without a project are service-neutral (the create flow allows
+    // them): show them to every manager rather than to no one, so the list
+    // stays consistent with the global dashboard KPIs.
+    const scopeFilter: Prisma.InvoiceWhereInput = {
+      OR: [{ project: { serviceId } }, { projectId: null }],
+    };
+    const filters: Prisma.InvoiceWhereInput[] = [scopeFilter];
+    if (options.status) filters.push({ status: options.status });
     if (options.search) {
-      where.OR = [
-        { title: { contains: options.search, mode: "insensitive" } },
-        { number: { contains: options.search, mode: "insensitive" } },
-      ];
+      filters.push({
+        OR: [
+          { title: { contains: options.search, mode: "insensitive" } },
+          { number: { contains: options.search, mode: "insensitive" } },
+        ],
+      });
     }
+    const where: Prisma.InvoiceWhereInput = { AND: filters };
     const skip = (options.page - 1) * options.pageSize;
     const [data, total] = await Promise.all([
       prismaRead.invoice.findMany({

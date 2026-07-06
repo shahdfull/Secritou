@@ -20,6 +20,7 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-soft: var(--primary-soft);
+  --color-primary-strong: var(--primary-strong);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -36,8 +37,8 @@
   --color-surface-warm: var(--surface-warm);
   --color-ink: var(--ink);
 
-  --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
 
   --shadow-soft: 0 1px 2px rgba(14, 17, 22, 0.04), 0 8px 24px -8px rgba(14, 17, 22, 0.08);
   --shadow-card: 0 1px 2px rgba(14, 17, 22, 0.04), 0 12px 40px -12px rgba(14, 17, 22, 0.10);
@@ -48,10 +49,15 @@
   --radius: 0.875rem;
 
   /* Brand palette converted to oklch */
-  /* #6797A4 primary teal-blue */
-  --primary: oklch(0.638 0.052 218);
+  /* #6797A4 primary teal-blue — darkened from L 0.638 to L 0.554 (#4f7a87) to
+     clear 4.5:1 in both directions (text-on-white and white-on-fill), per the
+     a11y audit: the original shade measured 3.2-3.3:1 on buttons/links. */
+  --primary: oklch(0.554 0.052 218);
   --primary-foreground: oklch(0.99 0 0);
   --primary-soft: oklch(0.92 0.025 218);
+  /* Text-safe variant for teal content sitting on --primary-soft badges
+     (e.g. "Active" status): --primary itself only reaches ~3.4:1 there. */
+  --primary-strong: oklch(0.508 0.052 218);
 
   /* #EBE2DB warm background */
   --surface-warm: oklch(0.913 0.012 60);
@@ -79,7 +85,9 @@
   --destructive-foreground: oklch(0.99 0 0);
   --border: oklch(0.9 0.01 60);
   --input: oklch(0.92 0.01 60);
-  --ring: oklch(0.638 0.052 218 / 0.4);
+  /* Opaque (was 40% alpha): a translucent ring under-delivers on the ~3:1
+     non-text contrast focus indicators need against a white card. */
+  --ring: oklch(0.554 0.052 218);
 }
 
 /* Dark mode */
@@ -87,6 +95,7 @@ html.dark {
   --primary: oklch(0.7 0.07 218);
   --primary-foreground: oklch(0.1 0 0);
   --primary-soft: oklch(0.25 0.03 218);
+  --primary-strong: oklch(0.8 0.08 218);
 
   --surface-warm: oklch(0.15 0.012 30);
   --background: oklch(0.1 0.005 30);
@@ -111,7 +120,7 @@ html.dark {
   --destructive-foreground: oklch(0.1 0 0);
   --border: oklch(0.22 0.012 30);
   --input: oklch(0.2 0.01 30);
-  --ring: oklch(0.7 0.07 218 / 0.5);
+  --ring: oklch(0.7 0.07 218);
 }
 
 @layer base {
@@ -134,6 +143,23 @@ html.dark {
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
     letter-spacing: -0.02em;
+  }
+}
+
+/* MotionConfig reducedMotion="user" covers motion/react animations; this
+   covers what motion doesn't touch: smooth scroll and Tailwind's continuous
+   CSS keyframe animations (spin/pulse/bounce — spinners, skeletons). Hover/
+   focus transitions are left alone: WCAG 2.3.3 targets motion that's
+   triggered automatically or repeats, not brief interaction feedback. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-spin,
+  .animate-pulse,
+  .animate-bounce {
+    animation-duration: 1.5ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
 

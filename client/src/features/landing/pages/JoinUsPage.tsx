@@ -221,7 +221,7 @@ export function JoinUsPage() {
 
             {/* CV Upload */}
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-ink">
+              <label id="joinus-cv-label" className="block text-sm font-semibold text-ink">
                 {t("joinUs.cv")}
               </label>
               <FileUploadField
@@ -229,6 +229,7 @@ export function JoinUsPage() {
                 accept=".pdf"
                 label={t("joinUs.uploadCv")}
                 maxSizeMb={10}
+                aria-labelledby="joinus-cv-label"
                 onUploaded={(result) => {
                   uploadedCv.current = result as File;
                 }}
@@ -237,7 +238,7 @@ export function JoinUsPage() {
 
             {/* Portfolio Upload */}
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-ink">
+              <label id="joinus-portfolio-label" className="block text-sm font-semibold text-ink">
                 {t("joinUs.portfolio")}
               </label>
               <FileUploadField
@@ -245,6 +246,7 @@ export function JoinUsPage() {
                 accept=".pdf,.zip"
                 label={t("joinUs.uploadPortfolio")}
                 maxSizeMb={20}
+                aria-labelledby="joinus-portfolio-label"
                 onUploaded={(result) => {
                   uploadedPortfolio.current = result as File;
                 }}

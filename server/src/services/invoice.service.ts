@@ -11,10 +11,19 @@ import { HttpError } from "../utils/httpError.js";
 import { clientSuccessService } from "./clientSuccess.service.js";
 import { creditNoteService } from "./creditNote.service.js";
 import type { ServiceScope } from "../utils/serviceScope.js";
+import { invalidateTags } from "../cache/cacheService.js";
+import { cacheTags } from "../cache/cacheKeys.js";
+
+// Invoice mutations change dashboard / executive KPIs (overdue, cash, forecast).
+async function invalidateFinanceCaches() {
+  await invalidateTags([cacheTags.dashboard(), cacheTags.company()]);
+}
 
 type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
 // A MANAGER may only act on invoices whose project belongs to their service.
+// Invoices without a project are service-neutral and visible to every manager
+// (same rule as invoiceRepository.findAllByServiceId).
 // Throws 404 (not 403) to avoid leaking existence of out-of-scope invoices.
 async function assertInvoiceInScope(
   invoice: { projectId?: string | null } | null,
@@ -22,7 +31,7 @@ async function assertInvoiceInScope(
 ) {
   if (!invoice) throw new HttpError(404, "Invoice not found");
   if (!scope || scope.userRole !== "MANAGER") return;
-  if (!invoice.projectId) throw new HttpError(404, "Invoice not found");
+  if (!invoice.projectId) return;
   const { prismaRead } = await import("../config/prisma.js");
   const project = await prismaRead.project.findFirst({
     where: { id: invoice.projectId, serviceId: scope.userServiceId ?? "__none__" },
@@ -90,11 +99,15 @@ export const invoiceService = {
   },
 
   async create(data: { number?: string; title: string; description?: string; amount: number; currency?: string; dueDate?: Date; pdfUrl?: string; clientId: string; projectId?: string; proposalId?: string }) {
+    let created;
     if (!data.number) {
       const { number, ...rest } = data;
-      return createInvoiceWithGeneratedNumber(rest);
+      created = await createInvoiceWithGeneratedNumber(rest);
+    } else {
+      created = await invoiceRepository.create(data as any);
     }
-    return invoiceRepository.create(data as any);
+    await invalidateFinanceCaches();
+    return created;
   },
 
   async update(id: string, data: Partial<{ number: string; title: string; description: string; amount: number; currency: string; dueDate: Date; pdfUrl: string }>) {
@@ -102,27 +115,34 @@ export const invoiceService = {
       const itemCount = await prisma.invoiceItem.count({ where: { invoiceId: id } });
       if (itemCount > 0) throw new HttpError(409, "This invoice's amount is derived from its line items and cannot be edited directly", "INVOICE_AMOUNT_DERIVED");
     }
-    return invoiceRepository.update(id, data);
+    const updated = await invoiceRepository.update(id, data);
+    await invalidateFinanceCaches();
+    return updated;
   },
 
   async delete(id: string) {
     const invoice = await invoiceRepository.findById(id);
     if (!invoice) throw new HttpError(404, "Invoice not found");
     if (invoice.status !== "DRAFT") throw new HttpError(409, "Only draft invoices can be deleted; cancel the invoice instead", "INVOICE_NOT_DRAFT");
-    return invoiceRepository.delete(id);
+    const deleted = await invoiceRepository.delete(id);
+    await invalidateFinanceCaches();
+    return deleted;
   },
 
   async cancel(id: string) {
     const invoice = await invoiceRepository.findById(id);
     if (!invoice) throw new HttpError(404, "Invoice not found");
     if (invoice.status === "PAID" || invoice.status === "CANCELLED") throw new HttpError(409, `Cannot cancel a ${invoice.status} invoice`, "INVOICE_NOT_CANCELLABLE");
-    return invoiceRepository.update(id, { status: "CANCELLED" });
+    const cancelled = await invoiceRepository.update(id, { status: "CANCELLED" });
+    await invalidateFinanceCaches();
+    return cancelled;
   },
 
   async send(id: string, scope?: ServiceScope) {
     const invoice = await invoiceRepository.findById(id);
     await assertInvoiceInScope(invoice, scope);
     const updated = await invoiceRepository.update(id, { status: "SENT", sentAt: new Date() });
+    await invalidateFinanceCaches();
 
     if (invoice) {
       const clientUsers = await userRepository.findByClientId(invoice.clientId);
@@ -178,6 +198,8 @@ export const invoiceService = {
     });
 
     if (result.deduplicated) return result;
+
+    await invalidateFinanceCaches();
 
     const invoiceMeta = await invoiceRepository.findById(id);
     if (invoiceMeta) {

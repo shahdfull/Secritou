@@ -6,6 +6,17 @@ import {
 } from "../api/invoices.api";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import type { QueryClient } from "@tanstack/react-query";
+
+// Invoice mutations must also invalidate the dashboard/exec aggregates: they
+// read overdue/finance counters independently of the invoices list (own query
+// keys, own staleTime), so without this an invoice change leaves the
+// dashboard showing stale counts until its own cache expires. See audit 09 §3.
+function invalidateInvoiceRelatedCaches(queryClient: QueryClient) {
+  queryClient.invalidateQueries({ queryKey: ["invoices"] });
+  queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+  queryClient.invalidateQueries({ queryKey: ["analytics"] });
+}
 
 export function useInvoices(params?: {
   page?: number;
@@ -38,7 +49,7 @@ export function useCreateInvoice() {
   return useMutation<Invoice, Error, Parameters<typeof invoicesApi.createInvoice>[0]>({
     mutationFn: (data) => invoicesApi.createInvoice(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      invalidateInvoiceRelatedCaches(queryClient);
       toast.success(t("invoices.created"));
     },
   });
@@ -51,7 +62,7 @@ export function useUpdateInvoice() {
   return useMutation<Invoice, Error, { id: string; data: Partial<Invoice> }>({
     mutationFn: ({ id, data }) => invoicesApi.updateInvoice(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      invalidateInvoiceRelatedCaches(queryClient);
       toast.success(t("invoices.updated"));
     },
   });
@@ -64,7 +75,7 @@ export function useDeleteInvoice() {
   return useMutation<{ success: boolean }, Error, string>({
     mutationFn: (id) => invoicesApi.deleteInvoice(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      invalidateInvoiceRelatedCaches(queryClient);
       toast.success(t("invoices.deleted"));
     },
   });
@@ -77,7 +88,7 @@ export function useSendInvoice() {
   return useMutation<Invoice, Error, string>({
     mutationFn: (id) => invoicesApi.sendInvoice(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      invalidateInvoiceRelatedCaches(queryClient);
       toast.success(t("invoices.sent"));
     },
   });
@@ -90,7 +101,7 @@ export function useCancelInvoice() {
   return useMutation<Invoice, Error, string>({
     mutationFn: (id) => invoicesApi.cancelInvoice(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      invalidateInvoiceRelatedCaches(queryClient);
       toast.success(t("invoices.cancelled", "Facture annulée"));
     },
   });
@@ -103,7 +114,7 @@ export function useAddInvoicePayment() {
   return useMutation<any, Error, { id: string; data: any }>({
     mutationFn: ({ id, data }) => invoicesApi.addPayment(id, data),
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      invalidateInvoiceRelatedCaches(queryClient);
       toast.success(t("invoices.paymentAdded"));
       // Backend returns a warning when the payment exceeds the invoice balance.
       const warning = (result as { warning?: string })?.warning;

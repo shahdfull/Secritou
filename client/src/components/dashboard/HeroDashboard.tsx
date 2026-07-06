@@ -33,7 +33,7 @@ export function HeroDashboard() {
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t("dashboardHero.revenueTrend")}</p>
                 <p className="mt-1 font-display text-lg font-bold text-ink">{t("dashboardHero.last12Months")}</p>
               </div>
-              <div className="flex items-center gap-1.5 rounded-full bg-primary-soft px-2.5 py-1 text-[11px] font-semibold text-primary">
+              <div className="flex items-center gap-1.5 rounded-full bg-primary-soft px-2.5 py-1 text-[11px] font-semibold text-primary-strong">
                 <TrendingUp className="h-3 w-3" /> +24%
               </div>
             </div>

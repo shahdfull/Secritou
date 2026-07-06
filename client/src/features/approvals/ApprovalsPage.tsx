@@ -124,7 +124,7 @@ export function ApprovalsPage() {
       case "REJECTED":
         return "bg-red-100 text-red-700";
       case "COMMENTED":
-        return "bg-primary-soft text-primary";
+        return "bg-primary-soft text-primary-strong";
       default:
         return "bg-muted text-muted-foreground";
     }

@@ -51,7 +51,7 @@ const STATUS_COLORS: Record<string, string> = {
 export function InvoicesClientPage() {
   const { t } = useTranslation();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["my-invoices"],
     queryFn: async () => {
       const res = await apiClient.get<{ data: { data: Invoice[]; total: number } }>("/invoices/my");
@@ -80,6 +80,12 @@ export function InvoicesClientPage() {
       <div className="flex items-center justify-center min-h-[300px]">
         <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <p className="text-muted-foreground text-center py-20">{t("errors.loadFailed")}</p>
     );
   }
 

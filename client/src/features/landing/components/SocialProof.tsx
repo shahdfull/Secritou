@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { Star, Quote, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, Quote, ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import useEmblaCarousel from "embla-carousel-react";
 
@@ -41,6 +41,10 @@ export function SocialProof() {
   });
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [scrollSnaps, setScrollSnaps] = useState<number[]>([]);
+  // WCAG 2.2.2: auto-advancing content must be pausable. `userPaused` is the
+  // explicit toggle; hover/focus suspend autoplay without flipping the toggle.
+  const [userPaused, setUserPaused] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
@@ -61,12 +65,12 @@ export function SocialProof() {
     };
   }, [emblaApi]);
 
-  // Autoplay
+  // Autoplay — suspended while paused, hovered or focused (WCAG 2.2.2)
   useEffect(() => {
-    if (!emblaApi) return;
+    if (!emblaApi || userPaused || hovered) return;
     const id = setInterval(() => emblaApi.scrollNext(), 6000);
     return () => clearInterval(id);
-  }, [emblaApi]);
+  }, [emblaApi, userPaused, hovered]);
 
   return (
     <section className="relative border-t border-border bg-background py-12 lg:py-16">
@@ -85,12 +89,25 @@ export function SocialProof() {
           transition={{ duration: 0.6 }}
           viewport={{ once: true }}
           className="relative mx-auto mt-12 max-w-6xl"
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          onFocusCapture={() => setHovered(true)}
+          onBlurCapture={() => setHovered(false)}
         >
-          <div className="overflow-hidden" ref={emblaRef}>
+          <div
+            className="overflow-hidden"
+            ref={emblaRef}
+            role="region"
+            aria-roledescription={t("home.socialProof.carousel")}
+            aria-label={t("home.socialProof.trustedBy")}
+          >
             <div className="flex -ml-4">
               {testimonials.map((item, i) => (
                 <div
                   key={i}
+                  role="group"
+                  aria-roledescription={t("home.socialProof.slide")}
+                  aria-label={`${i + 1} / ${testimonials.length}`}
                   className="min-w-0 flex-[0_0_100%] pl-4 sm:flex-[0_0_50%] lg:flex-[0_0_33.333%]"
                 >
                   <figure className="relative flex h-full flex-col overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-primary/10 via-card to-accent/15 p-6 shadow-card sm:p-8">
@@ -148,8 +165,8 @@ export function SocialProof() {
             <ChevronRight className="h-5 w-5" />
           </button>
 
-          {/* Dots */}
-          <div className="mt-6 flex justify-center gap-2">
+          {/* Dots + pause control */}
+          <div className="mt-6 flex items-center justify-center gap-2">
             {scrollSnaps.map((_, i) => (
               <button
                 key={i}
@@ -161,6 +178,15 @@ export function SocialProof() {
                 }`}
               />
             ))}
+            <button
+              type="button"
+              onClick={() => setUserPaused((p) => !p)}
+              aria-pressed={userPaused}
+              aria-label={userPaused ? t("home.socialProof.play") : t("home.socialProof.pause")}
+              className="ml-3 grid h-7 w-7 place-items-center rounded-full border border-border bg-card text-ink transition-colors hover:bg-surface"
+            >
+              {userPaused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+            </button>
           </div>
         </motion.div>
       </div>

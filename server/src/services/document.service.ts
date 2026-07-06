@@ -2,7 +2,7 @@ import { documentRepository } from "../repositories/document.repository.js";
 import type { DocumentType, DocumentAccessLevel, Role } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { prisma } from "../config/prisma.js";
-import { getSignedReadUrl } from "./upload.service.js";
+import { getSignedReadUrl, deleteFile } from "./upload.service.js";
 import { HttpError } from "../utils/httpError.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { enqueueNotifications } from "../jobs/queues.js";
@@ -28,7 +28,17 @@ export const documentService = {
   },
 
   async delete(id: string) {
-    return documentRepository.delete(id);
+    // Grab the storage key before the row disappears, then clean up the S3/MinIO
+    // object best-effort (deleteFile swallows errors) so the bucket doesn't
+    // accumulate orphans. createVersion copies fileKey onto the new version, so
+    // only delete the object once no remaining document row references it.
+    const doc = await prisma.document.findUnique({ where: { id }, select: { fileKey: true } });
+    const deleted = await documentRepository.delete(id);
+    if (doc?.fileKey) {
+      const stillReferenced = await prisma.document.count({ where: { fileKey: doc.fileKey } });
+      if (stillReferenced === 0) await deleteFile(doc.fileKey);
+    }
+    return deleted;
   },
 
   async createVersion(id: string, data: { url: string; userId?: string; ipAddress?: string; userAgent?: string }) {

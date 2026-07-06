@@ -11,8 +11,10 @@ export const dashboardService = {
       ? { status: "PENDING" as const, project: { serviceId: serviceId ?? "__none__" } }
       : { status: "PENDING" as const };
     const invoiceStatuses = ["SENT", "PARTIAL", "OVERDUE"] as ("SENT" | "PARTIAL" | "OVERDUE")[];
+    // Same scope rule as invoiceRepository.findAllByServiceId: project-less
+    // invoices are service-neutral and count for every manager.
     const invoiceWhere = serviceId !== undefined
-      ? { status: { in: invoiceStatuses }, dueDate: { lt: new Date() }, project: { serviceId: serviceId ?? "__none__" } }
+      ? { status: { in: invoiceStatuses }, dueDate: { lt: new Date() }, OR: [{ project: { serviceId: serviceId ?? "__none__" } }, { projectId: null }] }
       : { status: { in: invoiceStatuses }, dueDate: { lt: new Date() } };
     const leadWhere = serviceId !== undefined
       ? { status: "QUALIFIED" as const, archivedAt: null, serviceId: serviceId ?? "__none__" }

@@ -1,18 +1,20 @@
-import { lazy, memo } from "react";
+import { lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
-import { Outlet, Route, Routes, Navigate } from "react-router-dom";
-import { Footer } from "@/components/layout/Footer";
-import { Header } from "@/components/layout/Header";
-import { LandingCmsProvider } from "@/providers/LandingCmsProvider";
-import { AdminLayout } from "@/components/layout/AdminLayout";
-import { ClientLayout } from "@/components/layout/ClientLayout";
-import { FreelancerLayout } from "@/components/layout/FreelancerLayout";
+import { Route, Routes, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ScrollToTop } from "@/components/ScrollToTop";
-import { WhatsAppButton } from "@/components/WhatsAppButton";
 
 const LegalPage = lazy(() => import("@/features/landing/pages/LegalPage").then((m) => ({ default: m.LegalPage })));
 const PrivacyPage = lazy(() => import("@/features/landing/pages/PrivacyPage").then((m) => ({ default: m.PrivacyPage })));
+// The internal layouts pull the whole CRM shell (sidebar, notifications, global
+// search, AI assistant): lazy-load them so marketing visitors never download it.
+const AdminLayout = lazy(() => import("@/components/layout/AdminLayout").then((m) => ({ default: m.AdminLayout })));
+const ClientLayout = lazy(() => import("@/components/layout/ClientLayout").then((m) => ({ default: m.ClientLayout })));
+const FreelancerLayout = lazy(() => import("@/components/layout/FreelancerLayout").then((m) => ({ default: m.FreelancerLayout })));
+// Marketing shell (Header/Footer/CMS/MotionConfig) is lazy too, so /app users
+// never download it. React Router renders parent+child routes together, so the
+// layout and page chunks load in parallel (no extra waterfall).
+const MarketingLayout = lazy(() => import("@/components/layout/MarketingLayout").then((m) => ({ default: m.MarketingLayout })));
 import { RouteBoundary } from "@/components/common/RouteBoundary";
 import { MustChangePasswordGuard } from "@/components/MustChangePasswordGuard";
 import { useAuthStore } from "@/store/auth.store";
@@ -125,7 +127,11 @@ const ClientProfitabilityPage = lazy(() =>
 
 function AppLayout() {
   const role = useAuthStore((s) => s.user?.role);
-  return role === "FREELANCER" ? <FreelancerLayout /> : <AdminLayout />;
+  return (
+    <Suspense fallback={<PageLoader />}>
+      {role === "FREELANCER" ? <FreelancerLayout /> : <AdminLayout />}
+    </Suspense>
+  );
 }
 
 function PageLoader() {
@@ -136,21 +142,6 @@ function PageLoader() {
   );
 }
 
-const MarketingLayout = memo(function MarketingLayout() {
-  return (
-    <LandingCmsProvider>
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header />
-        <main className="flex-1">
-          <Outlet />
-        </main>
-        <Footer />
-        <WhatsAppButton />
-      </div>
-    </LandingCmsProvider>
-  );
-});
-
 function withBoundary(element: React.ReactNode) {
   return <RouteBoundary suspenseFallback={<PageLoader />}>{element}</RouteBoundary>;
 }
@@ -160,7 +151,7 @@ export function AppRoutes() {
     <>
     <ScrollToTop />
     <Routes>
-      <Route element={<MarketingLayout />}>
+      <Route element={<Suspense fallback={<PageLoader />}><MarketingLayout /></Suspense>}>
         <Route index element={withBoundary(<HomePage />)} />
         <Route path="services" element={withBoundary(<ServicesPage />)} />
         <Route path="solutions" element={withBoundary(<SolutionsPage />)} />
@@ -220,7 +211,9 @@ export function AppRoutes() {
           path="client"
           element={
             <ProtectedRoute>
-              <ClientLayout />
+              <Suspense fallback={<PageLoader />}>
+                <ClientLayout />
+              </Suspense>
             </ProtectedRoute>
           }
         >

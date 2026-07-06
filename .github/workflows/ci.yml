@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  client:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint --workspace=client
+      - run: npm run typecheck --workspace=client
+      - run: npm run test --workspace=client
+      - run: npm run build --workspace=client
+
+  server:
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://secritou:secritou@localhost:5432/secritou_test
+      JWT_SECRET: ci-test-secret-min-32-characters-long
+      JWT_REFRESH_SECRET: ci-test-refresh-secret-min-32-chars
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run prisma:validate --workspace=server
+      - run: npm run prisma:format:check --workspace=server
+      - run: npm run prisma:generate --workspace=server
+      - run: npm run lint --workspace=server
+      - run: npm run typecheck --workspace=server
+      - run: npm run test:coverage --workspace=server
+      - run: npm run build --workspace=server
+
+  i18n-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/check-i18n.mjs

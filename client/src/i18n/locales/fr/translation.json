@@ -1,4 +1,7 @@
 {
+  "a11y": {
+    "skipToContent": "Aller au contenu"
+  },
   "nav": {
     "services": "Services",
     "solutions": "Solutions",
@@ -317,6 +320,10 @@
       "prev": "Précédent",
       "next": "Suivant",
       "testimonialN": "Témoignage {{n}}",
+      "carousel": "carrousel",
+      "slide": "diapositive",
+      "pause": "Mettre en pause le défilement des témoignages",
+      "play": "Reprendre le défilement des témoignages",
       "testimonials": [
         {
           "quote": "Secritou nous a aidés à remettre de l'ordre dans notre croissance. En quelques mois, nos décisions sont devenues plus claires et notre organisation beaucoup plus fluide.",
@@ -401,6 +408,7 @@
     },
     "footer": {
       "description": "Agence tunisienne B2B qui aide les PME, startuppers et créateurs à s'organiser, se digitaliser et croître.",
+      "socialLink": "Secritou sur {{name}}",
       "services": "Services",
       "solutions": "Solutions",
       "industriesTitle": "Secteurs",
@@ -634,7 +642,11 @@
     "sending": "Envoi...",
     "total": "Total",
     "close": "Fermer",
-    "fileTooLargeMax": "Fichier trop volumineux (max {{max}} Mo)."
+    "fileTooLargeMax": "Fichier trop volumineux (max {{max}} Mo).",
+    "uploading": "Envoi en cours…",
+    "clickToUploadFile": "Cliquez pour envoyer un fichier",
+    "removeFile": "Supprimer le fichier",
+    "fileTypeNotAccepted": "Fichier non accepté. Types acceptés : {{types}}"
   },
   "search": {
     "placeholder": "Rechercher les leads, clients, projets...",
@@ -1787,7 +1799,8 @@
   },
   "errors": {
     "tabLoadFailed": "Cette section n'a pas pu se charger. Veuillez réessayer.",
-    "network": "Impossible de contacter le serveur. Vérifiez votre connexion et réessayez."
+    "network": "Impossible de contacter le serveur. Vérifiez votre connexion et réessayez.",
+    "loadFailed": "Impossible de charger les données. Veuillez réessayer."
   },
   "payments": {
     "tab": "Paiements",

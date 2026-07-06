@@ -153,6 +153,7 @@ export const executiveMetricsRepository = {
       overdueRaw,
       pendingRaw,
       cashByMonthRaw,
+      billedByMonthRaw,
 
       // Forecast
       forecastInvoices30,
@@ -203,6 +204,13 @@ export const executiveMetricsRepository = {
         where: { paidAt: { gte: new Date(ytdStart.getFullYear() - 1, ytdStart.getMonth(), 1) } },
         select: { paidAt: true, amount: true },
       }),
+      prisma.invoice.findMany({
+        where: {
+          status: { notIn: ["DRAFT", "CANCELLED"] },
+          createdAt: { gte: new Date(ytdStart.getFullYear() - 1, ytdStart.getMonth(), 1) },
+        },
+        select: { createdAt: true, amount: true },
+      }),
 
       // ── Forecast ──
       prisma.invoice.aggregate({ where: { status: { in: ["SENT", "PARTIAL"] }, dueDate: { gte: now, lte: in30 } }, _sum: { amount: true } }),
@@ -219,6 +227,9 @@ export const executiveMetricsRepository = {
       prisma.client.findMany({
         select: {
           id: true, name: true, createdAt: true,
+          // Project-less invoices (projectId null) are fetched at client level so
+          // health/revenue see every confirmed invoice, not only project-linked ones.
+          invoices: { where: { projectId: null, status: { notIn: ["DRAFT", "CANCELLED"] } }, select: { amount: true, amountPaid: true, status: true, dueDate: true } },
           projects: {
             select: {
               id: true, status: true, clientApprovedAt: true, createdAt: true,
@@ -231,10 +242,12 @@ export const executiveMetricsRepository = {
       // ── Projects ──
       prisma.project.groupBy({ by: ["status"], _count: true, orderBy: { status: "asc" } }),
       prisma.project.count({ where: { deadline: { lt: now }, status: { notIn: ["COMPLETED"] } } }),
+      // `every` is vacuously true on empty lists, so require at least one task:
+      // a project with no tasks yet is "not started", not stale.
       prisma.project.count({
         where: {
           status: "IN_PROGRESS",
-          tasks: { every: { updatedAt: { lt: day7ago } } },
+          tasks: { some: {}, every: { updatedAt: { lt: day7ago } } },
         },
       }),
       // Blocked = has tasks in REVIEW for > 3 days
@@ -293,7 +306,11 @@ export const executiveMetricsRepository = {
       const cur = monthMap.get(key) ?? { cash: 0, billed: 0 };
       monthMap.set(key, { ...cur, cash: cur.cash + Number(p.amount ?? 0) });
     }
-    // Billed by month — fetch separately would be another query; approximate from aggregate data
+    for (const inv of billedByMonthRaw) {
+      const key = `${inv.createdAt.getFullYear()}-${String(inv.createdAt.getMonth() + 1).padStart(2, "0")}`;
+      const cur = monthMap.get(key) ?? { cash: 0, billed: 0 };
+      monthMap.set(key, { ...cur, billed: cur.billed + Number(inv.amount ?? 0) });
+    }
     const cashByMonth = Array.from(monthMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .slice(-12)
@@ -318,8 +335,11 @@ export const executiveMetricsRepository = {
     };
 
     // ── Forecast computation ───────────────────────────────────────────────
+    // Without proposal history there is no basis for a conversion rate: report 0
+    // and keep the forecast to invoices actually due, rather than fabricating
+    // pipeline revenue from a made-up percentage.
     const pipeline = Number(proposalPipelineRaw._sum.amount ?? 0);
-    const convRate = proposalSentRaw === 0 ? 30 : pct(proposalWonRaw, proposalSentRaw);
+    const convRate = proposalSentRaw === 0 ? 0 : pct(proposalWonRaw, proposalSentRaw);
     const CONV = convRate / 100;
 
     const f30 = Number(forecastInvoices30._sum.amount ?? 0) + pipeline * CONV * 0.33;
@@ -341,6 +361,11 @@ export const executiveMetricsRepository = {
     };
 
     // ── Client KPIs ────────────────────────────────────────────────────────
+    // atRisk (financial health) and lost (activity) are independent axes: a
+    // client can be both. The displayed `health` badge keeps a single value
+    // with at-risk taking priority, but the counters no longer mask each other,
+    // so churnRate reflects every lost client even when they also have overdue
+    // invoices.
     let atRisk = 0, lost = 0, champions = 0, activeClients = 0;
     const topClientsMap: Array<{ id: string; name: string; revenue: number; projects: number; health: string }> = [];
 
@@ -351,17 +376,17 @@ export const executiveMetricsRepository = {
         const d = p.clientApprovedAt ?? p.createdAt;
         return !acc || d > acc ? d : acc;
       }, null);
-      const hasOverdue30 = c.projects.some(p =>
-        p.invoices.some(i => ["SENT", "PARTIAL", "OVERDUE"].includes(i.status) && i.dueDate && i.dueDate < day30ago)
-      );
-      const totalRevenue = c.projects.reduce((s, p) => s + p.invoices.reduce((ss, i) => ss + Number(i.amountPaid ?? 0), 0), 0);
+      const allInvoices = [...c.invoices, ...c.projects.flatMap(p => p.invoices)];
+      const hasOverdue30 = allInvoices.some(i => ["SENT", "PARTIAL", "OVERDUE"].includes(i.status) && i.dueDate && i.dueDate < day30ago);
+      const totalRevenue = allInvoices.reduce((s, i) => s + Number(i.amountPaid ?? 0), 0);
+      const isLost = !hasActive && lastCompleted !== null && lastCompleted < sixMonthsAgo;
 
       if (hasActive) activeClients++;
       if (hasOverdue30) atRisk++;
-      else if (!hasActive && lastCompleted && lastCompleted < sixMonthsAgo) lost++;
+      if (isLost) lost++;
       else if (completedProjects.length >= 2) champions++;
 
-      const health = hasOverdue30 ? "at-risk" : !hasActive && lastCompleted && lastCompleted < sixMonthsAgo ? "lost" : completedProjects.length >= 2 ? "champion" : "good";
+      const health = hasOverdue30 ? "at-risk" : isLost ? "lost" : completedProjects.length >= 2 ? "champion" : "good";
       topClientsMap.push({ id: c.id, name: c.name, revenue: totalRevenue, projects: c.projects.length, health });
     }
 
@@ -399,7 +424,8 @@ export const executiveMetricsRepository = {
     for (const p of activeProjects) {
       const isOverdue = p.deadline ? p.deadline < now : false;
       const lastActivity = p.tasks.reduce<Date | null>((acc, t) => !acc || t.updatedAt > acc ? t.updatedAt : acc, null);
-      const isStale = lastActivity ? lastActivity < day7ago : p.tasks.length === 0;
+      // A project with no tasks is "not started", never stale/critical on that basis.
+      const isStale = lastActivity ? lastActivity < day7ago : false;
       const blockedTasks = p.tasks.filter(t => t.status === "REVIEW" && t.updatedAt < day3ago).length;
       const daysUntilDeadline = p.deadline ? Math.ceil((p.deadline.getTime() - now.getTime()) / 86_400_000) : null;
       const isWarnDeadline = daysUntilDeadline !== null && daysUntilDeadline <= 7 && daysUntilDeadline >= 0;

@@ -63,7 +63,7 @@ export const DashboardCharts = memo(function DashboardCharts({
               {t("dashboard.leadsByMonth")}
             </CardDescription>
           </div>
-          <Badge className="bg-primary-soft text-primary text-[10px] font-semibold px-2 py-0.5 rounded-full">
+          <Badge className="bg-primary-soft text-primary-strong text-[10px] font-semibold px-2 py-0.5 rounded-full">
             6 {t("dashboard.months")}
           </Badge>
         </CardHeader>

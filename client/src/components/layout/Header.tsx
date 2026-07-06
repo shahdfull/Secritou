@@ -64,6 +64,7 @@ export function Header() {
         <div className="hidden md:flex items-center gap-3">
           <button
             onClick={() => i18n.changeLanguage("fr")}
+            aria-pressed={i18n.language === "fr"}
             className={`text-sm transition-colors ${
               i18n.language === "fr"
                 ? "font-semibold text-ink"
@@ -72,9 +73,10 @@ export function Header() {
           >
             FR
           </button>
-          <span className="text-muted-foreground">|</span>
+          <span className="text-muted-foreground" aria-hidden="true">|</span>
           <button
             onClick={() => i18n.changeLanguage("en")}
+            aria-pressed={i18n.language === "en"}
             className={`text-sm transition-colors ${
               i18n.language === "en"
                 ? "font-semibold text-ink"
@@ -141,6 +143,7 @@ export function Header() {
             <div className="pt-4 mt-2 border-t border-border flex items-center justify-center gap-3">
               <button
                 onClick={() => i18n.changeLanguage("fr")}
+                aria-pressed={i18n.language === "fr"}
                 className={`text-sm transition-colors ${
                   i18n.language === "fr"
                     ? "font-semibold text-ink"
@@ -149,9 +152,10 @@ export function Header() {
               >
                 FR
               </button>
-              <span className="text-muted-foreground">|</span>
+              <span className="text-muted-foreground" aria-hidden="true">|</span>
               <button
                 onClick={() => i18n.changeLanguage("en")}
+                aria-pressed={i18n.language === "en"}
                 className={`text-sm transition-colors ${
                   i18n.language === "en"
                     ? "font-semibold text-ink"

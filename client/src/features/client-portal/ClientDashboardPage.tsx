@@ -17,15 +17,16 @@ export function ClientDashboardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  const { data: projectsResult } = useProjects({ page: 1, pageSize: 100 });
+  const { data: projectsResult, isError: projectsError } = useProjects({ page: 1, pageSize: 100 });
   const projects = projectsResult?.data ?? [];
-  const { data: requests } = useClientServiceRequests();
-  const { data: documentsResult } = useQuery({
+  const { data: requests, isError: requestsError } = useClientServiceRequests();
+  const { data: documentsResult, isError: documentsError } = useQuery({
     queryKey: ["clientDocuments", user?.clientId],
     queryFn: () => user?.clientId ? documentsApi.getDocuments({ clientId: user.clientId }) : Promise.resolve({ data: [], total: 0, page: 1, pageSize: 10 }),
     enabled: !!user?.clientId,
   });
   const documents = documentsResult?.data ?? [];
+  const hasLoadError = projectsError || requestsError || documentsError;
 
   const stats = [
     {
@@ -62,6 +63,12 @@ export function ClientDashboardPage() {
   return (
     <div className="container-page max-w-6xl mx-auto py-8 space-y-8">
       <h1 className="text-3xl font-bold text-ink">Tableau de bord</h1>
+
+      {hasLoadError && (
+        <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {t("errors.loadFailed")}
+        </p>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {stats.map((stat) => {

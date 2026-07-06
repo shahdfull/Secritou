@@ -34,7 +34,7 @@ export function getProjectStatusBadgeClass(status: string): string {
     case "PLANNING":
       return "bg-surface-warm text-ink/70";
     case "IN_PROGRESS":
-      return "bg-primary-soft text-primary font-medium";
+      return "bg-primary-soft text-primary-strong font-medium";
     case "REVIEW":
       return "bg-accent-soft text-accent-foreground font-medium";
     case "COMPLETED":
@@ -49,7 +49,7 @@ export function getTaskStatusBadgeClass(status: string): string {
     case "TODO":
       return "bg-surface-warm text-ink/70";
     case "IN_PROGRESS":
-      return "bg-primary-soft text-primary font-medium";
+      return "bg-primary-soft text-primary-strong font-medium";
     case "REVIEW":
       return "bg-accent-soft text-accent-foreground font-medium";
     case "DONE":

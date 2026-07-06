@@ -5,6 +5,10 @@ import * as Sentry from "@sentry/react";
 import { App } from "./App";
 import { initWebVitals } from "./observability/webVitals";
 import { ThemeProvider } from "./providers/ThemeProvider";
+// Self-hosted variable fonts (single woff2 per family, all weights): same-origin,
+// no extra DNS/TLS round-trip to Google Fonts, font-display: swap built in.
+import "@fontsource-variable/inter";
+import "@fontsource-variable/plus-jakarta-sans";
 import "./styles.css";
 import "./i18n";
 

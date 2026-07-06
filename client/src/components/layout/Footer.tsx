@@ -58,12 +58,17 @@ export function Footer() {
               {t("home.footer.description")}
             </p>
             <div className="mt-6 flex gap-2">
-              {[Linkedin, Twitter, Instagram, Mail].map((Icon, i) => (
+              {[
+                { Icon: Linkedin, name: "LinkedIn" },
+                { Icon: Twitter, name: "Twitter / X" },
+                { Icon: Instagram, name: "Instagram" },
+                { Icon: Mail, name: "Email" },
+              ].map(({ Icon, name }) => (
                 <a
-                  key={i}
+                  key={name}
                   href="#"
                   className="grid h-10 w-10 place-items-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:text-ink"
-                  aria-label="Social link"
+                  aria-label={t("home.footer.socialLink", { name })}
                 >
                   <Icon className="h-4 w-4" />
                 </a>

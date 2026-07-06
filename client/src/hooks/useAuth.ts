@@ -36,9 +36,15 @@ function loginErrorMessage(error: AxiosError): string {
 // Fix: `bootstrapped` is no longer persisted (see auth.store.ts), so it always
 // starts as `false`. The `enabled` condition now only checks `!bootstrapped`,
 // which correctly runs the refresh once per page load and never again.
+// The refresh cookie is httpOnly (unreadable from JS), so this flag is the
+// client-side hint that a session may exist: set at login/register, cleared at
+// logout. Anonymous marketing visitors never have it and skip the network call.
+export const HAS_SESSION_KEY = "hasSession";
+
 export function useBootstrapSession() {
   const bootstrapped = useAuthStore((state) => state.bootstrapped);
   const markBootstrapped = useAuthStore((state) => state.markBootstrapped);
+  const maybeHasSession = localStorage.getItem(HAS_SESSION_KEY) === "1";
 
   // Query to refresh session using HTTP-only cookie
   const query = useQuery({
@@ -49,7 +55,8 @@ export function useBootstrapSession() {
     },
     // FIX: only skip if already bootstrapped this session.
     // `bootstrapped` is no longer persisted, so this is always false on first load.
-    enabled: !bootstrapped,
+    // Anonymous visitors (no hasSession marker) never fire the refresh call.
+    enabled: !bootstrapped && maybeHasSession,
     retry: false,
     staleTime: Infinity, // Never stale, only runs once
     gcTime: 0,           // Don't keep in cache
@@ -61,6 +68,13 @@ export function useBootstrapSession() {
   // Handle bootstrap completion
   useEffect(() => {
     if (bootstrapped) return; // already done this session
+
+    if (!maybeHasSession) {
+      // No session marker: settle immediately as unauthenticated without a network call.
+      useAuthStore.getState().setUnauthenticated();
+      markBootstrapped();
+      return;
+    }
 
     if (query.isSuccess && query.data) {
       // Successfully refreshed — store the new token and user
@@ -74,7 +88,7 @@ export function useBootstrapSession() {
       useAuthStore.getState().setUnauthenticated();
       markBootstrapped();
     }
-  }, [query.isSuccess, query.isError, query.data, bootstrapped, markBootstrapped]);
+  }, [query.isSuccess, query.isError, query.data, bootstrapped, markBootstrapped, maybeHasSession]);
 
   return query;
 }
@@ -102,6 +116,7 @@ export function useLogin() {
     mutationFn: async (credentials: LoginCredentials) => authApi.login(credentials),
     onSuccess: async (data) => {
       setSession({ user: data.user, accessToken: data.tokens.accessToken });
+      localStorage.setItem(HAS_SESSION_KEY, "1");
       queryClient.setQueryData(["auth.bootstrap"], data);
       toast.success(i18n.t("toasts.loginSuccess"));
     },
@@ -133,6 +148,7 @@ export function useRegister() {
     mutationFn: async (credentials: RegisterCredentials) => authApi.register(credentials),
     onSuccess: async (data) => {
       setSession({ user: data.user, accessToken: data.tokens.accessToken });
+      localStorage.setItem(HAS_SESSION_KEY, "1");
       queryClient.setQueryData(["auth.bootstrap"], data);
       toast.success(i18n.t("toasts.registrationSuccess"));
     },
@@ -148,6 +164,7 @@ export function useLogout() {
     mutationFn: async () => authApi.logout(),
     onSuccess: () => {
       logoutStore();
+      localStorage.removeItem(HAS_SESSION_KEY);
       queryClient.clear();
       toast.success(i18n.t("toasts.logoutSuccess"));
     },

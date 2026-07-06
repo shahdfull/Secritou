@@ -153,7 +153,7 @@ function ApproveDialog({ project, open, onClose }: ApproveDialogProps) {
 export function ProjectsClientPage() {
   const { t } = useTranslation();
   const [approveTarget, setApproveTarget] = useState<ClientProject | null>(null);
-  const { data: projectsResult, isLoading } = useMyProjects();
+  const { data: projectsResult, isLoading, isError } = useMyProjects();
   const projects = (projectsResult?.data ?? []) as ClientProject[];
 
   if (isLoading) {
@@ -161,6 +161,12 @@ export function ProjectsClientPage() {
       <div className="flex items-center justify-center min-h-[300px]">
         <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <p className="text-muted-foreground text-center py-20">{t("errors.loadFailed")}</p>
     );
   }
 

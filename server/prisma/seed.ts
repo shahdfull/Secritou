@@ -57,6 +57,15 @@ async function main() {
     create: { email: 'admin@secritou.tn', name: 'Ahmed Ben Ali', passwordHash: adminHash, role: Role.ADMIN },
   });
 
+  // ── Demo data gate ────────────────────────────────────────────────────────
+  // Everything between here and the Permission Profiles section is demo/fixture
+  // data (Carrefour, Monoprix, Géant, Vermeg, sample projects/invoices/tasks).
+  // Set SEED_DEMO=false to get a production-ready seed: company, services,
+  // admin account, permission profiles and site content only.
+  const seedDemo = process.env.SEED_DEMO !== 'false';
+  if (!seedDemo) console.log('⏭️  SEED_DEMO=false — skipping demo data (clients, projects, invoices...)');
+
+  if (seedDemo) {
   const manager1 = await prisma.user.upsert({
     where: { email: 'manager@secritou.tn' },
     update: {},
@@ -528,6 +537,7 @@ async function main() {
     ]});
     console.log('✅ Notifications (10)');
   }
+  } // end if (seedDemo)
 
   // ── Permission Profiles ───────────────────────────────────────────────────
   if (!(await skipIf(prisma.permissionProfile, 'Permission profiles'))) {
@@ -669,16 +679,18 @@ async function main() {
   console.log('\n  Credentials');
   console.log('  ─────────────────────────────────────────────────────');
   console.log('  Admin         admin@secritou.tn           admin123');
-  console.log('  Manager 1     manager@secritou.tn         manager123');
-  console.log('  Manager 2     manager2@secritou.tn        manager123');
-  console.log('  Client 1      client1@example.tn  (Carrefour)   client123');
-  console.log('  Client 2      client2@example.tn  (Monoprix)    client123');
-  console.log('  Client 3      client3@example.tn  (Géant)       client123');
-  console.log('  Client 4      client4@example.tn  (Vermeg)      client123');
-  console.log('  Freelancer 1  yassine.dev@freelance.tn    freelancer123');
-  console.log('  Freelancer 2  ines.design@freelance.tn    freelancer123');
-  console.log('  Freelancer 3  omar.data@freelance.tn      freelancer123');
-  console.log('  Freelancer 4  salma.mobile@freelance.tn   freelancer123');
+  if (seedDemo) {
+    console.log('  Manager 1     manager@secritou.tn         manager123');
+    console.log('  Manager 2     manager2@secritou.tn        manager123');
+    console.log('  Client 1      client1@example.tn  (Carrefour)   client123');
+    console.log('  Client 2      client2@example.tn  (Monoprix)    client123');
+    console.log('  Client 3      client3@example.tn  (Géant)       client123');
+    console.log('  Client 4      client4@example.tn  (Vermeg)      client123');
+    console.log('  Freelancer 1  yassine.dev@freelance.tn    freelancer123');
+    console.log('  Freelancer 2  ines.design@freelance.tn    freelancer123');
+    console.log('  Freelancer 3  omar.data@freelance.tn      freelancer123');
+    console.log('  Freelancer 4  salma.mobile@freelance.tn   freelancer123');
+  }
   console.log('  ─────────────────────────────────────────────────────\n');
 }
 

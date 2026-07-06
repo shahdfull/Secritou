@@ -1,4 +1,7 @@
 {
+  "a11y": {
+    "skipToContent": "Skip to content"
+  },
   "nav": {
     "services": "Services",
     "solutions": "Solutions",
@@ -317,6 +320,10 @@
       "prev": "Previous",
       "next": "Next",
       "testimonialN": "Testimonial {{n}}",
+      "carousel": "carousel",
+      "slide": "slide",
+      "pause": "Pause testimonial autoplay",
+      "play": "Resume testimonial autoplay",
       "testimonials": [
         {
           "quote": "Secritou helped us bring order to our growth. In just a few months, our decisions became clearer and our operations much smoother.",
@@ -401,6 +408,7 @@
     },
     "footer": {
       "description": "A Tunisian B2B agency helping SMEs, startuppers, and brands get organized, go digital, and grow.",
+      "socialLink": "Secritou on {{name}}",
       "services": "Services",
       "solutions": "Solutions",
       "industriesTitle": "Industries",
@@ -634,7 +642,11 @@
     "sending": "Sending...",
     "total": "Total",
     "close": "Close",
-    "fileTooLargeMax": "File too large (max {{max}}MB)."
+    "fileTooLargeMax": "File too large (max {{max}}MB).",
+    "uploading": "Uploading…",
+    "clickToUploadFile": "Click to upload a file",
+    "removeFile": "Remove file",
+    "fileTypeNotAccepted": "File not accepted. Accepted types: {{types}}"
   },
   "search": {
     "placeholder": "Search leads, clients, projects...",
@@ -1787,7 +1799,8 @@
   },
   "errors": {
     "tabLoadFailed": "This section failed to load. Please try again.",
-    "network": "Couldn't reach the server. Check your connection and try again."
+    "network": "Couldn't reach the server. Check your connection and try again.",
+    "loadFailed": "Unable to load data. Please try again."
   },
   "payments": {
     "tab": "Payments",

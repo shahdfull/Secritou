@@ -43,12 +43,29 @@ export function LoginPage() {
         <p className="mt-2 text-sm text-muted-foreground">{t("auth.accessWorkspace")}</p>
         <div className="mt-6 space-y-4">
           <div className="space-y-1">
-            <Input placeholder={t("auth.email")} type="email" {...register("email")} disabled={isPending} />
-            {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
+            <label htmlFor="login-email" className="sr-only">{t("auth.email")}</label>
+            <Input
+              id="login-email"
+              placeholder={t("auth.email")}
+              type="email"
+              aria-invalid={Boolean(errors.email)}
+              aria-describedby={errors.email ? "login-email-error" : undefined}
+              {...register("email")}
+              disabled={isPending}
+            />
+            {errors.email && <p id="login-email-error" role="alert" className="text-xs text-red-500">{errors.email.message}</p>}
           </div>
           <div className="space-y-1">
-            <PasswordInput placeholder={t("auth.password")} {...register("password")} disabled={isPending} />
-            {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
+            <label htmlFor="login-password" className="sr-only">{t("auth.password")}</label>
+            <PasswordInput
+              id="login-password"
+              placeholder={t("auth.password")}
+              aria-invalid={Boolean(errors.password)}
+              aria-describedby={errors.password ? "login-password-error" : undefined}
+              {...register("password")}
+              disabled={isPending}
+            />
+            {errors.password && <p id="login-password-error" role="alert" className="text-xs text-red-500">{errors.password.message}</p>}
           </div>
         </div>
         <div className="text-right text-sm">
