@@ -48,11 +48,8 @@ async function fillValidFormExceptPhone(user: ReturnType<typeof userEvent.setup>
     fieldByName("message"),
     "Ceci est un message suffisamment long pour la validation."
   );
-  // budget defaults to the empty placeholder option, which fails the
-  // (unrelated) optional enum validation — select a real value so these
-  // phone-focused tests aren't blocked by that pre-existing UX gap (see
-  // audit/03-formulaires.md A6).
-  await user.selectOptions(fieldByName("budget"), "< 1 000 DT");
+  // budget is left on its empty placeholder option on purpose: it's optional
+  // and must not block submission (regression test below covers this).
 }
 
 describe("ContactPage phone validation (audit 03 #6)", () => {
@@ -96,5 +93,39 @@ describe("ContactPage phone validation (audit 03 #6)", () => {
     await waitFor(() => {
       expect(submitContactRequestMock).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe("ContactPage budget field (regression, previously blocked submission)", () => {
+  test("leaving budget on its empty placeholder option does not block submission", async () => {
+    submitContactRequestMock.mockClear();
+    const user = userEvent.setup();
+    renderContactPage();
+
+    await fillValidFormExceptPhone(user);
+    // budget untouched: still on <option value="">
+    await user.click(screen.getByRole("button", { name: /envoyer et planifier/i }));
+
+    await waitFor(() => {
+      expect(submitContactRequestMock).toHaveBeenCalledTimes(1);
+    });
+    const payload = submitContactRequestMock.mock.calls[0][0];
+    expect(payload.budget).toBeUndefined();
+  });
+
+  test("selecting a real budget option submits that value", async () => {
+    submitContactRequestMock.mockClear();
+    const user = userEvent.setup();
+    renderContactPage();
+
+    await fillValidFormExceptPhone(user);
+    await user.selectOptions(fieldByName("budget"), "< 1 000 DT");
+    await user.click(screen.getByRole("button", { name: /envoyer et planifier/i }));
+
+    await waitFor(() => {
+      expect(submitContactRequestMock).toHaveBeenCalledTimes(1);
+    });
+    const payload = submitContactRequestMock.mock.calls[0][0];
+    expect(payload.budget).toBe("< 1 000 DT");
   });
 });

@@ -49,7 +49,13 @@ export function ContactPage() {
     serviceType: z.enum(CANONICAL_SERVICE_TYPES, {
       required_error: t("contact.pleaseEnterServiceType")
     }),
-    budget: z.enum(CONTACT_BUDGET_OPTIONS).optional(),
+    // The <select>'s empty placeholder option submits "" (not undefined),
+    // which .optional() alone doesn't accept — normalize "" to undefined
+    // before the enum check so leaving budget unselected passes validation.
+    budget: z
+      .union([z.enum(CONTACT_BUDGET_OPTIONS), z.literal("")])
+      .optional()
+      .transform((value) => (value === "" ? undefined : value)),
     company: z.string().trim().min(2, t("auth.companyNameMinLength")),
     message: z.string().trim().min(20, t("contact.pleaseEnterMessage")),
     // Honeypot: hidden field a human never fills in. Left unconstrained so a
@@ -58,7 +64,10 @@ export function ContactPage() {
     website: z.string().optional(),
   });
 
-  type ContactFormValues = z.infer<typeof contactSchema>;
+  // Input = what the <select>/<input> elements actually submit (budget can be
+  // ""); output = what onSubmit receives after zodResolver runs .transform().
+  type ContactFormInput = z.input<typeof contactSchema>;
+  type ContactFormOutput = z.output<typeof contactSchema>;
 
   const selectedService = location.state?.selectedService as ServiceType | undefined;
 
@@ -67,7 +76,7 @@ export function ContactPage() {
     handleSubmit,
     register,
     reset,
-  } = useForm<ContactFormValues>({
+  } = useForm<ContactFormInput, unknown, ContactFormOutput>({
     resolver: zodResolver(contactSchema),
     defaultValues: {
       name: "",
@@ -151,12 +160,15 @@ export function ContactPage() {
                 error={errors.phone?.message}
               />
               <div className="space-y-2">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <label htmlFor="contact-serviceType" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {t("contact.serviceType")}
                   <span aria-hidden="true"> *</span>
                 </label>
                 <select
+                  id="contact-serviceType"
                   {...register("serviceType")}
+                  aria-invalid={Boolean(errors.serviceType)}
+                  aria-describedby={errors.serviceType ? "contact-serviceType-error" : undefined}
                   className="mt-2 h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-ink outline-none transition-shadow focus:border-primary focus:shadow-soft"
                 >
                   {CANONICAL_SERVICE_TYPES.map((type) => (
@@ -166,7 +178,7 @@ export function ContactPage() {
                   ))}
                 </select>
                 {errors.serviceType?.message && (
-                  <p className="text-xs font-medium text-destructive">
+                  <p id="contact-serviceType-error" role="alert" className="text-xs font-medium text-destructive">
                     {errors.serviceType.message}
                   </p>
                 )}
@@ -180,11 +192,14 @@ export function ContactPage() {
                 required
               />
               <div className="space-y-2">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <label htmlFor="contact-budget" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {t("contact.budget")}
                 </label>
                 <select
+                  id="contact-budget"
                   {...register("budget")}
+                  aria-invalid={Boolean(errors.budget)}
+                  aria-describedby={errors.budget ? "contact-budget-error" : undefined}
                   className="mt-2 h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-ink outline-none transition-shadow focus:border-primary focus:shadow-soft"
                 >
                   <option value="">{t("contact.budgetPlaceholder")}</option>
@@ -195,25 +210,27 @@ export function ContactPage() {
                   ))}
                 </select>
                 {errors.budget?.message && (
-                  <p className="text-xs font-medium text-destructive">
+                  <p id="contact-budget-error" role="alert" className="text-xs font-medium text-destructive">
                     {errors.budget.message}
                   </p>
                 )}
               </div>
             </div>
             <div className="mt-5">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <label htmlFor="contact-message" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {t("contact.message")}
                 <span aria-hidden="true"> *</span>
               </label>
               <textarea
+                id="contact-message"
                 {...register("message")}
                 aria-invalid={Boolean(errors.message)}
+                aria-describedby={errors.message ? "contact-message-error" : undefined}
                 rows={6}
                 className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-ink outline-none transition-shadow focus:border-primary focus:shadow-soft"
               />
               {errors.message?.message && (
-                <p className="mt-2 text-xs font-medium text-destructive">
+                <p id="contact-message-error" role="alert" className="mt-2 text-xs font-medium text-destructive">
                   {errors.message.message}
                 </p>
               )}
@@ -347,20 +364,28 @@ function Field({
   type?: string;
   required?: boolean;
 }) {
+  const id = `contact-${registration.name}`;
+  const errorId = `${id}-error`;
   return (
-    <label className="block">
+    <label htmlFor={id} className="block">
       <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
-        {required && " *"}
+        {required && <span aria-hidden="true"> *</span>}
       </span>
       <input
+        id={id}
         type={type}
         required={required}
         aria-invalid={Boolean(error)}
+        aria-describedby={error ? errorId : undefined}
         {...registration}
         className="mt-2 h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-ink outline-none transition-shadow focus:border-primary focus:shadow-soft"
       />
-      {error && <p className="mt-2 text-xs font-medium text-destructive">{error}</p>}
+      {error && (
+        <p id={errorId} role="alert" className="mt-2 text-xs font-medium text-destructive">
+          {error}
+        </p>
+      )}
     </label>
   );
 }

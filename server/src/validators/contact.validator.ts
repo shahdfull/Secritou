@@ -14,7 +14,13 @@ export const contactRequestSchema = z.object({
       "Enter a valid Tunisian phone number"
     ),
     serviceType: z.enum(CONTACT_SERVICE_TYPES),
-    budget: z.enum(CONTACT_BUDGET_OPTIONS).optional(),
+    // Tolerates "" in addition to undefined: the client's <select> placeholder
+    // option submits an empty string when budget is left unselected (see
+    // ContactPage.tsx's contactSchema for the matching client-side fix).
+    budget: z
+      .union([z.enum(CONTACT_BUDGET_OPTIONS), z.literal("")])
+      .optional()
+      .transform((value) => (value === "" ? undefined : value)),
     company: z.string().trim().min(2, "Company must contain at least 2 characters"),
     message: z.string().trim().min(20, "Message must contain at least 20 characters"),
     // Honeypot: hidden field a human never fills. Left unconstrained (no
