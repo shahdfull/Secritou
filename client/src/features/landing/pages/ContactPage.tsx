@@ -57,6 +57,10 @@ export function ContactPage() {
     budget: z.enum(["< 1 000 DT", "1 000–5 000 DT", "5 000–15 000 DT", "+15 000 DT"] as const).optional(),
     company: z.string().trim().min(2, t("auth.companyNameMinLength")),
     message: z.string().trim().min(20, t("contact.pleaseEnterMessage")),
+    // Honeypot: hidden field a human never fills in. Left unconstrained so a
+    // bot filling it still passes client-side validation and reaches the
+    // server, which silently no-ops instead of revealing the trap.
+    website: z.string().optional(),
   });
 
   type ContactFormValues = z.infer<typeof contactSchema>;
@@ -78,6 +82,7 @@ export function ContactPage() {
       budget: undefined,
       company: "",
       message: "",
+      website: "",
     },
   });
 
@@ -115,6 +120,14 @@ export function ContactPage() {
           <form
             onSubmit={onSubmit}
             className="rounded-3xl border border-border bg-card p-8 shadow-soft lg:p-10">
+            <input
+              type="text"
+              {...register("website")}
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+              style={{ position: "absolute", left: "-9999px" }}
+            />
             {showSuccess && (
               <div className="mb-6 flex items-center gap-3 rounded-2xl bg-green-50 p-4 text-green-700">
                 <Check className="h-6 w-6 flex-shrink-0" />

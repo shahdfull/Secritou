@@ -16,3 +16,4 @@ import "./financeAccess.test.ts";
 import "./documentAccess.test.ts";
 import "./ai.endpoint.test.ts";
 import "./freelancerApplicationUpload.test.ts";
+import "./honeypot.test.ts";

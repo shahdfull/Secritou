@@ -24,6 +24,11 @@ export const contactRequestSchema = z.object({
     budget: z.enum(budgetOptions).optional(),
     company: z.string().trim().min(2, "Company must contain at least 2 characters"),
     message: z.string().trim().min(20, "Message must contain at least 20 characters"),
+    // Honeypot: hidden field a human never fills. Left unconstrained (no
+    // .max(0)) on purpose — a bot filling it with anything must still pass
+    // validation so the controller can silently no-op instead of a 400 that
+    // would tell the bot it was detected.
+    website: z.string().optional(),
   }),
 });
 

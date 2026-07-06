@@ -44,6 +44,10 @@ export function JoinUsPage() {
     phone: z.string().optional(),
     role: z.enum(["FREELANCER", "MANAGER"]),
     bio: z.string().min(20, t("joinUs.bioMinLength")),
+    // Honeypot: hidden field a human never fills in. Left unconstrained so a
+    // bot filling it still passes client-side validation and reaches the
+    // server, which silently no-ops instead of revealing the trap.
+    website: z.string().optional(),
   });
   type JoinUsForm = z.infer<typeof schema>;
 
@@ -56,6 +60,7 @@ export function JoinUsPage() {
       phone: "",
       role: "FREELANCER",
       bio: "",
+      website: "",
     },
   });
 
@@ -80,6 +85,7 @@ export function JoinUsPage() {
     formData.append("position", data.role === "FREELANCER" ? "Freelancer" : "Manager");
     formData.append("cvFile", uploadedCv.current);
     formData.append("portfolioFile", uploadedPortfolio.current);
+    formData.append("website", data.website || "");
 
     createApplication.mutate(formData, {
       onSuccess: () => {
@@ -120,6 +126,14 @@ export function JoinUsPage() {
         ) : (
           <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+            <input
+              type="text"
+              {...form.register("website")}
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+              style={{ position: "absolute", left: "-9999px" }}
+            />
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}

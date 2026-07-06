@@ -2,11 +2,24 @@ import type { RequestHandler } from "express";
 import { ContactService } from "../services/contact.service.js";
 import type { ContactStatus } from "@prisma/client";
 import { COMPANY_ID } from "../config/constants.js";
+import logger from "../utils/logger.js";
 
 const contactService = new ContactService();
 
 export const submitContactRequest: RequestHandler = async (req, res, next) => {
   try {
+    // Honeypot: a hidden field real visitors never fill. If a bot fills it,
+    // pretend success (no DB write, no email) instead of a 400 that would
+    // reveal the trap.
+    if (req.body.website) {
+      logger.info({ ip: req.ip }, "Contact form honeypot triggered");
+      res.status(200).json({
+        success: true,
+        message: "Message sent successfully",
+      });
+      return;
+    }
+
     await contactService.sendContactMessage(req.body);
     res.status(200).json({
       success: true,

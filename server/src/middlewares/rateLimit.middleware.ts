@@ -50,3 +50,15 @@ export const sensitiveWriteRateLimit = rateLimit({
   keyGenerator: rateLimitKeyGenerator,
   message: { message: "Too many requests, please slow down" },
 });
+
+// Public application form: tighter than sensitiveWriteRateLimit (10/min) since
+// a genuine candidate submits at most once; 3/hour still allows a retry after
+// a mistake without leaving room for a spam bot.
+export const applicationRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),
+  message: { message: "Too many applications submitted, please try again later" },
+});

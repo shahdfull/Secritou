@@ -10,6 +10,10 @@ export const createFreelancerApplicationValidator = z.object({
     bio: z.string().min(20, "Bio must be at least 20 characters"),
     role: z.enum(["FREELANCER", "MANAGER"], { message: "Invalid role" }),
     // Files are handled separately by multer, not in JSON body
+    // Honeypot: hidden field a human never fills. Left unconstrained so a bot
+    // filling it still passes validation — the controller silently no-ops
+    // instead of a 400 that would reveal the trap.
+    website: z.string().optional(),
   }),
 });
 

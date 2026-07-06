@@ -9,12 +9,12 @@ import {
 } from "../controllers/freelancerApplication.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
-import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
+import { sensitiveWriteRateLimit, applicationRateLimit } from "../middlewares/rateLimit.middleware.js";
 
 const router = express.Router();
 
 // Public route: create application
-router.post("/", sensitiveWriteRateLimit, createApplication);
+router.post("/", applicationRateLimit, createApplication);
 
 /**
  * @swagger

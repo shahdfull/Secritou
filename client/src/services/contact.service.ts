@@ -28,6 +28,9 @@ export type ContactPayload = {
   budget?: BudgetOption;
   company: string;
   message: string;
+  // Honeypot: hidden form field, must stay empty for real submissions. See
+  // ContactPage.tsx and server/src/controllers/contact.controller.ts.
+  website?: string;
 };
 
 export type ContactResponse = {

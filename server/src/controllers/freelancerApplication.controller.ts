@@ -10,6 +10,7 @@ import {
 } from "../validators/freelancerApplication.validator.js";
 import { COMPANY_ID } from "../config/constants.js";
 import { HttpError } from "../utils/httpError.js";
+import logger from "../utils/logger.js";
 
 export const CV_MAX_BYTES = 10 * 1024 * 1024;
 export const PORTFOLIO_MAX_BYTES = 20 * 1024 * 1024;
@@ -67,6 +68,15 @@ export const createApplication: RequestHandler[] = [
 
   async (req, res, next) => {
     try {
+      // Honeypot: a hidden field real candidates never fill. If a bot fills
+      // it, pretend success (no DB write, no email, no file processing)
+      // instead of a 400/validation error that would reveal the trap.
+      if (req.body.website) {
+        logger.info({ ip: req.ip }, "Freelancer application honeypot triggered");
+        res.status(201).json({ data: { id: "pending-review" } });
+        return;
+      }
+
       const cvFile = (req.files as any)?.cvFile?.[0];
       const portfolioFile = (req.files as any)?.portfolioFile?.[0];
 
