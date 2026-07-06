@@ -177,3 +177,12 @@ html.dark {
     padding-inline: 2rem;
   }
 }
+
+/* For sticky/fixed elements anchored to the top of the viewport (main header,
+   app topbar) that have no padding-top of their own: clears the iOS notch/
+   Dynamic Island in landscape. Requires viewport-fit=cover on the meta
+   viewport (index.html) — without it, env(safe-area-inset-top) always
+   resolves to 0px and this is a no-op. */
+@utility safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}

@@ -308,7 +308,7 @@ export const AdminLayout = memo(function AdminLayout() {
 
         <SidebarInset className="flex flex-col flex-1 min-w-0">
           {/* Topbar */}
-          <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background px-5 gap-4">
+          <header className="safe-top sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background px-5 gap-4">
             <SidebarTrigger className="md:hidden shrink-0" />
             <div className="flex-1 max-w-sm">
               <GlobalSearch />

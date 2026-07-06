@@ -36,7 +36,7 @@ export function Header() {
   }, [open]);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/85 backdrop-blur-md">
+    <header className="safe-top sticky top-0 z-50 border-b border-border/60 bg-background/85 backdrop-blur-md">
       <div className="container-page flex h-16 items-center justify-between gap-4">
         <Link to="/" className="flex items-center gap-2 shrink-0" aria-label="Secritou home">
           <img src={logoAsset} alt="" className="h-11 w-11 object-contain" loading="lazy" />
