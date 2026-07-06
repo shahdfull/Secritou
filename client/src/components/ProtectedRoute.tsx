@@ -8,6 +8,17 @@ interface ProtectedRouteProps {
   redirectTo?: string;
 }
 
+// Exported for unit testing: computes the login redirect target, preserving
+// the path the user was on unless they're already there (which would
+// otherwise produce a "/login?redirect=/login" loop).
+export function computeLoginRedirectTarget(
+  redirectTo: string,
+  currentPathAndQuery: string
+): string {
+  if (currentPathAndQuery === redirectTo) return redirectTo;
+  return `${redirectTo}?redirect=${encodeURIComponent(currentPathAndQuery)}`;
+}
+
 export function ProtectedRoute({ children, redirectTo = "/login" }: ProtectedRouteProps) {
   const user = useAuthStore((state) => state.user);
   const status = useAuthStore((state) => state.status);
@@ -23,13 +34,18 @@ export function ProtectedRoute({ children, redirectTo = "/login" }: ProtectedRou
     );
   }
 
+  const currentPath = location.pathname;
+
   // Not authenticated
   if (status === "unauthenticated") {
-    return <Navigate to={redirectTo} replace />;
+    // Preserve where the user was headed so a session expiring mid-navigation
+    // (see the axios refresh-failure path) returns them there after login,
+    // instead of dropping them on their role's default page.
+    const target = computeLoginRedirectTarget(redirectTo, currentPath + location.search);
+    return <Navigate to={target} replace />;
   }
 
   // Redirect based on role
-  const currentPath = location.pathname;
   if (user) {
     const intendedPath = getRedirectPathForRole(user.role);
     if (currentPath.startsWith("/app") && user.role === "CLIENT") {

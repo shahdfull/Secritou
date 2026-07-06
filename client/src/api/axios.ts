@@ -1,5 +1,7 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from "axios";
+import { toast } from "sonner";
 import { useAuthStore } from "../store/auth.store";
+import i18n from "@/i18n";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api/v1";
 
@@ -125,6 +127,7 @@ api.interceptors.response.use(
         clearRefreshTimeout();
         processQueue(new Error("Refresh timeout"), null);
         useAuthStore.getState().logout();
+        toast.error(i18n.t("toasts.sessionExpired"));
         rejectRefresh(new Error("Refresh timeout"));
       }, REFRESH_TIMEOUT_MS);
 
@@ -153,6 +156,7 @@ api.interceptors.response.use(
         // Refresh failed, logout user
         processQueue(refreshError, null);
         useAuthStore.getState().logout();
+        toast.error(i18n.t("toasts.sessionExpired"));
 
         rejectRefresh(refreshError);
       } finally {
