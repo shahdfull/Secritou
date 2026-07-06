@@ -7,30 +7,18 @@ import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import Cal, { getCalApi } from "@calcom/embed-react";
-import { isValidTunisianPhone } from "@secritou/shared";
-import { submitContactRequest, type ServiceType, type BudgetOption } from "@/services/contact.service";
+import { isValidTunisianPhone, CONTACT_SERVICE_TYPES, CONTACT_BUDGET_OPTIONS } from "@secritou/shared";
+import { submitContactRequest, type ServiceType } from "@/services/contact.service";
 
 const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER as string | undefined;
 import { trackContactFormSubmitted, trackContactFormFailed } from "@/services/analytics.service";
 import { useLandingCms } from "@/providers/LandingCmsProvider";
 
-// Updated to use canonical names (will be mapped from translations)
-// Must stay identical (character for character) to the backend enum in
-// server/src/validators/contact.validator.ts : otherwise the contact form fails validation.
-const CANONICAL_SERVICE_TYPES = [
-  "Business Performance",
-  "Digital Growth",
-  "Technology Solutions",
-  "AI & Automation",
-  "Other"
-] as const;
-
-const budgetOptions: BudgetOption[] = [
-  "< 1 000 DT",
-  "1 000–5 000 DT",
-  "5 000–15 000 DT",
-  "+15 000 DT"
-];
+// Single source of truth: shared/src/constants/contactForm.ts. Must stay
+// identical to server/src/validators/contact.validator.ts (same import) —
+// these values are persisted verbatim, see that file's comment.
+const CANONICAL_SERVICE_TYPES = CONTACT_SERVICE_TYPES;
+const budgetOptions = CONTACT_BUDGET_OPTIONS;
 
 const CALCOM_LINK = import.meta.env.VITE_CALCOM_LINK as string | undefined;
 
@@ -61,7 +49,7 @@ export function ContactPage() {
     serviceType: z.enum(CANONICAL_SERVICE_TYPES, {
       required_error: t("contact.pleaseEnterServiceType")
     }),
-    budget: z.enum(["< 1 000 DT", "1 000–5 000 DT", "5 000–15 000 DT", "+15 000 DT"] as const).optional(),
+    budget: z.enum(CONTACT_BUDGET_OPTIONS).optional(),
     company: z.string().trim().min(2, t("auth.companyNameMinLength")),
     message: z.string().trim().min(20, t("contact.pleaseEnterMessage")),
     // Honeypot: hidden field a human never fills in. Left unconstrained so a

@@ -1,20 +1,5 @@
 import { z } from "zod";
-import { isValidTunisianPhone } from "@secritou/shared";
-
-const serviceTypes = [
-  "Business Performance",
-  "Digital Growth",
-  "Technology Solutions",
-  "AI & Automation",
-  "Other"
-] as const;
-
-const budgetOptions = [
-  "< 1 000 DT",
-  "1 000–5 000 DT",
-  "5 000–15 000 DT",
-  "+15 000 DT"
-] as const;
+import { isValidTunisianPhone, CONTACT_SERVICE_TYPES, CONTACT_BUDGET_OPTIONS } from "@secritou/shared";
 
 export const contactRequestSchema = z.object({
   body: z.object({
@@ -28,8 +13,8 @@ export const contactRequestSchema = z.object({
       (value) => !value || isValidTunisianPhone(value),
       "Enter a valid Tunisian phone number"
     ),
-    serviceType: z.enum(serviceTypes),
-    budget: z.enum(budgetOptions).optional(),
+    serviceType: z.enum(CONTACT_SERVICE_TYPES),
+    budget: z.enum(CONTACT_BUDGET_OPTIONS).optional(),
     company: z.string().trim().min(2, "Company must contain at least 2 characters"),
     message: z.string().trim().min(20, "Message must contain at least 20 characters"),
     // Honeypot: hidden field a human never fills. Left unconstrained (no

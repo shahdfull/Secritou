@@ -6,7 +6,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "test": "node --test --import tsx src/constants/phone.test.ts"
+    "test": "node --test --import tsx src/constants/phone.test.ts src/constants/contactForm.test.ts"
   },
   "dependencies": {
     "zod": "^3.24.2"
