@@ -8,12 +8,14 @@ import { useLogin, getRedirectPathForRole } from "@/hooks/useAuth";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { PASSWORD_MIN_LENGTH } from "@secritou/shared";
 
 export function LoginPage() {
   const { t } = useTranslation();
+  // PASSWORD_MIN_LENGTH must stay aligned with server/src/validators/auth.validator.ts (loginSchema).
   const loginSchema = z.object({
     email: z.string().email(t("auth.validEmail")),
-    password: z.string().min(6, t("auth.passwordMinLength")),
+    password: z.string().min(PASSWORD_MIN_LENGTH, t("auth.passwordMinLength")),
   });
   type LoginForm = z.infer<typeof loginSchema>;
   const { mutate: login, isPending } = useLogin();

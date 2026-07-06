@@ -27,7 +27,7 @@
     "signingIn": "Signing in...",
     "creatingAccount": "Creating account...",
     "validEmail": "Please enter a valid email",
-    "passwordMinLength": "Password must be at least 6 characters",
+    "passwordMinLength": "Password must be at least 8 characters",
     "nameMinLength": "Name must be at least 2 characters",
     "companyNameMinLength": "Company name must be at least 2 characters",
     "passwordResetLinkSent": "Password reset link sent to your email",

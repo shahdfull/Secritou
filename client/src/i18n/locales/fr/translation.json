@@ -27,7 +27,7 @@
     "signingIn": "Connexion en cours...",
     "creatingAccount": "Création du compte...",
     "validEmail": "Veuillez saisir un email valide",
-    "passwordMinLength": "Le mot de passe doit contenir au moins 6 caractères",
+    "passwordMinLength": "Le mot de passe doit contenir au moins 8 caractères",
     "nameMinLength": "Le nom doit contenir au moins 2 caractères",
     "companyNameMinLength": "Le nom de l'entreprise doit contenir au moins 2 caractères",
     "passwordResetLinkSent": "Lien de réinitialisation du mot de passe envoyé à votre email",

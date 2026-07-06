@@ -1,17 +1,19 @@
 import { z } from "zod";
+import { PASSWORD_MIN_LENGTH } from "@secritou/shared";
 
 export const registerSchema = z.object({
   body: z.object({
     email: z.string().email(),
-    password: z.string().min(8),
+    password: z.string().min(PASSWORD_MIN_LENGTH),
     name: z.string().min(2),
   }),
 });
 
+// PASSWORD_MIN_LENGTH must stay aligned with client/src/features/auth/LoginPage.tsx (loginSchema).
 export const loginSchema = z.object({
   body: z.object({
     email: z.string().email(),
-    password: z.string().min(8),
+    password: z.string().min(PASSWORD_MIN_LENGTH),
   }),
 });
 
