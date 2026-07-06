@@ -156,6 +156,7 @@ export function ContactPage() {
             <div className="grid gap-5 sm:grid-cols-2 mt-5">
               <Field
                 label={t("contact.phone")}
+                type="tel"
                 registration={register("phone")}
                 error={errors.phone?.message}
               />

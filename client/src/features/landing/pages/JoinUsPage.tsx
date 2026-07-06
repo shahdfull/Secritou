@@ -189,7 +189,7 @@ export function JoinUsPage() {
                 <FormItem>
                   <FormLabel>{t("contact.phone")}</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input type="tel" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
