@@ -24,18 +24,12 @@ export interface PaginatedResponse<T> {
 }
 
 export const freelancerApplicationsApi = {
-  createApplication: async (data: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone?: string;
-    position: string;
-    cvUrl: string;
-    portfolioUrl: string;
-  }) => {
+  // The server expects multipart/form-data: text fields plus cvFile/portfolioFile.
+  // See JoinUsPage.tsx for how the FormData is built.
+  createApplication: async (formData: FormData) => {
     const response = await apiClient.post<{ data: FreelancerApplication }>(
       "/freelancer-applications",
-      data
+      formData
     );
     return response.data.data;
   },

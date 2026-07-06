@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { AxiosError } from "axios";
 import {
   freelancerApplicationsApi,
   authApi,
@@ -7,6 +8,14 @@ import {
 } from "../api/freelancerApplications.api";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+
+// Maps a failed application submission's HTTP status to a translated toast message.
+function applicationSubmitErrorMessage(error: AxiosError, t: (key: string) => string): string {
+  const status = error.response?.status;
+  if (status === 413) return t("joinUs.fileTooLarge");
+  if (status === 415) return t("joinUs.invalidFileType");
+  return t("joinUs.submitError");
+}
 
 export function useFreelancerApplications(params?: {
   page?: number;
@@ -33,22 +42,13 @@ export function useFreelancerApplication(id: string) {
 
 export function useCreateFreelancerApplication() {
   const { t } = useTranslation();
-  return useMutation<
-    FreelancerApplication,
-    Error,
-    {
-      firstName: string;
-      lastName: string;
-      email: string;
-      phone?: string;
-      position: string;
-      cvUrl: string;
-      portfolioUrl: string;
-    }
-  >({
-    mutationFn: (data) => freelancerApplicationsApi.createApplication(data),
+  return useMutation<FreelancerApplication, AxiosError, FormData>({
+    mutationFn: (formData) => freelancerApplicationsApi.createApplication(formData),
     onSuccess: () => {
       toast.success(t("joinUs.success"));
+    },
+    onError: (error) => {
+      toast.error(applicationSubmitErrorMessage(error, t));
     },
   });
 }

@@ -81,7 +81,7 @@ export function JoinUsPage() {
     formData.append("cvFile", uploadedCv.current);
     formData.append("portfolioFile", uploadedPortfolio.current);
 
-    createApplication.mutate(formData as any, {
+    createApplication.mutate(formData, {
       onSuccess: () => {
         setIsSuccess(true);
         toast.success(t("joinUs.successMessage"));

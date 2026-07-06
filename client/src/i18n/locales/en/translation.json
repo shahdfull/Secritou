@@ -789,7 +789,10 @@
     "successTitle": "Thank you for your application!",
     "successDescription": "We've received your application. Our team will review your profile and contact you very soon.",
     "successSubtext": "We will get back to you within 3-5 business days.",
-    "successMessage": "Your application has been sent successfully!"
+    "successMessage": "Your application has been sent successfully!",
+    "fileTooLarge": "File too large. CV max 10MB, portfolio max 20MB.",
+    "invalidFileType": "File type not accepted. Check the required format.",
+    "submitError": "Submission failed. Try again or email us at hello@secritou.com."
   },
   "applications": {
     "title": "Applications",

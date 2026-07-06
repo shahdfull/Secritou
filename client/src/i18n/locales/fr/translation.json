@@ -789,7 +789,10 @@
     "successTitle": "Merci pour votre candidature !",
     "successDescription": "Nous avons bien reçu votre demande. Notre équipe examinera votre profil et vous contactera très bientôt.",
     "successSubtext": "Nous vous répondrons dans les 3 à 5 jours ouvrables.",
-    "successMessage": "Votre candidature a été envoyée avec succès !"
+    "successMessage": "Votre candidature a été envoyée avec succès !",
+    "fileTooLarge": "Fichier trop volumineux. CV max 10 Mo, portfolio max 20 Mo.",
+    "invalidFileType": "Type de fichier non accepté. Vérifiez le format demandé.",
+    "submitError": "L'envoi a échoué. Réessayez ou écrivez-nous à hello@secritou.com."
   },
   "applications": {
     "title": "Candidatures",
