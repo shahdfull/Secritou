@@ -21,8 +21,8 @@ function buildWhere(
   // guarantees no match when the manager has no service.
   const projectFilter =
     userRole === "MANAGER"
-      ? { serviceId: userServiceId ?? "__none__" }
-      : {};
+      ? { serviceId: userServiceId ?? "__none__", deletedAt: null }
+      : { deletedAt: null };
   const base = {
     project: projectFilter,
     ...(projectId && { projectId }),
@@ -69,11 +69,11 @@ export const taskRepository = {
   ): Promise<TaskWithRelations | null> {
     let where: Prisma.TaskWhereInput;
     if (userRole === "FREELANCER") {
-      where = { id, assigneeId: userId };
+      where = { id, assigneeId: userId, project: { deletedAt: null } };
     } else if (userRole === "MANAGER") {
-      where = { id, project: { serviceId: userServiceId ?? "__none__" } };
+      where = { id, project: { serviceId: userServiceId ?? "__none__", deletedAt: null } };
     } else {
-      where = { id };
+      where = { id, project: { deletedAt: null } };
     }
     return prisma.task.findFirst({ where, select: taskWithRelationsSelect });
   },
@@ -85,8 +85,8 @@ export const taskRepository = {
   async existsInCompany(id: string, userId: string, userRole: Role): Promise<boolean> {
     const where =
       userRole === "FREELANCER"
-        ? { id, assigneeId: userId }
-        : { id };
+        ? { id, assigneeId: userId, project: { deletedAt: null } }
+        : { id, project: { deletedAt: null } };
     const count = await prisma.task.count({ where });
     return count > 0;
   },

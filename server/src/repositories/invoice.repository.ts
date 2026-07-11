@@ -6,7 +6,7 @@ export const invoiceRepository = {
   async findAll(
     options: ListQueryOptions & { clientId?: string; status?: InvoiceStatus; search?: string }
   ): Promise<PaginatedResult<Invoice & { client: { name: string } }>> {
-    const where: Prisma.InvoiceWhereInput = {};
+    const where: Prisma.InvoiceWhereInput = { deletedAt: null, client: { deletedAt: null } };
     if (options.clientId) where.clientId = options.clientId;
     if (options.status) where.status = options.status;
     if (options.search) {
@@ -35,7 +35,7 @@ export const invoiceRepository = {
     clientId: string,
     options: { page: number; pageSize: number; status?: InvoiceStatus }
   ): Promise<PaginatedResult<Invoice & { client: { name: string } }>> {
-    const where: Prisma.InvoiceWhereInput = { clientId };
+    const where: Prisma.InvoiceWhereInput = { clientId, deletedAt: null };
     if (options.status) where.status = options.status;
     const skip = (options.page - 1) * options.pageSize;
     const [data, total] = await Promise.all([
@@ -63,7 +63,9 @@ export const invoiceRepository = {
     // them): show them to every manager rather than to no one, so the list
     // stays consistent with the global dashboard KPIs.
     const scopeFilter: Prisma.InvoiceWhereInput = {
-      OR: [{ project: { serviceId } }, { projectId: null }],
+      deletedAt: null,
+      client: { deletedAt: null },
+      OR: [{ project: { serviceId, deletedAt: null } }, { projectId: null }],
     };
     const filters: Prisma.InvoiceWhereInput[] = [scopeFilter];
     if (options.status) filters.push({ status: options.status });
@@ -91,8 +93,8 @@ export const invoiceRepository = {
   },
 
   async findById(id: string) {
-    return prismaRead.invoice.findUnique({
-      where: { id },
+    return prismaRead.invoice.findFirst({
+      where: { id, deletedAt: null, client: { deletedAt: null } },
       include: {
         client: true,
         items: true,
