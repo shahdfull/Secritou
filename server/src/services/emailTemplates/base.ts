@@ -1,3 +1,18 @@
+/**
+ * Escapes HTML entities in free-text values (names, notes, comments, titles, ...) before they're
+ * interpolated into a template. Callers must apply this to every user-controlled string — the
+ * template helpers below (h1/p/infoBox) take pre-built HTML and cannot tell trusted markup
+ * (e.g. an intentional `<strong>` wrapper) from an unescaped variable.
+ */
+export function esc(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 /** Wraps any HTML content in a consistent branded shell. */
 export function baseTemplate(
   title: string,
@@ -21,7 +36,7 @@ export function baseTemplate(
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>${title}</title>
+  <title>${esc(title)}</title>
 </head>
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:'Segoe UI',Arial,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0"

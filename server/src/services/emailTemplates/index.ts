@@ -1,4 +1,4 @@
-import { baseTemplate, h1, p, infoBox } from "./base.js";
+import { baseTemplate, h1, p, infoBox, esc } from "./base.js";
 
 // ─── Application templates ────────────────────────────────────────────────────
 
@@ -13,12 +13,12 @@ export function newApplicationAdminTemplate(opts: {
     "Nouvelle candidature",
     [
       h1("Nouvelle candidature reçue"),
-      p(`Bonjour ${opts.adminName},`),
+      p(`Bonjour ${esc(opts.adminName)},`),
       p(`Un nouveau candidat vient de soumettre sa candidature sur la plateforme Secritou.`),
       infoBox([
-        ["Candidat", opts.applicantName],
-        ["Email", opts.applicantEmail],
-        ["Poste souhaité", opts.position],
+        ["Candidat", esc(opts.applicantName)],
+        ["Email", esc(opts.applicantEmail)],
+        ["Poste souhaité", esc(opts.position)],
       ]),
       p("Vous pouvez consulter et traiter cette candidature depuis le tableau de bord."),
     ].join(""),
@@ -37,7 +37,7 @@ export function applicationReceivedTemplate(firstName: string): {
       "Candidature reçue",
       [
         h1("Votre candidature a été reçue 🎉"),
-        p(`Bonjour ${firstName},`),
+        p(`Bonjour ${esc(firstName)},`),
         p(
           "Merci d'avoir postulé sur la plateforme Secritou. Notre équipe va examiner votre profil et revenir vers vous dans les plus brefs délais."
         ),
@@ -59,13 +59,13 @@ export function applicationAcceptedTemplate(
       "Candidature acceptée",
       [
         h1("Bienvenue dans l'équipe ! 🚀"),
-        p(`Bonjour ${firstName},`),
+        p(`Bonjour ${esc(firstName)},`),
         p(
           "Nous avons le plaisir de vous informer que votre candidature a été acceptée. Votre compte est désormais actif."
         ),
         infoBox([
-          ["Identifiant", username],
-          ["Mot de passe temporaire", password],
+          ["Identifiant", esc(username)],
+          ["Mot de passe temporaire", esc(password)],
         ]),
         p(
           "Pour des raisons de sécurité, vous devrez changer ce mot de passe lors de votre première connexion."
@@ -87,12 +87,12 @@ export function applicationRejectedTemplate(
       "Candidature étudiée",
       [
         h1("Merci de l'intérêt que vous nous portez"),
-        p(`Bonjour ${firstName},`),
+        p(`Bonjour ${esc(firstName)},`),
         p(
           "Après examen attentif de votre candidature, nous ne sommes pas en mesure de donner suite à ce stade."
         ),
         reason
-          ? infoBox([["Motif", reason]])
+          ? infoBox([["Motif", esc(reason)]])
           : p("N'hésitez pas à repostuler ultérieurement, nos besoins évoluent régulièrement."),
         p("Nous vous souhaitons le meilleur dans votre recherche."),
       ].join("")
@@ -120,10 +120,10 @@ export function proposalSentTemplate(
       `Proposition : ${proposalTitle}`,
       [
         h1("Vous avez reçu une proposition"),
-        p(`Bonjour ${clientName},`),
-        p(`Nous avons le plaisir de vous soumettre la proposition <strong>${proposalTitle}</strong>.`),
+        p(`Bonjour ${esc(clientName)},`),
+        p(`Nous avons le plaisir de vous soumettre la proposition <strong>${esc(proposalTitle)}</strong>.`),
         infoBox([
-          ["Intitulé", proposalTitle],
+          ["Intitulé", esc(proposalTitle)],
           ...(formattedAmount ? ([["Montant", formattedAmount]] as [string, string][]) : []),
         ]),
         p("Vous pouvez consulter le détail, accepter ou refuser depuis votre espace client."),
@@ -153,12 +153,12 @@ export function proposalAcceptedTemplate(
       `Acceptée : ${proposalTitle}`,
       [
         h1("Bonne nouvelle : Proposition acceptée ✅"),
-        p(`Bonjour ${adminName},`),
-        p(`Le client <strong>${clientName}</strong> a accepté la proposition suivante :`),
+        p(`Bonjour ${esc(adminName)},`),
+        p(`Le client <strong>${esc(clientName)}</strong> a accepté la proposition suivante :`),
         infoBox([
-          ["Proposition", proposalTitle],
+          ["Proposition", esc(proposalTitle)],
           ...(formattedAmount ? ([["Montant", formattedAmount]] as [string, string][]) : []),
-          ["Client", clientName],
+          ["Client", esc(clientName)],
         ]),
         p("Vous pouvez maintenant créer la facture correspondante depuis le tableau de bord."),
       ].join(""),
@@ -180,12 +180,12 @@ export function proposalRejectedTemplate(
       `Refusée : ${proposalTitle}`,
       [
         h1("Proposition refusée ❌"),
-        p(`Bonjour ${adminName},`),
-        p(`Le client <strong>${clientName}</strong> a refusé la proposition suivante :`),
+        p(`Bonjour ${esc(adminName)},`),
+        p(`Le client <strong>${esc(clientName)}</strong> a refusé la proposition suivante :`),
         infoBox([
-          ["Proposition", proposalTitle],
-          ["Client", clientName],
-          ...(comment ? ([["Motif", comment]] as [string, string][]) : []),
+          ["Proposition", esc(proposalTitle)],
+          ["Client", esc(clientName)],
+          ...(comment ? ([["Motif", esc(comment)]] as [string, string][]) : []),
         ]),
         p("N'hésitez pas à contacter le client pour en savoir plus et soumettre une nouvelle proposition."),
       ].join("")
@@ -207,11 +207,11 @@ export function userInvitationTemplate(
       "Invitation Secritou",
       [
         h1("Votre compte a été créé 🎉"),
-        p(`Bonjour ${name},`),
+        p(`Bonjour ${esc(name)},`),
         p("Un compte vous a été créé sur la plateforme Secritou. Voici vos identifiants de connexion :"),
         infoBox([
-          ["Email", email],
-          ["Mot de passe temporaire", tempPassword],
+          ["Email", esc(email)],
+          ["Mot de passe temporaire", esc(tempPassword)],
         ]),
         p("Pour des raisons de sécurité, vous devrez changer ce mot de passe lors de votre première connexion."),
       ].join(""),
@@ -241,13 +241,13 @@ export function invoiceSentTemplate(
     html: baseTemplate(
       `Facture ${invoiceNumber}`,
       [
-        h1(`Facture ${invoiceNumber}`),
-        p(`Bonjour ${clientName},`),
+        h1(`Facture ${esc(invoiceNumber)}`),
+        p(`Bonjour ${esc(clientName)},`),
         p("Veuillez trouver ci-dessous le récapitulatif de votre facture :"),
         infoBox([
-          ["Numéro", invoiceNumber],
+          ["Numéro", esc(invoiceNumber)],
           ["Montant", formattedAmount],
-          ["Échéance", dueDate],
+          ["Échéance", esc(dueDate)],
         ]),
       ].join(""),
       invoiceUrl,
@@ -276,16 +276,16 @@ export function invoiceReminderTemplate(
       `Rappel : Facture ${invoiceNumber}`,
       [
         h1("Rappel de paiement"),
-        p(`Bonjour ${clientName},`),
+        p(`Bonjour ${esc(clientName)},`),
         p(
           daysOverdue > 0
-            ? `La facture ${invoiceNumber} est en souffrance depuis <strong>${daysOverdue} jour(s)</strong>.`
-            : `La facture ${invoiceNumber} arrive à échéance prochainement.`
+            ? `La facture ${esc(invoiceNumber)} est en souffrance depuis <strong>${daysOverdue} jour(s)</strong>.`
+            : `La facture ${esc(invoiceNumber)} arrive à échéance prochainement.`
         ),
         infoBox([
-          ["Numéro", invoiceNumber],
+          ["Numéro", esc(invoiceNumber)],
           ["Montant dû", formattedAmount],
-          ["Date d'échéance", dueDate],
+          ["Date d'échéance", esc(dueDate)],
         ]),
         p("Si vous avez déjà effectué le règlement, veuillez ignorer cet email."),
       ].join(""),
@@ -308,9 +308,9 @@ export function onboardingStartedTemplate(
       "Démarrage de projet",
       [
         h1("Votre projet est lancé ! 🎯"),
-        p(`Bonjour ${clientName},`),
+        p(`Bonjour ${esc(clientName)},`),
         p(
-          `Nous avons le plaisir de vous informer que le projet <strong>${projectName}</strong> est officiellement démarré.`
+          `Nous avons le plaisir de vous informer que le projet <strong>${esc(projectName)}</strong> est officiellement démarré.`
         ),
         p(
           "Vous pouvez suivre l'avancement, consulter les documents et communiquer avec l'équipe directement depuis votre espace client."
@@ -334,11 +334,11 @@ export function onboardingStepCompletedTemplate(
       "Étape validée",
       [
         h1("Une étape est franchie ✅"),
-        p(`Bonjour ${clientName},`),
+        p(`Bonjour ${esc(clientName)},`),
         infoBox([
-          ["Projet", projectName],
-          ["Étape validée", stepTitle],
-          ...(nextStepTitle ? ([["Prochaine étape", nextStepTitle]] as [string, string][]) : []),
+          ["Projet", esc(projectName)],
+          ["Étape validée", esc(stepTitle)],
+          ...(nextStepTitle ? ([["Prochaine étape", esc(nextStepTitle)]] as [string, string][]) : []),
         ]),
         p("Merci de votre implication. L'équipe continue à avancer sur votre projet."),
       ].join("")
@@ -361,11 +361,11 @@ export function approvalRequestedTemplate(
       "Demande d'approbation",
       [
         h1("Une approbation vous est demandée"),
-        p(`Bonjour ${assigneeName},`),
-        p(`<strong>${requesterName}</strong> sollicite votre approbation sur le point suivant :`),
+        p(`Bonjour ${esc(assigneeName)},`),
+        p(`<strong>${esc(requesterName)}</strong> sollicite votre approbation sur le point suivant :`),
         infoBox([
-          ["Objet", approvalTitle],
-          ["Échéance", dueDate],
+          ["Objet", esc(approvalTitle)],
+          ["Échéance", esc(dueDate)],
         ]),
         p("Merci de traiter cette demande avant l'échéance indiquée."),
       ].join(""),
@@ -390,12 +390,12 @@ export function approvalDecisionTemplate(
       `Décision : ${approvalTitle}`,
       [
         h1(`Votre demande a été ${decisionLabel}`),
-        p(`Bonjour ${requesterName},`),
+        p(`Bonjour ${esc(requesterName)},`),
         infoBox([
-          ["Objet", approvalTitle],
+          ["Objet", esc(approvalTitle)],
           ["Décision", decisionLabel.replace(/ [^ ]+$/, "")],
-          ["Par", deciderName],
-          ...(comment ? ([["Commentaire", comment]] as [string, string][]) : []),
+          ["Par", esc(deciderName)],
+          ...(comment ? ([["Commentaire", esc(comment)]] as [string, string][]) : []),
         ]),
       ].join("")
     ),
@@ -414,7 +414,7 @@ export function passwordResetTemplate(
       "Réinitialisation de mot de passe",
       [
         h1("Réinitialisez votre mot de passe"),
-        p(`Bonjour ${name},`),
+        p(`Bonjour ${esc(name)},`),
         p(
           "Nous avons reçu une demande de réinitialisation du mot de passe associé à votre compte Secritou."
         ),
@@ -448,14 +448,14 @@ export function clientInvitationTemplate(opts: {
       "Invitation portail client",
       [
         h1("Votre espace client est prêt 🎉"),
-        p(`Bonjour ${opts.name},`),
+        p(`Bonjour ${esc(opts.name)},`),
         p(
-          `<strong>${opts.companyName}</strong> vous invite à accéder à votre portail client sur Secritou.` +
+          `<strong>${esc(opts.companyName)}</strong> vous invite à accéder à votre portail client sur Secritou.` +
           " Vous pouvez y consulter vos propositions, factures et documents en temps réel."
         ),
         infoBox([
-          ["Email de connexion", opts.email],
-          ["Mot de passe temporaire", opts.tempPassword],
+          ["Email de connexion", esc(opts.email)],
+          ["Mot de passe temporaire", esc(opts.tempPassword)],
         ]),
         p(
           "Pour des raisons de sécurité, vous devrez changer ce mot de passe lors de votre première connexion."
@@ -481,11 +481,11 @@ export function serviceRequestReceivedTemplate(
       "Nouvelle demande",
       [
         h1("Nouvelle demande de service reçue"),
-        p(`Bonjour ${adminName},`),
+        p(`Bonjour ${esc(adminName)},`),
         p(
-          `Le client <strong>${clientName}</strong> a soumis une nouvelle demande de service :`
+          `Le client <strong>${esc(clientName)}</strong> a soumis une nouvelle demande de service :`
         ),
-        infoBox([["Demande", requestTitle]]),
+        infoBox([["Demande", esc(requestTitle)]]),
         p("Merci de traiter cette demande dans les meilleurs délais."),
       ].join(""),
       dashboardUrl,
@@ -511,10 +511,10 @@ export function serviceRequestStatusTemplate(
       "Mise à jour demande",
       [
         h1("Votre demande a été mise à jour"),
-        p(`Bonjour ${clientName},`),
+        p(`Bonjour ${esc(clientName)},`),
         infoBox([
-          ["Demande", requestTitle],
-          ["Statut", statusLabel[newStatus] ?? newStatus],
+          ["Demande", esc(requestTitle)],
+          ["Statut", esc(statusLabel[newStatus] ?? newStatus)],
         ]),
         p("Vous recevrez une notification dès que votre demande sera entièrement traitée."),
       ].join("")
@@ -537,13 +537,13 @@ export function customQuestionReceivedTemplate(opts: {
       "Question reçue",
       [
         h1("Votre question a bien été reçue 🎉"),
-        p(`Bonjour ${opts.userName},`),
+        p(`Bonjour ${esc(opts.userName)},`),
         p(
           "Merci de nous avoir contactés. Notre équipe va étudier votre question et vous répondra personnellement sous 24–48h."
         ),
         infoBox([
-          ["Sujet", opts.subject],
-          ["Votre question", opts.questionContent],
+          ["Sujet", esc(opts.subject)],
+          ["Votre question", esc(opts.questionContent)],
         ]),
         p("Vous recevrez un email dès que nous y aurons répondu. Vous pouvez aussi suivre la conversation depuis votre espace."),
       ].join(""),
@@ -566,13 +566,13 @@ export function customQuestionAdminNotificationTemplate(opts: {
     "Nouvelle question",
     [
       h1("Nouvelle question personnalisée"),
-      p(`Bonjour ${opts.adminName},`),
+      p(`Bonjour ${esc(opts.adminName)},`),
       p("Un utilisateur vient de poser une question depuis la FAQ de la plateforme Secritou."),
       infoBox([
-        ["Utilisateur", opts.userName],
-        ["Email", opts.userEmail],
-        ["Sujet", opts.subject],
-        ["Question", opts.questionContent],
+        ["Utilisateur", esc(opts.userName)],
+        ["Email", esc(opts.userEmail)],
+        ["Sujet", esc(opts.subject)],
+        ["Question", esc(opts.questionContent)],
       ]),
       p("Vous pouvez répondre directement depuis le tableau de bord."),
     ].join(""),
@@ -594,11 +594,11 @@ export function customQuestionAnsweredTemplate(opts: {
       "Réponse à votre question",
       [
         h1("Nous avons répondu à votre question ✉️"),
-        p(`Bonjour ${opts.userName},`),
+        p(`Bonjour ${esc(opts.userName)},`),
         p("Notre équipe vient de répondre à votre question :"),
         infoBox([
-          ["Sujet", opts.subject],
-          ["Réponse", opts.adminReply],
+          ["Sujet", esc(opts.subject)],
+          ["Réponse", esc(opts.adminReply)],
         ]),
         p("Consultez la conversation complète et continuez l'échange depuis votre espace."),
       ].join(""),
@@ -621,11 +621,11 @@ export function projectApprovedManagerTemplate(opts: {
       `Approuvé : ${opts.projectName}`,
       [
         h1("Projet approuvé par le client ✅"),
-        p(`Bonjour ${opts.managerName},`),
-        p(`Le client <strong>${opts.clientName}</strong> a approuvé la livraison du projet suivant :`),
+        p(`Bonjour ${esc(opts.managerName)},`),
+        p(`Le client <strong>${esc(opts.clientName)}</strong> a approuvé la livraison du projet suivant :`),
         infoBox([
-          ["Projet", opts.projectName],
-          ["Client", opts.clientName],
+          ["Projet", esc(opts.projectName)],
+          ["Client", esc(opts.clientName)],
         ]),
         p("Le projet est maintenant clôturé. La facture de solde a été générée et est disponible dans votre tableau de bord."),
       ].join(""),
@@ -647,9 +647,9 @@ export function projectApprovedClientTemplate(opts: {
       `Projet terminé : ${opts.projectName}`,
       [
         h1("Votre projet est officiellement terminé 🎉"),
-        p(`Bonjour ${opts.clientName},`),
-        p(`Vous avez validé la livraison du projet <strong>${opts.projectName}</strong>. Merci pour votre confiance !`),
-        infoBox([["Projet", opts.projectName], ["Statut", "Terminé"]]),
+        p(`Bonjour ${esc(opts.clientName)},`),
+        p(`Vous avez validé la livraison du projet <strong>${esc(opts.projectName)}</strong>. Merci pour votre confiance !`),
+        infoBox([["Projet", esc(opts.projectName)], ["Statut", "Terminé"]]),
         p("Votre facture de solde est maintenant disponible dans votre espace client."),
       ].join(""),
       opts.portalUrl,
