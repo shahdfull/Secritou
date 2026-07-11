@@ -38,6 +38,15 @@ enum TaskStatus {
   DONE
 }
 
+// Recurring meeting cadence for a project's check-ins (e.g. weekly client sync).
+// NONE means no recurring meeting is scheduled for this project.
+enum MeetingFrequency {
+  NONE
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
 // Lead status options for sales pipeline
 enum LeadStatus {
   NEW
@@ -114,61 +123,67 @@ enum Priority {
 
 // Single-tenant Company model (one record for Secritou)
 model Company {
-  id          String   @id @default(uuid())
-  singleton   Boolean  @default(true)
-  name        String   @db.VarChar(255)
-  website     String?  @db.VarChar(255)
-  logoUrl     String?  @db.VarChar(255)
-  primaryColor String? @db.VarChar(20)
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  id              String   @id @default(uuid())
+  singleton       Boolean  @default(true)
+  name            String   @db.VarChar(255)
+  website         String?  @db.VarChar(255)
+  logoUrl         String?  @db.VarChar(255)
+  primaryColor    String?  @db.VarChar(20)
+  // Tunisian tax identifier (matricule fiscal), required on invoices for legal opposability.
+  matriculeFiscal String?  @db.VarChar(50)
+  address         String?  @db.VarChar(500)
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(6)
 
   @@unique([singleton])
 }
 
 // User model for all platform users
 model User {
-  id                  String               @id @default(uuid())
-  email               String               @db.VarChar(255)
-  name                String               @db.VarChar(255)
-  passwordHash        String               @db.VarChar(255)
-  role                Role                 @default(CLIENT)
-  mustChangePassword  Boolean              @default(false)
-  clientId            String?
-  client              Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  serviceId           String?
-  service             Service?             @relation(fields: [serviceId], references: [id], onDelete: SetNull)
-  tasks               Task[]               @relation("AssignedTasks")
-  comments            Comment[]
-  refreshTokens       RefreshToken[]
-  freelancerProfile FreelancerProfile?
-  notifications Notification[]
-  resetToken String? @db.VarChar(255)
-  resetTokenExpiry DateTime? @db.Timestamptz(6)
-  freelancerApplications FreelancerApplication[]
-  clientOnboardingsAsAssignee ClientOnboarding[] @relation("ClientOnboardingAssignedUser")
-  proposalHistories    ProposalHistory[]
-  approvalTimelines    ApprovalTimeline[]
-  documentAccessLogs   DocumentAccessLog[]
-  assignedServiceRequests ServiceRequestComment[] @relation("ServiceRequestCommentAuthor")
-  serviceRequestHistory   ServiceRequestHistory[] @relation("ServiceRequestHistoryUser")
-  serviceRequestAssignments ServiceRequest[]      @relation("ServiceRequestAssignee")
-  recordedPayments Payment[]  @relation("RecordedPayments")
-  aiConversations     AiConversation[]
-  customQuestions        CustomQuestion[]
-  customQuestionMessages CustomQuestionMessage[]
-  managerPermission   ManagerPermission?
-  uploadedDocuments        Document[]    @relation("UploadedDocuments")
-  signedDocuments          Document[]    @relation("SignedDocuments")
-  projectClientApprovals   Project[]     @relation("ProjectClientApprovals")
-  assignedLeads            Lead[]        @relation("ManagerLeads")
-  givenRatings             Rating[]      @relation("RatedByUser")
-  timeEntries              TimeEntry[]
-  createdAt           DateTime             @default(now()) @db.Timestamptz(6)
-  updatedAt           DateTime             @updatedAt @db.Timestamptz(6)
+  id                          String                   @id @default(uuid())
+  email                       String                   @db.VarChar(255)
+  name                        String                   @db.VarChar(255)
+  passwordHash                String                   @db.VarChar(255)
+  role                        Role                     @default(CLIENT)
+  mustChangePassword          Boolean                  @default(false)
+  clientId                    String?
+  client                      Client?                  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  serviceId                   String?
+  service                     Service?                 @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  tasks                       Task[]                   @relation("AssignedTasks")
+  comments                    Comment[]
+  refreshTokens               RefreshToken[]
+  freelancerProfile           FreelancerProfile?
+  notifications               Notification[]
+  resetToken                  String?                  @db.VarChar(255)
+  resetTokenExpiry            DateTime?                @db.Timestamptz(6)
+  freelancerApplications      FreelancerApplication[]
+  clientOnboardingsAsAssignee ClientOnboarding[]       @relation("ClientOnboardingAssignedUser")
+  proposalHistories           ProposalHistory[]
+  approvalTimelines           ApprovalTimeline[]
+  documentAccessLogs          DocumentAccessLog[]
+  assignedServiceRequests     ServiceRequestComment[]  @relation("ServiceRequestCommentAuthor")
+  serviceRequestHistory       ServiceRequestHistory[]  @relation("ServiceRequestHistoryUser")
+  serviceRequestAssignments   ServiceRequest[]         @relation("ServiceRequestAssignee")
+  recordedPayments            Payment[]                @relation("RecordedPayments")
+  projectMeetings             ProjectMeeting[]
+  aiConversations             AiConversation[]
+  customQuestions             CustomQuestion[]
+  customQuestionMessages      CustomQuestionMessage[]
+  managerPermission           ManagerPermission?
+  uploadedDocuments           Document[]               @relation("UploadedDocuments")
+  signedDocuments             Document[]               @relation("SignedDocuments")
+  projectClientApprovals      Project[]                @relation("ProjectClientApprovals")
+  assignedLeads               Lead[]                   @relation("ManagerLeads")
+  givenRatings                Rating[]                 @relation("RatedByUser")
+  timeEntries                 TimeEntry[]
+  commissionSplits            ProjectCommissionSplit[] @relation("PartnerCommissionSplits")
+  commissions                 Commission[]             @relation("PartnerCommissions")
+  connectedGscConnections     GscConnection[]
+  createdAt                   DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt                   DateTime                 @updatedAt @db.Timestamptz(6)
 
   @@unique([email])
-
   // Indexes for faster queries
   @@index([clientId])
   @@index([email])
@@ -179,74 +194,172 @@ model User {
 // Service (business pole/department) : e.g. "Technology Solutions", "AI & Automation".
 // Leads, clients and users are attached to a service so MANAGERs can be scoped to their pole.
 model Service {
-  id        String   @id @default(uuid())
-  name      String   @db.VarChar(100) @unique
+  id        String    @id @default(uuid())
+  name      String    @unique @db.VarChar(100)
   leads     Lead[]
   projects  Project[]
   users     User[]
   clients   Client[]
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  templates ProjectTemplate[]
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+// One reusable task checklist per pole — applied on demand from a project's empty-tasks
+// state, not auto-injected at project creation (which is proposal-driven, not a form).
+// Deliberately one template per Service for now, not a full template-management system.
+model ProjectTemplate {
+  id        String         @id @default(uuid())
+  serviceId String         @unique
+  service   Service        @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  name      String         @db.VarChar(255)
+  tasks     TaskTemplate[]
+  createdAt DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime       @updatedAt @db.Timestamptz(6)
+}
+
+model TaskTemplate {
+  id          String          @id @default(uuid())
+  templateId  String
+  template    ProjectTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  title       String          @db.VarChar(255)
+  description String?         @db.Text
+  orderIndex  Int             @default(0)
+
+  @@index([templateId, orderIndex])
 }
 
 // Lead model for potential clients/sales pipeline
 model Lead {
-  id                String     @id @default(uuid())
-  name              String     @db.VarChar(255)
-  email             String?    @db.VarChar(255)
-  phone             String?    @db.VarChar(50)
-  source            String?    @db.VarChar(100)
-  status            LeadStatus @default(NEW)
-  notes             String?    @db.Text
+  id                String          @id @default(uuid())
+  name              String          @db.VarChar(255)
+  email             String?         @db.VarChar(255)
+  phone             String?         @db.VarChar(50)
+  source            String?         @db.VarChar(100)
+  status            LeadStatus      @default(NEW)
+  notes             String?         @db.Text
   serviceId         String?
-  service           Service?   @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  service           Service?        @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   convertedClientId String?
-  convertedClient   Client?    @relation("ConvertedLead", fields: [convertedClientId], references: [id], onDelete: SetNull)
-  archivedAt        DateTime?  @db.Timestamptz(6)
-  sourceContactId   String?    @unique
+  convertedClient   Client?         @relation("ConvertedLead", fields: [convertedClientId], references: [id], onDelete: SetNull)
+  archivedAt        DateTime?       @db.Timestamptz(6)
+  sourceContactId   String?         @unique
   sourceContact     ContactRequest? @relation(fields: [sourceContactId], references: [id])
   assignedManagerId String?
-  assignedManager   User?      @relation("ManagerLeads", fields: [assignedManagerId], references: [id])
-  department        String?    @db.VarChar(255)
-  lostReason        String?    @db.VarChar(500)
+  assignedManager   User?           @relation("ManagerLeads", fields: [assignedManagerId], references: [id])
+  department        String?         @db.VarChar(255)
+  lostReason        String?         @db.VarChar(500)
   proposal          Proposal?
-  createdAt         DateTime   @default(now()) @db.Timestamptz(6)
-  updatedAt         DateTime   @updatedAt @db.Timestamptz(6)
+  createdAt         DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime        @updatedAt @db.Timestamptz(6)
 
   @@index([status])
   @@index([createdAt])
   @@index([status, createdAt])
   @@index([email])
   @@index([archivedAt])
+  @@index([serviceId])
 }
 
 // Client model for paying/active clients
 model Client {
-  id               String           @id @default(uuid())
-  name             String           @db.VarChar(255)
-  email            String?          @db.VarChar(255)
-  phone            String?          @db.VarChar(50)
-  projects         Project[]
-  users            User[]
-  serviceRequests  ServiceRequest[]
-  documents        Document[]
-  proposals        Proposal[]
-  approvals        Approval[]
-  invoices         Invoice[]
-  creditNotes      CreditNote[]
-  creditBalance    Decimal          @default(0) @db.Decimal(12, 2)
-  clientSuccess    ClientSuccess?
+  id                String             @id @default(uuid())
+  name              String             @db.VarChar(255)
+  email             String?            @db.VarChar(255)
+  phone             String?            @db.VarChar(50)
+  projects          Project[]
+  users             User[]
+  serviceRequests   ServiceRequest[]
+  documents         Document[]
+  proposals         Proposal[]
+  approvals         Approval[]
+  invoices          Invoice[]
+  creditNotes       CreditNote[]
+  creditBalance     Decimal            @default(0) @db.Decimal(14, 3)
+  clientSuccess     ClientSuccess?
   clientOnboardings ClientOnboarding[]
-  serviceId        String?
-  service          Service?         @relation(fields: [serviceId], references: [id], onDelete: SetNull)
-  convertedLeads   Lead[]           @relation("ConvertedLead")
-  archivedAt       DateTime?        @db.Timestamptz(6)
-  createdAt        DateTime         @default(now()) @db.Timestamptz(6)
-  updatedAt        DateTime         @updatedAt @db.Timestamptz(6)
+  serviceId         String?
+  service           Service?           @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  convertedLeads    Lead[]             @relation("ConvertedLead")
+  // Cadrage §6: "paiement 1re tranche = ouverture de l'espace client" — set only when the
+  // deposit invoice for this client's first project actually reaches PAID (invoice.service.ts
+  // addPayment). Null means the client account exists (created at proposal acceptance so the
+  // invitation email/welcome flow works) but portal access itself is not yet unlocked.
+  portalActivatedAt DateTime?          @db.Timestamptz(6)
+  archivedAt        DateTime?          @db.Timestamptz(6)
+  deletedAt         DateTime?          @db.Timestamptz(6)
+  createdAt         DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime           @updatedAt @db.Timestamptz(6)
+  gscConnection     GscConnection?
+  metricSnapshots   MetricSnapshot[]
 
   @@unique([email])
   @@index([archivedAt])
+  @@index([deletedAt])
   @@index([createdAt])
+  @@index([serviceId])
 }
+
+// Source system a MetricSnapshot was pulled from. Starts with Search Console;
+// GA4/Meta/Google Ads are additional sources under the same generic model.
+enum MetricSource {
+  GSC
+  GA4
+  META
+  GADS
+}
+
+// A client's connection to a Google Search Console property, connected by an
+// ADMIN/MANAGER on the client's behalf (per-client OAuth consent, not a shared
+// service account). Refresh token is encrypted at rest (see utils/encryption.ts) —
+// never store it or the access token in plaintext.
+model GscConnection {
+  id                    String    @id @default(uuid())
+  clientId              String    @unique
+  client                Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  // The Search Console property URL (e.g. "sc-domain:example.com" or "https://example.com/").
+  siteUrl               String    @db.VarChar(500)
+  encryptedRefreshToken String    @db.Text
+  // Short-lived access token cache — always re-derivable from the refresh token, so it's
+  // fine to drop this without data loss; kept only to avoid refreshing on every job run.
+  encryptedAccessToken  String?   @db.Text
+  accessTokenExpiresAt  DateTime? @db.Timestamptz(6)
+  connectedById         String
+  connectedBy           User      @relation(fields: [connectedById], references: [id], onDelete: Restrict)
+  lastSyncedAt          DateTime? @db.Timestamptz(6)
+  lastSyncError         String?   @db.Text
+  createdAt             DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@index([clientId])
+}
+
+// Generic external-performance-data model (SEO/traffic/ads metrics), one row per
+// (client, source, metric, period). Deliberately source-agnostic so GA4/Meta/Google
+// Ads can reuse it without a schema change — only the connector differs.
+model MetricSnapshot {
+  id          String       @id @default(uuid())
+  clientId    String
+  client      Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  source      MetricSource
+  // e.g. "clicks", "impressions", "ctr", "position" (GSC); "sessions", "conversions" (GA4).
+  metric      String       @db.VarChar(100)
+  value       Decimal      @db.Decimal(18, 6)
+  // Dimension the value is broken down by (e.g. a specific query or page URL).
+  // Empty string means the value is aggregated across the whole property for this
+  // period — kept non-nullable so the compound unique constraint below is usable in
+  // upserts (Prisma's compound-unique lookups cannot target a NULL column value).
+  dimension   String       @default("") @db.VarChar(500)
+  periodStart DateTime     @db.Timestamptz(6)
+  periodEnd   DateTime     @db.Timestamptz(6)
+  createdAt   DateTime     @default(now()) @db.Timestamptz(6)
+
+  @@unique([clientId, source, metric, dimension, periodStart, periodEnd])
+  @@index([clientId, source, metric])
+  @@index([periodStart])
+}
+
 model ServiceRequest {
   id           String               @id @default(uuid())
   title        String               @db.VarChar(255)
@@ -261,15 +374,42 @@ model ServiceRequest {
   createdAt    DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt    DateTime             @updatedAt @db.Timestamptz(6)
 
-  comments  ServiceRequestComment[]
-  history   ServiceRequestHistory[]
-  proposal  Proposal?
+  comments ServiceRequestComment[]
+  history  ServiceRequestHistory[]
+  proposal Proposal?
 
   @@index([clientId])
   @@index([status])
   @@index([createdAt])
   @@index([status, createdAt])
   @@index([assignedToId])
+}
+
+model AvailabilitySlot {
+  id        String   @id @default(cuid())
+  startTime DateTime
+  endTime   DateTime
+  isBooked  Boolean  @default(false)
+  booking   Booking?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([startTime])
+}
+
+model Booking {
+  id        String           @id @default(cuid())
+  slotId    String           @unique
+  slot      AvailabilitySlot @relation(fields: [slotId], references: [id])
+  name      String
+  email     String
+  phone     String?
+  notes     String?
+  status    String           @default("CONFIRMED")
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([email])
 }
 
 model ServiceRequestComment {
@@ -301,40 +441,49 @@ model ServiceRequestHistory {
   @@index([serviceRequestId])
   @@index([serviceRequestId, createdAt])
 }
+
 model Project {
-  id                String                @id @default(uuid())
-  name              String                @db.VarChar(255)
-  description       String?               @db.Text
-  status            ProjectStatus         @default(PLANNING)
-  clientId          String?
-  client            Client?               @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  serviceId         String?
-  service           Service?              @relation(fields: [serviceId], references: [id], onDelete: SetNull)
-  tasks             Task[]
-  timeEntries       TimeEntry[]
-  documents         Document[]
-  proposals         Proposal[]            @relation("ProjectProposals")
-  proposalId        String?               @unique
-  proposal          Proposal?             @relation("ProjectProposal", fields: [proposalId], references: [id])
-  approvals         Approval[]
-  invoices          Invoice[]
-  clientOnboardings ClientOnboarding[]
+  id                 String                   @id @default(uuid())
+  name               String                   @db.VarChar(255)
+  description        String?                  @db.Text
+  status             ProjectStatus            @default(PLANNING)
+  clientId           String?
+  client             Client?                  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  serviceId          String?
+  service            Service?                 @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  tasks              Task[]
+  timeEntries        TimeEntry[]
+  documents          Document[]
+  proposals          Proposal[]               @relation("ProjectProposals")
+  proposalId         String?                  @unique
+  proposal           Proposal?                @relation("ProjectProposal", fields: [proposalId], references: [id])
+  approvals          Approval[]
+  invoices           Invoice[]
+  commissionSplits   ProjectCommissionSplit[]
+  commissions        Commission[]
+  metricSnapshots    MetricSnapshot[]
+  clientOnboardings  ClientOnboarding[]
+  meetings           ProjectMeeting[]
+  // Recurring meeting cadence — NONE (default) means no reminder job tracks this project.
+  meetingFrequency   MeetingFrequency         @default(NONE)
+  nextMeetingDate    DateTime?                @db.Timestamptz(6)
   // Snapshot from the accepted proposal (budget is free-text like Project elsewhere; deadline
   // mirrors the proposal's expiry). Filled by the acceptance cascade, editable afterwards.
-  budget            String?               @db.VarChar(255)
-  deadline          DateTime?             @db.Timestamptz(6)
+  budget             String?                  @db.VarChar(255)
+  deadline           DateTime?                @db.Timestamptz(6)
   // Client brief questionnaire
-  serviceType       String?               @db.VarChar(50)
-  briefData         Json?
-  briefCompleted    Boolean               @default(false)
-  briefCompletedAt  DateTime?             @db.Timestamptz(6)
+  serviceType        String?                  @db.VarChar(50)
+  briefData          Json?
+  briefCompleted     Boolean                  @default(false)
+  briefCompletedAt   DateTime?                @db.Timestamptz(6)
   // Client final approval (triggers COMPLETED + balance invoice)
-  clientApprovedAt      DateTime?         @db.Timestamptz(6)
-  clientApprovedById    String?
-  clientApprovedBy      User?             @relation("ProjectClientApprovals", fields: [clientApprovedById], references: [id], onDelete: SetNull)
-  archivedAt        DateTime?             @db.Timestamptz(6)
-  createdAt         DateTime              @default(now()) @db.Timestamptz(6)
-  updatedAt         DateTime              @updatedAt @db.Timestamptz(6)
+  clientApprovedAt   DateTime?                @db.Timestamptz(6)
+  clientApprovedById String?
+  clientApprovedBy   User?                    @relation("ProjectClientApprovals", fields: [clientApprovedById], references: [id], onDelete: SetNull)
+  archivedAt         DateTime?                @db.Timestamptz(6)
+  deletedAt          DateTime?                @db.Timestamptz(6)
+  createdAt          DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime                 @updatedAt @db.Timestamptz(6)
 
   // Indexes for faster queries
   @@index([status])
@@ -342,14 +491,21 @@ model Project {
   @@index([createdAt])
   @@index([clientId])
   @@index([archivedAt])
+  @@index([deletedAt])
   @@index([serviceId])
+  @@index([nextMeetingDate])
 }
+
 model Task {
   id          String      @id @default(uuid())
   title       String      @db.VarChar(255)
   description String?     @db.Text
   status      TaskStatus  @default(TODO)
   priority    Priority    @default(NORMAL)
+  // Assignment window used for freelancer double-booking checks (overlap = [startDate, dueDate]
+  // intersecting another task assigned to the same freelancer). startDate is optional so existing
+  // tasks with only a dueDate keep working; a task without a startDate is never checked for overlap.
+  startDate   DateTime?   @db.Timestamptz(6)
   dueDate     DateTime?   @db.Timestamptz(6)
   projectId   String
   project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -367,6 +523,7 @@ model Task {
   @@index([assigneeId])
   @@index([dueDate, status])
 }
+
 model Comment {
   id        String   @id @default(uuid())
   content   String   @db.Text
@@ -382,46 +539,61 @@ model Comment {
 
 // ContactRequest model for contact form submissions
 model ContactRequest {
-  id             String        @id @default(uuid())
-  name           String        @db.VarChar(255)
-  email          String        @db.VarChar(255)
-  phone          String?       @db.VarChar(50)
-  serviceType    String        @db.VarChar(255)
-  budget         String?       @db.VarChar(255)
-  company        String        @db.VarChar(255)
-  message        String        @db.Text
-  status         ContactStatus @default(NEW)
-  convertedLead  Lead?
-  convertedAt    DateTime?     @db.Timestamptz(6)
-  createdAt      DateTime      @default(now()) @db.Timestamptz(6)
-  updatedAt      DateTime      @updatedAt @db.Timestamptz(6)
+  id            String        @id @default(uuid())
+  name          String        @db.VarChar(255)
+  email         String        @db.VarChar(255)
+  phone         String?       @db.VarChar(50)
+  serviceType   String        @db.VarChar(255)
+  budget        String?       @db.VarChar(255)
+  company       String        @db.VarChar(255)
+  message       String        @db.Text
+  status        ContactStatus @default(NEW)
+  convertedLead Lead?
+  convertedAt   DateTime?     @db.Timestamptz(6)
+  createdAt     DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime      @updatedAt @db.Timestamptz(6)
 
   // Indexes for faster queries
   @@index([status])
   @@index([createdAt])
   @@index([status, createdAt])
 }
+
+model AnalyticsEvent {
+  id         String   @id @default(uuid())
+  name       String   @db.VarChar(100)
+  properties Json?
+  pagePath   String?  @db.VarChar(500)
+  pageUrl    String?  @db.VarChar(2000)
+  referrer   String?  @db.VarChar(2000)
+  sessionId  String   @db.VarChar(100)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([name, createdAt])
+  @@index([sessionId])
+}
+
 model Skill {
-  id           String               @id @default(uuid())
-  name         String               @unique @db.VarChar(100)
-  freelancers  FreelancerProfile[]
+  id          String              @id @default(uuid())
+  name        String              @unique @db.VarChar(100)
+  freelancers FreelancerProfile[]
 }
 
 // FreelancerProfile model for freelancer details
 model FreelancerProfile {
-  id          String               @id @default(uuid())
-  userId      String               @unique
-  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bio         String?              @db.Text
-  hourlyRate  Decimal?             @db.Decimal(10, 2)
-  availability Boolean             @default(true)
-  rating      Decimal?             @db.Decimal(2, 1) // Average rating (1-5)
-  reviewCount Int                  @default(0)
-  skills      Skill[]
-  portfolio   PortfolioItem[]
-  ratings     Rating[]
-  createdAt   DateTime             @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime             @updatedAt @db.Timestamptz(6)
+  id           String          @id @default(uuid())
+  userId       String          @unique
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio          String?         @db.Text
+  hourlyRate   Decimal?        @db.Decimal(14, 3)
+  availability Boolean         @default(true)
+  rating       Decimal?        @db.Decimal(2, 1) // Average rating (1-5)
+  reviewCount  Int             @default(0)
+  skills       Skill[]
+  portfolio    PortfolioItem[]
+  ratings      Rating[]
+  createdAt    DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime        @updatedAt @db.Timestamptz(6)
 
   // Indexes for faster queries
   @@index([userId])
@@ -429,28 +601,28 @@ model FreelancerProfile {
 }
 
 model PortfolioItem {
-  id          String         @id @default(uuid())
-  title       String         @db.VarChar(255)
-  description String?        @db.Text
-  url         String?        @db.VarChar(255)
-  imageUrl    String?        @db.VarChar(255)
+  id           String            @id @default(uuid())
+  title        String            @db.VarChar(255)
+  description  String?           @db.Text
+  url          String?           @db.VarChar(255)
+  imageUrl     String?           @db.VarChar(255)
   freelancerId String
-  freelancer  FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
-  createdAt   DateTime       @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime       @updatedAt @db.Timestamptz(6)
+  freelancer   FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  createdAt    DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime          @updatedAt @db.Timestamptz(6)
 
   @@index([freelancerId])
 }
 
 model Rating {
-  id              String            @id @default(uuid())
-  score           Int
-  comment         String?           @db.Text
-  freelancerId    String
-  freelancer      FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
-  ratedByUserId   String?
-  ratedByUser     User?             @relation("RatedByUser", fields: [ratedByUserId], references: [id], onDelete: SetNull)
-  createdAt       DateTime          @default(now()) @db.Timestamptz(6)
+  id            String            @id @default(uuid())
+  score         Int
+  comment       String?           @db.Text
+  freelancerId  String
+  freelancer    FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  ratedByUserId String?
+  ratedByUser   User?             @relation("RatedByUser", fields: [ratedByUserId], references: [id], onDelete: SetNull)
+  createdAt     DateTime          @default(now()) @db.Timestamptz(6)
 
   @@index([freelancerId])
 }
@@ -471,6 +643,7 @@ enum NotificationType {
   PROJECT_STATUS_CHANGED
   TASK_ASSIGNED
   TASK_DEADLINE_SOON
+  TASK_OVERDUE
   SERVICE_REQUEST_CREATED
   SERVICE_REQUEST_STATUS_CHANGED
   SERVICE_REQUEST_COMMENT
@@ -481,62 +654,74 @@ enum NotificationType {
   PROJECT_STALE
   PROJECT_DEADLINE_SOON
   INVOICE_FOLLOWUP
+  RATING_REQUESTED
+  MEETING_REMINDER
+  COMMISSION_EARNED
+  COMMISSION_PAID
   GENERAL
 }
 
 // Notification model for user notifications
 model Notification {
-  id        String             @id @default(uuid())
+  id        String           @id @default(uuid())
   userId    String
-  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title     String             @db.VarChar(255)
-  message   String             @db.Text
-  type      NotificationType   @default(GENERAL)
-  entityId  String?            @db.VarChar(255)
-  link      String?            @db.VarChar(500)
-  read      Boolean            @default(false)
-  createdAt DateTime           @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime           @updatedAt @db.Timestamptz(6)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String           @db.VarChar(255)
+  message   String           @db.Text
+  type      NotificationType @default(GENERAL)
+  entityId  String?          @db.VarChar(255)
+  link      String?          @db.VarChar(500)
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime         @updatedAt @db.Timestamptz(6)
 
   @@index([userId])
   @@index([userId, read])
   @@index([userId, createdAt])
   @@index([userId, read, createdAt])
 }
+
 model Document {
-  id               String               @id @default(uuid())
-  name             String               @db.VarChar(255)
-  title            String               @db.VarChar(255)
-  description      String?              @db.Text
-  type             DocumentType         @default(OTHER)
-  url              String               @db.VarChar(500)
-  fileUrl          String?              @db.VarChar(500)
-  fileKey          String?              @db.VarChar(500)
-  version          Int                  @default(1)
+  id               String              @id @default(uuid())
+  name             String              @db.VarChar(255)
+  title            String              @db.VarChar(255)
+  description      String?             @db.Text
+  type             DocumentType        @default(OTHER)
+  url              String              @db.VarChar(500)
+  fileUrl          String?             @db.VarChar(500)
+  fileKey          String?             @db.VarChar(500)
+  version          Int                 @default(1)
   parentId         String?
-  parent           Document?            @relation("DocumentVersioning", fields: [parentId], references: [id], onDelete: SetNull)
-  children         Document[]           @relation("DocumentVersioning")
+  parent           Document?           @relation("DocumentVersioning", fields: [parentId], references: [id], onDelete: SetNull)
+  children         Document[]          @relation("DocumentVersioning")
   tags             String[]
-  accessLevel      DocumentAccessLevel  @default(CLIENT_ADMIN)
+  accessLevel      DocumentAccessLevel @default(CLIENT_ADMIN)
   clientId         String?
-  client           Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  client           Client?             @relation(fields: [clientId], references: [id], onDelete: SetNull)
   projectId        String?
-  project          Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  project          Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  // Set only for INVOICE_DEPOSIT/INVOICE_BALANCE PDFs (see documentGenerator.service.ts). Lets
+  // invoice.service.ts detect "this invoice's PDF has already been generated" and refuse further
+  // line-item edits instead of leaving a stale amount on a document already visible to the client.
+  invoiceId        String?
+  invoice          Invoice?            @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   uploadedById     String?
-  uploadedBy       User?                @relation("UploadedDocuments", fields: [uploadedById], references: [id], onDelete: SetNull)
-  signedAt         DateTime?            @db.Timestamptz(6)
+  uploadedBy       User?               @relation("UploadedDocuments", fields: [uploadedById], references: [id], onDelete: SetNull)
+  signedAt         DateTime?           @db.Timestamptz(6)
   signedByClientId String?
-  signedByClient   User?                @relation("SignedDocuments", fields: [signedByClientId], references: [id], onDelete: SetNull)
+  signedByClient   User?               @relation("SignedDocuments", fields: [signedByClientId], references: [id], onDelete: SetNull)
   accessLog        DocumentAccessLog[]
-  createdAt        DateTime             @default(now()) @db.Timestamptz(6)
-  updatedAt        DateTime             @updatedAt @db.Timestamptz(6)
+  createdAt        DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime            @updatedAt @db.Timestamptz(6)
 
   @@index([clientId])
   @@index([projectId])
+  @@index([invoiceId])
   @@index([type])
   @@index([tags])
   @@index([createdAt])
 }
+
 model RefreshToken {
   id        String    @id @default(uuid())
   tokenHash String    @unique @db.VarChar(64)
@@ -554,23 +739,23 @@ model RefreshToken {
 
 // Freelancer Application model for join us requests
 model FreelancerApplication {
-  id              String            @id @default(uuid())
-  firstName       String            @db.VarChar(255)
-  lastName        String            @db.VarChar(255)
-  email           String            @db.VarChar(255)
-  phone           String?           @db.VarChar(50)
-  position        String            @db.VarChar(255)
-  cvUrl           String            @db.VarChar(500)
-  cvKey           String?           @db.VarChar(500)
-  portfolioUrl    String            @db.VarChar(500)
-  portfolioKey    String?           @db.VarChar(500)
-  status          ApplicationStatus @default(PENDING)
-  rejectionReason String?           @db.Text
-  userId          String?
-  user            User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String            @id @default(uuid())
+  firstName        String            @db.VarChar(255)
+  lastName         String            @db.VarChar(255)
+  email            String            @db.VarChar(255)
+  phone            String?           @db.VarChar(50)
+  position         String            @db.VarChar(255)
+  cvUrl            String            @db.VarChar(500)
+  cvKey            String?           @db.VarChar(500)
+  portfolioUrl     String            @db.VarChar(500)
+  portfolioKey     String?           @db.VarChar(500)
+  status           ApplicationStatus @default(PENDING)
+  rejectionReason  String?           @db.Text
+  userId           String?
+  user             User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
   accountCreatedAt DateTime?
-  createdAt       DateTime          @default(now()) @db.Timestamptz(6)
-  updatedAt       DateTime          @updatedAt @db.Timestamptz(6)
+  createdAt        DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @db.Timestamptz(6)
 
   @@unique([email])
   @@index([email])
@@ -581,18 +766,18 @@ model FreelancerApplication {
 
 // Client Onboarding model
 model ClientOnboarding {
-  id            String           @id @default(uuid())
-  projectId     String           @unique
+  id             String           @id @default(uuid())
+  projectId      String           @unique
   // Restrict (not Cascade): deleting a project must not silently destroy its onboarding
   // record. deleteProject blocks while an onboarding exists; archive the project instead.
-  project       Project          @relation(fields: [projectId], references: [id], onDelete: Restrict)
-  clientId      String
-  client        Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  project        Project          @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  clientId       String
+  client         Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
   assignedUserId String?
-  assignedUser  User?            @relation("ClientOnboardingAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
-  steps         OnboardingStep[]
-  createdAt     DateTime         @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime         @updatedAt @db.Timestamptz(6)
+  assignedUser   User?            @relation("ClientOnboardingAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  steps          OnboardingStep[]
+  createdAt      DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @db.Timestamptz(6)
 
   @@index([projectId])
   @@index([clientId])
@@ -600,25 +785,25 @@ model ClientOnboarding {
 
 // Onboarding Step model
 model OnboardingStep {
-  id               String               @id @default(uuid())
-  onboardingId     String
-  onboarding       ClientOnboarding     @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
-  stepType         String               @db.VarChar(100)
-  title            String               @db.VarChar(255)
-  description      String?              @db.Text
-  status           OnboardingStepStatus @default(PENDING)
-  orderIndex       Int                  @default(0)
-  deadline         DateTime?            @db.Timestamptz(6)
-  completedAt      DateTime?            @db.Timestamptz(6)
-  contract         Contract?
-  payment          Payment?
-  questionnaire    Questionnaire?
-  specifications   Specifications?
-  kickoff          KickoffMeeting?
-  production       ProductionProgress?
-  delivery         Delivery?
-  createdAt        DateTime             @default(now()) @db.Timestamptz(6)
-  updatedAt        DateTime             @updatedAt @db.Timestamptz(6)
+  id             String               @id @default(uuid())
+  onboardingId   String
+  onboarding     ClientOnboarding     @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+  stepType       String               @db.VarChar(100)
+  title          String               @db.VarChar(255)
+  description    String?              @db.Text
+  status         OnboardingStepStatus @default(PENDING)
+  orderIndex     Int                  @default(0)
+  deadline       DateTime?            @db.Timestamptz(6)
+  completedAt    DateTime?            @db.Timestamptz(6)
+  contract       Contract?
+  payment        Payment?
+  questionnaire  Questionnaire?
+  specifications Specifications?
+  kickoff        KickoffMeeting?
+  production     ProductionProgress?
+  delivery       Delivery?
+  createdAt      DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime             @updatedAt @db.Timestamptz(6)
 
   @@index([onboardingId])
   @@index([onboardingId, orderIndex])
@@ -626,106 +811,126 @@ model OnboardingStep {
 
 // Contract model
 model Contract {
-  id               String           @id @default(uuid())
-  onboardingStepId String           @unique
-  onboardingStep   OnboardingStep   @relation(fields: [onboardingStepId], references: [id], onDelete: Cascade)
-  contractUrl      String?          @db.VarChar(500)
-  status           ContractStatus   @default(PENDING)
-  signedAt         DateTime?        @db.Timestamptz(6)
-  createdAt        DateTime         @default(now()) @db.Timestamptz(6)
-  updatedAt        DateTime         @updatedAt @db.Timestamptz(6)
+  id               String         @id @default(uuid())
+  onboardingStepId String         @unique
+  onboardingStep   OnboardingStep @relation(fields: [onboardingStepId], references: [id], onDelete: Cascade)
+  contractUrl      String?        @db.VarChar(500)
+  status           ContractStatus @default(PENDING)
+  signedAt         DateTime?      @db.Timestamptz(6)
+  createdAt        DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime       @updatedAt @db.Timestamptz(6)
 }
 
 // Payment model
 model Payment {
-  id               String           @id @default(uuid())
-  onboardingStepId String?          @unique
-  onboardingStep   OnboardingStep?  @relation(fields: [onboardingStepId], references: [id], onDelete: Cascade)
+  id               String          @id @default(uuid())
+  onboardingStepId String?         @unique
+  onboardingStep   OnboardingStep? @relation(fields: [onboardingStepId], references: [id], onDelete: Cascade)
   invoiceId        String?
-  invoice          Invoice?         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  amount           Decimal?         @db.Decimal(10, 2)
-  amountPaid       Decimal?         @db.Decimal(10, 2)
-  method           String?          @db.VarChar(100)
-  reference        String?          @db.VarChar(255)
+  invoice          Invoice?        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount           Decimal?        @db.Decimal(14, 3)
+  amountPaid       Decimal?        @db.Decimal(14, 3)
+  method           String?         @db.VarChar(100)
+  reference        String?         @db.VarChar(255)
+  idempotencyKey   String?         @unique @db.VarChar(255)
   recordedById     String?
-  recordedBy       User?            @relation("RecordedPayments", fields: [recordedById], references: [id], onDelete: SetNull)
-  status           PaymentStatus    @default(UNPAID)
-  deadline         DateTime?        @db.Timestamptz(6)
-  paidAt           DateTime?        @db.Timestamptz(6)
-  createdAt        DateTime         @default(now()) @db.Timestamptz(6)
-  updatedAt        DateTime         @updatedAt @db.Timestamptz(6)
+  recordedBy       User?           @relation("RecordedPayments", fields: [recordedById], references: [id], onDelete: SetNull)
+  status           PaymentStatus   @default(UNPAID)
+  deadline         DateTime?       @db.Timestamptz(6)
+  paidAt           DateTime?       @db.Timestamptz(6)
+  commission       Commission?
+  createdAt        DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime        @updatedAt @db.Timestamptz(6)
 
   @@index([invoiceId])
   @@index([recordedById])
+  @@index([idempotencyKey])
 }
 
 // Questionnaire model
 model Questionnaire {
-  id               String       @id @default(uuid())
-  onboardingStepId String       @unique
+  id               String         @id @default(uuid())
+  onboardingStepId String         @unique
   onboardingStep   OnboardingStep @relation(fields: [onboardingStepId], references: [id], onDelete: Cascade)
-  serviceType      String       @db.VarChar(100)
+  serviceType      String         @db.VarChar(100)
   data             Json?
-  isDraft          Boolean      @default(true)
-  submittedAt      DateTime?    @db.Timestamptz(6)
-  createdAt        DateTime     @default(now()) @db.Timestamptz(6)
-  updatedAt        DateTime     @updatedAt @db.Timestamptz(6)
+  isDraft          Boolean        @default(true)
+  submittedAt      DateTime?      @db.Timestamptz(6)
+  createdAt        DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime       @updatedAt @db.Timestamptz(6)
 }
 
 // Specifications model
 model Specifications {
-  id               String               @id @default(uuid())
-  onboardingStepId String               @unique
-  onboardingStep   OnboardingStep       @relation(fields: [onboardingStepId], references: [id], onDelete: Cascade)
-  requirements     String?              @db.Text
-  objectives       String?              @db.Text
-  features         String?              @db.Text
-  deliverables     String?              @db.Text
-  timeline         String?              @db.Text
-  approvalStatus   SpecApprovalStatus   @default(PENDING)
-  feedback         String?              @db.Text
-  approvedAt       DateTime?            @db.Timestamptz(6)
-  createdAt        DateTime             @default(now()) @db.Timestamptz(6)
-  updatedAt        DateTime             @updatedAt @db.Timestamptz(6)
+  id               String             @id @default(uuid())
+  onboardingStepId String             @unique
+  onboardingStep   OnboardingStep     @relation(fields: [onboardingStepId], references: [id], onDelete: Cascade)
+  requirements     String?            @db.Text
+  objectives       String?            @db.Text
+  features         String?            @db.Text
+  deliverables     String?            @db.Text
+  timeline         String?            @db.Text
+  approvalStatus   SpecApprovalStatus @default(PENDING)
+  feedback         String?            @db.Text
+  approvedAt       DateTime?          @db.Timestamptz(6)
+  createdAt        DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime           @updatedAt @db.Timestamptz(6)
 }
 
 // Kickoff Meeting model
+// Lightweight meeting log per project — "Add a point" + chronological list, no
+// calendar/recurrence. Not a scheduling system, just a record of what was discussed.
+model ProjectMeeting {
+  id           String   @id @default(uuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  meetingDate  DateTime @db.Timestamptz(6)
+  participants String?  @db.Text
+  notes        String?  @db.Text
+  createdById  String?
+  createdBy    User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([projectId, meetingDate])
+}
+
 model KickoffMeeting {
-  id               String       @id @default(uuid())
-  onboardingStepId String       @unique
+  id               String         @id @default(uuid())
+  onboardingStepId String         @unique
   onboardingStep   OnboardingStep @relation(fields: [onboardingStepId], references: [id], onDelete: Cascade)
-  meetingDate      DateTime?    @db.Timestamptz(6)
-  participants     String?      @db.Text
-  meetingLink      String?      @db.VarChar(500)
-  createdAt        DateTime     @default(now()) @db.Timestamptz(6)
-  updatedAt        DateTime     @updatedAt @db.Timestamptz(6)
+  meetingDate      DateTime?      @db.Timestamptz(6)
+  participants     String?        @db.Text
+  meetingLink      String?        @db.VarChar(500)
+  createdAt        DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime       @updatedAt @db.Timestamptz(6)
 }
 
 // Production Progress model
 model ProductionProgress {
-  id               String       @id @default(uuid())
-  onboardingStepId String       @unique
+  id               String         @id @default(uuid())
+  onboardingStepId String         @unique
   onboardingStep   OnboardingStep @relation(fields: [onboardingStepId], references: [id], onDelete: Cascade)
-  analysis         Int          @default(0)
-  design           Int          @default(0)
-  development      Int          @default(0)
-  testing          Int          @default(0)
-  deployment       Int          @default(0)
-  createdAt        DateTime     @default(now()) @db.Timestamptz(6)
-  updatedAt        DateTime     @updatedAt @db.Timestamptz(6)
+  analysis         Int            @default(0)
+  design           Int            @default(0)
+  development      Int            @default(0)
+  testing          Int            @default(0)
+  deployment       Int            @default(0)
+  createdAt        DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime       @updatedAt @db.Timestamptz(6)
 }
 
 // Delivery model
 model Delivery {
-  id               String       @id @default(uuid())
-  onboardingStepId String       @unique
+  id               String         @id @default(uuid())
+  onboardingStepId String         @unique
   onboardingStep   OnboardingStep @relation(fields: [onboardingStepId], references: [id], onDelete: Cascade)
-  deliverables     String?      @db.Text
-  documentation    String?      @db.VarChar(500)
-  accessDetails    String?      @db.Text
-  userGuides       String?      @db.VarChar(500)
-  createdAt        DateTime     @default(now()) @db.Timestamptz(6)
-  updatedAt        DateTime     @updatedAt @db.Timestamptz(6)
+  deliverables     String?        @db.Text
+  documentation    String?        @db.VarChar(500)
+  accessDetails    String?        @db.Text
+  userGuides       String?        @db.VarChar(500)
+  createdAt        DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime       @updatedAt @db.Timestamptz(6)
 }
 
 // Proposal Center
@@ -739,37 +944,37 @@ enum ProposalStatus {
 }
 
 model Proposal {
-  id               String         @id @default(uuid())
-  title            String         @db.VarChar(255)
-  description      String?        @db.Text
-  status           ProposalStatus @default(DRAFT)
-  version          Int            @default(1)
-  amount           Decimal?       @db.Decimal(12, 2)
-  currency         String         @default("TND") @db.VarChar(10)
-  expiresAt        DateTime?      @db.Timestamptz(6)
-  viewedAt         DateTime?      @db.Timestamptz(6)
-  acceptedAt       DateTime?      @db.Timestamptz(6)
-  rejectedAt       DateTime?      @db.Timestamptz(6)
-  pdfUrl           String?        @db.VarChar(500)
+  id               String            @id @default(uuid())
+  title            String            @db.VarChar(255)
+  description      String?           @db.Text
+  status           ProposalStatus    @default(DRAFT)
+  version          Int               @default(1)
+  amount           Decimal?          @db.Decimal(14, 3)
+  currency         String            @default("TND") @db.VarChar(10)
+  expiresAt        DateTime?         @db.Timestamptz(6)
+  viewedAt         DateTime?         @db.Timestamptz(6)
+  acceptedAt       DateTime?         @db.Timestamptz(6)
+  rejectedAt       DateTime?         @db.Timestamptz(6)
+  pdfUrl           String?           @db.VarChar(500)
   // Denormalized snapshot of the recipient, captured at creation. When a proposal is created
   // from a Lead these are pre-filled from the lead so the proposal carries the lead's contact
   // details independently of the (always-present) Client record.
-  clientName       String?        @db.VarChar(255)
-  email            String?        @db.VarChar(255)
+  clientName       String?           @db.VarChar(255)
+  email            String?           @db.VarChar(255)
   clientId         String
-  client           Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client           Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
   projectId        String?
-  project          Project?       @relation("ProjectProposals", fields: [projectId], references: [id], onDelete: SetNull)
-  serviceRequestId String?         @unique
-  serviceRequest   ServiceRequest? @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
-  leadId           String?         @unique
-  lead             Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  project          Project?          @relation("ProjectProposals", fields: [projectId], references: [id], onDelete: SetNull)
+  serviceRequestId String?           @unique
+  serviceRequest   ServiceRequest?   @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
+  leadId           String?           @unique
+  lead             Lead?             @relation(fields: [leadId], references: [id], onDelete: SetNull)
   sections         ProposalSection[]
   history          ProposalHistory[]
   invoice          Invoice?
-  linkedProject    Project?         @relation("ProjectProposal")
-  createdAt        DateTime       @default(now()) @db.Timestamptz(6)
-  updatedAt        DateTime       @updatedAt @db.Timestamptz(6)
+  linkedProject    Project?          @relation("ProjectProposal")
+  createdAt        DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @db.Timestamptz(6)
 
   @@index([clientId])
   @@index([status])
@@ -779,28 +984,28 @@ model Proposal {
 }
 
 model ProposalSection {
-  id          String   @id @default(uuid())
-  title       String   @db.VarChar(255)
-  content     String?  @db.Text
-  orderIndex  Int      @default(0)
-  proposalId  String
-  proposal    Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  id         String   @id @default(uuid())
+  title      String   @db.VarChar(255)
+  content    String?  @db.Text
+  orderIndex Int      @default(0)
+  proposalId String
+  proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
 
   @@index([proposalId])
   @@index([proposalId, orderIndex])
 }
 
 model ProposalHistory {
-  id          String   @id @default(uuid())
-  action      String   @db.VarChar(100)
-  comment     String?  @db.Text
-  userId      String?
-  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  proposalId  String
-  proposal    Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  id         String   @id @default(uuid())
+  action     String   @db.VarChar(100)
+  comment    String?  @db.Text
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  proposalId String
+  proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
 
   @@index([proposalId])
   @@index([proposalId, createdAt])
@@ -814,19 +1019,19 @@ enum ApprovalStatus {
 }
 
 model Approval {
-  id          String         @id @default(uuid())
-  title       String         @db.VarChar(255)
-  description String?        @db.Text
-  status      ApprovalStatus @default(PENDING)
-  dueDate     DateTime?      @db.Timestamptz(6)
+  id          String               @id @default(uuid())
+  title       String               @db.VarChar(255)
+  description String?              @db.Text
+  status      ApprovalStatus       @default(PENDING)
+  dueDate     DateTime?            @db.Timestamptz(6)
   clientId    String
-  client      Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client      Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
   projectId   String?
-  project     Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  project     Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
   attachments ApprovalAttachment[]
   timeline    ApprovalTimeline[]
-  createdAt   DateTime       @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime       @updatedAt @db.Timestamptz(6)
+  createdAt   DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime             @updatedAt @db.Timestamptz(6)
 
   @@index([clientId])
   @@index([status])
@@ -835,26 +1040,26 @@ model Approval {
 }
 
 model ApprovalAttachment {
-  id          String   @id @default(uuid())
-  name        String   @db.VarChar(255)
-  url         String   @db.VarChar(500)
-  approvalId  String
-  approval    Approval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  id         String   @id @default(uuid())
+  name       String   @db.VarChar(255)
+  url        String   @db.VarChar(500)
+  approvalId String
+  approval   Approval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
 
   @@index([approvalId])
 }
 
 model ApprovalTimeline {
-  id          String         @id @default(uuid())
-  action      String         @db.VarChar(100)
-  comment     String?        @db.Text
-  status      String         @db.VarChar(50)
-  userId      String?
-  user        User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
-  approvalId  String
-  approval    Approval       @relation(fields: [approvalId], references: [id], onDelete: Cascade)
-  createdAt   DateTime       @default(now()) @db.Timestamptz(6)
+  id         String   @id @default(uuid())
+  action     String   @db.VarChar(100)
+  comment    String?  @db.Text
+  status     String   @db.VarChar(50)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  approvalId String
+  approval   Approval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
 
   @@index([approvalId])
   @@index([approvalId, createdAt])
@@ -885,15 +1090,15 @@ enum DocumentAccessLevel {
 }
 
 model DocumentAccessLog {
-  id          String           @id @default(uuid())
-  action      String           @db.VarChar(100)
-  userId      String?
-  user        User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
-  documentId  String
-  document    Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  ipAddress   String?          @db.VarChar(45)
-  userAgent   String?          @db.Text
-  createdAt   DateTime         @default(now()) @db.Timestamptz(6)
+  id         String   @id @default(uuid())
+  action     String   @db.VarChar(100)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  ipAddress  String?  @db.VarChar(45)
+  userAgent  String?  @db.Text
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
 
   @@index([documentId])
   @@index([userId])
@@ -918,60 +1123,131 @@ enum InvoiceType {
   BALANCE
 }
 
+// Per-month sequential counter for gapless invoice numbering (INV-YYYYMM-NNNN).
+// Incremented inside the same transaction that creates the Invoice row so no
+// number is ever allocated without a corresponding invoice being persisted.
+model InvoiceCounter {
+  prefix String @id @db.VarChar(20)
+  value  Int    @default(0)
+}
+
 model Invoice {
-  id                String        @id @default(uuid())
-  number            String        @db.VarChar(100) @unique
-  title             String        @db.VarChar(255)
-  description       String?       @db.Text
-  amount            Decimal       @db.Decimal(12, 2)
-  currency          String        @default("TND") @db.VarChar(10)
-  amountPaid        Decimal       @default(0) @db.Decimal(12, 2)
-  status            InvoiceStatus @default(DRAFT)
-  invoiceType       InvoiceType   @default(STANDARD)
-  dueDate           DateTime?     @db.Timestamptz(6)
-  sentAt            DateTime?     @db.Timestamptz(6)
-  paidAt            DateTime?     @db.Timestamptz(6)
-  pdfUrl            String?       @db.VarChar(500)
-  clientId          String
-  client            Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  projectId         String?
-  project           Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  proposalId        String?       @unique
-  proposal          Proposal?     @relation(fields: [proposalId], references: [id], onDelete: SetNull)
-  items             InvoiceItem[]
-  payments          Payment[]
-  reminders         InvoiceReminder[]
-  creditNotes       CreditNote[]  @relation("CreditNoteSource")
-  appliedCreditNotes CreditNote[] @relation("CreditNoteApplication")
-  createdAt         DateTime      @default(now()) @db.Timestamptz(6)
-  updatedAt         DateTime      @updatedAt @db.Timestamptz(6)
+  id                 String            @id @default(uuid())
+  number             String            @unique @db.VarChar(100)
+  title              String            @db.VarChar(255)
+  description        String?           @db.Text
+  amount             Decimal           @db.Decimal(14, 3)
+  // VAT breakdown (nullable: only populated for invoices generated from a proposal amount;
+  // invoices built purely from line items keep deriving `amount` via recomputeInvoiceAmount).
+  amountHT           Decimal?          @db.Decimal(14, 3)
+  tvaRate            Decimal?          @db.Decimal(5, 4)
+  tvaAmount          Decimal?          @db.Decimal(14, 3)
+  currency           String            @default("TND") @db.VarChar(10)
+  amountPaid         Decimal           @default(0) @db.Decimal(14, 3)
+  status             InvoiceStatus     @default(DRAFT)
+  invoiceType        InvoiceType       @default(STANDARD)
+  dueDate            DateTime?         @db.Timestamptz(6)
+  sentAt             DateTime?         @db.Timestamptz(6)
+  paidAt             DateTime?         @db.Timestamptz(6)
+  pdfUrl             String?           @db.VarChar(500)
+  reminderPaused     Boolean           @default(false)
+  clientId           String
+  client             Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projectId          String?
+  project            Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  proposalId         String?           @unique
+  proposal           Proposal?         @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+  items              InvoiceItem[]
+  payments           Payment[]
+  commissions        Commission[]
+  reminders          InvoiceReminder[]
+  creditNotes        CreditNote[]      @relation("CreditNoteSource")
+  appliedCreditNotes CreditNote[]      @relation("CreditNoteApplication")
+  documents          Document[]
+  deletedAt          DateTime?         @db.Timestamptz(6)
+  createdAt          DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime          @updatedAt @db.Timestamptz(6)
 
   @@index([clientId])
   @@index([status])
   @@index([invoiceType])
+  @@index([deletedAt])
   @@index([dueDate])
   @@index([createdAt])
   @@index([status, createdAt])
   @@index([number])
+  @@unique([projectId, invoiceType])
+}
+
+enum CommissionStatus {
+  PENDING
+  PAID
+}
+
+// Manual per-project assignment of which associates get what share of the revenue.
+// Set once when the deal is configured (e.g. 70-30 or 50-50 between the 3 partners);
+// used to compute Commission rows whenever a payment is recorded against the project.
+model ProjectCommissionSplit {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  partnerId String
+  partner   User     @relation("PartnerCommissionSplits", fields: [partnerId], references: [id], onDelete: Cascade)
+  ratePct   Decimal  @db.Decimal(5, 2)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([projectId, partnerId])
+  @@index([projectId])
+  @@index([partnerId])
+}
+
+// What is owed to an associate for a specific payment received. One Commission row is
+// created per (partner, Payment) — a deposit payment and a balance payment on the same
+// project each generate their own commission, prorated on the amount actually collected.
+model Commission {
+  id        String           @id @default(uuid())
+  partnerId String
+  partner   User             @relation("PartnerCommissions", fields: [partnerId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  invoiceId String
+  invoice   Invoice          @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  paymentId String           @unique
+  payment   Payment          @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  // Amount the commission is computed from (the payment amount actually received) and the
+  // resulting share, both in the invoice's currency.
+  basis     Decimal          @db.Decimal(14, 3)
+  ratePct   Decimal          @db.Decimal(5, 2)
+  amount    Decimal          @db.Decimal(14, 3)
+  status    CommissionStatus @default(PENDING)
+  paidAt    DateTime?        @db.Timestamptz(6)
+  createdAt DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime         @updatedAt @db.Timestamptz(6)
+
+  @@index([partnerId])
+  @@index([projectId])
+  @@index([invoiceId])
+  @@index([status])
 }
 
 // A credit note records money owed back to a client : issued for an overpayment or as a
 // correction against an invoice. Issuing one increments Client.creditBalance.
 // When applyCredit() is called, appliedAt is set and creditBalance is decremented.
 model CreditNote {
-  id                  String    @id @default(uuid())
-  number              String    @db.VarChar(100) @unique
-  amount              Decimal   @db.Decimal(12, 2)
-  reason              String    @db.Text
-  invoiceId           String
-  invoice             Invoice   @relation("CreditNoteSource", fields: [invoiceId], references: [id], onDelete: Cascade)
-  clientId            String
-  client              Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  id                 String    @id @default(uuid())
+  number             String    @unique @db.VarChar(100)
+  amount             Decimal   @db.Decimal(14, 3)
+  reason             String    @db.Text
+  invoiceId          String
+  invoice            Invoice   @relation("CreditNoteSource", fields: [invoiceId], references: [id], onDelete: Cascade)
+  clientId           String
+  client             Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
   // Application tracking — null means not yet consumed
-  appliedAt           DateTime? @db.Timestamptz(6)
-  appliedToInvoiceId  String?
-  appliedToInvoice    Invoice?  @relation("CreditNoteApplication", fields: [appliedToInvoiceId], references: [id], onDelete: SetNull)
-  createdAt           DateTime  @default(now()) @db.Timestamptz(6)
+  appliedAt          DateTime? @db.Timestamptz(6)
+  appliedToInvoiceId String?
+  appliedToInvoice   Invoice?  @relation("CreditNoteApplication", fields: [appliedToInvoiceId], references: [id], onDelete: SetNull)
+  createdAt          DateTime  @default(now()) @db.Timestamptz(6)
 
   @@index([invoiceId])
   @@index([clientId])
@@ -982,8 +1258,8 @@ model InvoiceItem {
   id          String   @id @default(uuid())
   description String   @db.VarChar(500)
   quantity    Int      @default(1)
-  unitPrice   Decimal  @db.Decimal(12, 2)
-  total       Decimal  @db.Decimal(12, 2)
+  unitPrice   Decimal  @db.Decimal(14, 3)
+  total       Decimal  @db.Decimal(14, 3)
   invoiceId   String
   invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
@@ -992,60 +1268,60 @@ model InvoiceItem {
 }
 
 model InvoiceReminder {
-  id          String   @id @default(uuid())
-  type        String   @db.VarChar(100)
-  sentAt      DateTime @default(now()) @db.Timestamptz(6)
-  invoiceId   String
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  id        String   @id @default(uuid())
+  type      String   @db.VarChar(100)
+  sentAt    DateTime @default(now()) @db.Timestamptz(6)
+  invoiceId String
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
 
   @@index([invoiceId])
 }
 
 // Client Success Center
 model ClientSuccess {
-  id              String             @id @default(uuid())
-  clientId        String             @unique
-  client          Client             @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  score           Int                @default(0)
+  id              String                  @id @default(uuid())
+  clientId        String                  @unique
+  client          Client                  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  score           Int                     @default(0)
   objectives      SuccessObjective[]
   metrics         SuccessMetric[]
   recommendations SuccessRecommendation[]
   timeline        SuccessTimeline[]
-  createdAt       DateTime           @default(now()) @db.Timestamptz(6)
-  updatedAt       DateTime           @updatedAt @db.Timestamptz(6)
+  createdAt       DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime                @updatedAt @db.Timestamptz(6)
 
   @@index([clientId])
 }
 
 model SuccessObjective {
-  id             String        @id @default(uuid())
-  title          String        @db.VarChar(255)
-  description    String?       @db.Text
-  targetValue    Decimal?      @db.Decimal(12, 2)
-  currentValue   Decimal?      @db.Decimal(12, 2)
-  unit           String?       @db.VarChar(50)
-  targetDate     DateTime?     @db.Timestamptz(6)
-  completedAt    DateTime?     @db.Timestamptz(6)
-  successId      String
-  success        ClientSuccess @relation(fields: [successId], references: [id], onDelete: Cascade)
-  createdAt      DateTime      @default(now()) @db.Timestamptz(6)
-  updatedAt      DateTime      @updatedAt @db.Timestamptz(6)
+  id           String        @id @default(uuid())
+  title        String        @db.VarChar(255)
+  description  String?       @db.Text
+  targetValue  Decimal?      @db.Decimal(12, 2)
+  currentValue Decimal?      @db.Decimal(12, 2)
+  unit         String?       @db.VarChar(50)
+  targetDate   DateTime?     @db.Timestamptz(6)
+  completedAt  DateTime?     @db.Timestamptz(6)
+  successId    String
+  success      ClientSuccess @relation(fields: [successId], references: [id], onDelete: Cascade)
+  createdAt    DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @db.Timestamptz(6)
 
   @@index([successId])
 }
 
 model SuccessMetric {
-  id           String        @id @default(uuid())
-  name         String        @db.VarChar(255)
-  initialValue Decimal       @db.Decimal(12, 2)
-  currentValue Decimal       @db.Decimal(12, 2)
-  unit         String?       @db.VarChar(50)
+  id           String          @id @default(uuid())
+  name         String          @db.VarChar(255)
+  initialValue Decimal         @db.Decimal(12, 2)
+  currentValue Decimal         @db.Decimal(12, 2)
+  unit         String?         @db.VarChar(50)
   successId    String
-  success      ClientSuccess @relation(fields: [successId], references: [id], onDelete: Cascade)
+  success      ClientSuccess   @relation(fields: [successId], references: [id], onDelete: Cascade)
   history      MetricHistory[]
-  createdAt    DateTime      @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime      @updatedAt @db.Timestamptz(6)
+  createdAt    DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime        @updatedAt @db.Timestamptz(6)
 
   @@index([successId])
 }
@@ -1167,13 +1443,13 @@ model CustomQuestionMessage {
 }
 
 model PermissionProfile {
-  id          String             @id @default(uuid())
-  name        String             @unique
+  id          String              @id @default(uuid())
+  name        String              @unique
   description String?
   permissions Json
-  isDefault   Boolean            @default(false)
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  isDefault   Boolean             @default(false)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
   managers    ManagerPermission[]
 }
 
@@ -1189,19 +1465,19 @@ model ManagerPermission {
 }
 
 model TimeEntry {
-  id              String    @id @default(uuid())
+  id              String   @id @default(uuid())
   projectId       String
-  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   taskId          String?
-  task            Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  description     String?   @db.VarChar(500)
+  task            Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  description     String?  @db.VarChar(500)
   minutes         Int
-  date            DateTime  @db.Date
-  billed          Boolean   @default(false)
+  date            DateTime @db.Date
+  billed          Boolean  @default(false)
   billedInvoiceId String?
-  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
 
   @@index([projectId])
   @@index([userId])
@@ -1228,7 +1504,7 @@ enum SiteContentSection {
 model SiteContent {
   id        String             @id @default(uuid())
   key       String             @db.VarChar(120)
-  locale    String             @db.VarChar(5)   // "fr" | "en"
+  locale    String             @db.VarChar(5) // "fr" | "en"
   value     String             @db.Text
   type      SiteContentType    @default(TEXT)
   section   SiteContentSection
