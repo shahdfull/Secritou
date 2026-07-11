@@ -233,7 +233,16 @@
       "slotDeleteFailed": "Impossible de supprimer le créneau.",
       "bookingCancelled": "Réservation annulée.",
       "bookingCancelFailed": "Impossible d'annuler la réservation.",
-      "loadFailed": "Impossible de charger les réservations."
+      "loadFailed": "Impossible de charger les réservations.",
+      "calendar": "Calendrier",
+      "calendarHint": "Les jours avec des créneaux sont mis en évidence.",
+      "dayView": "Vue du jour",
+      "heroBody": "Créez des disponibilités, consultez la vue du jour et annulez des rendez-vous sans quitter la page.",
+      "next7Days": "7 prochains jours",
+      "statBooked": "Réservé",
+      "statOpen": "Disponible",
+      "statWeek": "7 prochains jours",
+      "today": "Aujourd'hui"
     }
   },
   "home": {
@@ -558,7 +567,8 @@
     "tabExecutive": "Vue Dirigeant",
     "noOverdue": "Aucun retard",
     "welcomeName": "Bon retour, {{name}} — voici ce qui se passe aujourd'hui.",
-    "welcomeAnon": "Bon retour — voici ce qui se passe aujourd'hui."
+    "welcomeAnon": "Bon retour — voici ce qui se passe aujourd'hui.",
+    "pendingApprovals": "approbations en attente"
   },
   "commercial": {
     "tabs": {
@@ -598,7 +608,8 @@
     "invoicesDue_other": "{{count}} factures",
     "viewFollowUps": "Voir les relances clients",
     "invoicesDue_label": "Factures dues",
-    "proposalsPipeline": "Pipeline propositions"
+    "proposalsPipeline": "Pipeline propositions",
+    "invoicesDue": "{{count}} facture(s) à encaisser"
   },
   "permissions": {
     "modules": {
@@ -672,7 +683,8 @@
       "user": "Utilisateur",
       "status": "Statut",
       "date": "Date"
-    }
+    },
+    "messageCount": "{{count}} message(s)"
   },
   "common": {
     "loading": "Chargement...",
@@ -726,7 +738,14 @@
     "removeFile": "Supprimer le fichier",
     "fileTypeNotAccepted": "Fichier non accepté. Types acceptés: {{types}}",
     "trash": "Corbeille",
-    "restore": "Restaurer"
+    "restore": "Restaurer",
+    "sort": {
+      "mostRecent": "Plus récent",
+      "leastRecent": "Moins récent",
+      "nameAsc": "Nom A→Z",
+      "nameDesc": "Nom Z→A"
+    },
+    "startDate": "Date de début"
   },
   "search": {
     "placeholder": "Rechercher les leads, clients, projets...",
@@ -762,7 +781,10 @@
     "clientSuccess": "Succès Client",
     "crm": "CRM",
     "talent": "Talent",
-    "questions": "Questions"
+    "questions": "Questions",
+    "groupManage": "Gérer",
+    "groupAnalytics": "Analytiques",
+    "groupOther": "Compte"
   },
   "clientNav": {
     "projects": "Mes projets",
@@ -775,6 +797,11 @@
     "onboarding": "Onboarding",
     "questions": "Mes questions",
     "profile": "Mon profil"
+  },
+  "portalActivation": {
+    "title": "Votre espace client n'est pas encore actif",
+    "description": "L'accès complet à votre espace s'ouvre dès que l'acompte de votre facture initiale est réglé. Vous pouvez déjà consulter et signer votre contrat, ainsi que votre devis, depuis l'onglet Documents.",
+    "documentsLink": "Voir mes documents"
   },
   "userMenu": {
     "myAccount": "Mon compte",
@@ -830,7 +857,11 @@
     "leadStatusUpdateError": "Échec de la mise à jour du statut du lead",
     "taskStatusUpdateError": "Échec de la mise à jour du statut de la tâche",
     "platformColorSaved": "Couleur de la plateforme enregistrée",
-    "previousFileRemoveWarning": "Impossible de supprimer le fichier précédent du stockage"
+    "previousFileRemoveWarning": "Impossible de supprimer le fichier précédent du stockage",
+    "invitationSent": "Invitation envoyée",
+    "leadReopened": "Lead réouvert",
+    "clientRestored": "Client restauré",
+    "projectRestored": "Projet restauré"
   },
   "aiAssistant": {
     "title": "Assistant IA",
@@ -1153,7 +1184,20 @@
     "errorUpdatingProject": "Une erreur est survenue lors de la mise à jour.",
     "projectHasInvoices": "Ce projet a des factures émises et ne peut pas être supprimé. Archivez-le.",
     "projectHasOnboarding": "Ce projet a un onboarding et ne peut pas être supprimé. Archivez-le.",
-    "errorDeletingProject": "Une erreur est survenue lors de la suppression."
+    "errorDeletingProject": "Une erreur est survenue lors de la suppression.",
+    "sort": {
+      "mostAdvancedFirst": "Plus avancés en premier",
+      "leastAdvancedFirst": "Moins avancés en premier"
+    },
+    "subtabs": {
+      "active": "En cours",
+      "done": "Terminés"
+    },
+    "tabs": {
+      "projects": "Projets",
+      "tasks": "Tâches",
+      "documents": "Documents"
+    }
   },
   "leadsPage": {
     "title": "Prospects",
@@ -1206,7 +1250,9 @@
     "convertConfirm": "Convertir",
     "reopenTitle": "Rouvrir \"{{name}}\" ?",
     "reopenDesc": "Le lead repassera en statut actif et sera à nouveau visible dans le pipeline.",
-    "reopenConfirm": "Rouvrir"
+    "reopenConfirm": "Rouvrir",
+    "reopenLead": "Rouvrir le lead",
+    "showArchived": "Afficher les archivés"
   },
   "tasksPage": {
     "title": "Tâches",
@@ -1328,11 +1374,20 @@
         "appliedOn": "Appliqué le {{date}}",
         "available": "Disponible"
       }
+    },
+    "showArchived": "Afficher les archivés",
+    "deleteTitle": "Supprimer le client",
+    "deleteDescription": "Cette action est irréversible. Le client et toutes ses données seront supprimés.",
+    "errors": {
+      "hasProjects": "Ce client a des projets actifs. Archivez-les d'abord.",
+      "hasInvoices": "Ce client a des factures en cours. Clôturez-les d'abord.",
+      "deleteFailed": "La suppression a échoué. Veuillez réessayer."
     }
   },
   "settings": {
     "title": "Paramètres",
-    "description": "Configurez votre profil, entreprise, utilisateurs et apparence."
+    "description": "Configurez votre profil, entreprise, utilisateurs et apparence.",
+    "savedSuccess": "Profil mis à jour"
   },
   "settingsTabs": {
     "profile": "Profil",
@@ -1591,10 +1646,7 @@
       "viewContract": "Voir le contrat",
       "downloadContract": "Télécharger le contrat",
       "signContract": "Signer le contrat",
-      "status": {
-        "pending": "En attente",
-        "signed": "Signé"
-      }
+      "status": "Statut"
     },
     "payment": {
       "title": "Paiement",
@@ -1602,11 +1654,7 @@
       "amount": "Montant",
       "amountPaid": "Montant payé",
       "deadline": "Date limite",
-      "status": {
-        "unpaid": "En attente",
-        "partial": "Partiellement payé",
-        "paid": "Payé"
-      },
+      "status": "Statut",
       "payNow": "Payer maintenant"
     },
     "questionnaire": {
@@ -1649,11 +1697,7 @@
       "deliverables": "Livrables",
       "timeline": "Échéances",
       "feedback": "Demandes de modifications",
-      "status": {
-        "pending": "En attente d'approbation",
-        "approved": "Approuvé",
-        "rejected": "Demande de modifications"
-      },
+      "status": "Statut",
       "approve": "Approuver",
       "requestChanges": "Demander des modifications"
     },
@@ -1830,7 +1874,9 @@
       "title": "Ajouter un commentaire",
       "description": "Votre commentaire...",
       "confirm": "Envoyer"
-    }
+    },
+    "timelineTitle": "Chronologie",
+    "viewTimeline": "Voir la chronologie"
   },
   "invoices": {
     "title": "Factures",
@@ -1849,7 +1895,20 @@
     "view": "Voir",
     "download": "Télécharger",
     "send": "Envoyer",
-    "addPayment": "Ajouter un paiement",
+    "addPayment": {
+      "title": "Ajouter un paiement",
+      "description": "Enregistrer un paiement pour la facture {{invoiceNumber}}. Le solde restant est de {{unpaidBalance}} {{currency}}.",
+      "amountLabel": "Montant payé ({{currency}})",
+      "amountPlaceholder": "0.00",
+      "methodLabel": "Méthode de paiement",
+      "methodPlaceholder": "Virement, Carte, Espèces...",
+      "referenceLabel": "Référence de transaction (Optionnel)",
+      "referencePlaceholder": "N° de transaction, chèque...",
+      "overpaymentWarning": "Avertissement : Surpaiement détecté",
+      "overpaymentDescription": "Le montant saisi dépasse le solde restant. L'excédent de {{overpaidAmount}} {{currency}} sera automatiquement converti en avoir pour ce client.",
+      "submit": "Enregistrer le paiement",
+      "submitting": "Enregistrement..."
+    },
     "delete": "Supprimer",
     "statuses": {
       "draft": "Brouillon",
@@ -1880,7 +1939,8 @@
       "loading": "Chargement des avoirs…",
       "empty": "Aucun avoir disponible.",
       "applied": "Appliqué le {{date}}",
-      "available": "Disponible"
+      "available": "Disponible",
+      "appliedInvoice": "Avoir appliqué à la facture"
     },
     "deleteTitle": "Supprimer la facture « {{number}} » ?",
     "deleteDesc": "Cette action est irréversible. La facture brouillon sera définitivement supprimée.",
@@ -1906,24 +1966,14 @@
       "titleRequired": "Le titre est obligatoire",
       "amountPositive": "Le montant doit être positif"
     },
-    "addPayment": {
-      "title": "Ajouter un paiement",
-      "description": "Enregistrer un paiement pour la facture {{invoiceNumber}}. Le solde restant est de {{unpaidBalance}} {{currency}}.",
-      "amountLabel": "Montant payé ({{currency}})",
-      "amountPlaceholder": "0.00",
-      "methodLabel": "Méthode de paiement",
-      "methodPlaceholder": "Virement, Carte, Espèces...",
-      "referenceLabel": "Référence de transaction (Optionnel)",
-      "referencePlaceholder": "N° de transaction, chèque...",
-      "overpaymentWarning": "Avertissement : Surpaiement détecté",
-      "overpaymentDescription": "Le montant saisi dépasse le solde restant. L'excédent de {{overpaidAmount}} {{currency}} sera automatiquement converti en avoir pour ce client.",
-      "submit": "Enregistrer le paiement",
-      "submitting": "Enregistrement..."
-    },
     "trashDesc": "Factures supprimées récupérables",
     "emptyTrash": "Aucune facture supprimée.",
     "resumeReminders": "Réactiver les relances",
-    "pauseReminders": "Désactiver les relances"
+    "pauseReminders": "Désactiver les relances",
+    "cancelled": "Facture annulée",
+    "restored": "Facture restaurée",
+    "reminderPaused": "Relances suspendues",
+    "reminderResumed": "Relances reprises"
   },
   "clientSuccess": {
     "title": "Succès Client",
@@ -1975,12 +2025,14 @@
     "noRatings": "Aucune évaluation pour le moment",
     "submit": "Envoyer",
     "cancel": "Annuler",
-    "infoOnlyAdmins": "Seuls les managers et les administrateurs peuvent évaluer les freelancers."
+    "infoOnlyAdmins": "Seuls les managers et les administrateurs peuvent évaluer les freelancers.",
+    "ratingsLoadError": "Impossible de charger les avis."
   },
   "errors": {
     "tabLoadFailed": "Cette section n'a pas pu se charger. Veuillez réessayer.",
     "network": "Impossible de contacter le serveur. Vérifiez votre connexion et réessayez.",
-    "loadFailed": "Impossible de charger les données. Veuillez réessayer."
+    "loadFailed": "Impossible de charger les données. Veuillez réessayer.",
+    "generic": "Une erreur est survenue"
   },
   "payments": {
     "tab": "Paiements",
@@ -2169,5 +2221,52 @@
   "whatsapp": {
     "ariaLabel": "Contactez-nous sur WhatsApp",
     "prefilledMessage": "Bonjour Secritou, je souhaite obtenir un diagnostic gratuit pour mon projet."
+  },
+  "commissions": {
+    "title": "Commissions associés",
+    "subtitle": "Ce qui est dû à chaque associé, calculé au paiement encaissé sur chaque projet.",
+    "myTitle": "Mes commissions",
+    "mySubtitle": "Ce qui vous est dû, calculé au paiement encaissé sur vos projets.",
+    "noSplitsYet": "Aucune répartition de commission configurée pour le moment.",
+    "partnerId": "Associé",
+    "pendingLabel": "à verser",
+    "paidLabel": "déjà versé",
+    "filterByStatus": "Filtrer par statut",
+    "allStatuses": "Tous les statuts",
+    "statuses": {
+      "pending": "À verser",
+      "paid": "Payée"
+    },
+    "partner": "Associé",
+    "project": "Projet",
+    "invoice": "Facture",
+    "basis": "Montant encaissé",
+    "rate": "Taux",
+    "amount": "Montant dû",
+    "status": "Statut",
+    "actions": "Actions",
+    "empty": "Aucune commission pour le moment.",
+    "markPaid": "Marquer comme payée",
+    "markedPaid": "Commission marquée comme payée",
+    "splitsUpdated": "Répartition mise à jour"
+  },
+  "integrations": {
+    "gsc": {
+      "title": "Google Search Console",
+      "error": "La connexion a échoué",
+      "pickSite": "Choisissez la propriété Search Console à connecter",
+      "noSites": "Aucune propriété Search Console visible avec ce compte Google.",
+      "confirm": "Confirmer",
+      "lastSynced": "Dernière synchro",
+      "neverSynced": "Pas encore synchronisé",
+      "disconnect": "Déconnecter",
+      "connect": "Connecter Search Console",
+      "period": "Période",
+      "metric": "Métrique",
+      "value": "Valeur",
+      "noData": "Aucune donnée pour le moment — la première synchronisation a lieu dans la nuit suivant la connexion.",
+      "connected": "Search Console connectée avec succès",
+      "disconnected": "Search Console déconnectée"
+    }
   }
 }

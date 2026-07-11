@@ -240,7 +240,7 @@ export function InvoicesPage() {
                             </Button>
                           )}
                           {["SENT", "PARTIAL", "OVERDUE"].includes(invoice.status) && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("invoices.addPayment")} onClick={() => { setSelectedInvoice(invoice); setPaymentDialogOpen(true); }}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("invoices.addPayment.title")} onClick={() => { setSelectedInvoice(invoice); setPaymentDialogOpen(true); }}>
                               <Plus className="h-3.5 w-3.5" />
                             </Button>
                           )}

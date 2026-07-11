@@ -14,8 +14,8 @@
  *   # or add to package.json: "i18n:check": "node scripts/check-i18n.mjs"
  */
 
-import { readFileSync } from "fs";
-import { resolve, dirname } from "path";
+import { readFileSync, readdirSync, statSync } from "fs";
+import { resolve, dirname, join } from "path";
 import { fileURLToPath } from "url";
 
 const __dir = dirname(fileURLToPath(import.meta.url));
@@ -87,6 +87,61 @@ for (const { path, value } of [...frLeaves, ...enLeaves]) {
   if (value === "undefined" || value === "null") {
     errors.push(`[BAD_VALUE] "${path}": ${JSON.stringify(value)}`);
   }
+}
+
+// ── Check 4: key-usage scan (t("key") calls in client source) ────────────────
+// Collects all t("...") and t('...') literal calls in the client source and
+// verifies every key exists in both translation files.
+
+function walkDir(dir, exts = [".ts", ".tsx"]) {
+  const results = [];
+  try {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) {
+        results.push(...walkDir(full, exts));
+      } else if (exts.some((e) => full.endsWith(e))) {
+        results.push(full);
+      }
+    }
+  } catch { /* ignore unreadable dirs */ }
+  return results;
+}
+
+const CLIENT_SRC = resolve(root, "client/src");
+const usedKeys = new Set();
+// Match t("key") and t('key') — only literal string keys (not variable calls).
+const tCallRe = /\bt\(\s*["']([^"']+)["']/g;
+
+for (const file of walkDir(CLIENT_SRC)) {
+  const src = readFileSync(file, "utf-8");
+  let m;
+  while ((m = tCallRe.exec(src)) !== null) {
+    usedKeys.add(m[1]);
+  }
+}
+
+function pathPassesThroughArray(obj, segments) {
+  let cur = obj;
+  for (const seg of segments) {
+    if (cur == null) return false;
+    if (Array.isArray(cur) && /^\d+$/.test(seg)) return true;
+    cur = cur[seg];
+  }
+  return false;
+}
+
+for (const key of usedKeys) {
+  // Skip dynamic interpolations (e.g. `ns:${var}`)
+  if (key.includes("${")) continue;
+  // Skip empty suffixes from template literals like `prefix.${var}` where var="" at parse time
+  if (key.endsWith(".")) continue;
+  // Known exact match — no issue
+  if (frKeys.has(key) || enKeys.has(key)) continue;
+  // Handle array-indexed access at any depth: "a.0.title" where "a" is an array
+  const segments = key.split(".");
+  if (pathPassesThroughArray(fr, segments) || pathPassesThroughArray(en, segments)) continue;
+  errors.push(`[MISSING_KEY] "${key}" used in source but absent from translation files`);
 }
 
 // ── Report ────────────────────────────────────────────────────────────────────

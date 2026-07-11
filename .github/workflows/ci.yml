@@ -5,6 +5,10 @@ on:
   push:
     branches: [main]
 
+# NOTE (MED-1): Pin actions to commit SHAs for supply-chain security.
+# Run `gh release view --repo actions/checkout` and update the SHA below.
+# Dependabot (.github/dependabot.yml) will keep these up-to-date automatically.
+
 jobs:
   client:
     runs-on: ubuntu-latest
@@ -19,6 +23,13 @@ jobs:
       - run: npm run typecheck --workspace=client
       - run: npm run test --workspace=client
       - run: npm run build --workspace=client
+      - name: Bundle secret scan
+        run: |
+          if grep -rE "(sk-[A-Za-z0-9]{20,}|AKIA[A-Z0-9]{16}|ghp_[A-Za-z0-9]{36})" client/dist/assets/ 2>/dev/null; then
+            echo "::error::Potential secret detected in client bundle"
+            exit 1
+          fi
+          echo "Bundle secret scan passed."
 
   server:
     runs-on: ubuntu-latest
@@ -37,10 +48,16 @@ jobs:
       - run: npm run prisma:validate --workspace=server
       - run: npm run prisma:format:check --workspace=server
       - run: npm run prisma:generate --workspace=server
+      - name: Schema drift check
+        run: npx prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma --exit-code
+        working-directory: server
       - run: npm run lint --workspace=server
       - run: npm run typecheck --workspace=server
       - run: npm run test:coverage --workspace=server
       - run: npm run build --workspace=server
+      - name: Circular dependency check
+        run: npx --yes madge --circular --extensions ts src/
+        working-directory: server
 
   i18n-check:
     runs-on: ubuntu-latest

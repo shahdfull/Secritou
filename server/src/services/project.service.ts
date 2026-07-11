@@ -152,9 +152,12 @@ export const projectService = {
     return archived;
   },
 
-  async getBrief(id: string, role: Role, clientId?: string) {
+  async getBrief(id: string, role: Role, clientId?: string, userId?: string) {
+    const where: Record<string, unknown> = { id };
+    if (role === "CLIENT") where.clientId = clientId ?? "__none__";
+    if (role === "FREELANCER") where.tasks = { some: { assigneeId: userId ?? "__none__" } };
     const project = await prismaRead.project.findFirst({
-      where: { id, ...(role === "CLIENT" ? { clientId: clientId ?? "__none__" } : {}) },
+      where,
       select: { id: true, name: true, serviceType: true, briefData: true, briefCompleted: true, briefCompletedAt: true, clientId: true, service: { select: { name: true } } },
     });
     if (!project) throw new HttpError(404, "Project not found");
@@ -349,9 +352,12 @@ export const projectService = {
     return result;
   },
 
-  async getTimelineStatus(id: string, role: Role, clientId?: string): Promise<TimelineStep[]> {
+  async getTimelineStatus(id: string, role: Role, clientId?: string, userId?: string): Promise<TimelineStep[]> {
+    const where: Record<string, unknown> = { id };
+    if (role === "CLIENT") where.clientId = clientId ?? "__none__";
+    if (role === "FREELANCER") where.tasks = { some: { assigneeId: userId ?? "__none__" } };
     const project = await prismaRead.project.findFirst({
-      where: { id, ...(role === "CLIENT" ? { clientId: clientId ?? "__none__" } : {}) },
+      where,
       select: { id: true, status: true, createdAt: true, briefCompleted: true, briefCompletedAt: true, tasks: { select: { status: true, updatedAt: true } } },
     });
     if (!project) throw new HttpError(404, "Project not found");

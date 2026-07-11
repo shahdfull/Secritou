@@ -60,7 +60,11 @@ router.delete(
   deleteOnboarding
 );
 
-// Step routes
+// Step / Contract / Payment routes intentionally omit requireActivatedPortal:
+// these are the pre-deposit flow steps (contract signature → deposit payment) that
+// LEAD to portal activation. Gating them on activation would make it impossible
+// for the client to complete the steps that trigger activation in the first place.
+// Questionnaires, specs, kickoffs, and deliveries (post-activation) DO have the gate.
 router.put(
   "/steps/:stepId",
   authorize("ADMIN", "MANAGER", "CLIENT"),

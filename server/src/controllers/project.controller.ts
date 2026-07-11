@@ -109,7 +109,8 @@ export const getBrief: RequestHandler = async (req, res, next) => {
   try {
     const role = req.user?.role!;
     const clientId = req.user?.clientId as string | undefined;
-    const result = await projectService.getBrief(req.params.id as string, role, clientId);
+    const userId = req.user?.sub;
+    const result = await projectService.getBrief(req.params.id as string, role, clientId, userId);
     res.json({ data: result });
   } catch (error) {
     next(error);
@@ -149,10 +150,12 @@ export const getTimelineStatus: RequestHandler = async (req, res, next) => {
   try {
     const role = req.user?.role!;
     const clientId = req.user?.clientId as string | undefined;
+    const userId = req.user?.sub;
     const steps = await projectService.getTimelineStatus(
       req.params.id as string,
       role,
-      clientId
+      clientId,
+      userId
     );
     res.json({ data: steps });
   } catch (error) {

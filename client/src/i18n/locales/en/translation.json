@@ -233,7 +233,16 @@
       "slotDeleteFailed": "Unable to delete the slot.",
       "bookingCancelled": "Booking cancelled.",
       "bookingCancelFailed": "Unable to cancel the booking.",
-      "loadFailed": "Unable to load bookings."
+      "loadFailed": "Unable to load bookings.",
+      "calendar": "Calendar",
+      "calendarHint": "Days with availability are highlighted.",
+      "dayView": "Day view",
+      "heroBody": "Create availability, inspect the day view, and cancel bookings without leaving the page.",
+      "next7Days": "Next 7 days",
+      "statBooked": "Booked",
+      "statOpen": "Open",
+      "statWeek": "Next 7 days",
+      "today": "Today"
     }
   },
   "home": {
@@ -558,7 +567,8 @@
     "tabExecutive": "Executive View",
     "noOverdue": "No overdue",
     "welcomeName": "Welcome back, {{name}} — here's what's happening today.",
-    "welcomeAnon": "Welcome back — here's what's happening today."
+    "welcomeAnon": "Welcome back — here's what's happening today.",
+    "pendingApprovals": "pending approvals"
   },
   "commercial": {
     "tabs": {
@@ -598,7 +608,8 @@
     "invoicesDue_other": "{{count}} invoices",
     "viewFollowUps": "View client follow-ups",
     "invoicesDue_label": "Invoices due",
-    "proposalsPipeline": "Proposals pipeline"
+    "proposalsPipeline": "Proposals pipeline",
+    "invoicesDue": "{{count}} invoice(s) due"
   },
   "permissions": {
     "modules": {
@@ -672,7 +683,8 @@
       "user": "User",
       "status": "Status",
       "date": "Date"
-    }
+    },
+    "messageCount": "{{count}} message(s)"
   },
   "common": {
     "loading": "Loading...",
@@ -726,7 +738,14 @@
     "removeFile": "Remove file",
     "fileTypeNotAccepted": "File not accepted. Accepted types: {{types}}",
     "trash": "Trash",
-    "restore": "Restore"
+    "restore": "Restore",
+    "sort": {
+      "mostRecent": "Most recent",
+      "leastRecent": "Least recent",
+      "nameAsc": "Name A→Z",
+      "nameDesc": "Name Z→A"
+    },
+    "startDate": "Start date"
   },
   "search": {
     "placeholder": "Search leads, clients, projects...",
@@ -762,7 +781,10 @@
     "clientSuccess": "Client Success",
     "crm": "CRM",
     "talent": "Talent",
-    "questions": "Questions"
+    "questions": "Questions",
+    "groupManage": "Manage",
+    "groupAnalytics": "Analytics",
+    "groupOther": "Account"
   },
   "clientNav": {
     "projects": "My Projects",
@@ -775,6 +797,11 @@
     "onboarding": "Onboarding",
     "questions": "My Questions",
     "profile": "My Profile"
+  },
+  "portalActivation": {
+    "title": "Your client portal isn't active yet",
+    "description": "Full access opens as soon as the deposit on your first invoice is paid. You can already view and sign your contract and quote from the Documents tab.",
+    "documentsLink": "View my documents"
   },
   "userMenu": {
     "myAccount": "My Account",
@@ -830,7 +857,11 @@
     "leadStatusUpdateError": "Failed to update lead status",
     "taskStatusUpdateError": "Failed to update task status",
     "platformColorSaved": "Platform color saved",
-    "previousFileRemoveWarning": "Could not remove previous file from storage"
+    "previousFileRemoveWarning": "Could not remove previous file from storage",
+    "invitationSent": "Invitation sent",
+    "leadReopened": "Lead reopened",
+    "clientRestored": "Client restored",
+    "projectRestored": "Project restored"
   },
   "aiAssistant": {
     "title": "AI Assistant",
@@ -1153,7 +1184,20 @@
     "errorUpdatingProject": "An error occurred during update.",
     "projectHasInvoices": "This project has invoices and cannot be deleted. Archive it.",
     "projectHasOnboarding": "This project has an onboarding and cannot be deleted. Archive it.",
-    "errorDeletingProject": "An error occurred during deletion."
+    "errorDeletingProject": "An error occurred during deletion.",
+    "sort": {
+      "mostAdvancedFirst": "Most advanced first",
+      "leastAdvancedFirst": "Least advanced first"
+    },
+    "subtabs": {
+      "active": "Active",
+      "done": "Completed"
+    },
+    "tabs": {
+      "projects": "Projects",
+      "tasks": "Tasks",
+      "documents": "Documents"
+    }
   },
   "leadsPage": {
     "title": "Leads",
@@ -1206,7 +1250,9 @@
     "convertConfirm": "Convert",
     "reopenTitle": "Reopen \"{{name}}\"?",
     "reopenDesc": "The lead will return to active status and be visible again in the pipeline.",
-    "reopenConfirm": "Reopen"
+    "reopenConfirm": "Reopen",
+    "reopenLead": "Reopen lead",
+    "showArchived": "Show archived"
   },
   "tasksPage": {
     "title": "Tasks",
@@ -1328,11 +1374,20 @@
         "appliedOn": "Applied on {{date}}",
         "available": "Available"
       }
+    },
+    "showArchived": "Show archived",
+    "deleteTitle": "Delete client",
+    "deleteDescription": "This action is irreversible. The client and all their data will be deleted.",
+    "errors": {
+      "hasProjects": "This client has active projects. Archive them first.",
+      "hasInvoices": "This client has open invoices. Close them first.",
+      "deleteFailed": "Deletion failed. Please try again."
     }
   },
   "settings": {
     "title": "Settings",
-    "description": "Configure your profile, company, users and appearance."
+    "description": "Configure your profile, company, users and appearance.",
+    "savedSuccess": "Profile updated"
   },
   "settingsTabs": {
     "profile": "Profile",
@@ -1591,10 +1646,7 @@
       "viewContract": "View Contract",
       "downloadContract": "Download Contract",
       "signContract": "Sign Contract",
-      "status": {
-        "pending": "Pending",
-        "signed": "Signed"
-      }
+      "status": "Status"
     },
     "payment": {
       "title": "Payment",
@@ -1602,11 +1654,7 @@
       "amount": "Amount",
       "amountPaid": "Amount Paid",
       "deadline": "Deadline",
-      "status": {
-        "unpaid": "Unpaid",
-        "partial": "Partially Paid",
-        "paid": "Paid"
-      },
+      "status": "Status",
       "payNow": "Pay Now"
     },
     "questionnaire": {
@@ -1649,11 +1697,7 @@
       "deliverables": "Deliverables",
       "timeline": "Timeline",
       "feedback": "Change Requests",
-      "status": {
-        "pending": "Pending Approval",
-        "approved": "Approved",
-        "rejected": "Changes Requested"
-      },
+      "status": "Status",
       "approve": "Approve",
       "requestChanges": "Request Changes"
     },
@@ -1830,7 +1874,9 @@
       "title": "Add a comment",
       "description": "Your comment...",
       "confirm": "Send"
-    }
+    },
+    "timelineTitle": "Timeline",
+    "viewTimeline": "View timeline"
   },
   "invoices": {
     "title": "Invoices",
@@ -1849,7 +1895,20 @@
     "view": "View",
     "download": "Download",
     "send": "Send",
-    "addPayment": "Add Payment",
+    "addPayment": {
+      "title": "Add payment",
+      "description": "Record a payment for invoice {{invoiceNumber}}. The remaining balance is {{unpaidBalance}} {{currency}}.",
+      "amountLabel": "Amount paid ({{currency}})",
+      "amountPlaceholder": "0.00",
+      "methodLabel": "Payment method",
+      "methodPlaceholder": "Transfer, Card, Cash...",
+      "referenceLabel": "Transaction reference (Optional)",
+      "referencePlaceholder": "Transaction number, check...",
+      "overpaymentWarning": "Warning: Overpayment detected",
+      "overpaymentDescription": "The entered amount exceeds the remaining balance. The excess of {{overpaidAmount}} {{currency}} will be automatically converted into a credit note for this client.",
+      "submit": "Record payment",
+      "submitting": "Recording..."
+    },
     "delete": "Delete",
     "statuses": {
       "draft": "Draft",
@@ -1880,7 +1939,8 @@
       "loading": "Loading credit notes…",
       "empty": "No credit notes available.",
       "applied": "Applied on {{date}}",
-      "available": "Available"
+      "available": "Available",
+      "appliedInvoice": "Credit note applied to invoice"
     },
     "deleteTitle": "Delete invoice \"{{number}}\"?",
     "deleteDesc": "This action is irreversible. The draft invoice will be permanently deleted.",
@@ -1906,24 +1966,14 @@
       "titleRequired": "Title is required",
       "amountPositive": "Amount must be positive"
     },
-    "addPayment": {
-      "title": "Add payment",
-      "description": "Record a payment for invoice {{invoiceNumber}}. The remaining balance is {{unpaidBalance}} {{currency}}.",
-      "amountLabel": "Amount paid ({{currency}})",
-      "amountPlaceholder": "0.00",
-      "methodLabel": "Payment method",
-      "methodPlaceholder": "Transfer, Card, Cash...",
-      "referenceLabel": "Transaction reference (Optional)",
-      "referencePlaceholder": "Transaction number, check...",
-      "overpaymentWarning": "Warning: Overpayment detected",
-      "overpaymentDescription": "The entered amount exceeds the remaining balance. The excess of {{overpaidAmount}} {{currency}} will be automatically converted into a credit note for this client.",
-      "submit": "Record payment",
-      "submitting": "Recording..."
-    },
     "trashDesc": "Recoverable deleted invoices",
     "emptyTrash": "No deleted invoices.",
     "resumeReminders": "Resume reminders",
-    "pauseReminders": "Pause reminders"
+    "pauseReminders": "Pause reminders",
+    "cancelled": "Invoice cancelled",
+    "restored": "Invoice restored",
+    "reminderPaused": "Reminders paused",
+    "reminderResumed": "Reminders resumed"
   },
   "clientSuccess": {
     "title": "Client Success",
@@ -1975,12 +2025,14 @@
     "noRatings": "No ratings yet",
     "submit": "Submit",
     "cancel": "Cancel",
-    "infoOnlyAdmins": "Only managers and admins can rate freelancers."
+    "infoOnlyAdmins": "Only managers and admins can rate freelancers.",
+    "ratingsLoadError": "Could not load ratings."
   },
   "errors": {
     "tabLoadFailed": "This section failed to load. Please try again.",
     "network": "Couldn't reach the server. Check your connection and try again.",
-    "loadFailed": "Unable to load data. Please try again."
+    "loadFailed": "Unable to load data. Please try again.",
+    "generic": "An error occurred"
   },
   "payments": {
     "tab": "Payments",
@@ -2169,5 +2221,52 @@
   "whatsapp": {
     "ariaLabel": "Contact us on WhatsApp",
     "prefilledMessage": "Hello Secritou, I would like to get a free diagnostic for my project."
+  },
+  "commissions": {
+    "title": "Partner commissions",
+    "subtitle": "What is owed to each partner, calculated on payments received per project.",
+    "myTitle": "My commissions",
+    "mySubtitle": "What is owed to you, calculated on payments received on your projects.",
+    "noSplitsYet": "No commission splits configured yet.",
+    "partnerId": "Partner",
+    "pendingLabel": "to pay",
+    "paidLabel": "already paid",
+    "filterByStatus": "Filter by status",
+    "allStatuses": "All statuses",
+    "statuses": {
+      "pending": "Pending",
+      "paid": "Paid"
+    },
+    "partner": "Partner",
+    "project": "Project",
+    "invoice": "Invoice",
+    "basis": "Amount received",
+    "rate": "Rate",
+    "amount": "Amount due",
+    "status": "Status",
+    "actions": "Actions",
+    "empty": "No commissions yet.",
+    "markPaid": "Mark as paid",
+    "markedPaid": "Commission marked as paid",
+    "splitsUpdated": "Split updated"
+  },
+  "integrations": {
+    "gsc": {
+      "title": "Google Search Console",
+      "error": "Connection failed",
+      "pickSite": "Choose the Search Console property to connect",
+      "noSites": "No Search Console properties visible with this Google account.",
+      "confirm": "Confirm",
+      "lastSynced": "Last synced",
+      "neverSynced": "Not yet synced",
+      "disconnect": "Disconnect",
+      "connect": "Connect Search Console",
+      "period": "Period",
+      "metric": "Metric",
+      "value": "Value",
+      "noData": "No data yet — first sync runs the night after connection.",
+      "connected": "Search Console connected successfully",
+      "disconnected": "Search Console disconnected"
+    }
   }
 }

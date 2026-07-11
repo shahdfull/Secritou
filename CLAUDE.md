@@ -27,3 +27,10 @@ Anthropic/OpenRouter) pour automatiser :
 - Ne pas copier le code de reference/ia-agent-dashboard tel quel (clé API en 
 dur, pas d'auth, stockage JSON local) — s'en servir seulement comme inspiration 
 de structure/prompts
+
+## Règles de développement
+- Après chaque `prisma migrate dev`, **toujours** commiter le dossier migration
+  créé (`git add server/prisma/migrations/<nom>/`) avant de pusher. Sans ça,
+  `prisma migrate deploy` échoue sur les autres environnements.
+- Stack : Node 24 / Express 5 / Prisma / PostgreSQL / Redis / React 19 / Vite
+- Monorepo npm workspaces : `client/`, `server/`, `shared/`

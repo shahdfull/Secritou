@@ -7,7 +7,7 @@ import rateLimit from "express-rate-limit";
 import swaggerUi from "swagger-ui-express";
 import { env } from "./config/env.js";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
-import { loggingMiddleware } from "./middlewares/logging.middleware.js";
+import { loggingMiddleware, requestIdMiddleware } from "./middlewares/logging.middleware.js";
 import { metricsAuthMiddleware } from "./middlewares/metricsAuth.middleware.js";
 import { enforceMustChangePassword } from "./middlewares/mustChangePassword.middleware.js";
 import { metricsMiddleware } from "./observability/middleware.js";
@@ -76,6 +76,7 @@ app.use(
 );
 app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
+app.use(requestIdMiddleware);
 app.use(metricsMiddleware);
 app.use(loggingMiddleware);
 

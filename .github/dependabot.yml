@@ -1,0 +1,22 @@
+version: 2
+updates:
+  # Pin GitHub Actions to SHA digests and keep them updated automatically.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  # Keep npm dependencies updated (server workspace).
+  - package-ecosystem: npm
+    directory: /server
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  # Keep npm dependencies updated (client workspace).
+  - package-ecosystem: npm
+    directory: /client
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
