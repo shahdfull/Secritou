@@ -5,9 +5,8 @@ ALTER TYPE "NotificationType" ADD VALUE 'COMMISSION_PAID';
 -- AlterTable
 ALTER TABLE "AiConversation" ADD COLUMN     "persona" VARCHAR(100);
 
--- AlterTable
-ALTER TABLE "ApprovalTimeline" DROP COLUMN "status",
-ADD COLUMN     "status" VARCHAR(50) NOT NULL;
+-- ApprovalTimeline.status is converted to VARCHAR(50) by migration
+-- 20260625230000_remove_commented_approval_status (fixed to be self-contained) — not repeated here.
 
 -- AlterTable
 ALTER TABLE "Invoice" ADD COLUMN     "deletedAt" TIMESTAMPTZ(6);
