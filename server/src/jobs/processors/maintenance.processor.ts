@@ -47,6 +47,23 @@ function assertSafeArchiveTable(name: string) {
   }
 }
 
+// Allowlist-based guard for WHERE clauses interpolated into $executeRawUnsafe.
+// Each clause must start with a quoted identifier, IS/=/</>/<=/>=, AND/OR/NOT, NOW(),
+// INTERVAL, a quoted literal, or a digit. This blocks stacked statements (;), comments
+// (--), and common injection payloads while allowing the legitimate date-range filters
+// used in ARCHIVE_RULES. Fail-safe: unknown patterns are rejected, not accepted.
+const SAFE_WHERE_CLAUSE_RE = /^"[A-Za-z_][A-Za-z0-9_]*"(\s+IS\s|\s*=\s|\s*<\s|\s*>\s|\s*AND\s|\s*OR\s)/i;
+
+function assertSafeWhereClause(clause: string, label: string) {
+  const trimmed = clause.trim();
+  if (!SAFE_WHERE_CLAUSE_RE.test(trimmed)) {
+    throw new Error(`[maintenance] Blocked potentially unsafe whereClause in rule "${label}": ${trimmed}`);
+  }
+  if (trimmed.includes(";") || trimmed.includes("--") || /\/\*/.test(trimmed)) {
+    throw new Error(`[maintenance] whereClause contains forbidden characters in rule "${label}"`);
+  }
+}
+
 const ARCHIVE_RULES: ArchiveRule[] = [
   {
     sourceTable: "Lead",
@@ -116,6 +133,7 @@ async function ensureMonthlyPartitions(archiveTable: string) {
 async function archiveTableRows(rule: ArchiveRule) {
   assertSafeArchiveTable(rule.sourceTable);
   assertSafeArchiveTable(rule.archiveTable);
+  assertSafeWhereClause(rule.whereClause, rule.sourceTable);
 
   const cutoff = new Date();
   cutoff.setUTCDate(cutoff.getUTCDate() - rule.thresholdDays);

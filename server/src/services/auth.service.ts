@@ -1,4 +1,4 @@
-import type { Role, User } from "@prisma/client";
+import { Prisma, type Role, type User } from "@prisma/client";
 import logger from "../utils/logger.js";
 import bcrypt from "bcryptjs";
 import jwt, { type SignOptions } from "jsonwebtoken";
@@ -173,23 +173,24 @@ export class AuthService {
 
   async resetPassword(token: string, newPassword: string) {
     const tokenHash = hashToken(token);
-    const user = await this.db.user.findFirst({
-      where: {
-        resetToken: tokenHash,
-        resetTokenExpiry: { gt: new Date() },
-      },
-    });
-
-    if (!user) {
-      throw new HttpError(400, "Invalid or expired reset token");
-    }
-
     const passwordHash = await bcrypt.hash(newPassword, 12);
-    await this.db.user.update({
-      where: { id: user.id },
-      data: { passwordHash, resetToken: null, resetTokenExpiry: null },
-    });
-    await this.db.refreshToken.deleteMany({ where: { userId: user.id } });
+
+    // Serializable isolation ensures that two concurrent calls with the same token
+    // cannot both pass the findFirst check — one will succeed and the other will
+    // receive a serialization error (retried by the caller or surfaced as 400).
+    await this.db.$transaction(async (tx) => {
+      const user = await tx.user.findFirst({
+        where: { resetToken: tokenHash, resetTokenExpiry: { gt: new Date() } },
+        select: { id: true },
+      });
+      if (!user) throw new HttpError(400, "Invalid or expired reset token");
+
+      await tx.user.update({
+        where: { id: user.id },
+        data: { passwordHash, resetToken: null, resetTokenExpiry: null, mustChangePassword: false },
+      });
+      await tx.refreshToken.deleteMany({ where: { userId: user.id } });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
   async changePassword(userId: string, currentPassword: string, newPassword: string) {

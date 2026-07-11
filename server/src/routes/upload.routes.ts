@@ -17,10 +17,6 @@ const router = Router();
 // "cv" and "portfolio" are both needed before a user account exists.
 const PUBLIC_UPLOAD_CONTEXTS = new Set(["cv", "portfolio"]);
 
-// S3 key prefixes that belong to public upload contexts.
-// Keys are generated as "<context>/<uuid><ext>" by buildKey(), so the prefix matches the context.
-const PUBLIC_KEY_PREFIXES = ["cv/", "portfolio/"];
-
 // POST /upload/:context : upload a file (multipart/form-data, field: "file")
 // Public contexts (cv, portfolio) require no authentication but are rate-limited.
 // Protected contexts ("document", "image") require authentication.
@@ -32,14 +28,9 @@ router.post("/:context", validate(uploadContextParamSchema), (req, res, next) =>
 }, ...uploadFile);
 
 // DELETE /upload : delete a stored file by its S3 key.
-// Public-context keys (cv/, portfolio/) are rate-limited; all others require authentication.
-router.delete("/", validate(deleteFileSchema), (req, res, next) => {
-  const key = (req.body as { key?: string })?.key ?? "";
-  const isPublicKey = PUBLIC_KEY_PREFIXES.some((prefix) => key.startsWith(prefix));
-  if (isPublicKey) {
-    return contactRateLimit(req, res, next);
-  }
-  return authenticate(req, res, next);
-}, deleteFile);
+// Always requires authentication — even for public-context keys (cv/, portfolio/).
+// The key is returned only to the uploader; there is no legitimate unauthenticated
+// delete use case, and omitting auth would allow anyone who knows a key to delete it.
+router.delete("/", authenticate, validate(deleteFileSchema), deleteFile);
 
 export default router;
