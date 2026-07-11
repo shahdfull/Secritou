@@ -6,12 +6,12 @@ import {
   updateFreelancerProfileSchema,
 } from "../validators/freelancer.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
-import { authorize } from "../middlewares/rbac.middleware.js";
+import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
 
 const router = Router();
 
-router.get("/", authenticate, authorize("ADMIN", "MANAGER", "FREELANCER"), freelancerController.getFreelancers);
-router.get("/skills", authenticate, authorize("ADMIN", "MANAGER", "FREELANCER"), freelancerController.getSkills);
+router.get("/", authenticate, authorize("ADMIN", "MANAGER", "FREELANCER"), requirePermission("freelancers", "read"), freelancerController.getFreelancers);
+router.get("/skills", authenticate, authorize("ADMIN", "MANAGER", "FREELANCER"), requirePermission("freelancers", "read"), freelancerController.getSkills);
 
 router.get(
   "/me",
@@ -20,7 +20,7 @@ router.get(
   freelancerController.getMyProfile
 );
 
-router.get("/:id", authenticate, authorize("ADMIN", "MANAGER", "FREELANCER"), freelancerController.getFreelancerById);
+router.get("/:id", authenticate, authorize("ADMIN", "MANAGER", "FREELANCER"), requirePermission("freelancers", "read"), freelancerController.getFreelancerById);
 
 router.post(
   "/me",
