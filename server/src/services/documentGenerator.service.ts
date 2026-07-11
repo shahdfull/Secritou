@@ -119,6 +119,7 @@ async function uploadAndCreate(
     description,
     projectId,
     clientId,
+    invoiceId,
     uploadedById,
   }: {
     type: DocumentType;
@@ -127,6 +128,7 @@ async function uploadAndCreate(
     description?: string;
     projectId?: string;
     clientId?: string;
+    invoiceId?: string;
     uploadedById: string;
   }
 ): Promise<Document> {
@@ -148,6 +150,7 @@ async function uploadAndCreate(
     tags: [],
     projectId,
     clientId,
+    invoiceId,
     uploadedById,
   });
 }
@@ -453,6 +456,7 @@ export const documentGeneratorService = {
       title: `Facture d'acompte : ${project.name}`,
       projectId: project.id,
       clientId: client.id,
+      invoiceId: invoice.id,
       uploadedById,
     });
   },

@@ -4,7 +4,6 @@ import { enqueueEmail, enqueueNotifications } from "../jobs/queues.js";
 import { invoiceSentTemplate, invoiceReminderTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
 import type { InvoiceStatus } from "@prisma/client";
-import { Prisma } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { prisma } from "../config/prisma.js";
 import { HttpError } from "../utils/httpError.js";
@@ -13,6 +12,8 @@ import { creditNoteService } from "./creditNote.service.js";
 import type { ServiceScope } from "../utils/serviceScope.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
+import { computeVat, roundMoney } from "../utils/vat.js";
+import { commissionService } from "./commission.service.js";
 
 // Invoice mutations change dashboard / executive KPIs (overdue, cash, forecast).
 async function invalidateFinanceCaches() {
@@ -48,29 +49,43 @@ function assertInvoiceDraft(status: InvoiceStatus) {
 }
 
 /**
- * Generates a per-month sequential invoice number (INV-YYYYMM-NNNN).
- * The `number @unique` constraint is the real guarantee against races.
+ * Once the invoice PDF has been generated (Document.invoiceId set — see
+ * documentGenerator.service.ts), the amount/items are already baked into a file that may be
+ * visible to the client (Document.accessLevel is CLIENT_ADMIN from the moment it's created, not
+ * gated by the invoice's own SENT status). Further edits would silently desync the PDF from the
+ * invoice, so block them instead of producing a stale document.
  */
-async function createInvoiceWithGeneratedNumber(data: Omit<Parameters<typeof invoiceRepository.create>[0], "number">) {
-  const now = new Date();
-  const prefix = `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+async function assertInvoicePdfNotGenerated(invoiceId: string) {
+  const existing = await prisma.document.findFirst({ where: { invoiceId }, select: { id: true } });
+  if (existing) throw new HttpError(409, "This invoice's PDF has already been generated and sent — cannot modify it further", "INVOICE_PDF_ALREADY_GENERATED");
+}
 
-  const MAX_ATTEMPTS = 5;
-  let lastError: unknown;
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const count = await prisma.invoice.count({ where: { number: { startsWith: prefix } } });
-    const number = `${prefix}-${String(count + 1 + attempt).padStart(4, "0")}`;
-    try {
-      return await invoiceRepository.create({ ...data, number });
-    } catch (err) {
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-        lastError = err;
-        continue;
-      }
-      throw err;
-    }
-  }
-  throw new HttpError(409, "Could not allocate a unique invoice number, please retry", "INVOICE_NUMBER_CONFLICT", lastError);
+function currentInvoicePrefix(): string {
+  const now = new Date();
+  return `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * Atomically allocates the next sequential invoice number for the given month prefix
+ * (INV-YYYYMM-NNNN) via the InvoiceCounter table. Must run inside the same transaction
+ * that creates the Invoice row so numbers are never allocated without a corresponding
+ * invoice — this, together with disallowing invoice deletion, keeps the sequence gapless.
+ */
+async function nextInvoiceNumber(tx: TxClient, prefix: string): Promise<string> {
+  const counter = await tx.invoiceCounter.upsert({
+    where: { prefix },
+    create: { prefix, value: 1 },
+    update: { value: { increment: 1 } },
+  });
+  return `${prefix}-${String(counter.value).padStart(4, "0")}`;
+}
+
+async function createInvoiceWithGeneratedNumber(data: Omit<Parameters<typeof invoiceRepository.create>[0], "number">) {
+  const prefix = currentInvoicePrefix();
+  return prisma.$transaction(async (tx) => {
+    const number = await nextInvoiceNumber(tx, prefix);
+    return tx.invoice.create({ data: { ...data, number } });
+  });
 }
 
 async function recomputeInvoiceAmount(tx: TxClient, invoiceId: string) {
@@ -92,6 +107,10 @@ export const invoiceService = {
     return invoiceRepository.findAll(options);
   },
 
+  async getDeleted(options: ListQueryOptions & { clientId?: string; status?: InvoiceStatus; search?: string }) {
+    return invoiceRepository.findDeleted(options);
+  },
+
   async getById(id: string, scope?: ServiceScope) {
     const invoice = await invoiceRepository.findById(id);
     await assertInvoiceInScope(invoice, scope);
@@ -110,7 +129,13 @@ export const invoiceService = {
     return created;
   },
 
-  async update(id: string, data: Partial<{ number: string; title: string; description: string; amount: number; currency: string; dueDate: Date; pdfUrl: string }>) {
+  async update(id: string, data: Partial<{ number: string; title: string; description: string; amount: number; currency: string; dueDate: Date; pdfUrl: string }>, scope?: ServiceScope) {
+    const invoice = await invoiceRepository.findById(id);
+    await assertInvoiceInScope(invoice, scope);
+    assertInvoiceDraft(invoice!.status);
+    if (data.amount !== undefined || data.title !== undefined) {
+      await assertInvoicePdfNotGenerated(id);
+    }
     if (data.amount !== undefined) {
       const itemCount = await prisma.invoiceItem.count({ where: { invoiceId: id } });
       if (itemCount > 0) throw new HttpError(409, "This invoice's amount is derived from its line items and cannot be edited directly", "INVOICE_AMOUNT_DERIVED");
@@ -120,15 +145,16 @@ export const invoiceService = {
     return updated;
   },
 
-  async delete(id: string) {
+  async setReminderPaused(id: string, reminderPaused: boolean, scope?: ServiceScope) {
     const invoice = await invoiceRepository.findById(id);
-    if (!invoice) throw new HttpError(404, "Invoice not found");
-    if (invoice.status !== "DRAFT") throw new HttpError(409, "Only draft invoices can be deleted; cancel the invoice instead", "INVOICE_NOT_DRAFT");
-    const deleted = await invoiceRepository.delete(id);
+    await assertInvoiceInScope(invoice, scope);
+    const updated = await invoiceRepository.update(id, { reminderPaused });
     await invalidateFinanceCaches();
-    return deleted;
+    return updated;
   },
 
+  // Invoices are never hard-deleted: numbering must stay gapless (Tunisian tax
+  // requirement). A wrongly created DRAFT invoice should be cancelled instead.
   async cancel(id: string) {
     const invoice = await invoiceRepository.findById(id);
     if (!invoice) throw new HttpError(404, "Invoice not found");
@@ -136,6 +162,20 @@ export const invoiceService = {
     const cancelled = await invoiceRepository.update(id, { status: "CANCELLED" });
     await invalidateFinanceCaches();
     return cancelled;
+  },
+
+  async delete(id: string) {
+    const invoice = await invoiceRepository.findById(id);
+    if (!invoice) throw new HttpError(404, "Invoice not found");
+    const deleted = await invoiceRepository.delete(id);
+    await invalidateFinanceCaches();
+    return deleted;
+  },
+
+  async restore(id: string) {
+    const restored = await invoiceRepository.restore(id);
+    await invalidateFinanceCaches();
+    return restored;
   },
 
   async send(id: string, scope?: ServiceScope) {
@@ -156,7 +196,7 @@ export const invoiceService = {
         enqueueNotifications(clientUsers.map((user) => ({
           userId: user.id,
           title: "Nouvelle facture",
-          message: `La facture ${invoice.number} de ${Number(invoice.amount).toFixed(2)} ${invoice.currency ?? "TND"} est disponible.`,
+          message: `La facture ${invoice.number} de ${Number(invoice.amount).toFixed(3)} ${invoice.currency ?? "TND"} est disponible.`,
           type: "INVOICE_SENT" as const,
           entityId: id,
           link: invoiceUrl,
@@ -167,34 +207,67 @@ export const invoiceService = {
     return updated;
   },
 
-  async addPayment(id: string, data: { amount: number; method?: string; reference?: string; paidAt?: Date }, recordedById?: string, scope?: ServiceScope) {
+  async addPayment(id: string, data: { amount: number; method?: string; reference?: string; paidAt?: Date; idempotencyKey?: string }, recordedById?: string, scope?: ServiceScope) {
     const invoiceForScope = await invoiceRepository.findById(id);
     await assertInvoiceInScope(invoiceForScope, scope);
     const result = await prisma.$transaction(async (tx) => {
-      const invoice = await tx.invoice.findUnique({ where: { id }, select: { id: true, clientId: true, amount: true, amountPaid: true, status: true, currency: true } });
-      if (!invoice) throw new Error("Invoice not found");
+      const invoice = await tx.invoice.findUnique({ where: { id }, select: { id: true, clientId: true, projectId: true, amount: true, amountPaid: true, status: true, currency: true, invoiceType: true } });
+      if (!invoice) throw new HttpError(404, "Invoice not found");
+      if (!["SENT", "PARTIAL", "OVERDUE"].includes(invoice.status)) throw new HttpError(409, "Cannot add payment to this invoice", "INVOICE_NOT_ACCEPTING_PAYMENTS");
 
-      const tenSecondsAgo = new Date(Date.now() - 10_000);
-      const duplicate = await tx.payment.findFirst({ where: { invoiceId: id, amount: data.amount, recordedById: recordedById ?? null, createdAt: { gte: tenSecondsAgo } }, orderBy: { createdAt: "desc" } });
-      if (duplicate) return { payment: duplicate, creditNote: null, overpaidBy: 0, clientId: invoice.clientId, deduplicated: true };
+      // Check for idempotency key first (preferred)
+      if (data.idempotencyKey) {
+        const existingPayment = await tx.payment.findUnique({ where: { idempotencyKey: data.idempotencyKey } });
+        if (existingPayment && existingPayment.invoiceId === id) {
+          return { payment: existingPayment, creditNote: null, overpaidBy: 0, clientId: invoice.clientId, deduplicated: true };
+        }
+      } else {
+        // Fallback to 10-second window for backward compatibility
+        const tenSecondsAgo = new Date(Date.now() - 10_000);
+        const duplicate = await tx.payment.findFirst({ where: { invoiceId: id, amount: data.amount, recordedById: recordedById ?? null, createdAt: { gte: tenSecondsAgo } }, orderBy: { createdAt: "desc" } });
+        if (duplicate) return { payment: duplicate, creditNote: null, overpaidBy: 0, clientId: invoice.clientId, deduplicated: true };
+      }
 
-      const payment = await tx.payment.create({ data: { invoiceId: id, amount: data.amount, method: data.method, reference: data.reference, recordedById, paidAt: data.paidAt ?? new Date() } });
+      const payment = await tx.payment.create({ data: { invoiceId: id, amount: data.amount, method: data.method, reference: data.reference, idempotencyKey: data.idempotencyKey, recordedById, paidAt: data.paidAt ?? new Date() } });
 
-      const rawAmountPaid = Number(invoice.amountPaid) + data.amount;
+      const rawAmountPaid = roundMoney(Number(invoice.amountPaid) + data.amount);
       const invoiceAmount = Number(invoice.amount);
       const newAmountPaid = Math.min(rawAmountPaid, invoiceAmount);
-      const overpaidBy = rawAmountPaid - invoiceAmount;
+      const overpaidBy = roundMoney(rawAmountPaid - invoiceAmount);
+      // Commissions are computed on the portion actually applied to the invoice,
+      // excluding any overpayment that gets refunded back as a credit note.
+      const appliedAmount = newAmountPaid - Number(invoice.amountPaid);
 
       const newStatus: InvoiceStatus = newAmountPaid >= invoiceAmount ? "PAID" : newAmountPaid > 0 ? "PARTIAL" : invoice.status as InvoiceStatus;
 
       await tx.invoice.update({ where: { id }, data: { amountPaid: newAmountPaid, status: newStatus, paidAt: newStatus === "PAID" ? new Date() : undefined } });
 
-      let creditNote = null;
-      if (overpaidBy > 0) {
-        creditNote = await creditNoteService.createCreditNoteTx(tx, { invoiceId: invoice.id, clientId: invoice.clientId, amount: overpaidBy, reason: `Overpayment on invoice (paid ${rawAmountPaid.toFixed(2)} vs billed ${invoiceAmount.toFixed(2)} ${invoice.currency ?? "TND"})` });
+      // Cadrage §6: the client portal opens once the first-tranche deposit is actually paid,
+      // not at proposal acceptance. Activate on the client the moment its DEPOSIT invoice
+      // reaches PAID (idempotent: only set if not already activated).
+      if (newStatus === "PAID" && invoice.invoiceType === "DEPOSIT") {
+        await tx.client.updateMany({
+          where: { id: invoice.clientId, portalActivatedAt: null },
+          data: { portalActivatedAt: new Date() },
+        });
       }
 
-      return { payment, creditNote, overpaidBy, clientId: invoice.clientId, deduplicated: false };
+      let creditNote = null;
+      if (overpaidBy > 0) {
+        creditNote = await creditNoteService.createCreditNoteTx(tx, { invoiceId: invoice.id, clientId: invoice.clientId, amount: overpaidBy, reason: `Overpayment on invoice (paid ${rawAmountPaid.toFixed(3)} vs billed ${invoiceAmount.toFixed(3)} ${invoice.currency ?? "TND"})` });
+      }
+
+      let commissions = [];
+      if (appliedAmount > 0) {
+        commissions = await commissionService.computeForPaymentTx(tx, {
+          paymentId: payment.id,
+          invoiceId: invoice.id,
+          projectId: invoice.projectId,
+          amountReceived: appliedAmount,
+        });
+      }
+
+      return { payment, creditNote, overpaidBy, clientId: invoice.clientId, deduplicated: false, commissions };
     });
 
     if (result.deduplicated) return result;
@@ -204,11 +277,24 @@ export const invoiceService = {
     const invoiceMeta = await invoiceRepository.findById(id);
     if (invoiceMeta) {
       const admins = await userRepository.findAdmins();
-      await enqueueNotifications(admins.map((admin) => ({ userId: admin.id, title: "Paiement reçu", message: `Un paiement de ${Number(data.amount).toFixed(2)} ${invoiceMeta.currency ?? "TND"} a été enregistré pour la facture ${invoiceMeta.number}.` })));
+      await enqueueNotifications(admins.map((admin) => ({ userId: admin.id, title: "Paiement reçu", message: `Un paiement de ${Number(data.amount).toFixed(3)} ${invoiceMeta.currency ?? "TND"} a été enregistré pour la facture ${invoiceMeta.number}.` })));
 
       if (result.creditNote) {
         const clientUsers = await userRepository.findByClientId(invoiceMeta.clientId);
-        await enqueueNotifications(clientUsers.map((user) => ({ userId: user.id, title: "Avoir disponible", message: `Un avoir de ${result.overpaidBy.toFixed(2)} ${invoiceMeta.currency ?? "TND"} a été crédité sur votre compte suite à un trop-perçu sur la facture ${invoiceMeta.number}.` })));
+        await enqueueNotifications(clientUsers.map((user) => ({ userId: user.id, title: "Avoir disponible", message: `Un avoir de ${result.overpaidBy.toFixed(3)} ${invoiceMeta.currency ?? "TND"} a été crédité sur votre compte suite à un trop-perçu sur la facture ${invoiceMeta.number}.` })));
+      }
+
+      // Send COMMISSION_EARNED notifications
+      if (result.commissions && result.commissions.length > 0) {
+        const commissionUrl = `${env.FRONTEND_URL}/admin/commissions`;
+        await enqueueNotifications(result.commissions.map((commission: any) => ({
+          userId: commission.partnerId,
+          title: "Commission gagnée",
+          message: `Vous avez gagné une commission de ${Number(commission.amount).toFixed(3)} sur la facture ${commission.invoice?.number}.`,
+          type: "COMMISSION_EARNED" as const,
+          entityId: commission.id,
+          link: commissionUrl,
+        })));
       }
 
       void clientSuccessService.recalcAndPersist(invoiceMeta.clientId);
@@ -240,10 +326,11 @@ export const invoiceService = {
   async addItem(invoiceId: string, data: { description: string; quantity: number; unitPrice: number }, scope?: ServiceScope) {
     const invoiceForScope = await invoiceRepository.findById(invoiceId);
     await assertInvoiceInScope(invoiceForScope, scope);
-    const total = data.quantity * data.unitPrice;
+    const total = roundMoney(data.quantity * data.unitPrice);
     return prisma.$transaction(async (tx) => {
       const invoice = await tx.invoice.findUniqueOrThrow({ where: { id: invoiceId }, select: { status: true } });
       assertInvoiceDraft(invoice.status);
+      await assertInvoicePdfNotGenerated(invoiceId);
       const item = await tx.invoiceItem.create({ data: { ...data, total, invoiceId } });
       await recomputeInvoiceAmount(tx, invoiceId);
       return item;
@@ -256,9 +343,10 @@ export const invoiceService = {
       if (invoiceItem) await assertInvoiceInScope(invoiceItem.invoice, scope);
       if (!invoiceItem) throw new Error("Item not found");
       assertInvoiceDraft(invoiceItem.invoice.status);
+      await assertInvoicePdfNotGenerated(invoiceItem.invoiceId);
       const updatedQuantity = data.quantity ?? invoiceItem.quantity;
       const updatedUnitPrice = data.unitPrice ?? Number(invoiceItem.unitPrice);
-      const total = updatedQuantity * updatedUnitPrice;
+      const total = roundMoney(updatedQuantity * updatedUnitPrice);
       const item = await tx.invoiceItem.update({ where: { id }, data: { ...data, total } });
       await recomputeInvoiceAmount(tx, invoiceItem.invoiceId);
       return item;
@@ -271,6 +359,7 @@ export const invoiceService = {
       if (existing) await assertInvoiceInScope(existing.invoice, scope);
       if (!existing) throw new HttpError(404, "Item not found");
       assertInvoiceDraft(existing.invoice.status);
+      await assertInvoicePdfNotGenerated(existing.invoiceId);
       const item = await tx.invoiceItem.delete({ where: { id } });
       await recomputeInvoiceAmount(tx, item.invoiceId);
       return item;
@@ -287,6 +376,7 @@ export const invoiceService = {
     await assertInvoiceInScope(invoice, scope);
     if (!invoice) throw new HttpError(404, "Invoice not found");
     assertInvoiceDraft(invoice.status);
+    await assertInvoicePdfNotGenerated(invoiceId);
     if (invoice.projectId !== projectId) throw new HttpError(422, "Invoice does not belong to the specified project", "INVOICE_PROJECT_MISMATCH");
 
     const entries = await prisma.timeEntry.findMany({
@@ -297,23 +387,20 @@ export const invoiceService = {
     if (entries.length === 0) throw new HttpError(422, "No unbilled time entries found for this project", "NO_UNBILLED_ENTRIES");
 
     return prisma.$transaction(async (tx) => {
-      const createdItems = [];
-
-      for (const entry of entries) {
+      const invoiceItemData = entries.map((entry) => {
         const rate = entry.user.freelancerProfile?.hourlyRate
           ? Number(entry.user.freelancerProfile.hourlyRate)
           : defaultHourlyRate;
         const hours = entry.minutes / 60;
-        const total = Math.round(hours * rate * 100) / 100;
+        const total = roundMoney(hours * rate);
         const description = entry.description
           ? `${entry.user.name ?? entry.userId} – ${entry.description} (${entry.minutes} min)`
           : `${entry.user.name ?? entry.userId} – ${entry.minutes} min @ ${rate}/h`;
+        
+        return { invoiceId, description, quantity: 1, unitPrice: total, total };
+      });
 
-        const item = await tx.invoiceItem.create({
-          data: { invoiceId, description, quantity: 1, unitPrice: total, total },
-        });
-        createdItems.push(item);
-      }
+      await tx.invoiceItem.createMany({ data: invoiceItemData });
 
       await tx.timeEntry.updateMany({
         where: { id: { in: entries.map((e) => e.id) } },
@@ -321,6 +408,14 @@ export const invoiceService = {
       });
 
       await recomputeInvoiceAmount(tx, invoiceId);
+      
+      // Fetch the created items to maintain API contract
+      const createdItems = await tx.invoiceItem.findMany({
+        where: { invoiceId, id: { not: undefined } },
+        orderBy: { createdAt: 'desc' },
+        take: entries.length
+      });
+      
       return { items: createdItems, billedCount: entries.length };
     });
   },
@@ -333,11 +428,15 @@ export const invoiceService = {
 
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 30);
+    const vat = computeVat(Number(proposal.amount ?? 0));
 
     return createInvoiceWithGeneratedNumber({
       title: `Facture : ${proposal.title}`,
       description: proposal.description ?? undefined,
-      amount: Number(proposal.amount ?? 0),
+      amount: vat.amountTTC,
+      amountHT: vat.amountHT,
+      tvaRate: vat.tvaRate,
+      tvaAmount: vat.tvaAmount,
       currency: proposal.currency,
       clientId: proposal.clientId,
       projectId: proposal.projectId ?? undefined,
@@ -346,57 +445,31 @@ export const invoiceService = {
     });
   },
 
+  // `amountHT` is the deposit/balance HT slice (already fraction-of-proposal, e.g. proposal.amount * 0.3).
+  // VAT is computed on that slice; `amount` stores the TTC total actually due.
   async createDepositInvoiceTx(
     tx: TxClient,
-    args: { title: string; description?: string; amount: number; currency: string; clientId: string; projectId?: string; proposalId: string; dueInDays?: number }
+    args: { title: string; description?: string; amountHT: number; currency: string; clientId: string; projectId?: string; proposalId: string; dueInDays?: number }
   ) {
     const now = new Date();
-    const prefix = `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
     const dueDate = new Date(now);
     dueDate.setDate(dueDate.getDate() + (args.dueInDays ?? 14));
+    const vat = computeVat(args.amountHT);
+    const number = await nextInvoiceNumber(tx, currentInvoicePrefix());
 
-    const MAX_ATTEMPTS = 5;
-    let lastError: unknown;
-    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-      const count = await tx.invoice.count({ where: { number: { startsWith: prefix } } });
-      const number = `${prefix}-${String(count + 1 + attempt).padStart(4, "0")}`;
-      try {
-        return await tx.invoice.create({ data: { number, title: args.title, description: args.description, amount: args.amount, currency: args.currency, status: "DRAFT", invoiceType: "DEPOSIT", dueDate, clientId: args.clientId, projectId: args.projectId, proposalId: args.proposalId } });
-      } catch (err) {
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002" && !(err.meta?.target as string[] | undefined)?.includes("proposalId")) {
-          lastError = err;
-          continue;
-        }
-        throw err;
-      }
-    }
-    throw new HttpError(409, "Could not allocate a unique invoice number, please retry", "INVOICE_NUMBER_CONFLICT", lastError);
+    return tx.invoice.create({ data: { number, title: args.title, description: args.description, amount: vat.amountTTC, amountHT: vat.amountHT, tvaRate: vat.tvaRate, tvaAmount: vat.tvaAmount, currency: args.currency, status: "DRAFT", invoiceType: "DEPOSIT", dueDate, clientId: args.clientId, projectId: args.projectId, proposalId: args.proposalId } });
   },
 
   async createBalanceInvoiceTx(
     tx: TxClient,
-    args: { title: string; description?: string; amount: number; currency: string; clientId: string; projectId: string; proposalId?: string; dueInDays?: number }
+    args: { title: string; description?: string; amountHT: number; currency: string; clientId: string; projectId: string; proposalId?: string; dueInDays?: number }
   ) {
     const now = new Date();
-    const prefix = `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
     const dueDate = new Date(now);
     dueDate.setDate(dueDate.getDate() + (args.dueInDays ?? 30));
+    const vat = computeVat(args.amountHT);
+    const number = await nextInvoiceNumber(tx, currentInvoicePrefix());
 
-    const MAX_ATTEMPTS = 5;
-    let lastError: unknown;
-    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-      const count = await tx.invoice.count({ where: { number: { startsWith: prefix } } });
-      const number = `${prefix}-${String(count + 1 + attempt).padStart(4, "0")}`;
-      try {
-        return await tx.invoice.create({ data: { number, title: args.title, description: args.description, amount: args.amount, currency: args.currency, status: "DRAFT", invoiceType: "BALANCE", dueDate, clientId: args.clientId, projectId: args.projectId, proposalId: args.proposalId ?? undefined } });
-      } catch (err) {
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-          lastError = err;
-          continue;
-        }
-        throw err;
-      }
-    }
-    throw new HttpError(409, "Could not allocate a unique invoice number, please retry", "INVOICE_NUMBER_CONFLICT", lastError);
+    return tx.invoice.create({ data: { number, title: args.title, description: args.description, amount: vat.amountTTC, amountHT: vat.amountHT, tvaRate: vat.tvaRate, tvaAmount: vat.tvaAmount, currency: args.currency, status: "DRAFT", invoiceType: "BALANCE", dueDate, clientId: args.clientId, projectId: args.projectId, proposalId: args.proposalId ?? undefined } });
   },
 };

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -57,9 +57,15 @@ export function AddPaymentDialog({ open, onOpenChange, invoice }: AddPaymentDial
     },
   });
 
+  // One idempotency key per dialog session: stable across retries of the same submission
+  // (e.g. a network retry or an accidental double-click before the first request resolves),
+  // but regenerated the next time the dialog opens for a genuinely new payment.
+  const idempotencyKeyRef = useRef<string>(crypto.randomUUID());
+
   // Reset form with new unpaid balance when dialog opens
   useEffect(() => {
     if (open && invoice) {
+      idempotencyKeyRef.current = crypto.randomUUID();
       form.reset({
         amount: Number(unpaidBalance.toFixed(2)),
         method: "",
@@ -76,7 +82,7 @@ export function AddPaymentDialog({ open, onOpenChange, invoice }: AddPaymentDial
     await addPayment.mutateAsync(
       {
         id: invoice.id,
-        data: values,
+        data: { ...values, idempotencyKey: idempotencyKeyRef.current },
       },
       {
         onSuccess: () => {

@@ -19,7 +19,7 @@ export const documentService = {
     return documentRepository.findById(id, viewer);
   },
 
-  async create(data: { name: string; title: string; description?: string; type: DocumentType; url: string; fileUrl?: string; fileKey?: string; version?: number; parentId?: string; tags?: string[]; accessLevel?: DocumentAccessLevel; clientId?: string; projectId?: string; uploadedById: string; signedAt?: Date; signedByClientId?: string }) {
+  async create(data: { name: string; title: string; description?: string; type: DocumentType; url: string; fileUrl?: string; fileKey?: string; version?: number; parentId?: string; tags?: string[]; accessLevel?: DocumentAccessLevel; clientId?: string; projectId?: string; invoiceId?: string; uploadedById: string; signedAt?: Date; signedByClientId?: string }) {
     return documentRepository.create(data);
   },
 
