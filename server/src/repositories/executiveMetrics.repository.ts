@@ -5,6 +5,8 @@
  * recompute revenue, cash, client health, or project risk — call this one.
  */
 import { prismaRead as prisma } from "../config/prisma.js";
+import { DEFAULT_CURRENCY } from "../constants/currency.js";
+import { env } from "../config/env.js";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -54,7 +56,7 @@ export interface ForecastKPIs {
   next90: number;
   overdueCarryover: number;
   proposalPipeline: number;   // total SENT+VIEWED proposals amount
-  conversionRate: number;     // historical: won proposals / total sent
+  proposalWinRate: number;     // historical: won proposals / total sent
   confidenceScore: number;    // 0-100 synthetic score
 }
 
@@ -63,7 +65,7 @@ export interface ClientKPIs {
   active: number;           // has at least 1 IN_PROGRESS or REVIEW project
   newMTD: number;
   newGrowthMoM: number;
-  atRisk: number;           // overdue invoice > 30 days
+  atRisk: number;           // overdue invoice > FORECAST_AT_RISK_DAYS (default 30)
   lost: number;             // no active project + last completed > 6 months
   champions: number;        // ≥ 2 completed projects
   churnRate: number;        // lost / (total - new) %
@@ -122,8 +124,14 @@ export interface ExecutiveMetrics {
 // ─── repository ──────────────────────────────────────────────────────────────
 
 export const executiveMetricsRepository = {
-  async getAll(): Promise<ExecutiveMetrics> {
+  async getAll(serviceId?: string): Promise<ExecutiveMetrics> {
     const now = new Date();
+    const projectScope = serviceId ? { serviceId, deletedAt: null } : { deletedAt: null };
+    const invoiceProjectScope = serviceId ? { project: { serviceId, deletedAt: null } } : {};
+    const proposalProjectScope = serviceId ? { projectId: { not: null as string | null }, project: { serviceId, deletedAt: null } } : {};
+    // Every invoice/payment aggregate below also needs the invoice's own client to still be
+    // active — a soft-deleted client's historical revenue should not inflate the live KPIs.
+    const clientActiveScope = { client: { deletedAt: null } };
     const mtdStart = startOf("month", now);
     const ytdStart = startOf("year", now);
     const prevMtdStart = new Date(mtdStart); prevMtdStart.setMonth(prevMtdStart.getMonth() - 1);
@@ -131,7 +139,9 @@ export const executiveMetricsRepository = {
     const sameMthLastYear = new Date(mtdStart); sameMthLastYear.setFullYear(sameMthLastYear.getFullYear() - 1);
     const sameMthLastYearEnd = new Date(mtdStart); sameMthLastYearEnd.setFullYear(sameMthLastYearEnd.getFullYear() - 1); sameMthLastYearEnd.setMonth(sameMthLastYearEnd.getMonth() + 1);
     const day7ago = new Date(now.getTime() - 7 * 86_400_000);
-    const day30ago = new Date(now.getTime() - 30 * 86_400_000);
+    // Overridable via FORECAST_AT_RISK_DAYS — recalibrate once there's real data
+    // instead of editing this file.
+    const day30ago = new Date(now.getTime() - env.FORECAST_AT_RISK_DAYS * 86_400_000);
     const day90ago = new Date(now.getTime() - 90 * 86_400_000);
     const day3ago = new Date(now.getTime() - 3 * 86_400_000);
     const in30 = new Date(now.getTime() + 30 * 86_400_000);
@@ -189,92 +199,102 @@ export const executiveMetricsRepository = {
 
     ] = await Promise.all([
       // ── Finance ──
-      prisma.payment.aggregate({ where: { paidAt: { gte: mtdStart } }, _sum: { amount: true } }),
-      prisma.payment.aggregate({ where: { paidAt: { gte: ytdStart } }, _sum: { amount: true } }),
-      prisma.payment.aggregate({ _sum: { amount: true } }),
-      prisma.payment.aggregate({ where: { paidAt: { gte: prevMtdStart, lte: prevMtdEnd } }, _sum: { amount: true } }),
-      prisma.payment.aggregate({ where: { paidAt: { gte: sameMthLastYear, lt: sameMthLastYearEnd } }, _sum: { amount: true } }),
-      prisma.invoice.aggregate({ where: { status: { notIn: ["DRAFT", "CANCELLED"] }, createdAt: { gte: mtdStart } }, _sum: { amount: true } }),
-      prisma.invoice.aggregate({ where: { status: { notIn: ["DRAFT", "CANCELLED"] }, createdAt: { gte: ytdStart } }, _sum: { amount: true } }),
-      prisma.invoice.aggregate({ where: { status: { notIn: ["DRAFT", "CANCELLED"] } }, _sum: { amount: true } }),
-      prisma.invoice.aggregate({ where: { status: { in: ["SENT", "PARTIAL", "OVERDUE"] }, dueDate: { lt: now } }, _sum: { amount: true }, _count: true }),
-      prisma.invoice.aggregate({ where: { status: { in: ["SENT", "PARTIAL"] }, dueDate: { gte: now } }, _sum: { amount: true }, _count: true }),
+      prisma.payment.aggregate({ where: { paidAt: { gte: mtdStart }, invoice: { currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope } }, _sum: { amount: true } }),
+      prisma.payment.aggregate({ where: { paidAt: { gte: ytdStart }, invoice: { currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope } }, _sum: { amount: true } }),
+      prisma.payment.aggregate({ where: { invoice: { currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope } }, _sum: { amount: true } }),
+      prisma.payment.aggregate({ where: { paidAt: { gte: prevMtdStart, lte: prevMtdEnd }, invoice: { currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope } }, _sum: { amount: true } }),
+      prisma.payment.aggregate({ where: { paidAt: { gte: sameMthLastYear, lt: sameMthLastYearEnd }, invoice: { currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope } }, _sum: { amount: true } }),
+      prisma.invoice.aggregate({ where: { status: { notIn: ["DRAFT", "CANCELLED"] }, createdAt: { gte: mtdStart }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true } }),
+      prisma.invoice.aggregate({ where: { status: { notIn: ["DRAFT", "CANCELLED"] }, createdAt: { gte: ytdStart }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true } }),
+      prisma.invoice.aggregate({ where: { status: { notIn: ["DRAFT", "CANCELLED"] }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true } }),
+      prisma.invoice.aggregate({ where: { status: { in: ["SENT", "PARTIAL", "OVERDUE"] }, dueDate: { lt: now }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true }, _count: true }),
+      prisma.invoice.aggregate({ where: { status: { in: ["SENT", "PARTIAL"] }, dueDate: { gte: now }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true }, _count: true }),
       // Monthly cash + billed (last 12 months)
       prisma.payment.findMany({
-        where: { paidAt: { gte: new Date(ytdStart.getFullYear() - 1, ytdStart.getMonth(), 1) } },
+        where: { paidAt: { gte: new Date(ytdStart.getFullYear() - 1, ytdStart.getMonth(), 1) }, invoice: { currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope } },
         select: { paidAt: true, amount: true },
       }),
       prisma.invoice.findMany({
         where: {
           status: { notIn: ["DRAFT", "CANCELLED"] },
           createdAt: { gte: new Date(ytdStart.getFullYear() - 1, ytdStart.getMonth(), 1) },
+          currency: DEFAULT_CURRENCY,
+          deletedAt: null,
+          ...clientActiveScope,
+          ...invoiceProjectScope,
         },
         select: { createdAt: true, amount: true },
       }),
 
       // ── Forecast ──
-      prisma.invoice.aggregate({ where: { status: { in: ["SENT", "PARTIAL"] }, dueDate: { gte: now, lte: in30 } }, _sum: { amount: true } }),
-      prisma.invoice.aggregate({ where: { status: { in: ["SENT", "PARTIAL"] }, dueDate: { gte: now, lte: in60 } }, _sum: { amount: true } }),
-      prisma.invoice.aggregate({ where: { status: { in: ["SENT", "PARTIAL"] }, dueDate: { gte: now, lte: in90 } }, _sum: { amount: true } }),
-      prisma.proposal.aggregate({ where: { status: { in: ["SENT", "VIEWED"] } }, _sum: { amount: true } }),
-      prisma.proposal.count({ where: { status: "ACCEPTED", createdAt: { gte: day90ago } } }),
-      prisma.proposal.count({ where: { status: { in: ["SENT", "VIEWED", "ACCEPTED", "REJECTED"] }, createdAt: { gte: day90ago } } }),
+      prisma.invoice.aggregate({ where: { status: { in: ["SENT", "PARTIAL"] }, dueDate: { gte: now, lte: in30 }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true } }),
+      prisma.invoice.aggregate({ where: { status: { in: ["SENT", "PARTIAL"] }, dueDate: { gte: now, lte: in60 }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true } }),
+      prisma.invoice.aggregate({ where: { status: { in: ["SENT", "PARTIAL"] }, dueDate: { gte: now, lte: in90 }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true } }),
+      prisma.proposal.aggregate({ where: { status: { in: ["SENT", "VIEWED"] }, currency: DEFAULT_CURRENCY, ...proposalProjectScope }, _sum: { amount: true } }),
+      prisma.proposal.count({ where: { status: "ACCEPTED", createdAt: { gte: day90ago }, ...proposalProjectScope } }),
+      prisma.proposal.count({ where: { status: { in: ["SENT", "VIEWED", "ACCEPTED", "REJECTED"] }, createdAt: { gte: day90ago }, ...proposalProjectScope } }),
 
       // ── Clients ──
-      prisma.client.count(),
-      prisma.client.count({ where: { createdAt: { gte: mtdStart } } }),
-      prisma.client.count({ where: { createdAt: { gte: prevMtdStart, lte: prevMtdEnd } } }),
+      prisma.client.count({ where: { deletedAt: null, ...(serviceId ? { projects: { some: { serviceId } } } : {}) } }),
+      prisma.client.count({ where: { deletedAt: null, createdAt: { gte: mtdStart }, ...(serviceId ? { projects: { some: { serviceId } } } : {}) } }),
+      prisma.client.count({ where: { deletedAt: null, createdAt: { gte: prevMtdStart, lte: prevMtdEnd }, ...(serviceId ? { projects: { some: { serviceId } } } : {}) } }),
       prisma.client.findMany({
+        where: { deletedAt: null, ...(serviceId ? { projects: { some: { serviceId } } } : {}) },
         select: {
           id: true, name: true, createdAt: true,
-          // Project-less invoices (projectId null) are fetched at client level so
-          // health/revenue see every confirmed invoice, not only project-linked ones.
-          invoices: { where: { projectId: null, status: { notIn: ["DRAFT", "CANCELLED"] } }, select: { amount: true, amountPaid: true, status: true, dueDate: true } },
+          // Project-less invoices (projectId null) are fetched at client level so the
+          // unscoped (ADMIN) view sees every confirmed invoice, not only project-linked
+          // ones. Dropped in JS below when scoped to a service — a project-less invoice
+          // has no serviceId to match, mirroring invoiceProjectScope's exclusion rule.
+          invoices: { where: { projectId: null, status: { notIn: ["DRAFT", "CANCELLED"] }, currency: DEFAULT_CURRENCY, deletedAt: null }, select: { amount: true, amountPaid: true, status: true, dueDate: true } },
           projects: {
+            where: projectScope,
             select: {
               id: true, status: true, clientApprovedAt: true, createdAt: true,
-              invoices: { where: { status: { notIn: ["DRAFT", "CANCELLED"] } }, select: { amount: true, amountPaid: true, status: true, dueDate: true } },
+              invoices: { where: { status: { notIn: ["DRAFT", "CANCELLED"] }, currency: DEFAULT_CURRENCY, deletedAt: null }, select: { amount: true, amountPaid: true, status: true, dueDate: true } },
             },
           },
         },
       }),
 
       // ── Projects ──
-      prisma.project.groupBy({ by: ["status"], _count: true, orderBy: { status: "asc" } }),
-      prisma.project.count({ where: { deadline: { lt: now }, status: { notIn: ["COMPLETED"] } } }),
+      prisma.project.groupBy({ by: ["status"], where: projectScope, _count: true, orderBy: { status: "asc" } }),
+      prisma.project.count({ where: { deadline: { lt: now }, status: { notIn: ["COMPLETED"] }, ...projectScope } }),
       // `every` is vacuously true on empty lists, so require at least one task:
       // a project with no tasks yet is "not started", not stale.
       prisma.project.count({
         where: {
           status: "IN_PROGRESS",
           tasks: { some: {}, every: { updatedAt: { lt: day7ago } } },
+          ...projectScope,
         },
       }),
       // Blocked = has tasks in REVIEW for > 3 days
       prisma.project.count({
         where: {
           tasks: { some: { status: "REVIEW", updatedAt: { lt: day3ago } } },
+          ...projectScope,
         },
       }),
       prisma.project.findMany({
-        where: { status: "COMPLETED", clientApprovedAt: { not: null } },
+        where: { status: "COMPLETED", clientApprovedAt: { not: null }, ...projectScope },
         select: { createdAt: true, clientApprovedAt: true },
       }),
 
       // ── Tasks ──
-      prisma.task.count(),
-      prisma.task.count({ where: { status: "DONE" } }),
-      prisma.task.count({ where: { dueDate: { lt: now }, status: { not: "DONE" } } }),
+      prisma.task.count({ where: serviceId ? { project: { serviceId } } : undefined }),
+      prisma.task.count({ where: { status: "DONE", ...(serviceId ? { project: { serviceId } } : {}) } }),
+      prisma.task.count({ where: { dueDate: { lt: now }, status: { not: "DONE" }, ...(serviceId ? { project: { serviceId } } : {}) } }),
 
       // ── Risks ──
       prisma.invoice.findMany({
-        where: { status: { in: ["SENT", "PARTIAL", "OVERDUE"] }, dueDate: { lt: now } },
+        where: { status: { in: ["SENT", "PARTIAL", "OVERDUE"] }, dueDate: { lt: now }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope },
         select: { id: true, number: true, amount: true, dueDate: true, client: { select: { name: true } } },
         orderBy: { dueDate: "asc" },
         take: 10,
       }),
       prisma.approval.findMany({
-        where: { status: "PENDING", createdAt: { lt: day3ago } },
+        where: { status: "PENDING", createdAt: { lt: day3ago }, ...(serviceId ? { project: { serviceId } } : {}) },
         select: { id: true, title: true, createdAt: true, client: { select: { name: true } } },
         orderBy: { createdAt: "asc" },
         take: 10,
@@ -285,7 +305,7 @@ export const executiveMetricsRepository = {
         take: 5,
       }),
       prisma.approval.findMany({
-        where: { status: "PENDING", dueDate: { gte: now, lte: in30 } },
+        where: { status: "PENDING", dueDate: { gte: now, lte: in30 }, ...(serviceId ? { project: { serviceId } } : {}) },
         select: { id: true, title: true, dueDate: true },
         take: 5,
       }),
@@ -356,7 +376,7 @@ export const executiveMetricsRepository = {
       next90: Math.round(f90),
       overdueCarryover: finance.overdueAmount,
       proposalPipeline: pipeline,
-      conversionRate: convRate,
+      proposalWinRate: convRate,
       confidenceScore,
     };
 
@@ -376,7 +396,7 @@ export const executiveMetricsRepository = {
         const d = p.clientApprovedAt ?? p.createdAt;
         return !acc || d > acc ? d : acc;
       }, null);
-      const allInvoices = [...c.invoices, ...c.projects.flatMap(p => p.invoices)];
+      const allInvoices = [...(serviceId ? [] : c.invoices), ...c.projects.flatMap(p => p.invoices)];
       const hasOverdue30 = allInvoices.some(i => ["SENT", "PARTIAL", "OVERDUE"].includes(i.status) && i.dueDate && i.dueDate < day30ago);
       const totalRevenue = allInvoices.reduce((s, i) => s + Number(i.amountPaid ?? 0), 0);
       const isLost = !hasActive && lastCompleted !== null && lastCompleted < sixMonthsAgo;
@@ -413,7 +433,7 @@ export const executiveMetricsRepository = {
 
     // Health scoring for each active project (simplified version for counts)
     const activeProjects = await prisma.project.findMany({
-      where: { status: { notIn: ["COMPLETED"] } },
+      where: { status: { notIn: ["COMPLETED"] }, ...projectScope },
       select: {
         id: true, status: true, deadline: true,
         tasks: { select: { status: true, updatedAt: true } },

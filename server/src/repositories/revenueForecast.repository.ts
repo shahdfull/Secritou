@@ -1,4 +1,7 @@
 import { prismaRead } from "../config/prisma.js";
+import { roundMoney } from "../utils/vat.js";
+import { DEFAULT_CURRENCY } from "../constants/currency.js";
+import { env } from "../config/env.js";
 
 export interface ForecastPeriod {
   invoicesDue: number;
@@ -21,9 +24,17 @@ export interface RevenueForecastData {
   byClient: ClientForecast[];
 }
 
-const CONVERSION_RATE = 0.3;
+// Coarse win-probability proxy by proposal status, since there is no per-proposal
+// probability field (yet). VIEWED means the client has actually opened it, which is
+// a meaningfully stronger signal than a proposal that's merely been SENT.
+// Overridable via FORECAST_PROBABILITY_SENT / FORECAST_PROBABILITY_VIEWED — recalibrate
+// once there's real conversion data instead of editing this file.
+const PROBABILITY_BY_STATUS: Record<string, number> = {
+  SENT: env.FORECAST_PROBABILITY_SENT,
+  VIEWED: env.FORECAST_PROBABILITY_VIEWED,
+};
 
-async function getPeriodForecast(cutoffDays: number): Promise<ForecastPeriod> {
+async function getPeriodForecast(cutoffDays: number, serviceId?: string): Promise<ForecastPeriod> {
   const now = new Date();
   const cutoff = new Date(now.getTime() + cutoffDays * 86_400_000);
 
@@ -32,33 +43,62 @@ async function getPeriodForecast(cutoffDays: number): Promise<ForecastPeriod> {
       where: {
         status: { in: ["SENT", "PARTIAL"] },
         dueDate: { gte: now, lte: cutoff },
+        currency: DEFAULT_CURRENCY,
+        deletedAt: null,
+        client: { deletedAt: null },
+        ...(serviceId ? { project: { serviceId } } : {}),
       },
       select: { amount: true },
     }),
+    // Bounded by expiresAt (proxy for expected closing date), same as invoicesDue is
+    // bounded by dueDate — otherwise the same pipeline value leaks into every window
+    // regardless of when it's actually expected to close. Proposals with no expiresAt
+    // set have unknown timing: only surfaced in the widest (90-day) window rather than
+    // silently dropped from the forecast or double-counted in every window.
     prismaRead.proposal.findMany({
-      where: { status: { in: ["SENT", "VIEWED"] } },
-      select: { amount: true },
+      where: {
+        status: { in: ["SENT", "VIEWED"] },
+        currency: DEFAULT_CURRENCY,
+        ...(cutoffDays >= 90
+          ? { OR: [{ expiresAt: { lte: cutoff } }, { expiresAt: null }] }
+          : { expiresAt: { gte: now, lte: cutoff } }),
+        // A proposal with no linked project is service-neutral / pre-project: only
+        // ADMIN (unscoped) sees it in the forecast, same rule as assertProposalInScope.
+        ...(serviceId ? { projectId: { not: null }, project: { serviceId } } : {}),
+      },
+      select: { amount: true, status: true },
     }),
   ]);
 
   const invoicesDue = invoicesRaw.reduce((s, i) => s + Number(i.amount ?? 0), 0);
   const proposalsPending = proposalsRaw.reduce((s, p) => s + Number(p.amount ?? 0), 0);
-  const projectedRevenue = Math.round((invoicesDue + proposalsPending * CONVERSION_RATE) * 100) / 100;
+  const weightedProposals = proposalsRaw.reduce(
+    (s, p) => s + Number(p.amount ?? 0) * (PROBABILITY_BY_STATUS[p.status] ?? 0),
+    0
+  );
+  const projectedRevenue = roundMoney(invoicesDue + weightedProposals);
 
   return { invoicesDue, proposalsPending, projectedRevenue };
 }
 
 export const revenueForecastRepository = {
-  async getForecast(): Promise<RevenueForecastData> {
+  async getForecast(serviceId?: string): Promise<RevenueForecastData> {
     const now = new Date();
     const in90 = new Date(now.getTime() + 90 * 86_400_000);
 
     const [p30, p60, p90, overdueRaw, byClientRaw] = await Promise.all([
-      getPeriodForecast(30),
-      getPeriodForecast(60),
-      getPeriodForecast(90),
+      getPeriodForecast(30, serviceId),
+      getPeriodForecast(60, serviceId),
+      getPeriodForecast(90, serviceId),
       prismaRead.invoice.findMany({
-        where: { status: { in: ["SENT", "PARTIAL", "OVERDUE"] }, dueDate: { lt: now } },
+        where: {
+          status: { in: ["SENT", "PARTIAL", "OVERDUE"] },
+          dueDate: { lt: now },
+          currency: DEFAULT_CURRENCY,
+          deletedAt: null,
+          client: { deletedAt: null },
+          ...(serviceId ? { project: { serviceId } } : {}),
+        },
         select: { amount: true },
       }),
       prismaRead.invoice.groupBy({
@@ -66,6 +106,10 @@ export const revenueForecastRepository = {
         where: {
           status: { in: ["SENT", "PARTIAL"] },
           dueDate: { gte: now, lte: in90 },
+          currency: DEFAULT_CURRENCY,
+          deletedAt: null,
+          client: { deletedAt: null },
+          ...(serviceId ? { project: { serviceId } } : {}),
         },
         _sum: { amount: true },
         _count: { id: true },

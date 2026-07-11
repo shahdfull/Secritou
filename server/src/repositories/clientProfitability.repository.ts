@@ -1,12 +1,20 @@
 import { prismaRead } from "../config/prisma.js";
+import { roundMoney } from "../utils/vat.js";
 
 export type ClientHealthStatus = "champion" | "good" | "at-risk" | "lost";
 
 export interface ClientProfitabilityItem {
   clientId: string;
   clientName: string;
+  // CA encaissé (sum of PAID invoices) — not a margin. Do not treat this as "profitability"
+  // without also looking at totalCost: it does not net out any cost.
   totalRevenue: number;
   pendingRevenue: number;
+  // Freelancer time cost (TimeEntry.minutes x freelancerProfile.hourlyRate), summed across
+  // the client's projects. Entries from users without an hourlyRate contribute 0 cost —
+  // this is NOT a full cost model (no ADMIN/MANAGER time, no overhead), so totalRevenue
+  // minus totalCost is deliberately not exposed as a combined "margin" figure here.
+  totalCost: number;
   totalProjects: number;
   completedProjects: number;
   totalTaskMinutes: number;
@@ -18,23 +26,29 @@ export interface ClientProfitabilityItem {
 const SIX_MONTHS_MS = 6 * 30 * 86_400_000;
 
 export const clientProfitabilityRepository = {
-  async getProfitability(): Promise<ClientProfitabilityItem[]> {
+  async getProfitability(serviceId?: string): Promise<ClientProfitabilityItem[]> {
     const now = new Date();
 
     const clients = await prismaRead.client.findMany({
+      where: { deletedAt: null, ...(serviceId ? { projects: { some: { serviceId } } } : {}) },
       select: {
         id: true,
         name: true,
         projects: {
+          where: { deletedAt: null, ...(serviceId ? { serviceId } : {}) },
           select: {
             id: true,
             status: true,
             createdAt: true,
             clientApprovedAt: true,
             tasks: { select: { id: true } },
+            timeEntries: {
+              select: { minutes: true, user: { select: { freelancerProfile: { select: { hourlyRate: true } } } } },
+            },
           },
         },
         invoices: {
+          where: { deletedAt: null, ...(serviceId ? { OR: [{ project: { serviceId } }, { projectId: null }] } : {}) },
           select: { status: true, amount: true, dueDate: true, createdAt: true },
         },
       },
@@ -67,8 +81,15 @@ export const clientProfitabilityRepository = {
           return latest;
         }, null);
 
-      // Time tracking — summed from TimeEntry if model exists (graceful fallback to 0)
-      const totalTaskMinutes = 0; // Will be enriched when time tracking is live
+      const allTimeEntries = c.projects.flatMap((p) => p.timeEntries);
+      const totalTaskMinutes = allTimeEntries.reduce((s, e) => s + e.minutes, 0);
+      // Entries from users without an hourlyRate contribute 0 — see totalCost's doc comment.
+      const totalCost = roundMoney(
+        allTimeEntries.reduce((s, e) => {
+          const rate = e.user.freelancerProfile?.hourlyRate ? Number(e.user.freelancerProfile.hourlyRate) : 0;
+          return s + (e.minutes / 60) * rate;
+        }, 0)
+      );
 
       // Health status logic
       const overdueInvoices = c.invoices.filter(
@@ -94,6 +115,7 @@ export const clientProfitabilityRepository = {
         clientName: c.name,
         totalRevenue,
         pendingRevenue,
+        totalCost,
         totalProjects,
         completedProjects: completedCount,
         totalTaskMinutes,
