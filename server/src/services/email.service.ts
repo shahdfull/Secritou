@@ -53,7 +53,7 @@ function getTransport(): Transporter {
 
 const FROM_ADDRESS = env.SMTP_USER
   ? `"Secritou" <${env.SMTP_USER}>`
-  : '"Secritou" <noreply@secritou.com>';
+  : '"Secritou" <contact@secritou.tn>';
 
 // ─── EmailService ────────────────────────────────────────────────────────────
 

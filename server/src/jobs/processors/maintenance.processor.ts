@@ -24,6 +24,13 @@ type ArchiveRule = {
   whereClause: string;
 };
 
+// SECURITY: sourceTable/archiveTable/whereClause below are interpolated directly into raw SQL
+// via $executeRawUnsafe (table/column identifiers can't be parameterized in Postgres, so this is
+// unavoidable for DDL/DML on dynamic table names). This is only safe because every value here is
+// a hardcoded literal in this file, never user input or config read at runtime. Never make
+// ARCHIVE_RULES configurable (env var, DB-backed settings, admin UI, etc.) without adding a
+// strict allowlist of table names first — doing so directly would turn this into a SQL injection
+// vector.
 const ARCHIVE_RULES: ArchiveRule[] = [
   {
     sourceTable: "Lead",
@@ -77,11 +84,15 @@ async function ensureMonthlyPartitions(archiveTable: string) {
   for (let current = start; current < end; current = addMonths(current, 1)) {
     const { start: rangeStart, next, suffix } = partitionParts(current);
     const partitionName = `${archiveTable}_${suffix}`;
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "${partitionName}"
-      PARTITION OF "${archiveTable}"
-      FOR VALUES FROM ('${rangeStart}') TO ('${next}');
-    `);
+    // Table/partition identifiers can't be bound parameters in Postgres DDL — only rangeStart/next
+    // (plain date literals) are parameterizable here, so those are passed as bound args.
+    await prisma.$executeRawUnsafe(
+      `CREATE TABLE IF NOT EXISTS "${partitionName}"
+       PARTITION OF "${archiveTable}"
+       FOR VALUES FROM ($1::date) TO ($2::date);`,
+      rangeStart,
+      next
+    );
   }
 }
 
