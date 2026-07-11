@@ -20,6 +20,13 @@ export interface TimeEntrySummary {
   byTask: Array<{ taskId: string; taskTitle: string; totalMinutes: number }>;
 }
 
+export interface MyTimeSummary {
+  totalMinutes: number;
+  totalHours: number;
+  hourlyRate: number | null;
+  amountDue: number | null;
+}
+
 export interface CreateTimeEntryInput {
   taskId?: string;
   description?: string;
@@ -43,6 +50,11 @@ export const timeEntryApi = {
 
   getSummary: async (projectId: string): Promise<TimeEntrySummary> => {
     const res = await api.get<{ data: TimeEntrySummary }>(`/projects/${projectId}/time-summary`);
+    return res.data.data;
+  },
+
+  getMySummary: async (projectId: string): Promise<MyTimeSummary> => {
+    const res = await api.get<{ data: MyTimeSummary }>(`/projects/${projectId}/my-time-summary`);
     return res.data.data;
   },
 };

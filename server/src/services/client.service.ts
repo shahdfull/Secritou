@@ -19,6 +19,11 @@ export const clientService = {
     return clientRepository.findAll({ ...options, serviceId });
   },
 
+  async getDeletedClients(options: ListQueryOptions, scope?: ServiceScope) {
+    const serviceId = scope?.userRole === "MANAGER" ? (scope.userServiceId ?? "__none__") : undefined;
+    return clientRepository.findDeleted({ ...options, serviceId });
+  },
+
   async getClient(id: string, scope?: ServiceScope, includeArchived?: boolean) {
     const serviceId = scope?.userRole === "MANAGER" ? (scope.userServiceId ?? "__none__") : undefined;
     const client = await clientRepository.findById(id, serviceId, includeArchived);
@@ -54,6 +59,14 @@ export const clientService = {
     const deleted = await clientRepository.delete(id);
     await invalidateTags([cacheTags.company(), cacheTags.dashboard(), cacheTags.client(id)]);
     return deleted;
+  },
+
+  async restoreClient(id: string) {
+    const client = await clientRepository.findById(id, undefined, true);
+    if (!client) throw new HttpError(404, "Client not found");
+    const restored = await clientRepository.restore(id);
+    await invalidateTags([cacheTags.company(), cacheTags.dashboard(), cacheTags.client(id)]);
+    return restored;
   },
 
   async archiveClient(id: string) {

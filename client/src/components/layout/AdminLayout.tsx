@@ -29,6 +29,9 @@ import {
   MessageSquare,
   Receipt,
   CheckSquare,
+  HandCoins,
+  CalendarDays,
+  Users2,
 } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -51,20 +54,23 @@ import { useTranslation } from "react-i18next";
 import { AIAssistantFloat } from "./AIAssistantFloat";
 import { type ChatMessage } from "@/api/ai.api";
 
-type MenuItem = { key: string; url: string; icon: React.ElementType; permModule?: Module; group: "manage" | "analytics" | "other" };
+type MenuItem = { key: string; url: string; icon: React.ElementType; permModule?: Module; group: "manage" | "analytics" | "other"; adminOnly?: boolean };
 
 const menuItems: MenuItem[] = [
   { key: "dashboard",              url: "/app",                          icon: Home,          group: "manage" },
   { key: "freelancerDashboard",    url: "/app/freelancer-dashboard",     icon: Home,          group: "manage" },
   { key: "crm",              url: "/app/crm",                icon: Users,         group: "manage", permModule: "clients" },
   { key: "commercial",       url: "/app/commercial",         icon: FileText,      group: "manage", permModule: "leads" },
+  { key: "booking",          url: "/app/booking",           icon: CalendarDays,  group: "manage", adminOnly: true },
   { key: "service-requests", url: "/app/service-requests",  icon: MessageSquare, group: "manage", permModule: "service-requests" },
   { key: "invoices",         url: "/app/invoices",           icon: Receipt,       group: "manage", permModule: "invoices" },
+  { key: "commissions",      url: "/app/commissions",        icon: HandCoins,     group: "manage" },
   { key: "talent",           url: "/app/talent",             icon: Briefcase,     group: "manage", permModule: "freelancers" },
   { key: "projects",         url: "/app/projects",           icon: FolderOpen,    group: "manage", permModule: "projects" },
   { key: "tasks",            url: "/app/tasks",              icon: CheckSquare,   group: "manage", permModule: "tasks" },
   { key: "documents",        url: "/app/documents",          icon: Files,         group: "manage", permModule: "documents" },
   { key: "reports",          url: "/app/reports",            icon: BarChart3,     group: "analytics" },
+  { key: "workload",         url: "/app/analytics/workload", icon: Users2,        group: "analytics" },
   { key: "questions",        url: "/app/questions",          icon: HelpCircle,    group: "analytics" },
   { key: "settings",         url: "/app/settings",           icon: Settings,      group: "other" },
 ];
@@ -90,6 +96,7 @@ export const AdminLayout = memo(function AdminLayout() {
 
     if (role === "MANAGER") {
       return menuItems.filter((item) => {
+        if (item.adminOnly) return false;
         if (item.key === "commercial") {
           return can("leads", "read") || can("proposals", "read");
         }
@@ -134,8 +141,14 @@ export const AdminLayout = memo(function AdminLayout() {
       case "/app/service-requests":
         routePrefetch.serviceRequests();
         break;
+      case "/app/booking":
+        routePrefetch.booking();
+        break;
       case "/app/invoices":
         routePrefetch.invoices();
+        break;
+      case "/app/commissions":
+        routePrefetch.commissions();
         break;
       case "/app/talent":
         routePrefetch.talent?.();

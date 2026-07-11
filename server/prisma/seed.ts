@@ -29,18 +29,61 @@ async function main() {
   const company = await prisma.company.upsert({
     where: { id: COMPANY_ID },
     update: {},
-    create: { id: COMPANY_ID, name: 'Secritou', website: 'https://secritou.tn' },
+    create: {
+      id: COMPANY_ID,
+      name: 'Secritou',
+      website: 'https://secritou.tn',
+      // Placeholder — replace with the agency's real matricule fiscal before issuing production invoices.
+      matriculeFiscal: '0000000A/A/M/000',
+      address: 'Tunis, Tunisie',
+    },
   });
   console.log('✅ Company:', company.name);
 
   // ── Services ──────────────────────────────────────────────────────────────
-  const svcNames = ['Business Performance', 'Digital Growth', 'Technology Solutions', 'AI & Automation'];
+  const svcNames = ['Management & Performance', 'Croissance digitale', 'Technologie', 'IA & Automatisation'];
   const svc: Record<string, string> = {};
   for (const name of svcNames) {
     const s = await prisma.service.upsert({ where: { name }, update: {}, create: { name } });
     svc[name] = s.id;
   }
   console.log('✅ Services:', svcNames.join(', '));
+
+  // ── Project templates (one per pole, seeded as a starter checklist) ────────
+  const projectTemplates: Record<string, { name: string; tasks: string[] }> = {
+    'Management & Performance': {
+      name: 'Audit & pilotage — standard',
+      tasks: ['Cadrage de l\'audit', 'Collecte des données existantes', 'Analyse des KPI actuels', 'Restitution & recommandations', 'Mise en place du reporting'],
+    },
+    'Croissance digitale': {
+      name: 'Marketing — lancement de campagne',
+      tasks: ['Audit des canaux existants', 'Définition de la stratégie', 'Création des contenus', 'Lancement de la campagne', 'Suivi & optimisation'],
+    },
+    'Technologie': {
+      name: 'Site web — standard',
+      tasks: ['Brief & charte graphique', 'Maquettes (wireframes)', 'Intégration front-end', 'Développement back-end', 'Recette & mise en ligne'],
+    },
+    'IA & Automatisation': {
+      name: 'Automatisation — standard',
+      tasks: ['Cadrage du besoin', 'Audit des outils existants', 'Conception du workflow', 'Développement & intégration', 'Tests & mise en production'],
+    },
+  };
+  for (const [serviceName, tpl] of Object.entries(projectTemplates)) {
+    const serviceId = svc[serviceName];
+    if (!serviceId) continue;
+    const template = await prisma.projectTemplate.upsert({
+      where: { serviceId },
+      update: {},
+      create: { serviceId, name: tpl.name },
+    });
+    const existingCount = await prisma.taskTemplate.count({ where: { templateId: template.id } });
+    if (existingCount === 0) {
+      await prisma.taskTemplate.createMany({
+        data: tpl.tasks.map((title, i) => ({ templateId: template.id, title, orderIndex: i })),
+      });
+    }
+  }
+  console.log('✅ Project templates: 1 per pole');
 
   // ── Passwords ─────────────────────────────────────────────────────────────
   const [adminHash, mgrHash, clientHash, freelancerHash] = await Promise.all([
@@ -69,13 +112,13 @@ async function main() {
   const manager1 = await prisma.user.upsert({
     where: { email: 'manager@secritou.tn' },
     update: {},
-    create: { email: 'manager@secritou.tn', name: 'Sarra Mansouri', passwordHash: mgrHash, role: Role.MANAGER, serviceId: svc['Digital Growth'] },
+    create: { email: 'manager@secritou.tn', name: 'Sarra Mansouri', passwordHash: mgrHash, role: Role.MANAGER, serviceId: svc['Croissance digitale'] },
   });
 
   const manager2 = await prisma.user.upsert({
     where: { email: 'manager2@secritou.tn' },
     update: {},
-    create: { email: 'manager2@secritou.tn', name: 'Karim Jebali', passwordHash: mgrHash, role: Role.MANAGER, serviceId: svc['Technology Solutions'] },
+    create: { email: 'manager2@secritou.tn', name: 'Karim Jebali', passwordHash: mgrHash, role: Role.MANAGER, serviceId: svc['Technologie'] },
   });
 
   // Client users (will be linked to Client records below)
@@ -214,7 +257,7 @@ async function main() {
         description: 'Refonte complète de la plateforme e-commerce — catalogue, panier, paiement, espace client.',
         status: ProjectStatus.COMPLETED,
         clientId: carrefour.id,
-        serviceId: svc['Digital Growth'],
+        serviceId: svc['Croissance digitale'],
         proposalId: proposal1.id,
         budget: '28 500 TND',
         deadline: new Date('2026-04-30'),
@@ -253,7 +296,7 @@ async function main() {
         description: 'Application iOS/Android pour le programme de fidélité Monoprix.',
         status: ProjectStatus.IN_PROGRESS,
         clientId: monoprix.id,
-        serviceId: svc['Digital Growth'],
+        serviceId: svc['Croissance digitale'],
         proposalId: proposal2.id,
         budget: '18 000 TND',
         deadline: new Date('2026-07-15'),
@@ -290,7 +333,7 @@ async function main() {
         description: 'Audit, cartographie données, migration vers SAP S/4HANA.',
         status: ProjectStatus.REVIEW,
         clientId: geant.id,
-        serviceId: svc['Technology Solutions'],
+        serviceId: svc['Technologie'],
         proposalId: proposal3.id,
         budget: '35 000 TND',
         deadline: new Date('2026-06-01'),

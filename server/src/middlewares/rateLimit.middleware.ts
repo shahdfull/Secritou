@@ -62,3 +62,15 @@ export const applicationRateLimit = rateLimit({
   keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),
   message: { message: "Too many applications submitted, please try again later" },
 });
+
+// Public analytics event ingestion: unlike contactRateLimit, a single visitor
+// legitimately fires many events per session (page views, CTA clicks). Capped
+// generously per-minute to blunt abuse while never rate-limiting normal browsing.
+export const analyticsEventRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),
+  message: { message: "Too many analytics events, please slow down" },
+});

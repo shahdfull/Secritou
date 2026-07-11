@@ -4,10 +4,10 @@
 
 // The four canonical poles, matching the names seeded for each company.
 export const SERVICE_NAMES = [
-  "Business Performance",
-  "Digital Growth",
-  "Technology Solutions",
-  "AI & Automation",
+  "Management & Performance",
+  "Croissance digitale",
+  "Technologie",
+  "IA & Automatisation",
 ] as const;
 
 export type ServiceName = (typeof SERVICE_NAMES)[number];
@@ -15,10 +15,10 @@ export type ServiceName = (typeof SERVICE_NAMES)[number];
 // serviceType (form) → Service.name. Identity mapping today since the form values already
 // match the pole names, but kept explicit so the two can diverge without breaking the bridge.
 const SERVICE_TYPE_TO_NAME: Record<string, ServiceName | null> = {
-  "Business Performance": "Business Performance",
-  "Digital Growth": "Digital Growth",
-  "Technology Solutions": "Technology Solutions",
-  "AI & Automation": "AI & Automation",
+  "Management & Performance": "Management & Performance",
+  "Croissance digitale": "Croissance digitale",
+  "Technologie": "Technologie",
+  "IA & Automatisation": "IA & Automatisation",
   Other: null,
 };
 

@@ -32,6 +32,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { toast } from "sonner";
+import { DEFAULT_CURRENCY } from "@/lib/currencies";
 
 interface CreateInvoiceDialogProps {
   open: boolean;
@@ -66,7 +67,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
       title: values.title,
       description: values.description,
       amount: values.amount,
-      currency: "TND",
+      currency: DEFAULT_CURRENCY,
       dueDate: values.dueDate || undefined,
       clientId: values.clientId,
     }, {
@@ -128,24 +129,26 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="amount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("invoices.createDialog.amountLabel")}</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      placeholder="0.00"
-                      {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-1 gap-4">
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("invoices.createDialog.amountLabel")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="0.00"
+                        {...field}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <FormField
               control={form.control}
               name="dueDate"

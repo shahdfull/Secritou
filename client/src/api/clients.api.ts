@@ -28,6 +28,16 @@ export const clientsApi = {
     await apiClient.delete(`/clients/${id}`);
   },
 
+  restore: async (id: string): Promise<Client> => {
+    const response = await apiClient.post<ApiResponse<Client>>(`/clients/${id}/restore`);
+    return response.data.data;
+  },
+
+  getTrash: async (params: ListQueryParams & { includeArchived?: boolean } = {}): Promise<PaginatedResponse<Client>> => {
+    const response = await apiClient.get<PaginatedResponse<Client>>("/clients/trash", { params });
+    return response.data;
+  },
+
   archive: async (id: string): Promise<Client> => {
     const response = await apiClient.post<ApiResponse<Client>>(`/clients/${id}/archive`);
     return response.data.data;

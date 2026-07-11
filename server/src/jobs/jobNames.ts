@@ -1,6 +1,7 @@
 export const queueNames = {
   communication: "communication",
   maintenance: "maintenance",
+  documents: "documents",
 } as const;
 
 export const jobNames = {
@@ -17,4 +18,11 @@ export const jobNames = {
   checkInvoiceFollowup: "check-invoice-followup",
   weeklyCeoReport: "weekly-ceo-report",
   checkTaskDeadlines: "check-task-deadlines",
+  checkOverdueTasks: "check-overdue-tasks",
+  checkMeetingReminders: "check-meeting-reminders",
+  generateDocument: "generate-document",
+  syncSearchConsole: "sync-search-console",
+  pruneAnalyticsEvents: "prune-analytics-events",
+  checkStaleLeads: "check-stale-leads",
+  checkPendingCommissions: "check-pending-commissions",
 } as const;

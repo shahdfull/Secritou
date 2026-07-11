@@ -1,26 +1,35 @@
 import { Router } from "express";
-import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, archiveProject, getMyProjects, getTimelineStatus, getBrief, submitBrief, clientApproveProject } from "../controllers/project.controller.js";
+import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, archiveProject, getDeletedProjects, restoreProject, getMyProjects, getTimelineStatus, getBrief, submitBrief, clientApproveProject } from "../controllers/project.controller.js";
 import { getHealthBoard } from "../controllers/healthBoard.controller.js";
-import { createTimeEntry, listTimeEntries, getTimeSummary } from "../controllers/timeEntry.controller.js";
+import { createTimeEntry, listTimeEntries, getTimeSummary, getMyTimeSummary } from "../controllers/timeEntry.controller.js";
+import { listProjectMeetings, createProjectMeeting, getMeetingSchedule, updateMeetingSchedule } from "../controllers/projectMeeting.controller.js";
+import { createProjectMeetingSchema, updateMeetingScheduleSchema } from "../validators/projectMeeting.validator.js";
+import { applyTemplateToProject } from "../controllers/projectTemplate.controller.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { createProjectSchema, updateProjectSchema } from "../validators/project.validator.js";
 import { createTimeEntrySchema } from "../validators/timeEntry.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
-import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
+import { authorize, requirePermission, requireActivatedPortal } from "../middlewares/rbac.middleware.js";
 const router = Router();
 
-router.get("/health-board", authenticate, authorize("ADMIN"), getHealthBoard);
-router.get("/my", authenticate, authorize("CLIENT"), getMyProjects);
+router.get("/health-board", authenticate, authorize("ADMIN", "MANAGER"), requirePermission("projects", "read"), getHealthBoard);
+// Ongoing project visibility is the cadrage's "Exécution & suivi" step, which comes after
+// the deposit is paid — gated.
+router.get("/my", authenticate, authorize("CLIENT"), requireActivatedPortal, getMyProjects);
+router.get("/trash", authenticate, authorize("ADMIN", "MANAGER"), requirePermission("projects", "read"), getDeletedProjects);
 
-// Timeline : accessible to CLIENT (own project only), MANAGER, ADMIN
+// Timeline : accessible to CLIENT (own project only), MANAGER, ADMIN — not gated, may be
+// needed to show progress (including the pending-payment step) before activation.
 router.get("/:id/timeline-status", authenticate, getTimelineStatus);
 
-// Brief questionnaire : CLIENT submits, MANAGER/ADMIN read
+// Brief questionnaire : CLIENT submits, MANAGER/ADMIN read. Submitting the brief is the
+// cadrage's "2e réunion de cadrage" step, which happens after the deposit is paid — gated.
 router.get("/:id/brief", authenticate, getBrief);
-router.post("/:id/brief/submit", authenticate, authorize("CLIENT"), submitBrief);
+router.post("/:id/brief/submit", authenticate, authorize("CLIENT"), requireActivatedPortal, submitBrief);
 
-// Client final approval : triggers project COMPLETED + balance invoice
-router.post("/:id/client-approve", authenticate, authorize("CLIENT"), clientApproveProject);
+// Client final approval : triggers project COMPLETED + balance invoice — deep in execution,
+// necessarily after the deposit is paid.
+router.post("/:id/client-approve", authenticate, authorize("CLIENT"), requireActivatedPortal, clientApproveProject);
 
 // Apply auth middleware to all admin/manager routes
 router.use(authenticate);
@@ -183,10 +192,23 @@ router.put("/:id", validate(updateProjectSchema), authorize("ADMIN", "MANAGER"),
  */
 router.delete("/:id", authorize("ADMIN"), deleteProject);
 router.post("/:id/archive", authorize("ADMIN"), archiveProject);
+router.post("/:id/restore", authorize("ADMIN"), restoreProject);
 
 // Time tracking
 router.post("/:id/time-entries", authorize("ADMIN", "MANAGER", "FREELANCER"), validate(createTimeEntrySchema), createTimeEntry);
 router.get("/:id/time-entries", authorize("ADMIN", "MANAGER", "FREELANCER"), listTimeEntries);
 router.get("/:id/time-summary", authorize("ADMIN"), getTimeSummary);
+router.get("/:id/my-time-summary", authorize("ADMIN", "MANAGER", "FREELANCER"), getMyTimeSummary);
+
+// Templates — apply the project's pole template as a one-shot bulk task creation
+router.post("/:id/apply-template", authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), applyTemplateToProject);
+
+// Meetings — lightweight log, ADMIN/MANAGER only (no client/freelancer visibility)
+router.get("/:id/meetings", authorize("ADMIN", "MANAGER"), requirePermission("projects", "read"), listProjectMeetings);
+router.post("/:id/meetings", authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(createProjectMeetingSchema), createProjectMeeting);
+
+// Recurring meeting cadence — drives the daily reminder job (checkMeetingReminders)
+router.get("/:id/meeting-schedule", authorize("ADMIN", "MANAGER"), requirePermission("projects", "read"), getMeetingSchedule);
+router.put("/:id/meeting-schedule", authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(updateMeetingScheduleSchema), updateMeetingSchedule);
 
 export default router;

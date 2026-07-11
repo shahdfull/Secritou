@@ -16,6 +16,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { PROJECT_STATUS_LABELS_FR } from "@secritou/shared";
+import { getProjectStatusBadgeClass } from "@/utils/statusColors";
 import { ProjectTimeline } from "./components/ProjectTimeline";
 
 interface ClientProject {
@@ -26,35 +28,11 @@ interface ClientProject {
   clientApprovedAt?: string | null;
 }
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "PLANNING":
-      return "bg-blue-100 text-blue-800";
-    case "IN_PROGRESS":
-      return "bg-yellow-100 text-yellow-800";
-    case "REVIEW":
-      return "bg-purple-100 text-purple-800";
-    case "COMPLETED":
-      return "bg-green-100 text-green-800";
-    default:
-      return "bg-gray-100 text-gray-800";
-  }
-};
+const getStatusColor = getProjectStatusBadgeClass;
 
-const getStatusText = (status: string) => {
-  switch (status) {
-    case "PLANNING":
-      return "Planification";
-    case "IN_PROGRESS":
-      return "En cours";
-    case "REVIEW":
-      return "En revue";
-    case "COMPLETED":
-      return "Terminé";
-    default:
-      return status;
-  }
-};
+function getStatusText(status: string) {
+  return PROJECT_STATUS_LABELS_FR[status as keyof typeof PROJECT_STATUS_LABELS_FR] ?? status;
+}
 
 function useMyProjects() {
   return useQuery({

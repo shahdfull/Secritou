@@ -1,8 +1,10 @@
 import { prismaRead } from "../../config/prisma.js";
 import { userRepository } from "../../repositories/user.repository.js";
+import { projectMeetingRepository } from "../../repositories/projectMeeting.repository.js";
 import { enqueueNotifications, enqueueEmail } from "../queues.js";
 import { recordBullMQJob } from "../../observability/collectors.js";
 import { env } from "../../config/env.js";
+import { invoiceService } from "../../services/invoice.service.js";
 
 function diffDays(a: Date, b: Date) {
   return Math.round((b.getTime() - a.getTime()) / 86_400_000);
@@ -118,22 +120,34 @@ export async function checkOverdueDeadlines() {
 }
 
 // ── check-invoice-followup ───────────────────────────────────────────────────
-// Every Monday 09:00 — SENT invoices without payment for > 14 days
+// Every Monday 09:00 — SENT/PARTIAL invoices without full payment for > 7 days.
+// Auto-sends a tiered client reminder (FIRST/SECOND/FINAL at 7/14/30 days overdue),
+// deduplicated against InvoiceReminder so each tier is only ever sent once per invoice.
+function reminderTierForDaysOverdue(daysOverdue: number): "FIRST" | "SECOND" | "FINAL" | null {
+  if (daysOverdue >= 30) return "FINAL";
+  if (daysOverdue >= 14) return "SECOND";
+  if (daysOverdue >= 7) return "FIRST";
+  return null;
+}
+
 export async function checkInvoiceFollowup() {
   const start = performance.now();
-  const cutoff = new Date(Date.now() - 14 * 86_400_000);
+  const cutoff = new Date(Date.now() - 7 * 86_400_000);
 
   const invoices = await prismaRead.invoice.findMany({
     where: {
-      status: "SENT",
+      status: { in: ["SENT", "PARTIAL"] },
       createdAt: { lt: cutoff },
+      reminderPaused: false,
     },
     select: {
       id: true,
       number: true,
       amount: true,
       currency: true,
+      createdAt: true,
       client: { select: { name: true } },
+      reminders: { select: { type: true } },
     },
   });
 
@@ -146,6 +160,13 @@ export async function checkInvoiceFollowup() {
   const notifications: Parameters<typeof enqueueNotifications>[0] = [];
 
   for (const inv of invoices) {
+    const daysOverdue = diffDays(inv.createdAt, new Date());
+    const tier = reminderTierForDaysOverdue(daysOverdue);
+    const alreadySent = tier ? inv.reminders.some((r) => r.type === tier) : true;
+    if (tier && !alreadySent) {
+      await invoiceService.addReminder(inv.id, tier);
+    }
+
     const invoiceUrl = `${env.FRONTEND_URL}/app/commercial?tab=invoices`;
     for (const admin of admins) {
       notifications.push({
@@ -296,4 +317,240 @@ export async function checkTaskDeadlines() {
   if (notifications.length > 0) await enqueueNotifications(notifications);
   recordBullMQJob("maintenance", "check-task-deadlines", "completed", (performance.now() - start) / 1000);
   return notifications.length;
+}
+
+// ── check-overdue-tasks ──────────────────────────────────────────────────────
+// Daily 09:00 — tasks whose dueDate has already passed and are still not DONE.
+// checkTaskDeadlines (above) only warns *before* the deadline for freelancers; once a
+// task is actually late, nobody was being notified at all until this job. Notifies the
+// assignee (any role) plus admins and the manager(s) of the task's own pole — not every
+// manager in the company. Deduplicated so each task alerts at most once per calendar day.
+export async function checkOverdueTasks() {
+  const start = performance.now();
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const tasks = await prismaRead.task.findMany({
+    where: {
+      status: { not: "DONE" },
+      dueDate: { lt: now },
+    },
+    select: {
+      id: true,
+      title: true,
+      dueDate: true,
+      assigneeId: true,
+      projectId: true,
+      project: { select: { serviceId: true } },
+    },
+  });
+
+  if (tasks.length === 0) {
+    recordBullMQJob("maintenance", "check-overdue-tasks", "completed", (performance.now() - start) / 1000);
+    return 0;
+  }
+
+  const taskIds = tasks.map((t) => t.id);
+  const alreadySentToday = await prismaRead.notification.findMany({
+    where: {
+      type: "TASK_OVERDUE",
+      entityId: { in: taskIds },
+      createdAt: { gte: todayStart },
+    },
+    select: { entityId: true },
+  });
+  const sentTaskIds = new Set(alreadySentToday.map((n) => n.entityId));
+
+  // Cache pole staff per serviceId so each pole is only queried once, not once per task.
+  const poleStaffCache = new Map<string, string[]>();
+  async function poleStaffIds(serviceId: string | null): Promise<string[]> {
+    const cacheKey = serviceId ?? "__none__";
+    const cached = poleStaffCache.get(cacheKey);
+    if (cached) return cached;
+    const staff = await userRepository.findAdminsAndPoleManagers(serviceId);
+    const ids = staff.map((u) => u.id);
+    poleStaffCache.set(cacheKey, ids);
+    return ids;
+  }
+
+  const notifications: Parameters<typeof enqueueNotifications>[0] = [];
+  const taskUrl = `${env.FRONTEND_URL}/app/tasks`;
+
+  for (const task of tasks) {
+    if (sentTaskIds.has(task.id)) continue;
+    const dueDate = new Date(task.dueDate!);
+    const daysOverdue = diffDays(dueDate, now);
+    const message = `La tâche « ${task.title} » est en retard de ${daysOverdue} jour(s).`;
+
+    const recipientIds = new Set<string>();
+    if (task.assigneeId) recipientIds.add(task.assigneeId);
+    for (const userId of await poleStaffIds(task.project?.serviceId ?? null)) recipientIds.add(userId);
+
+    for (const userId of recipientIds) {
+      notifications.push({
+        userId,
+        title: "🔴 Tâche en retard",
+        message,
+        type: "TASK_OVERDUE" as const,
+        entityId: task.id,
+        link: taskUrl,
+      });
+    }
+  }
+
+  if (notifications.length > 0) await enqueueNotifications(notifications);
+  recordBullMQJob("maintenance", "check-overdue-tasks", "completed", (performance.now() - start) / 1000);
+  return notifications.length;
+}
+
+// ── check-meeting-reminders ──────────────────────────────────────────────────
+// Daily — projects with a recurring meeting cadence (Project.meetingFrequency != NONE)
+// whose nextMeetingDate falls within the reminder window get a one-time notification
+// to the client's users and the pole's ADMIN/MANAGER staff, then nextMeetingDate is
+// advanced to the following cadence-aligned occurrence so the same meeting isn't
+// reminded twice and the schedule keeps rolling forward automatically.
+export async function checkMeetingReminders() {
+  const start = performance.now();
+  const now = new Date();
+  const windowEnd = new Date(now.getTime() + env.MEETING_REMINDER_DAYS * 86_400_000);
+
+  const dueProjects = await projectMeetingRepository.findDueForReminder(now, windowEnd);
+
+  if (dueProjects.length === 0) {
+    recordBullMQJob("maintenance", "check-meeting-reminders", "completed", (performance.now() - start) / 1000);
+    return 0;
+  }
+
+  const notifications: Parameters<typeof enqueueNotifications>[0] = [];
+
+  for (const project of dueProjects) {
+    const recipientIds = new Set<string>();
+    if (project.clientId) {
+      const clientUsers = await userRepository.findByClientId(project.clientId);
+      for (const user of clientUsers) recipientIds.add(user.id);
+    }
+    for (const user of await userRepository.findAdminsAndPoleManagers(project.serviceId ?? null)) {
+      recipientIds.add(user.id);
+    }
+
+    const dateLabel = project.nextMeetingDate!.toLocaleDateString("fr-FR");
+    const link = `${env.FRONTEND_URL}/app/projects/${project.id}`;
+    for (const userId of recipientIds) {
+      notifications.push({
+        userId,
+        title: "📅 Réunion à venir",
+        message: `Le prochain point du projet « ${project.name} » est prévu le ${dateLabel}.`,
+        type: "MEETING_REMINDER" as const,
+        entityId: project.id,
+        link,
+      });
+    }
+
+    await projectMeetingRepository.advanceToNextOccurrence(project.id, project.nextMeetingDate!);
+  }
+
+  if (notifications.length > 0) await enqueueNotifications(notifications);
+  recordBullMQJob("maintenance", "check-meeting-reminders", "completed", (performance.now() - start) / 1000);
+  return notifications.length;
+}
+
+// ── check-stale-leads ───────────────────────────────────────────────────────
+// Daily 08:15 — leads NEW/CONTACTED/QUALIFIED/PROPOSAL with no activity for > 14 days
+export async function checkStaleLeads() {
+  const start = performance.now();
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - 14 * 86_400_000);
+
+  const staleLeads = await prismaRead.lead.findMany({
+    where: {
+      archivedAt: null,
+      status: { in: ["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL"] },
+      updatedAt: { lt: cutoff },
+    },
+    select: { id: true, name: true, status: true, updatedAt: true },
+  });
+
+  if (staleLeads.length === 0) {
+    recordBullMQJob("maintenance", "check-stale-leads", "completed", (performance.now() - start) / 1000);
+    return 0;
+  }
+
+  const admins = await userRepository.findAdmins();
+  const notifications: Parameters<typeof enqueueNotifications>[0] = [];
+
+  for (const lead of staleLeads) {
+    const daysSince = diffDays(lead.updatedAt, now);
+    const leadUrl = `${env.FRONTEND_URL}/app/leads`;
+    const statusLabel = {
+      NEW: "nouveau",
+      CONTACTED: "contacté",
+      QUALIFIED: "qualifié",
+      PROPOSAL: "proposition envoyée",
+    }[lead.status as keyof typeof lead.status];
+
+    for (const admin of admins) {
+      notifications.push({
+        userId: admin.id,
+        title: "Lead inactif",
+        message: `Le lead « ${lead.name} » (${statusLabel}) n'a pas eu d'activité depuis ${daysSince} jours.`,
+        type: "GENERAL" as const,
+        entityId: lead.id,
+        link: leadUrl,
+      });
+    }
+  }
+
+  await enqueueNotifications(notifications);
+  recordBullMQJob("maintenance", "check-stale-leads", "completed", (performance.now() - start) / 1000);
+  return staleLeads.length;
+}
+
+// ── check-pending-commissions ─────────────────────────────────────────────────
+// Daily 08:30 — commissions pending for > 14 days
+export async function checkPendingCommissions() {
+  const start = performance.now();
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - 14 * 86_400_000);
+
+  const pendingCommissions = await prismaRead.commission.findMany({
+    where: {
+      status: "PENDING",
+      createdAt: { lt: cutoff },
+    },
+    select: {
+      id: true,
+      partnerId: true,
+      amount: true,
+      createdAt: true,
+      invoice: { select: { number: true } },
+      partner: { select: { name: true } },
+    },
+  });
+
+  if (pendingCommissions.length === 0) {
+    recordBullMQJob("maintenance", "check-pending-commissions", "completed", (performance.now() - start) / 1000);
+    return 0;
+  }
+
+  const admins = await userRepository.findAdmins();
+  const notifications: Parameters<typeof enqueueNotifications>[0] = [];
+  const commissionUrl = `${env.FRONTEND_URL}/admin/commissions`;
+
+  for (const commission of pendingCommissions) {
+    const daysSince = diffDays(new Date((commission as any).createdAt), now);
+    for (const admin of admins) {
+      notifications.push({
+        userId: admin.id,
+        title: "Commission en attente",
+        message: `La commission de ${Number(commission.amount).toFixed(3)} pour ${commission.partner?.name ?? "le partenaire"} (${commission.invoice?.number ?? ""}) est en attente depuis ${daysSince} jours.`,
+        type: "GENERAL" as const,
+        entityId: commission.id,
+        link: commissionUrl,
+      });
+    }
+  }
+
+  await enqueueNotifications(notifications);
+  recordBullMQJob("maintenance", "check-pending-commissions", "completed", (performance.now() - start) / 1000);
+  return pendingCommissions.length;
 }

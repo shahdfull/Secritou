@@ -27,11 +27,11 @@ function diffDays(a: Date, b: Date) {
 }
 
 export const healthBoardRepository = {
-  async getActiveProjectsHealth(): Promise<ProjectHealthItem[]> {
+  async getActiveProjectsHealth(serviceId?: string): Promise<ProjectHealthItem[]> {
     const now = new Date();
 
     const projects = await prismaRead.project.findMany({
-      where: { archivedAt: null, status: { notIn: ["COMPLETED"] } },
+      where: { archivedAt: null, status: { notIn: ["COMPLETED"] }, ...(serviceId ? { serviceId } : {}) },
       select: {
         id: true,
         name: true,

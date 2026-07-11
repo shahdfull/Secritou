@@ -3,6 +3,7 @@ import { createClient } from "redis";
 import { prisma } from "../config/prisma.js";
 import { authRoutes } from "./auth.routes.js";
 import { contactRoutes } from "./contact.routes.js";
+import bookingRoutes from "./booking.routes.js";
 import { dashboardRoutes } from "./dashboard.routes.js";
 import clientRoutes from "./client.routes.js";
 import leadRoutes from "./lead.routes.js";
@@ -10,6 +11,7 @@ import projectRoutes from "./project.routes.js";
 import taskRoutes from "./task.routes.js";
 import freelancerRoutes from "./freelancer.routes.js";
 import analyticsRoutes from "./analytics.routes.js";
+import analyticsEventRoutes from "./analyticsEvent.routes.js";
 import serviceRequestRoutes from "./serviceRequest.routes.js";
 import notificationRoutes from "./notification.routes.js";
 import documentRoutes from "./document.routes.js";
@@ -21,6 +23,8 @@ import clientOnboardingRoutes from "./clientOnboarding.routes.js";
 import proposalRoutes from "./proposal.routes.js";
 import approvalRoutes from "./approval.routes.js";
 import invoiceRoutes from "./invoice.routes.js";
+import commissionRoutes from "./commission.routes.js";
+import gscConnectionRoutes from "./gscConnection.routes.js";
 import clientSuccessRoutes from "./clientSuccess.routes.js";
 import summaryRoutes from "./summary.routes.js";
 import uploadRoutes from "./upload.routes.js";
@@ -31,6 +35,8 @@ import managerPermissionRoutes from "./managerPermission.routes.js";
 import ratingRoutes from "./rating.routes.js";
 import portfolioRoutes from "./portfolio.routes.js";
 import { siteContentPublicRoutes, siteContentAdminRoutes } from "./siteContent.routes.js";
+import clientPortalRoutes from "./clientPortal.routes.js";
+import serviceRoutes from "./service.routes.js";
 
 export const apiRoutes = Router();
 
@@ -130,6 +136,7 @@ apiRoutes.get("/health/ready", async (_req, res) => {
 
 // Public routes
 apiRoutes.use("/contact", contactRoutes);
+apiRoutes.use("/booking", bookingRoutes);
 apiRoutes.use("/auth", authRoutes);
 apiRoutes.use("/dashboard", dashboardRoutes);
 apiRoutes.use("/freelancer-applications", freelancerApplicationRoutes);
@@ -147,7 +154,12 @@ apiRoutes.use("/users", userRoutes);
 // Freelancer profile routes
 apiRoutes.use("/freelancers", freelancerRoutes);
 
-// Analytics routes
+// Analytics routes : event routes (public POST /events, public-adjacent GET /events/summary)
+// must be mounted before the authenticated dashboard analytics router. Both share the
+// "/analytics" prefix, and analyticsRoutes applies `router.use(authenticate)` to every path
+// under it — mounted first, it would intercept and 401 requests before analyticsEventRoutes
+// ever sees them, even though those specific paths don't match any route inside it.
+apiRoutes.use("/analytics", analyticsEventRoutes);
 apiRoutes.use("/analytics", analyticsRoutes);
 
 // Service Request routes
@@ -161,6 +173,10 @@ apiRoutes.use("/ai", aiRoutes);
 apiRoutes.use("/proposals", proposalRoutes);
 apiRoutes.use("/approvals", approvalRoutes);
 apiRoutes.use("/invoices", invoiceRoutes);
+apiRoutes.use("/commissions", commissionRoutes);
+apiRoutes.use("/client-portal", clientPortalRoutes);
+apiRoutes.use("/services", serviceRoutes);
+apiRoutes.use("/integrations/gsc", gscConnectionRoutes);
 // Redirect legacy enhanced-documents route to documents
 apiRoutes.use("/enhanced-documents", (req, res) => {
   const path = req.originalUrl.replace("/enhanced-documents", "/documents");

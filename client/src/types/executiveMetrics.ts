@@ -20,7 +20,7 @@ export interface ForecastKPIs {
   next90: number;
   overdueCarryover: number;
   proposalPipeline: number;
-  conversionRate: number;
+  proposalWinRate: number;
   confidenceScore: number;
 }
 

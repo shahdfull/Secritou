@@ -28,12 +28,20 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import {
+  createProjectSchema,
+  updateProjectSchema,
+  type CreateProjectForm,
+  type UpdateProjectForm,
+  PROJECT_STATUS_VALID_TRANSITIONS,
+} from "@secritou/shared";
 import {
   useProjects,
   useCreateProject,
   useUpdateProject,
   useDeleteProject,
+  useRestoreProject,
+  useProjectTrash,
 } from "@/hooks/useProjects";
 import type { Project } from "@/types/project";
 import {
@@ -70,20 +78,8 @@ import { usePermission } from "@/hooks/usePermission";
 import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialog";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/auth.store";
-
-const createProjectSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  description: z.string().optional(),
-  // All four statuses are valid: the create dialog only surfaces PLANNING/IN_PROGRESS,
-  // but the shared edit form resets from an existing project that may be REVIEW/COMPLETED.
-  status: z.enum(["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED"]).default("PLANNING"),
-  clientId: z.string().min(1, "Un client est requis"),
-});
-
-const updateProjectSchema = createProjectSchema.partial();
-
-type CreateProjectForm = z.infer<typeof createProjectSchema>;
-type UpdateProjectForm = z.infer<typeof updateProjectSchema>;
+import { useDebouncedValue } from "@/hooks/shared/useDebouncedValue";
+import { useCrudDialogState } from "@/hooks/shared/useCrudDialogState";
 
 function ProjectGrid({
   projects,
@@ -99,7 +95,7 @@ function ProjectGrid({
   clientById: Map<string, { id: string; name: string }>;
   getStatusBadgeClass: (status: string) => string;
   getStatusLabel: (status: string) => string;
-  t: (key: string) => string;
+  t: (key: string, options?: any) => string;
   canDelete: boolean;
   onEdit: (p: Project) => void;
   onDelete: (p: Project) => void;
@@ -107,7 +103,7 @@ function ProjectGrid({
   if (projects.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-sm text-muted-foreground">Aucun projet dans cette catégorie.</p>
+        <p className="text-sm text-muted-foreground">{t("projectsPage.noProjectsInCategory")}</p>
       </div>
     );
   }
@@ -151,7 +147,7 @@ function ProjectGrid({
                 </div>
                 <Progress value={project.progress} className="h-2 bg-primary-soft [&>div]:bg-primary" />
                 <p className="text-[11px] text-muted-foreground">
-                  Basé sur les tâches complétées ({project.taskDone}/{project.taskTotal})
+                  {t("projectsPage.basedOnCompletedTasks", { done: project.taskDone, total: project.taskTotal })}
                 </p>
               </div>
             </CardContent>
@@ -168,19 +164,27 @@ export function ProjectsPage() {
   const isFreelancer = currentUser?.role === "FREELANCER";
   const canCreate = usePermission("projects", "create");
   const canDelete = usePermission("projects", "delete");
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
+
+  const {
+    createDialogOpen,
+    editDialogOpen,
+    editingEntity: editingProject,
+    openCreateDialog,
+    closeCreateDialog,
+    openEditDialog,
+    closeEditDialog,
+  } = useCrudDialogState<Project>();
 
   const { page, pageSize, orderBy, orderDir, search, params, setPage, setSearch, updateParams } = useListParams(12);
   const { data: projectsResult, isLoading: projectsLoading } = useProjects({ ...params, search });
   const { data: clientsResult, isLoading: clientsLoading } = useClients({ page: 1, pageSize: 100 });
   const [searchInput, setSearchInput] = useState(search ?? "");
+  const debouncedSearch = useDebouncedValue(searchInput, 300);
+
   useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchInput), 300);
-    return () => clearTimeout(timer);
-  }, [searchInput, setSearch]);
+    setSearch(debouncedSearch);
+  }, [debouncedSearch, setSearch]);
 
   const projects = projectsResult?.data ?? [];
   const total = projectsResult?.total ?? 0;
@@ -192,6 +196,8 @@ export function ProjectsPage() {
   const { mutate: createProject, isPending: isCreating } = useCreateProject();
   const { mutate: updateProject, isPending: isUpdating } = useUpdateProject();
   const { mutate: deleteProject, isPending: isDeleting } = useDeleteProject();
+  const { mutate: restoreProject, isPending: isRestoring } = useRestoreProject();
+  const { data: trashResult, isLoading: trashLoading } = useProjectTrash({ ...params, search });
 
   const clientById = useMemo(() => {
     const map = new Map<string, (typeof clients)[number]>();
@@ -200,9 +206,10 @@ export function ProjectsPage() {
   }, [clients]);
 
   const filteredProjects = projects;
+  const trashedProjects = trashResult?.data ?? [];
 
   const createForm = useForm<CreateProjectForm>({
-    resolver: zodResolver(createProjectSchema) as any,
+    resolver: zodResolver(createProjectSchema),
     defaultValues: {
       name: "",
       description: "",
@@ -212,26 +219,25 @@ export function ProjectsPage() {
   });
 
   const editForm = useForm<UpdateProjectForm>({
-    resolver: zodResolver(updateProjectSchema) as any,
+    resolver: zodResolver(updateProjectSchema),
   });
 
   const handleCreate = useCallback(async (data: CreateProjectForm) => {
     createProject(data, {
       onSuccess: () => {
-        setCreateDialogOpen(false);
+        closeCreateDialog();
         createForm.reset();
       },
     });
-  }, [createForm, createProject]);
+  }, [createForm, createProject, closeCreateDialog]);
 
   const handleEdit = useCallback((project: Project) => {
-    setEditingProject(project);
+    openEditDialog(project);
     editForm.reset({
       ...project,
       clientId: project.clientId || "",
     });
-    setEditDialogOpen(true);
-  }, [editForm]);
+  }, [editForm, openEditDialog]);
 
   const handleUpdate = useCallback(async (data: UpdateProjectForm) => {
     if (!editingProject) return;
@@ -239,26 +245,29 @@ export function ProjectsPage() {
       { id: editingProject.id, data },
       {
         onSuccess: () => {
-          setEditDialogOpen(false);
-          setEditingProject(null);
+          closeEditDialog();
         },
         onError: (error: any) => {
           const errorCode = error?.response?.data?.error?.code;
           if (errorCode === "COMPLETION_REQUIRES_CLIENT_APPROVAL") {
-            toast.error("Ce projet ne peut être complété que via l'approbation du client.");
+            toast.error(t("projectsPage.projectCompletionRequiresApproval"));
           } else if (errorCode === "INVALID_STATUS_TRANSITION") {
-            toast.error("Transition de statut invalide.");
+            toast.error(t("projectsPage.invalidStatusTransition"));
           } else {
-            toast.error("Une erreur est survenue lors de la mise à jour.");
+            toast.error(t("projectsPage.errorUpdatingProject"));
           }
         },
       }
     );
-  }, [editingProject, updateProject]);
+  }, [editingProject, updateProject, closeEditDialog, t]);
 
   const handleDelete = useCallback((project: Project) => {
     setDeleteTarget(project);
   }, []);
+
+  const handleRestore = useCallback((project: Project) => {
+    restoreProject(project.id);
+  }, [restoreProject]);
 
   const handleConfirmDelete = useCallback(() => {
     if (!deleteTarget) return;
@@ -267,16 +276,16 @@ export function ProjectsPage() {
       onError: (error: any) => {
         const errorCode = error?.response?.data?.error?.code;
         if (errorCode === "PROJECT_HAS_INVOICES") {
-          toast.error("Ce projet a des factures émises et ne peut pas être supprimé. Archivez-le.");
+          toast.error(t("projectsPage.projectHasInvoices"));
         } else if (errorCode === "PROJECT_HAS_ONBOARDING") {
-          toast.error("Ce projet a un onboarding et ne peut pas être supprimé. Archivez-le.");
+          toast.error(t("projectsPage.projectHasOnboarding"));
         } else {
-          toast.error("Une erreur est survenue lors de la suppression.");
+          toast.error(t("projectsPage.errorDeletingProject"));
         }
         setDeleteTarget(null);
       },
     });
-  }, [deleteTarget, deleteProject]);
+  }, [deleteTarget, deleteProject, t]);
 
   const getStatusBadgeClass = getProjectStatusBadgeClass;
 
@@ -307,24 +316,24 @@ export function ProjectsPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold text-ink">Projets</h1>
+          <h1 className="font-display text-2xl font-bold text-ink">{t("projectsPage.title")}</h1>
           <p className="text-muted-foreground">{t("projectsPage.subtitle")}</p>
         </div>
       </div>
       
       <Tabs defaultValue="projects">
         <TabsList className="bg-primary-soft/30 border border-primary/10">
-          <TabsTrigger value="projects">Projets</TabsTrigger>
-          <TabsTrigger value="tasks">Tâches</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="projects">{t("projectsPage.tabs.projects")}</TabsTrigger>
+          <TabsTrigger value="tasks">{t("projectsPage.tabs.tasks")}</TabsTrigger>
+          <TabsTrigger value="documents">{t("projectsPage.tabs.documents")}</TabsTrigger>
         </TabsList>
         
         <TabsContent value="projects" className="space-y-6 mt-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+            <Dialog open={createDialogOpen} onOpenChange={openCreateDialog}>
               {canCreate && (
                 <DialogTrigger asChild>
-                  <Button className="bg-ink text-white hover:bg-ink/90 rounded-full">
+                  <Button className="bg-ink text-white hover:bg-ink/90 rounded-full" onClick={openCreateDialog}>
                     <Plus className="h-4 w-4 mr-2" />
                     {t("projectsPage.newProject")}
                   </Button>
@@ -441,11 +450,11 @@ export function ProjectsPage() {
                 <SelectValue placeholder={t("common.sortBy")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="name-asc">Nom (A-Z)</SelectItem>
-                <SelectItem value="name-desc">Nom (Z-A)</SelectItem>
-                <SelectItem value="status-asc">Moins avancé en premier</SelectItem>
-                <SelectItem value="status-desc">Plus avancé en premier</SelectItem>
-                <SelectItem value="createdAt-desc">Plus récents</SelectItem>
+                <SelectItem value="name-asc">{t("common.sort.nameAsc")}</SelectItem>
+                <SelectItem value="name-desc">{t("common.sort.nameDesc")}</SelectItem>
+                <SelectItem value="status-asc">{t("projectsPage.sort.leastAdvancedFirst")}</SelectItem>
+                <SelectItem value="status-desc">{t("projectsPage.sort.mostAdvancedFirst")}</SelectItem>
+                <SelectItem value="createdAt-desc">{t("common.sort.mostRecent")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -455,7 +464,7 @@ export function ProjectsPage() {
             <Tabs defaultValue="active">
               <TabsList className="bg-muted/50 border border-border h-9">
                 <TabsTrigger value="active" className="text-xs h-7">
-                  En cours
+                  {t("projectsPage.subtabs.active")}
                   {activeProjects.length > 0 && (
                     <span className="ml-1.5 text-[10px] bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
                       {activeProjects.length}
@@ -463,7 +472,7 @@ export function ProjectsPage() {
                   )}
                 </TabsTrigger>
                 <TabsTrigger value="done" className="text-xs h-7">
-                  Terminés
+                  {t("projectsPage.subtabs.done")}
                   {doneProjects.length > 0 && (
                     <span className="ml-1.5 text-[10px] bg-muted-foreground/30 text-muted-foreground rounded-full px-1.5 py-0.5">
                       {doneProjects.length}
@@ -483,11 +492,40 @@ export function ProjectsPage() {
             <ProjectGrid projects={filteredProjects} clientById={clientById} getStatusBadgeClass={getStatusBadgeClass} getStatusLabel={getStatusLabel} t={t} canDelete={canDelete} onEdit={handleEdit} onDelete={handleDelete} />
           )}
 
+          <div className="space-y-4 rounded-xl border border-dashed p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold">{t("common.trash")}</h2>
+                <p className="text-sm text-muted-foreground">{t("projectsPage.trashDesc")}</p>
+              </div>
+            </div>
+            {trashLoading ? (
+              <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
+            ) : trashedProjects.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("projectsPage.trashEmpty")}</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {trashedProjects.map((project) => (
+                  <Card key={project.id} className="border-dashed">
+                    <CardHeader>
+                      <div className="flex items-start justify-between gap-2">
+                        <CardTitle className="text-lg">{project.name}</CardTitle>
+                        <Button variant="secondary" size="sm" onClick={() => handleRestore(project)} disabled={isRestoring}>
+                          {t("common.restore")}
+                        </Button>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
           <DataTablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} />
 
           {/* Edit Dialog */}
           {editingProject && (
-            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+            <Dialog open={editDialogOpen} onOpenChange={closeEditDialog}>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>{t("projectsPage.editProject")}</DialogTitle>
@@ -525,14 +563,9 @@ export function ProjectsPage() {
                       control={editForm.control}
                       name="status"
                       render={({ field }) => {
-                        // Define valid options based on current status
-                        const validOptions: Record<string, string[]> = {
-                          PLANNING: ["PLANNING", "IN_PROGRESS"],
-                          IN_PROGRESS: ["PLANNING", "IN_PROGRESS", "REVIEW"],
-                          REVIEW: ["IN_PROGRESS", "REVIEW"],
-                          COMPLETED: ["COMPLETED"],
-                        };
-                        const availableStatuses = editingProject ? (validOptions[editingProject.status] || [editingProject.status]) : ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED"];
+                        const availableStatuses = editingProject 
+                          ? ([editingProject.status, ...(PROJECT_STATUS_VALID_TRANSITIONS[editingProject.status as keyof typeof PROJECT_STATUS_VALID_TRANSITIONS] || [])] as const)
+                          : ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED"];
 
                         return (
                           <FormItem>
@@ -603,8 +636,8 @@ export function ProjectsPage() {
         open={!!deleteTarget}
         onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
         onConfirm={handleConfirmDelete}
-        title={`Supprimer "${deleteTarget?.name}" ?`}
-        description="Cette action est irréversible. Le projet sera définitivement supprimé."
+        title={`${t("projectsPage.deleteProjectTitle")} "${deleteTarget?.name}" ?`}
+        description={t("projectsPage.deleteProjectDesc")}
         isDeleting={isDeleting}
       />
     </div>

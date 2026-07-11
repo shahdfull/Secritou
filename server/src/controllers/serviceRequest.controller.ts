@@ -51,7 +51,8 @@ export const adminGetServiceRequests: RequestHandler = async (req, res, next) =>
 
 export const adminGetServiceRequestById: RequestHandler = async (req, res, next) => {
   try {
-    const request = await serviceRequestService.getServiceRequestById(req.params["id"] as string);
+    const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
+    const request = await serviceRequestService.getServiceRequestById(req.params["id"] as string, scope);
     res.json({ data: request });
   } catch (error) {
     next(error);
@@ -61,7 +62,8 @@ export const adminGetServiceRequestById: RequestHandler = async (req, res, next)
 export const adminUpdateServiceRequest: RequestHandler = async (req, res, next) => {
   try {
     const userId = req.user!.sub;
-    const request = await serviceRequestService.adminUpdateServiceRequest(req.params["id"] as string, userId, req.body);
+    const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
+    const request = await serviceRequestService.adminUpdateServiceRequest(req.params["id"] as string, userId, req.body, scope);
     res.json({ data: request });
   } catch (error) {
     next(error);
@@ -70,7 +72,8 @@ export const adminUpdateServiceRequest: RequestHandler = async (req, res, next) 
 
 export const adminDeleteServiceRequest: RequestHandler = async (req, res, next) => {
   try {
-    await serviceRequestService.deleteServiceRequest(req.params["id"] as string);
+    const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
+    await serviceRequestService.deleteServiceRequest(req.params["id"] as string, scope);
     res.status(204).send();
   } catch (error) {
     next(error);
@@ -80,8 +83,9 @@ export const adminDeleteServiceRequest: RequestHandler = async (req, res, next) 
 export const addComment: RequestHandler = async (req, res, next) => {
   try {
     const authorId = req.user!.sub;
+    const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
     const { body, isInternal } = req.body as { body: string; isInternal?: boolean };
-    const comment = await serviceRequestService.addComment(req.params["id"] as string, authorId, body, isInternal ?? false);
+    const comment = await serviceRequestService.addComment(req.params["id"] as string, authorId, body, isInternal ?? false, scope);
     res.status(201).json({ data: comment });
   } catch (error) {
     next(error);

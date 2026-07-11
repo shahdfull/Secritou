@@ -10,6 +10,7 @@ import { fileTypeFromBuffer } from "file-type";
 import { v4 as uuidv4 } from "uuid";
 import path from "path";
 import { env } from "../config/env.js";
+import logger from "../utils/logger.js";
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -37,6 +38,20 @@ const ALLOWED_MIME: Record<string, string> = {
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
   "text/plain": ".txt",
 };
+
+// MIME types with no reliable magic-byte signature (file-type returns undefined for these).
+// Only these are allowed to bypass content-sniffing; everything else must be detected and matched.
+const NO_MAGIC_BYTES_MIME = new Set(["text/plain"]);
+
+// Reject text/plain content that isn't actually plain text (binary bytes, null bytes, etc.)
+function looksLikePlainText(buffer: Buffer): boolean {
+  const sample = buffer.subarray(0, 8000);
+  for (const byte of sample) {
+    if (byte === 0) return false; // null byte : never valid in text
+    if (byte < 7 || (byte > 13 && byte < 32)) return false; // control chars outside whitespace
+  }
+  return true;
+}
 
 // Per-context allowed MIME subsets
 export const UPLOAD_CONTEXTS = {
@@ -76,6 +91,9 @@ function buildS3Client(): S3Client {
       secretAccessKey: env.S3_SECRET_ACCESS_KEY,
     };
   }
+  logger.info(
+    `File storage: ${ENDPOINT ? `S3-compatible endpoint ${ENDPOINT}` : "AWS S3"} (bucket: ${BUCKET || "<unset>"})`
+  );
   return new S3Client(cfg);
 }
 
@@ -162,25 +180,41 @@ export async function uploadFile(
 
   // Verify actual file content matches declared MIME type (defense against spoofed Content-Type)
   const detected = await fileTypeFromBuffer(buffer);
-  // Some text/plain files have no magic bytes : only reject if detection succeeds but doesn't match
-  if (detected && !ALLOWED_MIME[detected.mime]) {
-    throw Object.assign(
-      new Error(`Invalid file content (detected: ${detected.mime})`),
-      { statusCode: 415 }
-    );
-  }
-  if (detected && detected.mime !== mimeType) {
-    const allowed = UPLOAD_CONTEXTS[context] as readonly string[];
-    if (!allowed.includes(detected.mime)) {
+  if (detected) {
+    if (!ALLOWED_MIME[detected.mime]) {
       throw Object.assign(
-        new Error(
-          `File content (${detected.mime}) does not match declared type (${mimeType})`
-        ),
+        new Error(`Invalid file content (detected: ${detected.mime})`),
         { statusCode: 415 }
       );
     }
-    // Use the detected MIME instead of the client-supplied one
-    mimeType = detected.mime;
+    if (detected.mime !== mimeType) {
+      const allowed = UPLOAD_CONTEXTS[context] as readonly string[];
+      if (!allowed.includes(detected.mime)) {
+        throw Object.assign(
+          new Error(
+            `File content (${detected.mime}) does not match declared type (${mimeType})`
+          ),
+          { statusCode: 415 }
+        );
+      }
+      // Use the detected MIME instead of the client-supplied one
+      mimeType = detected.mime;
+    }
+  } else {
+    // No magic bytes detected: only allow declared types known to have none (e.g. text/plain).
+    // Anything else claiming a signed type (PDF, images, Office docs, zip) must be rejected.
+    if (!NO_MAGIC_BYTES_MIME.has(mimeType)) {
+      throw Object.assign(
+        new Error(`Could not verify file content for declared type "${mimeType}"`),
+        { statusCode: 415 }
+      );
+    }
+    if (mimeType === "text/plain" && !looksLikePlainText(buffer)) {
+      throw Object.assign(
+        new Error("File content does not look like plain text"),
+        { statusCode: 415 }
+      );
+    }
   }
 
   const resolvedFolder = folder ?? context;
@@ -220,8 +254,11 @@ export async function deleteFile(key: string): Promise<void> {
   if (!BUCKET || !key) return;
   try {
     await getS3().send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
-  } catch {
-    // Non-fatal: object may already be gone
+  } catch (s3Error: any) {
+    // Only ignore "no such key" errors (object already gone)
+    if (s3Error.name !== "NoSuchKey") {
+      logger.error({ err: s3Error, key }, "Failed to delete file from storage");
+    }
   }
 }
 

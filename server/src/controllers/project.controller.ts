@@ -20,6 +20,20 @@ export const getAllProjects: RequestHandler = async (req, res, next) => {
   }
 };
 
+export const getDeletedProjects: RequestHandler = async (req, res, next) => {
+  try {
+    const userId = req.user?.sub!;
+    const userRole = req.user?.role!;
+    const clientId = req.user?.clientId as string | undefined;
+    const options = parseListQuery(req.query as Record<string, unknown>);
+    const scope = userRole === "MANAGER" ? await buildServiceScope(req) : undefined;
+    const result = await projectService.getDeletedProjects(userId, userRole, options, clientId, scope?.userServiceId);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getProjectById: RequestHandler = async (req, res, next) => {
   try {
     const userId = req.user?.sub!;
@@ -57,6 +71,15 @@ export const deleteProject: RequestHandler = async (req, res, next) => {
   try {
     await projectService.deleteProject(req.params.id as string);
     res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const restoreProject: RequestHandler = async (req, res, next) => {
+  try {
+    const project = await projectService.restoreProject(req.params.id as string);
+    res.json({ data: project });
   } catch (error) {
     next(error);
   }

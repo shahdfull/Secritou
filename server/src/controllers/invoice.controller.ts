@@ -38,6 +38,12 @@ export const getInvoices = async (req: Request, res: Response) => {
   res.json(result);
 };
 
+export const getDeletedInvoices = async (req: Request, res: Response) => {
+  const options = { ...parseListQuery(req.query as Record<string, unknown>), clientId: textQuery(req.query.clientId), status: textQuery(req.query.status) as InvoiceStatus | undefined, search: textQuery(req.query.search) };
+  const result = await invoiceService.getDeleted(options);
+  res.json(result);
+};
+
 export const getInvoiceById = async (req: Request, res: Response) => {
   const invoice = await invoiceService.getById(req.params.id as string, await buildServiceScope(req));
   res.json({ data: invoice });
@@ -49,13 +55,13 @@ export const createInvoice = async (req: Request, res: Response) => {
 };
 
 export const updateInvoice = async (req: Request, res: Response) => {
-  const invoice = await invoiceService.update(req.params.id as string, req.body);
+  const invoice = await invoiceService.update(req.params.id as string, req.body, await buildServiceScope(req));
   res.json({ data: invoice });
 };
 
-export const deleteInvoice = async (req: Request, res: Response) => {
-  await invoiceService.delete(req.params.id as string);
-  res.status(204).send();
+export const setInvoiceReminderPaused = async (req: Request, res: Response) => {
+  const invoice = await invoiceService.setReminderPaused(req.params.id as string, req.body.reminderPaused, await buildServiceScope(req));
+  res.json({ data: invoice });
 };
 
 export const sendInvoice = async (req: Request, res: Response) => {
@@ -90,6 +96,16 @@ export const deleteInvoiceItem = async (req: Request, res: Response) => {
 
 export const cancelInvoice = async (req: Request, res: Response) => {
   const invoice = await invoiceService.cancel(req.params.id as string);
+  res.json({ data: invoice });
+};
+
+export const deleteInvoice = async (req: Request, res: Response) => {
+  const invoice = await invoiceService.delete(req.params.id as string);
+  res.json({ data: invoice });
+};
+
+export const restoreInvoice = async (req: Request, res: Response) => {
+  const invoice = await invoiceService.restore(req.params.id as string);
   res.json({ data: invoice });
 };
 

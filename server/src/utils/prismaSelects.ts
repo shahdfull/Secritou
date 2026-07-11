@@ -23,6 +23,7 @@ export const taskWithRelationsSelect = {
   description: true,
   status: true,
   priority: true,
+  startDate: true,
   dueDate: true,
   projectId: true,
   assigneeId: true,

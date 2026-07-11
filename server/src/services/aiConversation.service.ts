@@ -1,39 +1,13 @@
 import { aiConversationRepository } from "../repositories/aiConversation.repository.js";
-import { env } from "../config/env.js";
 import { HttpError } from "../utils/httpError.js";
+import { callOllama } from "./llm.client.js";
 
 const SYSTEM_PROMPT = `Tu es l'assistant IA de Secritou, une plateforme CRM pour agences digitales.
 Tu aides les administrateurs et managers à gérer leurs leads, clients, projets, tâches et freelancers.
 Réponds en français de manière concise et professionnelle.
 Si tu ne connais pas une information spécifique, indique-le honnêtement.`;
 
-async function callOpenAI(messages: { role: string; content: string }[]): Promise<string> {
-  if (!env.OPENAI_API_KEY) throw new HttpError(503, "AI service is not configured");
-
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${env.OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages,
-      max_tokens: 1000,
-      temperature: 0.7,
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new HttpError(502, `AI provider error: ${error}`);
-  }
-
-  const data = (await response.json()) as { choices: { message: { content: string } }[] };
-  return data.choices[0]?.message?.content ?? "Désolé, je n'ai pas pu générer de réponse.";
-}
-
-function toOpenAIRole(role: string): "user" | "assistant" | "system" {
+function toChatRole(role: string): "user" | "assistant" | "system" {
   return role.toUpperCase() === "ASSISTANT" ? "assistant" : role.toUpperCase() === "SYSTEM" ? "system" : "user";
 }
 
@@ -53,14 +27,11 @@ export const aiConversationService = {
     const title = firstMessage.slice(0, 60) + (firstMessage.length > 60 ? "…" : "");
     const conv = await aiConversationRepository.create(userId, title, persona);
 
-    // Persist user message, call OpenAI, persist reply
+    // Persist user message, call the LLM, persist reply
     await aiConversationRepository.addMessage(conv.id, "USER", firstMessage);
 
-    const history = [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: firstMessage },
-    ];
-    const reply = await callOpenAI(history);
+    const history = [{ role: "user", content: firstMessage }];
+    const reply = await callOllama(history, SYSTEM_PROMPT);
     const assistantMsg = await aiConversationRepository.addMessage(conv.id, "ASSISTANT", reply);
 
     return { conversation: conv, reply: assistantMsg };
@@ -72,14 +43,13 @@ export const aiConversationService = {
 
     await aiConversationRepository.addMessage(conv.id, "USER", content);
 
-    // Build history for OpenAI (last 20 messages to respect token limits)
+    // Build history for the LLM (last 20 messages to respect token limits)
     const recentMessages = conv.messages.slice(-20);
     const history = [
-      { role: "system", content: SYSTEM_PROMPT },
-      ...recentMessages.map((m) => ({ role: toOpenAIRole(m.role), content: m.content })),
+      ...recentMessages.map((m) => ({ role: toChatRole(m.role), content: m.content })),
       { role: "user", content },
     ];
-    const reply = await callOpenAI(history);
+    const reply = await callOllama(history, SYSTEM_PROMPT);
     const assistantMsg = await aiConversationRepository.addMessage(conv.id, "ASSISTANT", reply);
 
     return { reply: assistantMsg };

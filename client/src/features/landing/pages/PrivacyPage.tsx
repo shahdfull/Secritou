@@ -24,7 +24,11 @@ export function PrivacyPage() {
           <p>Nous collectons uniquement les données que vous nous transmettez volontairement :</p>
           <ul>
             <li>Via le formulaire de contact : nom, email, téléphone, entreprise, message.</li>
-            <li>Via des outils d'analyse (Google Analytics 4) : données de navigation anonymisées.</li>
+            <li>
+              Via notre outil d'analyse d'audience auto-hébergé : données de navigation
+              anonymisées (page consultée, référent), sans identifiant persistant ni profilage
+              entre visites.
+            </li>
           </ul>
           <p>
             Nous ne collectons aucune donnée sensible et nous ne revendons jamais vos informations à
@@ -53,9 +57,10 @@ export function PrivacyPage() {
 
           <h2>Cookies</h2>
           <p>
-            Nous utilisons des cookies analytiques (Google Analytics) pour mesurer l'audience du
-            site. Ces cookies ne collectent aucune donnée personnelle identifiable. Vous pouvez
-            désactiver les cookies dans les paramètres de votre navigateur.
+            Notre outil de mesure d'audience est auto-hébergé et ne dépose aucun cookie : un
+            identifiant de session temporaire est généré en mémoire à chaque visite et n'est
+            jamais conservé au-delà de la session en cours (pas de suivi d'un visiteur d'une
+            visite à l'autre). Ces données ne collectent aucune donnée personnelle identifiable.
           </p>
 
           <h2>Contact</h2>

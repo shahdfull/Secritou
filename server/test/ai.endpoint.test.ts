@@ -1,4 +1,4 @@
-
+#
 import test from "node:test";
 import assert from "node:assert/strict";
 import { authorize } from "../src/middlewares/rbac.middleware.js";

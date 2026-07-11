@@ -58,7 +58,8 @@ export const getApprovals = async (req: Request, res: Response) => {
 };
 
 export const getApprovalById = async (req: Request, res: Response) => {
-  const approval = await approvalService.getById(req.params.id as string);
+  const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
+  const approval = await approvalService.getById(req.params.id as string, scope);
   res.json({ data: approval });
 };
 
@@ -71,51 +72,62 @@ export const createApproval = async (req: Request, res: Response) => {
 };
 
 export const updateApproval = async (req: Request, res: Response) => {
-  const approval = await approvalService.update(req.params.id as string, req.body);
+  const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
+  const approval = await approvalService.update(req.params.id as string, req.body, scope);
   res.json({ data: approval });
 };
 
 export const deleteApproval = async (req: Request, res: Response) => {
-  await approvalService.delete(req.params.id as string);
+  const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
+  await approvalService.delete(req.params.id as string, scope);
   res.status(204).send();
 };
 
 export const approveApproval = async (req: Request, res: Response) => {
+  const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
   const approval = await approvalService.approve(
     req.params.id as string,
     req.body.comment,
-    req.user?.sub as string
+    req.user?.sub as string,
+    scope
   );
   res.json({ data: approval });
 };
 
 export const rejectApproval = async (req: Request, res: Response) => {
+  const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
   const approval = await approvalService.reject(
     req.params.id as string,
     req.body.comment,
-    req.user?.sub as string
+    req.user?.sub as string,
+    scope
   );
   res.json({ data: approval });
 };
 
 export const commentApproval = async (req: Request, res: Response) => {
+  const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
   const approval = await approvalService.comment(
     req.params.id as string,
     req.body.comment,
-    req.user?.sub as string
+    req.user?.sub as string,
+    scope
   );
   res.json({ data: approval });
 };
 
 export const addApprovalAttachment = async (req: Request, res: Response) => {
+  const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
   const attachment = await approvalService.addAttachment(
     req.params.id as string,
-    req.body
+    req.body,
+    scope
   );
   res.status(201).json({ data: attachment });
 };
 
 export const deleteApprovalAttachment = async (req: Request, res: Response) => {
-  await approvalService.deleteAttachment(req.params.attachmentId as string);
+  const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
+  await approvalService.deleteAttachment(req.params.attachmentId as string, scope);
   res.status(204).send();
 };

@@ -3,7 +3,7 @@ import logger from "../utils/logger.js";
 import { projectRepository } from "../repositories/project.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { clientRepository } from "../repositories/client.repository.js";
-import { enqueueNotifications } from "../jobs/queues.js";
+import { enqueueNotifications, enqueueDocumentGeneration } from "../jobs/queues.js";
 import type { CreateProjectDTO } from "../types/entities.js";
 import { HttpError } from "../utils/httpError.js";
 import type { Role } from "@prisma/client";
@@ -12,12 +12,13 @@ import type { ListQueryOptions } from "../utils/listQuery.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
 import { prisma, prismaRead } from "../config/prisma.js";
-import { documentGeneratorService } from "./documentGenerator.service.js";
 import { getBriefQuestions } from "../constants/briefQuestions.js";
 import { invoiceService } from "./invoice.service.js";
 import { emailService } from "./email.service.js";
 import { projectApprovedManagerTemplate, projectApprovedClientTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
+import { roundMoney } from "../utils/vat.js";
+import { PROJECT_STATUS_VALID_TRANSITIONS } from "@secritou/shared";
 
 export type TimelineStepStatus = "done" | "pending" | "locked";
 
@@ -33,10 +34,17 @@ export const projectService = {
     return projectRepository.findAll(userId, userRole, options, clientId, serviceId);
   },
 
+  async getDeletedProjects(userId: string, userRole: Role, options: ListQueryOptions, clientId?: string, serviceId?: string | null) {
+    return projectRepository.findDeleted(userId, userRole, options, clientId, serviceId);
+  },
+
   async getProjectById(id: string, userId: string, userRole: Role, clientId?: string, serviceId?: string | null) {
     const project = await projectRepository.findById(id, userId, userRole, clientId, serviceId);
     if (!project) throw new HttpError(404, "Project not found");
-    return project;
+    // Only meaningful for a project born from a proposal — a directly-created project
+    // was never expected to have a deposit invoice in the first place.
+    const hasDepositInvoice = project.proposalId ? await projectRepository.hasDepositInvoice(id) : true;
+    return { ...project, hasDepositInvoice };
   },
 
   async createProject(data: CreateProjectDTO, scope?: ServiceScope) {
@@ -66,30 +74,30 @@ export const projectService = {
       throw new HttpError(404, "Project not found");
     }
 
+    // Prevent MANAGER from changing serviceId or clientId
+    let safeData = { ...data };
+    if (scope?.userRole === "MANAGER") {
+      // For MANAGER, force serviceId to remain as original, and don't allow changing clientId
+      safeData.serviceId = project.serviceId ?? undefined;
+      delete safeData.clientId;
+    }
+
     // Validate status changes
-    if (data.status) {
+    if (safeData.status) {
       // Block COMPLETED via regular update (must use clientApprove)
-      if (data.status === "COMPLETED") {
+      if (safeData.status === "COMPLETED") {
         throw new HttpError(422, "Project can only be completed via client approval", "COMPLETION_REQUIRES_CLIENT_APPROVAL");
       }
 
-      // Define valid status transitions
-      const validTransitions: Record<string, string[]> = {
-        PLANNING: ["IN_PROGRESS"],
-        IN_PROGRESS: ["PLANNING", "REVIEW"],
-        REVIEW: ["IN_PROGRESS"],
-        COMPLETED: [], // No transitions from completed
-      };
-
       const currentStatus = project.status;
-      const newStatus = data.status;
+      const newStatus = safeData.status;
 
-      if (currentStatus !== newStatus && !validTransitions[currentStatus]?.includes(newStatus)) {
+      if (currentStatus !== newStatus && !PROJECT_STATUS_VALID_TRANSITIONS[currentStatus]?.includes(newStatus)) {
         throw new HttpError(422, `Invalid status transition from ${currentStatus} to ${newStatus}`, "INVALID_STATUS_TRANSITION");
       }
     }
 
-    const updated = await projectRepository.update(id, data);
+    const updated = await projectRepository.update(id, safeData);
 
     if (data.status && data.status !== project.status && project.clientId) {
       const clientUsers = await userRepository.findByClientId(project.clientId);
@@ -124,6 +132,16 @@ export const projectService = {
     return deleted;
   },
 
+  async restoreProject(id: string) {
+    const project = await prismaRead.project.findFirst({ where: { id, deletedAt: { not: null } }, select: { id: true, clientId: true } });
+    if (!project) throw new HttpError(404, "Project not found");
+    const restored = await projectRepository.restore(id);
+    const tagsToInvalidate = [cacheTags.company(), cacheTags.dashboard(), cacheTags.project(id)];
+    if (project.clientId) tagsToInvalidate.push(cacheTags.client(project.clientId));
+    await invalidateTags(tagsToInvalidate);
+    return restored;
+  },
+
   async archiveProject(id: string) {
     const project = await projectRepository.findByIdAdmin(id);
     if (!project) throw new HttpError(404, "Project not found");
@@ -137,10 +155,10 @@ export const projectService = {
   async getBrief(id: string, role: Role, clientId?: string) {
     const project = await prismaRead.project.findFirst({
       where: { id, ...(role === "CLIENT" ? { clientId: clientId ?? "__none__" } : {}) },
-      select: { id: true, name: true, serviceType: true, briefData: true, briefCompleted: true, briefCompletedAt: true, clientId: true },
+      select: { id: true, name: true, serviceType: true, briefData: true, briefCompleted: true, briefCompletedAt: true, clientId: true, service: { select: { name: true } } },
     });
     if (!project) throw new HttpError(404, "Project not found");
-    const questions = getBriefQuestions(project.serviceType);
+    const questions = getBriefQuestions(project.service?.name);
     return { project, questions };
   },
 
@@ -160,9 +178,9 @@ export const projectService = {
         const client = project.clientId ? await clientRepository.findById(project.clientId) : null;
         const docProject = { id: project.id, name: project.name, description: project.description ?? undefined, budget: project.budget ?? undefined, deadline: project.deadline ?? undefined, serviceId: project.serviceId ?? null };
         const docClient = client ? { id: client.id, name: client.name, email: client.email ?? undefined } : { id: clientId, name: "Client", email: undefined };
-        await documentGeneratorService.generateClientBrief(docProject, docClient, uploadedById);
+        await enqueueDocumentGeneration([{ kind: "clientBrief", project: docProject, client: docClient, uploadedById }]);
       } catch (err) {
-        logger.error({ err }, "[submitBrief] PDF generation failed");
+        logger.error({ err }, "[submitBrief] PDF enqueue failed");
       }
 
       try {
@@ -180,7 +198,7 @@ export const projectService = {
   async clientApprove(projectId: string, clientId: string, userId: string) {
     const preread = await prismaRead.project.findFirst({
       where: { id: projectId },
-      select: { id: true, name: true, clientId: true, status: true, clientApprovedAt: true, budget: true, client: { select: { id: true, name: true, email: true } }, proposal: { select: { id: true, amount: true, currency: true } }, invoices: { select: { id: true, title: true, invoiceType: true } } },
+      select: { id: true, name: true, clientId: true, status: true, clientApprovedAt: true, budget: true, client: { select: { id: true, name: true, email: true } }, proposal: { select: { id: true, amount: true, currency: true } }, invoices: { select: { id: true, title: true, invoiceType: true, status: true, amountHT: true } } },
     });
     if (!preread) throw new HttpError(404, "Project not found");
     if (preread.clientId !== clientId) throw new HttpError(403, "Forbidden");
@@ -192,29 +210,44 @@ export const projectService = {
       throw new HttpError(400, `${openTasks.length} tâche(s) non terminée(s)`, "OPEN_TASKS_REMAINING", { tasks: openTasks.map((t) => ({ id: t.id, title: t.title, status: t.status })) });
     }
 
+    const depositInvoice = preread.invoices.find((inv) => inv.invoiceType === "DEPOSIT");
+    if (depositInvoice && depositInvoice.status !== "PAID") {
+      throw new HttpError(409, "L'acompte doit être payé avant de valider le projet", "DEPOSIT_UNPAID");
+    }
+
+    const unresolvedApprovals = await prismaRead.approval.count({ where: { projectId, status: { in: ["PENDING", "REJECTED"] } } });
+    if (unresolvedApprovals > 0) {
+      throw new HttpError(
+        409,
+        `Impossible de terminer le projet : ${unresolvedApprovals} validation(s) en attente ou rejetée(s) doivent être résolues d'abord`,
+        "PENDING_APPROVALS_REMAINING",
+        { unresolvedApprovals }
+      );
+    }
+
     const proposalAmount = preread.proposal?.amount != null ? Number(preread.proposal.amount) : 0;
-    const balanceAmount = proposalAmount > 0 ? Math.round(proposalAmount * 0.7 * 100) / 100 : 0;
+    const depositAmount = depositInvoice?.amountHT != null ? Number(depositInvoice.amountHT) : (proposalAmount > 0 ? roundMoney(proposalAmount * 0.3) : 0);
+    const balanceAmount = proposalAmount > 0 ? roundMoney(proposalAmount - depositAmount) : 0;
     const currency = preread.proposal?.currency ?? "TND";
-    // Robust guard: rely on invoiceType field instead of title string-matching.
-    const balanceAlreadyExists = preread.invoices.some((inv) => inv.invoiceType === "BALANCE");
 
     const result = await prisma.$transaction(async (tx) => {
       const project = await tx.project.update({
         where: { id: projectId },
         data: { status: "COMPLETED", clientApprovedAt: new Date(), clientApprovedById: userId },
-        select: { id: true, name: true, clientId: true },
+        select: { id: true, name: true, clientId: true, invoices: { select: { invoiceType: true } } },
       });
 
+      // Re-check inside transaction to prevent double creation!
+      const balanceAlreadyExistsInTx = project.invoices.some((inv) => inv.invoiceType === "BALANCE");
       let balanceInvoice: { id: string } | null = null;
-      if (!balanceAlreadyExists && balanceAmount > 0 && clientId) {
+      if (!balanceAlreadyExistsInTx && balanceAmount > 0 && clientId) {
         balanceInvoice = await invoiceService.createBalanceInvoiceTx(tx, {
           title: `Facture de solde : ${preread.name}`,
           description: `Solde restant (70%) pour le projet ${preread.name}`,
-          amount: balanceAmount,
+          amountHT: balanceAmount,
           currency,
           clientId,
           projectId,
-          // Link back to the originating proposal for traceability.
           proposalId: preread.proposal ? (preread as any).proposal.id : undefined,
           dueInDays: 30,
         });
@@ -226,17 +259,29 @@ export const projectService = {
     void (async () => {
       if (result.balanceInvoiceId) {
         try {
-          const inv = await prismaRead.invoice.findUnique({ where: { id: result.balanceInvoiceId }, select: { id: true, number: true, amount: true, currency: true, dueDate: true } });
+          const inv = await prismaRead.invoice.findUnique({ where: { id: result.balanceInvoiceId }, select: { id: true, number: true, amount: true, amountHT: true, tvaRate: true, tvaAmount: true, currency: true, dueDate: true } });
           if (inv) {
-            await documentGeneratorService.generateInvoicePDF(
-              { id: inv.id, number: inv.number, amount: inv.amount != null ? Number(inv.amount) : null, currency: inv.currency ?? "TND", dueDate: inv.dueDate },
-              { id: projectId, name: preread.name, description: undefined, budget: preread.budget ?? undefined, deadline: undefined, serviceId: null },
-              { id: clientId, name: preread.client?.name ?? "Client", email: preread.client?.email ?? undefined },
-              userId
-            );
+            await enqueueDocumentGeneration([
+              {
+                kind: "invoice",
+                invoice: {
+                  id: inv.id,
+                  number: inv.number,
+                  amount: inv.amount != null ? Number(inv.amount) : null,
+                  amountHT: inv.amountHT != null ? Number(inv.amountHT) : null,
+                  tvaRate: inv.tvaRate != null ? Number(inv.tvaRate) : null,
+                  tvaAmount: inv.tvaAmount != null ? Number(inv.tvaAmount) : null,
+                  currency: inv.currency ?? "TND",
+                  dueDate: inv.dueDate,
+                },
+                project: { id: projectId, name: preread.name, description: undefined, budget: preread.budget ?? undefined, deadline: undefined, serviceId: null },
+                client: { id: clientId, name: preread.client?.name ?? "Client", email: preread.client?.email ?? undefined },
+                uploadedById: userId,
+              },
+            ]);
           }
         } catch (err) {
-          logger.error({ err }, "[clientApprove] Balance invoice PDF generation failed");
+          logger.error({ err }, "[clientApprove] Balance invoice PDF enqueue failed");
         }
       }
 
@@ -263,6 +308,39 @@ export const projectService = {
         }
       } catch (err) {
         logger.error({ err }, "[clientApprove] Client email failed");
+      }
+
+      // Prompt ADMIN/MANAGER (the only roles allowed to submit a Rating) to rate the
+      // freelancer(s) who worked on this project, now that it's complete. Best-effort and
+      // non-blocking: clientApprove already rejects a second call on the same project
+      // (PROJECT_ALREADY_COMPLETED above), so this only ever runs once per project.
+      try {
+        const freelancerAssignees = await prismaRead.task.findMany({
+          where: { projectId, assignee: { role: "FREELANCER", freelancerProfile: { isNot: null } } },
+          distinct: ["assigneeId"],
+          select: { assignee: { select: { id: true, name: true, freelancerProfile: { select: { id: true } } } } },
+        });
+        const freelancers = freelancerAssignees
+          .map((t) => t.assignee)
+          .filter((a): a is NonNullable<typeof a> => !!a && !!a.freelancerProfile);
+
+        if (freelancers.length > 0) {
+          const managers = await userRepository.findAdmins();
+          await enqueueNotifications(
+            managers.flatMap((m) =>
+              freelancers.map((f) => ({
+                userId: m.id,
+                title: "Évaluer le freelance",
+                message: `Le projet « ${preread.name} » est terminé. Pensez à évaluer ${f.name}.`,
+                type: "RATING_REQUESTED" as const,
+                entityId: f.freelancerProfile!.id,
+                link: `/app/freelancers/${f.freelancerProfile!.id}`,
+              }))
+            )
+          );
+        }
+      } catch (err) {
+        logger.error({ err }, "[clientApprove] Rating request notification failed");
       }
     })();
 

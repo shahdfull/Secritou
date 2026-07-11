@@ -22,24 +22,6 @@ export const defaultSeo: SeoConfig = {
 
 export const seoByPath: Record<string, SeoConfig> = {
   "/": defaultSeo,
-  "/services": {
-    title: "Services - Création site web & community management en Tunisie | Secritou",
-    description:
-      "Découvrez les services Secritou en Tunisie : création de site web, community management, solutions technologiques, IA et automatisation pour votre entreprise.",
-    path: "/services",
-    image: defaultImage,
-    keywords:
-      "community management Tunisie, création site web Tunisie, développement web Tunisie, agence SEO Tunisie, automatisation IA Tunisie",
-  },
-  "/solutions": {
-    title: "Solutions PME, Startups & Créateurs en Tunisie | Secritou",
-    description:
-      "Solutions de croissance et de transformation digitale adaptées aux PME, entrepreneurs et créateurs de contenu en Tunisie.",
-    path: "/solutions",
-    image: defaultImage,
-    keywords:
-      "solutions digitales PME Tunisie, transformation digitale startup Tunisie, agence digitale créateurs Tunisie",
-  },
   "/case-studies": {
     title: "Études de cas — Résultats clients | Secritou Tunisie",
     description:

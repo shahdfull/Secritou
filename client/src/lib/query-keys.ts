@@ -56,8 +56,10 @@ export const queryKeys = {
   healthBoard: () => ["health-board"] as const,
   revenueForecast: () => ["revenue-forecast"] as const,
   clientProfitability: () => ["client-profitability"] as const,
+  workload: (params?: object) => ["workload", params] as const,
   projectTimeEntries: (projectId: string, params?: object) =>
     ["timeEntries", projectId, params] as const,
   projectTimeSummary: (projectId: string) => ["timeSummary", projectId] as const,
   globalTimeSummary: (params?: object) => ["globalTimeSummary", params] as const,
+  analyticsEventSummary: (params?: object) => ["analyticsEventSummary", params] as const,
 } as const;

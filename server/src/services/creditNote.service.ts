@@ -87,15 +87,7 @@ export const creditNoteService = {
    */
   async applyCredit(creditNoteId: string, targetInvoiceId: string) {
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Load and validate the credit note
-      const cn = await tx.creditNote.findUnique({
-        where: { id: creditNoteId },
-        select: { id: true, amount: true, clientId: true, appliedAt: true, number: true },
-      });
-      if (!cn) throw new HttpError(404, "Credit note not found");
-      if (cn.appliedAt) throw new HttpError(409, "This credit note has already been applied to an invoice", "CREDIT_ALREADY_APPLIED");
-
-      // 2. Load and validate the target invoice
+      // 1. Load and validate the target invoice
       const invoice = await tx.invoice.findUnique({
         where: { id: targetInvoiceId },
         select: { id: true, clientId: true, amount: true, amountPaid: true, status: true, currency: true },
@@ -103,7 +95,18 @@ export const creditNoteService = {
       if (!invoice) throw new HttpError(404, "Invoice not found");
       if (invoice.status === "PAID") throw new HttpError(409, "Cannot apply credit to an already paid invoice", "INVOICE_ALREADY_PAID");
       if (invoice.status === "CANCELLED") throw new HttpError(409, "Cannot apply credit to a cancelled invoice", "INVOICE_CANCELLED");
-      if (invoice.clientId !== cn.clientId) throw new HttpError(403, "Credit note and invoice belong to different clients", "CLIENT_MISMATCH");
+
+      // 2. Load credit note and mark as applied atomically with conditional update
+      const cn = await tx.creditNote.update({
+        where: { 
+          id: creditNoteId, 
+          appliedAt: null, // Only update if not already applied
+          clientId: invoice.clientId // Ensure same client
+        },
+        data: { appliedAt: new Date(), appliedToInvoiceId: targetInvoiceId },
+        select: { id: true, amount: true, clientId: true, number: true },
+      });
+      if (!cn) throw new HttpError(409, "This credit note has already been applied or belongs to a different client", "CREDIT_ALREADY_APPLIED");
 
       // 3. Compute the applicable amount (capped at remaining balance and client credit balance)
       const client = await tx.client.findUnique({ where: { id: cn.clientId }, select: { creditBalance: true } });
@@ -112,6 +115,11 @@ export const creditNoteService = {
       const applicable = Math.round(Math.min(Number(cn.amount), remaining, clientBalance) * 100) / 100;
 
       if (applicable <= 0) {
+        // Rollback the credit note update since we can't apply
+        await tx.creditNote.update({
+          where: { id: creditNoteId },
+          data: { appliedAt: null, appliedToInvoiceId: null },
+        });
         throw new HttpError(409, "No credit can be applied: the invoice is already covered or the client balance is empty", "NO_APPLICABLE_CREDIT");
       }
 
@@ -128,13 +136,7 @@ export const creditNoteService = {
       // 5. Decrement client credit balance
       await tx.client.update({ where: { id: cn.clientId }, data: { creditBalance: { decrement: applicable } } });
 
-      // 6. Mark the credit note as consumed
-      const updatedCn = await tx.creditNote.update({
-        where: { id: creditNoteId },
-        data: { appliedAt: new Date(), appliedToInvoiceId: targetInvoiceId },
-      });
-
-      return { creditNote: updatedCn, appliedAmount: applicable, invoiceStatus: newStatus, currency: invoice.currency };
+      return { creditNote: cn, appliedAmount: applicable, invoiceStatus: newStatus, currency: invoice.currency };
     });
 
     // Notify admins

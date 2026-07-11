@@ -10,28 +10,28 @@ export function Footer() {
     {
       titleKey: "home.footer.services",
       links: [
-        { labelKey: "services.businessPerformance.title", to: "/services" },
-        { labelKey: "services.digitalGrowth.title", to: "/services" },
-        { labelKey: "services.technologySolutions.title", to: "/services" },
-        { labelKey: "services.aiAutomation.title", to: "/services" },
+        { labelKey: "services.businessPerformance.title", to: "/#services" },
+        { labelKey: "services.digitalGrowth.title", to: "/#services" },
+        { labelKey: "services.technologySolutions.title", to: "/#services" },
+        { labelKey: "services.aiAutomation.title", to: "/#services" },
       ],
     },
     {
       titleKey: "home.footer.solutions",
       links: [
-        { labelKey: "home.footer.forSmes", to: "/solutions" },
-        { labelKey: "home.footer.forEntrepreneurs", to: "/solutions" },
-        { labelKey: "home.footer.forCreators", to: "/solutions" },
+        { labelKey: "home.footer.forSmes", to: "/#solutions" },
+        { labelKey: "home.footer.forEntrepreneurs", to: "/#solutions" },
+        { labelKey: "home.footer.forCreators", to: "/#solutions" },
       ],
     },
     {
       titleKey: "home.footer.industriesTitle",
       links: [
-        { labelKey: "home.footer.industries.healthcare", to: "/solutions" },
-        { labelKey: "home.footer.industries.education", to: "/solutions" },
-        { labelKey: "home.footer.industries.professionalServices", to: "/solutions" },
-        { labelKey: "home.footer.industries.retail", to: "/solutions" },
-        { labelKey: "home.footer.industries.startups", to: "/solutions" },
+        { labelKey: "home.footer.industries.healthcare", to: "/#solutions" },
+        { labelKey: "home.footer.industries.education", to: "/#solutions" },
+        { labelKey: "home.footer.industries.professionalServices", to: "/#solutions" },
+        { labelKey: "home.footer.industries.retail", to: "/#solutions" },
+        { labelKey: "home.footer.industries.startups", to: "/#solutions" },
       ],
     },
     {

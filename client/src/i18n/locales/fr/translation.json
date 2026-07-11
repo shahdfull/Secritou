@@ -142,7 +142,34 @@
         "Gratuit, sans engagement."
       ],
       "footer": "Les créneaux sont limités. Réservez tôt pour assurer votre place.",
-      "fallback": "Le calendrier n'est pas encore configuré. Contactez-nous directement à"
+      "fallback": "Le calendrier n'est pas encore configuré. Contactez-nous directement à",
+      "helpText": "Si rien ne convient, écrivez-nous directement.",
+      "calendarTitle": "Choisissez un horaire",
+      "calendarSubtitle": "Sélectionnez un jour puis un créneau disponible.",
+      "monthView": "Mois",
+      "weekView": "Semaine",
+      "selectedDay": "Jour sélectionné",
+      "slots": "créneaux",
+      "bookSlot": "Réserver",
+      "noDaySlots": "Aucun créneau disponible ce jour-là.",
+      "formTitle": "Confirmez votre réservation",
+      "successTitle": "Réservation confirmée",
+      "successDescription": "Votre créneau est réservé.",
+      "successBody": "Merci. Nous avons bien reçu votre demande et un email de confirmation a été envoyé.",
+      "bookAnother": "Réserver un autre créneau",
+      "name": "Nom",
+      "email": "Email",
+      "phone": "Téléphone (optionnel)",
+      "notes": "Notes (optionnel)",
+      "confirm": "Confirmer la réservation",
+      "submitting": "Envoi en cours...",
+      "cancel": "Annuler",
+      "emptyState": "Aucune disponibilité dans les 30 prochains jours.",
+      "loadFailed": "Impossible de charger les disponibilités.",
+      "submitFailed": "Impossible d'envoyer votre réservation.",
+      "slotTaken": "Ce créneau vient d'être réservé, veuillez en choisir un autre.",
+      "successToast": "Réservation confirmée.",
+      "availableCount": "{{count}} disponible"
     },
     "pleaseEnterName": "Veuillez saisir votre nom.",
     "pleaseEnterEmail": "Veuillez saisir une adresse email valide.",
@@ -157,6 +184,57 @@
       "moreThan15000": "+15 000 DT"
     },
     "whatsappLabel": "WhatsApp / Téléphone"
+  },
+  "booking": {
+    "admin": {
+      "title": "Calendrier de réservation",
+      "subtitle": "Gérez les créneaux ouverts et les réservations pour la page Contact.",
+      "addSlot": "Ajouter un créneau",
+      "addSlotDesc": "Créer un créneau de disponibilité unique.",
+      "generateRecurring": "Générer des créneaux récurrents",
+      "generateRecurringDesc": "Créer une plage de dates, jours ouvrés uniquement, avec une fenêtre horaire et un intervalle fixe.",
+      "startTime": "Heure de début",
+      "endTime": "Heure de fin",
+      "startDate": "Date de début",
+      "endDate": "Date de fin",
+      "dayStart": "Début de journée",
+      "dayEnd": "Fin de journée",
+      "intervalMinutes": "Intervalle (minutes)",
+      "weekdaysOnly": "Jours ouvrés uniquement",
+      "daysOfWeek": "Jours de la semaine",
+      "dayNames": {
+        "0": "Dim",
+        "1": "Lun",
+        "2": "Mar",
+        "3": "Mer",
+        "4": "Jeu",
+        "5": "Ven",
+        "6": "Sam"
+      },
+      "save": "Enregistrer",
+      "generate": "Générer",
+      "upcomingSlots": "Créneaux à venir",
+      "bookings": "Réservations",
+      "slot": "Créneau",
+      "status": "Statut",
+      "actions": "Actions",
+      "customer": "Client",
+      "booked": "Réservé",
+      "open": "Libre",
+      "deleteSlot": "Supprimer le créneau",
+      "cancelBooking": "Annuler la réservation",
+      "noSlots": "Aucun créneau pour ce jour.",
+      "noBookings": "Aucune réservation pour ce jour.",
+      "slotCreated": "Créneau créé.",
+      "slotCreateFailed": "Impossible de créer le créneau.",
+      "recurringCreated": "Créneaux récurrents créés.",
+      "recurringFailed": "Impossible de générer les créneaux.",
+      "slotDeleted": "Créneau supprimé.",
+      "slotDeleteFailed": "Impossible de supprimer le créneau.",
+      "bookingCancelled": "Réservation annulée.",
+      "bookingCancelFailed": "Impossible d'annuler la réservation.",
+      "loadFailed": "Impossible de charger les réservations."
+    }
   },
   "home": {
     "hero": {
@@ -499,9 +577,9 @@
   "analytics": {
     "leadsByMonth": "Leads par mois",
     "leadsByMonthDesc": "Nouveaux leads par mois",
-    "revenueByMonth": "Revenus par mois",
-    "revenueByMonthDesc": "Revenus encaissés",
-    "revenueTooltipLabel": "Revenus",
+    "revenueByMonth": "Encaissé par mois",
+    "revenueByMonthDesc": "Paiements reçus (hors montants facturés non encaissés)",
+    "revenueTooltipLabel": "Encaissé",
     "leadsByStatus": "Leads par statut",
     "leadsByStatusDesc": "Répartition des leads par statut",
     "projectsByStatus": "Répartition des projets",
@@ -618,7 +696,7 @@
     "dueDate": "Date d'échéance",
     "selectPlaceholder": "Sélectionnez...",
     "noDescription": "Aucune description fournie",
-    "areYouSureDelete": "Êtes-vous sûr de vouloir supprimer {{name}} ?",
+    "areYouSureDelete": "Êtes-vous sûr de vouloir supprimer {{name}}?",
     "actions": "Actions",
     "saving": "Enregistrement...",
     "optional": "optionnel",
@@ -642,11 +720,13 @@
     "sending": "Envoi...",
     "total": "Total",
     "close": "Fermer",
-    "fileTooLargeMax": "Fichier trop volumineux (max {{max}} Mo).",
+    "fileTooLargeMax": "Fichier trop volumineux (max {{max}}Mo).",
     "uploading": "Envoi en cours…",
     "clickToUploadFile": "Cliquez pour envoyer un fichier",
     "removeFile": "Supprimer le fichier",
-    "fileTypeNotAccepted": "Fichier non accepté. Types acceptés : {{types}}"
+    "fileTypeNotAccepted": "Fichier non accepté. Types acceptés: {{types}}",
+    "trash": "Corbeille",
+    "restore": "Restaurer"
   },
   "search": {
     "placeholder": "Rechercher les leads, clients, projets...",
@@ -672,6 +752,7 @@
     "aiAssistant": "Assistant IA",
     "analytics": "Analytiques",
     "reports": "Rapports",
+    "workload": "Charge de travail",
     "settings": "Paramètres",
     "commercial": "Propositions",
     "service-requests": "Demandes clients",
@@ -690,6 +771,7 @@
     "approvals": "Approbations",
     "invoices": "Factures",
     "documents": "Documents",
+    "seo": "Référencement (SEO)",
     "onboarding": "Onboarding",
     "questions": "Mes questions",
     "profile": "Mon profil"
@@ -858,7 +940,12 @@
       "confirm": "Accepter et créer le compte"
     },
     "rejected": "Candidature refusée avec succès",
-    "accepted": "Candidature acceptée et compte créé avec succès"
+    "accepted": "Candidature acceptée et compte créé avec succès",
+    "newApplications": "Nouvelles candidatures ({{count}})",
+    "cvPreview": "Aperçu du CV",
+    "portfolioPreview": "Aperçu du portfolio",
+    "download": "Télécharger",
+    "close": "Fermer"
   },
   "joinRequests": {
     "title": "Demandes d'adhésion",
@@ -1054,7 +1141,19 @@
       "inProgress": "En cours",
       "review": "En revue",
       "completed": "Terminé"
-    }
+    },
+    "trashDesc": "Projets supprimés récupérables",
+    "trashEmpty": "Aucun projet dans la corbeille.",
+    "deleteProjectTitle": "Supprimer",
+    "deleteProjectDesc": "Cette action est irréversible. Le projet sera définitivement supprimé.",
+    "noProjectsInCategory": "Aucun projet dans cette catégorie.",
+    "basedOnCompletedTasks": "Basé sur les tâches complétées ({{done}}/{{total}})",
+    "projectCompletionRequiresApproval": "Ce projet ne peut être complété que via l'approbation du client.",
+    "invalidStatusTransition": "Transition de statut invalide.",
+    "errorUpdatingProject": "Une erreur est survenue lors de la mise à jour.",
+    "projectHasInvoices": "Ce projet a des factures émises et ne peut pas être supprimé. Archivez-le.",
+    "projectHasOnboarding": "Ce projet a un onboarding et ne peut pas être supprimé. Archivez-le.",
+    "errorDeletingProject": "Une erreur est survenue lors de la suppression."
   },
   "leadsPage": {
     "title": "Prospects",
@@ -1094,11 +1193,25 @@
       "inboundCall": "Appel entrant",
       "other": "Autre"
     },
-    "noEmail": "Aucun email"
+    "noEmail": "Aucun email",
+    "deleteFailed": "Impossible de supprimer ce lead.",
+    "convertSuccess": "{{name}} a été converti en client.",
+    "convertFailed": "Impossible de convertir ce lead.",
+    "reopenSuccess": "{{name}} a été rouvert.",
+    "reopenFailed": "Impossible de rouvrir ce lead.",
+    "deleteTitle": "Supprimer \"{{name}}\" ?",
+    "deleteDesc": "Cette action est irréversible. Le lead sera définitivement supprimé.",
+    "convertTitle": "Convertir \"{{name}}\" en client ?",
+    "convertDesc": "Ceci créera un nouveau client et déclenchera automatiquement un processus d'onboarding. Cette action ne peut pas être annulée.",
+    "convertConfirm": "Convertir",
+    "reopenTitle": "Rouvrir \"{{name}}\" ?",
+    "reopenDesc": "Le lead repassera en statut actif et sera à nouveau visible dans le pipeline.",
+    "reopenConfirm": "Rouvrir"
   },
   "tasksPage": {
     "title": "Tâches",
     "subtitle": "Gérez et suivez les tâches de vos projets",
+    "freelancerScopeNotice": "Vous voyez uniquement vos tâches assignées.",
     "newTask": "Nouvelle tâche",
     "createTask": "Créer une tâche",
     "createTaskDesc": "Ajoutez une nouvelle tâche à votre projet",
@@ -1145,6 +1258,8 @@
     "emailLabel": "Email",
     "phoneLabel": "Téléphone",
     "areYouSureDelete": "Êtes-vous sûr de vouloir supprimer {{name}} ?",
+    "trashDesc": "Clients supprimés récupérables",
+    "trashEmpty": "Aucun client dans la corbeille.",
     "detail": {
       "notFound": "Client introuvable",
       "tabInfo": "Informations",
@@ -1188,7 +1303,31 @@
       "uploadFileLabel": "Cliquez pour uploader un fichier",
       "inviteEmailDesc": "Un email avec les identifiants de connexion sera envoyé à l'adresse indiquée.",
       "sendInvitation": "Envoyer l'invitation",
-      "deleteClientDesc": "Êtes-vous sûr de vouloir supprimer ce client ? Cette action est irréversible."
+      "deleteClientDesc": "Êtes-vous sûr de vouloir supprimer ce client ? Cette action est irréversible.",
+      "deleteBlockedHasInvoices": "Ce client a des factures et ne peut pas être supprimé. Archivez-le à la place.",
+      "backToClients": "Retour aux clients",
+      "portalActive": "Portail actif",
+      "inviteToPortalBtn": "Inviter au portail",
+      "clientSuccess": "Client Success",
+      "archive": "Archiver",
+      "delete": "Supprimer",
+      "tabPerformance": "Performance",
+      "tabCreditNotes": "Avoirs",
+      "creditBalance": "Solde d'avoirs",
+      "creditNotes": {
+        "title": "Avoirs (Credit Notes)",
+        "availableBalance": "Solde d'avoirs disponible :",
+        "empty": "Aucun avoir disponible pour ce client.",
+        "number": "Numéro d'avoir",
+        "amount": "Montant",
+        "reason": "Motif",
+        "originInvoice": "Facture d'origine",
+        "appliedInvoice": "Facture d'application",
+        "applicationStatus": "Statut d'application",
+        "issueDate": "Date d'émission",
+        "appliedOn": "Appliqué le {{date}}",
+        "available": "Disponible"
+      }
     }
   },
   "settings": {
@@ -1581,6 +1720,9 @@
     "accept": "Accepter",
     "reject": "Refuser",
     "delete": "Supprimer",
+    "viewTimeline": "Voir l'historique",
+    "timelineTitle": "Historique",
+    "noTimelineEntries": "Aucun historique pour le moment",
     "statuses": {
       "draft": "Brouillon",
       "sent": "Envoyée",
@@ -1623,7 +1765,20 @@
       "willInviteClient": "Le client sera invité sur son portail par email",
       "confirm": "Accepter et lancer",
       "clientInvited": "Client invité par email"
-    }
+    },
+    "invoiced": "Facturé",
+    "invoiceAlreadyCreated": "Facture déjà créée",
+    "generateInvoice": "Générer une facture",
+    "viewProject": "Voir le projet",
+    "invoiceDialog": {
+      "title": "Générer une facture",
+      "description": "Facture pré-remplie depuis la proposition",
+      "cancel": "Annuler",
+      "createInvoice": "Créer la facture"
+    },
+    "invoiceButton": "Facture",
+    "projectButton": "Projet",
+    "byUser": "Par : {{name}}"
   },
   "approvals": {
     "title": "Approbations",
@@ -1642,6 +1797,12 @@
     "reject": "Refuser",
     "comment": "Commenter",
     "delete": "Supprimer",
+    "attachments": "Pièces jointes",
+    "uploadAttachment": "Ajouter une pièce jointe",
+    "deleteAttachment": "Supprimer la pièce jointe",
+    "noAttachments": "Aucune pièce jointe pour le moment.",
+    "attachmentAdded": "Pièce jointe ajoutée avec succès",
+    "attachmentDeleted": "Pièce jointe supprimée avec succès",
     "statuses": {
       "pending": "En attente",
       "approved": "Approuvée",
@@ -1733,6 +1894,7 @@
       "titleLabel": "Titre",
       "titlePlaceholder": "Titre de la facture",
       "amountLabel": "Montant",
+      "currencyLabel": "Devise",
       "dueDateLabel": "Date d'échéance",
       "descriptionLabel": "Description (optionnel)",
       "descriptionPlaceholder": "Description de la facture",
@@ -1743,7 +1905,25 @@
       "clientRequired": "Veuillez sélectionner un client",
       "titleRequired": "Le titre est obligatoire",
       "amountPositive": "Le montant doit être positif"
-    }
+    },
+    "addPayment": {
+      "title": "Ajouter un paiement",
+      "description": "Enregistrer un paiement pour la facture {{invoiceNumber}}. Le solde restant est de {{unpaidBalance}} {{currency}}.",
+      "amountLabel": "Montant payé ({{currency}})",
+      "amountPlaceholder": "0.00",
+      "methodLabel": "Méthode de paiement",
+      "methodPlaceholder": "Virement, Carte, Espèces...",
+      "referenceLabel": "Référence de transaction (Optionnel)",
+      "referencePlaceholder": "N° de transaction, chèque...",
+      "overpaymentWarning": "Avertissement : Surpaiement détecté",
+      "overpaymentDescription": "Le montant saisi dépasse le solde restant. L'excédent de {{overpaidAmount}} {{currency}} sera automatiquement converti en avoir pour ce client.",
+      "submit": "Enregistrer le paiement",
+      "submitting": "Enregistrement..."
+    },
+    "trashDesc": "Factures supprimées récupérables",
+    "emptyTrash": "Aucune facture supprimée.",
+    "resumeReminders": "Réactiver les relances",
+    "pauseReminders": "Désactiver les relances"
   },
   "clientSuccess": {
     "title": "Succès Client",
@@ -1810,7 +1990,7 @@
     "paid": "Payé",
     "remaining": "Restant",
     "recordPayment": "Enregistrer paiement",
-    "amount": "Montant (€)",
+    "amount": "Montant (DT)",
     "note": "Note (optionnel)",
     "notePlaceholder": "Virement, chèque, etc.",
     "confirm": "Confirmer",
@@ -1863,6 +2043,10 @@
     "download": "Télécharger",
     "uploadNewVersion": "Télécharger une nouvelle version",
     "delete": "Supprimer",
+    "accessLog": "Journal d'accès",
+    "accessLogTitle": "Journal d'accès",
+    "noAccessLog": "Aucun accès enregistré pour le moment.",
+    "unknownUser": "Utilisateur inconnu",
     "types": {
       "contract": "Contrat",
       "deliverable": "Livrable",
@@ -1964,6 +2148,23 @@
     "lastReview": "Dernier avis",
     "seeReviews": "Voir tous les avis",
     "anonymous": "Anonyme"
+  },
+  "legalPage": {
+    "title": "Mentions légales",
+    "companySection": "Éditeur du site",
+    "companyName": "Secritou",
+    "companyDescription": "Agence de services digitaux",
+    "companyLocation": "Tunis, Tunisie",
+    "companyEmail": "Email :",
+    "companyPhone": "Téléphone :",
+    "hostingSection": "Hébergement",
+    "hostingText": "Ce site est hébergé par un prestataire tiers. Les coordonnées de l'hébergeur sont disponibles sur demande à l'adresse hello@secritou.com.",
+    "ipSection": "Propriété intellectuelle",
+    "ipText": "L'ensemble du contenu de ce site (textes, images, logos, graphismes) est la propriété exclusive de Secritou ou de ses partenaires. Toute reproduction, même partielle, est interdite sans autorisation préalable écrite.",
+    "liabilitySection": "Responsabilité",
+    "liabilityText": "Secritou s'efforce de maintenir les informations publiées à jour mais ne saurait être tenu responsable des erreurs, omissions ou indisponibilités du service.",
+    "lawSection": "Droit applicable",
+    "lawText": "Le présent site et ses contenus sont soumis au droit tunisien. Tout litige relève de la compétence des tribunaux compétents de Tunis."
   },
   "whatsapp": {
     "ariaLabel": "Contactez-nous sur WhatsApp",

@@ -91,7 +91,7 @@ export function Hero() {
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
             <Link
-              to="/services"
+              to="/#services"
               onClick={() => trackCtaClick({ cta: ctaSec, location: "Hero" })}
               className="inline-flex h-12 items-center justify-center rounded-full border border-border bg-background px-6 text-sm font-semibold text-ink transition-colors hover:bg-surface"
             >

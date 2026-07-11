@@ -20,6 +20,16 @@ export const getClients: RequestHandler = async (req, res, next) => {
   }
 };
 
+export const getDeletedClients: RequestHandler = async (req, res, next) => {
+  try {
+    const options = parseListQuery(req.query as Record<string, unknown>);
+    const result = await clientService.getDeletedClients(options, await buildServiceScope(req));
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getClient: RequestHandler = async (req, res, next) => {
   try {
     const includeArchived = req.query.includeArchived === "true";
@@ -52,6 +62,15 @@ export const deleteClient: RequestHandler = async (req, res, next) => {
   try {
     await clientService.deleteClient(req.params.id as string);
     res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const restoreClient: RequestHandler = async (req, res, next) => {
+  try {
+    const client = await clientService.restoreClient(req.params.id as string);
+    res.json({ data: client });
   } catch (error) {
     next(error);
   }

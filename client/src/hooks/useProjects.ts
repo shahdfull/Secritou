@@ -61,3 +61,25 @@ export function useDeleteProject() {
     },
   });
 }
+
+export function useRestoreProject() {
+  const queryClient = useQueryClient();
+
+  return useMutation<Project, Error, string>({
+    mutationFn: (id) => projectsApi.restore(id),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.project(data.id) });
+      toast.success(i18n.t("toasts.projectRestored", "Project restored"));
+    },
+  });
+}
+
+export function useProjectTrash(params: ListQueryParams = {}) {
+  return useQuery<PaginatedResponse<Project>>({
+    queryKey: [...queryKeys.projects(params), "trash"],
+    queryFn: () => projectsApi.getTrash(params),
+    placeholderData: (prev) => prev,
+    staleTime: 60_000,
+  });
+}

@@ -48,6 +48,16 @@ export const projectsApi = {
     await apiClient.delete(`/projects/${id}`);
   },
 
+  restore: async (id: string): Promise<Project> => {
+    const response = await apiClient.post<ApiResponse<Project>>(`/projects/${id}/restore`);
+    return response.data.data;
+  },
+
+  getTrash: async (params: ListQueryParams = {}): Promise<PaginatedResponse<Project>> => {
+    const response = await apiClient.get<PaginatedResponse<Project>>("/projects/trash", { params });
+    return response.data;
+  },
+
   getTimelineStatus: async (id: string): Promise<TimelineStep[]> => {
     const response = await apiClient.get<{ data: TimelineStep[] }>(`/projects/${id}/timeline-status`);
     return response.data.data;

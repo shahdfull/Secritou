@@ -7,6 +7,7 @@ import { env } from "../config/env.js";
 import { HttpError } from "../utils/httpError.js";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import type { ServiceRequestStatus, Priority } from "@prisma/client";
+import type { ServiceScope } from "../utils/serviceScope.js";
 
 const ALLOWED_TRANSITIONS: Record<ServiceRequestStatus, ServiceRequestStatus[]> = {
   NEW: ["IN_REVIEW", "CANCELLED"],
@@ -31,8 +32,9 @@ export const serviceRequestService = {
     return serviceRequestRepository.findAll(options);
   },
 
-  async getServiceRequestById(id: string) {
-    const req = await serviceRequestRepository.findById(id);
+  async getServiceRequestById(id: string, scope?: ServiceScope) {
+    const serviceId = scope?.userRole === "MANAGER" ? (scope.userServiceId ?? "__none__") : undefined;
+    const req = await serviceRequestRepository.findById(id, serviceId);
     if (!req) throw new HttpError(404, "Service request not found");
     return req;
   },
@@ -53,9 +55,10 @@ export const serviceRequestService = {
   },
 
   // type is intentionally excluded from updates — reclassifying a request requires creating a new one
-  async adminUpdateServiceRequest(id: string, userId: string, data: { title?: string; description?: string; status?: ServiceRequestStatus; priority?: Priority; assignedToId?: string | null }) {
+  async adminUpdateServiceRequest(id: string, userId: string, data: { title?: string; description?: string; status?: ServiceRequestStatus; priority?: Priority; assignedToId?: string | null }, scope?: ServiceScope) {
     if ("type" in data) throw new HttpError(422, "The type of a service request cannot be changed; create a new request instead", "SERVICE_REQUEST_TYPE_IMMUTABLE");
-    const current = await serviceRequestRepository.findByIdSimple(id);
+    const serviceId = scope?.userRole === "MANAGER" ? (scope.userServiceId ?? "__none__") : undefined;
+    const current = await serviceRequestRepository.findByIdSimple(id, serviceId);
     if (!current) throw new HttpError(404, "Service request not found");
 
     if (data.status && data.status !== current.status) assertValidTransition(current.status, data.status);
@@ -86,8 +89,9 @@ export const serviceRequestService = {
     return updated;
   },
 
-  async deleteServiceRequest(id: string) {
-    const req = await serviceRequestRepository.findByIdSimple(id);
+  async deleteServiceRequest(id: string, scope?: ServiceScope) {
+    const serviceId = scope?.userRole === "MANAGER" ? (scope.userServiceId ?? "__none__") : undefined;
+    const req = await serviceRequestRepository.findByIdSimple(id, serviceId);
     if (!req) throw new HttpError(404, "Service request not found");
     const linked = await serviceRequestRepository.findLinkedProposal(id);
     if (linked) {
@@ -96,8 +100,9 @@ export const serviceRequestService = {
     return serviceRequestRepository.delete(id);
   },
 
-  async addComment(serviceRequestId: string, authorId: string, body: string, isInternal: boolean) {
-    const req = await serviceRequestRepository.findByIdSimple(serviceRequestId);
+  async addComment(serviceRequestId: string, authorId: string, body: string, isInternal: boolean, scope?: ServiceScope) {
+    const serviceId = scope?.userRole === "MANAGER" ? (scope.userServiceId ?? "__none__") : undefined;
+    const req = await serviceRequestRepository.findByIdSimple(serviceRequestId, serviceId);
     if (!req) throw new HttpError(404, "Service request not found");
 
     const comment = await serviceRequestRepository.addComment({ serviceRequestId, authorId, body, isInternal });

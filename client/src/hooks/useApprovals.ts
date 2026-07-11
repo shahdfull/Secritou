@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   approvalsApi,
   type Approval,
+  type ApprovalAttachment,
   type PaginatedResponse,
 } from "../api/approvals.api";
 import { toast } from "sonner";
@@ -105,6 +106,36 @@ export function useCommentApproval() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["approvals"] });
       toast.success(t("approvals.commented"));
+    },
+  });
+}
+
+export function useAddApprovalAttachment() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  return useMutation<
+    ApprovalAttachment,
+    Error,
+    { id: string; name: string; url: string }
+  >({
+    mutationFn: ({ id, name, url }) => approvalsApi.addAttachment(id, { name, url }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["approvals"] });
+      toast.success(t("approvals.attachmentAdded"));
+    },
+  });
+}
+
+export function useDeleteApprovalAttachment() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  return useMutation<{ success: boolean }, Error, { id: string; attachmentId: string }>({
+    mutationFn: ({ id, attachmentId }) => approvalsApi.deleteAttachment(id, attachmentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["approvals"] });
+      toast.success(t("approvals.attachmentDeleted"));
     },
   });
 }

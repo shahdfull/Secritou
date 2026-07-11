@@ -51,6 +51,7 @@ import { useExecutiveMetrics } from "@/hooks/useExecutiveMetrics";
 import { useCreateLead } from "@/hooks/useLeads";
 import { useMe } from "@/hooks/useAuth";
 import { DateFilter, DateRange } from "@/components/DateFilter";
+import { PoleSelect } from "@/components/common/PoleSelect";
 import {
   Dialog,
   DialogContent,
@@ -187,11 +188,15 @@ function KPICard({
 function ExecutiveTab() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { data: exec, isLoading } = useExecutiveMetrics();
+  const [serviceId, setServiceId] = useState<string | undefined>(undefined);
+  const { data: exec, isLoading } = useExecutiveMetrics(serviceId);
 
   if (isLoading) {
     return (
       <div className="space-y-4">
+        <div className="flex items-center justify-end">
+          <PoleSelect value={serviceId} onChange={setServiceId} />
+        </div>
         {[1, 2, 3].map((i) => (
           <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map((j) => (
@@ -220,9 +225,12 @@ function ExecutiveTab() {
     <div className="space-y-8">
 
       {/* ── Data freshness ───────────────────────────────────────────── */}
-      <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
-        <Clock className="h-3.5 w-3.5" />
-        {t("exec.dataUpdatedAt", { time: freshAt })}
+      <div className="flex items-center justify-end gap-3 text-xs text-muted-foreground">
+        <PoleSelect value={serviceId} onChange={setServiceId} />
+        <div className="flex items-center gap-2">
+          <Clock className="h-3.5 w-3.5" />
+          {t("exec.dataUpdatedAt", { time: freshAt })}
+        </div>
       </div>
 
       {/* ── Global alert banner ──────────────────────────────────────── */}
@@ -338,7 +346,7 @@ function ExecutiveTab() {
           <KPICard
             label={t("exec.pipeline")}
             value={fmtCurrency(forecast.proposalPipeline)}
-            sub={`${t("exec.convRate")} ${forecast.conversionRate}%`}
+            sub={`${t("exec.convRate")} ${forecast.proposalWinRate}%`}
             icon={Target}
             accent="amber"
             onClick={() => navigate("/app/commercial?tab=proposals")}
@@ -537,6 +545,7 @@ export function DashboardPage() {
   const { mutate: createLead, isPending: isCreatingLead } = useCreateLead();
 
   const isAdmin = user?.role === "ADMIN";
+  const isAdminOrManager = isAdmin || user?.role === "MANAGER";
 
   const pendingApprovalsCount = fullDashboard?.pendingApprovalsCount ?? 0;
   const overdueInvoicesCount = fullDashboard?.overdueInvoicesCount ?? 0;
@@ -576,7 +585,7 @@ export function DashboardPage() {
 
   const leadGrowth = useMemo(() => {
     if (!analyticsData?.leads) return { value: "—", isPositive: false };
-    return calculateGrowth(analyticsData.leads.conversionRate, analyticsData.leads.previousConversionRate ?? 0);
+    return calculateGrowth(analyticsData.leads.leadConversionRate, analyticsData.leads.previousLeadConversionRate ?? 0);
   }, [analyticsData?.leads]);
 
   const clientGrowth = useMemo(() => {
@@ -734,9 +743,9 @@ export function DashboardPage() {
       </Dialog>
 
       {/* Tabs */}
-      <Tabs defaultValue={isAdmin ? "executive" : "overview"}>
+      <Tabs defaultValue={isAdminOrManager ? "executive" : "overview"}>
         <TabsList className="bg-transparent border-b border-border rounded-none p-0 h-auto gap-6">
-          {isAdmin && (
+          {isAdminOrManager && (
             <TabsTrigger
               value="executive"
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-ink data-[state=active]:text-ink data-[state=active]:shadow-none bg-transparent px-0 pb-2 text-sm font-medium text-muted-foreground"
@@ -756,7 +765,7 @@ export function DashboardPage() {
           >
             {t("dashboard.tabTrends")}
           </TabsTrigger>
-          {isAdmin && (
+          {isAdminOrManager && (
             <TabsTrigger
               value="health"
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-ink data-[state=active]:text-ink data-[state=active]:shadow-none bg-transparent px-0 pb-2 text-sm font-medium text-muted-foreground"
@@ -766,8 +775,8 @@ export function DashboardPage() {
           )}
         </TabsList>
 
-        {/* Executive Tab (ADMIN only) */}
-        {isAdmin && (
+        {/* Executive Tab — ADMIN sees the whole company, MANAGER sees their own pole (server-scoped) */}
+        {isAdminOrManager && (
           <TabsContent value="executive" className="mt-6">
             <ExecutiveTab />
           </TabsContent>
@@ -830,7 +839,7 @@ export function DashboardPage() {
               {
                 label: t("dashboard.leadConversion"),
                 icon: TrendingUp,
-                value: analyticsData ? `${analyticsData.leads.conversionRate ?? 0}%` : null,
+                value: analyticsData ? `${analyticsData.leads.leadConversionRate ?? 0}%` : null,
                 growth: leadGrowth,
                 sub: `${analyticsData?.leads.wonCount ?? 0} ${t("dashboard.leadsConverted")}`,
               },
@@ -911,7 +920,7 @@ export function DashboardPage() {
         </TabsContent>
 
         {/* Health Board Tab */}
-        {isAdmin && (
+        {isAdminOrManager && (
           <TabsContent value="health" className="space-y-4 mt-6">
             <Suspense fallback={<div className="h-60 animate-pulse bg-muted rounded-2xl" />}>
               <HealthBoardTab />

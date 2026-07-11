@@ -28,10 +28,11 @@ import { COMPANY_ID } from "../config/constants.js";
 
 export const getOnboardings: RequestHandler = async (req, res, next) => {
   try {
+    const userClientId = req.user?.clientId;
     const options = parseListQuery(req.query as Record<string, unknown>);
     const result = await clientOnboardingService.getAllOnboardings({
       ...options,
-    });
+    }, userClientId);
     res.json(result);
   } catch (error) {
     next(error);
@@ -42,8 +43,10 @@ export const getOnboardingById: RequestHandler[] = [
   validate(getOnboardingByIdValidator),
   async (req, res, next) => {
     try {
+      const userClientId = req.user?.clientId;
       const onboarding = await clientOnboardingService.getOnboardingById(
-        req.params.id as string
+        req.params.id as string,
+        userClientId
       );
       res.json({ data: onboarding });
     } catch (error) {
@@ -56,8 +59,10 @@ export const getOnboardingByProjectId: RequestHandler[] = [
   validate(getOnboardingByProjectIdValidator),
   async (req, res, next) => {
     try {
+      const userClientId = req.user?.clientId;
       const onboarding = await clientOnboardingService.getOnboardingByProjectId(
-        req.params.projectId as string
+        req.params.projectId as string,
+        userClientId
       );
       res.json({ data: onboarding });
     } catch (error) {
@@ -84,9 +89,11 @@ export const updateOnboarding: RequestHandler[] = [
   validate(updateOnboardingValidator),
   async (req, res, next) => {
     try {
+      const userClientId = req.user?.clientId;
       const onboarding = await clientOnboardingService.updateOnboarding(
         req.params.id as string,
-        req.body
+        req.body,
+        userClientId
       );
       res.json({ data: onboarding });
     } catch (error) {
@@ -99,8 +106,10 @@ export const deleteOnboarding: RequestHandler[] = [
   validate(deleteOnboardingValidator),
   async (req, res, next) => {
     try {
+      const userClientId = req.user?.clientId;
       await clientOnboardingService.deleteOnboarding(
-        req.params.id as string
+        req.params.id as string,
+        userClientId
       );
       res.status(204).send();
     } catch (error) {
@@ -114,9 +123,11 @@ export const updateStep: RequestHandler[] = [
   validate(updateStepValidator),
   async (req, res, next) => {
     try {
+      const userClientId = req.user?.clientId;
       const step = await clientOnboardingService.updateStep(
         req.params.stepId as string,
-        req.body
+        req.body,
+        userClientId
       );
       res.json({ data: step });
     } catch (error) {
@@ -130,9 +141,11 @@ export const createContract: RequestHandler[] = [
   validate(createContractValidator),
   async (req, res, next) => {
     try {
+      const userClientId = req.user?.clientId;
       const contract = await clientOnboardingService.createContract(
         req.params.stepId as string,
-        req.body
+        req.body,
+        userClientId
       );
       res.status(201).json({ data: contract });
     } catch (error) {
@@ -145,9 +158,11 @@ export const updateContract: RequestHandler[] = [
   validate(updateContractValidator),
   async (req, res, next) => {
     try {
+      const userClientId = req.user?.clientId;
       const contract = await clientOnboardingService.updateContract(
         req.params.contractId as string,
-        req.body
+        req.body,
+        userClientId
       );
       res.json({ data: contract });
     } catch (error) {
@@ -161,9 +176,11 @@ export const createPayment: RequestHandler[] = [
   validate(createPaymentValidator),
   async (req, res, next) => {
     try {
+      const userClientId = req.user?.clientId;
       const payment = await clientOnboardingService.createPayment(
         req.params.stepId as string,
-        req.body
+        req.body,
+        userClientId
       );
       res.status(201).json({ data: payment });
     } catch (error) {
@@ -176,9 +193,11 @@ export const updatePayment: RequestHandler[] = [
   validate(updatePaymentValidator),
   async (req, res, next) => {
     try {
+      const userClientId = req.user?.clientId;
       const payment = await clientOnboardingService.updatePayment(
         req.params.paymentId as string,
-        req.body
+        req.body,
+        userClientId
       );
       res.json({ data: payment });
     } catch (error) {
@@ -192,9 +211,11 @@ export const createQuestionnaire: RequestHandler[] = [
   validate(createQuestionnaireValidator),
   async (req, res, next) => {
     try {
+      const userClientId = req.user?.clientId;
       const questionnaire = await clientOnboardingService.createQuestionnaire(
         req.params.stepId as string,
-        req.body
+        req.body,
+        userClientId
       );
       res.status(201).json({ data: questionnaire });
     } catch (error) {
@@ -207,9 +228,11 @@ export const updateQuestionnaire: RequestHandler[] = [
   validate(updateQuestionnaireValidator),
   async (req, res, next) => {
     try {
+      const userClientId = req.user?.clientId;
       const questionnaire = await clientOnboardingService.updateQuestionnaire(
         req.params.questionnaireId as string,
-        req.body
+        req.body,
+        userClientId
       );
       res.json({ data: questionnaire });
     } catch (error) {
@@ -223,9 +246,11 @@ export const createSpecifications: RequestHandler[] = [
   validate(createSpecificationsValidator),
   async (req, res, next) => {
     try {
+      const userClientId = req.user?.clientId;
       const specifications = await clientOnboardingService.createSpecifications(
         req.params.stepId as string,
-        req.body
+        req.body,
+        userClientId
       );
       res.status(201).json({ data: specifications });
     } catch (error) {
@@ -238,9 +263,11 @@ export const updateSpecifications: RequestHandler[] = [
   validate(updateSpecificationsValidator),
   async (req, res, next) => {
     try {
+      const userClientId = req.user?.clientId;
       const specifications = await clientOnboardingService.updateSpecifications(
         req.params.specificationsId as string,
-        req.body
+        req.body,
+        userClientId
       );
       res.json({ data: specifications });
     } catch (error) {
@@ -254,9 +281,11 @@ export const createKickoff: RequestHandler[] = [
   validate(createKickoffValidator),
   async (req, res, next) => {
     try {
+      const userClientId = req.user?.clientId;
       const kickoff = await clientOnboardingService.createKickoff(
         req.params.stepId as string,
-        req.body
+        req.body,
+        userClientId
       );
       res.status(201).json({ data: kickoff });
     } catch (error) {
@@ -269,9 +298,11 @@ export const updateKickoff: RequestHandler[] = [
   validate(updateKickoffValidator),
   async (req, res, next) => {
     try {
+      const userClientId = req.user?.clientId;
       const kickoff = await clientOnboardingService.updateKickoff(
         req.params.kickoffId as string,
-        req.body
+        req.body,
+        userClientId
       );
       res.json({ data: kickoff });
     } catch (error) {
@@ -285,9 +316,11 @@ export const createProduction: RequestHandler[] = [
   validate(createProductionValidator),
   async (req, res, next) => {
     try {
+      const userClientId = req.user?.clientId;
       const production = await clientOnboardingService.createProduction(
         req.params.stepId as string,
-        req.body
+        req.body,
+        userClientId
       );
       res.status(201).json({ data: production });
     } catch (error) {
@@ -300,9 +333,11 @@ export const updateProduction: RequestHandler[] = [
   validate(updateProductionValidator),
   async (req, res, next) => {
     try {
+      const userClientId = req.user?.clientId;
       const production = await clientOnboardingService.updateProduction(
         req.params.productionId as string,
-        req.body
+        req.body,
+        userClientId
       );
       res.json({ data: production });
     } catch (error) {
@@ -316,9 +351,11 @@ export const createDelivery: RequestHandler[] = [
   validate(createDeliveryValidator),
   async (req, res, next) => {
     try {
+      const userClientId = req.user?.clientId;
       const delivery = await clientOnboardingService.createDelivery(
         req.params.stepId as string,
-        req.body
+        req.body,
+        userClientId
       );
       res.status(201).json({ data: delivery });
     } catch (error) {
@@ -331,9 +368,11 @@ export const updateDelivery: RequestHandler[] = [
   validate(updateDeliveryValidator),
   async (req, res, next) => {
     try {
+      const userClientId = req.user?.clientId;
       const delivery = await clientOnboardingService.updateDelivery(
         req.params.deliveryId as string,
-        req.body
+        req.body,
+        userClientId
       );
       res.json({ data: delivery });
     } catch (error) {

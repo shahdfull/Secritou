@@ -7,6 +7,7 @@ export interface ClientProfitabilityItem {
   clientName: string;
   totalRevenue: number;
   pendingRevenue: number;
+  totalCost: number;
   totalProjects: number;
   completedProjects: number;
   totalTaskMinutes: number;

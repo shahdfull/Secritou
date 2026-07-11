@@ -4,7 +4,6 @@ import {
   getInvoiceById,
   createInvoice,
   updateInvoice,
-  deleteInvoice,
   sendInvoice,
   addPayment,
   addInvoiceReminder,
@@ -19,6 +18,10 @@ import {
   applyCreditToInvoice,
   getAllCreditNotes,
   addItemsFromTimeEntries,
+  getDeletedInvoices,
+  deleteInvoice,
+  restoreInvoice,
+  setInvoiceReminderPaused,
 } from "../controllers/invoice.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
@@ -28,6 +31,7 @@ import {
   createInvoiceSchema,
   updateInvoiceSchema,
   invoiceIdParamSchema,
+  setReminderPausedSchema,
   addPaymentSchema,
   addReminderSchema,
   addInvoiceItemSchema,
@@ -51,13 +55,23 @@ router.use(authenticate);
 
 // Protected routes
 router.get("/credit-notes/all", authorize("ADMIN"), getAllCreditNotes);
+router.get("/trash", authorize("ADMIN", "MANAGER"), requirePermission("invoices", "read"), getDeletedInvoices);
 router.get("/", authorize("ADMIN", "MANAGER"), requirePermission("invoices", "read"), getInvoices);
 router.get("/:id", authorize("ADMIN", "MANAGER"), requirePermission("invoices", "read"), validate(invoiceIdParamSchema), getInvoiceById);
 router.post("/", sensitiveWriteRateLimit, authorize("ADMIN"), validate(createInvoiceSchema), createInvoice);
 router.put("/:id", authorize("ADMIN"), validate(updateInvoiceSchema), updateInvoice);
-router.delete("/:id", sensitiveWriteRateLimit, authorize("ADMIN"), validate(invoiceIdParamSchema), deleteInvoice);
+// Invoices are never hard-deleted (gapless numbering requirement) — use POST /:id/cancel instead.
 router.post("/:id/send", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("invoices", "update"), validate(invoiceIdParamSchema), sendInvoice);
 router.post("/:id/cancel", sensitiveWriteRateLimit, authorize("ADMIN"), validate(invoiceIdParamSchema), cancelInvoice);
+router.put(
+  "/:id/reminder-paused",
+  authorize("ADMIN", "MANAGER"),
+  requirePermission("invoices", "update"),
+  validate(setReminderPausedSchema),
+  setInvoiceReminderPaused
+);
+router.delete("/:id", sensitiveWriteRateLimit, authorize("ADMIN"), validate(invoiceIdParamSchema), deleteInvoice);
+router.post("/:id/restore", sensitiveWriteRateLimit, authorize("ADMIN"), validate(invoiceIdParamSchema), restoreInvoice);
 
 // Payments & Reminders
 router.post(

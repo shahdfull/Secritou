@@ -100,6 +100,17 @@ export function formatDateTime(
 }
 
 /**
+ * Formats a "YYYY-MM" key (as returned by analytics.repository.ts's month-bucketed
+ * endpoints) into a short display label, e.g. "juil. 26". Returns the raw key if it
+ * doesn't match the expected shape.
+ */
+export function formatMonthKey(key: string, locale?: string): string {
+  const [year, month] = key.split("-").map(Number);
+  if (!year || !month) return key;
+  return new Date(year, month - 1, 1).toLocaleDateString(locale ?? "fr-FR", { month: "short", year: "2-digit" });
+}
+
+/**
  * Format a date as a relative string, e.g. "il y a 2 jours" / "2 days ago".
  * @param date   Date object or parseable string. null/undefined/invalid → "—".
  * @param locale BCP-47 locale (defaults to active i18n language).

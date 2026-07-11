@@ -2,7 +2,8 @@ import { proposalRepository } from "../repositories/proposal.repository.js";
 import logger from "../utils/logger.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { clientRepository } from "../repositories/client.repository.js";
-import { enqueueEmail, enqueueEmails, enqueueNotifications } from "../jobs/queues.js";
+import { enqueueEmail, enqueueEmails, enqueueNotifications, enqueueDocumentGeneration } from "../jobs/queues.js";
+import type { DocumentJob } from "../jobs/queues.js";
 import { proposalSentTemplate, proposalAcceptedTemplate, proposalRejectedTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
 import type { ProposalStatus } from "@prisma/client";
@@ -13,9 +14,10 @@ import type { ServiceScope } from "../utils/serviceScope.js";
 import { prisma } from "../config/prisma.js";
 import { invoiceService } from "./invoice.service.js";
 import { clientService } from "./client.service.js";
+import { linkLeadToClientTx } from "./lead.service.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
-import { documentGeneratorService } from "./documentGenerator.service.js";
+import { roundMoney } from "../utils/vat.js";
 
 // A MANAGER may only see/act on a proposal whose project is in their service. A proposal with
 // no project is ADMIN-only. Throws 404 (not 403) to avoid revealing existence of out-of-scope proposals.
@@ -145,7 +147,7 @@ export const proposalService = {
 
   async getById(id: string, scope?: ServiceScope) {
     const proposal = await proposalRepository.findById(id);
-    assertProposalInScope(proposal, scope);
+    await assertProposalInScope(proposal, scope);
     return proposal;
   },
 
@@ -237,19 +239,22 @@ export const proposalService = {
           ? { id: proposal.projectId, name: proposal.title, description: proposal.description, budget: proposal.amount?.toString(), deadline: proposal.expiresAt, serviceId: null }
           : null;
 
-        void documentGeneratorService.generateQuotePDF(
+        void enqueueDocumentGeneration([
           {
-            id: proposal.id,
-            title: proposal.title,
-            description: proposal.description,
-            amount: proposal.amount != null ? Number(proposal.amount) : null,
-            currency: proposal.currency,
-            expiresAt: proposal.expiresAt,
+            kind: "quote",
+            proposal: {
+              id: proposal.id,
+              title: proposal.title,
+              description: proposal.description,
+              amount: proposal.amount != null ? Number(proposal.amount) : null,
+              currency: proposal.currency,
+              expiresAt: proposal.expiresAt,
+            },
+            project,
+            client: { id: client.id, name: client.name, email: client.email },
+            uploadedById,
           },
-          project,
-          { id: client.id, name: client.name, email: client.email },
-          uploadedById
-        );
+        ]);
       }
 
       const clientUsers = await userRepository.findByClientId(proposal.clientId);
@@ -275,23 +280,6 @@ export const proposalService = {
       ]);
     }
 
-    return updated;
-  },
-
-  async accept(id: string, expectedVersion?: number) {
-    const proposal = await proposalRepository.findById(id);
-    if (!proposal) throw new HttpError(404, "Proposal not found");
-    if (expectedVersion !== undefined && expectedVersion !== proposal.version) {
-      throw new HttpError(409, "This proposal was updated since you opened it. Please review the latest version.", "PROPOSAL_VERSION_MISMATCH", { currentVersion: proposal.version });
-    }
-    if (!["SENT", "VIEWED"].includes(proposal.status)) {
-      throw new HttpError(409, `Cannot accept a ${proposal.status} proposal`, "INVALID_PROPOSAL_TRANSITION");
-    }
-    if (proposal.expiresAt && proposal.expiresAt < new Date()) {
-      throw new HttpError(409, "This proposal has expired", "PROPOSAL_EXPIRED");
-    }
-    const updated = await proposalRepository.update(id, { status: "ACCEPTED", acceptedAt: new Date() });
-    await notifyAdminsAccepted({ id, title: proposal.title, amount: proposal.amount, currency: proposal.currency, clientId: proposal.clientId });
     return updated;
   },
 
@@ -322,12 +310,15 @@ export const proposalService = {
         await tx.proposal.update({ where: { id }, data: { status: "ACCEPTED", acceptedAt: new Date() } });
       }
 
-      // If this proposal was linked to a lead, mark the lead as WON
+      // If this proposal was linked to a lead, mark the lead as WON and auto-convert it to the
+      // proposal's (already-existing) client, so the manual "Convert to Client" button becomes
+      // a no-op for this lead going forward.
       if (proposal.leadId) {
         await tx.lead.update({
           where: { id: proposal.leadId },
           data: { status: "WON" },
         });
+        await linkLeadToClientTx(tx, proposal.leadId, proposal.clientId);
       }
 
       let projectId = proposal.linkedProject?.id ?? null;
@@ -360,12 +351,12 @@ export const proposalService = {
 
       let invoiceId = proposal.invoice?.id ?? null;
       if (!invoiceId && proposal.amount != null && Number(proposal.amount) > 0) {
-        const depositAmount = Math.round(Number(proposal.amount) * 0.3 * 100) / 100;
+        const depositAmount = roundMoney(Number(proposal.amount) * 0.3);
         try {
           const invoice = await invoiceService.createDepositInvoiceTx(tx, {
             title: `Acompte 30% : ${proposal.title}`,
             description: proposal.description ?? undefined,
-            amount: depositAmount,
+            amountHT: depositAmount,
             currency: proposal.currency,
             clientId: proposal.clientId,
             projectId: projectId ?? undefined,
@@ -414,24 +405,36 @@ export const proposalService = {
       const docManager = manager ? { id: manager.id, name: manager.name ?? undefined, email: manager.email } : { id: uploadedById, name: undefined, email: "" };
       const docProposal = { id, title: result.title, description: proposal?.description ?? undefined, amount: result.amount != null ? Number(result.amount) : null, currency: result.currency, expiresAt: proposal?.expiresAt ?? undefined };
 
-      void Promise.allSettled([
-        documentGeneratorService.generateWelcomeLetter(docProposal, docProject, docClient, docManager, uploadedById),
-        documentGeneratorService.generateContract(docProposal, docProject, docClient, uploadedById),
-        documentGeneratorService.generateSpecs(docProject, docClient, uploadedById),
-        documentGeneratorService.generateClientBrief(docProject, docClient, uploadedById),
-        documentGeneratorService.generateQuotePDF(docProposal, docProject, docClient, uploadedById),
-        ...(result.invoiceId
-          ? [(async () => {
-              const { prismaRead } = await import("../config/prisma.js");
-              const inv = await prismaRead.invoice.findUnique({ where: { id: result.invoiceId! }, select: { id: true, number: true, amount: true, currency: true, dueDate: true } });
-              if (!inv) return;
-              return documentGeneratorService.generateInvoicePDF({ ...inv, amount: inv.amount != null ? Number(inv.amount) : null }, docProject, docClient, uploadedById);
-            })()]
-          : []),
-        documentGeneratorService.generateRoadmap(docProject, uploadedById),
-      ]).then((results) => {
-        results.forEach((r, i) => { if (r.status === "rejected") logger.error({ err: r.reason, index: i }, "[documentGenerator] PDF generation failed"); });
-      });
+      const documentJobs: DocumentJob[] = [
+        { kind: "welcomeLetter", proposal: docProposal, project: docProject, client: docClient, manager: docManager, uploadedById },
+        { kind: "contract", proposal: docProposal, project: docProject, client: docClient, uploadedById },
+        { kind: "specs", project: docProject, client: docClient, uploadedById },
+        { kind: "clientBrief", project: docProject, client: docClient, uploadedById },
+        { kind: "quote", proposal: docProposal, project: docProject, client: docClient, uploadedById },
+        { kind: "roadmap", project: docProject, uploadedById },
+      ];
+
+      if (result.invoiceId) {
+        const { prismaRead } = await import("../config/prisma.js");
+        const inv = await prismaRead.invoice.findUnique({ where: { id: result.invoiceId }, select: { id: true, number: true, amount: true, amountHT: true, tvaRate: true, tvaAmount: true, currency: true, dueDate: true } });
+        if (inv) {
+          documentJobs.push({
+            kind: "invoice",
+            invoice: {
+              ...inv,
+              amount: inv.amount != null ? Number(inv.amount) : null,
+              amountHT: inv.amountHT != null ? Number(inv.amountHT) : null,
+              tvaRate: inv.tvaRate != null ? Number(inv.tvaRate) : null,
+              tvaAmount: inv.tvaAmount != null ? Number(inv.tvaAmount) : null,
+            },
+            project: docProject,
+            client: docClient,
+            uploadedById,
+          });
+        }
+      }
+
+      await enqueueDocumentGeneration(documentJobs);
     }
 
     return { proposal, projectId: result.projectId, invoiceId: result.invoiceId, clientInvited };

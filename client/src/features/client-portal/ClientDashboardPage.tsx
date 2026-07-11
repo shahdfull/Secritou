@@ -2,16 +2,19 @@ import { useTranslation } from "react-i18next";
 import { useProjects } from "@/hooks/useProjects";
 import { useClientServiceRequests } from "@/hooks/useServiceRequests";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Briefcase, MessageSquare, FileText, Download } from "lucide-react";
+import { Briefcase, MessageSquare, FileText, Download, Wallet, CalendarClock, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { documentsApi, type Document } from "@/api/documents.api";
+import { clientPortalApi } from "@/api/clientPortal.api";
 import { useAuthStore } from "@/store/auth.store";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { formatNumber } from "@/utils/format";
 
 export function ClientDashboardPage() {
   const { t } = useTranslation();
@@ -26,7 +29,11 @@ export function ClientDashboardPage() {
     enabled: !!user?.clientId,
   });
   const documents = documentsResult?.data ?? [];
-  const hasLoadError = projectsError || requestsError || documentsError;
+  const { data: summary, isError: summaryError } = useQuery({
+    queryKey: ["clientPortalSummary"],
+    queryFn: clientPortalApi.getSummary,
+  });
+  const hasLoadError = projectsError || requestsError || documentsError || summaryError;
   const downloadDocumentMutation = useMutation({
     mutationFn: (documentId: string) => documentsApi.getDownloadUrl(documentId),
     onSuccess: ({ url }) => window.open(url, "_blank"),
@@ -73,6 +80,67 @@ export function ClientDashboardPage() {
           {t("errors.loadFailed")}
         </p>
       )}
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Card className="rounded-3xl border border-border shadow-soft">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Solde dû</CardTitle>
+            <div className="p-2 rounded-full bg-orange-50 text-orange-600">
+              <Wallet className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {summary ? `${formatNumber(summary.outstandingBalance)} TND` : "—"}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-3xl border border-border shadow-soft">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Prochaine échéance</CardTitle>
+            <div className="p-2 rounded-full bg-red-50 text-red-600">
+              <CalendarClock className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {summary?.nextDueInvoice ? (
+              <div>
+                <div className="text-2xl font-bold">
+                  {formatNumber(summary.nextDueInvoice.amount - summary.nextDueInvoice.amountPaid)} {summary.nextDueInvoice.currency}
+                </div>
+                {summary.nextDueInvoice.dueDate && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {format(new Date(summary.nextDueInvoice.dueDate), "dd/MM/yyyy", { locale: fr })}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="text-2xl font-bold text-muted-foreground">—</div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-3xl border border-border shadow-soft">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Avancement du projet</CardTitle>
+            <div className="p-2 rounded-full bg-blue-50 text-blue-600">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {summary?.currentProject ? (
+              <div className="space-y-2">
+                <div className="text-2xl font-bold">{summary.currentProject.progress}%</div>
+                <Progress value={summary.currentProject.progress} className="h-1.5" />
+                <p className="text-xs text-muted-foreground truncate">{summary.currentProject.projectName}</p>
+              </div>
+            ) : (
+              <div className="text-2xl font-bold text-muted-foreground">—</div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {stats.map((stat) => {

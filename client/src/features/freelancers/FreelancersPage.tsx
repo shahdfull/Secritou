@@ -17,7 +17,6 @@ import { Link } from "react-router-dom";
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import {
   useFreelancers,
   useCreateMyFreelancerProfile,
@@ -58,22 +57,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-const createProfileSchema = z.object({
-  bio: z.string().optional(),
-  hourlyRate: z.coerce.number().positive().optional(),
-  skills: z.string().optional(),
-});
-
-const updateProfileSchema = z.object({
-  bio: z.string().optional(),
-  hourlyRate: z.coerce.number().positive().optional(),
-  availability: z.boolean().optional(),
-  skills: z.string().optional(),
-});
-
-type CreateProfileForm = z.infer<typeof createProfileSchema>;
-type UpdateProfileForm = z.infer<typeof updateProfileSchema>;
+import {
+  createProfileSchema,
+  updateProfileSchema,
+  type CreateProfileForm,
+  type UpdateProfileForm
+} from "@secritou/shared";
 
 
 export function FreelancersPage() {

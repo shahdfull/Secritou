@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import type { Proposal } from "@/api/proposals.api";
 import {
   useProposals,
+  useProposal,
   useDeleteProposal,
   useSendProposal,
   useAcceptProposal,
@@ -48,7 +49,10 @@ import {
   Receipt,
   ExternalLink,
   Loader2,
+  Clock,
 } from "lucide-react";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { useListParams } from "@/hooks/useListParams";
 import { useLeads } from "@/hooks/useLeads";
@@ -80,6 +84,10 @@ export function ProposalsPage() {
   const [invoiceProposal, setInvoiceProposal] = useState<Proposal | null>(null);
   // Track proposals that have just had an invoice created (session-local, backed by invoice.proposalId on refresh)
   const [invoicedProposalIds, setInvoicedProposalIds] = useState<Set<string>>(() => new Set());
+
+  // Timeline (history) dialog
+  const [timelineProposalId, setTimelineProposalId] = useState<string | null>(null);
+  const { data: timelineProposal, isLoading: isTimelineLoading } = useProposal(timelineProposalId ?? "");
 
   const { data: proposalsResult, isLoading } = useProposals({
     page,
@@ -268,7 +276,7 @@ export function ProposalsPage() {
                       {(proposal.invoice || invoicedProposalIds.has(proposal.id)) && (
                         <Badge className="bg-green-100 text-green-800 w-fit">
                           <Receipt className="h-3 w-3 mr-1" />
-                          Facturé
+                          {t("proposals.invoiced")}
                         </Badge>
                       )}
                     </div>
@@ -284,10 +292,10 @@ export function ProposalsPage() {
                             className="h-7 px-2 text-xs gap-1"
                             onClick={() => openInvoiceDialog(proposal)}
                             disabled={!!(proposal.invoice || invoicedProposalIds.has(proposal.id))}
-                            title={proposal.invoice || invoicedProposalIds.has(proposal.id) ? "Facture déjà créée" : undefined}
+                            title={proposal.invoice || invoicedProposalIds.has(proposal.id) ? t("proposals.invoiceAlreadyCreated") : undefined}
                           >
                             <Receipt className="h-3.5 w-3.5" />
-                            Facture
+                            {t("proposals.invoiceButton")}
                           </Button>
                           {proposal.linkedProject && (
                             <Button
@@ -297,13 +305,16 @@ export function ProposalsPage() {
                               onClick={() => navigate(`/app/projects/${proposal.linkedProject!.id}`)}
                             >
                               <ExternalLink className="h-3.5 w-3.5" />
-                              Projet
+                              {t("proposals.projectButton")}
                             </Button>
                           )}
                         </>
                       )}
 
                       <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" title={t("proposals.viewTimeline")} onClick={() => setTimelineProposalId(proposal.id)}>
+                          <Clock className="h-3.5 w-3.5" />
+                        </Button>
                         {proposal.status === "DRAFT" && (
                           <Button variant="ghost" size="icon" className="h-7 w-7" title={t("proposals.send")} onClick={() => sendMutation.mutate(proposal.id)} disabled={sendMutation.isPending}>
                             <Send className="h-3.5 w-3.5" />
@@ -321,11 +332,11 @@ export function ProposalsPage() {
                         )}
                         {proposal.status === "ACCEPTED" && (
                           <>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:bg-blue-50" title={proposal.invoice || invoicedProposalIds.has(proposal.id) ? "Facture déjà créée" : "Générer une facture"} onClick={() => openInvoiceDialog(proposal)} disabled={!!(proposal.invoice || invoicedProposalIds.has(proposal.id))}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:bg-blue-50" title={proposal.invoice || invoicedProposalIds.has(proposal.id) ? t("proposals.invoiceAlreadyCreated") : t("proposals.generateInvoice")} onClick={() => openInvoiceDialog(proposal)} disabled={!!(proposal.invoice || invoicedProposalIds.has(proposal.id))}>
                               <Receipt className="h-3.5 w-3.5" />
                             </Button>
                             {proposal.linkedProject && (
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-purple-600 hover:bg-purple-50" title="Voir le projet" onClick={() => navigate(`/app/projects/${proposal.linkedProject!.id}`)}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-purple-600 hover:bg-purple-50" title={t("proposals.viewProject")} onClick={() => navigate(`/app/projects/${proposal.linkedProject!.id}`)}>
                                 <ExternalLink className="h-3.5 w-3.5" />
                               </Button>
                             )}
@@ -442,19 +453,19 @@ export function ProposalsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Receipt className="h-5 w-5 text-blue-600" />
-              Générer une facture
+              {t("proposals.invoiceDialog.title")}
             </DialogTitle>
             <DialogDescription>
-              Facture pré-remplie depuis la proposition <strong>{invoiceProposal?.title}</strong>
+              {t("proposals.invoiceDialog.description")} <strong>{invoiceProposal?.title}</strong>
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4 rounded-md border p-3 bg-muted/40 text-sm">
             <div>
-              <p className="text-muted-foreground">Client</p>
+              <p className="text-muted-foreground">{t("proposals.client")}</p>
               <p className="font-medium">{invoiceProposal?.client?.name ?? ":"}</p>
             </div>
             <div>
-              <p className="text-muted-foreground">Montant</p>
+              <p className="text-muted-foreground">{t("proposals.amount")}</p>
               <p className="font-medium">
                 {invoiceProposal?.amount} {invoiceProposal?.currency}
               </p>
@@ -462,7 +473,7 @@ export function ProposalsPage() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setInvoiceDialogOpen(false)}>
-              Annuler
+              {t("proposals.invoiceDialog.cancel")}
             </Button>
             <Button
               onClick={handleCreateInvoice}
@@ -470,7 +481,43 @@ export function ProposalsPage() {
               className="bg-ink hover:bg-ink/90 text-white rounded-full"
             >
               {createInvoiceMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Créer la facture
+              {t("proposals.invoiceDialog.createInvoice")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Timeline Dialog */}
+      <Dialog open={!!timelineProposalId} onOpenChange={(o) => !o && setTimelineProposalId(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {t("proposals.timelineTitle")}: {timelineProposal?.title}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 max-h-[500px] overflow-y-auto">
+            {isTimelineLoading ? (
+              <p className="text-center text-muted-foreground py-6">{t("common.loading")}</p>
+            ) : timelineProposal?.history && timelineProposal.history.length > 0 ? (
+              timelineProposal.history.map((entry) => (
+                <div key={entry.id} className="p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-sm">{entry.action}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(entry.createdAt), "d MMMM yyyy HH:mm", { locale: fr })}
+                    </span>
+                  </div>
+                  {entry.user && <p className="text-sm text-muted-foreground mb-1">{t("proposals.byUser", { name: entry.user.name })}</p>}
+                  {entry.comment && <p className="text-sm">{entry.comment}</p>}
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-muted-foreground">{t("proposals.noTimelineEntries")}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTimelineProposalId(null)}>
+              {t("common.close")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import apiClient from "@/api/axios";
 import { ratingsApi, type Rating } from "@/api/ratings.api";
+import { getProjectStatusBadgeClass, getTaskStatusBadgeClass } from "@/utils/statusColors";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
@@ -40,20 +41,6 @@ type Profile = {
   availability: boolean;
   bio?: string | null;
   skills: { name: string }[];
-};
-
-const TASK_STATUS_COLORS: Record<string, string> = {
-  TODO: "bg-muted text-muted-foreground",
-  IN_PROGRESS: "bg-blue-100 text-blue-700",
-  REVIEW: "bg-yellow-100 text-yellow-700",
-  DONE: "bg-green-100 text-green-700",
-};
-
-const PROJECT_STATUS_COLORS: Record<string, string> = {
-  ACTIVE: "bg-blue-100 text-blue-700",
-  COMPLETED: "bg-green-100 text-green-700",
-  ON_HOLD: "bg-yellow-100 text-yellow-700",
-  CANCELLED: "bg-red-100 text-red-700",
 };
 
 function KpiSkeleton() {
@@ -177,7 +164,7 @@ export function FreelancerDashboardPage() {
   const sortedActiveTasks = sortActiveTasks(activeTasks);
   const inProgressTasks = tasks.filter((t) => t.status === "IN_PROGRESS");
   const overdueTasks = activeTasks.filter((t) => t.dueDate && new Date(t.dueDate) < now);
-  const activeProjects = projects.filter((p) => p.status === "ACTIVE");
+  const activeProjects = projects.filter((p) => p.status !== "COMPLETED");
 
   // Completion rate: current month only
   const monthTasks = tasks.filter((t) => {
@@ -336,7 +323,7 @@ export function FreelancerDashboardPage() {
                         </p>
                       )}
                     </div>
-                    <Badge className={`${TASK_STATUS_COLORS[task.status] ?? "bg-gray-100"} shrink-0 text-xs`}>
+                    <Badge className={`${getTaskStatusBadgeClass(task.status)} shrink-0 text-xs`}>
                       {t(`tasks.statuses.${task.status}`, task.status)}
                     </Badge>
                   </div>
@@ -373,7 +360,7 @@ export function FreelancerDashboardPage() {
                     className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/40 hover:bg-muted/70 transition-colors"
                   >
                     <p className="text-sm font-medium text-ink truncate">{project.name}</p>
-                    <Badge className={`${PROJECT_STATUS_COLORS[project.status] ?? "bg-gray-100"} shrink-0 text-xs`}>
+                    <Badge className={`${getProjectStatusBadgeClass(project.status)} shrink-0 text-xs`}>
                       {t(`projects.status.${project.status}`, project.status)}
                     </Badge>
                   </Link>

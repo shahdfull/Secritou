@@ -61,6 +61,28 @@ export function useDeleteClient() {
   });
 }
 
+export function useRestoreClient() {
+  const queryClient = useQueryClient();
+
+  return useMutation<Client, Error, string>({
+    mutationFn: (id) => clientsApi.restore(id),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.clients() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.client(data.id) });
+      toast.success(i18n.t("toasts.clientRestored", "Client restored"));
+    },
+  });
+}
+
+export function useClientTrash(params: ListQueryParams & { includeArchived?: boolean } = {}) {
+  return useQuery<PaginatedResponse<Client>>({
+    queryKey: [...queryKeys.clients(params), "trash"],
+    queryFn: () => clientsApi.getTrash(params),
+    placeholderData: (prev) => prev,
+    staleTime: 60_000,
+  });
+}
+
 export function useArchiveClient() {
   const queryClient = useQueryClient();
 

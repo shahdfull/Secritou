@@ -6,6 +6,7 @@ import type { ProjectHealthItem } from "@/api/healthBoard.api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle } from "lucide-react";
+import { PoleSelect } from "@/components/common/PoleSelect";
 
 type Filter = "all" | "red" | "orange";
 
@@ -110,13 +111,19 @@ const HealthBoardTable = memo(function HealthBoardTable({ items }: { items: Proj
 });
 
 export function HealthBoardTab() {
-  const { data, isLoading } = useHealthBoard();
+  const [serviceId, setServiceId] = useState<string | undefined>(undefined);
+  const { data, isLoading } = useHealthBoard(serviceId);
   const [filter, setFilter] = useState<Filter>("all");
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-4">
+        <div className="flex items-center justify-end">
+          <PoleSelect value={serviceId} onChange={setServiceId} />
+        </div>
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
       </div>
     );
   }
@@ -130,24 +137,27 @@ export function HealthBoardTab() {
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex gap-2 flex-wrap">
-        {(
-          [
-            { value: "all", label: `Tous (${items.length})` },
-            { value: "red", label: `🔴 Critiques (${criticalCount})` },
-            { value: "orange", label: `🟠 À surveiller (${watchCount})` },
-          ] as { value: Filter; label: string }[]
-        ).map(({ value, label }) => (
-          <Button
-            key={value}
-            size="sm"
-            variant={filter === value ? "default" : "outline"}
-            onClick={() => setFilter(value)}
-            className="h-8 text-xs rounded-full"
-          >
-            {label}
-          </Button>
-        ))}
+      <div className="flex gap-2 flex-wrap items-center justify-between">
+        <div className="flex gap-2 flex-wrap">
+          {(
+            [
+              { value: "all", label: `Tous (${items.length})` },
+              { value: "red", label: `🔴 Critiques (${criticalCount})` },
+              { value: "orange", label: `🟠 À surveiller (${watchCount})` },
+            ] as { value: Filter; label: string }[]
+          ).map(({ value, label }) => (
+            <Button
+              key={value}
+              size="sm"
+              variant={filter === value ? "default" : "outline"}
+              onClick={() => setFilter(value)}
+              className="h-8 text-xs rounded-full"
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+        <PoleSelect value={serviceId} onChange={setServiceId} />
       </div>
 
       {allGreen && (

@@ -21,8 +21,10 @@ export interface ProjectHealthItem {
 }
 
 export const healthBoardApi = {
-  getHealthBoard: async (): Promise<ProjectHealthItem[]> => {
-    const res = await api.get<{ data: ProjectHealthItem[] }>("/projects/health-board");
+  getHealthBoard: async (serviceId?: string): Promise<ProjectHealthItem[]> => {
+    const res = await api.get<{ data: ProjectHealthItem[] }>("/projects/health-board", {
+      params: serviceId ? { serviceId } : undefined,
+    });
     return res.data.data;
   },
 };

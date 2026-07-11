@@ -18,7 +18,7 @@ import {
   sqlQueryDuration,
 } from "./metrics.js";
 
-const BULLMQ_QUEUES = ["communication", "maintenance"] as const;
+const BULLMQ_QUEUES = ["communication", "maintenance", "documents"] as const;
 const COLLECT_INTERVAL_MS = 15_000;
 
 let collectTimer: ReturnType<typeof setInterval> | null = null;

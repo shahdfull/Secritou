@@ -33,6 +33,7 @@ interface AddPaymentDialogProps {
     amount: number;
     amountPaid: number;
     currency: string;
+    status: string;
   } | null;
 }
 
@@ -93,6 +94,7 @@ export function AddPaymentDialog({ open, onOpenChange, invoice }: AddPaymentDial
   };
 
   if (!invoice) return null;
+  const isInvoiceAcceptingPayments = ["SENT", "PARTIAL", "OVERDUE"].includes(invoice.status);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -100,81 +102,95 @@ export function AddPaymentDialog({ open, onOpenChange, invoice }: AddPaymentDial
         <DialogHeader>
           <DialogTitle>Ajouter un paiement</DialogTitle>
           <DialogDescription>
-            Enregistrer un paiement pour la facture <span className="font-mono">{invoice.number}</span>.
-            Le solde restant est de <span className="font-semibold">{unpaidBalance.toFixed(2)} {invoice.currency}</span>.
+            {isInvoiceAcceptingPayments ? (
+              <>
+                Enregistrer un paiement pour la facture <span className="font-mono">{invoice.number}</span>.
+                Le solde restant est de <span className="font-semibold">{unpaidBalance.toFixed(2)} {invoice.currency}</span>.
+              </>
+            ) : (
+              <>
+                Impossible d'ajouter un paiement à une facture en statut <span className="font-semibold">{invoice.status}</span>.
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="amount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Montant payé ({invoice.currency})</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        {isInvoiceAcceptingPayments ? (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Montant payé ({invoice.currency})</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        {...field}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="method"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Méthode de paiement</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Virement, Carte, Espèces..." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="method"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Méthode de paiement</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Virement, Carte, Espèces..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="reference"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Référence de transaction (Optionnel)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="N° de transaction, chèque..." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="reference"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Référence de transaction (Optionnel)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="N° de transaction, chèque..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            {overpaidAmount > 0 && (
-              <div className="flex gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs items-start">
-                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold">Avertissement : Surpaiement détecté</p>
-                  <p className="mt-0.5">
-                    Le montant saisi dépasse le solde restant. L'excédent de{" "}
-                    <span className="font-bold">{overpaidAmount.toFixed(2)} {invoice.currency}</span> sera
-                    automatiquement converti en avoir pour ce client.
-                  </p>
+              {overpaidAmount > 0 && (
+                <div className="flex gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs items-start">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold">Avertissement : Surpaiement détecté</p>
+                    <p className="mt-0.5">
+                      Le montant saisi dépasse le solde restant. L'excédent de{" "}
+                      <span className="font-bold">{overpaidAmount.toFixed(2)} {invoice.currency}</span> sera
+                      automatiquement converti en avoir pour ce client.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <DialogFooter>
-              <Button type="submit" disabled={addPayment.isPending}>
-                {addPayment.isPending ? "Enregistrement..." : "Enregistrer le paiement"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+              <DialogFooter>
+                <Button type="submit" disabled={addPayment.isPending}>
+                  {addPayment.isPending ? "Enregistrement..." : "Enregistrer le paiement"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        ) : (
+          <DialogFooter>
+            <Button onClick={() => onOpenChange(false)}>Fermer</Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

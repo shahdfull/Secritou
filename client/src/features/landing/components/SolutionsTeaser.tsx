@@ -40,7 +40,7 @@ export function SolutionsTeaser() {
   const { t } = useTranslation();
 
   return (
-    <section className="bg-surface-warm/40 py-14 sm:py-20">
+    <section id="solutions" className="bg-surface-warm/40 py-14 sm:py-20">
       <div className="container-page">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">
@@ -52,7 +52,7 @@ export function SolutionsTeaser() {
             </h2>
           </div>
           <Link
-            to="/solutions"
+            to="/#solutions"
           className="group inline-flex items-center gap-2 text-sm font-semibold text-ink"
         >
             {t("solutionsTeaser.seeAll")}
@@ -90,7 +90,7 @@ export function SolutionsTeaser() {
                 ))}
               </ul>
               <Link
-                to="/solutions"
+                to="/#solutions"
                 className="mt-7 inline-flex items-center gap-1.5 text-sm font-semibold text-ink hover:text-primary"
               >
                 {t("solutionsTeaser.explore")} <ArrowRight className="h-4 w-4" />

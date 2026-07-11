@@ -1,10 +1,8 @@
 import { useState, useMemo } from "react";
 import { formatDate, formatNumber } from "@/utils/format";
 import { useTranslation } from "react-i18next";
-import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialog";
-import { toast } from "sonner";
 import type { Invoice } from "@/api/invoices.api";
-import { useInvoices, useDeleteInvoice, useSendInvoice, useCancelInvoice } from "@/hooks/useInvoices";
+import { useInvoices, useSendInvoice, useCancelInvoice, useDeleteInvoice, useRestoreInvoice, useSetReminderPaused } from "@/hooks/useInvoices";
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/api/axios";
 import { format } from "date-fns";
@@ -35,8 +33,9 @@ import {
   Send,
   Plus,
   Ban,
-  Trash2,
   Loader2,
+  BellOff,
+  Bell,
 } from "lucide-react";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { useListParams } from "@/hooks/useListParams";
@@ -51,7 +50,7 @@ export function InvoicesPage() {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [deleteInvoiceTarget, setDeleteInvoiceTarget] = useState<Invoice | null>(null);
+  const [showTrash, setShowTrash] = useState(false);
 
   const { data: invoicesResult, isLoading } = useInvoices({
     page,
@@ -78,9 +77,27 @@ export function InvoicesPage() {
     [creditNotesResult?.data]
   );
 
-  const deleteMutation = useDeleteInvoice();
+  const { data: trashResult, isLoading: trashLoading } = useQuery({
+    queryKey: ["invoices-trash", page, pageSize, search, status],
+    queryFn: async () => {
+      const { invoicesApi } = await import("@/api/invoices.api");
+      return invoicesApi.getTrash({ page, pageSize, search, status });
+    },
+    placeholderData: (prev) => prev,
+    staleTime: 60_000,
+    enabled: showTrash,
+  });
+
+  const trashedInvoices = useMemo(
+    () => Array.isArray(trashResult?.data) ? trashResult.data : [],
+    [trashResult?.data]
+  );
+
   const sendMutation = useSendInvoice();
   const cancelMutation = useCancelInvoice();
+  const deleteMutation = useDeleteInvoice();
+  const restoreMutation = useRestoreInvoice();
+  const reminderPausedMutation = useSetReminderPaused();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -119,10 +136,11 @@ export function InvoicesPage() {
         </Button>
       </div>
 
-      <Tabs defaultValue="invoices" className="space-y-6">
+      <Tabs value={showTrash ? "trash" : "invoices"} onValueChange={(value) => setShowTrash(value === "trash")} className="space-y-6">
         <TabsList>
           <TabsTrigger value="invoices">{t("invoices.tabInvoices")}</TabsTrigger>
           <TabsTrigger value="credit-notes">{t("invoices.tabCreditNotes")}</TabsTrigger>
+          <TabsTrigger value="trash">{t("common.trash")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="invoices" className="space-y-6">
@@ -226,14 +244,21 @@ export function InvoicesPage() {
                               <Plus className="h-3.5 w-3.5" />
                             </Button>
                           )}
-                          {!["PAID", "CANCELLED", "DRAFT"].includes(invoice.status) && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:bg-amber-50" title={t("invoices.cancel", "Annuler")} onClick={() => cancelMutation.mutate(invoice.id)} disabled={cancelMutation.isPending}>
-                              <Ban className="h-3.5 w-3.5" />
+                          {["SENT", "PARTIAL", "OVERDUE"].includes(invoice.status) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              title={invoice.reminderPaused ? t("invoices.resumeReminders") : t("invoices.pauseReminders")}
+                              onClick={() => reminderPausedMutation.mutate({ id: invoice.id, reminderPaused: !invoice.reminderPaused })}
+                              disabled={reminderPausedMutation.isPending}
+                            >
+                              {invoice.reminderPaused ? <BellOff className="h-3.5 w-3.5 text-muted-foreground" /> : <Bell className="h-3.5 w-3.5" />}
                             </Button>
                           )}
-                          {invoice.status === "DRAFT" && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("invoices.delete")} onClick={() => setDeleteInvoiceTarget(invoice)}>
-                              <Trash2 className="h-3.5 w-3.5" />
+                          {!["PAID", "CANCELLED"].includes(invoice.status) && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:bg-amber-50" title={t("invoices.cancel", "Annuler")} onClick={() => cancelMutation.mutate(invoice.id)} disabled={cancelMutation.isPending}>
+                              <Ban className="h-3.5 w-3.5" />
                             </Button>
                           )}
                         </div>
@@ -313,6 +338,49 @@ export function InvoicesPage() {
             </Table>
           </div>
         </TabsContent>
+
+        <TabsContent value="trash" className="space-y-4">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold">{t("common.trash")}</h2>
+                <p className="text-sm text-muted-foreground">{t("invoices.trashDesc")}</p>
+              </div>
+            </div>
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("invoices.number")}</TableHead>
+                    <TableHead>{t("invoices.client")}</TableHead>
+                    <TableHead>{t("invoices.amount")}</TableHead>
+                    <TableHead className="text-right">{t("invoices.actions")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {trashLoading ? (
+                    <TableRow><TableCell colSpan={4} className="text-center py-10">{t("common.loading")}</TableCell></TableRow>
+                  ) : trashedInvoices.length === 0 ? (
+                    <TableRow><TableCell colSpan={4} className="text-center py-10">{t("invoices.emptyTrash")}</TableCell></TableRow>
+                  ) : (
+                    trashedInvoices.map((invoice) => (
+                      <TableRow key={invoice.id}>
+                        <TableCell className="font-medium">{invoice.number}</TableCell>
+                        <TableCell>{invoice.client?.name}</TableCell>
+                        <TableCell>{invoice.currency} {invoice.amount}</TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="secondary" size="sm" onClick={() => restoreMutation.mutate(invoice.id)} disabled={restoreMutation.isPending}>
+                            {t("common.restore")}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
       </Tabs>
 
       <CreateInvoiceDialog
@@ -326,26 +394,6 @@ export function InvoicesPage() {
         invoice={selectedInvoice}
       />
 
-      <ConfirmDeleteDialog
-        open={!!deleteInvoiceTarget}
-        onOpenChange={(open) => { if (!open) setDeleteInvoiceTarget(null); }}
-        onConfirm={() => {
-          if (!deleteInvoiceTarget) return;
-          deleteMutation.mutate(deleteInvoiceTarget.id, {
-            onSuccess: () => {
-              toast.success(t("invoices.deleteSuccess"));
-              setDeleteInvoiceTarget(null);
-            },
-            onError: () => {
-              toast.error(t("invoices.deleteError"));
-              setDeleteInvoiceTarget(null);
-            },
-          });
-        }}
-        title={t("invoices.deleteTitle", { number: deleteInvoiceTarget?.number ?? "" })}
-        description={t("invoices.deleteDesc")}
-        isDeleting={deleteMutation.isPending}
-      />
     </section>
   );
 }

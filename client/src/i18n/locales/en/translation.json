@@ -142,7 +142,34 @@
         "Free of charge, no commitment required."
       ],
       "footer": "Spots are limited. Book early to secure your slot.",
-      "fallback": "The calendar isn't set up yet. Reach us directly at"
+      "fallback": "The calendar isn't set up yet. Reach us directly at",
+      "helpText": "If nothing fits, email us directly.",
+      "calendarTitle": "Choose a time",
+      "calendarSubtitle": "Pick a day, then select an open slot.",
+      "monthView": "Month",
+      "weekView": "Week",
+      "selectedDay": "Selected day",
+      "slots": "slots",
+      "bookSlot": "Book",
+      "noDaySlots": "No open slots on this day.",
+      "formTitle": "Confirm your booking",
+      "successTitle": "Booking confirmed",
+      "successDescription": "Your slot is reserved.",
+      "successBody": "Thanks. We’ve received your booking request and sent a confirmation email.",
+      "bookAnother": "Book another slot",
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone (optional)",
+      "notes": "Notes (optional)",
+      "confirm": "Confirm booking",
+      "submitting": "Submitting...",
+      "cancel": "Cancel",
+      "emptyState": "No availability in the next 30 days.",
+      "loadFailed": "Unable to load availability.",
+      "submitFailed": "Unable to submit your booking.",
+      "slotTaken": "That slot was just taken, please pick another.",
+      "successToast": "Booking confirmed.",
+      "availableCount": "{{count}} available"
     },
     "pleaseEnterName": "Please enter your name.",
     "pleaseEnterEmail": "Please enter a valid email address.",
@@ -157,6 +184,57 @@
       "moreThan15000": "+15 000 DT"
     },
     "whatsappLabel": "WhatsApp / Phone"
+  },
+  "booking": {
+    "admin": {
+      "title": "Booking calendar",
+      "subtitle": "Manage open slots and bookings for the public contact page.",
+      "addSlot": "Add slot",
+      "addSlotDesc": "Create a single availability slot.",
+      "generateRecurring": "Generate recurring slots",
+      "generateRecurringDesc": "Create a date range, weekdays only, with a fixed time window and interval.",
+      "startTime": "Start time",
+      "endTime": "End time",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "dayStart": "Day start",
+      "dayEnd": "Day end",
+      "intervalMinutes": "Interval minutes",
+      "weekdaysOnly": "Weekdays only",
+      "daysOfWeek": "Days of week",
+      "dayNames": {
+        "0": "Sun",
+        "1": "Mon",
+        "2": "Tue",
+        "3": "Wed",
+        "4": "Thu",
+        "5": "Fri",
+        "6": "Sat"
+      },
+      "save": "Save",
+      "generate": "Generate",
+      "upcomingSlots": "Upcoming slots",
+      "bookings": "Bookings",
+      "slot": "Slot",
+      "status": "Status",
+      "actions": "Actions",
+      "customer": "Customer",
+      "booked": "Booked",
+      "open": "Open",
+      "deleteSlot": "Delete slot",
+      "cancelBooking": "Cancel booking",
+      "noSlots": "No slots for this day.",
+      "noBookings": "No bookings for this day.",
+      "slotCreated": "Slot created.",
+      "slotCreateFailed": "Unable to create the slot.",
+      "recurringCreated": "Recurring slots created.",
+      "recurringFailed": "Unable to generate slots.",
+      "slotDeleted": "Slot deleted.",
+      "slotDeleteFailed": "Unable to delete the slot.",
+      "bookingCancelled": "Booking cancelled.",
+      "bookingCancelFailed": "Unable to cancel the booking.",
+      "loadFailed": "Unable to load bookings."
+    }
   },
   "home": {
     "hero": {
@@ -499,9 +577,9 @@
   "analytics": {
     "leadsByMonth": "Leads per month",
     "leadsByMonthDesc": "New leads per month",
-    "revenueByMonth": "Revenue per month",
-    "revenueByMonthDesc": "Collected revenue",
-    "revenueTooltipLabel": "Revenue",
+    "revenueByMonth": "Cash collected per month",
+    "revenueByMonthDesc": "Payments received (excludes invoiced-but-unpaid amounts)",
+    "revenueTooltipLabel": "Cash collected",
     "leadsByStatus": "Leads by status",
     "leadsByStatusDesc": "Lead breakdown by status",
     "projectsByStatus": "Project breakdown",
@@ -646,7 +724,9 @@
     "uploading": "Uploading…",
     "clickToUploadFile": "Click to upload a file",
     "removeFile": "Remove file",
-    "fileTypeNotAccepted": "File not accepted. Accepted types: {{types}}"
+    "fileTypeNotAccepted": "File not accepted. Accepted types: {{types}}",
+    "trash": "Trash",
+    "restore": "Restore"
   },
   "search": {
     "placeholder": "Search leads, clients, projects...",
@@ -672,6 +752,7 @@
     "aiAssistant": "AI Assistant",
     "analytics": "Analytics",
     "reports": "Reports",
+    "workload": "Workload",
     "settings": "Settings",
     "commercial": "Proposals",
     "service-requests": "Service Requests",
@@ -690,6 +771,7 @@
     "approvals": "Approvals",
     "invoices": "Invoices",
     "documents": "Documents",
+    "seo": "SEO Report",
     "onboarding": "Onboarding",
     "questions": "My Questions",
     "profile": "My Profile"
@@ -858,7 +940,12 @@
       "confirm": "Accept and create account"
     },
     "rejected": "Application rejected successfully",
-    "accepted": "Application accepted and account created successfully"
+    "accepted": "Application accepted and account created successfully",
+    "newApplications": "New applications ({{count}})",
+    "cvPreview": "CV Preview",
+    "portfolioPreview": "Portfolio Preview",
+    "download": "Download",
+    "close": "Close"
   },
   "joinRequests": {
     "title": "Join requests",
@@ -1054,7 +1141,19 @@
       "inProgress": "In Progress",
       "review": "Review",
       "completed": "Completed"
-    }
+    },
+    "trashDesc": "Recoverable deleted projects",
+    "trashEmpty": "No projects in the trash.",
+    "deleteProjectTitle": "Delete",
+    "deleteProjectDesc": "This action is irreversible. The project will be permanently deleted.",
+    "noProjectsInCategory": "No projects in this category.",
+    "basedOnCompletedTasks": "Based on completed tasks ({{done}}/{{total}})",
+    "projectCompletionRequiresApproval": "This project can only be completed via client approval.",
+    "invalidStatusTransition": "Invalid status transition.",
+    "errorUpdatingProject": "An error occurred during update.",
+    "projectHasInvoices": "This project has invoices and cannot be deleted. Archive it.",
+    "projectHasOnboarding": "This project has an onboarding and cannot be deleted. Archive it.",
+    "errorDeletingProject": "An error occurred during deletion."
   },
   "leadsPage": {
     "title": "Leads",
@@ -1094,11 +1193,25 @@
       "inboundCall": "Inbound Call",
       "other": "Other"
     },
-    "noEmail": "No email"
+    "noEmail": "No email",
+    "deleteFailed": "Unable to delete this lead.",
+    "convertSuccess": "{{name}} has been converted to a client.",
+    "convertFailed": "Unable to convert this lead.",
+    "reopenSuccess": "{{name}} has been reopened.",
+    "reopenFailed": "Unable to reopen this lead.",
+    "deleteTitle": "Delete \"{{name}}\"?",
+    "deleteDesc": "This action is irreversible. The lead will be permanently deleted.",
+    "convertTitle": "Convert \"{{name}}\" to a client?",
+    "convertDesc": "This will create a new client and automatically trigger an onboarding process. This action cannot be undone.",
+    "convertConfirm": "Convert",
+    "reopenTitle": "Reopen \"{{name}}\"?",
+    "reopenDesc": "The lead will return to active status and be visible again in the pipeline.",
+    "reopenConfirm": "Reopen"
   },
   "tasksPage": {
     "title": "Tasks",
     "subtitle": "Manage and track your project tasks",
+    "freelancerScopeNotice": "You only see tasks assigned to you.",
     "newTask": "New Task",
     "createTask": "Create Task",
     "createTaskDesc": "Add a new task to your project",
@@ -1145,6 +1258,8 @@
     "emailLabel": "Email",
     "phoneLabel": "Phone",
     "areYouSureDelete": "Are you sure you want to delete {{name}}?",
+    "trashDesc": "Recoverable deleted clients",
+    "trashEmpty": "No clients in the trash.",
     "detail": {
       "notFound": "Client not found",
       "tabInfo": "Information",
@@ -1188,7 +1303,31 @@
       "uploadFileLabel": "Click to upload a file",
       "inviteEmailDesc": "An email with login credentials will be sent to the provided address.",
       "sendInvitation": "Send invitation",
-      "deleteClientDesc": "Are you sure you want to delete this client? This action is irreversible."
+      "deleteClientDesc": "Are you sure you want to delete this client? This action is irreversible.",
+      "deleteBlockedHasInvoices": "This client has invoices and cannot be deleted. Archive it instead.",
+      "backToClients": "Back to clients",
+      "portalActive": "Portal active",
+      "inviteToPortalBtn": "Invite to portal",
+      "clientSuccess": "Client Success",
+      "archive": "Archive",
+      "delete": "Delete",
+      "tabPerformance": "Performance",
+      "tabCreditNotes": "Credit Notes",
+      "creditBalance": "Credit balance",
+      "creditNotes": {
+        "title": "Credit Notes",
+        "availableBalance": "Available credit balance:",
+        "empty": "No credit notes available for this client.",
+        "number": "Credit note number",
+        "amount": "Amount",
+        "reason": "Reason",
+        "originInvoice": "Original invoice",
+        "appliedInvoice": "Applied invoice",
+        "applicationStatus": "Application status",
+        "issueDate": "Issue date",
+        "appliedOn": "Applied on {{date}}",
+        "available": "Available"
+      }
     }
   },
   "settings": {
@@ -1581,6 +1720,9 @@
     "accept": "Accept",
     "reject": "Reject",
     "delete": "Delete",
+    "viewTimeline": "View timeline",
+    "timelineTitle": "Timeline",
+    "noTimelineEntries": "No timeline entries yet",
     "statuses": {
       "draft": "Draft",
       "sent": "Sent",
@@ -1623,7 +1765,20 @@
       "willInviteClient": "The client will be invited to their portal by email",
       "confirm": "Accept and proceed",
       "clientInvited": "Client invited by email"
-    }
+    },
+    "invoiced": "Invoiced",
+    "invoiceAlreadyCreated": "Invoice already created",
+    "generateInvoice": "Generate an invoice",
+    "viewProject": "View project",
+    "invoiceDialog": {
+      "title": "Generate an invoice",
+      "description": "Invoice pre-filled from proposal",
+      "cancel": "Cancel",
+      "createInvoice": "Create invoice"
+    },
+    "invoiceButton": "Invoice",
+    "projectButton": "Project",
+    "byUser": "By: {{name}}"
   },
   "approvals": {
     "title": "Approvals",
@@ -1642,6 +1797,12 @@
     "reject": "Reject",
     "comment": "Comment",
     "delete": "Delete",
+    "attachments": "Attachments",
+    "uploadAttachment": "Add attachment",
+    "deleteAttachment": "Delete attachment",
+    "noAttachments": "No attachments yet.",
+    "attachmentAdded": "Attachment added successfully",
+    "attachmentDeleted": "Attachment deleted successfully",
     "statuses": {
       "pending": "Pending",
       "approved": "Approved",
@@ -1733,6 +1894,7 @@
       "titleLabel": "Title",
       "titlePlaceholder": "Invoice title",
       "amountLabel": "Amount",
+      "currencyLabel": "Currency",
       "dueDateLabel": "Due date",
       "descriptionLabel": "Description (optional)",
       "descriptionPlaceholder": "Invoice description",
@@ -1743,7 +1905,25 @@
       "clientRequired": "Please select a client",
       "titleRequired": "Title is required",
       "amountPositive": "Amount must be positive"
-    }
+    },
+    "addPayment": {
+      "title": "Add payment",
+      "description": "Record a payment for invoice {{invoiceNumber}}. The remaining balance is {{unpaidBalance}} {{currency}}.",
+      "amountLabel": "Amount paid ({{currency}})",
+      "amountPlaceholder": "0.00",
+      "methodLabel": "Payment method",
+      "methodPlaceholder": "Transfer, Card, Cash...",
+      "referenceLabel": "Transaction reference (Optional)",
+      "referencePlaceholder": "Transaction number, check...",
+      "overpaymentWarning": "Warning: Overpayment detected",
+      "overpaymentDescription": "The entered amount exceeds the remaining balance. The excess of {{overpaidAmount}} {{currency}} will be automatically converted into a credit note for this client.",
+      "submit": "Record payment",
+      "submitting": "Recording..."
+    },
+    "trashDesc": "Recoverable deleted invoices",
+    "emptyTrash": "No deleted invoices.",
+    "resumeReminders": "Resume reminders",
+    "pauseReminders": "Pause reminders"
   },
   "clientSuccess": {
     "title": "Client Success",
@@ -1810,7 +1990,7 @@
     "paid": "Paid",
     "remaining": "Remaining",
     "recordPayment": "Record payment",
-    "amount": "Amount (€)",
+    "amount": "Amount (DT)",
     "note": "Note (optional)",
     "notePlaceholder": "Wire transfer, cheque, etc.",
     "confirm": "Confirm",
@@ -1863,6 +2043,10 @@
     "download": "Download",
     "uploadNewVersion": "Upload New Version",
     "delete": "Delete",
+    "accessLog": "Access log",
+    "accessLogTitle": "Access log",
+    "noAccessLog": "No access recorded yet.",
+    "unknownUser": "Unknown user",
     "types": {
       "contract": "Contract",
       "deliverable": "Deliverable",
@@ -1964,6 +2148,23 @@
     "lastReview": "Latest review",
     "seeReviews": "See all reviews",
     "anonymous": "Anonymous"
+  },
+  "legalPage": {
+    "title": "Legal Notice",
+    "companySection": "Publisher",
+    "companyName": "Secritou",
+    "companyDescription": "Digital services agency",
+    "companyLocation": "Tunis, Tunisia",
+    "companyEmail": "Email:",
+    "companyPhone": "Phone:",
+    "hostingSection": "Hosting",
+    "hostingText": "This site is hosted by a third-party provider. The host's contact details are available upon request at hello@secritou.com.",
+    "ipSection": "Intellectual Property",
+    "ipText": "All content on this site (texts, images, logos, graphics) is the exclusive property of Secritou or its partners. Any reproduction, even partial, is prohibited without prior written consent.",
+    "liabilitySection": "Liability",
+    "liabilityText": "Secritou strives to keep the published information up to date but cannot be held responsible for errors, omissions, or service unavailability.",
+    "lawSection": "Applicable Law",
+    "lawText": "This site and its content are subject to Tunisian law. Any dispute falls under the jurisdiction of the competent courts of Tunis."
   },
   "whatsapp": {
     "ariaLabel": "Contact us on WhatsApp",

@@ -1,10 +1,11 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { formatNumber } from "@/utils/format";
 import { useClient, useDeleteClient, useArchiveClient, useInviteClientUser } from "@/hooks/useClients";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SearchConsoleTab } from "./components/SearchConsoleTab";
 import { useClientOnboardingByClientId, useCreateClientOnboarding } from "@/hooks/useClientOnboarding";
 import { useProposals } from "@/hooks/useProposals";
 import { useInvoices } from "@/hooks/useInvoices";
@@ -55,11 +56,11 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { FileUploadField } from "@/components/common/FileUploadField";
 import type { UploadResult } from "@/api/upload.api";
+import { documentSchema } from "@secritou/shared";
+import type { Project } from "@/types/project";
 
-type DocumentForm = {
-  name: string;
-  type: "INVOICE" | "CONTRACT" | "OTHER";
-};
+type DocumentForm = z.infer<typeof documentFormSchema>;
+const documentFormSchema = documentSchema.pick({ name: true, type: true });
 
 const PROPOSAL_STATUS_COLORS: Record<string, string> = {
   DRAFT: "bg-gray-100 text-gray-800",
@@ -83,6 +84,8 @@ export function ClientDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const hasGscCallbackParams = searchParams.has("gscPendingId") || searchParams.has("gscError");
   const queryClient = useQueryClient();
   const { data: client, isLoading } = useClient(id ?? "");
   const { mutate: deleteClient, isPending: isDeleting } = useDeleteClient();
@@ -141,10 +144,6 @@ export function ClientDetailPage() {
     },
   });
 
-  const documentFormSchema = z.object({
-    name: z.string().min(1, t("common.nameRequired")),
-    type: z.enum(["INVOICE", "CONTRACT", "OTHER"]),
-  });
   const documentForm = useForm<DocumentForm>({
     resolver: zodResolver(documentFormSchema),
     defaultValues: { name: "", type: "OTHER" },
@@ -164,12 +163,7 @@ export function ClientDetailPage() {
           // Steer the user toward archiving, which preserves the financial records.
           const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
           if (code === "CLIENT_HAS_INVOICES") {
-            toast.error(
-              t(
-                "clientsPage.detail.deleteBlockedHasInvoices",
-                "Ce client a des factures et ne peut pas être supprimé. Archivez-le à la place."
-              )
-            );
+            toast.error(t("clientsPage.detail.deleteBlockedHasInvoices"));
             setDeleteDialogOpen(false);
           }
         },
@@ -214,7 +208,7 @@ export function ClientDetailPage() {
       clientId: id,
       version: 1,
       tags: [],
-      accessLevel: "CLIENT_ADMIN" as any,
+      accessLevel: "CLIENT_ADMIN",
     });
   };
 
@@ -240,7 +234,7 @@ export function ClientDetailPage() {
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <h2 className="text-xl font-bold">{t("clientsPage.detail.notFound")}</h2>
         <Button onClick={() => navigate("/app/crm")} className="mt-4">
-          Retour aux clients
+          {t("clientsPage.detail.backToClients")}
         </Button>
       </div>
     );
@@ -256,7 +250,7 @@ export function ClientDetailPage() {
             {portalUser ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
                 <CheckCircle2 className="h-3 w-3" />
-                Portail actif
+                {t("clientsPage.detail.portalActive")}
               </span>
             ) : null}
           </div>
@@ -269,26 +263,26 @@ export function ClientDetailPage() {
           {!portalUser && (
             <Button variant="outline" onClick={openInviteDialog}>
               <Mail className="h-4 w-4 mr-2" />
-              Inviter au portail
+              {t("clientsPage.detail.inviteToPortalBtn")}
             </Button>
           )}
           <Button variant="outline" onClick={() => navigate(`/app/client-success/${client.id}`)}>
             <Star className="h-4 w-4 mr-2" />
-            Client Success
+            {t("clientsPage.detail.clientSuccess")}
           </Button>
           <Button variant="outline" onClick={handleArchive} disabled={isArchiving}>
             {isArchiving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Archive className="h-4 w-4 mr-2" />}
-            {t("clientsPage.detail.archive", "Archiver")}
+            {t("clientsPage.detail.archive")}
           </Button>
           <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
             <Trash2 className="h-4 w-4 mr-2" />
-            Supprimer
+            {t("clientsPage.detail.delete")}
           </Button>
         </div>
       </div>
 
       {/* Hub Tabs */}
-      <Tabs defaultValue="info" className="space-y-4">
+      <Tabs defaultValue={hasGscCallbackParams ? "performance" : "info"} className="space-y-4">
         <TabsList>
           <TabsTrigger value="info">{t("clientsPage.detail.tabInfo")}</TabsTrigger>
           <TabsTrigger value="proposals">
@@ -317,11 +311,12 @@ export function ClientDetailPage() {
             )}
           </TabsTrigger>
           <TabsTrigger value="credit-notes">
-            Avoirs
+            {t("clientsPage.detail.tabCreditNotes")}
             {creditNotes.length > 0 && (
               <Badge className="ml-1.5 h-4 px-1.5 text-[10px]">{creditNotes.length}</Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="performance">{t("clientsPage.detail.tabPerformance")}</TabsTrigger>
         </TabsList>
 
         {/* ── Informations ── */}
@@ -351,7 +346,7 @@ export function ClientDetailPage() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Solde d'avoirs</p>
+                  <p className="text-muted-foreground">{t("clientsPage.detail.creditBalance")}</p>
                   <p className="font-medium text-emerald-600 font-mono">
                     {formatNumber(Number(client.creditBalance || 0), { minimumFractionDigits: 2 })} TND
                   </p>
@@ -537,9 +532,9 @@ export function ClientDetailPage() {
                           <SelectValue placeholder={t("common.selectProject")} />
                         </SelectTrigger>
                         <SelectContent>
-                          {client.projects.map((p: any) => (
-                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                          ))}
+                          {client.projects.map((p: Project) => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
                         </SelectContent>
                       </Select>
                       <Button
@@ -617,9 +612,9 @@ export function ClientDetailPage() {
         <TabsContent value="credit-notes">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Avoirs (Credit Notes)</CardTitle>
+              <CardTitle>{t("clientsPage.detail.creditNotes.title")}</CardTitle>
               <div className="text-right">
-                <span className="text-xs text-muted-foreground">Solde d'avoirs disponible :</span>
+                <span className="text-xs text-muted-foreground">{t("clientsPage.detail.creditNotes.availableBalance")}</span>
                 <p className="text-lg font-bold text-emerald-600 font-mono">
                   {formatNumber(Number(client.creditBalance || 0), { minimumFractionDigits: 2 })} TND
                 </p>
@@ -629,18 +624,18 @@ export function ClientDetailPage() {
               {creditNotesLoading ? (
                 <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
               ) : creditNotes.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">Aucun avoir disponible pour ce client.</p>
+                <p className="text-sm text-muted-foreground text-center py-6">{t("clientsPage.detail.creditNotes.empty")}</p>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Numéro d'avoir</TableHead>
-                      <TableHead>Montant</TableHead>
-                      <TableHead>Motif</TableHead>
-                      <TableHead>Facture d'origine</TableHead>
-                      <TableHead>Facture d'application</TableHead>
-                      <TableHead>Statut d'application</TableHead>
-                      <TableHead>Date d'émission</TableHead>
+                      <TableHead>{t("clientsPage.detail.creditNotes.number")}</TableHead>
+                      <TableHead>{t("clientsPage.detail.creditNotes.amount")}</TableHead>
+                      <TableHead>{t("clientsPage.detail.creditNotes.reason")}</TableHead>
+                      <TableHead>{t("clientsPage.detail.creditNotes.originInvoice")}</TableHead>
+                      <TableHead>{t("clientsPage.detail.creditNotes.appliedInvoice")}</TableHead>
+                      <TableHead>{t("clientsPage.detail.creditNotes.applicationStatus")}</TableHead>
+                      <TableHead>{t("clientsPage.detail.creditNotes.issueDate")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -656,11 +651,11 @@ export function ClientDetailPage() {
                         <TableCell>
                           {cn.appliedAt ? (
                             <Badge className="bg-green-100 text-green-800">
-                              Appliqué le {format(new Date(cn.appliedAt), "dd/MM/yyyy", { locale: fr })}
+                              {t("clientsPage.detail.creditNotes.appliedOn", { date: format(new Date(cn.appliedAt), "dd/MM/yyyy", { locale: fr }) })}
                             </Badge>
                           ) : (
                             <Badge className="bg-yellow-100 text-yellow-800">
-                              Disponible
+                              {t("clientsPage.detail.creditNotes.available")}
                             </Badge>
                           )}
                         </TableCell>
@@ -672,6 +667,11 @@ export function ClientDetailPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── Performance (Search Console) ── */}
+        <TabsContent value="performance">
+          <SearchConsoleTab clientId={client.id} />
         </TabsContent>
       </Tabs>
 

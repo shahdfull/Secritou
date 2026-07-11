@@ -14,7 +14,7 @@ import {
   respondToApproval,
 } from "../controllers/approval.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
-import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
+import { authorize, requirePermission, requireActivatedPortal } from "../middlewares/rbac.middleware.js";
 import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import {
@@ -30,8 +30,8 @@ import {
 const router = express.Router();
 
 // CLIENT routes
-router.get("/my", authenticate, authorize("CLIENT"), getMyApprovals);
-router.post("/:id/respond", authenticate, authorize("CLIENT"), sensitiveWriteRateLimit, validate(respondToApprovalSchema), respondToApproval);
+router.get("/my", authenticate, authorize("CLIENT"), requireActivatedPortal, getMyApprovals);
+router.post("/:id/respond", authenticate, authorize("CLIENT"), requireActivatedPortal, sensitiveWriteRateLimit, validate(respondToApprovalSchema), respondToApproval);
 
 // Apply base middleware to all admin/manager routes
 router.use(authenticate);

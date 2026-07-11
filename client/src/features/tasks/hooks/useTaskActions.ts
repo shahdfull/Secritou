@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { useCreateTask, useUpdateTask, useDeleteTask } from "@/hooks/useTasks";
+import { useCreateTask, useUpdateTask, useDeleteTask, useCheckFreelancerAvailability } from "@/hooks/useTasks";
 import { useCrudDialogState } from "@/hooks/shared/useCrudDialogState";
 import {
   createTaskSchema,
@@ -10,7 +10,7 @@ import {
   type CreateTaskForm,
   type UpdateTaskForm,
 } from "@/schemas/task.schema";
-import type { Task } from "@/types/task";
+import type { Task, FreelancerConflict } from "@/types/task";
 import { useTaskCommentMutation } from "./useTaskCommentMutation";
 
 /**
@@ -30,7 +30,17 @@ export function useTaskActions() {
   const { mutate: createTask, isPending: isCreating } = useCreateTask();
   const { mutate: updateTask, isPending: isUpdating } = useUpdateTask();
   const { mutate: deleteTask, isPending: isDeleting } = useDeleteTask();
+  const { mutateAsync: checkAvailability, isPending: isCheckingAvailability } = useCheckFreelancerAvailability();
   const createCommentMutation = useTaskCommentMutation();
+
+  // Conflict-confirmation state, shared by create + edit: holds the conflicts found for the
+  // pending submission (create has no excludeTaskId, edit excludes the task being edited so it
+  // doesn't flag itself) and which form the pending submit came from.
+  const [pendingConflicts, setPendingConflicts] = useState<FreelancerConflict[] | null>(null);
+  const [pendingSubmit, setPendingSubmit] = useState<{
+    kind: "create" | "update";
+    data: CreateTaskForm | UpdateTaskForm;
+  } | null>(null);
 
   const {
     createDialogOpen,
@@ -49,6 +59,7 @@ export function useTaskActions() {
       status: "TODO",
       priority: "NORMAL",
       projectId: "",
+      startDate: "",
       dueDate: "",
     },
   });
@@ -57,7 +68,7 @@ export function useTaskActions() {
     resolver: zodResolver(updateTaskSchema),
   });
 
-  const handleCreate = useCallback(
+  const runCreate = useCallback(
     (data: CreateTaskForm) => {
       createTask(data, {
         onSuccess: () => {
@@ -69,18 +80,7 @@ export function useTaskActions() {
     [createForm, createTask, closeCreateDialog]
   );
 
-  const handleEditTask = useCallback(
-    (task: Task) => {
-      openEditDialog(task);
-      editForm.reset({
-        ...task,
-        dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split("T")[0] : "",
-      });
-    },
-    [editForm, openEditDialog]
-  );
-
-  const handleUpdate = useCallback(
+  const runUpdate = useCallback(
     (data: UpdateTaskForm) => {
       if (!editingTask) return;
       updateTask(
@@ -94,6 +94,74 @@ export function useTaskActions() {
     },
     [editingTask, updateTask, closeEditDialog]
   );
+
+  // Shared by create/update: only worth checking when there's an assignee AND a real date range
+  // to compare against (a task with just a dueDate, or no assignee, is never "double-booked").
+  const checkConflictsThen = useCallback(
+    async (
+      data: CreateTaskForm | UpdateTaskForm,
+      kind: "create" | "update",
+      excludeTaskId: string | undefined,
+      proceed: () => void
+    ) => {
+      const { assigneeId, startDate, dueDate } = data;
+      if (!assigneeId || !startDate || !dueDate) {
+        proceed();
+        return;
+      }
+      const conflicts = await checkAvailability({ freelancerId: assigneeId, startDate, endDate: dueDate, excludeTaskId });
+      if (conflicts.length > 0) {
+        setPendingConflicts(conflicts);
+        setPendingSubmit({ kind, data });
+        return;
+      }
+      proceed();
+    },
+    [checkAvailability]
+  );
+
+  const handleCreate = useCallback(
+    (data: CreateTaskForm) => {
+      void checkConflictsThen(data, "create", undefined, () => runCreate(data));
+    },
+    [checkConflictsThen, runCreate]
+  );
+
+  const handleEditTask = useCallback(
+    (task: Task) => {
+      openEditDialog(task);
+      editForm.reset({
+        ...task,
+        startDate: task.startDate ? new Date(task.startDate).toISOString().split("T")[0] : "",
+        dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split("T")[0] : "",
+      });
+    },
+    [editForm, openEditDialog]
+  );
+
+  const handleUpdate = useCallback(
+    (data: UpdateTaskForm) => {
+      if (!editingTask) return;
+      void checkConflictsThen(data, "update", editingTask.id, () => runUpdate(data));
+    },
+    [editingTask, checkConflictsThen, runUpdate]
+  );
+
+  const handleConfirmAssignAnyway = useCallback(() => {
+    if (!pendingSubmit) return;
+    if (pendingSubmit.kind === "create") {
+      runCreate(pendingSubmit.data as CreateTaskForm);
+    } else {
+      runUpdate(pendingSubmit.data as UpdateTaskForm);
+    }
+    setPendingConflicts(null);
+    setPendingSubmit(null);
+  }, [pendingSubmit, runCreate, runUpdate]);
+
+  const handleCancelConflict = useCallback(() => {
+    setPendingConflicts(null);
+    setPendingSubmit(null);
+  }, []);
 
   const handleDelete = useCallback((task: Task) => {
     setDeleteTaskTarget(task);
@@ -151,6 +219,12 @@ export function useTaskActions() {
     // row actions
     handleView,
     handleDelete,
+    // freelancer conflict confirmation
+    pendingConflicts,
+    isCheckingAvailability,
+    isConfirmingConflict: isCreating || isUpdating,
+    handleConfirmAssignAnyway,
+    handleCancelConflict,
     // comments
     createCommentMutation,
     handleAddComment,

@@ -196,11 +196,11 @@ export function LeadsPage() {
     deleteLead(deleteTarget.id, {
       onSuccess: () => setDeleteTarget(null),
       onError: () => {
-        toast.error("Impossible de supprimer ce lead.");
+        toast.error(t("leadsPage.deleteFailed"));
         setDeleteTarget(null);
       },
     });
-  }, [deleteTarget, deleteLead]);
+  }, [deleteTarget, deleteLead, t]);
 
   const handleConvert = useCallback((lead: Lead) => {
     setConvertTarget(lead);
@@ -210,15 +210,15 @@ export function LeadsPage() {
     if (!convertTarget) return;
     convertLead(convertTarget.id, {
       onSuccess: () => {
-        toast.success(`${convertTarget.name} a été converti en client.`);
+        toast.success(t("leadsPage.convertSuccess", { name: convertTarget.name }));
         setConvertTarget(null);
       },
       onError: () => {
-        toast.error("Impossible de convertir ce lead.");
+        toast.error(t("leadsPage.convertFailed"));
         setConvertTarget(null);
       },
     });
-  }, [convertTarget, convertLead]);
+  }, [convertTarget, convertLead, t]);
 
   const handleReopen = useCallback((lead: Lead) => {
     setReopenTarget(lead);
@@ -228,15 +228,15 @@ export function LeadsPage() {
     if (!reopenTarget) return;
     reopenLead(reopenTarget.id, {
       onSuccess: () => {
-        toast.success(`${reopenTarget.name} a été rouvert.`);
+        toast.success(t("leadsPage.reopenSuccess", { name: reopenTarget.name }));
         setReopenTarget(null);
       },
       onError: () => {
-        toast.error("Impossible de rouvrir ce lead.");
+        toast.error(t("leadsPage.reopenFailed"));
         setReopenTarget(null);
       },
     });
-  }, [reopenTarget, reopenLead]);
+  }, [reopenTarget, reopenLead, t]);
 
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
@@ -653,7 +653,7 @@ export function LeadsPage() {
                         <SelectContent>
                           {SOURCE_OPTIONS.map((source) => (
                             <SelectItem key={source} value={source}>
-                              {source}
+                              {getSourceLabel(source)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -723,8 +723,8 @@ export function LeadsPage() {
         open={!!deleteTarget}
         onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
         onConfirm={handleConfirmDelete}
-        title={`Supprimer "${deleteTarget?.name}" ?`}
-        description="Cette action est irréversible. Le lead sera définitivement supprimé."
+        title={t("leadsPage.deleteTitle", { name: deleteTarget?.name })}
+        description={t("leadsPage.deleteDesc")}
         isDeleting={isDeleting}
       />
 
@@ -732,11 +732,11 @@ export function LeadsPage() {
         open={!!convertTarget}
         onOpenChange={(open) => { if (!open) setConvertTarget(null); }}
         onConfirm={handleConfirmConvert}
-        title={`Convertir "${convertTarget?.name}" en client ?`}
-        description="Ceci créera un nouveau client et déclenchera automatiquement un processus d'onboarding. Cette action ne peut pas être annulée."
+        title={t("leadsPage.convertTitle", { name: convertTarget?.name })}
+        description={t("leadsPage.convertDesc")}
         isLoading={isConverting}
         icon={UserCheck}
-        confirmLabel="Convertir"
+        confirmLabel={t("leadsPage.convertConfirm")}
         variant="default"
       />
 
@@ -744,11 +744,11 @@ export function LeadsPage() {
         open={!!reopenTarget}
         onOpenChange={(open) => { if (!open) setReopenTarget(null); }}
         onConfirm={handleConfirmReopen}
-        title={`Rouvrir "${reopenTarget?.name}" ?`}
-        description="Le lead repassera en statut actif et sera à nouveau visible dans le pipeline."
+        title={t("leadsPage.reopenTitle", { name: reopenTarget?.name })}
+        description={t("leadsPage.reopenDesc")}
         isLoading={isReopening}
         icon={RotateCcw}
-        confirmLabel="Rouvrir"
+        confirmLabel={t("leadsPage.reopenConfirm")}
         variant="default"
       />
     </div>

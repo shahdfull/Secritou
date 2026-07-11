@@ -1,14 +1,15 @@
-import { Worker, QueueEvents } from "bullmq";
+import { Worker, QueueEvents, Job } from "bullmq";
 import * as Sentry from "@sentry/node";
 import { env } from "../config/env.js";
 import logger from "../utils/logger.js";
 import { jobNames, queueNames } from "./jobNames.js";
-import { maintenanceQueue } from "./queues.js";
+import { maintenanceQueue, enqueueNotifications, communicationQueue } from "./queues.js";
 import { getBullRedisConnection } from "./redisConnection.js";
 import {
   processNotificationJob,
   processEmailJob,
 } from "./processors/communication.processor.js";
+import { processDocumentJob } from "./processors/documents.processor.js";
 import {
   archiveColdData,
   cleanupExpiredRefreshTokens,
@@ -16,6 +17,8 @@ import {
   recalculateClientScores,
   expireProposals,
   markOverdueInvoices,
+  syncSearchConsole,
+  pruneAnalyticsEvents,
 } from "./processors/maintenance.processor.js";
 import {
   checkStaleProjects,
@@ -23,8 +26,13 @@ import {
   checkInvoiceFollowup,
   weeklyCeoReport,
   checkTaskDeadlines,
+  checkOverdueTasks,
+  checkMeetingReminders,
+  checkStaleLeads,
+  checkPendingCommissions,
 } from "./processors/ceoAlerts.processor.js";
-import type { NotificationJob, EmailJob } from "./queues.js";
+import { userRepository } from "../repositories/user.repository.js";
+import type { NotificationJob, EmailJob, DocumentJob } from "./queues.js";
 
 const connection = getBullRedisConnection();
 
@@ -49,7 +57,7 @@ function startWorkers() {
   // ── Dead-letter / failure event logger ─────────────────────────────────────
   const communicationEvents = new QueueEvents(queueNames.communication, { connection });
 
-  communicationEvents.on("failed", ({ jobId, failedReason }) => {
+  communicationEvents.on("failed", async ({ jobId, failedReason }) => {
     logger.error(
       { jobId, queue: queueNames.communication, failedReason },
       `[jobs] Job ${jobId} in "${queueNames.communication}" permanently failed`
@@ -57,12 +65,67 @@ function startWorkers() {
     if (env.SENTRY_DSN) {
       Sentry.captureException(new Error(`Job ${jobId} failed: ${failedReason}`));
     }
+
+    // Check if this failed job is a sendEmail job
+    try {
+      // Re-fetch the job to get its data
+      const job = await Job.fromId(communicationQueue, jobId);
+      if (job?.name === jobNames.sendEmail) {
+        const emailData = job.data as EmailJob;
+        const toLabel = Array.isArray(emailData.to) ? emailData.to.join(", ") : emailData.to;
+        
+        // Notify admins
+        const admins = await userRepository.findAdmins();
+        await enqueueNotifications(
+          admins.map((admin) => ({
+            userId: admin.id,
+            title: "Échec permanent d'envoi d'email",
+            message: `L'envoi de l'email à ${toLabel} (sujet: "${emailData.subject}") a échoué de façon permanente.`,
+            type: "GENERAL" as const,
+            entityId: jobId,
+          }))
+        );
+      }
+    } catch (fetchErr) {
+      logger.error({ err: fetchErr, jobId }, "[jobs] Failed to fetch failed job details for admin notification");
+    }
   });
 
   communicationEvents.on("stalled", ({ jobId }) => {
     logger.warn(
       { jobId, queue: queueNames.communication },
       `[jobs] Job ${jobId} in "${queueNames.communication}" stalled and will be re-queued`
+    );
+  });
+
+  // ── Documents worker ─────────────────────────────────────────────────────────
+  new Worker(
+    queueNames.documents,
+    async (job) => {
+      if (job.name === jobNames.generateDocument) {
+        return processDocumentJob(job.data as DocumentJob);
+      }
+      throw new Error(`Unknown job: ${job.name}`);
+    },
+    { connection, concurrency: 3 }
+  );
+
+  const documentsEvents = new QueueEvents(queueNames.documents, { connection });
+
+  documentsEvents.on("failed", ({ jobId, failedReason }) => {
+    logger.error(
+      { jobId, queue: queueNames.documents, failedReason },
+      `[jobs] Job ${jobId} in "${queueNames.documents}" permanently failed`
+    );
+    if (env.SENTRY_DSN) {
+      Sentry.captureException(new Error(`Job ${jobId} failed: ${failedReason}`));
+    }
+  });
+
+  documentsEvents.on("stalled", ({ jobId }) => {
+    logger.warn(
+      { jobId, queue: queueNames.documents },
+      `[jobs] Job ${jobId} in "${queueNames.documents}" stalled and will be re-queued`
     );
   });
 
@@ -102,6 +165,24 @@ function startWorkers() {
       }
       if (job.name === jobNames.checkTaskDeadlines) {
         return checkTaskDeadlines();
+      }
+      if (job.name === jobNames.checkOverdueTasks) {
+        return checkOverdueTasks();
+      }
+      if (job.name === jobNames.checkMeetingReminders) {
+        return checkMeetingReminders();
+      }
+      if (job.name === jobNames.checkStaleLeads) {
+        return checkStaleLeads();
+      }
+      if (job.name === jobNames.checkPendingCommissions) {
+        return checkPendingCommissions();
+      }
+      if (job.name === jobNames.syncSearchConsole) {
+        return syncSearchConsole();
+      }
+      if (job.name === jobNames.pruneAnalyticsEvents) {
+        return pruneAnalyticsEvents();
       }
       throw new Error(`Unknown job: ${job.name}`);
     },
@@ -161,6 +242,18 @@ function startWorkers() {
     {},
     { repeat: { pattern: "15 4 * * *" }, jobId: "mark-overdue-invoices-daily" }
   );
+  // Pull Search Console metrics for connected clients (daily; GSC data itself lags ~2-3 days).
+  void maintenanceQueue.add(
+    jobNames.syncSearchConsole,
+    {},
+    { repeat: { pattern: "0 5 * * *" }, jobId: "sync-search-console-daily" }
+  );
+  // Delete analytics events older than 13 months so the table doesn't grow forever.
+  void maintenanceQueue.add(
+    jobNames.pruneAnalyticsEvents,
+    {},
+    { repeat: { pattern: "0 4 * * *" }, jobId: "prune-analytics-events-daily" }
+  );
 
   // ── CEO Alerts ──────────────────────────────────────────────────────────────
   void maintenanceQueue.add(
@@ -187,6 +280,26 @@ function startWorkers() {
     jobNames.checkTaskDeadlines,
     {},
     { repeat: { pattern: "0 * * * *" }, jobId: "check-task-deadlines-hourly" }
+  );
+  void maintenanceQueue.add(
+    jobNames.checkOverdueTasks,
+    {},
+    { repeat: { pattern: "0 9 * * *" }, jobId: "check-overdue-tasks-daily" }
+  );
+  void maintenanceQueue.add(
+    jobNames.checkMeetingReminders,
+    {},
+    { repeat: { pattern: "0 7 * * *" }, jobId: "check-meeting-reminders-daily" }
+  );
+  void maintenanceQueue.add(
+    jobNames.checkStaleLeads,
+    {},
+    { repeat: { pattern: "15 8 * * *" }, jobId: "check-stale-leads-daily" }
+  );
+  void maintenanceQueue.add(
+    jobNames.checkPendingCommissions,
+    {},
+    { repeat: { pattern: "30 8 * * *" }, jobId: "check-pending-commissions-daily" }
   );
 }
 

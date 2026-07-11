@@ -54,12 +54,20 @@ export const userService = {
   async updateUser(id: string, name?: string, role?: Role) {
     const user = await userRepository.findById(id);
     if (!user) throw new HttpError(404, "User not found");
+    if (user.role === "ADMIN" && role && role !== "ADMIN") {
+      const adminCount = await userRepository.countByRole("ADMIN");
+      if (adminCount <= 1) throw new HttpError(409, "Cannot remove the last remaining admin", "LAST_ADMIN");
+    }
     return userRepository.update(id, { name, role });
   },
 
   async deleteUser(id: string) {
     const user = await userRepository.findById(id);
     if (!user) throw new HttpError(404, "User not found");
+    if (user.role === "ADMIN") {
+      const adminCount = await userRepository.countByRole("ADMIN");
+      if (adminCount <= 1) throw new HttpError(409, "Cannot delete the last remaining admin", "LAST_ADMIN");
+    }
     return userRepository.delete(id);
   },
 };

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { formatNumber } from "@/utils/format";
 import { formatDate } from "@/utils/format";
 import { useTranslation } from "react-i18next";
-import { useTimeEntries, useTimeSummary, useCreateTimeEntry } from "@/hooks/useTimeEntries";
+import { useTimeEntries, useTimeSummary, useMyTimeSummary, useCreateTimeEntry } from "@/hooks/useTimeEntries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,9 @@ interface Props {
   budget?: string | null;
   tasks?: Array<{ id: string; title: string }>;
   readOnly?: boolean;
+  // "freelancer" shows the user's own hours × their own hourlyRate ("amount due"),
+  // never the client budget/TJM — that's a margin figure kept ADMIN/MANAGER-only.
+  mode?: "admin" | "freelancer";
 }
 
 function formatMinutes(mins: number) {
@@ -34,10 +37,12 @@ function parseBudgetTND(budget?: string | null): number | null {
   return isNaN(num) ? null : num;
 }
 
-export function TimeTrackingTab({ projectId, budget, tasks = [], readOnly = false }: Props) {
+export function TimeTrackingTab({ projectId, budget, tasks = [], readOnly = false, mode = "admin" }: Props) {
   const { t } = useTranslation();
+  const isFreelancerMode = mode === "freelancer";
   const { data: entriesData, isLoading: loadingEntries } = useTimeEntries(projectId);
-  const { data: summary, isLoading: loadingSummary } = useTimeSummary(projectId);
+  const { data: summary, isLoading: loadingSummary } = useTimeSummary(projectId, !isFreelancerMode);
+  const { data: mySummary, isLoading: loadingMySummary } = useMyTimeSummary(projectId, isFreelancerMode);
   const { mutate: createEntry, isPending } = useCreateTimeEntry(projectId);
 
   const [showForm, setShowForm] = useState(false);
@@ -78,59 +83,86 @@ export function TimeTrackingTab({ projectId, budget, tasks = [], readOnly = fals
   return (
     <div className="space-y-6">
       {/* Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card className="rounded-2xl border border-border shadow-none">
-          <CardContent className="pt-5 px-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">{t("common.total")}</p>
-            <p className="text-2xl font-bold text-ink">
-              {loadingSummary ? "…" : `${summary?.totalHours ?? 0}h`}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-2xl border border-border shadow-none">
-          <CardContent className="pt-5 px-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Membres</p>
-            <p className="text-2xl font-bold text-ink">
-              {loadingSummary ? "…" : (summary?.byUser.length ?? 0)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-2xl border border-border shadow-none">
-          <CardContent className="pt-5 px-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Budget</p>
-            <p className="text-2xl font-bold text-ink">
-              {budgetTND ? `${formatNumber(budgetTND)} TND` : "—"}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-2xl border border-border shadow-none">
-          <CardContent className="pt-5 px-5 pb-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">TJM implicite</p>
-            <p className="text-2xl font-bold text-ink">
-              {implicitTJM ? `${formatNumber(implicitTJM)} TND` : "—"}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      {isFreelancerMode ? (
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="rounded-2xl border border-border shadow-none">
+            <CardContent className="pt-5 px-5 pb-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">{t("common.total")}</p>
+              <p className="text-2xl font-bold text-ink">
+                {loadingMySummary ? "…" : `${mySummary?.totalHours ?? 0}h`}
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="rounded-2xl border border-border shadow-none">
+            <CardContent className="pt-5 px-5 pb-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Montant qui vous est dû</p>
+              <p className="text-2xl font-bold text-ink">
+                {loadingMySummary
+                  ? "…"
+                  : mySummary?.amountDue !== null && mySummary?.amountDue !== undefined
+                    ? `${formatNumber(mySummary.amountDue)} TND`
+                    : "—"}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <Card className="rounded-2xl border border-border shadow-none">
+              <CardContent className="pt-5 px-5 pb-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">{t("common.total")}</p>
+                <p className="text-2xl font-bold text-ink">
+                  {loadingSummary ? "…" : `${summary?.totalHours ?? 0}h`}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="rounded-2xl border border-border shadow-none">
+              <CardContent className="pt-5 px-5 pb-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Membres</p>
+                <p className="text-2xl font-bold text-ink">
+                  {loadingSummary ? "…" : (summary?.byUser.length ?? 0)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="rounded-2xl border border-border shadow-none">
+              <CardContent className="pt-5 px-5 pb-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Budget</p>
+                <p className="text-2xl font-bold text-ink">
+                  {budgetTND ? `${formatNumber(budgetTND)} TND` : "—"}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="rounded-2xl border border-border shadow-none">
+              <CardContent className="pt-5 px-5 pb-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">TJM implicite</p>
+                <p className="text-2xl font-bold text-ink">
+                  {implicitTJM ? `${formatNumber(implicitTJM)} TND` : "—"}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
 
-      {/* Chart */}
-      {chartData.length > 0 && (
-        <Card className="rounded-2xl border border-border shadow-none">
-          <CardHeader className="px-5 pt-5 pb-2">
-            <CardTitle className="text-sm font-semibold">Répartition par membre</CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="h-40">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                  <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(v: number) => [`${v}h`, "Heures"]} />
-                  <Bar dataKey="heures" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Chart */}
+          {chartData.length > 0 && (
+            <Card className="rounded-2xl border border-border shadow-none">
+              <CardHeader className="px-5 pt-5 pb-2">
+                <CardTitle className="text-sm font-semibold">Répartition par membre</CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <div className="h-40">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                      <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                      <Tooltip formatter={(v: number) => [`${v}h`, "Heures"]} />
+                      <Bar dataKey="heures" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
 
       {/* Log Time Form */}

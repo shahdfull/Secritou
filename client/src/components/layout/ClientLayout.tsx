@@ -39,6 +39,7 @@ import {
   FolderOpen,
   Rocket,
   Settings,
+  TrendingUp,
 } from "lucide-react";
 import logoAsset from "@/assets/secritou-logo.png";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -54,6 +55,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: "approvals",  to: "/client/approvals", icon: ClipboardCheck,group: "main" },
   { key: "invoices",   to: "/client/invoices",  icon: Receipt,       group: "main" },
   { key: "documents",  to: "/client/documents", icon: FolderOpen,    group: "main" },
+  { key: "seo",        to: "/client/seo",       icon: TrendingUp,    group: "main" },
   { key: "onboarding", to: "/client/onboarding",icon: Rocket,        group: "main" },
   { key: "questions",  to: "/client/questions", icon: HelpCircle,    group: "account" },
   { key: "profile",    to: "/client/profile",   icon: User,          group: "account" },

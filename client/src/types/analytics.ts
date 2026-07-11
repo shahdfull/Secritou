@@ -1,4 +1,5 @@
 export type AnalyticsEventName =
+  | "page_view"
   | "cta_clicked"
   | "contact_form_submitted"
   | "contact_form_failed"
@@ -7,17 +8,4 @@ export type AnalyticsEventName =
   | "solution_need_clicked";
 
 export type AnalyticsProperties = Record<string, string | number | boolean | null | undefined>;
-
-declare global {
-  interface Window {
-    gtag?: (
-      command: "event" | "config" | "js",
-      eventName: string,
-      properties?: AnalyticsProperties,
-    ) => void;
-    posthog?: {
-      capture: (eventName: string, properties?: AnalyticsProperties) => void;
-    };
-  }
-}
 

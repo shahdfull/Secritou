@@ -33,6 +33,10 @@ export const userRepository = {
     return user?.serviceId ?? null;
   },
 
+  async countByRole(role: Role): Promise<number> {
+    return prisma.user.count({ where: { role } });
+  },
+
   async findAll(options: ListQueryOptions): Promise<PaginatedResult<PublicUser>> {
     const skip = (options.page - 1) * options.pageSize;
     const [data, total] = await Promise.all([
@@ -57,6 +61,21 @@ export const userRepository = {
   async findAdmins(): Promise<PublicUser[]> {
     return prisma.user.findMany({
       where: { role: { in: ["ADMIN", "MANAGER"] } },
+      select: userPublicFields,
+    });
+  },
+
+  // ADMINs (unscoped) plus only the MANAGER(s) assigned to the given pole — narrower than
+  // findAdmins(), which returns every manager regardless of pole. Used for alerts that should
+  // reach the pole owner without also spamming every other associate's inbox.
+  async findAdminsAndPoleManagers(serviceId: string | null): Promise<PublicUser[]> {
+    return prisma.user.findMany({
+      where: {
+        OR: [
+          { role: "ADMIN" },
+          { role: "MANAGER", serviceId: serviceId ?? "__none__" },
+        ],
+      },
       select: userPublicFields,
     });
   },

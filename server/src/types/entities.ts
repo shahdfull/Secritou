@@ -50,6 +50,7 @@ export interface Task extends BaseEntity {
   title: string;
   description?: string;
   status: TaskStatus;
+  startDate?: Date;
   dueDate?: Date;
   projectId: string;
   assigneeId?: string;
@@ -92,6 +93,7 @@ export interface CreateTaskDTO {
   title: string;
   description?: string;
   status?: TaskStatus;
+  startDate?: Date;
   dueDate?: Date;
   projectId: string;
   assigneeId?: string;

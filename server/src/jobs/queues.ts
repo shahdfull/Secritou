@@ -5,6 +5,13 @@ import { getBullRedisConnection } from "./redisConnection.js";
 import { env } from "../config/env.js";
 import logger from "../utils/logger.js";
 import type { NotificationType } from "@prisma/client";
+import type {
+  GeneratorProposal,
+  GeneratorProject,
+  GeneratorClient,
+  GeneratorManager,
+  GeneratorInvoice,
+} from "../services/documentGenerator.service.js";
 
 const connection = getBullRedisConnection();
 
@@ -24,6 +31,16 @@ export const maintenanceQueue = new Queue(queueNames.maintenance, {
     attempts: 2,
     removeOnComplete: 100,
     removeOnFail: 500,
+  },
+});
+
+export const documentsQueue = new Queue(queueNames.documents, {
+  connection,
+  defaultJobOptions: {
+    attempts: 4,
+    backoff: { type: "exponential", delay: 5000 },
+    removeOnComplete: 500,
+    removeOnFail: 2000,
   },
 });
 
@@ -101,6 +118,33 @@ export async function enqueueEmails(items: EmailJob[]): Promise<void> {
     );
   } catch (error) {
     logger.error({ err: error }, "[jobs] Failed to enqueue emails");
+    if (env.SENTRY_DSN) {
+      Sentry.captureException(error);
+    }
+  }
+}
+
+// ─── Document generation jobs ─────────────────────────────────────────────────
+// Each proposal-acceptance / project-completion event enqueues one job per PDF
+// so a failure in one document (e.g. contract) retries independently and does
+// not block or lose the others. Dates cross the queue as ISO strings (BullMQ
+// serializes job data as JSON); the processor parses them back to Date.
+
+export type DocumentJob =
+  | { kind: "welcomeLetter"; proposal: GeneratorProposal; project: GeneratorProject; client: GeneratorClient; manager: GeneratorManager; uploadedById: string }
+  | { kind: "contract"; proposal: GeneratorProposal; project: GeneratorProject; client: GeneratorClient; uploadedById: string }
+  | { kind: "specs"; project: GeneratorProject; client: GeneratorClient; uploadedById: string }
+  | { kind: "clientBrief"; project: GeneratorProject; client: GeneratorClient; uploadedById: string }
+  | { kind: "quote"; proposal: GeneratorProposal; project: GeneratorProject | null; client: GeneratorClient; uploadedById: string }
+  | { kind: "invoice"; invoice: GeneratorInvoice; project: GeneratorProject; client: GeneratorClient; uploadedById: string }
+  | { kind: "roadmap"; project: GeneratorProject; uploadedById: string };
+
+export async function enqueueDocumentGeneration(jobs: DocumentJob[]): Promise<void> {
+  if (jobs.length === 0) return;
+  try {
+    await documentsQueue.addBulk(jobs.map((data) => ({ name: jobNames.generateDocument, data })));
+  } catch (error) {
+    logger.error({ err: error }, "[jobs] Failed to enqueue document generation");
     if (env.SENTRY_DSN) {
       Sentry.captureException(error);
     }

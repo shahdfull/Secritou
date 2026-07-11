@@ -50,6 +50,10 @@ function ClientDetailModal({
               <p className="font-semibold text-ink">{formatNumber(client.pendingRevenue)} TND</p>
             </div>
             <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Coût freelance (temps)</p>
+              <p className="font-semibold text-ink">{formatNumber(client.totalCost)} TND</p>
+            </div>
+            <div className="space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Projets</p>
               <p className="font-semibold text-ink">{client.completedProjects}/{client.totalProjects} complétés</p>
             </div>
@@ -115,6 +119,7 @@ export function ClientProfitabilityPage() {
                   <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Client</th>
                   <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Encaissé</th>
                   <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">En attente</th>
+                  <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Coût freelance</th>
                   <th className="text-center px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Projets</th>
                   <th className="text-center px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Santé</th>
                 </tr>
@@ -136,6 +141,9 @@ export function ClientProfitabilityPage() {
                         {item.pendingRevenue > 0
                           ? `${formatNumber(item.pendingRevenue)} TND`
                           : "—"}
+                      </td>
+                      <td className="px-5 py-3 text-right text-muted-foreground tabular-nums">
+                        {item.totalCost > 0 ? `${formatNumber(item.totalCost)} TND` : "—"}
                       </td>
                       <td className="px-5 py-3 text-center text-muted-foreground">
                         {item.completedProjects}/{item.totalProjects}

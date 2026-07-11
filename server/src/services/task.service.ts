@@ -3,11 +3,27 @@ import { taskRepository } from "../repositories/task.repository.js";
 import { enqueueNotification } from "../jobs/queues.js";
 import type { CreateTaskDTO } from "../types/entities.js";
 import { HttpError } from "../utils/httpError.js";
-import type { Role } from "@prisma/client";
+import type { Role, TaskStatus } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
 import type { ServiceScope } from "../utils/serviceScope.js";
+
+// DONE -> REVIEW is allowed so a mistakenly-completed task can be corrected without losing its
+// history/comments; DONE has no other way out, forcing a genuinely new scope of work into a new task.
+const ALLOWED_TASK_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
+  TODO: ["IN_PROGRESS"],
+  IN_PROGRESS: ["TODO", "REVIEW"],
+  REVIEW: ["IN_PROGRESS", "DONE"],
+  DONE: ["REVIEW"],
+};
+
+function assertValidTaskTransition(from: TaskStatus, to: TaskStatus): void {
+  const allowed = ALLOWED_TASK_TRANSITIONS[from] ?? [];
+  if (!allowed.includes(to)) {
+    throw new HttpError(422, `Cannot transition from ${from} to ${to}. Allowed: ${allowed.join(", ") || "none"}`, "INVALID_TASK_TRANSITION");
+  }
+}
 
 async function assertProjectInScope(projectId: string, scope?: ServiceScope) {
   if (!scope || scope.userRole !== "MANAGER") return;
@@ -19,9 +35,53 @@ async function assertProjectInScope(projectId: string, scope?: ServiceScope) {
   if (!project) throw new HttpError(403, "This project is not in your service", "PROJECT_OUT_OF_SCOPE");
 }
 
+export interface FreelancerConflict {
+  taskId: string;
+  title: string;
+  startDate: Date;
+  dueDate: Date;
+  projectId: string;
+  projectName: string | null;
+}
+
+// Finds this freelancer's other tasks whose [startDate, dueDate] window overlaps the given
+// range. Both boundaries are inclusive (a task ending the day another starts counts as a
+// conflict), matching how a human reading two date ranges would judge "overlapping". Tasks
+// missing either boundary are not assignment-checkable and are excluded from the comparison.
+export async function checkFreelancerAvailability(
+  freelancerId: string,
+  startDate: Date,
+  endDate: Date,
+  excludeTaskId?: string
+): Promise<FreelancerConflict[]> {
+  const { prismaRead: prisma } = await import("../config/prisma.js");
+  const conflicts = await prisma.task.findMany({
+    where: {
+      assigneeId: freelancerId,
+      ...(excludeTaskId ? { id: { not: excludeTaskId } } : {}),
+      startDate: { not: null, lte: endDate },
+      dueDate: { not: null, gte: startDate },
+    },
+    select: { id: true, title: true, startDate: true, dueDate: true, projectId: true, project: { select: { name: true } } },
+  });
+
+  return conflicts.map((c) => ({
+    taskId: c.id,
+    title: c.title,
+    startDate: c.startDate!,
+    dueDate: c.dueDate!,
+    projectId: c.projectId,
+    projectName: c.project?.name ?? null,
+  }));
+}
+
 export const taskService = {
   async getAllTasks(projectId: string | undefined, userId: string, userRole: Role, options: ListQueryOptions, scope?: ServiceScope) {
     return taskRepository.findAll(userId, userRole, options, projectId, scope?.userServiceId);
+  },
+
+  async getFreelancerAvailability(freelancerId: string, startDate: Date, endDate: Date, excludeTaskId?: string) {
+    return checkFreelancerAvailability(freelancerId, startDate, endDate, excludeTaskId);
   },
 
   async getTaskById(id: string, userId: string, userRole: Role, scope?: ServiceScope) {
@@ -71,6 +131,10 @@ export const taskService = {
     } else {
       // For ADMIN/MANAGER, enforce project scope
       await assertProjectInScope(task.projectId, scope);
+    }
+
+    if (data.status && data.status !== task.status) {
+      assertValidTaskTransition(task.status, data.status);
     }
 
     const updated = await taskRepository.update(id, data);

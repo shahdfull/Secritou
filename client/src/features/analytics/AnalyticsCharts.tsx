@@ -16,6 +16,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { formatMonthKey } from "@/utils/format";
 
 type LeadsByMonthItem = { month: string; count: number };
 type RevenueByMonthItem = { month: string; revenue: number };
@@ -55,7 +56,7 @@ export const AnalyticsCharts = memo(function AnalyticsCharts({
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={leadsByMonth}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="month" tickLine={false} axisLine={false} className="text-xs" />
+                  <XAxis dataKey="month" tickFormatter={(key: string) => formatMonthKey(key)} tickLine={false} axisLine={false} className="text-xs" />
                   <YAxis tickLine={false} axisLine={false} className="text-xs" />
                   <Tooltip
                     contentStyle={{
@@ -87,13 +88,14 @@ export const AnalyticsCharts = memo(function AnalyticsCharts({
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={revenueByMonth}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="month" tickLine={false} axisLine={false} className="text-xs" />
+                  <XAxis dataKey="month" tickFormatter={(key: string) => formatMonthKey(key)} tickLine={false} axisLine={false} className="text-xs" />
                   <YAxis tickLine={false} axisLine={false} className="text-xs" />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "hsl(var(--background))",
                       border: "1px solid hsl(var(--border))",
                     }}
+                    labelFormatter={(key: string) => formatMonthKey(key)}
                     formatter={(value: number) => [`${value} TND`, t("analytics.revenueTooltipLabel")]}
                   />
                   <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} />

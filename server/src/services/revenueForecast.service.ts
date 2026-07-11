@@ -1,7 +1,7 @@
 import { revenueForecastRepository } from "../repositories/revenueForecast.repository.js";
 
 export const revenueForecastService = {
-  async getForecast() {
-    return revenueForecastRepository.getForecast();
+  async getForecast(serviceId?: string) {
+    return revenueForecastRepository.getForecast(serviceId);
   },
 };

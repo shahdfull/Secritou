@@ -199,7 +199,7 @@ export function ApplicationsPage() {
           <div className="flex items-center gap-2 px-4 py-3 bg-yellow-50 border-b">
             <Inbox className="h-4 w-4 text-yellow-600" />
             <span className="font-medium text-yellow-800 text-sm">
-              Nouvelles candidatures ({pendingUnassigned.length})
+              {t("applications.newApplications", { count: pendingUnassigned.length })}
             </span>
           </div>
           <Table>
@@ -235,7 +235,7 @@ export function ApplicationsPage() {
                         }}
                       >
                         <Eye className="h-3.5 w-3.5" />
-                        CV
+                        {t("applications.cv")}
                       </Button>
                       <Button
                         size="sm"
@@ -249,7 +249,7 @@ export function ApplicationsPage() {
                         }}
                       >
                         <Eye className="h-3.5 w-3.5" />
-                        Portfolio
+                        {t("applications.portfolio")}
                       </Button>
                     </div>
                   </TableCell>
@@ -380,7 +380,7 @@ export function ApplicationsPage() {
       <Dialog open={!!pdfPreviewUrl} onOpenChange={() => { setPdfPreviewUrl(null); setPreviewType(null); }}>
         <DialogContent className="max-w-3xl h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>{previewType === "cv" ? "CV Preview" : "Portfolio Preview"}</DialogTitle>
+            <DialogTitle>{previewType === "cv" ? t("applications.cvPreview") : t("applications.portfolioPreview")}</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto flex flex-col items-center bg-muted/30 rounded p-2">
             <Document
@@ -401,10 +401,10 @@ export function ApplicationsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => window.open(pdfPreviewUrl!, "_blank")}>
-              <Download className="mr-2 h-4 w-4" /> Download
+              <Download className="mr-2 h-4 w-4" /> {t("applications.download")}
             </Button>
             <Button variant="ghost" onClick={() => { setPdfPreviewUrl(null); setPreviewType(null); }}>
-              Close
+              {t("applications.close")}
             </Button>
           </DialogFooter>
         </DialogContent>

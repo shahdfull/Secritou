@@ -3,6 +3,7 @@ import { recordBullMQJob } from "../../observability/collectors.js";
 import { dashboardService } from "../../services/dashboard.service.js";
 import { clientSuccessService } from "../../services/clientSuccess.service.js";
 import { userRepository } from "../../repositories/user.repository.js";
+import { analyticsEventService } from "../../services/analyticsEvent.service.js";
 import { enqueueNotifications } from "../queues.js";
 import { env } from "../../config/env.js";
 
@@ -269,4 +270,19 @@ export async function recalculateClientScores() {
 
   recordBullMQJob("maintenance", "recalculate-client-scores", "completed", (performance.now() - start) / 1000);
   return updated;
+}
+
+export async function syncSearchConsole() {
+  const start = performance.now();
+  const { syncAllConnectedClients } = await import("../../services/searchConsole.service.js");
+  const result = await syncAllConnectedClients();
+  recordBullMQJob("maintenance", "sync-search-console", "completed", (performance.now() - start) / 1000);
+  return result;
+}
+
+export async function pruneAnalyticsEvents() {
+  const start = performance.now();
+  const count = await analyticsEventService.pruneOldEvents(13);
+  recordBullMQJob("maintenance", "prune-analytics-events", "completed", (performance.now() - start) / 1000);
+  return count;
 }

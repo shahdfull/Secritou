@@ -1,8 +1,7 @@
 export const importHomePage = () => import("@/features/landing/pages/HomePage");
-export const importServicesPage = () => import("@/features/landing/pages/ServicesPage");
-export const importSolutionsPage = () => import("@/features/landing/pages/SolutionsPage");
 export const importCaseStudiesPage = () => import("@/features/landing/pages/CaseStudiesPage");
 export const importContactPage = () => import("@/features/landing/pages/ContactPage");
+export const importBookingAdminPage = () => import("@/features/booking/BookingAdminPage");
 export const importLoginPage = () => import("@/features/auth/LoginPage");
 export const importJoinUsPage = () => import("@/features/landing/pages/JoinUsPage");
 export const importForgotPasswordPage = () => import("@/features/auth/ForgotPasswordPage");
@@ -33,6 +32,7 @@ export const importAdminOnboardingPage = () => import("@/features/admin-onboardi
 export const importProposalsPage = () => import("@/features/proposals/ProposalsPage");
 export const importApprovalsPage = () => import("@/features/approvals/ApprovalsPage");
 export const importInvoicesPage = () => import("@/features/invoices/InvoicesPage");
+export const importCommissionsPage = () => import("@/features/commissions/CommissionsPage");
 export const importDocumentsPage = () => import("@/features/documents/DocumentsPage");
 export const importClientSuccessPage = () => import("@/features/client-success/ClientSuccessPage");
 export const importServiceRequestsAdminPage = () => import("@/features/service-requests/ServiceRequestsAdminPage");
@@ -49,10 +49,9 @@ export const importFreelancerDashboardPage = () => import("@/features/dashboard/
 export const routePrefetch = {
   clientDocuments: () => void importDocumentsClientPage(),
   home: () => void importHomePage(),
-  services: () => void importServicesPage(),
-  solutions: () => void importSolutionsPage(),
   caseStudies: () => void importCaseStudiesPage(),
   contact: () => void importContactPage(),
+  booking: () => void importBookingAdminPage(),
   login: () => void importLoginPage(),
   joinUs: () => void importJoinUsPage(),
   forgotPassword: () => void importForgotPasswordPage(),
@@ -77,6 +76,7 @@ export const routePrefetch = {
   proposals: () => void importProposalsPage(),
   approvals: () => void importApprovalsPage(),
   invoices: () => void importInvoicesPage(),
+  commissions: () => void importCommissionsPage(),
   documents: () => void importDocumentsPage(),
   clientSuccess: () => void importClientSuccessPage(),
   serviceRequests: () => void importServiceRequestsAdminPage(),

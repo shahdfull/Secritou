@@ -39,6 +39,22 @@ export const timeEntryRepository = {
     return { data, total, page, pageSize };
   },
 
+  // A freelancer's own hours + amount due on a project (their own hourlyRate only —
+  // never the client-facing budget/TJM, which is a margin figure kept ADMIN/MANAGER-only).
+  async getMySummaryByProject(projectId: string, userId: string) {
+    const [entries, profile] = await Promise.all([
+      prismaRead.timeEntry.findMany({ where: { projectId, userId }, select: { minutes: true } }),
+      prismaRead.freelancerProfile.findUnique({ where: { userId }, select: { hourlyRate: true } }),
+    ]);
+
+    const totalMinutes = entries.reduce((s, e) => s + e.minutes, 0);
+    const totalHours = Math.round((totalMinutes / 60) * 10) / 10;
+    const hourlyRate = profile?.hourlyRate ? Number(profile.hourlyRate) : null;
+    const amountDue = hourlyRate !== null ? Math.round((totalMinutes / 60) * hourlyRate * 100) / 100 : null;
+
+    return { totalMinutes, totalHours, hourlyRate, amountDue };
+  },
+
   async getSummaryByProject(projectId: string) {
     const entries = await prismaRead.timeEntry.findMany({
       where: { projectId },
@@ -70,9 +86,51 @@ export const timeEntryRepository = {
     };
   },
 
-  async getTimeSummaryByPeriod(from: Date, to: Date) {
+  async getWorkloadByAssignee(from: Date, to: Date, serviceId?: string) {
+    const [entries, activeTasks] = await Promise.all([
+      prismaRead.timeEntry.findMany({
+        where: {
+          date: { gte: from, lte: to },
+          ...(serviceId ? { project: { serviceId } } : {}),
+        },
+        select: { minutes: true, userId: true, user: { select: { name: true } } },
+      }),
+      prismaRead.task.findMany({
+        where: {
+          status: { not: "DONE" },
+          assigneeId: { not: null },
+          ...(serviceId ? { project: { serviceId } } : {}),
+        },
+        select: { assigneeId: true, assignee: { select: { name: true } } },
+      }),
+    ]);
+
+    const byUser = new Map<string, { userId: string; userName: string; totalMinutes: number; activeTaskCount: number }>();
+
+    for (const e of entries) {
+      const existing = byUser.get(e.userId);
+      if (existing) existing.totalMinutes += e.minutes;
+      else byUser.set(e.userId, { userId: e.userId, userName: e.user.name, totalMinutes: e.minutes, activeTaskCount: 0 });
+    }
+
+    for (const t of activeTasks) {
+      if (!t.assigneeId) continue;
+      const existing = byUser.get(t.assigneeId);
+      if (existing) existing.activeTaskCount += 1;
+      else byUser.set(t.assigneeId, { userId: t.assigneeId, userName: t.assignee!.name, totalMinutes: 0, activeTaskCount: 1 });
+    }
+
+    return Array.from(byUser.values())
+      .map((u) => ({ ...u, totalHours: Math.round((u.totalMinutes / 60) * 10) / 10 }))
+      .sort((a, b) => b.totalMinutes - a.totalMinutes);
+  },
+
+  async getTimeSummaryByPeriod(from: Date, to: Date, serviceId?: string) {
     const entries = await prismaRead.timeEntry.findMany({
-      where: { date: { gte: from, lte: to } },
+      where: {
+        date: { gte: from, lte: to },
+        ...(serviceId ? { project: { serviceId } } : {}),
+      },
       select: { minutes: true, projectId: true, project: { select: { name: true } } },
     });
 

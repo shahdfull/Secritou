@@ -4,6 +4,7 @@ import { useListParams } from "@/hooks/useListParams";
 import { useTranslation } from "react-i18next";
 import { TasksKanban } from "./TasksKanban";
 import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialog";
+import { FreelancerConflictDialog } from "@/components/shared/FreelancerConflictDialog";
 import { usePermission } from "@/hooks/usePermission";
 import { useAuthStore } from "@/store/auth.store";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -99,6 +100,12 @@ export function TasksPage() {
         </div>
       </div>
 
+      {isFreelancer && (
+        <p className="rounded-xl border border-border bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground">
+          {t("tasksPage.freelancerScopeNotice", "Vous voyez uniquement vos tâches assignées.")}
+        </p>
+      )}
+
       {viewMode === "list" ? (
         <TasksListView
           tasks={tasks}
@@ -154,6 +161,14 @@ export function TasksPage() {
         title={`Supprimer "${actions.deleteTaskTarget?.title}" ?`}
         description="Cette action est irréversible. La tâche sera définitivement supprimée."
         isDeleting={actions.isDeleting}
+      />
+
+      <FreelancerConflictDialog
+        open={!!actions.pendingConflicts}
+        onOpenChange={(open) => { if (!open) actions.handleCancelConflict(); }}
+        conflicts={actions.pendingConflicts ?? []}
+        onConfirm={actions.handleConfirmAssignAnyway}
+        isConfirming={actions.isConfirmingConflict}
       />
     </div>
   );

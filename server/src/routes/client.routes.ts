@@ -9,7 +9,7 @@ import {
   inviteClientUserSchema,
 } from "../validators/client.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
-import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
+import { authorize, requirePermission, requireActivatedPortal } from "../middlewares/rbac.middleware.js";
 import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 
 const router = Router();
@@ -81,8 +81,11 @@ router.get("/", authorize("ADMIN", "MANAGER"), requirePermission("clients", "rea
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
+// Not gated by requireActivatedPortal: the frontend needs this to detect activation state
+// itself (Client.portalActivatedAt is included in the response) and show a pending screen.
 router.get("/my", authorize("CLIENT"), clientController.getMyClient);
-router.get("/my/credit-notes", authorize("CLIENT"), clientController.getMyCreditNotes);
+router.get("/my/credit-notes", authorize("CLIENT"), requireActivatedPortal, clientController.getMyCreditNotes);
+router.get("/trash", authorize("ADMIN", "MANAGER"), requirePermission("clients", "read"), clientController.getDeletedClients);
 router.get("/:id", authorize("ADMIN", "MANAGER"), requirePermission("clients", "read"), clientController.getClient);
 router.get("/:id/credit-notes", authorize("ADMIN", "MANAGER"), requirePermission("clients", "read"), clientController.getClientCreditNotes);
 
@@ -183,6 +186,7 @@ router.put("/:id", authorize("ADMIN"), validate(updateClientSchema), clientContr
  *         $ref: '#/components/responses/NotFound'
  */
 router.delete("/:id", sensitiveWriteRateLimit, authorize("ADMIN"), validate(deleteClientSchema), clientController.deleteClient);
+router.post("/:id/restore", sensitiveWriteRateLimit, authorize("ADMIN"), validate(deleteClientSchema), clientController.restoreClient);
 
 /**
  * @swagger

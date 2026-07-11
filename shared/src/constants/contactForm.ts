@@ -4,10 +4,10 @@
 // do not change the literal strings without a migration plan; renaming here
 // would silently desync existing DB rows from new submissions.
 export const CONTACT_SERVICE_TYPES = [
-  "Business Performance",
-  "Digital Growth",
-  "Technology Solutions",
-  "AI & Automation",
+  "Management & Performance",
+  "Croissance digitale",
+  "Technologie",
+  "IA & Automatisation",
   "Other",
 ] as const;
 

@@ -28,7 +28,7 @@ export async function processNotificationJob(data: NotificationJob): Promise<voi
   }
 }
 
-// ─── Email handler ────────────────────────────────────────────────────────────
+// ─── Email handler ────────────────────────────────────────────────────────────────
 
 export async function processEmailJob(data: EmailJob): Promise<void> {
   const start = performance.now();

@@ -2,8 +2,8 @@ export interface LeadStats {
   total: number;
   byStatus: { status: string; count: number }[];
   wonCount: number;
-  conversionRate: number;
-  previousConversionRate?: number;
+  leadConversionRate: number;
+  previousLeadConversionRate?: number;
 }
 
 export interface ClientStats {

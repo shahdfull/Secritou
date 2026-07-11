@@ -23,6 +23,7 @@ export interface Project {
   progress: number;
   taskDone: number;
   taskTotal: number;
+  hasDepositInvoice?: boolean;
 }
 
 export interface CreateProjectInput {

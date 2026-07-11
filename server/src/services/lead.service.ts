@@ -17,6 +17,22 @@ async function invalidateCompanyCache() {
   await invalidateTags([cacheTags.company(), cacheTags.dashboard()]);
 }
 
+type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+// Shared by the manual "Convert to Client" flow and the automatic conversion that runs inside
+// proposal.service.acceptWithCascade's transaction. Marks the lead WON→converted by pointing it
+// at an already-existing Client (tx-scoped: caller decides the client, e.g. the proposal's own
+// clientId, instead of creating a new one).
+export async function linkLeadToClientTx(
+  tx: TxClient,
+  leadId: string,
+  clientId: string
+) {
+  const current = await tx.lead.findUnique({ where: { id: leadId }, select: { convertedClientId: true } });
+  if (!current || current.convertedClientId) return null;
+  return tx.lead.update({ where: { id: leadId }, data: { archivedAt: new Date(), convertedClientId: clientId } });
+}
+
 export const leadService = {
   async getLeads(options: ListQueryOptions & { includeArchived?: boolean }, scope?: LeadScope) {
     return leadRepository.findAll(options, scope);
@@ -31,6 +47,18 @@ export const leadService = {
   async createLead(data: CreateLeadDTO) {
     const lead = await leadRepository.create(data);
     await invalidateCompanyCache();
+    
+    // Notify admins of new lead creation
+    const admins = await userRepository.findAdmins();
+    void enqueueNotifications(admins.map((admin) => ({
+      userId: admin.id,
+      title: "Nouveau lead",
+      message: `Un nouveau lead "${lead.name}" a été créé.`,
+      type: "GENERAL" as const,
+      entityId: lead.id,
+      link: `${env.FRONTEND_URL}/app/leads/${lead.id}`,
+    })));
+
     return lead;
   },
 

@@ -14,6 +14,7 @@ export const taskBaseSchema = z.object({
   priority: z.enum(TASK_PRIORITIES).optional(),
   projectId: z.string().min(1),
   assigneeId: z.string().optional(),
+  startDate: z.string().optional(),
   dueDate: z.string().optional(),
 });
 

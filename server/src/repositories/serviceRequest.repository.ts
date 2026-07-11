@@ -119,12 +119,20 @@ export const serviceRequestRepository = {
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(id: string) {
-    return prismaRead.serviceRequest.findFirst({ where: { id }, select: detailSelect });
+  async findById(id: string, serviceId?: string | null) {
+    const where: Record<string, unknown> = { id };
+    if (serviceId !== undefined) {
+      where.client = { projects: { some: { serviceId: serviceId ?? "__none__" } } };
+    }
+    return prismaRead.serviceRequest.findFirst({ where, select: detailSelect });
   },
 
-  async findByIdSimple(id: string): Promise<ServiceRequest | null> {
-    return prismaRead.serviceRequest.findFirst({ where: { id } });
+  async findByIdSimple(id: string, serviceId?: string | null): Promise<ServiceRequest | null> {
+    const where: Record<string, unknown> = { id };
+    if (serviceId !== undefined) {
+      where.client = { projects: { some: { serviceId: serviceId ?? "__none__" } } };
+    }
+    return prismaRead.serviceRequest.findFirst({ where });
   },
 
   async findLinkedProposal(id: string) {

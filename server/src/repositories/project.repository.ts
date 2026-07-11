@@ -18,7 +18,7 @@ const SORTABLE_FIELDS = ["name", "status", "createdAt"];
 function buildWhere(userId: string, userRole: Role, options: ListQueryOptions, clientId?: string, serviceId?: string | null) {
   const searchFilter = buildTextSearchFilter(options.search, ["name", "description"]);
   const statusFilter = options.status ? { status: options.status as ProjectStatus } : {};
-  const base = { archivedAt: null, ...statusFilter, ...searchFilter };
+  const base = { archivedAt: null, deletedAt: null, ...statusFilter, ...searchFilter };
 
   if (userRole === "ADMIN") return base;
   if (userRole === "MANAGER") return { serviceId: serviceId ?? undefined, ...base };
@@ -35,6 +35,7 @@ const projectListSelect = {
   serviceId: true,
   proposalId: true,
   archivedAt: true,
+  deletedAt: true,
   createdAt: true,
   updatedAt: true,
   budget: true,
@@ -45,6 +46,8 @@ const projectListSelect = {
   briefCompletedAt: true,
   clientApprovedAt: true,
   clientApprovedById: true,
+  meetingFrequency: true,
+  nextMeetingDate: true,
   client: { select: clientBriefSelect },
 } as const;
 
@@ -104,7 +107,7 @@ export const projectRepository = {
 
   async findByIdAdmin(id: string) {
     return prisma.project.findFirst({
-      where: { id, archivedAt: null },
+      where: { id, archivedAt: null, deletedAt: null },
       select: { id: true, name: true, status: true, clientId: true, serviceId: true },
     });
   },
@@ -137,7 +140,7 @@ export const projectRepository = {
   },
 
   async delete(id: string): Promise<Project> {
-    return prisma.project.delete({ where: { id } });
+    return prisma.project.update({ where: { id }, data: { deletedAt: new Date() } });
   },
 
   async archive(id: string): Promise<Project> {
@@ -148,8 +151,59 @@ export const projectRepository = {
     });
   },
 
+  async restore(id: string): Promise<Project> {
+    return prisma.project.update({
+      where: { id },
+      data: { deletedAt: null },
+      include: { client: { select: clientBriefSelect } },
+    });
+  },
+
+  async findDeleted(
+    userId: string,
+    userRole: Role,
+    options: ListQueryOptions,
+    clientId?: string,
+    serviceId?: string | null
+  ): Promise<PaginatedResult<ProjectWithProgress>> {
+    const searchFilter = buildTextSearchFilter(options.search, ["name", "description"]);
+    const statusFilter = options.status ? { status: options.status as ProjectStatus } : {};
+    const base = { deletedAt: { not: null }, ...statusFilter, ...searchFilter };
+    const where =
+      userRole === "ADMIN"
+        ? base
+        : userRole === "MANAGER"
+          ? { serviceId: serviceId ?? undefined, ...base }
+          : userRole === "FREELANCER"
+            ? { tasks: { some: { assigneeId: userId } }, ...base }
+            : { clientId, ...base };
+    const skip = (options.page - 1) * options.pageSize;
+    const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
+
+    const [projects, total] = await Promise.all([
+      prisma.project.findMany({ where, select: projectListSelect, orderBy, skip, take: options.pageSize }),
+      prisma.project.count({ where }),
+    ]);
+
+    const progressMap = await getProgressByProjectIds(projects.map((p) => p.id));
+    const data = projects.map((project) => {
+      const pd = progressMap.get(project.id) ?? { progress: 0, taskDone: 0, taskTotal: 0 };
+      return { ...project, ...pd };
+    });
+
+    return { data, total, page: options.page, pageSize: options.pageSize };
+  },
+
   async countNonDraftInvoices(id: string): Promise<number> {
     return prisma.invoice.count({ where: { projectId: id, status: { not: "DRAFT" } } });
+  },
+
+  // Surfaces the "proposal.amount was null/zero — deposit invoice intentionally skipped"
+  // case from the accept-proposal cascade (proposal.service.ts) so the UI can explain an
+  // otherwise-silent absence rather than leaving a manager wondering where the invoice is.
+  async hasDepositInvoice(id: string): Promise<boolean> {
+    const count = await prisma.invoice.count({ where: { projectId: id, invoiceType: "DEPOSIT" } });
+    return count > 0;
   },
 
   async countOnboardings(id: string): Promise<number> {

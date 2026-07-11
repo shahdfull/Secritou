@@ -82,20 +82,24 @@ export const taskRepository = {
     return prisma.task.findFirst({ where: { id }, select: taskWithRelationsSelect });
   },
 
-  async existsInCompany(id: string, userId: string, userRole: Role): Promise<boolean> {
-    const where =
-      userRole === "FREELANCER"
-        ? { id, assigneeId: userId, project: { deletedAt: null } }
-        : { id, project: { deletedAt: null } };
+  async existsInCompany(id: string, userId: string, userRole: Role, userServiceId?: string | null): Promise<boolean> {
+    let where: Prisma.TaskWhereInput;
+    if (userRole === "FREELANCER") {
+      where = { id, assigneeId: userId, project: { deletedAt: null } };
+    } else if (userRole === "MANAGER") {
+      where = { id, project: { serviceId: userServiceId ?? "__none__", deletedAt: null } };
+    } else {
+      where = { id, project: { deletedAt: null } };
+    }
     const count = await prisma.task.count({ where });
     return count > 0;
   },
 
-  async create(data: { title: string; description?: string; status?: TaskStatus; dueDate?: Date; projectId: string; assigneeId?: string }): Promise<TaskWithRelations> {
+  async create(data: { title: string; description?: string; status?: TaskStatus; startDate?: Date; dueDate?: Date; projectId: string; assigneeId?: string }): Promise<TaskWithRelations> {
     return prisma.task.create({ data, select: taskWithRelationsSelect });
   },
 
-  async update(id: string, data: Partial<{ title?: string; description?: string; status?: TaskStatus; dueDate?: Date; assigneeId?: string }>): Promise<TaskWithRelations> {
+  async update(id: string, data: Partial<{ title?: string; description?: string; status?: TaskStatus; startDate?: Date; dueDate?: Date; assigneeId?: string }>): Promise<TaskWithRelations> {
     const result = await prisma.task.updateMany({ where: { id }, data });
     if (result.count === 0) throw new HttpError(404, "Task not found");
     const task = await prisma.task.findFirst({ where: { id }, select: taskWithRelationsSelect });

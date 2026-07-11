@@ -49,6 +49,13 @@ export function useUpdateTask() {
   });
 }
 
+export function useCheckFreelancerAvailability() {
+  return useMutation({
+    mutationFn: (params: { freelancerId: string; startDate: string; endDate: string; excludeTaskId?: string }) =>
+      tasksApi.getFreelancerAvailability(params),
+  });
+}
+
 export function useDeleteTask() {
   const queryClient = useQueryClient();
 

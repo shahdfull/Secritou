@@ -8,7 +8,11 @@ import {
   useApproveApproval,
   useRejectApproval,
   useCommentApproval,
+  useAddApprovalAttachment,
+  useDeleteApprovalAttachment,
 } from "@/hooks/useApprovals";
+import { FileUploadField } from "@/components/common/FileUploadField";
+import type { UploadResult } from "@/api/upload.api";
 import {
   Table,
   TableBody,
@@ -45,6 +49,7 @@ import {
   Eye,
   Clock,
   Trash2,
+  Paperclip,
 } from "lucide-react";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { useListParams } from "@/hooks/useListParams";
@@ -61,6 +66,7 @@ export function ApprovalsPage() {
   >(null);
   const [selectedApproval, setSelectedApproval] = useState<Approval | null>(null);
   const [timelineApproval, setTimelineApproval] = useState<Approval | null>(null);
+  const [attachmentsApproval, setAttachmentsApproval] = useState<Approval | null>(null);
   const [comment, setComment] = useState("");
 
   const { data: approvalsResult, isLoading } = useApprovals({
@@ -79,6 +85,11 @@ export function ApprovalsPage() {
   const approveMutation = useApproveApproval();
   const rejectMutation = useRejectApproval();
   const commentMutation = useCommentApproval();
+  const addAttachmentMutation = useAddApprovalAttachment();
+  const deleteAttachmentMutation = useDeleteApprovalAttachment();
+
+  const attachmentsApprovalLive =
+    approvals.find((a) => a.id === attachmentsApproval?.id) ?? attachmentsApproval;
 
   const openDialog = (
     type: "reject" | "approve" | "comment",
@@ -226,6 +237,9 @@ export function ApprovalsPage() {
                       <Button variant="ghost" size="icon" className="h-7 w-7" title={t("approvals.viewTimeline")} onClick={() => setTimelineApproval(approval)}>
                         <Clock className="h-3.5 w-3.5" />
                       </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title={t("approvals.attachments")} onClick={() => setAttachmentsApproval(approval)}>
+                        <Paperclip className="h-3.5 w-3.5" />
+                      </Button>
                       {approval.status === "PENDING" && (
                         <>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600 hover:bg-green-50" title={t("approvals.approve")} onClick={() => openDialog("approve", approval)} disabled={approveMutation.isPending}>
@@ -348,6 +362,82 @@ export function ApprovalsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTimelineApproval(null)}>
+              {t("common.close")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Attachments Dialog */}
+      <Dialog
+        open={!!attachmentsApproval}
+        onOpenChange={(o) => !o && setAttachmentsApproval(null)}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {t("approvals.attachments")}: {attachmentsApprovalLive?.title}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {attachmentsApprovalLive?.attachments && attachmentsApprovalLive.attachments.length > 0 ? (
+              <ul className="space-y-2">
+                {attachmentsApprovalLive.attachments.map((att) => (
+                  <li
+                    key={att.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border p-2"
+                  >
+                    <a
+                      href={att.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="truncate text-sm text-primary underline"
+                    >
+                      {att.name}
+                    </a>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0 text-red-500 hover:bg-red-50"
+                      title={t("approvals.deleteAttachment")}
+                      disabled={deleteAttachmentMutation.isPending}
+                      onClick={() =>
+                        attachmentsApprovalLive &&
+                        deleteAttachmentMutation.mutate({
+                          id: attachmentsApprovalLive.id,
+                          attachmentId: att.id,
+                        })
+                      }
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-center text-sm text-muted-foreground">
+                {t("approvals.noAttachments")}
+              </p>
+            )}
+
+            <FileUploadField
+              context="document"
+              uploadImmediately
+              label={t("approvals.uploadAttachment")}
+              onUploaded={(result) => {
+                if (!attachmentsApprovalLive || result instanceof File) return;
+                const uploadResult = result as UploadResult;
+                addAttachmentMutation.mutate({
+                  id: attachmentsApprovalLive.id,
+                  name: uploadResult.originalName,
+                  url: uploadResult.url,
+                });
+              }}
+              disabled={addAttachmentMutation.isPending}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAttachmentsApproval(null)}>
               {t("common.close")}
             </Button>
           </DialogFooter>

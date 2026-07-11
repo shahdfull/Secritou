@@ -1,5 +1,5 @@
 import apiClient from "./axios";
-import type { Task, CreateTaskInput, UpdateTaskInput } from "../types/task";
+import type { Task, CreateTaskInput, UpdateTaskInput, FreelancerConflict } from "../types/task";
 import type { ApiResponse } from "../types/auth";
 import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 
@@ -31,5 +31,18 @@ export const tasksApi = {
 
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/tasks/${id}`);
+  },
+
+  getFreelancerAvailability: async (params: {
+    freelancerId: string;
+    startDate: string;
+    endDate: string;
+    excludeTaskId?: string;
+  }): Promise<FreelancerConflict[]> => {
+    const response = await apiClient.get<ApiResponse<{ conflicts: FreelancerConflict[] }>>(
+      "/tasks/availability",
+      { params }
+    );
+    return response.data.data.conflicts;
   },
 };

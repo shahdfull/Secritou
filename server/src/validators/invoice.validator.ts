@@ -38,6 +38,13 @@ export const invoiceIdParamSchema = z.object({
   params: z.object({ id: uuidParam }),
 });
 
+export const setReminderPausedSchema = z.object({
+  params: z.object({ id: uuidParam }),
+  body: z.object({
+    reminderPaused: z.boolean(),
+  }),
+});
+
 export const addPaymentSchema = z.object({
   params: z.object({ id: uuidParam }),
   body: z.object({
@@ -45,6 +52,7 @@ export const addPaymentSchema = z.object({
     method: z.string().max(100).optional(),
     reference: z.string().max(255).optional(),
     paidAt: z.string().datetime({ offset: true }).optional(),
+    idempotencyKey: z.string().max(255).optional(),
   }),
 });
 

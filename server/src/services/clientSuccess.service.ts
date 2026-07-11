@@ -13,7 +13,7 @@ export const clientSuccessService = {
 
   async updateScore(clientId: string, score: number) {
     const success = await this.getByClientId(clientId);
-    return clientSuccessRepository.update(success!.id, { score });
+    return clientSuccessRepository.update(success!.id, { score }, clientId);
   },
 
   async recalcAndPersist(clientId: string) {
@@ -93,58 +93,58 @@ export const clientSuccessService = {
 
   async addObjective(clientId: string, data: { title: string; description?: string; targetValue?: number; currentValue?: number; unit?: string; targetDate?: Date }) {
     const success = await this.getByClientId(clientId);
-    return clientSuccessRepository.addObjective(success!.id, data);
+    return clientSuccessRepository.addObjective(success!.id, data, clientId);
   },
 
-  async updateObjective(id: string, data: Partial<{ title: string; description: string; targetValue: number; currentValue: number; unit: string; targetDate: Date; completedAt: Date }>) {
-    const objective = await clientSuccessRepository.updateObjective(id, data);
+  async updateObjective(id: string, data: Partial<{ title: string; description: string; targetValue: number; currentValue: number; unit: string; targetDate: Date; completedAt: Date }>, clientId?: string) {
+    const objective = await clientSuccessRepository.updateObjective(id, data, clientId);
     if (data.completedAt !== undefined) await this.recalcForSuccess(objective.successId);
     return objective;
   },
 
-  async deleteObjective(id: string) {
-    return clientSuccessRepository.deleteObjective(id);
+  async deleteObjective(id: string, clientId?: string) {
+    return clientSuccessRepository.deleteObjective(id, clientId);
   },
 
   async addMetric(clientId: string, data: { name: string; initialValue: number; currentValue: number; unit?: string }) {
     const success = await this.getByClientId(clientId);
-    const metric = await clientSuccessRepository.addMetric(success!.id, data);
-    await clientSuccessRepository.addMetricHistory(metric.id, { value: data.currentValue });
+    const metric = await clientSuccessRepository.addMetric(success!.id, data, clientId);
+    await clientSuccessRepository.addMetricHistory(metric.id, { value: data.currentValue }, clientId);
     return metric;
   },
 
-  async updateMetric(id: string, data: Partial<{ name: string; initialValue: number; currentValue: number; unit: string }>) {
-    const metric = await clientSuccessRepository.updateMetric(id, data);
-    if (data.currentValue !== undefined) await clientSuccessRepository.addMetricHistory(id, { value: data.currentValue });
+  async updateMetric(id: string, data: Partial<{ name: string; initialValue: number; currentValue: number; unit: string }>, clientId?: string) {
+    const metric = await clientSuccessRepository.updateMetric(id, data, clientId);
+    if (data.currentValue !== undefined) await clientSuccessRepository.addMetricHistory(id, { value: data.currentValue }, clientId);
     await this.recalcForSuccess(metric.successId);
     return metric;
   },
 
-  async deleteMetric(id: string) {
-    return clientSuccessRepository.deleteMetric(id);
+  async deleteMetric(id: string, clientId?: string) {
+    return clientSuccessRepository.deleteMetric(id, clientId);
   },
 
   async addRecommendation(clientId: string, data: { title: string; description?: string; priority?: "LOW" | "MEDIUM" | "HIGH"; status?: "PENDING" | "IN_PROGRESS" | "DONE" }) {
     const success = await this.getByClientId(clientId);
-    return clientSuccessRepository.addRecommendation(success!.id, data);
+    return clientSuccessRepository.addRecommendation(success!.id, data, clientId);
   },
 
-  async updateRecommendation(id: string, data: Partial<{ title: string; description: string; priority: "LOW" | "MEDIUM" | "HIGH"; status: "PENDING" | "IN_PROGRESS" | "DONE" }>) {
-    const recommendation = await clientSuccessRepository.updateRecommendation(id, data);
+  async updateRecommendation(id: string, data: Partial<{ title: string; description: string; priority: "LOW" | "MEDIUM" | "HIGH"; status: "PENDING" | "IN_PROGRESS" | "DONE" }>, clientId?: string) {
+    const recommendation = await clientSuccessRepository.updateRecommendation(id, data, clientId);
     if (data.status !== undefined) await this.recalcForSuccess(recommendation.successId);
     return recommendation;
   },
 
-  async deleteRecommendation(id: string) {
-    return clientSuccessRepository.deleteRecommendation(id);
+  async deleteRecommendation(id: string, clientId?: string) {
+    return clientSuccessRepository.deleteRecommendation(id, clientId);
   },
 
   async addTimeline(clientId: string, data: { title: string; description?: string; eventType: string; date?: Date }) {
     const success = await this.getByClientId(clientId);
-    return clientSuccessRepository.addTimeline(success!.id, { ...data, date: data.date || new Date() });
+    return clientSuccessRepository.addTimeline(success!.id, { ...data, date: data.date || new Date() }, clientId);
   },
 
-  async deleteTimeline(id: string) {
-    return clientSuccessRepository.deleteTimeline(id);
+  async deleteTimeline(id: string, clientId?: string) {
+    return clientSuccessRepository.deleteTimeline(id, clientId);
   },
 };

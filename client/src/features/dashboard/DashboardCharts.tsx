@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useTranslation } from "react-i18next";
 import { LEAD_STATUS_LABELS, LEAD_STATUS_CHART_COLOR } from "@/utils/statusColors";
+import { formatMonthKey } from "@/utils/format";
 
 type LeadsByMonthItem = { month: string; count: number };
 type LeadByStatusItem = { status: string; count: number };
@@ -74,6 +75,7 @@ export const DashboardCharts = memo(function DashboardCharts({
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                 <XAxis
                   dataKey="month"
+                  tickFormatter={(key: string) => formatMonthKey(key)}
                   tickLine={false}
                   axisLine={false}
                   tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}

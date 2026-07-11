@@ -53,7 +53,9 @@ function makeProposal(overrides: Partial<Proposal> = {}): Proposal {
 function makeWorld(proposal: Proposal) {
   const state = {
     proposal: { ...proposal },
-    leads: new Map<string, { status: string }>([["lead-1", { status: "QUALIFIED" }]]),
+    leads: new Map<string, { status: string; convertedClientId: string | null }>([
+      ["lead-1", { status: "QUALIFIED", convertedClientId: null }],
+    ]),
     projects: [] as Array<{ id: string; proposalId: string; companyId: string; status: string; budget?: string; deadline?: Date | null; clientId: string }>,
     invoices: [] as Array<{ id: string; proposalId: string; companyId: string; amount: number; status: string }>,
     invites: [] as Array<{ clientId: string }>,
@@ -77,6 +79,16 @@ function makeWorld(proposal: Proposal) {
           return { count: 1 };
         }
         return { count: 0 };
+      },
+      findUnique: async ({ where }: { where: { id: string } }) => {
+        const lead = state.leads.get(where.id);
+        return lead ? { convertedClientId: lead.convertedClientId } : null;
+      },
+      update: async ({ where, data }: { where: { id: string }; data: { convertedClientId?: string; archivedAt?: Date } }) => {
+        const lead = state.leads.get(where.id);
+        if (!lead) return null;
+        if (data.convertedClientId !== undefined) lead.convertedClientId = data.convertedClientId;
+        return { ...lead };
       },
     },
     project: {
@@ -138,6 +150,12 @@ async function runCascade(
 
     if (proposal.leadId) {
       await tx.lead.updateMany({ where: { id: proposal.leadId, status: { not: "WON" } }, data: { status: "WON" } });
+      // Mirrors linkLeadToClientTx: auto-link the lead to the proposal's (already-existing)
+      // client, unless it was already converted.
+      const current = await tx.lead.findUnique({ where: { id: proposal.leadId } });
+      if (current && !current.convertedClientId) {
+        await tx.lead.update({ where: { id: proposal.leadId }, data: { convertedClientId: proposal.clientId, archivedAt: new Date() } });
+      }
     }
 
     let projectId = proposal.linkedProject?.id ?? null;
@@ -206,6 +224,9 @@ describe("proposal.service.acceptWithCascade", () => {
     assert.equal(world.state.proposal.status, "ACCEPTED");
     assert.ok(world.state.proposal.acceptedAt);
     assert.equal(world.state.leads.get("lead-1")!.status, "WON");
+    // Auto-conversion : the lead is linked to the proposal's client in the same transaction,
+    // no separate step that could fail silently.
+    assert.equal(world.state.leads.get("lead-1")!.convertedClientId, "client-1");
     assert.equal(world.state.projects.length, 1);
     assert.equal(world.state.projects[0].status, "PLANNING");
     assert.equal(world.state.projects[0].budget, "5000");
@@ -255,6 +276,14 @@ describe("proposal.service.acceptWithCascade", () => {
     assert.equal(world.state.leads.get("lead-1")!.status, "QUALIFIED"); // untouched
     assert.equal(world.state.projects.length, 1);
     assert.equal(world.state.invoices.length, 1);
+  });
+
+  test("lead already converted to a different client: auto-conversion does not overwrite it", async () => {
+    const world = makeWorld(makeProposal());
+    world.state.leads.get("lead-1")!.convertedClientId = "client-9";
+    await runCascade(world, { expectedVersion: VERSION });
+    assert.equal(world.state.leads.get("lead-1")!.status, "WON");
+    assert.equal(world.state.leads.get("lead-1")!.convertedClientId, "client-9");
   });
 
   test("existing portal user: invite 409 is swallowed, acceptance still succeeds", async () => {

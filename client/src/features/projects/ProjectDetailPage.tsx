@@ -14,11 +14,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, ExternalLink, FileText, CheckSquare, Activity, ClipboardCheck, Upload, X } from "lucide-react";
+import { ArrowLeft, Loader2, ExternalLink, FileText, CheckSquare, Activity, ClipboardCheck, Upload, X, Users } from "lucide-react";
 import { useProject, useUpdateProject } from "@/hooks/useProjects";
 import { useMe } from "@/hooks/useAuth";
-import { TASK_STATUSES } from "@secritou/shared";
+import { useMySplitForProject } from "@/hooks/useCommissions";
+import { TASK_STATUSES, PROJECT_STATUS_VALID_TRANSITIONS, PROJECT_STATUS_LABELS_FR } from "@secritou/shared";
+import { getProjectStatusBadgeClass } from "@/utils/statusColors";
 import { TimeTrackingTab } from "./TimeTrackingTab";
+import { ProjectMeetingsTab } from "./ProjectMeetingsTab";
+import { useProjectTemplateForService, useApplyProjectTemplate } from "@/hooks/useProjectTemplates";
 import { ApprovalsPage } from "@/features/approvals/ApprovalsPage";
 import { TabErrorBoundary } from "@/components/ui/TabErrorBoundary";
 import { toast } from "sonner";
@@ -26,32 +30,11 @@ import { FileUploadField } from "@/components/common/FileUploadField";
 import { useCreateDocument, useDocuments, useDownloadDocument } from "@/hooks/useDocuments";
 import type { UploadResult } from "@/api/upload.api";
 
-const STATUS_COLOR: Record<string, string> = {
-  PLANNING: "bg-blue-100 text-blue-800",
-  IN_PROGRESS: "bg-yellow-100 text-yellow-800",
-  REVIEW: "bg-purple-100 text-purple-800",
-  COMPLETED: "bg-green-100 text-green-800",
-};
-
 const TASK_STATUS_COLOR: Record<string, string> = {
   TODO: "bg-gray-100 text-gray-600",
   IN_PROGRESS: "bg-yellow-100 text-yellow-700",
   REVIEW: "bg-purple-100 text-purple-700",
   DONE: "bg-green-100 text-green-700",
-};
-
-const VALID_TRANSITIONS: Record<string, string[]> = {
-  PLANNING: ["IN_PROGRESS"],
-  IN_PROGRESS: ["PLANNING", "REVIEW"],
-  REVIEW: ["IN_PROGRESS"],
-  COMPLETED: [],
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  PLANNING: "Planification",
-  IN_PROGRESS: "En cours",
-  REVIEW: "Révision",
-  COMPLETED: "Terminé",
 };
 
 const TASK_STATUS_LABELS: Record<string, string> = {
@@ -100,9 +83,13 @@ export function ProjectDetailPage() {
   }
 
   const isAdminOrManager = user?.role === "ADMIN" || user?.role === "MANAGER";
+  const isManager = user?.role === "MANAGER";
   const isFreelancer = user?.role === "FREELANCER";
+  const { data: mySplit } = useMySplitForProject(project.id, isManager);
+  const { data: projectTemplate } = useProjectTemplateForService(isAdminOrManager ? project.serviceId : undefined);
+  const applyTemplateMutation = useApplyProjectTemplate(project.id);
   const canChangeStatus = isAdminOrManager && project.status !== "COMPLETED";
-  const validTransitions = VALID_TRANSITIONS[project.status] ?? [];
+  const validTransitions = PROJECT_STATUS_VALID_TRANSITIONS[project.status] ?? [];
   const deadline = project.deadline ? formatDate(project.deadline) : "—";
 
   const tasks = project.tasks ?? [];
@@ -119,7 +106,7 @@ export function ProjectDetailPage() {
       {
         onSuccess: () => {
           setStatusDialogOpen(false);
-          toast.success(`Statut changé vers ${STATUS_LABELS[targetStatus]}`);
+          toast.success(`Statut changé vers ${PROJECT_STATUS_LABELS_FR[targetStatus as keyof typeof PROJECT_STATUS_LABELS_FR]}`);
         },
       }
     );
@@ -150,9 +137,14 @@ export function ProjectDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Badge className={STATUS_COLOR[project.status] ?? "bg-gray-100 text-gray-800"}>
-            {STATUS_LABELS[project.status] ?? project.status}
+          <Badge className={getProjectStatusBadgeClass(project.status)}>
+            {PROJECT_STATUS_LABELS_FR[project.status as keyof typeof PROJECT_STATUS_LABELS_FR] ?? project.status}
           </Badge>
+          {isManager && mySplit && (
+            <Badge variant="outline" className="text-xs">
+              Votre part sur ce projet : {mySplit.ratePct}%
+            </Badge>
+          )}
           {canChangeStatus && validTransitions.length > 0 && (
             <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setStatusDialogOpen(true)}>
               Changer de statut
@@ -160,6 +152,12 @@ export function ProjectDetailPage() {
           )}
         </div>
       </div>
+
+      {isAdminOrManager && project.proposalId && project.hasDepositInvoice === false && (
+        <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+          Aucune facture d'acompte générée — la proposition d'origine était sans chiffrage (montant nul ou vide).
+        </p>
+      )}
 
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-3">
@@ -239,6 +237,12 @@ export function ProjectDetailPage() {
               Temps
             </TabsTrigger>
           )}
+          {isAdminOrManager && (
+            <TabsTrigger value="meetings" className={tabTriggerClass}>
+              <Users className="h-3.5 w-3.5" />
+              Réunions
+            </TabsTrigger>
+          )}
           {isFreelancer && (
             <TabsTrigger value="deliverables" className={tabTriggerClass}>
               <Upload className="h-3.5 w-3.5" />
@@ -281,9 +285,20 @@ export function ProjectDetailPage() {
                   )}
                 </>
               ) : (
-                <div className="flex flex-col items-center py-8 gap-2">
+                <div className="flex flex-col items-center py-8 gap-3">
                   <FileText className="h-8 w-8 text-muted-foreground/40" />
                   <p className="text-sm text-muted-foreground">{t("projects.noTasks")}</p>
+                  {isAdminOrManager && projectTemplate && projectTemplate.tasks.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => applyTemplateMutation.mutate()}
+                      disabled={applyTemplateMutation.isPending}
+                    >
+                      Partir du template « {projectTemplate.name} » ({projectTemplate.tasks.length} tâches)
+                    </Button>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -305,6 +320,12 @@ export function ProjectDetailPage() {
               budget={project.budget}
               tasks={tasks.map((t) => ({ id: t.id, title: t.title }))}
             />
+          </TabsContent>
+        )}
+
+        {isAdminOrManager && (
+          <TabsContent value="meetings" className="mt-5">
+            <ProjectMeetingsTab projectId={project.id} />
           </TabsContent>
         )}
 
@@ -405,6 +426,7 @@ export function ProjectDetailPage() {
               budget={null}
               tasks={tasks.map((task) => ({ id: task.id, title: task.title }))}
               readOnly={false}
+              mode="freelancer"
             />
           </TabsContent>
         )}
@@ -416,7 +438,7 @@ export function ProjectDetailPage() {
           <DialogHeader>
             <DialogTitle>Changer le statut du projet</DialogTitle>
             <DialogDescription>
-              Statut actuel : <strong>{STATUS_LABELS[project.status]}</strong>
+              Statut actuel : <strong>{PROJECT_STATUS_LABELS_FR[project.status as keyof typeof PROJECT_STATUS_LABELS_FR]}</strong>
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -428,8 +450,8 @@ export function ProjectDetailPage() {
                   targetStatus === s ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"
                 }`}
               >
-                <Badge className={STATUS_COLOR[s] ?? "bg-gray-100 text-gray-800"}>
-                  {STATUS_LABELS[s]}
+                <Badge className={getProjectStatusBadgeClass(s)}>
+                  {PROJECT_STATUS_LABELS_FR[s as keyof typeof PROJECT_STATUS_LABELS_FR]}
                 </Badge>
               </button>
             ))}

@@ -11,6 +11,7 @@ export interface Task {
   description?: string;
   status: TaskStatus;
   priority: TaskPriority;
+  startDate?: string;
   dueDate?: string;
   projectId: string;
   assigneeId?: string;
@@ -25,6 +26,7 @@ export interface CreateTaskInput {
   description?: string;
   status?: Task["status"];
   priority?: Task["priority"];
+  startDate?: string;
   dueDate?: string;
   projectId: string;
   assigneeId?: string;
@@ -32,4 +34,13 @@ export interface CreateTaskInput {
 
 export interface UpdateTaskInput extends Partial<CreateTaskInput> {
   id: string;
+}
+
+export interface FreelancerConflict {
+  taskId: string;
+  title: string;
+  startDate: string;
+  dueDate: string;
+  projectId: string;
+  projectName: string | null;
 }

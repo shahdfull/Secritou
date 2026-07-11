@@ -3,9 +3,19 @@ import { freelancerService } from "../services/freelancer.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
 import { buildServiceScope } from "../utils/serviceScope.js";
 
-function redactEmail<T extends { user: { email?: string } }>(profile: T, callerRole: string): T {
+function redactSensitiveInfo<T extends { user: { id: string; email?: string }; hourlyRate?: number | null; bio?: string | null }>(
+  profile: T, 
+  callerRole: string, 
+  callerUserId: string
+): T {
   if (callerRole !== "FREELANCER") return profile;
-  return { ...profile, user: { ...profile.user, email: undefined } };
+  if (profile.user.id === callerUserId) return profile;
+  return { 
+    ...profile, 
+    user: { ...profile.user, email: undefined },
+    hourlyRate: undefined,
+    bio: undefined
+  };
 }
 
 export const getFreelancers: RequestHandler = async (req, res, next) => {
@@ -14,7 +24,7 @@ export const getFreelancers: RequestHandler = async (req, res, next) => {
     const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
     const result = await freelancerService.getAll({ ...options, serviceId: scope?.userServiceId });
     if (req.user!.role === "FREELANCER") {
-      result.data = result.data.map((f) => redactEmail(f, "FREELANCER"));
+      result.data = result.data.map((f) => redactSensitiveInfo(f, "FREELANCER", req.user!.sub));
     }
     res.json(result);
   } catch (error) {
@@ -25,7 +35,7 @@ export const getFreelancers: RequestHandler = async (req, res, next) => {
 export const getFreelancerById: RequestHandler = async (req, res, next) => {
   try {
     const profile = await freelancerService.getById(String(req.params.id));
-    res.json({ data: profile ? redactEmail(profile, req.user!.role) : profile });
+    res.json({ data: profile ? redactSensitiveInfo(profile, req.user!.role, req.user!.sub) : profile });
   } catch (error) {
     next(error);
   }

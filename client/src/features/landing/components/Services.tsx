@@ -1,17 +1,21 @@
 import { motion } from "motion/react";
 import { BarChart3, Rocket, Monitor, Sparkles, ArrowRight } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { trackServiceCardClicked } from "@/services/analytics.service";
 import { useTranslation } from "react-i18next";
 import { useLandingCms } from "@/providers/LandingCmsProvider";
 
+// `serviceType` is the canonical enum value sent to the backend (must match
+// server/src/validators/contact.validator.ts). It never changes with the CMS/i18n title.
 export function Services() {
   const { t } = useTranslation();
   const { cms } = useLandingCms();
+  const navigate = useNavigate();
 
   const services = [
     {
       icon: BarChart3,
+      serviceType: "Business Performance",
       title: cms("services.items.0.title", t("home.services.items.0.title")),
       body:  cms("services.items.0.body",  t("home.services.items.0.body")),
       items: [
@@ -23,6 +27,7 @@ export function Services() {
     },
     {
       icon: Rocket,
+      serviceType: "Digital Growth",
       title: cms("services.items.1.title", t("home.services.items.1.title")),
       body:  cms("services.items.1.body",  t("home.services.items.1.body")),
       items: [
@@ -34,6 +39,7 @@ export function Services() {
     },
     {
       icon: Monitor,
+      serviceType: "Technology Solutions",
       title: cms("services.items.2.title", t("home.services.items.2.title")),
       body:  cms("services.items.2.body",  t("home.services.items.2.body")),
       items: [
@@ -45,6 +51,7 @@ export function Services() {
     },
     {
       icon: Sparkles,
+      serviceType: "AI & Automation",
       title: cms("services.items.3.title", t("home.services.items.3.title")),
       body:  cms("services.items.3.body",  t("home.services.items.3.body")),
       items: [
@@ -56,25 +63,21 @@ export function Services() {
     },
   ];
 
+  const handleContactClick = (serviceType: string, title: string) => {
+    trackServiceCardClicked({ service: title });
+    navigate("/contact", { state: { selectedService: serviceType } });
+  };
+
   return (
     <section id="services" className="bg-surface-warm/40 py-14 sm:py-20">
       <div className="container-page">
-        <div className="flex flex-wrap items-end justify-between gap-6">
-          <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-              {cms("services.subtitle", t("home.services.subtitle"))}
-            </p>
-            <h2 className="mt-3 font-display text-3xl font-bold text-ink sm:text-4xl lg:text-5xl">
-              {cms("services.title", t("home.services.title"))}
-            </h2>
-          </div>
-          <Link
-            to="/services"
-            className="group inline-flex items-center gap-2 text-sm font-semibold text-ink"
-          >
-            {t("home.services.seeFullCapabilities")}
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-          </Link>
+        <div className="max-w-2xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+            {cms("services.subtitle", t("home.services.subtitle"))}
+          </p>
+          <h2 className="mt-3 font-display text-3xl font-bold text-ink sm:text-4xl lg:text-5xl">
+            {cms("services.title", t("home.services.title"))}
+          </h2>
         </div>
 
         <div className="mt-12 grid gap-4 grid-cols-1 md:grid-cols-2">
@@ -86,7 +89,7 @@ export function Services() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-60px" }}
               transition={{ duration: 0.5, delay: i * 0.08 }}
-              onClick={() => trackServiceCardClicked({ service: s.title })}
+              onClick={() => handleContactClick(s.serviceType, s.title)}
               className="group relative overflow-hidden rounded-3xl border border-border bg-card p-7 shadow-soft transition-shadow hover:shadow-card text-left w-full"
             >
               <div className="flex items-center justify-between gap-4">
@@ -107,6 +110,10 @@ export function Services() {
                   </li>
                 ))}
               </ul>
+              <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-primary">
+                {t("nav.bookConsultation")}
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </span>
             </motion.button>
           ))}
         </div>

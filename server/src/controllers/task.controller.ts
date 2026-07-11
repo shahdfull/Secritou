@@ -46,6 +46,21 @@ export const updateTask: RequestHandler = async (req, res, next) => {
   }
 };
 
+export const getFreelancerAvailability: RequestHandler = async (req, res, next) => {
+  try {
+    const { freelancerId, startDate, endDate, excludeTaskId } = req.query as unknown as {
+      freelancerId: string;
+      startDate: Date;
+      endDate: Date;
+      excludeTaskId?: string;
+    };
+    const conflicts = await taskService.getFreelancerAvailability(freelancerId, startDate, endDate, excludeTaskId);
+    res.json({ data: { conflicts } });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const deleteTask: RequestHandler = async (req, res, next) => {
   try {
     await taskService.deleteTask(req.params.id as string, await buildServiceScope(req));

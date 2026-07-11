@@ -9,19 +9,10 @@ export default defineConfig(({ mode }) => {
   const isProduction = mode === "production";
   const analyze = process.env.ANALYZE === "true";
 
-  // VITE_CALCOM_LINK is optional — ContactPage.tsx falls back to a static
-  // "book a call" card if it's unset, so this warns rather than failing the
-  // build (a booking-free launch is a valid choice, just worth flagging).
   // loadEnv reads .env files the same way Vite does for the app code itself
   // (process.env alone would miss a value set only in .env.production).
   if (isProduction) {
-    const env = loadEnv(mode, process.cwd(), "VITE_");
-    if (!env.VITE_CALCOM_LINK) {
-      console.warn(
-        "[vite.config] VITE_CALCOM_LINK is not set for this production build — " +
-        "the contact page will show the static booking fallback instead of the Cal.com widget."
-      );
-    }
+    void loadEnv(mode, process.cwd(), "VITE_");
   }
 
   const securityHeaders = {

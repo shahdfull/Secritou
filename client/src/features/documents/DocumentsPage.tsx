@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import type { Document } from "@/api/documents.api";
 import {
   useDocuments,
+  useDocument,
   useCreateDocument,
   useDeleteDocument,
   useDownloadDocument,
@@ -48,7 +49,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Eye, Download, Plus, Loader2, Trash2 } from "lucide-react";
+import { Eye, Download, Plus, Loader2, Trash2, Clock } from "lucide-react";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { FileUploadField } from "@/components/common/FileUploadField";
 import { useListParams } from "@/hooks/useListParams";
@@ -82,7 +85,10 @@ export function DocumentsPage() {
   const { page, pageSize, search, status, updateParams } = useListParams(10);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDocTarget, setDeleteDocTarget] = useState<Document | null>(null);
+  const [accessLogDocId, setAccessLogDocId] = useState<string | null>(null);
   const uploadedFile = useRef<UploadResult | null>(null);
+
+  const { data: accessLogDoc, isLoading: isAccessLogLoading } = useDocument(accessLogDocId ?? "");
 
   const { data: documentsResult, isLoading } = useDocuments({
     page,
@@ -256,6 +262,11 @@ export function DocumentsPage() {
                         <Download className="h-3.5 w-3.5" />
                       </Button>
                       {!isFreelancer && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7" title={t("documents.accessLog")} onClick={() => setAccessLogDocId(doc.id)}>
+                          <Clock className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {!isFreelancer && (
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("documents.delete")} onClick={() => setDeleteDocTarget(doc)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -424,6 +435,44 @@ export function DocumentsPage() {
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Access log dialog */}
+      <Dialog
+        open={!!accessLogDocId}
+        onOpenChange={(open) => !open && setAccessLogDocId(null)}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {t("documents.accessLogTitle")}: {accessLogDoc?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            {isAccessLogLoading ? (
+              <p className="text-center text-muted-foreground py-6">{t("common.loading")}</p>
+            ) : accessLogDoc?.accessLog && accessLogDoc.accessLog.length > 0 ? (
+              accessLogDoc.accessLog.map((entry) => (
+                <div key={entry.id} className="flex items-center justify-between gap-2 rounded-lg border p-2 text-sm">
+                  <span className="font-medium">{entry.user?.name ?? t("documents.unknownUser")}</span>
+                  <Badge variant="outline">{entry.action}</Badge>
+                  <span className="text-xs text-muted-foreground shrink-0">
+                    {format(new Date(entry.createdAt), "d MMMM yyyy HH:mm", { locale: fr })}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-sm text-muted-foreground">
+                {t("documents.noAccessLog")}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAccessLogDocId(null)}>
+              {t("common.close")}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

@@ -5,6 +5,26 @@ import { approvalRequestedTemplate, approvalDecisionTemplate } from "./emailTemp
 import { env } from "../config/env.js";
 import type { ApprovalStatus } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
+import type { ServiceScope } from "../utils/serviceScope.js";
+import { HttpError } from "../utils/httpError.js";
+import { prisma } from "../config/prisma.js";
+
+// A MANAGER may only act on approvals whose project belongs to their service.
+// Approvals without a project are service-neutral and visible to every manager.
+// Throws 404 (not 403) to avoid leaking existence of out-of-scope approvals.
+async function assertApprovalInScope(
+  approval: { projectId?: string | null } | null,
+  scope?: ServiceScope
+) {
+  if (!approval) throw new HttpError(404, "Approval not found");
+  if (!scope || scope.userRole !== "MANAGER") return;
+  if (!approval.projectId) return;
+  const project = await prisma.project.findFirst({
+    where: { id: approval.projectId, serviceId: scope.userServiceId ?? "__none__" },
+    select: { id: true },
+  });
+  if (!project) throw new HttpError(404, "Approval not found");
+}
 
 export const approvalService = {
   async getAllByClientId(clientId: string, options: { page: number; pageSize: number; status?: ApprovalStatus }) {
@@ -19,8 +39,10 @@ export const approvalService = {
     return approvalRepository.findAll(options);
   },
 
-  async getById(id: string) {
-    return approvalRepository.findById(id);
+  async getById(id: string, scope?: ServiceScope) {
+    const approval = await approvalRepository.findById(id);
+    await assertApprovalInScope(approval, scope);
+    return approval;
   },
 
   async create(data: { title: string; description?: string; dueDate?: Date; clientId: string; projectId?: string }, requesterId?: string) {
@@ -56,114 +78,125 @@ export const approvalService = {
     return approval;
   },
 
-  async update(id: string, data: Partial<{ title: string; description: string; status: ApprovalStatus; dueDate: Date }>) {
+  async update(id: string, data: Partial<{ title: string; description: string; status: ApprovalStatus; dueDate: Date }>, scope?: ServiceScope) {
     const approval = await approvalRepository.findById(id);
-    if (!approval) throw new Error("Approval not found");
+    await assertApprovalInScope(approval, scope);
     if (approval.status !== "PENDING") {
-      throw new Error("Cannot update an approval that is not pending");
+      throw new HttpError(409, "Cannot update an approval that is not pending");
     }
     return approvalRepository.update(id, data);
   },
 
-  async delete(id: string) {
+  async delete(id: string, scope?: ServiceScope) {
     const approval = await approvalRepository.findById(id);
-    if (!approval) throw new Error("Approval not found");
+    await assertApprovalInScope(approval, scope);
     if (approval.status !== "PENDING") {
-      throw new Error("Cannot delete an approval that is not pending");
+      throw new HttpError(409, "Cannot delete an approval that is not pending");
     }
     return approvalRepository.delete(id);
   },
 
-  async approve(id: string, comment?: string, userId?: string) {
+  async approve(id: string, comment?: string, userId?: string, scope?: ServiceScope) {
     const approval = await approvalRepository.findById(id);
+    await assertApprovalInScope(approval, scope);
+    if (approval.status !== "PENDING") {
+      throw new HttpError(409, "Cannot approve an approval that is not pending");
+    }
     const updated = await approvalRepository.update(id, { status: "APPROVED" });
     await approvalRepository.addTimeline(id, { action: "APPROVED", comment, status: "APPROVED", userId });
 
-    if (approval) {
-      const [decider, clientUsers, admins] = await Promise.all([
-        userId ? userRepository.findById(userId) : Promise.resolve(null),
-        userRepository.findByClientId(approval.clientId),
-        userRepository.findAdmins(),
-      ]);
-      const approvalUrl = `${env.FRONTEND_URL}/app/approvals/${approval.id}`;
-      void Promise.all([
-        enqueueEmails(clientUsers.map((user) => {
-          const { subject, html } = approvalDecisionTemplate(user.name ?? "Client", approval.title, "APPROVED", decider?.name ?? "L'équipe Secritou", comment);
-          return { to: user.email, subject, html };
-        })),
-        enqueueNotifications(clientUsers.map((user) => ({
-          userId: user.id,
-          title: "Validation acceptée",
-          message: `Votre validation "${approval.title}" a été acceptée.`,
-          type: "APPROVAL_ACCEPTED" as const,
-          entityId: approval.id,
-          link: `${env.FRONTEND_URL}/client/approvals/${approval.id}`,
-        }))),
-        enqueueNotifications(admins.map((admin) => ({
-          userId: admin.id,
-          title: "Validation acceptée par le client",
-          message: `Le client a accepté la validation "${approval.title}".`,
-          type: "APPROVAL_ACCEPTED" as const,
-          entityId: approval.id,
-          link: approvalUrl,
-        }))),
-      ]);
-    }
+    const [decider, clientUsers, admins] = await Promise.all([
+      userId ? userRepository.findById(userId) : Promise.resolve(null),
+      userRepository.findByClientId(approval.clientId),
+      userRepository.findAdmins(),
+    ]);
+    const approvalUrl = `${env.FRONTEND_URL}/app/approvals/${approval.id}`;
+    void Promise.all([
+      enqueueEmails(clientUsers.map((user) => {
+        const { subject, html } = approvalDecisionTemplate(user.name ?? "Client", approval.title, "APPROVED", decider?.name ?? "L'équipe Secritou", comment);
+        return { to: user.email, subject, html };
+      })),
+      enqueueNotifications(clientUsers.map((user) => ({
+        userId: user.id,
+        title: "Validation acceptée",
+        message: `Votre validation "${approval.title}" a été acceptée.`,
+        type: "APPROVAL_ACCEPTED" as const,
+        entityId: approval.id,
+        link: `${env.FRONTEND_URL}/client/approvals/${approval.id}`,
+      }))),
+      enqueueNotifications(admins.map((admin) => ({
+        userId: admin.id,
+        title: "Validation acceptée par le client",
+        message: `Le client a accepté la validation "${approval.title}".`,
+        type: "APPROVAL_ACCEPTED" as const,
+        entityId: approval.id,
+        link: approvalUrl,
+      }))),
+    ]);
 
     return updated;
   },
 
-  async reject(id: string, comment?: string, userId?: string) {
+  async reject(id: string, comment?: string, userId?: string, scope?: ServiceScope) {
     const approval = await approvalRepository.findById(id);
+    await assertApprovalInScope(approval, scope);
+    if (approval.status !== "PENDING") {
+      throw new HttpError(409, "Cannot reject an approval that is not pending");
+    }
     const updated = await approvalRepository.update(id, { status: "REJECTED" });
     await approvalRepository.addTimeline(id, { action: "REJECTED", comment, status: "REJECTED", userId });
 
-    if (approval) {
-      const [decider, clientUsers, admins] = await Promise.all([
-        userId ? userRepository.findById(userId) : Promise.resolve(null),
-        userRepository.findByClientId(approval.clientId),
-        userRepository.findAdmins(),
-      ]);
-      const approvalUrl = `${env.FRONTEND_URL}/app/approvals/${approval.id}`;
-      void Promise.all([
-        enqueueEmails(clientUsers.map((user) => {
-          const { subject, html } = approvalDecisionTemplate(user.name ?? "Client", approval.title, "REJECTED", decider?.name ?? "L'équipe Secritou", comment);
-          return { to: user.email, subject, html };
-        })),
-        enqueueNotifications(clientUsers.map((user) => ({
-          userId: user.id,
-          title: "Validation refusée",
-          message: `Votre validation "${approval.title}" a été refusée.`,
-          type: "APPROVAL_REJECTED" as const,
-          entityId: approval.id,
-          link: `${env.FRONTEND_URL}/client/approvals/${approval.id}`,
-        }))),
-        enqueueNotifications(admins.map((admin) => ({
-          userId: admin.id,
-          title: "Validation refusée par le client",
-          message: `Le client a refusé la validation "${approval.title}".`,
-          type: "APPROVAL_REJECTED" as const,
-          entityId: approval.id,
-          link: approvalUrl,
-        }))),
-      ]);
-    }
+    const [decider, clientUsers, admins] = await Promise.all([
+      userId ? userRepository.findById(userId) : Promise.resolve(null),
+      userRepository.findByClientId(approval.clientId),
+      userRepository.findAdmins(),
+    ]);
+    const approvalUrl = `${env.FRONTEND_URL}/app/approvals/${approval.id}`;
+    void Promise.all([
+      enqueueEmails(clientUsers.map((user) => {
+        const { subject, html } = approvalDecisionTemplate(user.name ?? "Client", approval.title, "REJECTED", decider?.name ?? "L'équipe Secritou", comment);
+        return { to: user.email, subject, html };
+      })),
+      enqueueNotifications(clientUsers.map((user) => ({
+        userId: user.id,
+        title: "Validation refusée",
+        message: `Votre validation "${approval.title}" a été refusée.`,
+        type: "APPROVAL_REJECTED" as const,
+        entityId: approval.id,
+        link: `${env.FRONTEND_URL}/client/approvals/${approval.id}`,
+      }))),
+      enqueueNotifications(admins.map((admin) => ({
+        userId: admin.id,
+        title: "Validation refusée par le client",
+        message: `Le client a refusé la validation "${approval.title}".`,
+        type: "APPROVAL_REJECTED" as const,
+        entityId: approval.id,
+        link: approvalUrl,
+      }))),
+    ]);
 
     return updated;
   },
 
-  async comment(id: string, comment: string, userId?: string) {
-    const updated = await approvalRepository.findById(id);
-    if (!updated) throw new Error("Approval not found");
-    await approvalRepository.addTimeline(id, { action: "COMMENTED", comment, status: updated.status, userId });
-    return updated;
+  async comment(id: string, comment: string, userId?: string, scope?: ServiceScope) {
+    const approval = await approvalRepository.findById(id);
+    await assertApprovalInScope(approval, scope);
+    await approvalRepository.addTimeline(id, { action: "COMMENTED", comment, status: approval.status, userId });
+    return approval;
   },
 
-  async addAttachment(approvalId: string, data: { name: string; url: string }) {
+  async addAttachment(approvalId: string, data: { name: string; url: string }, scope?: ServiceScope) {
+    const approval = await approvalRepository.findById(approvalId);
+    await assertApprovalInScope(approval, scope);
     return approvalRepository.addAttachment(approvalId, data);
   },
 
-  async deleteAttachment(id: string) {
+  async deleteAttachment(id: string, scope?: ServiceScope) {
+    const attachment = await prisma.approvalAttachment.findUnique({
+      where: { id },
+      include: { approval: { select: { id: true, projectId: true } } },
+    });
+    await assertApprovalInScope(attachment?.approval, scope);
     return approvalRepository.deleteAttachment(id);
   },
 };

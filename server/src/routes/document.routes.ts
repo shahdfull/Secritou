@@ -24,9 +24,16 @@ const router = express.Router();
 // Apply base middleware to all document routes
 router.use(authenticate);
 
-// Protected routes
+// Not gated by requireActivatedPortal: the client must be able to view/sign the contract and
+// quote before the deposit is paid — that's the whole point of the payment step.
 router.get("/", authorize("ADMIN", "MANAGER", "CLIENT", "FREELANCER"), requirePermission("documents", "read"), getDocuments);
-router.get("/:id", requirePermission("documents", "read"), validate(documentIdParamSchema), getDocumentById);
+router.get(
+  "/:id",
+  authorize("ADMIN", "MANAGER", "CLIENT", "FREELANCER"),
+  requirePermission("documents", "read"),
+  validate(documentIdParamSchema),
+  getDocumentById
+);
 router.post(
   "/",
   authorize("ADMIN", "MANAGER"),
@@ -51,6 +58,11 @@ router.post(
 );
 
 router.patch("/:id/sign", authorize("CLIENT"), signDocument);
-router.get("/:id/download", downloadDocument);
+router.get(
+  "/:id/download",
+  authorize("ADMIN", "MANAGER", "CLIENT", "FREELANCER"),
+  validate(documentIdParamSchema),
+  downloadDocument
+);
 
 export default router;

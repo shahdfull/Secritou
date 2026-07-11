@@ -68,19 +68,6 @@ export function useUpdateInvoice() {
   });
 }
 
-export function useDeleteInvoice() {
-  const queryClient = useQueryClient();
-  const { t } = useTranslation();
-
-  return useMutation<{ success: boolean }, Error, string>({
-    mutationFn: (id) => invoicesApi.deleteInvoice(id),
-    onSuccess: () => {
-      invalidateInvoiceRelatedCaches(queryClient);
-      toast.success(t("invoices.deleted"));
-    },
-  });
-}
-
 export function useSendInvoice() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
@@ -94,6 +81,23 @@ export function useSendInvoice() {
   });
 }
 
+export function useSetReminderPaused() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  return useMutation<Invoice, Error, { id: string; reminderPaused: boolean }>({
+    mutationFn: ({ id, reminderPaused }) => invoicesApi.setReminderPaused(id, reminderPaused),
+    onSuccess: (_data, variables) => {
+      invalidateInvoiceRelatedCaches(queryClient);
+      toast.success(
+        variables.reminderPaused
+          ? t("invoices.reminderPaused", "Relances automatiques désactivées")
+          : t("invoices.reminderResumed", "Relances automatiques réactivées")
+      );
+    },
+  });
+}
+
 export function useCancelInvoice() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
@@ -103,6 +107,32 @@ export function useCancelInvoice() {
     onSuccess: () => {
       invalidateInvoiceRelatedCaches(queryClient);
       toast.success(t("invoices.cancelled", "Facture annulée"));
+    },
+  });
+}
+
+export function useDeleteInvoice() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  return useMutation<Invoice, Error, string>({
+    mutationFn: (id) => invoicesApi.deleteInvoice(id),
+    onSuccess: () => {
+      invalidateInvoiceRelatedCaches(queryClient);
+      toast.success(t("invoices.deleted", "Facture supprimée"));
+    },
+  });
+}
+
+export function useRestoreInvoice() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  return useMutation<Invoice, Error, string>({
+    mutationFn: (id) => invoicesApi.restoreInvoice(id),
+    onSuccess: () => {
+      invalidateInvoiceRelatedCaches(queryClient);
+      toast.success(t("invoices.restored", "Facture restaurée"));
     },
   });
 }

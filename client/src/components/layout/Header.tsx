@@ -11,8 +11,8 @@ export function Header() {
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const nav = [
-    { to: "/services", label: t("nav.services") },
-    { to: "/solutions", label: t("nav.solutions") },
+    { to: "/#services", label: t("nav.services") },
+    { to: "/#solutions", label: t("nav.solutions") },
     { to: "/contact", label: t("nav.contact") },
     { to: "/rejoindre", label: t("nav.joinUs") },
   ] as const;

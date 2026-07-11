@@ -1,5 +1,91 @@
 import { baseTemplate, h1, p, infoBox, esc } from "./base.js";
 
+function formatDateTime(value: Date): string {
+  return new Intl.DateTimeFormat("fr-FR", {
+    dateStyle: "full",
+    timeStyle: "short",
+  }).format(value);
+}
+
+export function bookingCustomerConfirmedTemplate(opts: {
+  name: string;
+  slotStart: Date;
+  slotEnd: Date;
+  adminEmail: string;
+  notes?: string | null;
+}): { subject: string; html: string; text: string } {
+  const subject = "Votre rendez-vous est confirmé";
+  const html = baseTemplate(
+    subject,
+    [
+      h1(subject),
+      p(`Bonjour ${esc(opts.name)},`),
+      p("Votre créneau a bien été réservé. Voici le récapitulatif :"),
+      infoBox([
+        ["Début", formatDateTime(opts.slotStart)],
+        ["Fin", formatDateTime(opts.slotEnd)],
+        ["Contact", esc(opts.adminEmail)],
+      ]),
+      opts.notes ? p(`Notes : ${esc(opts.notes)}`) : "",
+      p("Vous recevrez une réponse de confirmation si nécessaire avant le rendez-vous."),
+    ].join("")
+  );
+
+  const text = [
+    subject,
+    `Début: ${formatDateTime(opts.slotStart)}`,
+    `Fin: ${formatDateTime(opts.slotEnd)}`,
+    `Contact: ${opts.adminEmail}`,
+    opts.notes ? `Notes: ${opts.notes}` : null,
+  ].filter(Boolean).join("\n");
+
+  return { subject, html, text };
+}
+
+export function bookingAdminNotificationTemplate(opts: {
+  adminName: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string | null;
+  slotStart: Date;
+  slotEnd: Date;
+  notes?: string | null;
+  dashboardUrl: string;
+}): { subject: string; html: string; text: string } {
+  const subject = "Nouveau rendez-vous réservé";
+  const html = baseTemplate(
+    subject,
+    [
+      h1(subject),
+      p(`Bonjour ${esc(opts.adminName)},`),
+      p("Un nouveau rendez-vous a été réservé depuis la page Contact."),
+      infoBox([
+        ["Nom", esc(opts.customerName)],
+        ["Email", esc(opts.customerEmail)],
+        ["Téléphone", opts.customerPhone ? esc(opts.customerPhone) : "N/A"],
+        ["Début", formatDateTime(opts.slotStart)],
+        ["Fin", formatDateTime(opts.slotEnd)],
+      ]),
+      opts.notes ? p(`Notes : ${esc(opts.notes)}`) : "",
+    ].join(""),
+    opts.dashboardUrl,
+    "Ouvrir le tableau de bord"
+  );
+
+  const text = [
+    subject,
+    `Nom: ${opts.customerName}`,
+    `Email: ${opts.customerEmail}`,
+    `Téléphone: ${opts.customerPhone || "N/A"}`,
+    `Début: ${formatDateTime(opts.slotStart)}`,
+    `Fin: ${formatDateTime(opts.slotEnd)}`,
+    opts.notes ? `Notes: ${opts.notes}` : null,
+    `Dashboard: ${opts.dashboardUrl}`,
+  ].filter(Boolean).join("\n");
+
+  return { subject, html, text };
+}
+
 // ─── Application templates ────────────────────────────────────────────────────
 
 export function newApplicationAdminTemplate(opts: {

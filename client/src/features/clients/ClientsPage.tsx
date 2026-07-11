@@ -17,12 +17,19 @@ import { memo, useCallback, useDeferredValue, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import {
+  createClientSchema,
+  updateClientSchema,
+  type CreateClientForm,
+  type UpdateClientForm,
+} from "@secritou/shared";
 import {
   useClients,
   useCreateClient,
   useUpdateClient,
   useDeleteClient,
+  useRestoreClient,
+  useClientTrash,
 } from "@/hooks/useClients";
 import type { Client } from "@/types/client";
 import {
@@ -54,27 +61,25 @@ import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialo
 import { toast } from "sonner";
 import { useListParams } from "@/hooks/useListParams";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
-
-const createClientSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email").optional().or(z.literal("")),
-  phone: z.string().optional(),
-});
-
-const updateClientSchema = createClientSchema.partial();
-
-type CreateClientForm = z.infer<typeof createClientSchema>;
-type UpdateClientForm = z.infer<typeof updateClientSchema>;
+import { useCrudDialogState } from "@/hooks/shared/useCrudDialogState";
 
 export function ClientsPage() {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [includeArchived, setIncludeArchived] = useState(false);
+  const [showTrash, setShowTrash] = useState(false);
   const deferredSearchQuery = useDeferredValue(searchQuery);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
+
+  const {
+    createDialogOpen,
+    editDialogOpen,
+    editingEntity: editingClient,
+    openCreateDialog,
+    closeCreateDialog,
+    openEditDialog,
+    closeEditDialog,
+  } = useCrudDialogState<Client>();
 
   const { page, pageSize, orderBy, orderDir, params, setPage, updateParams } = useListParams(12);
   const { data: clientsResult, isLoading: clientsLoading } = useClients({ ...params, includeArchived });
@@ -83,6 +88,8 @@ export function ClientsPage() {
   const { mutate: createClient, isPending: isCreating } = useCreateClient();
   const { mutate: updateClient, isPending: isUpdating } = useUpdateClient();
   const { mutate: deleteClient, isPending: isDeleting } = useDeleteClient();
+  const { mutate: restoreClient, isPending: isRestoring } = useRestoreClient();
+  const { data: trashResult, isLoading: trashLoading } = useClientTrash({ ...params, includeArchived });
 
   const filteredClients = useMemo(() => {
     const q = deferredSearchQuery.trim().toLowerCase();
@@ -94,9 +101,10 @@ export function ClientsPage() {
       );
     });
   }, [clients, deferredSearchQuery]);
+  const trashedClients = trashResult?.data ?? [];
 
   const createForm = useForm<CreateClientForm>({
-    resolver: zodResolver(createClientSchema) as any,
+    resolver: zodResolver(createClientSchema),
     defaultValues: {
       name: "",
       email: "",
@@ -105,23 +113,22 @@ export function ClientsPage() {
   });
 
   const editForm = useForm<UpdateClientForm>({
-    resolver: zodResolver(updateClientSchema) as any,
+    resolver: zodResolver(updateClientSchema),
   });
 
   const handleCreate = useCallback(async (data: CreateClientForm) => {
     createClient(data, {
       onSuccess: () => {
-        setCreateDialogOpen(false);
+        closeCreateDialog();
         createForm.reset();
       },
     });
-  }, [createClient, createForm]);
+  }, [createClient, createForm, closeCreateDialog]);
 
   const handleEdit = useCallback((client: Client) => {
-    setEditingClient(client);
+    openEditDialog(client);
     editForm.reset(client);
-    setEditDialogOpen(true);
-  }, [editForm]);
+  }, [editForm, openEditDialog]);
 
   const handleUpdate = useCallback(async (data: UpdateClientForm) => {
     if (!editingClient) return;
@@ -129,16 +136,19 @@ export function ClientsPage() {
       { id: editingClient.id, data },
       {
         onSuccess: () => {
-          setEditDialogOpen(false);
-          setEditingClient(null);
+          closeEditDialog();
         },
       }
     );
-  }, [editingClient, updateClient]);
+  }, [editingClient, updateClient, closeEditDialog]);
 
   const handleDelete = useCallback((client: Client) => {
     setDeleteTarget(client);
   }, []);
+
+  const handleRestore = useCallback((client: Client) => {
+    restoreClient(client.id);
+  }, [restoreClient]);
 
   const handleConfirmDelete = useCallback(() => {
     if (!deleteTarget) return;
@@ -147,16 +157,16 @@ export function ClientsPage() {
       onError: (error: any) => {
         const code = error?.response?.data?.error?.code;
         if (code === "CLIENT_HAS_PROJECTS") {
-          toast.error("Ce client a des projets actifs et ne peut pas être supprimé.");
+          toast.error(t("clientsPage.errors.hasProjects"));
         } else if (code === "CLIENT_HAS_INVOICES") {
-          toast.error("Ce client a des factures et ne peut pas être supprimé.");
+          toast.error(t("clientsPage.errors.hasInvoices"));
         } else {
-          toast.error("Impossible de supprimer ce client.");
+          toast.error(t("clientsPage.errors.deleteFailed"));
         }
         setDeleteTarget(null);
       },
     });
-  }, [deleteTarget, deleteClient]);
+  }, [deleteTarget, deleteClient, t]);
 
 
 
@@ -175,9 +185,9 @@ export function ClientsPage() {
           <h1 className="font-display text-2xl font-bold text-ink">{t("clientsPage.title")}</h1>
           <p className="text-muted-foreground">{t("clientsPage.subtitle")}</p>
         </div>
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <Dialog open={createDialogOpen} onOpenChange={openCreateDialog}>
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={openCreateDialog}>
               <Plus className="h-4 w-4 mr-2" />
               {t("clientsPage.addClient")}
             </Button>
@@ -253,7 +263,10 @@ export function ClientsPage() {
           />
         </div>
         <Button variant={includeArchived ? "default" : "ghost"} onClick={() => setIncludeArchived(!includeArchived)}>
-          {t("clientsPage.showArchived", "Afficher les archivés")}
+          {t("clientsPage.showArchived")}
+        </Button>
+        <Button variant={showTrash ? "default" : "ghost"} onClick={() => setShowTrash(!showTrash)}>
+          {t("common.trash")}
         </Button>
         <Select
           value={`${orderBy ?? "createdAt"}-${orderDir}`}
@@ -266,15 +279,48 @@ export function ClientsPage() {
             <SelectValue placeholder={t("common.sortBy")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="name-asc">Nom (A-Z)</SelectItem>
-            <SelectItem value="name-desc">Nom (Z-A)</SelectItem>
-            <SelectItem value="createdAt-desc">Plus récents</SelectItem>
-            <SelectItem value="createdAt-asc">Plus anciens</SelectItem>
+            <SelectItem value="name-asc">{t("common.sort.nameAsc")}</SelectItem>
+            <SelectItem value="name-desc">{t("common.sort.nameDesc")}</SelectItem>
+            <SelectItem value="createdAt-desc">{t("common.sort.mostRecent")}</SelectItem>
+            <SelectItem value="createdAt-asc">{t("common.sort.leastRecent")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {/* Clients Grid */}
+      {showTrash ? (
+        <div className="space-y-4 rounded-xl border border-dashed p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold">{t("common.trash")}</h2>
+              <p className="text-sm text-muted-foreground">{t("clientsPage.trashDesc")}</p>
+            </div>
+          </div>
+          {trashLoading ? (
+            <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
+          ) : trashedClients.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("clientsPage.trashEmpty")}</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {trashedClients.map((client) => (
+                <Card key={client.id} className="border-dashed">
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle className="text-lg">{client.name}</CardTitle>
+                      <Button variant="secondary" size="sm" onClick={() => handleRestore(client)} disabled={isRestoring}>
+                        {t("common.restore")}
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {client.email && <div className="text-sm text-muted-foreground">{client.email}</div>}
+                    {client.phone && <div className="text-sm text-muted-foreground">{client.phone}</div>}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredClients.map((client) => (
           <Card
@@ -318,12 +364,13 @@ export function ClientsPage() {
           </Card>
         ))}
       </div>
+      )}
 
       <DataTablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} />
 
       {/* Edit Dialog */}
       {editingClient && (
-        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <Dialog open={editDialogOpen} onOpenChange={closeEditDialog}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{t("clientsPage.editClient")}</DialogTitle>
@@ -386,8 +433,8 @@ export function ClientsPage() {
         open={!!deleteTarget}
         onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
         onConfirm={handleConfirmDelete}
-        title={`Supprimer "${deleteTarget?.name}" ?`}
-        description="Cette action est irréversible. Le client et toutes ses données associées seront définitivement supprimés."
+        title={`${t("clientsPage.deleteTitle")} "${deleteTarget?.name}" ?`}
+        description={t("clientsPage.deleteDescription")}
         isDeleting={isDeleting}
       />
     </div>

@@ -11,9 +11,16 @@ export function validate(schema: AnyZodObject): RequestHandler {
       });
       req.body = parsed.body ?? req.body;
       req.params = parsed.params ?? req.params;
-      // req.query is a read-only getter in the router package (Express v5 internals).
-      // Mutate in place instead of reassigning.
-      if (parsed.query) Object.assign(req.query, parsed.query);
+      // req.query is a getter-only accessor in Express v5 (no setter), so Object.assign onto it
+      // silently no-ops — transformed values (e.g. string -> Date) never reach the handler.
+      // Replacing the property descriptor is the only way to actually swap the value.
+      if (parsed.query) {
+        Object.defineProperty(req, "query", {
+          value: parsed.query,
+          writable: true,
+          configurable: true,
+        });
+      }
       next();
     } catch (error) {
       next(error);

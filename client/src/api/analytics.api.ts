@@ -12,8 +12,10 @@ export const analyticsApi = {
     return response.data.data;
   },
 
-  getExecutiveMetrics: async (): Promise<ExecutiveMetrics> => {
-    const response = await apiClient.get<ApiResponse<ExecutiveMetrics>>("/analytics/executive");
+  getExecutiveMetrics: async (serviceId?: string): Promise<ExecutiveMetrics> => {
+    const response = await apiClient.get<ApiResponse<ExecutiveMetrics>>("/analytics/executive", {
+      params: serviceId ? { serviceId } : undefined,
+    });
     return response.data.data;
   },
 };

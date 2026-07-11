@@ -46,3 +46,43 @@ export function startOfBusinessMonth(now: Date = new Date(), timeZone: string = 
   const localMonthStartAsUtc = Date.UTC(year, month - 1, 1, 0, 0, 0);
   return new Date(localMonthStartAsUtc - offsetMinutes * 60000);
 }
+
+/**
+ * Returns the "YYYY-MM" key for `date` as it falls in the business timezone — sortable
+ * chronologically as a plain string, unlike locale month labels (e.g. "Jul 2026").
+ */
+export function businessMonthKey(date: Date, timeZone: string = BUSINESS_TIMEZONE): string {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "2-digit" }).formatToParts(date);
+  const year = parts.find((p) => p.type === "year")!.value;
+  const month = parts.find((p) => p.type === "month")!.value;
+  return `${year}-${month}`;
+}
+
+/**
+ * Fills in any months missing from `series` (keyed by "YYYY-MM") with `emptyValue`,
+ * so a chart doesn't silently skip a month with zero activity. Range is [from, to]
+ * inclusive, both in the business timezone.
+ */
+export function fillMonthGaps<T>(
+  series: Map<string, T>,
+  from: Date,
+  to: Date,
+  emptyValue: T,
+  timeZone: string = BUSINESS_TIMEZONE
+): Array<{ month: string; value: T }> {
+  const result: Array<{ month: string; value: T }> = [];
+  const startKey = businessMonthKey(from, timeZone);
+  const endKey = businessMonthKey(to, timeZone);
+  let [y, m] = startKey.split("-").map(Number);
+  const [endY, endM] = endKey.split("-").map(Number);
+  while (y < endY || (y === endY && m <= endM)) {
+    const key = `${y}-${String(m).padStart(2, "0")}`;
+    result.push({ month: key, value: series.get(key) ?? emptyValue });
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+  }
+  return result;
+}

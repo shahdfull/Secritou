@@ -41,7 +41,15 @@ export const timeEntryService = {
     return timeEntryRepository.getSummaryByProject(projectId);
   },
 
-  async globalSummary(from: Date, to: Date) {
-    return timeEntryRepository.getTimeSummaryByPeriod(from, to);
+  async mySummary(projectId: string, userId: string) {
+    return timeEntryRepository.getMySummaryByProject(projectId, userId);
+  },
+
+  async globalSummary(from: Date, to: Date, serviceId?: string) {
+    return timeEntryRepository.getTimeSummaryByPeriod(from, to, serviceId);
+  },
+
+  async workloadByAssignee(from: Date, to: Date, serviceId?: string) {
+    return timeEntryRepository.getWorkloadByAssignee(from, to, serviceId);
   },
 };

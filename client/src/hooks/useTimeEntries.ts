@@ -12,11 +12,20 @@ export function useTimeEntries(projectId: string, page = 1) {
   });
 }
 
-export function useTimeSummary(projectId: string) {
+export function useTimeSummary(projectId: string, enabled = true) {
   return useQuery({
     queryKey: queryKeys.projectTimeSummary(projectId),
     queryFn: () => timeEntryApi.getSummary(projectId),
-    enabled: !!projectId,
+    enabled: enabled && !!projectId,
+    staleTime: 60_000,
+  });
+}
+
+export function useMyTimeSummary(projectId: string, enabled = true) {
+  return useQuery({
+    queryKey: ["myTimeSummary", projectId],
+    queryFn: () => timeEntryApi.getMySummary(projectId),
+    enabled: enabled && !!projectId,
     staleTime: 60_000,
   });
 }
@@ -28,6 +37,7 @@ export function useCreateTimeEntry(projectId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.projectTimeEntries(projectId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.projectTimeSummary(projectId) });
+      queryClient.invalidateQueries({ queryKey: ["myTimeSummary", projectId] });
       toast.success("Temps enregistré");
     },
     onError: (err: Error) => {

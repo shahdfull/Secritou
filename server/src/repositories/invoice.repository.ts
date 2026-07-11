@@ -2,6 +2,24 @@ import { prisma, prismaRead } from "../config/prisma.js";
 import type { Invoice, InvoiceStatus, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 
+interface InvoiceCreateData {
+  number: string;
+  title: string;
+  description?: string;
+  amount: number;
+  amountHT?: number;
+  tvaRate?: number;
+  tvaAmount?: number;
+  currency?: string;
+  amountPaid?: number;
+  status?: InvoiceStatus;
+  dueDate?: Date;
+  pdfUrl?: string;
+  clientId: string;
+  projectId?: string;
+  proposalId?: string;
+}
+
 export const invoiceRepository = {
   async findAll(
     options: ListQueryOptions & { clientId?: string; status?: InvoiceStatus; search?: string }
@@ -104,20 +122,7 @@ export const invoiceRepository = {
     });
   },
 
-  async create(data: {
-    number: string;
-    title: string;
-    description?: string;
-    amount: number;
-    currency?: string;
-    amountPaid?: number;
-    status?: InvoiceStatus;
-    dueDate?: Date;
-    pdfUrl?: string;
-    clientId: string;
-    projectId?: string;
-    proposalId?: string;
-  }) {
+  async create(data: InvoiceCreateData) {
     return prisma.invoice.create({ data });
   },
 
@@ -133,12 +138,43 @@ export const invoiceRepository = {
     sentAt: Date;
     paidAt: Date;
     pdfUrl: string;
+    reminderPaused: boolean;
   }>) {
     return prisma.invoice.update({ where: { id }, data });
   },
 
   async delete(id: string) {
-    return prisma.invoice.delete({ where: { id } });
+    return prisma.invoice.update({ where: { id }, data: { deletedAt: new Date() } });
+  },
+
+  async restore(id: string) {
+    return prisma.invoice.update({ where: { id }, data: { deletedAt: null } });
+  },
+
+  async findDeleted(
+    options: ListQueryOptions & { clientId?: string; status?: InvoiceStatus; search?: string }
+  ): Promise<PaginatedResult<Invoice & { client: { name: string } }>> {
+    const where: Prisma.InvoiceWhereInput = { deletedAt: { not: null } };
+    if (options.clientId) where.clientId = options.clientId;
+    if (options.status) where.status = options.status;
+    if (options.search) {
+      where.OR = [
+        { title: { contains: options.search, mode: "insensitive" } },
+        { number: { contains: options.search, mode: "insensitive" } },
+      ];
+    }
+    const skip = (options.page - 1) * options.pageSize;
+    const [data, total] = await Promise.all([
+      prismaRead.invoice.findMany({
+        where,
+        skip,
+        take: options.pageSize,
+        orderBy: { [options.orderBy || "createdAt"]: options.orderDir || "desc" },
+        include: { client: { select: { name: true } } },
+      }),
+      prismaRead.invoice.count({ where }),
+    ]);
+    return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
   async addItem(invoiceId: string, data: { description: string; quantity: number; unitPrice: number; total: number }) {

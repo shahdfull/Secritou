@@ -23,7 +23,7 @@ import {
   updateDelivery,
 } from "../controllers/clientOnboarding.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
-import { authorize } from "../middlewares/rbac.middleware.js";
+import { authorize, requireActivatedPortal } from "../middlewares/rbac.middleware.js";
 const router = express.Router();
 
 // Apply base middleware to all onboarding routes
@@ -100,6 +100,7 @@ router.post(
 router.put(
   "/questionnaires/:questionnaireId",
   authorize("ADMIN", "MANAGER", "CLIENT"),
+  requireActivatedPortal,
   updateQuestionnaire
 );
 
@@ -112,6 +113,7 @@ router.post(
 router.put(
   "/specifications/:specificationsId",
   authorize("ADMIN", "MANAGER", "CLIENT"),
+  requireActivatedPortal,
   updateSpecifications
 );
 
@@ -124,6 +126,7 @@ router.post(
 router.put(
   "/kickoffs/:kickoffId",
   authorize("ADMIN", "MANAGER", "CLIENT"),
+  requireActivatedPortal,
   updateKickoff
 );
 
@@ -148,6 +151,7 @@ router.post(
 router.put(
   "/deliveries/:deliveryId",
   authorize("ADMIN", "MANAGER", "CLIENT"),
+  requireActivatedPortal,
   updateDelivery
 );
 

@@ -13,6 +13,7 @@ export interface Invoice {
   sentAt?: string;
   paidAt?: string;
   pdfUrl?: string;
+  reminderPaused: boolean;
   clientId: string;
   projectId?: string;
   proposalId?: string;
@@ -99,15 +100,13 @@ export const invoicesApi = {
     return response.data.data;
   },
 
-  deleteInvoice: async (id: string) => {
-    const response = await apiClient.delete<{ data: { success: boolean } }>(
-      `/invoices/${id}`
-    );
+  sendInvoice: async (id: string) => {
+    const response = await apiClient.post<{ data: Invoice }>(`/invoices/${id}/send`);
     return response.data.data;
   },
 
-  sendInvoice: async (id: string) => {
-    const response = await apiClient.post<{ data: Invoice }>(`/invoices/${id}/send`);
+  setReminderPaused: async (id: string, reminderPaused: boolean) => {
+    const response = await apiClient.put<{ data: Invoice }>(`/invoices/${id}/reminder-paused`, { reminderPaused });
     return response.data.data;
   },
 
@@ -116,7 +115,28 @@ export const invoicesApi = {
     return response.data.data;
   },
 
-  addPayment: async (id: string, data: { amount: number; method?: string; reference?: string }) => {
+  deleteInvoice: async (id: string) => {
+    const response = await apiClient.delete<{ data: Invoice }>(`/invoices/${id}`);
+    return response.data.data;
+  },
+
+  restoreInvoice: async (id: string) => {
+    const response = await apiClient.post<{ data: Invoice }>(`/invoices/${id}/restore`);
+    return response.data.data;
+  },
+
+  getTrash: async (params?: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    status?: string;
+    clientId?: string;
+  }) => {
+    const response = await apiClient.get<{ data: PaginatedResponse<Invoice> }>("/invoices/trash", { params });
+    return response.data.data;
+  },
+
+  addPayment: async (id: string, data: { amount: number; method?: string; reference?: string; idempotencyKey?: string }) => {
     const response = await apiClient.post<{ data: InvoicePayment; warning?: string }>(`/invoices/${id}/payments`, data);
     return { ...response.data.data, warning: response.data.warning };
   },

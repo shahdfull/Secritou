@@ -1,11 +1,18 @@
 import PDFDocument from "pdfkit";
 import { uploadFile } from "./upload.service.js";
 import { documentRepository } from "../repositories/document.repository.js";
+import { prisma } from "../config/prisma.js";
+import { COMPANY_ID } from "../config/constants.js";
 import type { Document, DocumentType } from "@prisma/client";
+import { computeVat, roundMoney, TVA_RATE } from "../utils/vat.js";
+
+// Timbre fiscal: flat Tunisian stamp duty applied per invoice (barème en vigueur — à confirmer avec un comptable).
+const TIMBRE_FISCAL = 0.6;
 
 // Minimal shapes: only the fields each generator needs, not full Prisma model types.
 // This decouples the generator from query shape changes and avoids circular imports.
-type GeneratorProposal = {
+// Exported so the BullMQ job payload (jobs/queues.ts) and its processor can reuse them.
+export type GeneratorProposal = {
   id: string;
   title: string;
   description?: string | null;
@@ -14,7 +21,7 @@ type GeneratorProposal = {
   expiresAt?: Date | null;
 };
 
-type GeneratorProject = {
+export type GeneratorProject = {
   id: string;
   name: string;
   description?: string | null;
@@ -23,23 +30,26 @@ type GeneratorProject = {
   serviceId?: string | null;
 };
 
-type GeneratorClient = {
+export type GeneratorClient = {
   id: string;
   name: string;
   email?: string | null;
   phone?: string | null;
 };
 
-type GeneratorManager = {
+export type GeneratorManager = {
   id: string;
   name?: string | null;
   email: string;
 };
 
-type GeneratorInvoice = {
+export type GeneratorInvoice = {
   id: string;
   number?: string | null;
   amount?: number | string | null;
+  amountHT?: number | string | null;
+  tvaRate?: number | string | null;
+  tvaAmount?: number | string | null;
   currency?: string | null;
   dueDate?: Date | null;
 };
@@ -96,9 +106,14 @@ function sectionTitle(doc: PDFKit.PDFDocument, title: string) {
   doc.moveDown(0.8).fontSize(13).font("Helvetica-Bold").text(title).fontSize(11).font("Helvetica").moveDown(0.4);
 }
 
+// TND is denominated in millimes (3 decimal places).
+function fmtMoney(amount: number): string {
+  return amount.toLocaleString("fr-FR", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+}
+
 function fmtAmount(amount: number | string | null | undefined, currency: string | null | undefined) {
   if (amount == null) return "N/A";
-  return `${Number(amount).toLocaleString("fr-FR")} ${currency ?? "TND"}`;
+  return `${fmtMoney(Number(amount))} ${currency ?? "TND"}`;
 }
 
 function fmtDate(d: Date | null | undefined) {
@@ -365,10 +380,9 @@ export const documentGeneratorService = {
     uploadedById: string
   ): Promise<Document> {
     const totalHT = proposal.amount != null ? Number(proposal.amount) : 0;
-    const tva = 0.19; // taux TVA Tunisie
-    const totalTTC = Math.round(totalHT * (1 + tva) * 100) / 100;
-    const acompte = Math.round(totalHT * 0.3 * 100) / 100;
-    const solde = Math.round((totalHT - acompte) * 100) / 100;
+    const { amountTTC: totalTTC, tvaAmount } = computeVat(totalHT);
+    const acompte = roundMoney(totalHT * 0.3);
+    const solde = roundMoney(totalHT - acompte);
     const cur = proposal.currency ?? "TND";
 
     const buffer = await buildPdf((doc) => {
@@ -396,12 +410,12 @@ export const documentGeneratorService = {
       };
 
       doc.moveDown(0.5);
-      row("Montant HT", `${totalHT.toLocaleString("fr-FR")} ${cur}`);
-      row(`TVA (${tva * 100}%)`, `${(totalTTC - totalHT).toFixed(2)} ${cur}`);
-      row("Montant TTC", `${totalTTC.toLocaleString("fr-FR")} ${cur}`, true);
+      row("Montant HT", `${fmtMoney(totalHT)} ${cur}`);
+      row(`TVA (${TVA_RATE * 100}%)`, `${fmtMoney(tvaAmount)} ${cur}`);
+      row("Montant TTC", `${fmtMoney(totalTTC)} ${cur}`, true);
       doc.moveDown(0.5);
-      row("Acompte 30 %", `${acompte.toLocaleString("fr-FR")} ${cur}`);
-      row("Solde 70 %", `${solde.toLocaleString("fr-FR")} ${cur}`);
+      row("Acompte 30 %", `${fmtMoney(acompte)} ${cur}`);
+      row("Solde 70 %", `${fmtMoney(solde)} ${cur}`);
 
       sectionTitle(doc, "Conditions de paiement");
       doc.text("• Acompte 30 % dû à la signature du contrat.");
@@ -426,8 +440,12 @@ export const documentGeneratorService = {
     client: GeneratorClient,
     uploadedById: string
   ): Promise<Document> {
+    const company = await prisma.company.findUnique({ where: { id: COMPANY_ID } });
+
     const buffer = await buildPdf((doc) => {
       header(doc, "Facture d'acompte");
+      if (company?.matriculeFiscal) field(doc, "Matricule fiscal", company.matriculeFiscal);
+      if (company?.address) field(doc, "Adresse", company.address);
       field(doc, "Référence", invoice.number ?? `FA-${invoice.id.slice(0, 8).toUpperCase()}`);
       field(doc, "Date d'émission", fmtDate(new Date()));
       field(doc, "Date limite de paiement", fmtDate(invoice.dueDate));
@@ -439,7 +457,28 @@ export const documentGeneratorService = {
       sectionTitle(doc, "Détail");
       doc.text(`Acompte 30 % sur la prestation « ${project.name} »`).moveDown(0.5);
 
-      doc.font("Helvetica-Bold").text(`Montant total : ${fmtAmount(invoice.amount, invoice.currency)}`).font("Helvetica");
+      const col1 = doc.page.margins.left;
+      const col2 = doc.page.width - doc.page.margins.right - 120;
+      const row = (label: string, value: string, bold = false) => {
+        if (bold) doc.font("Helvetica-Bold");
+        else doc.font("Helvetica");
+        doc.text(label, col1, doc.y, { continued: true, width: col2 - col1 });
+        doc.text(value, { align: "right" });
+      };
+
+      const cur = invoice.currency ?? "TND";
+      const ttc = invoice.amount != null ? Number(invoice.amount) : 0;
+      const netAPayer = roundMoney(ttc + TIMBRE_FISCAL);
+      if (invoice.amountHT != null && invoice.tvaAmount != null) {
+        const tvaRatePct = invoice.tvaRate != null ? Number(invoice.tvaRate) * 100 : 19;
+        row("Montant HT", `${fmtMoney(Number(invoice.amountHT))} ${cur}`);
+        row(`TVA (${tvaRatePct}%)`, `${fmtMoney(Number(invoice.tvaAmount))} ${cur}`);
+        row("Montant TTC", `${fmtMoney(ttc)} ${cur}`, true);
+      } else {
+        row("Montant TTC", `${fmtMoney(ttc)} ${cur}`, true);
+      }
+      row("Timbre fiscal", `${fmtMoney(TIMBRE_FISCAL)} ${cur}`);
+      row("Net à payer", `${fmtMoney(netAPayer)} ${cur}`, true);
       doc.moveDown(1);
 
       sectionTitle(doc, "Modalités de règlement");
@@ -448,6 +487,14 @@ export const documentGeneratorService = {
       doc.text("IBAN : [À compléter]");
       doc.text("BIC : [À compléter]");
       doc.text("Référence à indiquer : " + (invoice.number ?? project.name));
+
+      sectionTitle(doc, "Mentions légales");
+      doc.fontSize(9).fillColor("#555555");
+      if (company?.matriculeFiscal) {
+        doc.text(`Secritou — Matricule fiscal : ${company.matriculeFiscal}${company.address ? ` — ${company.address}` : ""}`);
+      }
+      doc.text("Facture soumise au régime de la TVA. Timbre fiscal inclus conformément à la réglementation en vigueur.");
+      doc.fontSize(11).fillColor("#000000");
     });
 
     return uploadAndCreate(buffer, {

@@ -1,6 +1,6 @@
 // Analytics Repository - Data access layer
 import { prismaRead as prisma } from "../config/prisma.js";
-import { startOfBusinessMonth } from "../utils/dateRange.js";
+import { startOfBusinessMonth, businessMonthKey, fillMonthGaps } from "../utils/dateRange.js";
 
 function getPreviousPeriod(from: Date, to: Date): { from: Date; to: Date } {
   const duration = to.getTime() - from.getTime();
@@ -25,9 +25,9 @@ export const analyticsRepository = {
 
     const byStatus = byStatusRaw.map((item) => ({ status: item.status, count: item._count.status }));
     const wonCount = byStatus.find((s) => s.status === "WON")?.count || 0;
-    const conversionRate = total > 0 ? Math.round((wonCount / total) * 100) : 0;
+    const leadConversionRate = total > 0 ? Math.round((wonCount / total) * 100) : 0;
 
-    let previousConversionRate = 0;
+    let previousLeadConversionRate = 0;
     if (from && to) {
       const previous = getPreviousPeriod(from, to);
       const previousWhere = { createdAt: { gte: previous.from, lte: previous.to } };
@@ -36,10 +36,10 @@ export const analyticsRepository = {
         prisma.lead.groupBy({ by: ["status"], where: previousWhere, _count: { status: true }, orderBy: { status: "asc" } }),
       ]);
       const prevWonCount = prevByStatusRaw.find((s) => s.status === "WON")?._count?.status || 0;
-      previousConversionRate = prevTotal > 0 ? Math.round((prevWonCount / prevTotal) * 100) : 0;
+      previousLeadConversionRate = prevTotal > 0 ? Math.round((prevWonCount / prevTotal) * 100) : 0;
     }
 
-    return { total, byStatus, wonCount, conversionRate, previousConversionRate };
+    return { total, byStatus, wonCount, leadConversionRate, previousLeadConversionRate };
   },
 
   async getClientStats(from?: Date, to?: Date, serviceId?: string | null) {
@@ -128,22 +128,22 @@ export const analyticsRepository = {
   },
 
   async getLeadsByMonth(from?: Date, to?: Date, serviceId?: string | null) {
+    const rangeFrom = from ?? startOfBusinessMonth(new Date(new Date().setMonth(new Date().getMonth() - 11)));
+    const rangeTo = to ?? new Date();
     const where = {
       ...serviceFilter(serviceId),
-      ...(from || to ? { createdAt: { ...(from && { gte: from }), ...(to && { lte: to }) } } : {}),
+      createdAt: { gte: rangeFrom, lte: rangeTo },
     };
-    const rows = await prisma.lead.groupBy({
-      by: ["createdAt"],
-      where,
-      _count: { id: true },
-      orderBy: { createdAt: "asc" },
-    });
+    // groupBy(createdAt) would group by the exact timestamp (effectively one row per
+    // lead) since createdAt has second-level precision — fetch and bucket in JS instead.
+    const rows = await prisma.lead.findMany({ where, select: { createdAt: true } });
+
     const byMonth = new Map<string, number>();
     for (const row of rows) {
-      const month = new Date(row.createdAt).toLocaleString("en-US", { month: "short" });
-      byMonth.set(month, (byMonth.get(month) ?? 0) + row._count.id);
+      const key = businessMonthKey(row.createdAt);
+      byMonth.set(key, (byMonth.get(key) ?? 0) + 1);
     }
-    return Array.from(byMonth.entries()).map(([month, count]) => ({ month, count }));
+    return fillMonthGaps(byMonth, rangeFrom, rangeTo, 0).map(({ month, value }) => ({ month, count: value }));
   },
 
   async getProjectsByStatus(from?: Date, to?: Date, serviceId?: string | null) {
@@ -165,13 +165,18 @@ export const analyticsRepository = {
     }));
   },
 
+  // "Revenue" here means cash actually collected (Payment.paidAt), as distinct from
+  // invoiced/billed amounts — see executiveMetrics.repository.ts's cash-vs-billed split,
+  // which this should stay consistent with in wording wherever it's surfaced.
   async getRevenueByMonth(from?: Date, to?: Date, serviceId?: string | null) {
+    const rangeFrom = from ?? startOfBusinessMonth(new Date(new Date().setMonth(new Date().getMonth() - 11)));
+    const rangeTo = to ?? new Date();
     const invoiceWhere = serviceId !== undefined
       ? { status: { not: "CANCELLED" as const }, project: { serviceId: serviceId ?? "__none__" } }
       : { status: { not: "CANCELLED" as const } };
     const payments = await prisma.payment.findMany({
       where: {
-        paidAt: { not: null, ...(from && { gte: from }), ...(to && { lte: to }) },
+        paidAt: { not: null, gte: rangeFrom, lte: rangeTo },
         invoice: invoiceWhere,
       },
       select: { paidAt: true, amount: true },
@@ -180,9 +185,9 @@ export const analyticsRepository = {
     const byMonth = new Map<string, number>();
     for (const p of payments) {
       if (!p.paidAt || p.amount == null) continue;
-      const label = new Date(p.paidAt).toLocaleString("en-US", { month: "short", year: "numeric" });
-      byMonth.set(label, (byMonth.get(label) ?? 0) + Number(p.amount));
+      const key = businessMonthKey(p.paidAt);
+      byMonth.set(key, (byMonth.get(key) ?? 0) + Number(p.amount));
     }
-    return Array.from(byMonth.entries()).map(([month, revenue]) => ({ month, revenue }));
+    return fillMonthGaps(byMonth, rangeFrom, rangeTo, 0).map(({ month, value }) => ({ month, revenue: value }));
   },
 };

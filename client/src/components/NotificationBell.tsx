@@ -1,4 +1,4 @@
-import { Bell, Check, FileText, CheckCircle, XCircle, CreditCard, FolderOpen, ClipboardList, MessageSquare, Users, FileSignature, TrendingUp, AlertCircle, AlertTriangle } from "lucide-react";
+import { Bell, Check, FileText, CheckCircle, XCircle, CreditCard, FolderOpen, ClipboardList, MessageSquare, Users, FileSignature, TrendingUp, AlertCircle, AlertTriangle, Star, Calendar } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { notificationsApi, type Notification, type NotificationType } from "../api/notifications.api";
 import { Button } from "./ui/button";
@@ -51,8 +51,17 @@ function getNotificationIcon(type: NotificationType) {
       return <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />;
     case "TASK_DEADLINE_SOON":
       return <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0" />;
+    case "TASK_OVERDUE":
+      return <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />;
     case "INVOICE_FOLLOWUP":
       return <CreditCard className="h-4 w-4 text-red-400 shrink-0" />;
+    case "RATING_REQUESTED":
+      return <Star className="h-4 w-4 text-yellow-400 shrink-0" />;
+    case "MEETING_REMINDER":
+      return <Calendar className="h-4 w-4 text-blue-600 shrink-0" />;
+    case "COMMISSION_EARNED":
+    case "COMMISSION_PAID":
+      return <CreditCard className="h-4 w-4 text-green-500 shrink-0" />;
     default:
       return <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0" />;
   }
@@ -78,8 +87,8 @@ export function NotificationBell() {
 
   // Freelancers only see task/project notifications as critical, not admin-only alerts
   const CRITICAL_TYPES: NotificationType[] = isFreelancer
-    ? ["TASK_DEADLINE_SOON"]
-    : ["PROJECT_STALE", "PROJECT_DEADLINE_SOON", "INVOICE_OVERDUE", "INVOICE_FOLLOWUP"];
+    ? ["TASK_DEADLINE_SOON", "TASK_OVERDUE"]
+    : ["PROJECT_STALE", "PROJECT_DEADLINE_SOON", "INVOICE_OVERDUE", "INVOICE_FOLLOWUP", "TASK_OVERDUE"];
 
   const unreadCount = notifications?.filter((n) => !n.read).length || 0;
   const hasCritical = notifications?.some((n) => !n.read && CRITICAL_TYPES.includes(n.type)) ?? false;
