@@ -14,10 +14,3 @@ export const deleteFileSchema = z.object({
     key: z.string().min(1).max(500),
   }),
 });
-
-export const signedUrlQuerySchema = z.object({
-  query: z.object({
-    key: z.string().min(1).max(500),
-    expiresIn: z.coerce.number().int().min(60).max(604800).optional(),
-  }),
-});

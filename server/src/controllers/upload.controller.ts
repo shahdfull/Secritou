@@ -72,29 +72,3 @@ export const deleteFile: RequestHandler = async (req, res, next) => {
     next(err);
   }
 };
-
-// ---------------------------------------------------------------------------
-// GET /api/v1/upload/signed-url?key=...&expiresIn=3600
-// Returns a fresh signed URL for a private object
-// ---------------------------------------------------------------------------
-
-export const getSignedUrl: RequestHandler = async (req, res, next) => {
-  try {
-    const key = req.query.key as string | undefined;
-    const expiresIn = Number(req.query.expiresIn ?? 3600);
-
-    if (!key) {
-      res.status(400).json({ error: "key query param is required" });
-      return;
-    }
-    if (key.includes("..") || key.startsWith("/")) {
-      res.status(400).json({ error: "Invalid key" });
-      return;
-    }
-
-    const url = await uploadService.signedUrl(key, Math.min(expiresIn, 60 * 60 * 24 * 7));
-    res.json({ data: { url } });
-  } catch (err) {
-    next(err);
-  }
-};

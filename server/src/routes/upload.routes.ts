@@ -4,13 +4,11 @@ import { contactRateLimit } from "../middlewares/rateLimit.middleware.js";
 import {
   uploadFile,
   deleteFile,
-  getSignedUrl,
 } from "../controllers/upload.controller.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import {
   uploadContextParamSchema,
   deleteFileSchema,
-  signedUrlQuerySchema,
 } from "../validators/upload.validator.js";
 
 const router = Router();
@@ -43,8 +41,5 @@ router.delete("/", validate(deleteFileSchema), (req, res, next) => {
   }
   return authenticate(req, res, next);
 }, deleteFile);
-
-// GET /upload/signed-url?key=...&expiresIn=3600 (protected)
-router.get("/signed-url", authenticate, validate(signedUrlQuerySchema), getSignedUrl);
 
 export default router;
