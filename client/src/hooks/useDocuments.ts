@@ -72,6 +72,17 @@ export function useDeleteDocument() {
   });
 }
 
+export function useDownloadDocument() {
+  const { t } = useTranslation();
+
+  return useMutation<{ url: string; filename: string }, Error, string>({
+    mutationFn: (id) => documentsApi.getDownloadUrl(id),
+    onError: () => {
+      toast.error(t("documents.downloadError"));
+    },
+  });
+}
+
 export function useCreateDocumentVersion() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();

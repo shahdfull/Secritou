@@ -23,7 +23,7 @@ import { ApprovalsPage } from "@/features/approvals/ApprovalsPage";
 import { TabErrorBoundary } from "@/components/ui/TabErrorBoundary";
 import { toast } from "sonner";
 import { FileUploadField } from "@/components/common/FileUploadField";
-import { useCreateDocument, useDocuments } from "@/hooks/useDocuments";
+import { useCreateDocument, useDocuments, useDownloadDocument } from "@/hooks/useDocuments";
 import type { UploadResult } from "@/api/upload.api";
 
 const STATUS_COLOR: Record<string, string> = {
@@ -75,6 +75,7 @@ export function ProjectDetailPage() {
   const uploadedDeliverable = useRef<UploadResult | null>(null);
   const { mutate: createDocument, isPending: isUploadingDeliverable } = useCreateDocument();
   const { data: myDocsResult } = useDocuments({ page: 1, pageSize: 50 });
+  const downloadDocumentMutation = useDownloadDocument();
 
   if (isLoading) {
     return (
@@ -384,7 +385,7 @@ export function ProjectDetailPage() {
                           variant="ghost"
                           size="sm"
                           className="h-7 text-xs gap-1 shrink-0"
-                          onClick={() => window.open(doc.url, "_blank")}
+                          onClick={() => downloadDocumentMutation.mutate(doc.id, { onSuccess: ({ url }) => window.open(url, "_blank") })}
                         >
                           <ExternalLink className="h-3 w-3" />
                           Ouvrir

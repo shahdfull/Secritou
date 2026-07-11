@@ -130,7 +130,7 @@ export function ClientDetailPage() {
   const creditNotes = creditNotesResult?.data ?? [];
 
   const addDocumentMutation = useMutation({
-    mutationFn: (data: Omit<Document, "id" | "createdAt" | "updatedAt">) =>
+    mutationFn: (data: Parameters<typeof documentsApi.createDocument>[0]) =>
       documentsApi.createDocument({ ...data, clientId: id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clientDocuments", id] });
@@ -148,6 +148,11 @@ export function ClientDetailPage() {
   const documentForm = useForm<DocumentForm>({
     resolver: zodResolver(documentFormSchema),
     defaultValues: { name: "", type: "OTHER" },
+  });
+
+  const downloadDocumentMutation = useMutation({
+    mutationFn: (documentId: string) => documentsApi.getDownloadUrl(documentId),
+    onSuccess: ({ url }) => window.open(url, "_blank"),
   });
 
   const handleDelete = () => {
@@ -210,7 +215,6 @@ export function ClientDetailPage() {
       version: 1,
       tags: [],
       accessLevel: "CLIENT_ADMIN" as any,
-      uploadedById: "",
     });
   };
 
@@ -593,7 +597,7 @@ export function ClientDetailPage() {
                           {format(new Date(doc.createdAt), "dd/MM/yyyy", { locale: fr })}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" onClick={() => window.open(doc.url, "_blank")}>
+                          <Button variant="ghost" size="sm" onClick={() => downloadDocumentMutation.mutate(doc.id)}>
                             <Download className="h-4 w-4 mr-2" />
                             {t("clientsPage.detail.download")}
                           </Button>

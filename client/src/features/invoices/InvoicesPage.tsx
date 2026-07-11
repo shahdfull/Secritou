@@ -32,8 +32,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import {
-  Eye,
-  Download,
   Send,
   Plus,
   Ban,
@@ -218,16 +216,6 @@ export function InvoicesPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center gap-1">
-                          {invoice.pdfUrl && (
-                            <>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" title={t("invoices.view")} onClick={() => window.open(invoice.pdfUrl, "_blank")}>
-                                <Eye className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" title={t("invoices.download")} onClick={() => window.open(invoice.pdfUrl, "_blank")}>
-                                <Download className="h-3.5 w-3.5" />
-                              </Button>
-                            </>
-                          )}
                           {invoice.status === "DRAFT" && (
                             <Button variant="ghost" size="icon" className="h-7 w-7" title={t("invoices.send")} onClick={() => sendMutation.mutate(invoice.id)} disabled={sendMutation.isPending}>
                               <Send className="h-3.5 w-3.5" />

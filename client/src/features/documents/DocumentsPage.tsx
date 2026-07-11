@@ -9,6 +9,7 @@ import {
   useDocuments,
   useCreateDocument,
   useDeleteDocument,
+  useDownloadDocument,
 } from "@/hooks/useDocuments";
 import {
   Table,
@@ -97,6 +98,23 @@ export function DocumentsPage() {
 
   const deleteMutation = useDeleteDocument();
   const createMutation = useCreateDocument();
+  const downloadMutation = useDownloadDocument();
+
+  const openDocument = (docId: string, mode: "view" | "download", filename: string) => {
+    downloadMutation.mutate(docId, {
+      onSuccess: ({ url }) => {
+        if (mode === "view") {
+          window.open(url, "_blank");
+        } else {
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = filename;
+          a.target = "_blank";
+          a.click();
+        }
+      },
+    });
+  };
 
   const form = useForm<CreateDocForm>({
     resolver: zodResolver(docSchema),
@@ -231,10 +249,10 @@ export function DocumentsPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" title={t("documents.view")} onClick={() => window.open(doc.url, "_blank")}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title={t("documents.view")} onClick={() => openDocument(doc.id, "view", doc.name)}>
                         <Eye className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" title={t("documents.download")} onClick={() => { const a = document.createElement("a"); a.href = doc.url; a.download = doc.name; a.target = "_blank"; a.click(); }}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title={t("documents.download")} onClick={() => openDocument(doc.id, "download", doc.name)}>
                         <Download className="h-3.5 w-3.5" />
                       </Button>
                       {!isFreelancer && (

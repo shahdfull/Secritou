@@ -1874,7 +1874,8 @@
     "created": "Document téléchargé avec succès",
     "updated": "Document mis à jour avec succès",
     "deleted": "Document supprimé avec succès",
-    "versionCreated": "Nouvelle version téléchargée avec succès"
+    "versionCreated": "Nouvelle version téléchargée avec succès",
+    "downloadError": "Impossible de récupérer le fichier"
   },
   "exec": {
     "dataUpdatedAt": "Données actualisées à {{time}}",

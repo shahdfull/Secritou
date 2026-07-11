@@ -10,6 +10,15 @@ function textQuery(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
+// `url`/`fileUrl` persist a long-lived (7-day) pre-signed S3 link (see uploadFile in
+// upload.service.ts). Never forward it to the client: any consumer that needs to open/download
+// the file must go through GET /documents/:id/download, which mints a short-TTL URL on demand
+// after re-checking scope.
+function redactStorageUrl<T extends { url?: unknown; fileUrl?: unknown }>(doc: T): Omit<T, "url" | "fileUrl"> {
+  const { url, fileUrl, ...rest } = doc;
+  return rest;
+}
+
 export const getDocuments = async (req: Request, res: Response) => {
   const options = {
     ...parseListQuery(req.query as Record<string, unknown>),
@@ -25,7 +34,7 @@ export const getDocuments = async (req: Request, res: Response) => {
     clientId: req.user!.clientId,
     serviceId: scope?.userServiceId,
   });
-  res.json({ data: result });
+  res.json({ data: { ...result, data: result.data.map(redactStorageUrl) } });
 };
 
 export const getDocumentById = async (req: Request, res: Response) => {
@@ -42,7 +51,7 @@ export const getDocumentById = async (req: Request, res: Response) => {
     ipAddress: req.ip,
     userAgent: req.get("User-Agent"),
   });
-  res.json({ data: document });
+  res.json({ data: redactStorageUrl(document) });
 };
 
 export const createDocument = async (req: Request, res: Response) => {

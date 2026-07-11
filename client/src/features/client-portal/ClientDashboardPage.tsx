@@ -4,7 +4,7 @@ import { useClientServiceRequests } from "@/hooks/useServiceRequests";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Briefcase, MessageSquare, FileText, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { documentsApi, type Document } from "@/api/documents.api";
 import { useAuthStore } from "@/store/auth.store";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,10 @@ export function ClientDashboardPage() {
   });
   const documents = documentsResult?.data ?? [];
   const hasLoadError = projectsError || requestsError || documentsError;
+  const downloadDocumentMutation = useMutation({
+    mutationFn: (documentId: string) => documentsApi.getDownloadUrl(documentId),
+    onSuccess: ({ url }) => window.open(url, "_blank"),
+  });
 
   const stats = [
     {
@@ -113,7 +117,7 @@ export function ClientDashboardPage() {
                     </TableCell>
                     <TableCell>{format(new Date(doc.createdAt), 'dd/MM/yyyy', { locale: fr })}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => window.open(doc.url, '_blank')}>
+                      <Button variant="ghost" size="sm" onClick={() => downloadDocumentMutation.mutate(doc.id)}>
                         <Download className="h-4 w-4 mr-2" />
                         Télécharger
                       </Button>

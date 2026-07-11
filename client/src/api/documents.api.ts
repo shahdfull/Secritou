@@ -21,7 +21,9 @@ export interface Document {
   title: string;
   description?: string;
   type: DocumentType;
-  url: string;
+  // Not returned by GET /documents or GET /documents/:id — the API strips the persisted
+  // storage URL from read responses. Use documentsApi.getDownloadUrl(id) to open/download.
+  url?: string;
   fileUrl?: string;
   fileKey?: string;
   version: number;

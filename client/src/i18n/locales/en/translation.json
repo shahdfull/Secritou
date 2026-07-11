@@ -1874,7 +1874,8 @@
     "created": "Document uploaded successfully",
     "updated": "Document updated successfully",
     "deleted": "Document deleted successfully",
-    "versionCreated": "New version uploaded successfully"
+    "versionCreated": "New version uploaded successfully",
+    "downloadError": "Could not retrieve the file"
   },
   "exec": {
     "dataUpdatedAt": "Data refreshed at {{time}}",

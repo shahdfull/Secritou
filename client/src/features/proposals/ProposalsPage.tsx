@@ -45,8 +45,6 @@ import {
   Send,
   CheckCircle2,
   XCircle,
-  Eye,
-  Download,
   Receipt,
   ExternalLink,
   Loader2,
@@ -306,16 +304,6 @@ export function ProposalsPage() {
                       )}
 
                       <div className="flex items-center gap-1">
-                        {proposal.pdfUrl && (
-                          <>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("proposals.view")} onClick={() => window.open(proposal.pdfUrl, "_blank")}>
-                              <Eye className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("proposals.download")} onClick={() => window.open(proposal.pdfUrl, "_blank")}>
-                              <Download className="h-3.5 w-3.5" />
-                            </Button>
-                          </>
-                        )}
                         {proposal.status === "DRAFT" && (
                           <Button variant="ghost" size="icon" className="h-7 w-7" title={t("proposals.send")} onClick={() => sendMutation.mutate(proposal.id)} disabled={sendMutation.isPending}>
                             <Send className="h-3.5 w-3.5" />
