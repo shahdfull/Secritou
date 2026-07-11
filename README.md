@@ -117,7 +117,7 @@ secritou/
 ## Getting Started
 
 ### Prerequisites
-- Node.js ≥ 20
+- Node.js ≥ 24
 - Docker & Docker Compose
 
 ### 1. Start infrastructure
@@ -167,7 +167,9 @@ Minimum required variables:
 ```env
 DATABASE_URL=postgresql://secritou:secritou@localhost:5432/secritou_db
 REDIS_URL=redis://localhost:6379
-JWT_SECRET=your-secret-here
+JWT_ACCESS_SECRET=your-access-secret-min-32-chars
+JWT_REFRESH_SECRET=your-refresh-secret-min-32-chars
+INTEGRATIONS_ENCRYPTION_KEY=32-byte-hex-key-for-oauth-token-encryption
 FRONTEND_URL=http://localhost:5173
 ```
 
@@ -308,8 +310,9 @@ docker compose -f docker-compose.prod.yml up -d --build
 NODE_ENV=production
 DATABASE_URL=postgresql://...
 REDIS_URL=redis://...
-JWT_SECRET=<strong-secret>
-JWT_REFRESH_SECRET=<strong-secret>
+JWT_ACCESS_SECRET=<strong-secret-min-32-chars>
+JWT_REFRESH_SECRET=<strong-secret-min-32-chars>
+INTEGRATIONS_ENCRYPTION_KEY=<32-byte-hex-key>
 FRONTEND_URL=https://app.secritou.com
 SMTP_HOST=...
 SMTP_USER=...

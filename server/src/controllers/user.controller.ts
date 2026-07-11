@@ -52,7 +52,11 @@ export const updateUser: RequestHandler = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, role } = req.body;
-    const user = await userService.updateUser(id as string, name, role);
+    const user = await userService.updateUser(id as string, name, role, {
+      id: req.user?.sub,
+      role: req.user?.role,
+      ip: req.ip,
+    });
     res.json({ data: user });
   } catch (error) {
     next(error);
@@ -62,7 +66,8 @@ export const updateUser: RequestHandler = async (req, res, next) => {
 export const deleteUser: RequestHandler = async (req, res, next) => {
   try {
     const { id } = req.params;
-    await userService.deleteUser(id as string);
+    const actor = { id: req.user?.sub, role: req.user?.role, ip: req.ip };
+    await userService.deleteUser(id as string, actor);
     res.status(204).send();
   } catch (error) {
     next(error);

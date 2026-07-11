@@ -1,8 +1,8 @@
 # Contexte projet Secritou
 
 Secritou est un outil de gestion opérationnelle pour une agence de services 
-(pas multi-tenant, une seule agence). Stack : [ta stack réelle ici — 
-ex: Node/Express + PostgreSQL + React, ou Django, etc.]
+(pas multi-tenant, une seule agence). Stack : Node 24 / Express 5 / Prisma /
+PostgreSQL / Redis / React 19 / Vite. Monorepo npm workspaces : `client/`, `server/`, `shared/`.
 
 ## Rôles utilisateurs
 - Admin : accès total

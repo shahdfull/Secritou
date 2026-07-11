@@ -7,6 +7,9 @@ import type { Role } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { auditLogService } from "./auditLog.service.js";
+
+type Actor = { id?: string; role?: string; ip?: string };
 
 function generateRandomPassword() {
   return crypto.randomBytes(16).toString("base64url").slice(0, 16);
@@ -51,24 +54,41 @@ export const userService = {
     return user;
   },
 
-  async updateUser(id: string, name?: string, role?: Role) {
+  async updateUser(id: string, name?: string, role?: Role, actor?: Actor) {
     const user = await userRepository.findById(id);
     if (!user) throw new HttpError(404, "User not found");
     if (user.role === "ADMIN" && role && role !== "ADMIN") {
       const adminCount = await userRepository.countByRole("ADMIN");
       if (adminCount <= 1) throw new HttpError(409, "Cannot remove the last remaining admin", "LAST_ADMIN");
     }
-    return userRepository.update(id, { name, role });
+    const updated = await userRepository.update(id, { name, role });
+    // A role change must not leave the old permissions valid on an already-issued access
+    // token: force re-authentication so the new role takes effect immediately.
+    if (role && role !== user.role) {
+      await userRepository.revokeSessions(id);
+      void auditLogService.record({
+        actorId: actor?.id, actorRole: actor?.role, ipAddress: actor?.ip,
+        action: "USER_ROLE_CHANGED", entityType: "User", entityId: id,
+        before: { role: user.role }, after: { role },
+      });
+    }
+    return updated;
   },
 
-  async deleteUser(id: string) {
+  async deleteUser(id: string, actor?: Actor) {
     const user = await userRepository.findById(id);
     if (!user) throw new HttpError(404, "User not found");
     if (user.role === "ADMIN") {
       const adminCount = await userRepository.countByRole("ADMIN");
       if (adminCount <= 1) throw new HttpError(409, "Cannot delete the last remaining admin", "LAST_ADMIN");
     }
-    return userRepository.delete(id);
+    const deleted = await userRepository.delete(id);
+    void auditLogService.record({
+      actorId: actor?.id, actorRole: actor?.role, ipAddress: actor?.ip,
+      action: "USER_DELETED", entityType: "User", entityId: id,
+      before: { name: user.name, email: user.email, role: user.role },
+    });
+    return deleted;
   },
 };
 
