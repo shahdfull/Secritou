@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: npm run lint --workspace=client
@@ -25,13 +25,13 @@ jobs:
     env:
       NODE_ENV: test
       DATABASE_URL: postgresql://secritou:secritou@localhost:5432/secritou_test
-      JWT_SECRET: ci-test-secret-min-32-characters-long
+      JWT_ACCESS_SECRET: ci-test-access-secret-min-32-chars-long
       JWT_REFRESH_SECRET: ci-test-refresh-secret-min-32-chars
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: npm run prisma:validate --workspace=server
@@ -48,5 +48,5 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - run: node scripts/check-i18n.mjs

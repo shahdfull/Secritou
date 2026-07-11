@@ -1,6 +1,7 @@
 // Credit Note service : records money owed back to a client (overpayment or correction).
 import { prisma } from "../config/prisma.js";
 import { HttpError } from "../utils/httpError.js";
+import { roundMoney } from "../utils/vat.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { enqueueNotifications } from "../jobs/queues.js";
 import type { InvoiceStatus } from "@prisma/client";
@@ -111,8 +112,8 @@ export const creditNoteService = {
       // 3. Compute the applicable amount (capped at remaining balance and client credit balance)
       const client = await tx.client.findUnique({ where: { id: cn.clientId }, select: { creditBalance: true } });
       const clientBalance = Number(client?.creditBalance ?? 0);
-      const remaining = Math.round((Number(invoice.amount) - Number(invoice.amountPaid)) * 100) / 100;
-      const applicable = Math.round(Math.min(Number(cn.amount), remaining, clientBalance) * 100) / 100;
+      const remaining = roundMoney(Number(invoice.amount) - Number(invoice.amountPaid));
+      const applicable = roundMoney(Math.min(Number(cn.amount), remaining, clientBalance));
 
       if (applicable <= 0) {
         // Rollback the credit note update since we can't apply
@@ -124,7 +125,7 @@ export const creditNoteService = {
       }
 
       // 4. Update the invoice
-      const newAmountPaid = Math.round((Number(invoice.amountPaid) + applicable) * 100) / 100;
+      const newAmountPaid = roundMoney(Number(invoice.amountPaid) + applicable);
       const invoiceTotal = Number(invoice.amount);
       const newStatus: InvoiceStatus = newAmountPaid >= invoiceTotal ? "PAID" : newAmountPaid > 0 ? "PARTIAL" : invoice.status as InvoiceStatus;
 

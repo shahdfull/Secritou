@@ -35,8 +35,12 @@ export function decryptSecret(encoded: string): string {
   if (!ivB64 || !tagB64 || !dataB64) {
     throw new HttpError(500, "Malformed encrypted secret", "ENCRYPTION_FORMAT_INVALID");
   }
+  const authTag = Buffer.from(tagB64, "base64");
+  if (authTag.length !== 16) {
+    throw new HttpError(500, "Malformed encrypted secret: auth tag must be 16 bytes", "ENCRYPTION_FORMAT_INVALID");
+  }
   const decipher = crypto.createDecipheriv(ALGORITHM, getKey(), Buffer.from(ivB64, "base64"));
-  decipher.setAuthTag(Buffer.from(tagB64, "base64"));
+  decipher.setAuthTag(authTag);
   const plaintext = Buffer.concat([decipher.update(Buffer.from(dataB64, "base64")), decipher.final()]);
   return plaintext.toString("utf8");
 }

@@ -32,6 +32,21 @@ type ArchiveRule = {
 // ARCHIVE_RULES configurable (env var, DB-backed settings, admin UI, etc.) without adding a
 // strict allowlist of table names first — doing so directly would turn this into a SQL injection
 // vector.
+
+// Runtime guard: enforces the allowlist even if ARCHIVE_RULES is accidentally made dynamic.
+const ALLOWED_ARCHIVE_TABLES = new Set([
+  "Lead", "LeadArchive",
+  "ContactRequest", "ContactRequestArchive",
+  "Notification", "NotificationArchive",
+  "Document", "DocumentArchive",
+]);
+
+function assertSafeArchiveTable(name: string) {
+  if (!ALLOWED_ARCHIVE_TABLES.has(name)) {
+    throw new Error(`[maintenance] Blocked unsafe table name in archive rule: "${name}"`);
+  }
+}
+
 const ARCHIVE_RULES: ArchiveRule[] = [
   {
     sourceTable: "Lead",
@@ -79,6 +94,7 @@ function partitionParts(date: Date) {
 }
 
 async function ensureMonthlyPartitions(archiveTable: string) {
+  assertSafeArchiveTable(archiveTable);
   const start = new Date(Date.UTC(2020, 0, 1));
   const end = addMonths(buildMonthStart(new Date()), 1);
 
@@ -98,6 +114,9 @@ async function ensureMonthlyPartitions(archiveTable: string) {
 }
 
 async function archiveTableRows(rule: ArchiveRule) {
+  assertSafeArchiveTable(rule.sourceTable);
+  assertSafeArchiveTable(rule.archiveTable);
+
   const cutoff = new Date();
   cutoff.setUTCDate(cutoff.getUTCDate() - rule.thresholdDays);
 
@@ -210,7 +229,7 @@ export async function markOverdueInvoices() {
   }
 
   await prisma.invoice.updateMany({
-    where: { id: { in: newlyOverdue.map((i) => i.id) } },
+    where: { id: { in: newlyOverdue.map((i) => i.id) }, status: { in: ["SENT", "PARTIAL"] } },
     data: { status: "OVERDUE" },
   });
 
