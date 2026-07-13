@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authenticate } from "../middlewares/auth.middleware.js";
-import { contactRateLimit } from "../middlewares/rateLimit.middleware.js";
+import { uploadPublicRateLimit } from "../middlewares/rateLimit.middleware.js";
 import {
   uploadFile,
   deleteFile,
@@ -18,11 +18,12 @@ const router = Router();
 const PUBLIC_UPLOAD_CONTEXTS = new Set(["cv", "portfolio"]);
 
 // POST /upload/:context : upload a file (multipart/form-data, field: "file")
-// Public contexts (cv, portfolio) require no authentication but are rate-limited.
+// Public contexts (cv, portfolio) require no authentication but are rate-limited
+// to 3 uploads/hour per IP (uploadPublicRateLimit) to prevent storage abuse.
 // Protected contexts ("document", "image") require authentication.
 router.post("/:context", validate(uploadContextParamSchema), (req, res, next) => {
   if (PUBLIC_UPLOAD_CONTEXTS.has(req.params.context as string)) {
-    return contactRateLimit(req, res, next);
+    return uploadPublicRateLimit(req, res, next);
   }
   return authenticate(req, res, next);
 }, ...uploadFile);

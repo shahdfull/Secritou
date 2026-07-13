@@ -265,6 +265,23 @@ npm run build --workspace server
 npm run prisma:seed --workspace server
 ```
 
+### Ops scripts (`scripts/`)
+
+| Script | Description |
+|---|---|
+| `scripts/backup-db.sh` | pg_dump → S3 (daily/weekly/monthly tiers). Run via `backup.yml` or cron |
+| `scripts/restore-db.sh <s3-key>` | Download from S3 + pg_restore + smoke test (interactive confirmation) |
+| `scripts/set-s3-lifecycle.sh` | Configure S3 retention rules (daily 7d / weekly 30d / monthly 365d) |
+| `scripts/init-minio.sh` | Create dev MinIO bucket (first-time setup) |
+
+All scripts read credentials from environment variables — never hardcode secrets.
+See `RUNBOOK.md` for incident procedures and `server/.env.example` for required variables.
+
+### API documentation
+
+Interactive Swagger UI is available at **`http://localhost:5000/api-docs`** when the server is running.
+The OpenAPI 3.1 spec is served at `http://localhost:5000/api-docs/json`.
+
 ---
 
 ## Architecture Notes

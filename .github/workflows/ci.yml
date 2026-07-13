@@ -59,6 +59,62 @@ jobs:
         run: npx --yes madge --circular --extensions ts src/
         working-directory: server
 
+  restore-smoke-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: secritou
+          POSTGRES_PASSWORD: secritou
+          POSTGRES_DB: secritou_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      DATABASE_URL: postgresql://secritou:secritou@localhost:5432/secritou_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run prisma:generate --workspace=server
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+        working-directory: server
+      - name: Dump test DB (custom format)
+        run: |
+          PGPASSWORD=secritou pg_dump \
+            --host=localhost --port=5432 --username=secritou \
+            --format=custom --no-owner --no-acl \
+            secritou_test > /tmp/test.dump
+          echo "Dump size: $(du -h /tmp/test.dump | cut -f1)"
+      - name: Create restore target DB
+        run: |
+          PGPASSWORD=secritou psql \
+            -h localhost -p 5432 -U secritou -d postgres \
+            -c "CREATE DATABASE secritou_restore;"
+      - name: Restore dump to new DB
+        run: |
+          PGPASSWORD=secritou pg_restore \
+            --host=localhost --port=5432 --username=secritou \
+            --dbname=secritou_restore \
+            --no-owner --no-acl --jobs=2 \
+            /tmp/test.dump
+      - name: Smoke-test restored DB
+        run: |
+          PGPASSWORD=secritou psql \
+            -h localhost -p 5432 -U secritou -d secritou_restore \
+            -c "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename;" \
+            -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';"
+          echo "Restore smoke-test passed."
+
   i18n-check:
     runs-on: ubuntu-latest
     steps:

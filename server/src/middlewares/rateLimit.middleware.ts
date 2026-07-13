@@ -74,3 +74,15 @@ export const analyticsEventRateLimit = rateLimit({
   keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),
   message: { message: "Too many analytics events, please slow down" },
 });
+
+// Public upload (cv/, portfolio/) on the Join-Us form — no auth, so rate-limited
+// by IP. 3 uploads/hour is generous for a genuine candidate (CV + a few portfolio
+// items) while still blocking automated storage-abuse scripts.
+export const uploadPublicRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),
+  message: { message: "Too many file uploads, please try again later" },
+});

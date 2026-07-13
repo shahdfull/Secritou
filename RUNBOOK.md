@@ -185,7 +185,40 @@ aws s3 ls s3://${S3_BUCKET}/ --recursive --endpoint-url ${S3_ENDPOINT} | awk '{p
 
 ---
 
-## 7. Contacts et escalade
+## 7. Processus breaking-change API
+
+Secritou est single-tenant (une seule agence) et n'expose pas d'API publique tierce.
+Un « breaking change » est tout changement qui casse le contrat entre le client React
+et le serveur Express (renommage de champ, suppression d'endpoint, nouveau champ
+obligatoire, changement de format de date).
+
+### Procédure obligatoire avant tout breaking change
+
+1. **Identifier les consommateurs** — grep le champ/endpoint dans `client/src/` et `e2e/`.
+2. **Migrer les deux côtés dans le même PR** — le client et le serveur doivent être
+   déployés ensemble (même image, même `docker-compose up`). Ne jamais déployer
+   le serveur seul si le client a un changement correspondant.
+3. **Tester en staging** (`NODE_ENV=staging`) avant la production.
+4. **Version dans le health endpoint** — vérifier que `GET /api/v1/health` retourne
+   le bon SHA après déploiement :
+   ```bash
+   curl https://api.secritou.com/api/v1/health
+   # {"data":{"status":"ok","version":"<new-sha>"}}
+   ```
+5. **Rollback immédiat si régression** — voir §4.2 (rollback < 8 min).
+
+### Cas particuliers
+
+| Scénario | Approche |
+|---|---|
+| Renommage de champ Prisma | Migration additive (nouveau champ) + backfill + suppression de l'ancien dans un second PR |
+| Suppression d'endpoint | Conserver l'endpoint avec `410 Gone` pendant 1 sprint, puis supprimer |
+| Nouveau champ obligatoire en body | Ajouter Zod `.optional()` + valeur par défaut côté serveur d'abord |
+| Changement de format de date | Toujours ISO 8601 UTC — ne pas changer sauf migration explicite |
+
+---
+
+## 8. Contacts et escalade
 
 | Rôle | Contact | Quand |
 |---|---|---|

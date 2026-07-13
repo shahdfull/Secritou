@@ -74,14 +74,14 @@ export const deleteFile: RequestHandler = async (req, res, next) => {
 
     // Ownership check: verify the caller has the right to delete this key.
     if (key.startsWith("cv/")) {
-      // FREELANCER can only delete their own CV key (stored on their profile).
-      // ADMIN/MANAGER can delete any.
+      // cv/ keys are set on FreelancerApplication (join-us form). A FREELANCER
+      // can delete their own application's CV key; ADMIN/MANAGER can delete any.
       if (role === "FREELANCER") {
-        const profile = await prismaRead.freelancerProfile.findFirst({
-          where: { userId, cvKey: key },
+        const application = await prismaRead.freelancerApplication.findFirst({
+          where: { cvKey: key, userId },
           select: { id: true },
         });
-        if (!profile) throw new HttpError(403, "You do not own this file");
+        if (!application) throw new HttpError(403, "You do not own this file");
       } else if (role !== "ADMIN" && role !== "MANAGER") {
         throw new HttpError(403, "Forbidden");
       }
