@@ -9,6 +9,7 @@ import logger from "../utils/logger.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { enqueueNotifications } from "../jobs/queues.js";
 import { env } from "../config/env.js";
+import { gscTokenRevocations, gscSyncErrors } from "../observability/metrics.js";
 
 function toDateOnly(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -16,6 +17,7 @@ function toDateOnly(d: Date): string {
 
 async function handleGscRevocation(clientId: string, siteUrl?: string) {
   logger.warn({ clientId }, "[searchConsole] GSC connection revoked");
+  gscTokenRevocations.inc({ clientId });
   // Disconnect the GSC connection
   await gscConnectionRepository.disconnect(clientId);
   // Notify all admins
@@ -129,6 +131,7 @@ export async function syncAllConnectedClients() {
         (err as any)?.response?.status === 401;
       if (!isHandledError) {
         await gscConnectionRepository.recordSyncError(connection.clientId, err instanceof Error ? err.message : String(err));
+        gscSyncErrors.inc({ clientId: connection.clientId });
       }
     }
   }

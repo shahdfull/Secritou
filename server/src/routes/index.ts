@@ -61,7 +61,14 @@ export const apiRoutes = Router();
  *                       type: string
  *                       enum: [ok]
  */
-apiRoutes.get("/health", (_req, res) => res.json({ data: { status: "ok" } }));
+apiRoutes.get("/health", (_req, res) =>
+  res.json({
+    data: {
+      status: "ok",
+      version: process.env.GIT_SHA ?? "dev",
+    },
+  })
+);
 
 /**
  * @swagger

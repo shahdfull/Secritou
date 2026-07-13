@@ -21,3 +21,49 @@ groups:
         for: 1m
         labels: { severity: critical }
         annotations: { summary: "API is down" }
+
+      # ── BullMQ ───────────────────────────────────────────────────────────────
+
+      - alert: BullMQHighFailedJobs
+        expr: bullmq_jobs_failed > 10
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "BullMQ: {{ $labels.queue }} has {{ $value }} failed jobs"
+          description: "Check logs for processor errors. Emails/PDFs may not be delivered."
+
+      - alert: BullMQQueueBacklog
+        expr: bullmq_jobs_waiting > 50
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "BullMQ: {{ $labels.queue }} backlog at {{ $value }} waiting jobs"
+          description: "Worker may be stalled. Check Redis connectivity."
+
+      # ── Google Search Console ─────────────────────────────────────────────────
+
+      - alert: GSCTokenRevoked
+        expr: increase(gsc_token_revocations_total[1h]) > 0
+        for: 0m
+        labels: { severity: warning }
+        annotations:
+          summary: "GSC OAuth token revoked"
+          description: "Go to Settings → Search Console to reconnect."
+
+      - alert: GSCSyncErrors
+        expr: increase(gsc_sync_errors_total[6h]) > 3
+        for: 0m
+        labels: { severity: warning }
+        annotations:
+          summary: "GSC sync failing ({{ $value }} errors in 6h)"
+          description: "Check Google API quota and network connectivity."
+
+      # ── Process / Memory ──────────────────────────────────────────────────────
+
+      - alert: HighMemoryUsage
+        expr: process_memory_rss_bytes > 1610612736
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Node.js RSS memory > 1.5 GB"
+          description: "Possible memory leak. Restart the container and check for heap leaks."

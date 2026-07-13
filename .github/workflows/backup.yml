@@ -1,0 +1,31 @@
+name: Daily DB Backup
+
+on:
+  schedule:
+    # 01:00 UTC every day (03:00 Tunisia time)
+    - cron: "0 1 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trigger backup on production server
+        # The backup script runs ON the production host (where PostgreSQL is accessible).
+        # This step SSH-es into the server and executes backup-db.sh remotely.
+        # Secrets required in the GitHub "production" environment:
+        #   SSH_HOST         : IP or hostname of the production server
+        #   SSH_USER         : SSH user (e.g. deploy)
+        #   SSH_PRIVATE_KEY  : PEM private key for SSH access
+        #   BACKUP_ENV_PATH  : full path to a file that exports backup env vars
+        #                      (DATABASE_URL, S3_BUCKET, AWS_ACCESS_KEY_ID, etc.)
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
+          ssh -o StrictHostKeyChecking=no \
+              -i /tmp/deploy_key \
+              "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+              "source ${{ secrets.BACKUP_ENV_PATH }} && bash ~/secritou/scripts/backup-db.sh >> ~/logs/backup.log 2>&1"
+          rm -f /tmp/deploy_key

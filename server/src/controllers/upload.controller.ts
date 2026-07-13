@@ -1,6 +1,8 @@
 import type { RequestHandler } from "express";
 import { uploadService, type UploadContext } from "../services/upload.service.js";
 import { createUploadMiddleware } from "../middlewares/upload.middleware.js";
+import { prismaRead } from "../config/prisma.js";
+import { HttpError } from "../utils/httpError.js";
 
 // ---------------------------------------------------------------------------
 // POST /api/v1/upload/:context
@@ -66,6 +68,37 @@ export const deleteFile: RequestHandler = async (req, res, next) => {
       res.status(400).json({ error: "Invalid key" });
       return;
     }
+
+    const userId = req.user?.sub;
+    const role = req.user?.role;
+
+    // Ownership check: verify the caller has the right to delete this key.
+    if (key.startsWith("cv/")) {
+      // FREELANCER can only delete their own CV key (stored on their profile).
+      // ADMIN/MANAGER can delete any.
+      if (role === "FREELANCER") {
+        const profile = await prismaRead.freelancerProfile.findFirst({
+          where: { userId, cvKey: key },
+          select: { id: true },
+        });
+        if (!profile) throw new HttpError(403, "You do not own this file");
+      } else if (role !== "ADMIN" && role !== "MANAGER") {
+        throw new HttpError(403, "Forbidden");
+      }
+    } else if (key.startsWith("portfolio/")) {
+      // Portfolio image keys are not stored in DB — any authenticated user can
+      // delete a portfolio/ key they were given (returned at upload time).
+      // FREELANCER scope only; admins can also delete.
+      if (role !== "FREELANCER" && role !== "ADMIN" && role !== "MANAGER") {
+        throw new HttpError(403, "Forbidden");
+      }
+    } else if (key.startsWith("document/") || key.startsWith("image/")) {
+      // Only ADMIN/MANAGER can delete document and image uploads.
+      if (role !== "ADMIN" && role !== "MANAGER") {
+        throw new HttpError(403, "Forbidden");
+      }
+    }
+
     await uploadService.delete(key);
     res.json({ data: { success: true } });
   } catch (err) {

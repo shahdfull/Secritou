@@ -1,6 +1,7 @@
 import { userRepository } from "../repositories/user.repository.js";
 import { HttpError } from "../utils/httpError.js";
 import { enqueueEmail } from "../jobs/queues.js";
+import { communicationQueue } from "../jobs/queues.js";
 import { userInvitationTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
 import type { Role } from "@prisma/client";
@@ -8,6 +9,7 @@ import type { ListQueryOptions } from "../utils/listQuery.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { auditLogService } from "./auditLog.service.js";
+import logger from "../utils/logger.js";
 
 type Actor = { id?: string; role?: string; ip?: string };
 
@@ -83,6 +85,17 @@ export const userService = {
       if (adminCount <= 1) throw new HttpError(409, "Cannot delete the last remaining admin", "LAST_ADMIN");
     }
     const deleted = await userRepository.delete(id);
+
+    // Best-effort: remove waiting notification jobs addressed to this user so they
+    // don't clutter the queue and produce spurious "user not found" failures.
+    try {
+      const waitingJobs = await communicationQueue.getWaiting();
+      const userJobs = waitingJobs.filter((j) => (j.data as { userId?: string })?.userId === id);
+      await Promise.all(userJobs.map((j) => j.remove()));
+    } catch (err) {
+      logger.warn({ err, userId: id }, "[userService] Failed to clean up queued notification jobs");
+    }
+
     void auditLogService.record({
       actorId: actor?.id, actorRole: actor?.role, ipAddress: actor?.ip,
       action: "USER_DELETED", entityType: "User", entityId: id,

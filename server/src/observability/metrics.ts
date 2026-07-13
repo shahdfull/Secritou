@@ -186,3 +186,19 @@ export const processCpuPercent = new Gauge({
   help: "Utilisation CPU du processus Node.js (%)",
   registers: [registry],
 });
+
+// ── Intégrations externes ─────────────────────────────────────────────────────
+
+export const gscTokenRevocations = new Counter({
+  name: "gsc_token_revocations_total",
+  help: "Nombre de révocations de token Google Search Console détectées",
+  labelNames: ["clientId"] as const,
+  registers: [registry],
+});
+
+export const gscSyncErrors = new Counter({
+  name: "gsc_sync_errors_total",
+  help: "Erreurs non-révocation lors de la synchronisation GSC",
+  labelNames: ["clientId"] as const,
+  registers: [registry],
+});
