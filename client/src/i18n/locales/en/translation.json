@@ -782,6 +782,8 @@
     "crm": "CRM",
     "talent": "Talent",
     "questions": "Questions",
+    "booking": "Booking",
+    "commissions": "Commissions",
     "groupManage": "Manage",
     "groupAnalytics": "Analytics",
     "groupOther": "Account"

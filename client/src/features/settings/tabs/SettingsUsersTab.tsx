@@ -472,7 +472,6 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
                     if (!u) return null;
                     const isPermExpanded = expandedPermissions === u.id;
                     return (
-                      <>
                         <TableRow
                           key={u.id}
                           style={{
@@ -576,7 +575,6 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
                             )}
                           </TableCell>
                         </TableRow>
-                      </>
                     );
                   })}
                 </TableBody>
