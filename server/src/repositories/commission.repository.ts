@@ -48,7 +48,7 @@ export const commissionRepository = {
     for (const row of rows) {
       created.push(await tx.commission.create({ 
         data: row,
-        include: { partner: { select: { id: true; name: true; email: true } }, project: { select: { id: true; name: true } }, invoice: { select: { id: true; number: true } } }
+        include: { partner: { select: { id: true, name: true, email: true } }, project: { select: { id: true, name: true } }, invoice: { select: { id: true, number: true } } }
       }));
     }
     return created;
@@ -91,15 +91,15 @@ export const commissionRepository = {
   async findById(id: string) {
     return prismaRead.commission.findUnique({ 
       where: { id },
-      include: { partner: { select: { id: true; name: true; email: true } }, project: { select: { id: true; name: true } }, invoice: { select: { id: true; number: true } } }
+      include: { partner: { select: { id: true, name: true, email: true } }, project: { select: { id: true, name: true } }, invoice: { select: { id: true, number: true } } }
     });
   },
 
   async markPaid(id: string) {
-    return prisma.commission.update({ 
-      where: { id }, 
+    return prisma.commission.update({
+      where: { id },
       data: { status: "PAID", paidAt: new Date() },
-      include: { partner: { select: { id: true; name: true; email: true } }, project: { select: { id: true; name: true } }, invoice: { select: { id: true; number: true } } }
+      include: { partner: { select: { id: true, name: true, email: true } }, project: { select: { id: true, name: true } }, invoice: { select: { id: true, number: true } } }
     });
   },
 };
