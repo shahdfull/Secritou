@@ -28,7 +28,7 @@ export const permissionProfileRepository = {
 
   async update(
     id: string,
-    data: Prisma.PermissionProfileUpdateInput
+    data: Prisma.PermissionProfileUncheckedUpdateInput
   ): Promise<PermissionProfile> {
     return prisma.permissionProfile.update({
       where: { id },

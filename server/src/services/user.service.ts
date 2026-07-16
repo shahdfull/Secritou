@@ -7,7 +7,7 @@ import { communicationQueue } from "../jobs/queues.js";
 import { userInvitationTemplate, emailChangeConfirmationTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
-import type { Role } from "@prisma/client";
+import type { Role, Prisma } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
@@ -70,7 +70,7 @@ export const userService = {
     return user;
   },
 
-  async updateMe(userId: string, data: { name?: string; email?: string; phone?: string }) {
+  async updateMe(userId: string, data: Prisma.UserUncheckedUpdateInput) {
     const user = await userRepository.findById(userId);
     if (!user) throw new HttpError(404, "User not found");
 

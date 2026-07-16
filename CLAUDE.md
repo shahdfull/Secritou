@@ -123,6 +123,16 @@ module/règle) doit porter sa provenance quand elle apparaît dans
 REFERENTIEL.md — ne jamais écrire une affirmation de comportement sans la
 sourcer, y compris en dehors des blocs `verifie:` structurés.
 
+## Face à un blocage : le dire, ne jamais l'expliquer
+
+Face à un blocage (permission refusée, commande indisponible, outil absent) :
+le signaler tel quel et s'arrêter. Ne jamais inventer une cause plausible
+(« un hook du dépôt bloque ceci »), ne jamais contourner sans le dire.
+« Je n'ai pas la permission de X » est une réponse complète et acceptable —
+elle n'a pas besoin d'une explication technique inventée pour paraître
+légitime, et une explication inventée devient une fausse information écrite
+dans le dossier si elle n'est jamais corrigée.
+
 ## Attribution des changements
 
 `git diff HEAD` montre TOUTES les modifications non commitées, y compris

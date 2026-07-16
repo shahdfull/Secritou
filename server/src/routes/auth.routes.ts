@@ -36,7 +36,7 @@ export const authRoutes = Router();
  *         application/json:
  *           schema:
  *             type: object
- *             required: [email, password, name, role]
+ *             required: [email, password, name]
  *             properties:
  *               email:
  *                 type: string
@@ -46,17 +46,14 @@ export const authRoutes = Router();
  *                 minLength: 8
  *               name:
  *                 type: string
- *               role:
- *                 type: string
- *                 enum: [ADMIN, MANAGER, CLIENT, FREELANCER]
  *           example:
  *             email: user@example.com
  *             password: SecurePass123!
  *             name: John Doe
- *             role: CLIENT
  *     responses:
  *       201:
- *         description: User registered successfully
+ *         description: User registered successfully. The role is always CLIENT — this is a
+ *           public self-service endpoint, other roles are created via POST /users (ADMIN only).
  *         content:
  *           application/json:
  *             schema:

@@ -108,7 +108,7 @@ export const proposalRepository = {
     return prisma.proposal.create({ data });
   },
 
-  async update(id: string, data: Prisma.ProposalUpdateInput) {
+  async update(id: string, data: Prisma.ProposalUncheckedUpdateInput) {
     return prisma.proposal.update({ where: { id }, data });
   },
 

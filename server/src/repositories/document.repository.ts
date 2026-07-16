@@ -114,7 +114,7 @@ export const documentRepository = {
     return prisma.document.create({ data });
   },
 
-  async update(id: string, data: Prisma.DocumentUpdateInput) {
+  async update(id: string, data: Prisma.DocumentUncheckedUpdateInput) {
     return prisma.document.update({ where: { id }, data });
   },
 

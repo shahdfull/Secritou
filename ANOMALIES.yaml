@@ -200,8 +200,8 @@ anomalies:
     perimetre: "4.10 RBAC & Permissions granulaires (compte utilisateur) — [À CONFIRMER — non trié], voir REFERENTIEL.md §4"
     regle_violee: null
     classe: "type_frontend_desynchronise_du_schema_prisma"
-    gravite: "[À CONFIRMER] — voir note : le rapport de lecture de code a été produit sans jamais être soumis à validation ; la gravité bloquant proposée n'a pas été confirmée par le porteur du projet, contrairement à ce qu'une version antérieure de cette entrée affirmait à tort"
-    statut: ouvert
+    gravite: majeur
+    statut: en_cours
     critere_de_resolution: >
       C'est résolu quand un appel réel à PATCH /users/me avec un champ phone
       non vide ne provoque plus d'erreur (soit par ajout du champ phone au
@@ -247,6 +247,19 @@ anomalies:
       sortie tronquée par le terminal lors de la première tentative, non
       encore repassée proprement au moment de la rédaction de cette mise à
       jour). Gravité toujours `[À CONFIRMER]`.
+
+      RÉSOLU MÉCANIQUEMENT (session du 2026-07-16, GATE 6 / SEC-012) :
+      gravité tranchée à `majeur` — le chemin complet a été relu après
+      conversion des types (voir SEC-012), confirmant que `phone` atteignait
+      bien `prisma.user.update()` sans jamais produire d'erreur tsc, à cause
+      d'un littéral maison à CHAQUE maillon de la chaîne (repository,
+      service, et le premier littéral frais au controller). Décision du
+      porteur : `phone` est un champ voulu sur `User` — migration
+      `20260716120000_add_phone_to_user` (`User.phone String? @db.VarChar(50)`)
+      appliquée, Prisma Client régénéré, `npm run typecheck --workspace=server`
+      vert (0 erreur), 237/237 tests verts. Statut `en_cours`, pas `resolu` :
+      correctif non encore commité + non passé par la CI distante au moment
+      de cette note (voir la règle commit+CI de CLAUDE.md).
 
   - id: SEC-007
     titre: "Le serveur ne compile pas (tsc --noEmit échoue)"
@@ -415,43 +428,36 @@ anomalies:
       SEC-010 : statut à relever à `resolu` seulement après confirmation CI.)
 
   - id: SEC-010
-    titre: "Aucun workflow CI ne peut être confirmé comme réellement exécuté récemment malgré son existence"
+    titre: "Défaut de processus, pas d'outillage — la CI est correcte, le code ne l'atteignait pas"
     perimetre: "infrastructure — .github/workflows/ci.yml"
     regle_violee: null
     classe: null
     gravite: majeur
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
-      C'est résolu quand l'historique des exécutions GitHub Actions du
-      dépôt confirme que le job "server" (lint, typecheck, test:coverage,
-      build) du workflow ci.yml tourne à chaque push/PR sur main et échoue
-      effectivement quand SEC-007/SEC-008/SEC-009 sont reproduites — ce qui
-      validerait que la CI existante fonctionne comme filet de sécurité.
-      Si l'historique montre au contraire que la CI ne tourne pas ou passe
-      malgré ces défauts, le workflow lui-même est le sujet à corriger.
+      C'est résolu au premier push vers origin/main qui déclenche le workflow
+      ci.yml et le voit passer au vert (jobs "client" et "server", incluant
+      typecheck et test:coverage) sur un commit contenant les correctifs
+      SEC-007/SEC-008/SEC-009/SEC-011/SEC-012.
     detecte_le: "2026-07-16"
     source: manuel
     confiance: certain
     note: >
-      `.github/workflows/ci.yml` existe et a été lu en entier, session du
-      2026-07-16 — il n'est PAS absent, contrairement à une hypothèse
-      formulée avant vérification. Il est substantiel : jobs "client"
-      (lint/typecheck/test/build + scan de secrets dans le bundle) et
-      "server" (prisma validate/format-check/generate, détection de drift
-      de schéma, lint, typecheck, test:coverage avec seuils de couverture
-      85/80/85/85%, build, détection de dépendances circulaires via madge),
-      plus "restore-smoke-test" (restauration d'un dump PostgreSQL réel) et
-      "i18n-check". Il se déclenche sur push vers main et sur pull_request
-      (lignes 3-6). Étant donné que SEC-007 (typecheck serveur en échec) et
-      SEC-008 (suite de tests bloquée) sont tous deux reproduits directement
-      cette session avec les mêmes commandes que celles utilisées par ce
-      workflow (`typecheck --workspace=server`, `test:coverage
-      --workspace=server`), soit ce workflow échoue actuellement à chaque
-      exécution (et cet échec n'a pas été traité), soit il ne s'est pas
-      exécuté récemment sur les commits qui ont introduit ces défauts (par
-      exemple un push direct sans PR, ou une branche autre que main). Aucun
-      accès à l'historique des exécutions GitHub Actions depuis cet
-      environnement pour trancher entre ces deux hypothèses.
+      `.github/workflows/ci.yml` existe, lu en entier, substantiel (jobs
+      "client", "server", "restore-smoke-test", "i18n-check", déclenchés sur
+      push vers main et sur pull_request). Le défaut n'est PAS un défaut
+      d'outillage — la CI elle-même est correctement conçue. Le défaut est
+      un défaut de PROCESSUS : `git log origin/main --oneline -1` (session du
+      2026-07-16) montre `origin/main` à 3bdda4b, alors que `git status -sb`
+      montre le HEAD local 3 commits devant (`ahead 3`) au moment de cette
+      vérification — les ~4500 lignes de changements de cette session
+      (reverts, RG-019, conversions SEC-012) n'ont jamais été poussées, donc
+      jamais vues par la CI. SEC-007/SEC-008/SEC-009 ne sont pas des preuves
+      d'une CI défaillante : ce sont des défauts qui vivaient dans un working
+      tree local, jamais commité avant cette session, donc structurellement
+      hors de portée de tout workflow déclenché par push/PR. Fermeture
+      conditionnée au premier push vert, pas à une inspection supplémentaire
+      du fichier de workflow lui-même.
 
   - id: SEC-011
     titre: "Fenêtre de grâce de 30 s sur les refresh tokens révoqués, introduite sans décision documentée"
@@ -513,29 +519,95 @@ anomalies:
 
   - id: SEC-012
     titre: "Types maison substitués aux types d'entrée Prisma générés (15 repositories)"
-    perimetre: "transverse — server/src/repositories/**"
+    perimetre: "transverse — validateurs → controllers → services → repositories (pas repositories/** seul, voir correction ci-dessous)"
     regle_violee: null
     classe: "type_maison_substitue_au_type_prisma"
     gravite: majeur
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
-      C'est résolu quand plus aucun paramètre `data` de repository n'est typé
-      par un littéral écrit à la main : tous utilisent le type Prisma généré
-      correspondant (Prisma.<Model>UpdateInput / CreateInput). Vérifié par
-      `grep -rn "Partial<{" server/src/repositories/*.ts` → zéro résultat,
-      ET `npm run typecheck --workspace=server` vert sur le commit
-      correspondant.
+      C'est résolu quand plus aucun paramètre `data` porté par la CHAÎNE
+      ENTIÈRE d'un endpoint d'écriture (validateur Zod → controller →
+      service → repository) n'est typé par un littéral écrit à la main :
+      chaque maillon utilise soit le type Prisma généré correspondant
+      (Prisma.<Model>UpdateInput / UncheckedUpdateInput / CreateInput /
+      UncheckedCreateInput), soit un type dérivé directement de celui-ci
+      (ex. via Pick/Omit), jamais une interface ou un `Partial<{ ... }>`
+      recopiés à la main. Vérifié par `grep -rn "Partial<{"
+      server/src/repositories/*.ts server/src/services/*.ts` → zéro
+      résultat, ET `npm run typecheck --workspace=server` vert sur le
+      commit correspondant. Correction du 2026-07-16 : la première version
+      de ce critère ne portait que sur `server/src/repositories/**` — trop
+      étroit. TypeScript ne fait de vérification des propriétés en excès
+      que sur les littéraux d'objet FRAIS, jamais sur les variables : un
+      repository correctement typé ne suffit pas si l'appelant (le service,
+      ex. `userService.updateMe`) construit `data` avec son propre type
+      maison puis le transmet via une variable — l'écart de type reste
+      invisible en aval sans jamais produire d'erreur. La garantie n'existe
+      que si CHAQUE maillon de la chaîne est lui-même correctement typé.
     detecte_le: "2026-07-16"
     source: manuel
     confiance: certain
     note: >
-      SEC-006 (phone/updateMe) est un symptôme de cette classe et sera
-      résolue mécaniquement par la conversion. Le point clé : il n'y a rien
-      à auditer — la conversion EST l'audit. Une fois les types générés en
-      place, tsc détecte tout écart champ/modèle à chaque compilation, sans
-      variance, définitivement. 17 méthodes sur 15 fichiers : approval,
-      client, clientSuccess (×4), document, freelancerApplication, invoice,
-      lead, managerPermission, permissionProfile, project, proposal,
-      serviceRequest, task, user (×2, dont updateMe). Un seul repository du
-      dépôt, clientOnboarding.repository.ts, utilise déjà le type Prisma
-      généré — c'est l'exception, pas la règle.
+      SEC-006 (phone/updateMe) est un symptôme de cette classe. 17 méthodes
+      sur 15 fichiers de repositories converties, session du 2026-07-16 :
+      approval, client, clientSuccess (×4), document,
+      freelancerApplication, invoice, lead, managerPermission,
+      permissionProfile, project, proposal, serviceRequest, task, user (×2,
+      dont updateMe). Un seul repository du dépôt,
+      clientOnboarding.repository.ts, utilisait déjà le type Prisma généré
+      avant cette session — laissé tel quel, c'était l'exception, pas la
+      règle, et n'appelait aucune conversion.
+
+      Par défaut, la conversion utilise `Prisma.<Model>UncheckedUpdateInput`
+      (scalaires FK à plat), jamais la variante checked (`connect`) sauf là
+      où le code effectue déjà réellement une écriture imbriquée de
+      relation — décision du porteur, 2026-07-16 : ce dépôt passe des
+      scalaires à plat partout, réécrire les call sites en `connect` est du
+      churn sans bénéfice de garantie (`phone` échoue aussi bien sous
+      `UncheckedUpdateInput` que sous `UpdateInput`).
+
+      Occurrence 1 — server/src/services/freelancerApplication.service.ts:130.
+      `freelancerApplicationRepository.update(id, { status: "ACCEPTED",
+      userId: user.id, accountCreatedAt: new Date() })` : `userId` est un
+      scalaire FK réel sur `FreelancerApplication` (`userId String?` +
+      relation `user`), mais `Prisma.FreelancerApplicationUpdateInput`
+      (variante checked) n'expose pas les scalaires FK à plat — il attend
+      une écriture de relation imbriquée (`user: { connect: { id } }`).
+      Invisible sous l'ancien littéral maison, qui traitait `userId` comme
+      un scalaire ordinaire. Résolu par conversion vers
+      `Prisma.FreelancerApplicationUncheckedUpdateInput`, sans toucher au
+      call site : `userId` y est un scalaire à plat valide.
+
+      Occurrence 2 — server/src/repositories/managerPermission.repository.ts:24-37.
+      `upsert` avec `create: { userId, ...data }` où `data` était
+      update-shaped : jamais valide structurellement (UpdateInput et
+      CreateInput ne sont pas des formes interchangeables en Prisma —
+      `UpdateInput.user` est un `UserUpdateOneRequiredWithoutXNestedInput`,
+      `CreateInput.user` un `UserCreateNestedOneWithoutXInput`, deux types
+      distincts). Invisible sous l'ancien littéral maison, qui ne
+      contraignait `data` à aucune des deux formes réelles. Résolu en
+      supprimant le spread : la branche `create` énonce désormais
+      `profileId` et `overrides` explicitement à partir de `data` (typé
+      `Prisma.ManagerPermissionUncheckedUpdateInput`), aucun spread ne
+      traverse plus deux opérations Prisma de formes différentes.
+
+      `phone` — la question décisive de ce SEC-012, tranchée : une fois
+      `user.repository.ts` converti, `phone` ne produisait ENCORE aucune
+      erreur tsc, parce que `userService.updateMe`
+      (server/src/services/user.service.ts:73) portait son propre littéral
+      maison `{ name?: string; email?: string; phone?: string }` et
+      transmettait `rest` — une variable, jamais vérifiée pour propriétés
+      en excès — au repository. Une fois `userService.updateMe` lui-même
+      converti vers `Prisma.UserUncheckedUpdateInput`, l'erreur est
+      remontée d'une couche supplémentaire jusqu'au premier littéral frais
+      de la chaîne : server/src/controllers/user.controller.ts:21 (`{
+      name, phone }`), qui a produit `TS2353: 'phone' does not exist in
+      type 'UserUncheckedUpdateInput'`. Décision du porteur, 2026-07-16 :
+      `phone` est un champ voulu sur `User` (cohérent avec Client, Lead,
+      FreelancerApplication) — ajouté par migration
+      `20260716120000_add_phone_to_user`, `User.phone String? @db.VarChar(50)`,
+      appliquée en dev et Prisma Client régénéré. `npm run
+      typecheck --workspace=server` vert (0 erreur), 237/237 tests verts
+      après cette migration. SEC-006 (l'anomalie d'origine sur ce même
+      champ) peut passer `resolu` sous les mêmes conditions que SEC-009/011
+      (commit + CI verte), pas avant.

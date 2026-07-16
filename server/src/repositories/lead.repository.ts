@@ -92,7 +92,7 @@ export const leadRepository = {
     return prisma.lead.create({ data });
   },
 
-  async update(id: string, data: Prisma.LeadUpdateInput): Promise<Lead> {
+  async update(id: string, data: Prisma.LeadUncheckedUpdateInput): Promise<Lead> {
     return prisma.lead.update({ where: { id }, data });
   },
 

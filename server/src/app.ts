@@ -30,9 +30,14 @@ app.use(
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        // Explicit allowlist rather than a blanket "https:" — narrows what an injected script
+        // could exfiltrate to in the event of an XSS, at the cost of needing an entry here
+        // whenever a new first-party external endpoint (S3, Sentry, etc.) is added.
         connectSrc: [
           "'self'",
-          "https:",
+          ...(env.S3_PUBLIC_URL ? [env.S3_PUBLIC_URL] : []),
+          ...(env.S3_ENDPOINT ? [env.S3_ENDPOINT] : []),
+          ...(env.SENTRY_DSN ? [new URL(env.SENTRY_DSN).origin] : []),
           ...(isDevelopment ? ["http://localhost:*", "http://127.0.0.1:*", "ws://localhost:*", "ws://127.0.0.1:*"] : []),
         ],
         frameAncestors: ["'none'"],

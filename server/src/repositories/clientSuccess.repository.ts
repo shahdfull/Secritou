@@ -20,7 +20,7 @@ export const clientSuccessRepository = {
     return prisma.clientSuccess.create({ data });
   },
 
-  async update(id: string, data: Prisma.ClientSuccessUpdateInput, clientId?: string) {
+  async update(id: string, data: Prisma.ClientSuccessUncheckedUpdateInput, clientId?: string) {
     if (clientId) {
       await prisma.clientSuccess.findFirstOrThrow({ where: { id, clientId } });
     }
@@ -36,7 +36,7 @@ export const clientSuccessRepository = {
     return prisma.successObjective.create({ data: { ...data, successId } });
   },
 
-  async updateObjective(id: string, data: Prisma.SuccessObjectiveUpdateInput, clientId?: string) {
+  async updateObjective(id: string, data: Prisma.SuccessObjectiveUncheckedUpdateInput, clientId?: string) {
     if (clientId) {
       await prisma.successObjective.findFirstOrThrow({ where: { id, success: { clientId } } });
     }
@@ -59,7 +59,7 @@ export const clientSuccessRepository = {
     return prisma.successMetric.create({ data: { ...data, successId } });
   },
 
-  async updateMetric(id: string, data: Prisma.SuccessMetricUpdateInput, clientId?: string) {
+  async updateMetric(id: string, data: Prisma.SuccessMetricUncheckedUpdateInput, clientId?: string) {
     if (clientId) {
       await prisma.successMetric.findFirstOrThrow({ where: { id, success: { clientId } } });
     }
@@ -91,7 +91,7 @@ export const clientSuccessRepository = {
     return prisma.successRecommendation.create({ data: { ...data, successId } });
   },
 
-  async updateRecommendation(id: string, data: Prisma.SuccessRecommendationUpdateInput, clientId?: string) {
+  async updateRecommendation(id: string, data: Prisma.SuccessRecommendationUncheckedUpdateInput, clientId?: string) {
     if (clientId) {
       await prisma.successRecommendation.findFirstOrThrow({ where: { id, success: { clientId } } });
     }

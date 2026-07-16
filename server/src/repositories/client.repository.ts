@@ -88,7 +88,7 @@ export const clientRepository = {
     return prisma.client.create({ data, select: clientListSelect });
   },
 
-  async update(id: string, data: Prisma.ClientUpdateInput): Promise<Client> {
+  async update(id: string, data: Prisma.ClientUncheckedUpdateInput): Promise<Client> {
     return prisma.client.update({ where: { id }, data, select: clientListSelect });
   },
 

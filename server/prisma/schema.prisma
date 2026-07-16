@@ -147,6 +147,7 @@ model User {
   id                          String                   @id @default(uuid())
   email                       String                   @db.VarChar(255)
   name                        String                   @db.VarChar(255)
+  phone                       String?                  @db.VarChar(50)
   passwordHash                String                   @db.VarChar(255)
   role                        Role                     @default(CLIENT)
   mustChangePassword          Boolean                  @default(false)

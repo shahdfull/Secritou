@@ -102,7 +102,7 @@ export const userRepository = {
 
   async update(
     id: string,
-    data: Prisma.UserUpdateInput
+    data: Prisma.UserUncheckedUpdateInput
   ): Promise<PublicUser> {
     return prisma.user.update({
       where: { id },
@@ -113,7 +113,7 @@ export const userRepository = {
 
   async updateMe(
     id: string,
-    data: Prisma.UserUpdateInput
+    data: Prisma.UserUncheckedUpdateInput
   ): Promise<PublicUser> {
     return prisma.user.update({
       where: { id },

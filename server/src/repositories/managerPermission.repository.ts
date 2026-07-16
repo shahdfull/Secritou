@@ -23,14 +23,15 @@ export const managerPermissionRepository = {
 
   async update(
     userId: string,
-    data: Prisma.ManagerPermissionUpdateInput
+    data: Prisma.ManagerPermissionUncheckedUpdateInput
   ): Promise<ManagerPermission> {
     return prisma.managerPermission.upsert({
       where: { userId },
       update: data,
       create: {
         userId,
-        ...data,
+        profileId: typeof data.profileId === "string" || data.profileId === null ? data.profileId : undefined,
+        overrides: data.overrides as Prisma.InputJsonValue | undefined,
       },
       include: { profile: true },
     });

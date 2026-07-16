@@ -154,7 +154,7 @@ export const invoiceRepository = {
     return prisma.invoice.create({ data });
   },
 
-  async update(id: string, data: Prisma.InvoiceUpdateInput) {
+  async update(id: string, data: Prisma.InvoiceUncheckedUpdateInput) {
     return prisma.invoice.update({ where: { id }, data });
   },
 

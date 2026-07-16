@@ -125,7 +125,7 @@ export const projectRepository = {
     });
   },
 
-  async update(id: string, data: Prisma.ProjectUpdateInput): Promise<Project> {
+  async update(id: string, data: Prisma.ProjectUncheckedUpdateInput): Promise<Project> {
     return prisma.project.update({
       where: { id },
       data,

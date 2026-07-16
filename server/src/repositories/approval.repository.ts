@@ -88,7 +88,7 @@ export const approvalRepository = {
     return prisma.approval.create({ data });
   },
 
-  async update(id: string, data: Prisma.ApprovalUpdateInput) {
+  async update(id: string, data: Prisma.ApprovalUncheckedUpdateInput) {
     return prisma.approval.update({ where: { id }, data });
   },
 
