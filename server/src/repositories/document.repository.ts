@@ -114,22 +114,7 @@ export const documentRepository = {
     return prisma.document.create({ data });
   },
 
-  async update(id: string, data: Partial<{
-    name: string;
-    title: string;
-    description: string;
-    type: DocumentType;
-    url: string;
-    fileUrl: string;
-    fileKey: string;
-    version: number;
-    tags: string[];
-    accessLevel: DocumentAccessLevel;
-    projectId: string;
-    clientId: string;
-    signedAt: Date;
-    signedByClientId: string;
-  }>) {
+  async update(id: string, data: Prisma.DocumentUpdateInput) {
     return prisma.document.update({ where: { id }, data });
   },
 

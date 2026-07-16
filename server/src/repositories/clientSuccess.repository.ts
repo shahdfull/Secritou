@@ -1,5 +1,5 @@
 import { prisma } from "../config/prisma.js";
-import type { ClientSuccess } from "@prisma/client";
+import type { ClientSuccess, Prisma } from "@prisma/client";
 import { HttpError } from "../utils/httpError.js";
 
 export const clientSuccessRepository = {
@@ -20,7 +20,7 @@ export const clientSuccessRepository = {
     return prisma.clientSuccess.create({ data });
   },
 
-  async update(id: string, data: Partial<{ score: number }>, clientId?: string) {
+  async update(id: string, data: Prisma.ClientSuccessUpdateInput, clientId?: string) {
     if (clientId) {
       await prisma.clientSuccess.findFirstOrThrow({ where: { id, clientId } });
     }
@@ -36,7 +36,7 @@ export const clientSuccessRepository = {
     return prisma.successObjective.create({ data: { ...data, successId } });
   },
 
-  async updateObjective(id: string, data: Partial<{ title: string; description: string; targetValue: number; currentValue: number; unit: string; targetDate: Date; completedAt: Date }>, clientId?: string) {
+  async updateObjective(id: string, data: Prisma.SuccessObjectiveUpdateInput, clientId?: string) {
     if (clientId) {
       await prisma.successObjective.findFirstOrThrow({ where: { id, success: { clientId } } });
     }
@@ -59,7 +59,7 @@ export const clientSuccessRepository = {
     return prisma.successMetric.create({ data: { ...data, successId } });
   },
 
-  async updateMetric(id: string, data: Partial<{ name: string; initialValue: number; currentValue: number; unit: string }>, clientId?: string) {
+  async updateMetric(id: string, data: Prisma.SuccessMetricUpdateInput, clientId?: string) {
     if (clientId) {
       await prisma.successMetric.findFirstOrThrow({ where: { id, success: { clientId } } });
     }
@@ -91,7 +91,7 @@ export const clientSuccessRepository = {
     return prisma.successRecommendation.create({ data: { ...data, successId } });
   },
 
-  async updateRecommendation(id: string, data: Partial<{ title: string; description: string; priority: "LOW" | "MEDIUM" | "HIGH"; status: "PENDING" | "IN_PROGRESS" | "DONE" }>, clientId?: string) {
+  async updateRecommendation(id: string, data: Prisma.SuccessRecommendationUpdateInput, clientId?: string) {
     if (clientId) {
       await prisma.successRecommendation.findFirstOrThrow({ where: { id, success: { clientId } } });
     }

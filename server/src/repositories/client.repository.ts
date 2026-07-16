@@ -1,6 +1,6 @@
 // Client Repository - Data access layer
 import { prismaRead as prisma } from "../config/prisma.js";
-import type { Client } from "@prisma/client";
+import type { Client, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildOrderBy } from "../utils/listQuery.js";
 import { projectBriefSelect } from "../utils/prismaSelects.js";
@@ -88,7 +88,7 @@ export const clientRepository = {
     return prisma.client.create({ data, select: clientListSelect });
   },
 
-  async update(id: string, data: Partial<{ name?: string; email?: string; phone?: string }>): Promise<Client> {
+  async update(id: string, data: Prisma.ClientUpdateInput): Promise<Client> {
     return prisma.client.update({ where: { id }, data, select: clientListSelect });
   },
 

@@ -11,6 +11,14 @@
 #                             # relié par la même classe.
 #   gravite: bloquant | majeur | mineur
 #   statut: ouvert | confirme | en_cours | resolu | rejete
+#     # RESOLU exige : le correctif est commité (pas seulement présent dans le
+#     # working tree) ET les portes déterministes (typecheck, lint, tests)
+#     # sont vertes sur CE commit en CI. Un correctif non commité — même
+#     # vérifié localement, même typecheck/tests verts en local — reste
+#     # `en_cours` : il n'a été vérifié par aucun outil externe et peut
+#     # disparaître sans trace (voir SEC-011 : la fenêtre de grâce a survécu
+#     # des jours précisément parce qu'elle vivait dans un working tree non
+#     # commité).
 #   critere_de_resolution:   # test factuel : « c'est résolu quand… »
 #   detecte_le:              # date ISO
 #   source: audit_llm | script | manuel
@@ -28,7 +36,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-011
+dernier_id: SEC-012
 
 anomalies:
   - id: SEC-001
@@ -340,7 +348,7 @@ anomalies:
     regle_violee: null
     classe: "typecheck_serveur_en_echec"
     gravite: bloquant
-    statut: resolu
+    statut: en_cours
     critere_de_resolution: >
       C'est résolu quand `userRepository.revokeSessions(id)` référence une
       méthode qui existe réellement et révoque bien toutes les sessions
@@ -383,7 +391,7 @@ anomalies:
       lecture du code, cohérent avec l'erreur TypeScript observée dans
       SEC-007.
 
-      RÉSOLU, session du 2026-07-16 (GATE 4) : décision du porteur — garder
+      CORRECTIF ÉCRIT (pas résolu), session du 2026-07-16 (GATE 4) : décision du porteur — garder
       la capacité, avec une RG explicite et un test. `updateUser` appelle
       désormais `authRepository.revokeAllSessionsForUser(id)`
       (server/src/repositories/auth.repository.ts:60), méthode réelle qui
@@ -399,6 +407,12 @@ anomalies:
       cette session — soit environ 5 jours où tout changement de rôle en
       production aurait laissé l'ancien token d'accès valide jusqu'à
       expiration naturelle, sans qu'aucun test ne le détecte.
+
+      Correctif écrit, non commité au moment de la rédaction de cette note,
+      non passé par la CI. Résolution effective conditionnée au commit + CI
+      verte. (Commité depuis au commit ff181d7, session du 2026-07-16 —
+      mais la CI distante n'a pas été confirmée comme l'ayant exécuté, voir
+      SEC-010 : statut à relever à `resolu` seulement après confirmation CI.)
 
   - id: SEC-010
     titre: "Aucun workflow CI ne peut être confirmé comme réellement exécuté récemment malgré son existence"
@@ -445,7 +459,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: majeur
-    statut: resolu
+    statut: en_cours
     critere_de_resolution: >
       C'est résolu quand le porteur du projet a tranché : soit un revert (le
       remplacement de la vérification `if (stored.revokedAt ||
@@ -472,7 +486,7 @@ anomalies:
       la colonne ne porte aucun code de raison. Décision du porteur : revert
       (voir arbitrage du 2026-07-16, §2-3).
 
-      RÉSOLU, session du 2026-07-16 (GATE 3) : `REFRESH_REUSE_GRACE_MS` et le
+      CORRECTIF ÉCRIT (pas résolu), session du 2026-07-16 (GATE 3) : `REFRESH_REUSE_GRACE_MS` et le
       bloc conditionnel associé retirés de
       server/src/services/auth.service.ts (revert complet à
       `if (stored.revokedAt || stored.expiresAt < new Date()) { revokeTokenFamily; throw 401 }`,
@@ -490,3 +504,38 @@ anomalies:
       client/src/api/axios.ts:146 — code mort, pas une régression
       fonctionnelle (branche simplement inatteignable), à nettoyer ou non
       selon décision du porteur.
+
+      Correctif écrit, non commité au moment de la rédaction de cette note,
+      non passé par la CI. Résolution effective conditionnée au commit + CI
+      verte. (Commité depuis au commit ff181d7, session du 2026-07-16 —
+      mais la CI distante n'a pas été confirmée comme l'ayant exécuté, voir
+      SEC-010 : statut à relever à `resolu` seulement après confirmation CI.)
+
+  - id: SEC-012
+    titre: "Types maison substitués aux types d'entrée Prisma générés (15 repositories)"
+    perimetre: "transverse — server/src/repositories/**"
+    regle_violee: null
+    classe: "type_maison_substitue_au_type_prisma"
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand plus aucun paramètre `data` de repository n'est typé
+      par un littéral écrit à la main : tous utilisent le type Prisma généré
+      correspondant (Prisma.<Model>UpdateInput / CreateInput). Vérifié par
+      `grep -rn "Partial<{" server/src/repositories/*.ts` → zéro résultat,
+      ET `npm run typecheck --workspace=server` vert sur le commit
+      correspondant.
+    detecte_le: "2026-07-16"
+    source: manuel
+    confiance: certain
+    note: >
+      SEC-006 (phone/updateMe) est un symptôme de cette classe et sera
+      résolue mécaniquement par la conversion. Le point clé : il n'y a rien
+      à auditer — la conversion EST l'audit. Une fois les types générés en
+      place, tsc détecte tout écart champ/modèle à chaque compilation, sans
+      variance, définitivement. 17 méthodes sur 15 fichiers : approval,
+      client, clientSuccess (×4), document, freelancerApplication, invoice,
+      lead, managerPermission, permissionProfile, project, proposal,
+      serviceRequest, task, user (×2, dont updateMe). Un seul repository du
+      dépôt, clientOnboarding.repository.ts, utilise déjà le type Prisma
+      généré — c'est l'exception, pas la règle.

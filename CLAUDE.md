@@ -142,6 +142,16 @@ la voie la plus rapide vers le vert est une inversion de la charge de la
 preuve — le test a été écrit par quelqu'un qui avait une intention, le code
 peut avoir dérivé depuis. On rapporte, on ne réaligne pas.
 
+## Un critère de résolution se vérifie sur un commit
+
+Une anomalie ne passe `resolu` que si son correctif est commité ET que les
+portes déterministes (typecheck, lint, tests) sont vertes sur ce commit en
+CI. Un correctif dans un working tree non commité vaut `en_cours`, jamais
+`resolu` : il n'a été vérifié par aucun outil et peut disparaître sans
+trace. Un typecheck ou une suite de tests verte en local ne suffit pas non
+plus à elle seule — elle prouve l'état du working tree à cet instant, pas
+ce que la CI verra une fois poussé.
+
 ## Réparer n'est pas développer
 
 Une correction de typecheck qui AJOUTE une capacité (fonction, méthode,

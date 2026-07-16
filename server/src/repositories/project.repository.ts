@@ -1,6 +1,6 @@
 // Project Repository - Data access layer
 import { prismaRead as prisma } from "../config/prisma.js";
-import type { Project, ProjectStatus, Role } from "@prisma/client";
+import type { Project, ProjectStatus, Role, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildOrderBy, buildTextSearchFilter } from "../utils/listQuery.js";
 import { getProgressByProjectIds, getProgressForProject } from "../utils/projectProgress.js";
@@ -125,13 +125,7 @@ export const projectRepository = {
     });
   },
 
-  async update(id: string, data: Partial<{
-    name?: string;
-    description?: string;
-    status?: ProjectStatus;
-    clientId?: string;
-    serviceId?: string;
-  }>): Promise<Project> {
+  async update(id: string, data: Prisma.ProjectUpdateInput): Promise<Project> {
     return prisma.project.update({
       where: { id },
       data,

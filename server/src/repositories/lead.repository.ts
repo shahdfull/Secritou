@@ -1,6 +1,6 @@
 // Lead Repository - Data access layer
 import { prismaRead as prisma } from "../config/prisma.js";
-import type { Lead, LeadStatus, Role } from "@prisma/client";
+import type { Lead, LeadStatus, Role, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildOrderBy, buildTextSearchFilter } from "../utils/listQuery.js";
 
@@ -92,15 +92,7 @@ export const leadRepository = {
     return prisma.lead.create({ data });
   },
 
-  async update(id: string, data: Partial<{
-    name?: string;
-    email?: string;
-    phone?: string;
-    source?: string;
-    status?: LeadStatus;
-    notes?: string;
-    archivedAt?: Date | null;
-  }>): Promise<Lead> {
+  async update(id: string, data: Prisma.LeadUpdateInput): Promise<Lead> {
     return prisma.lead.update({ where: { id }, data });
   },
 

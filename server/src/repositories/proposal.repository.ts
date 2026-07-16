@@ -108,19 +108,7 @@ export const proposalRepository = {
     return prisma.proposal.create({ data });
   },
 
-  async update(id: string, data: Partial<{
-    title: string;
-    description: string;
-    status: ProposalStatus;
-    version: number;
-    amount: number;
-    currency: string;
-    expiresAt: Date;
-    pdfUrl: string;
-    viewedAt: Date;
-    acceptedAt: Date;
-    rejectedAt: Date;
-  }>) {
+  async update(id: string, data: Prisma.ProposalUpdateInput) {
     return prisma.proposal.update({ where: { id }, data });
   },
 

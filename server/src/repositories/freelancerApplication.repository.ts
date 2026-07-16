@@ -43,7 +43,7 @@ export const freelancerApplicationRepository = {
     return prisma.freelancerApplication.create({ data });
   },
 
-  async update(id: string, data: Partial<{ status: ApplicationStatus; rejectionReason?: string; userId?: string; accountCreatedAt?: Date; aiSummary?: string }>): Promise<FreelancerApplication> {
+  async update(id: string, data: Prisma.FreelancerApplicationUpdateInput): Promise<FreelancerApplication> {
     return prisma.freelancerApplication.update({ where: { id }, data });
   },
 

@@ -88,12 +88,7 @@ export const approvalRepository = {
     return prisma.approval.create({ data });
   },
 
-  async update(id: string, data: Partial<{
-    title: string;
-    description: string;
-    status: ApprovalStatus;
-    dueDate: Date;
-  }>) {
+  async update(id: string, data: Prisma.ApprovalUpdateInput) {
     return prisma.approval.update({ where: { id }, data });
   },
 

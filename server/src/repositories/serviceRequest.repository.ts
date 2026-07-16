@@ -148,14 +148,7 @@ export const serviceRequestRepository = {
     return prisma.serviceRequest.create({ data });
   },
 
-  async update(id: string, data: Partial<{
-    title: string;
-    description: string;
-    status: ServiceRequestStatus;
-    priority: Priority;
-    assignedToId: string | null;
-    type: "SUPPORT" | "NEW_PROJECT";
-  }>) {
+  async update(id: string, data: Prisma.ServiceRequestUpdateManyMutationInput) {
     const result = await prisma.serviceRequest.updateMany({ where: { id }, data });
     if (result.count === 0) throw new HttpError(404, "Service request not found");
     return this.findById(id);

@@ -1,6 +1,6 @@
 // Permission Profile Repository - Data access layer
 import { prisma } from "../config/prisma.js";
-import type { PermissionProfile } from "@prisma/client";
+import type { PermissionProfile, Prisma } from "@prisma/client";
 
 export const permissionProfileRepository = {
   async findAll(): Promise<PermissionProfile[]> {
@@ -28,12 +28,7 @@ export const permissionProfileRepository = {
 
   async update(
     id: string,
-    data: Partial<{
-      name?: string;
-      description?: string;
-      permissions?: any;
-      isDefault?: boolean;
-    }>
+    data: Prisma.PermissionProfileUpdateInput
   ): Promise<PermissionProfile> {
     return prisma.permissionProfile.update({
       where: { id },

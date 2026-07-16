@@ -1,6 +1,6 @@
 // User Repository - Data access layer
 import { prismaRead as prisma } from "../config/prisma.js";
-import type { User, Role } from "@prisma/client";
+import type { User, Role, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 
 const userPublicFields = {
@@ -102,10 +102,7 @@ export const userRepository = {
 
   async update(
     id: string,
-    data: Partial<{
-      name?: string;
-      role?: Role;
-    }>
+    data: Prisma.UserUpdateInput
   ): Promise<PublicUser> {
     return prisma.user.update({
       where: { id },
@@ -116,7 +113,7 @@ export const userRepository = {
 
   async updateMe(
     id: string,
-    data: Partial<{ name: string; email: string; phone: string }>
+    data: Prisma.UserUpdateInput
   ): Promise<PublicUser> {
     return prisma.user.update({
       where: { id },

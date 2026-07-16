@@ -1,6 +1,6 @@
 // Manager Permission Repository - Data access layer
 import { prisma } from "../config/prisma.js";
-import type { ManagerPermission } from "@prisma/client";
+import type { ManagerPermission, Prisma } from "@prisma/client";
 
 export const managerPermissionRepository = {
   async findByUserId(userId: string): Promise<ManagerPermission | null> {
@@ -23,10 +23,7 @@ export const managerPermissionRepository = {
 
   async update(
     userId: string,
-    data: Partial<{
-      profileId?: string | null;
-      overrides?: any;
-    }>
+    data: Prisma.ManagerPermissionUpdateInput
   ): Promise<ManagerPermission> {
     return prisma.managerPermission.upsert({
       where: { userId },

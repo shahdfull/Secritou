@@ -99,7 +99,7 @@ export const taskRepository = {
     return prisma.task.create({ data, select: taskWithRelationsSelect });
   },
 
-  async update(id: string, data: Partial<{ title?: string; description?: string; status?: TaskStatus; startDate?: Date; dueDate?: Date; assigneeId?: string }>): Promise<TaskWithRelations> {
+  async update(id: string, data: Prisma.TaskUpdateManyMutationInput): Promise<TaskWithRelations> {
     const result = await prisma.task.updateMany({ where: { id }, data });
     if (result.count === 0) throw new HttpError(404, "Task not found");
     const task = await prisma.task.findFirst({ where: { id }, select: taskWithRelationsSelect });

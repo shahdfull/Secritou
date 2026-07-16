@@ -154,20 +154,7 @@ export const invoiceRepository = {
     return prisma.invoice.create({ data });
   },
 
-  async update(id: string, data: Partial<{
-    number: string;
-    title: string;
-    description: string;
-    amount: number;
-    currency: string;
-    amountPaid: number;
-    status: InvoiceStatus;
-    dueDate: Date;
-    sentAt: Date;
-    paidAt: Date;
-    pdfUrl: string;
-    reminderPaused: boolean;
-  }>) {
+  async update(id: string, data: Prisma.InvoiceUpdateInput) {
     return prisma.invoice.update({ where: { id }, data });
   },
 
