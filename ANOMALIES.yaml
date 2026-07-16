@@ -340,7 +340,7 @@ anomalies:
     regle_violee: null
     classe: "typecheck_serveur_en_echec"
     gravite: bloquant
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `userRepository.revokeSessions(id)` référence une
       méthode qui existe réellement et révoque bien toutes les sessions
@@ -382,6 +382,23 @@ anomalies:
       ce chemin réellement (pas de test dédié trouvé) — verdict fondé sur la
       lecture du code, cohérent avec l'erreur TypeScript observée dans
       SEC-007.
+
+      RÉSOLU, session du 2026-07-16 (GATE 4) : décision du porteur — garder
+      la capacité, avec une RG explicite et un test. `updateUser` appelle
+      désormais `authRepository.revokeAllSessionsForUser(id)`
+      (server/src/repositories/auth.repository.ts:60), méthode réelle qui
+      révoque tous les refresh tokens actifs de l'utilisateur, toutes
+      familles confondues (`updateMany({ where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() } })`). Condition de déclenchement
+      inchangée et vérifiée : uniquement `role && role !== user.role`
+      (server/src/services/user.service.ts:163), jamais sur un changement de
+      `name` seul. Voir REFERENTIEL.md RG-019 (IMPLÉMENTÉ, `verifie: test`)
+      et server/test/user.service.test.ts. Important pour la chronologie :
+      la révocation était inopérante (TypeError au runtime) depuis
+      l'introduction de l'intention au commit eb93f08 (2026-07-11) jusqu'à
+      cette session — soit environ 5 jours où tout changement de rôle en
+      production aurait laissé l'ancien token d'accès valide jusqu'à
+      expiration naturelle, sans qu'aucun test ne le détecte.
 
   - id: SEC-010
     titre: "Aucun workflow CI ne peut être confirmé comme réellement exécuté récemment malgré son existence"
@@ -428,7 +445,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: majeur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand le porteur du projet a tranché : soit un revert (le
       remplacement de la vérification `if (stored.revokedAt ||
@@ -454,3 +471,22 @@ anomalies:
       (`revokeRefreshToken`, `revokeTokenFamily`, `revokeAllSessionsForUser`),
       la colonne ne porte aucun code de raison. Décision du porteur : revert
       (voir arbitrage du 2026-07-16, §2-3).
+
+      RÉSOLU, session du 2026-07-16 (GATE 3) : `REFRESH_REUSE_GRACE_MS` et le
+      bloc conditionnel associé retirés de
+      server/src/services/auth.service.ts (revert complet à
+      `if (stored.revokedAt || stored.expiresAt < new Date()) { revokeTokenFamily; throw 401 }`,
+      identique à l'état d'avant introduction). Le constant n'était référencé
+      nulle part ailleurs (grep sur tout le dépôt : aucune occurrence dans
+      env.ts ni .env.example — il s'agissait d'une constante en dur, pas
+      d'une variable d'environnement). Critère de résolution atteint : le
+      test d'origine `refresh() with revoked token throws 401 and revokes
+      family` (server/test/auth.service.test.ts, `revokedAt: new Date()`)
+      passe au vert SANS aucune modification du test — 234/234 tests verts,
+      typecheck 0 erreur. Reste hors-scope de ce revert, à traiter
+      séparément (voir SEC-012) : le code `REFRESH_RACE` que `refresh()`
+      n'émet plus jamais est toujours consommé par
+      server/src/controllers/auth.controller.ts:59 et
+      client/src/api/axios.ts:146 — code mort, pas une régression
+      fonctionnelle (branche simplement inatteignable), à nettoyer ou non
+      selon décision du porteur.

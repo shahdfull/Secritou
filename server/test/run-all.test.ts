@@ -25,6 +25,7 @@ import "./proposalAcceptCascade.test.ts";
 import "./project.clientApprove.test.ts";
 import "./freelancerAvailability.test.ts";
 import "./auth.service.test.ts";
+import "./user.service.test.ts";
 import "./validators.test.ts";
 import "./idor.test.ts";
 import "./businessGuards.test.ts";

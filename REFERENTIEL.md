@@ -745,6 +745,20 @@ SEC-002 pour le détail du constat et sa provenance exacte (non revérifié
 directement sur le code de cette session, `confiance: a_confirmer` dans
 ANOMALIES.yaml).**
 
+**RG-019 — Révocation de session sur changement de rôle uniquement.**
+`userService.updateUser` révoque toutes les sessions actives (tous les
+refresh tokens, toutes familles confondues) de l'utilisateur ciblé
+si et seulement si son `role` change (`role && role !== user.role`).
+Un changement de `name` seul (ou tout autre champ modifiable par cet
+endpoint) ne déclenche aucune révocation. *Module : 4.14.* Statut :
+**IMPLÉMENTÉ**, `verifie: test` — server/src/services/user.service.ts:160-171
+(condition exacte lue directement) et
+server/test/user.service.test.ts (« updateUser révoque les sessions sur
+changement de rôle, pas sur changement de nom seul »), 2026-07-16, GATE 4.
+Voir SEC-009 (`resolu`) : la révocation était inopérante depuis l'introduction
+de l'intention (commit eb93f08, 2026-07-11) jusqu'à cette session, l'appel
+visant une méthode qui n'existait sur aucun repository.
+
 ---
 
 ## 6. Hors périmètre — liste unique (fusion de l'ancien §1/§6)
@@ -792,3 +806,5 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-16 (v0.2.1)** | **4.7 Freelances, 4.8 Analytics & Performance, 4.10 RBAC & Permissions granulaires reclassés de GELÉ à `[À CONFIRMER — non trié]` ; `server/src/jobs/**` retiré du bloc GELÉ de 4.13 et classé `[À CONFIRMER — non trié, priorité d'exploration]`.** | **Instruction et arbitrage du porteur du projet, session du 2026-07-16 : EXPLORATION.md les marque `non exploré` — un module/répertoire jamais ouvert ne peut être classé GELÉ (le gel doit réduire la surface d'audit, pas y créer un angle mort sur le flux argent, notamment pour `jobs/**` qui porte potentiellement l'expiration des propositions et les relances de facture).** |
 | **2026-07-16 (v0.2.1)** | **§2 : « Cible » repasse d'`[À CONFIRMER]` à une absence vérifiée (concept confirmé non modélisé, classé HORS PÉRIMÈTRE). §6 : « Architecture multi-tenant » repasse de « HORS PÉRIMÈTRE (phase 2) » à REJETÉ.** | **Instruction du porteur du projet, session du 2026-07-16 : rétrogradation mécanique appliquée à tort — une absence vérifiée est un fait, pas un doute ; et l'arbitrage Q2 était une décision définitive (mono-tenant), pas un report à une phase future.** |
 | **2026-07-16** | **Cause racine identifiée à l'origine des constats divergents entre audits : chaque session Claude Code démarre sans mémoire des précédentes, sur un working tree non commité qu'elle n'a pas écrit. Elle redécouvre, renomme et contredit — d'où les mêmes défauts identifiés deux fois sous deux formulations. Le socle documentaire (REFERENTIEL/ANOMALIES/CLAUDE.md) porte la mémoire des décisions ; `git commit` porte la mémoire des actes. Les deux sont nécessaires.** | **Précision du porteur du projet, session du 2026-07-16.** |
+| **2026-07-16** | **La fenêtre de grâce de 30 s sur les refresh tokens révoqués (`REFRESH_REUSE_GRACE_MS`) est REVERTÉE — supprimée de `server/src/services/auth.service.ts`, retour au comportement strict (tout token révoqué rejoué tue la famille). Voir SEC-011, `resolu`.** | **Décision du porteur du projet, session du 2026-07-16 (GATE 3), exécutée : critère de résolution atteint (test d'origine vert sans modification, 234/234, typecheck 0).** |
+| **2026-07-16** | **SEC-009 : la capacité de révocation de session sur changement de rôle est CONSERVÉE (pas de retrait de l'appel), formalisée en RG-019, `verifie: test`. `updateUser` révoque via `authRepository.revokeAllSessionsForUser`, uniquement si `role` change, jamais sur un changement de `name` seul. SEC-009 → `resolu`.** | **Décision du porteur du projet, session du 2026-07-16 (GATE 4), exécutée : test dédié ajouté (server/test/user.service.test.ts), 237/237 verts, typecheck 0.** |
