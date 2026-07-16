@@ -84,12 +84,12 @@ export function PacksSection() {
               transition={{ duration: 0.5, delay: i * 0.1 }}
               className={`relative flex flex-col rounded-3xl border p-8 shadow-soft ${
                 pack.isPopular
-                  ? "border-primary bg-ink text-white"
+                  ? "border-primary bg-primary text-white"
                   : "border-border bg-card"
               }`}
             >
               {pack.isPopular && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground">
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-accent px-4 py-1 text-xs font-semibold text-accent-foreground">
                   {popular}
                 </span>
               )}

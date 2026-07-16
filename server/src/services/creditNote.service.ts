@@ -3,8 +3,11 @@ import { prisma } from "../config/prisma.js";
 import { HttpError } from "../utils/httpError.js";
 import { roundMoney } from "../utils/vat.js";
 import { userRepository } from "../repositories/user.repository.js";
+import { clientRepository } from "../repositories/client.repository.js";
 import { enqueueNotifications } from "../jobs/queues.js";
 import type { InvoiceStatus } from "@prisma/client";
+import { notifyN8n } from "../utils/webhook.js";
+import { env } from "../config/env.js";
 
 // Transaction client type (matches the tx passed by prisma.$transaction on the extended client).
 type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
@@ -47,6 +50,17 @@ export const creditNoteService = {
 
     const admins = await userRepository.findAdmins();
     await enqueueNotifications(admins.map((admin) => ({ userId: admin.id, title: "Avoir émis", message: `Un avoir de ${data.amount.toFixed(2)} a été émis (${creditNote.number}).` })));
+
+    const client = await clientRepository.findById(creditNote.clientId).catch(() => null);
+    void notifyN8n("creditNote.issued", {
+      creditNoteId: creditNote.id,
+      number: creditNote.number,
+      amount: data.amount,
+      clientId: creditNote.clientId,
+      clientName: client?.name,
+      adminUrl: `${env.FRONTEND_URL}/app/commercial?tab=invoices`,
+      agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+    });
 
     return creditNote;
   },

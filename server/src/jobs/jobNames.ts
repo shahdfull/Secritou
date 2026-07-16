@@ -25,4 +25,8 @@ export const jobNames = {
   pruneAnalyticsEvents: "prune-analytics-events",
   checkStaleLeads: "check-stale-leads",
   checkPendingCommissions: "check-pending-commissions",
+  closeStaleUserSessions: "close-stale-user-sessions",
+  checkCustomQuestionSla: "check-custom-question-sla",
+  checkApprovalSla: "check-approval-sla",
+  weeklyHealthBoardDigest: "weekly-health-board-digest",
 } as const;

@@ -12,12 +12,27 @@ import { clientRepository } from "../repositories/client.repository.js";
 import { enqueueNotifications } from "../jobs/queues.js";
 import { env } from "../config/env.js";
 import { clientService } from "./client.service.js";
+import { notifyN8n } from "../utils/webhook.js";
 
 async function invalidateCompanyCache() {
   await invalidateTags([cacheTags.company(), cacheTags.dashboard()]);
 }
 
 type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+// Mirrors the pipeline order surfaced in the Kanban board (LeadsKanban.tsx):
+// a lead can only move to an adjacent/forward stage or be marked LOST, never
+// jump backward or leave a terminal stage. Enforced here so the API rejects
+// bad transitions regardless of client (Kanban drag, form edit, future API
+// consumers) — the client-side check is UX only, this is the source of truth.
+const LEAD_NEXT_STATUSES: Record<string, string[]> = {
+  NEW: ["CONTACTED", "QUALIFIED", "PROPOSAL", "WON", "LOST"],
+  CONTACTED: ["QUALIFIED", "PROPOSAL", "WON", "LOST"],
+  QUALIFIED: ["PROPOSAL", "WON", "LOST"],
+  PROPOSAL: ["WON", "LOST"],
+  WON: [],
+  LOST: [],
+};
 
 // Shared by the manual "Convert to Client" flow and the automatic conversion that runs inside
 // proposal.service.acceptWithCascade's transaction. Marks the lead WON→converted by pointing it
@@ -59,12 +74,40 @@ export const leadService = {
       link: `${env.FRONTEND_URL}/app/leads/${lead.id}`,
     })));
 
+    void notifyN8n("lead.created", {
+      leadId: lead.id,
+      name: lead.name,
+      email: lead.email,
+      phone: lead.phone,
+      source: lead.source,
+      adminUrl: `${env.FRONTEND_URL}/app/leads/${lead.id}`,
+      agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+    });
+
     return lead;
   },
 
   async updateLead(id: string, data: Partial<CreateLeadDTO>, scope?: LeadScope) {
     const lead = await leadRepository.findById(id, scope);
     if (!lead) throw new HttpError(404, "Lead not found");
+
+    if (data.status && data.status !== lead.status) {
+      const allowed = LEAD_NEXT_STATUSES[lead.status] ?? [];
+      if (!allowed.includes(data.status)) {
+        throw new HttpError(
+          422,
+          `Cannot move lead from ${lead.status} to ${data.status}`,
+          "LEAD_INVALID_TRANSITION"
+        );
+      }
+      // A WON lead already converted to a client is that client's origin record;
+      // even though WON has no allowed next status above, guard explicitly in
+      // case the transition table changes later.
+      if (lead.convertedClientId) {
+        throw new HttpError(409, "Cannot change status of a converted lead", "LEAD_ALREADY_CONVERTED");
+      }
+    }
+
     const updated = await leadRepository.update(id, data);
     await invalidateCompanyCache();
 

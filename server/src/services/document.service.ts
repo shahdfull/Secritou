@@ -7,12 +7,14 @@ import { HttpError } from "../utils/httpError.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { enqueueNotifications } from "../jobs/queues.js";
 import { env } from "../config/env.js";
+import { notifyN8n } from "../utils/webhook.js";
+import { clientRepository } from "../repositories/client.repository.js";
 
-type Viewer = { role: Role; clientId?: string | null; serviceId?: string | null };
+type Viewer = { role: Role; clientId?: string | null; serviceId?: string | null; userId?: string | null };
 
 export const documentService = {
   async getAll(options: ListQueryOptions & { clientId?: string; type?: DocumentType; projectId?: string; tags?: string[]; search?: string }, viewer: Viewer) {
-    return documentRepository.findAll({ ...options, role: viewer.role, viewerClientId: viewer.clientId, viewerServiceId: viewer.serviceId });
+    return documentRepository.findAll({ ...options, role: viewer.role, viewerClientId: viewer.clientId, viewerServiceId: viewer.serviceId, viewerUserId: viewer.userId });
   },
 
   async getById(id: string, viewer: Viewer) {
@@ -88,6 +90,17 @@ export const documentService = {
       entityId: documentId,
       link: doc.projectId ? `${env.FRONTEND_URL}/app/projects/${doc.projectId}` : `${env.FRONTEND_URL}/app/projects`,
     })));
+
+    const client = await clientRepository.findById(clientId).catch(() => null);
+    void notifyN8n("document.contract_signed", {
+      documentId,
+      projectId: doc.projectId,
+      clientId,
+      clientName: client?.name,
+      signedAt: signed.signedAt,
+      adminUrl: doc.projectId ? `${env.FRONTEND_URL}/app/projects/${doc.projectId}` : `${env.FRONTEND_URL}/app/projects`,
+    });
+
     return signed;
   },
 

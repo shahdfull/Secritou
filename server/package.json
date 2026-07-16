@@ -21,6 +21,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "migrate:payments": "tsx scripts/migrate-payments.ts",
     "migrate:s3-to-minio": "tsx scripts/migrate-s3-to-minio.ts",
+    "test:smtp": "tsx scripts/test-smtp.ts",
     "prisma:seed": "prisma db seed"
   },
   "dependencies": {
@@ -48,6 +49,7 @@
     "morgan": "^1.10.1",
     "multer": "^2.2.0",
     "nodemailer": "^9.0.0",
+    "pdf-parse": "^2.4.5",
     "pdfkit": "^0.19.1",
     "pino": "^10.3.1",
     "pino-pretty": "^13.1.3",

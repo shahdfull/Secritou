@@ -87,11 +87,12 @@ function MeetingScheduleCard({ projectId }: Props) {
 }
 
 export function ProjectMeetingsTab({ projectId }: Props) {
-  const { data: meetings, isLoading } = useProjectMeetings(projectId);
+  const { data: meetings, isLoading, isError } = useProjectMeetings(projectId);
   const { mutate: createMeeting, isPending } = useCreateProjectMeeting(projectId);
 
+  const today = () => new Date().toISOString().slice(0, 10);
   const [showForm, setShowForm] = useState(false);
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(today);
   const [participants, setParticipants] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -104,6 +105,7 @@ export function ProjectMeetingsTab({ projectId }: Props) {
           setShowForm(false);
           setParticipants("");
           setNotes("");
+          setDate(today());
         },
       }
     );
@@ -164,6 +166,10 @@ export function ProjectMeetingsTab({ projectId }: Props) {
         <div className="space-y-2">
           {[1, 2].map((i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
         </div>
+      ) : isError ? (
+        <p className="text-center text-sm text-red-600 py-8">
+          Impossible de charger les réunions. Veuillez réessayer.
+        </p>
       ) : meetings && meetings.length > 0 ? (
         <div className="divide-y divide-border rounded-xl border border-border overflow-hidden">
           {meetings.map((m) => (

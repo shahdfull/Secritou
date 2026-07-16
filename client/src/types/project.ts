@@ -1,11 +1,15 @@
 import { Client } from "./client";
 import { Task } from "./task";
+import type { ProjectStatus } from "@secritou/shared";
+
+// Re-exported so existing `@/types/project` consumers keep a single import site.
+export type { ProjectStatus };
 
 export interface Project {
   id: string;
   name: string;
   description?: string;
-  status: "PLANNING" | "IN_PROGRESS" | "REVIEW" | "COMPLETED";
+  status: ProjectStatus;
   clientId?: string;
   serviceId?: string | null;
   proposalId?: string | null;

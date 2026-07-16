@@ -13,11 +13,19 @@ type CmsMap = Record<string, string>;
 
 type LandingCmsCtx = {
   cms: (key: string, fallback: string) => string;
+  /**
+   * Reads a SiteContent field of type JSON and parses it. Falls back to
+   * `fallback` (not just on a missing key, but also on malformed/absent
+   * JSON) so a bad edit in the admin CMS degrades to the built-in default
+   * instead of crashing the section that reads it.
+   */
+  cmsJson: <T,>(key: string, fallback: T) => T;
   isLoading: boolean;
 };
 
 const LandingCmsContext = createContext<LandingCmsCtx>({
   cms: (_key, fallback) => fallback,
+  cmsJson: (_key, fallback) => fallback,
   isLoading: false,
 });
 
@@ -67,8 +75,21 @@ export function LandingCmsProvider({ children }: { children: React.ReactNode }) 
     [data]
   );
 
+  const cmsJson = useCallback(
+    <T,>(key: string, fallback: T): T => {
+      const raw = data[key];
+      if (raw === undefined) return fallback;
+      try {
+        return JSON.parse(raw) as T;
+      } catch {
+        return fallback;
+      }
+    },
+    [data]
+  );
+
   return (
-    <LandingCmsContext.Provider value={{ cms, isLoading }}>
+    <LandingCmsContext.Provider value={{ cms, cmsJson, isLoading }}>
       {children}
     </LandingCmsContext.Provider>
   );

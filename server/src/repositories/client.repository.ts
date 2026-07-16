@@ -22,6 +22,7 @@ const clientListSelect = {
   phone: true,
   serviceId: true,
   creditBalance: true,
+  portalActivatedAt: true,
   archivedAt: true,
   deletedAt: true,
   createdAt: true,

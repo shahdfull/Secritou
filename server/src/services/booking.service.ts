@@ -6,6 +6,7 @@ import { emailService } from "./email.service.js";
 import { bookingAdminNotificationTemplate, bookingCustomerConfirmedTemplate } from "./emailTemplates/index.js";
 import { createBookingRepository, type BookingRepository } from "../repositories/booking.repository.js";
 import type { BookSlotInput, CreateAvailabilitySlotInput, CreateRecurringAvailabilityInput } from "../validators/booking.validator.js";
+import { notifyN8n } from "../utils/webhook.js";
 
 type DbLike = typeof prisma | any;
 
@@ -156,6 +157,19 @@ export function createBookingService(deps: BookingServiceDeps = {}) {
       } catch (error) {
         logger.warn({ err: error, bookingId: booking.id }, "Booking confirmed but notification email failed");
       }
+
+      // Distinct use case from the transactional emails above (which are not duplicated
+      // here): lets a workflow sync the booking to an external calendar and/or send a
+      // pre-call WhatsApp reminder.
+      void notifyN8n("booking.confirmed", {
+        bookingId: booking.id,
+        customerName: booking.name,
+        customerEmail: booking.email,
+        customerPhone: booking.phone,
+        startTime: booking.slot.startTime,
+        endTime: booking.slot.endTime,
+        adminUrl: dashboardUrl,
+      });
 
       return booking;
     },

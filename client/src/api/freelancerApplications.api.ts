@@ -9,6 +9,7 @@ export interface FreelancerApplication {
   position: string;
   cvUrl: string;
   portfolioUrl: string;
+  aiSummary?: string | null;
   status: "PENDING" | "ACCEPTED" | "REJECTED";
   rejectionReason?: string;
   userId?: string;

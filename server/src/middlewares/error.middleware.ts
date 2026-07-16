@@ -49,9 +49,13 @@ export const errorMiddleware: ErrorRequestHandler = (error, req, res, _next) => 
     return;
   }
 
-  // Handle errors with custom statusCode (e.g., from fileFilter with statusCode 415)
+  // Handle errors with custom statusCode (e.g., from fileFilter with statusCode 415).
+  // Exclude HttpError: it carries a meaningful `code` (REFRESH_RACE,
+  // LEAD_INVALID_TRANSITION, …) that the dedicated HttpError branch below
+  // preserves — this generic branch would overwrite it with HTTP_<status>.
   if (
     error instanceof Error &&
+    !(error instanceof HttpError) &&
     "statusCode" in error &&
     typeof (error as any).statusCode === "number"
   ) {

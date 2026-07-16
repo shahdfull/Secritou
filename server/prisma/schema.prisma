@@ -22,7 +22,9 @@ enum CustomQuestionStatus {
   CLOSED
 }
 
-// Project status options
+// Project status options. No CANCELLED value: an abandoned project is represented via
+// archivedAt/deletedAt instead of a terminal status, mirroring how it's already excluded
+// from every "active projects" query (status: {notIn: ["COMPLETED"]}, archivedAt: null).
 enum ProjectStatus {
   PLANNING
   IN_PROGRESS
@@ -30,7 +32,9 @@ enum ProjectStatus {
   COMPLETED
 }
 
-// Task status options
+// Task status options. No CANCELLED value, unlike ProjectStatus there is no archivedAt/
+// deletedAt equivalent for a Task — an abandoned task must be deleted (deleteTask) rather
+// than marked cancelled, since there's no soft-delete/archive mechanism at the Task level.
 enum TaskStatus {
   TODO
   IN_PROGRESS
@@ -157,6 +161,13 @@ model User {
   notifications               Notification[]
   resetToken                  String?                  @db.VarChar(255)
   resetTokenExpiry            DateTime?                @db.Timestamptz(6)
+  // Email-change confirmation: the new address is staged here (not written to `email`) until
+  // the user clicks the confirmation link sent to that new address — prevents an attacker with
+  // a stolen session from silently taking over the account's email without proving control of
+  // the new inbox.
+  pendingEmail                String?                  @db.VarChar(255)
+  emailChangeTokenHash         String?                  @db.VarChar(255)
+  emailChangeTokenExpiry       DateTime?                @db.Timestamptz(6)
   freelancerApplications      FreelancerApplication[]
   clientOnboardingsAsAssignee ClientOnboarding[]       @relation("ClientOnboardingAssignedUser")
   proposalHistories           ProposalHistory[]
@@ -180,6 +191,8 @@ model User {
   commissionSplits            ProjectCommissionSplit[] @relation("PartnerCommissionSplits")
   commissions                 Commission[]             @relation("PartnerCommissions")
   connectedGscConnections     GscConnection[]
+  sessions                    UserSession[]
+  lastLoginAt                 DateTime?                @db.Timestamptz(6)
   createdAt                   DateTime                 @default(now()) @db.Timestamptz(6)
   updatedAt                   DateTime                 @updatedAt @db.Timestamptz(6)
 
@@ -188,7 +201,26 @@ model User {
   @@index([clientId])
   @@index([email])
   @@index([resetToken])
+  @@index([emailChangeTokenHash])
   @@index([serviceId])
+}
+
+// Tracks connected-time via a heartbeat ping from the authenticated back-office UI
+// (see POST /users/me/heartbeat). A session is "active" while lastHeartbeatAt is
+// recent; the maintenance job closes stale sessions (no heartbeat for
+// SESSION_IDLE_TIMEOUT_MINUTES) by leaving lastHeartbeatAt as the effective end time —
+// duration = lastHeartbeatAt - startedAt. This approximates real usage time (tab open +
+// focused) rather than login-to-logout, which would overcount idle/background tabs.
+model UserSession {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startedAt       DateTime  @default(now()) @db.Timestamptz(6)
+  lastHeartbeatAt DateTime  @default(now()) @db.Timestamptz(6)
+  closedAt        DateTime? @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([lastHeartbeatAt])
 }
 
 // Service (business pole/department) : e.g. "Technology Solutions", "AI & Automation".
@@ -494,6 +526,9 @@ model Project {
   @@index([deletedAt])
   @@index([serviceId])
   @@index([nextMeetingDate])
+  // Supports healthBoardRepository.getActiveProjectsHealth (live Health Board screen) and
+  // checkOverdueDeadlines (daily cron) — both filter active, non-archived projects by deadline.
+  @@index([status, archivedAt, deadline])
 }
 
 model Task {
@@ -522,6 +557,9 @@ model Task {
   @@index([projectId, assigneeId])
   @@index([assigneeId])
   @@index([dueDate, status])
+  // Supports checkTaskDeadlines/checkOverdueTasks (ceoAlerts.processor.ts), which filter by
+  // dueDate+status then resolve the assignee for each matching task.
+  @@index([assigneeId, dueDate])
 }
 
 model Comment {
@@ -749,6 +787,9 @@ model FreelancerApplication {
   cvKey            String?           @db.VarChar(500)
   portfolioUrl     String            @db.VarChar(500)
   portfolioKey     String?           @db.VarChar(500)
+  // AI-generated summary of the CV (skills, experience, seniority) — produced by the n8n
+  // OCR + LLM pipeline after upload. Null until that pipeline has processed the CV.
+  aiSummary        String?           @db.Text
   status           ApplicationStatus @default(PENDING)
   rejectionReason  String?           @db.Text
   userId           String?
@@ -1490,6 +1531,16 @@ enum SiteContentType {
   RICHTEXT
   IMAGE
   BOOLEAN
+  // Serialized JSON array in `value` — one field holds a whole variable-length
+  // list (e.g. FAQ questions, problem cards) so the admin edits/reorders/
+  // removes items as a unit instead of one SiteContent row per array index.
+  JSON
+  // A value constrained to a fixed set of choices (e.g. section background:
+  // "none" | "surface-warm" | "ink" | "primary-soft"). The allowed options
+  // live in the matching client-side select field, not in the database —
+  // this type only signals the admin UI to render a <select> instead of a
+  // free-text input.
+  SELECT
 }
 
 enum SiteContentSection {
@@ -1499,6 +1550,15 @@ enum SiteContentSection {
   TESTIMONIALS
   CONTACT
   SEO
+  PROBLEMS
+  HOW_IT_WORKS
+  DIFFERENTIATORS
+  BUSINESS_IMPACT
+  FAQ
+  SOLUTIONS
+  CASE_STUDIES
+  FINAL_CTA
+  SOCIAL_PROOF
 }
 
 model SiteContent {
@@ -1514,3 +1574,21 @@ model SiteContent {
   @@unique([key, locale])
   @@index([locale, section])
 }
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  actorRole  String?  @db.VarChar(50)
+  action     String   @db.VarChar(100)
+  entityType String   @db.VarChar(100)
+  entityId   String
+  before     Json?
+  after      Json?
+  ipAddress  String?  @db.VarChar(45)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+

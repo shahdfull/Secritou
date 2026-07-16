@@ -7,9 +7,12 @@ import { roundMoney } from "../utils/vat.js";
 import { HttpError } from "../utils/httpError.js";
 import logger from "../utils/logger.js";
 import { userRepository } from "../repositories/user.repository.js";
+import { clientRepository } from "../repositories/client.repository.js";
 import { enqueueNotifications } from "../jobs/queues.js";
 import { env } from "../config/env.js";
 import { gscTokenRevocations, gscSyncErrors } from "../observability/metrics.js";
+import { detectClickAnomalies } from "./metricAnomaly.service.js";
+import { notifyN8n } from "../utils/webhook.js";
 
 function toDateOnly(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -33,6 +36,15 @@ async function handleGscRevocation(clientId: string, siteUrl?: string) {
       link: gscUrl,
     }))
   );
+
+  const client = await clientRepository.findById(clientId).catch(() => null);
+  void notifyN8n("gsc.connection_revoked", {
+    clientId,
+    clientName: client?.name,
+    siteUrl,
+    adminUrl: gscUrl,
+    agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+  });
 }
 
 async function getAuthorizedClient(clientId: string) {
@@ -119,14 +131,16 @@ export async function syncAllConnectedClients() {
   const periodStart = new Date(periodEnd);
 
   let synced = 0;
+  const syncedClientIds: string[] = [];
   for (const connection of connections) {
     try {
       await syncClient(connection.clientId, null, periodStart, periodEnd);
       synced += 1;
+      syncedClientIds.push(connection.clientId);
     } catch (err) {
       logger.error({ err, clientId: connection.clientId }, "[searchConsole] Sync failed for client");
       // If it's a GSC_TOKEN_REVOKED or 401 error, we already handled it in syncClient, so don't record error again? Wait no, let's check:
-      const isHandledError = 
+      const isHandledError =
         (err instanceof HttpError && err.code === "GSC_TOKEN_REVOKED") ||
         (err as any)?.response?.status === 401;
       if (!isHandledError) {
@@ -135,5 +149,26 @@ export async function syncAllConnectedClients() {
       }
     }
   }
+
+  try {
+    const anomalies = await detectClickAnomalies(syncedClientIds);
+    if (anomalies.length > 0) {
+      void notifyN8n("gsc.anomaly_detected", {
+        agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+        anomalies: anomalies.map((a) => ({
+          clientId: a.clientId,
+          clientName: a.clientName,
+          latestClicks: a.latestValue,
+          baselineAverage: a.baselineAverage,
+          changePct: Math.round(a.changePct * 100),
+          direction: a.direction,
+          adminUrl: `${env.FRONTEND_URL}/app/clients/${a.clientId}`,
+        })),
+      });
+    }
+  } catch (err) {
+    logger.error({ err }, "[searchConsole] Anomaly detection failed");
+  }
+
   return { total: connections.length, synced };
 }

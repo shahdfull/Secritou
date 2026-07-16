@@ -5,6 +5,8 @@ import { parseListQuery } from "../utils/listQuery.js";
 import { HttpError } from "../utils/httpError.js";
 import { buildServiceScope } from "../utils/serviceScope.js";
 import { COMPANY_ID } from "../config/constants.js";
+import { regenerateSpecsWithAiContent, regenerateRoadmapWithAiContent } from "../services/projectSpecs.service.js";
+import { userRepository } from "../repositories/user.repository.js";
 
 export const getAllProjects: RequestHandler = async (req, res, next) => {
   try {
@@ -69,7 +71,7 @@ export const updateProject: RequestHandler = async (req, res, next) => {
 
 export const deleteProject: RequestHandler = async (req, res, next) => {
   try {
-    await projectService.deleteProject(req.params.id as string);
+    await projectService.deleteProject(req.params.id as string, req.user?.sub, req.user?.role);
     res.status(204).send();
   } catch (error) {
     next(error);
@@ -78,7 +80,7 @@ export const deleteProject: RequestHandler = async (req, res, next) => {
 
 export const restoreProject: RequestHandler = async (req, res, next) => {
   try {
-    const project = await projectService.restoreProject(req.params.id as string);
+    const project = await projectService.restoreProject(req.params.id as string, req.user?.sub, req.user?.role);
     res.json({ data: project });
   } catch (error) {
     next(error);
@@ -87,7 +89,7 @@ export const restoreProject: RequestHandler = async (req, res, next) => {
 
 export const archiveProject: RequestHandler = async (req, res, next) => {
   try {
-    const project = await projectService.archiveProject(req.params.id as string);
+    const project = await projectService.archiveProject(req.params.id as string, req.user?.sub, req.user?.role);
     res.json({ data: project });
   } catch (error) {
     next(error);
@@ -129,6 +131,39 @@ export const submitBrief: RequestHandler = async (req, res, next) => {
       req.body as Record<string, unknown>
     );
     res.json({ data: updated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Called back by the n8n brief-to-specs workflow, not by an authenticated Secritou user —
+// gated by HMAC signature (verifyN8nWebhook) instead of authenticate/authorize. n8n has no
+// notion of "which manager uploaded this", so documents are attributed to the first ADMIN
+// found (mirrors other system-generated documents, e.g. proposal-acceptance PDFs).
+// Accepts sections (SPECS) and/or roadmap (ROADMAP) — regenerates whichever is present so a
+// single n8n callback can update both documents from one brief submission.
+export const receiveAiSpecs: RequestHandler = async (req, res, next) => {
+  try {
+    const { sections, roadmap } = req.body ?? {};
+    if (!sections && !roadmap) {
+      res.status(400).json({ error: "sections and/or roadmap is required" });
+      return;
+    }
+    const [admin] = await userRepository.findAdmins();
+    if (!admin) {
+      res.status(409).json({ error: "No ADMIN user found to attribute the generated document to" });
+      return;
+    }
+
+    const projectId = req.params.id as string;
+    const results: Record<string, unknown> = {};
+    if (sections && typeof sections === "object") {
+      results.specs = await regenerateSpecsWithAiContent(projectId, sections, admin.id);
+    }
+    if (roadmap && typeof roadmap === "object") {
+      results.roadmap = await regenerateRoadmapWithAiContent(projectId, roadmap, admin.id);
+    }
+    res.json({ data: results });
   } catch (error) {
     next(error);
   }

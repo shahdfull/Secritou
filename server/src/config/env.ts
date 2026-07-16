@@ -14,6 +14,10 @@ const envSchema = z.object({
   JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
   REFRESH_COOKIE_NAME: z.string().default("secritou_refresh"),
   FRONTEND_URL: z.string().url().default("http://localhost:5173"),
+  // Public base URL of this API — used to build callback URLs for external services (n8n
+  // workflows calling back into Secritou). Defaults to local dev; must be set explicitly in
+  // any deployed environment since the server can't know its own public hostname.
+  API_URL: z.string().url().default("http://localhost:5000"),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().optional(),
   SMTP_USER: z.string().optional(),
@@ -73,6 +77,19 @@ const envSchema = z.object({
   FORECAST_AT_RISK_DAYS: z.coerce.number().int().positive().default(30),
   // Recurring meeting reminder: notify this many days before Project.nextMeetingDate.
   MEETING_REMINDER_DAYS: z.coerce.number().int().positive().default(3),
+  // GSC anomaly detection: flag a client's daily clicks as anomalous when they deviate from
+  // the trailing 7-day average by at least this percentage (0-1, e.g. 0.5 = 50%).
+  GSC_ANOMALY_THRESHOLD_PCT: z.coerce.number().min(0).max(1).default(0.5),
+  // SLA thresholds for n8n escalation hooks: an OPEN custom question with no staff reply, or
+  // a PENDING approval, older than this is flagged so an external channel (Slack, etc.) can
+  // surface it — separate from the in-app notifications already created when these are raised.
+  CUSTOM_QUESTION_SLA_HOURS: z.coerce.number().int().positive().default(24),
+  APPROVAL_SLA_DAYS: z.coerce.number().int().positive().default(3),
+  // n8n integration: outbound webhooks for events n8n workflows react to (Slack/Teams
+  // notifications, LLM-enriched reports, etc). Feature is "enabled" only when both are set —
+  // see the boot check below, mirroring the Google OAuth pattern.
+  N8N_WEBHOOK_BASE_URL: z.string().url().optional(),
+  N8N_WEBHOOK_SECRET: z.string().min(16).optional(),
 });
 
 export const env = envSchema.parse(process.env);
@@ -115,4 +132,12 @@ if (googleOAuthConfigured) {
       "INTEGRATIONS_ENCRYPTION_KEY must decode to exactly 32 bytes (base64 or hex) — Google OAuth is configured, so this key is required."
     );
   }
+}
+
+// n8n webhooks: both URL and secret must be set together, or neither. A base URL without a
+// secret would let anyone who guesses the endpoint trigger production workflows unauthenticated.
+if (Boolean(env.N8N_WEBHOOK_BASE_URL) !== Boolean(env.N8N_WEBHOOK_SECRET)) {
+  throw new Error(
+    "N8N_WEBHOOK_BASE_URL and N8N_WEBHOOK_SECRET must both be set, or both left unset."
+  );
 }

@@ -29,9 +29,19 @@ export const siteContentRepository = {
     });
   },
 
+  // Bilingual list fields (type JSON) are stored once under locale "all" —
+  // their value already contains both languages ({fr, en} per item) — so
+  // they're independent of whatever locale the caller is asking for.
+  async findAllLocaleRows(): Promise<SiteContentRow[]> {
+    return prisma.siteContent.findMany({
+      where: { locale: "all" },
+      orderBy: [{ section: "asc" }, { key: "asc" }],
+    });
+  },
+
   async findGroupedByLocale(locale: string): Promise<Record<string, SiteContentRow[]>> {
     const rows = await prisma.siteContent.findMany({
-      where: { locale },
+      where: { OR: [{ locale }, { locale: "all" }] },
       orderBy: [{ section: "asc" }, { key: "asc" }],
     });
     const grouped: Record<string, SiteContentRow[]> = {};
@@ -40,6 +50,10 @@ export const siteContentRepository = {
       grouped[row.section].push(row);
     }
     return grouped;
+  },
+
+  async findByKeyAnyLocale(key: string): Promise<SiteContentRow | null> {
+    return prisma.siteContent.findFirst({ where: { key } });
   },
 
   async upsertOne(item: SiteContentUpsert): Promise<SiteContentRow> {

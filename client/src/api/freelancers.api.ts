@@ -22,6 +22,19 @@ export const freelancersApi = {
     return response.data.data;
   },
 
+  // Not having a profile yet is a normal state for a FREELANCER user (before
+  // they apply), not an error — the endpoint 404s in that case, so translate
+  // that specific response into `null` instead of letting it throw.
+  getMyProfile: async (): Promise<FreelancerProfile | null> => {
+    try {
+      const response = await apiClient.get<ApiResponse<FreelancerProfile>>("/freelancers/me");
+      return response.data.data;
+    } catch (error: any) {
+      if (error?.response?.status === 404) return null;
+      throw error;
+    }
+  },
+
   createMyProfile: async (
     data: CreateFreelancerProfileInput
   ): Promise<FreelancerProfile> => {

@@ -14,6 +14,7 @@ import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
 import { computeVat, roundMoney } from "../utils/vat.js";
 import { commissionService } from "./commission.service.js";
+import { notifyN8n } from "../utils/webhook.js";
 
 // Invoice mutations change dashboard / executive KPIs (overdue, cash, forecast).
 async function invalidateFinanceCaches() {
@@ -257,7 +258,7 @@ export const invoiceService = {
         creditNote = await creditNoteService.createCreditNoteTx(tx, { invoiceId: invoice.id, clientId: invoice.clientId, amount: overpaidBy, reason: `Overpayment on invoice (paid ${rawAmountPaid.toFixed(3)} vs billed ${invoiceAmount.toFixed(3)} ${invoice.currency ?? "TND"})` });
       }
 
-      let commissions = [];
+      let commissions: Awaited<ReturnType<typeof commissionService.computeForPaymentTx>> = [];
       if (appliedAmount > 0) {
         commissions = await commissionService.computeForPaymentTx(tx, {
           paymentId: payment.id,
@@ -298,6 +299,22 @@ export const invoiceService = {
       }
 
       void clientSuccessService.recalcAndPersist(invoiceMeta.clientId);
+
+      if (result.payment && !result.deduplicated) {
+        const justPaid = Number(invoiceMeta.amountPaid) >= Number(invoiceMeta.amount);
+        void notifyN8n("invoice.paid", {
+          invoiceId: invoiceMeta.id,
+          number: invoiceMeta.number,
+          amountPaid: Number(data.amount),
+          totalAmount: Number(invoiceMeta.amount),
+          currency: invoiceMeta.currency ?? "TND",
+          fullyPaid: justPaid,
+          clientId: invoiceMeta.clientId,
+          clientName: invoiceMeta.client?.name,
+          adminUrl: `${env.FRONTEND_URL}/app/commercial?tab=invoices`,
+          agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+        });
+      }
     }
 
     return result;

@@ -107,9 +107,10 @@ export const summaryRepository = {
     const leadWhere = serviceId !== undefined
       ? { archivedAt: null, serviceId: serviceId ?? "__none__" }
       : { archivedAt: null };
+    const invoiceStatusNotIn: ("DRAFT" | "CANCELLED")[] = ["DRAFT", "CANCELLED"];
     const invoiceWhere = serviceId !== undefined
-      ? { status: { notIn: ["DRAFT", "CANCELLED"] as const }, currency: DEFAULT_CURRENCY, OR: [{ project: { serviceId: serviceId ?? "__none__" } }, { projectId: null }] }
-      : { status: { notIn: ["DRAFT", "CANCELLED"] as const }, currency: DEFAULT_CURRENCY };
+      ? { status: { notIn: invoiceStatusNotIn }, currency: DEFAULT_CURRENCY, OR: [{ project: { serviceId: serviceId ?? "__none__" } }, { projectId: null }] }
+      : { status: { notIn: invoiceStatusNotIn }, currency: DEFAULT_CURRENCY };
 
     const [
       leadCounts,
@@ -172,8 +173,8 @@ export const summaryRepository = {
       recentTasks,
       invoices: {
         total: invoiceMetrics._count,
-        totalAmount: invoiceMetrics._sum.amount?.toNumber() ?? 0,
-        totalPaid: invoiceMetrics._sum.amountPaid?.toNumber() ?? 0,
+        totalAmount: invoiceMetrics._sum?.amount?.toNumber() ?? 0,
+        totalPaid: invoiceMetrics._sum?.amountPaid?.toNumber() ?? 0,
       },
     };
   },

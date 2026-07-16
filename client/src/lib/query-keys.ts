@@ -20,6 +20,7 @@ export const queryKeys = {
   // Freelancers
   freelancers: <T extends object = object>(params?: T) => ["freelancers", params] as const,
   freelancer: (id: string) => ["freelancer", id] as const,
+  myFreelancerProfile: () => ["myFreelancerProfile"] as const,
   
   // Users
   users: <T extends object = object>(params?: T) => ["users", params] as const,

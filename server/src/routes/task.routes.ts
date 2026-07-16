@@ -19,6 +19,9 @@ router.get("/availability", authorize("ADMIN", "MANAGER"), requirePermission("ta
 router.get("/:id", authorize("ADMIN", "MANAGER", "FREELANCER"), requirePermission("tasks", "read"), getTaskById);
 router.post("/", authorize("ADMIN", "MANAGER"), requirePermission("tasks", "create"), validate(createTaskSchema), createTask);
 router.put("/:id", authorize("ADMIN", "MANAGER", "FREELANCER"), requirePermission("tasks", "update"), validate(updateTaskSchema), updateTask);
+// MANAGER can delete (unlike project deletion, which is ADMIN-only): a task is
+// pole-scoped, lower-impact than the project it belongs to, and already gated by
+// assertProjectInScope in task.service.ts.
 router.delete("/:id", authorize("ADMIN", "MANAGER"), requirePermission("tasks", "delete"), deleteTask);
 
 // Comment routes — comments are internal; same access as the task itself

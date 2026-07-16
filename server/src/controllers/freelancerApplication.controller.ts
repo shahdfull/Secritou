@@ -148,3 +148,26 @@ export const acceptApplication: RequestHandler[] = [
     }
   },
 ];
+
+export const requestInterview: RequestHandler = async (req, res, next) => {
+  try {
+    const application = await freelancerApplicationService.requestInterview(req.params.id as string);
+    res.json({ data: application });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const setAiSummary: RequestHandler = async (req, res, next) => {
+  try {
+    const summary = typeof req.body?.aiSummary === "string" ? req.body.aiSummary.trim() : "";
+    if (!summary) {
+      res.status(400).json({ error: "aiSummary is required" });
+      return;
+    }
+    const application = await freelancerApplicationService.setAiSummary(req.params.id as string, summary);
+    res.json({ data: application });
+  } catch (error) {
+    next(error);
+  }
+};

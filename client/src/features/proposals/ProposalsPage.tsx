@@ -50,6 +50,7 @@ import {
   ExternalLink,
   Loader2,
   Clock,
+  Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -75,6 +76,10 @@ export function ProposalsPage() {
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const [rejectComment, setRejectComment] = useState("");
 
+  // Delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Proposal | null>(null);
+
   // Accept-cascade confirmation dialog
   const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
   const [acceptTarget, setAcceptTarget] = useState<Proposal | null>(null);
@@ -82,8 +87,6 @@ export function ProposalsPage() {
   // Generate invoice dialog
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [invoiceProposal, setInvoiceProposal] = useState<Proposal | null>(null);
-  // Track proposals that have just had an invoice created (session-local, backed by invoice.proposalId on refresh)
-  const [invoicedProposalIds, setInvoicedProposalIds] = useState<Set<string>>(() => new Set());
 
   // Timeline (history) dialog
   const [timelineProposalId, setTimelineProposalId] = useState<string | null>(null);
@@ -139,6 +142,19 @@ export function ProposalsPage() {
     );
   };
 
+  // --- Delete ---
+  const openDeleteDialog = (proposal: Proposal) => {
+    setDeleteTarget(proposal);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = () => {
+    if (!deleteTarget) return;
+    deleteMutation.mutate(deleteTarget.id, {
+      onSuccess: () => setDeleteDialogOpen(false),
+    });
+  };
+
   // --- Generate Invoice ---
   const openInvoiceDialog = (proposal: Proposal) => {
     setInvoiceProposal(proposal);
@@ -148,10 +164,7 @@ export function ProposalsPage() {
   const handleCreateInvoice = () => {
     if (!invoiceProposal) return;
     createInvoiceMutation.mutate(invoiceProposal.id, {
-      onSuccess: () => {
-        setInvoicedProposalIds((prev) => new Set(prev).add(invoiceProposal.id));
-        setInvoiceDialogOpen(false);
-      },
+      onSuccess: () => setInvoiceDialogOpen(false),
     });
   };
 
@@ -273,7 +286,7 @@ export function ProposalsPage() {
                       <Badge className={getStatusColor(proposal.status)}>
                         {t(`proposals.statuses.${proposal.status.toLowerCase()}`)}
                       </Badge>
-                      {(proposal.invoice || invoicedProposalIds.has(proposal.id)) && (
+                      {proposal.invoice && (
                         <Badge className="bg-green-100 text-green-800 w-fit">
                           <Receipt className="h-3 w-3 mr-1" />
                           {t("proposals.invoiced")}
@@ -291,8 +304,8 @@ export function ProposalsPage() {
                             variant="outline"
                             className="h-7 px-2 text-xs gap-1"
                             onClick={() => openInvoiceDialog(proposal)}
-                            disabled={!!(proposal.invoice || invoicedProposalIds.has(proposal.id))}
-                            title={proposal.invoice || invoicedProposalIds.has(proposal.id) ? t("proposals.invoiceAlreadyCreated") : undefined}
+                            disabled={!!proposal.invoice}
+                            title={proposal.invoice ? t("proposals.invoiceAlreadyCreated") : undefined}
                           >
                             <Receipt className="h-3.5 w-3.5" />
                             {t("proposals.invoiceButton")}
@@ -332,7 +345,7 @@ export function ProposalsPage() {
                         )}
                         {proposal.status === "ACCEPTED" && (
                           <>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:bg-blue-50" title={proposal.invoice || invoicedProposalIds.has(proposal.id) ? t("proposals.invoiceAlreadyCreated") : t("proposals.generateInvoice")} onClick={() => openInvoiceDialog(proposal)} disabled={!!(proposal.invoice || invoicedProposalIds.has(proposal.id))}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:bg-blue-50" title={proposal.invoice ? t("proposals.invoiceAlreadyCreated") : t("proposals.generateInvoice")} onClick={() => openInvoiceDialog(proposal)} disabled={!!proposal.invoice}>
                               <Receipt className="h-3.5 w-3.5" />
                             </Button>
                             {proposal.linkedProject && (
@@ -343,8 +356,8 @@ export function ProposalsPage() {
                           </>
                         )}
                         {proposal.status === "DRAFT" && (
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("proposals.delete")} onClick={() => deleteMutation.mutate(proposal.id)} disabled={deleteMutation.isPending}>
-                            <XCircle className="h-3.5 w-3.5" />
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("proposals.delete")} onClick={() => openDeleteDialog(proposal)} disabled={deleteMutation.isPending}>
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         )}
                       </div>
@@ -397,6 +410,29 @@ export function ProposalsPage() {
               </Button>
             </DialogFooter>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("proposals.deleteModal.title")}</DialogTitle>
+            <DialogDescription>{t("proposals.deleteModal.description")}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteDialogOpen(false)}>
+              {t("proposals.deleteModal.cancel")}
+            </Button>
+            <Button
+              onClick={handleDelete}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white rounded-full"
+            >
+              {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {t("proposals.deleteModal.confirm")}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

@@ -13,7 +13,7 @@ import { prisma } from "../config/prisma.js";
 // Approvals without a project are service-neutral and visible to every manager.
 // Throws 404 (not 403) to avoid leaking existence of out-of-scope approvals.
 async function assertApprovalInScope(
-  approval: { projectId?: string | null } | null,
+  approval: { projectId?: string | null } | null | undefined,
   scope?: ServiceScope
 ) {
   if (!approval) throw new HttpError(404, "Approval not found");
@@ -81,6 +81,7 @@ export const approvalService = {
   async update(id: string, data: Partial<{ title: string; description: string; status: ApprovalStatus; dueDate: Date }>, scope?: ServiceScope) {
     const approval = await approvalRepository.findById(id);
     await assertApprovalInScope(approval, scope);
+    if (!approval) throw new HttpError(404, "Approval not found");
     if (approval.status !== "PENDING") {
       throw new HttpError(409, "Cannot update an approval that is not pending");
     }
@@ -90,6 +91,7 @@ export const approvalService = {
   async delete(id: string, scope?: ServiceScope) {
     const approval = await approvalRepository.findById(id);
     await assertApprovalInScope(approval, scope);
+    if (!approval) throw new HttpError(404, "Approval not found");
     if (approval.status !== "PENDING") {
       throw new HttpError(409, "Cannot delete an approval that is not pending");
     }
@@ -99,6 +101,7 @@ export const approvalService = {
   async approve(id: string, comment?: string, userId?: string, scope?: ServiceScope) {
     const approval = await approvalRepository.findById(id);
     await assertApprovalInScope(approval, scope);
+    if (!approval) throw new HttpError(404, "Approval not found");
     if (approval.status !== "PENDING") {
       throw new HttpError(409, "Cannot approve an approval that is not pending");
     }
@@ -140,6 +143,7 @@ export const approvalService = {
   async reject(id: string, comment?: string, userId?: string, scope?: ServiceScope) {
     const approval = await approvalRepository.findById(id);
     await assertApprovalInScope(approval, scope);
+    if (!approval) throw new HttpError(404, "Approval not found");
     if (approval.status !== "PENDING") {
       throw new HttpError(409, "Cannot reject an approval that is not pending");
     }
@@ -181,6 +185,7 @@ export const approvalService = {
   async comment(id: string, comment: string, userId?: string, scope?: ServiceScope) {
     const approval = await approvalRepository.findById(id);
     await assertApprovalInScope(approval, scope);
+    if (!approval) throw new HttpError(404, "Approval not found");
     await approvalRepository.addTimeline(id, { action: "COMMENTED", comment, status: approval.status, userId });
     return approval;
   },

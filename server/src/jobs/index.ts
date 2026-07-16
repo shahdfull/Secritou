@@ -19,6 +19,7 @@ import {
   markOverdueInvoices,
   syncSearchConsole,
   pruneAnalyticsEvents,
+  closeStaleUserSessions,
 } from "./processors/maintenance.processor.js";
 import {
   checkStaleProjects,
@@ -30,6 +31,9 @@ import {
   checkMeetingReminders,
   checkStaleLeads,
   checkPendingCommissions,
+  checkCustomQuestionSla,
+  checkApprovalSla,
+  weeklyHealthBoardDigest,
 } from "./processors/ceoAlerts.processor.js";
 import { userRepository } from "../repositories/user.repository.js";
 import type { NotificationJob, EmailJob, DocumentJob } from "./queues.js";
@@ -178,11 +182,23 @@ function startWorkers() {
       if (job.name === jobNames.checkPendingCommissions) {
         return checkPendingCommissions();
       }
+      if (job.name === jobNames.checkCustomQuestionSla) {
+        return checkCustomQuestionSla();
+      }
+      if (job.name === jobNames.checkApprovalSla) {
+        return checkApprovalSla();
+      }
+      if (job.name === jobNames.weeklyHealthBoardDigest) {
+        return weeklyHealthBoardDigest();
+      }
       if (job.name === jobNames.syncSearchConsole) {
         return syncSearchConsole();
       }
       if (job.name === jobNames.pruneAnalyticsEvents) {
         return pruneAnalyticsEvents();
+      }
+      if (job.name === jobNames.closeStaleUserSessions) {
+        return closeStaleUserSessions();
       }
       throw new Error(`Unknown job: ${job.name}`);
     },
@@ -254,6 +270,13 @@ function startWorkers() {
     {},
     { repeat: { pattern: "0 4 * * *" }, jobId: "prune-analytics-events-daily" }
   );
+  // Close UserSession rows whose last heartbeat exceeds the idle timeout, so connected-time
+  // stats reflect closed sessions promptly rather than only after the next login's read.
+  void maintenanceQueue.add(
+    jobNames.closeStaleUserSessions,
+    {},
+    { repeat: { pattern: "*/5 * * * *" }, jobId: "close-stale-user-sessions-5m" }
+  );
 
   // ── CEO Alerts ──────────────────────────────────────────────────────────────
   void maintenanceQueue.add(
@@ -300,6 +323,23 @@ function startWorkers() {
     jobNames.checkPendingCommissions,
     {},
     { repeat: { pattern: "30 8 * * *" }, jobId: "check-pending-commissions-daily" }
+  );
+  // SLA escalation checks (n8n-facing, see notifyN8n) — daily, staggered from the other 08h runs.
+  void maintenanceQueue.add(
+    jobNames.checkCustomQuestionSla,
+    {},
+    { repeat: { pattern: "45 8 * * *" }, jobId: "check-custom-question-sla-daily" }
+  );
+  void maintenanceQueue.add(
+    jobNames.checkApprovalSla,
+    {},
+    { repeat: { pattern: "0 9 * * *" }, jobId: "check-approval-sla-daily" }
+  );
+  // Weekly health board digest — same Monday morning slot as weeklyCeoReport, offset by 30min.
+  void maintenanceQueue.add(
+    jobNames.weeklyHealthBoardDigest,
+    {},
+    { repeat: { pattern: "0 8 * * 1" }, jobId: "weekly-health-board-digest" }
   );
 }
 

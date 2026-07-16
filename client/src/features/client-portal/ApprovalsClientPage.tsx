@@ -10,7 +10,8 @@ import apiClient from "@/api/axios";
 import type { Approval as ApiApproval, ApprovalTimeline } from "@/api/approvals.api";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CheckCircle, XCircle, MessageSquare, ClipboardCheck, Clock } from "lucide-react";
+import { CheckCircle, XCircle, MessageSquare, ClipboardCheck, Clock, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 type Approval = ApiApproval & {
   attachments: { id: string; name: string; url: string }[];
@@ -48,7 +49,11 @@ export function ApprovalsClientPage() {
       queryClient.invalidateQueries({ queryKey: ["my-approvals"] });
       setDialogApproval(null);
       setComment("");
+      toast.success(t("clientPortal.approvals.respondSuccess"));
     },
+    // Without this, a failed respond (network, 403, already-actioned) left the
+    // dialog open with no feedback — the client re-clicked "Confirm" blindly.
+    onError: () => toast.error(t("clientPortal.approvals.respondError")),
   });
 
   if (isLoading) {
@@ -199,6 +204,7 @@ export function ApprovalsClientPage() {
               }
               disabled={respond.isPending || (action === "comment" && !comment.trim())}
             >
+              {respond.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {t("common.confirm")}
             </Button>
           </DialogFooter>

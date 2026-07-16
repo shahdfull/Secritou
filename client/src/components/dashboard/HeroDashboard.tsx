@@ -23,7 +23,7 @@ export function HeroDashboard() {
         </div>
 
         <div className="grid grid-cols-12 gap-3 p-4 sm:p-5">
-          <KpiTile label={t("dashboardHero.kpis.revenue")} value="DT 128 450" delta="+18.4%" tone="primary" delay={0.1} />
+          <KpiTile label={t("dashboardHero.kpis.revenue")} value="128 450 DT" delta="+18.4%" tone="primary" delay={0.1} />
           <KpiTile label={t("dashboardHero.kpis.newLeads")} value="2,847" delta="+12.1%" tone="ink" delay={0.18} />
           <KpiTile label={t("dashboardHero.kpis.conversion")} value="4.62%" delta="+0.8pt" tone="accent" delay={0.26} />
 

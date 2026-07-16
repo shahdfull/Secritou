@@ -18,6 +18,8 @@ import { linkLeadToClientTx } from "./lead.service.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
 import { roundMoney } from "../utils/vat.js";
+import { notifyN8n } from "../utils/webhook.js";
+import { managerPermissionService } from "./managerPermission.service.js";
 
 // A MANAGER may only see/act on a proposal whose project is in their service. A proposal with
 // no project is ADMIN-only. Throws 404 (not 403) to avoid revealing existence of out-of-scope proposals.
@@ -64,9 +66,25 @@ async function revertParentToDraftIfLive(sectionId: string, change: "edited" | "
   if (parent) await revertParentToDraftById(parent, change, userId);
 }
 
-async function notifyAdminsAccepted(proposal: { id: string; title: string; amount: unknown; currency: string | null; clientId: string }) {
-  const [admins, client, clientUsers] = await Promise.all([
-    userRepository.findAdmins(),
+// Recipients for the "proposal accepted" alert: every ADMIN (direction), plus only the
+// pole's MANAGER(s) — and among those, only ones whose resolved permissions actually grant
+// proposals.read (a manager can be assigned to the right pole yet still have that module
+// disabled via PermissionProfile/overrides).
+async function resolveAcceptedProposalRecipients(serviceId: string | null) {
+  const staff = await userRepository.findAdminsAndPoleManagers(serviceId);
+  const checks = await Promise.all(
+    staff.map(async (user) => {
+      if (user.role === "ADMIN") return user;
+      const permissions = await managerPermissionService.resolvePermissions(user.id);
+      return permissions?.proposals?.read ? user : null;
+    })
+  );
+  return checks.filter((u): u is NonNullable<typeof u> => u !== null);
+}
+
+async function notifyAdminsAccepted(proposal: { id: string; title: string; amount: unknown; currency: string | null; clientId: string; serviceId: string | null }) {
+  const [recipients, client, clientUsers] = await Promise.all([
+    resolveAcceptedProposalRecipients(proposal.serviceId),
     clientRepository.findById(proposal.clientId),
     userRepository.findByClientId(proposal.clientId),
   ]);
@@ -75,20 +93,20 @@ async function notifyAdminsAccepted(proposal: { id: string; title: string; amoun
   const currency = proposal.currency ?? "TND";
   void Promise.all([
     enqueueEmails(
-      admins.map((admin) => {
+      recipients.map((recipient) => {
         const { subject, html } = proposalAcceptedTemplate(
-          admin.name ?? "Admin",
+          recipient.name ?? "Admin",
           proposal.title,
           client?.name ?? "Le client",
           proposal.amount != null ? Number(proposal.amount) : null,
           currency,
           dashboardUrl
         );
-        return { to: admin.email, subject, html };
+        return { to: recipient.email, subject, html };
       })
     ),
-    enqueueNotifications(admins.map((admin) => ({
-      userId: admin.id,
+    enqueueNotifications(recipients.map((recipient) => ({
+      userId: recipient.id,
       title: "Proposition acceptée",
       message: `${client?.name ?? "Le client"} a accepté la proposition "${proposal.title}".`,
       type: "PROPOSAL_ACCEPTED" as const,
@@ -104,6 +122,8 @@ async function notifyAdminsAccepted(proposal: { id: string; title: string; amoun
       link: clientUrl,
     }))),
   ]);
+
+  return recipients;
 }
 
 export const proposalService = {
@@ -321,9 +341,12 @@ export const proposalService = {
         await linkLeadToClientTx(tx, proposal.leadId, proposal.clientId);
       }
 
+      // The pole (Service) this proposal belongs to — used after the transaction to scope
+      // the "proposal accepted" alert to the pole's manager(s) instead of every manager.
+      const serviceId = proposal.linkedProject?.serviceId ?? proposal.project?.serviceId ?? null;
+
       let projectId = proposal.linkedProject?.id ?? null;
       if (!projectId) {
-        const serviceId = proposal.project?.serviceId ?? undefined;
         try {
           const project = await tx.project.create({
             data: {
@@ -331,7 +354,7 @@ export const proposalService = {
               description: proposal.description ?? undefined,
               status: "PLANNING",
               clientId: proposal.clientId,
-              serviceId,
+              serviceId: serviceId ?? undefined,
               proposalId: proposal.id,
               budget: proposal.amount != null ? String(proposal.amount) : undefined,
               deadline: proposal.expiresAt ?? undefined,
@@ -377,10 +400,10 @@ export const proposalService = {
         logger.warn({ proposalId: id }, "[acceptWithCascade] proposal has no amount or amount is zero — skipping deposit invoice creation");
       }
 
-      return { proposalId: id, clientId: proposal.clientId, title: proposal.title, amount: proposal.amount, currency: proposal.currency, clientName: proposal.clientName, email: proposal.email, projectId, invoiceId };
+      return { proposalId: id, clientId: proposal.clientId, title: proposal.title, amount: proposal.amount, currency: proposal.currency, clientName: proposal.clientName, email: proposal.email, projectId, invoiceId, serviceId };
     });
 
-    await notifyAdminsAccepted({ id: result.proposalId, title: result.title, amount: result.amount, currency: result.currency, clientId: result.clientId });
+    const notified = await notifyAdminsAccepted({ id: result.proposalId, title: result.title, amount: result.amount, currency: result.currency, clientId: result.clientId, serviceId: result.serviceId });
     await invalidateTags([cacheTags.company(), cacheTags.dashboard(), cacheTags.client(result.clientId)]);
 
     let clientInvited = false;
@@ -436,6 +459,22 @@ export const proposalService = {
 
       await enqueueDocumentGeneration(documentJobs);
     }
+
+    void notifyN8n("proposal.accepted", {
+      proposalId: result.proposalId,
+      title: result.title,
+      amount: result.amount != null ? Number(result.amount) : null,
+      currency: result.currency,
+      clientId: result.clientId,
+      clientName: client?.name ?? result.clientName,
+      projectId: result.projectId,
+      adminUrl: `${env.FRONTEND_URL}/app/proposals/${result.proposalId}`,
+      // Agency inbox (always) + the exact internal recipients Secritou's own RBAC already
+      // resolved for this event (ADMIN + pole manager(s) with proposals.read) — n8n sends to
+      // this list as-is rather than re-deriving "who can see this" itself.
+      agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+      internalRecipients: notified.map((r) => ({ name: r.name, email: r.email, role: r.role })),
+    });
 
     return { proposal, projectId: result.projectId, invoiceId: result.invoiceId, clientInvited };
   },

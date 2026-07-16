@@ -41,7 +41,7 @@ export const projectMeetingRepository = {
         nextMeetingDate: { not: null, gte: now, lte: windowEnd },
         archivedAt: null,
       },
-      select: { id: true, name: true, clientId: true, serviceId: true, nextMeetingDate: true },
+      select: { id: true, name: true, clientId: true, serviceId: true, nextMeetingDate: true, client: { select: { name: true } } },
     });
   },
 

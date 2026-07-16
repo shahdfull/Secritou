@@ -52,7 +52,13 @@ export const refresh: RequestHandler = async (req, res, next) => {
     const data = await authService.refresh(refreshToken);
     sendAuthResponse(res, data);
   } catch (error) {
-    clearRefreshTokenCookie(res);
+    // A benign concurrent-rotation race (another tab refreshed first) leaves a
+    // valid cookie in place — don't clear it, or we'd log the user out for a
+    // race we deliberately tolerate. Every other failure clears the cookie.
+    const code = (error as { code?: string })?.code;
+    if (code !== "REFRESH_RACE") {
+      clearRefreshTokenCookie(res);
+    }
     next(error);
   }
 };

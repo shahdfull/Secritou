@@ -20,19 +20,44 @@ interface InvoiceCreateData {
   proposalId?: string;
 }
 
+// SENT/PARTIAL invoices only flip to OVERDUE in the DB once a day (see
+// maintenance.processor.ts markOverdueInvoices). The invoice list badge
+// displays an "effective" overdue status computed live from dueDate so it
+// doesn't wait for that job — filtering by OVERDUE must match the same set,
+// otherwise an invoice shown as "En retard" can vanish when the user filters
+// on that exact status. Returned as a standalone filter (not assigned to
+// where.OR directly) so callers can combine it with a search OR-clause
+// without one silently overwriting the other.
+function statusFilterClause(status?: InvoiceStatus): Prisma.InvoiceWhereInput | undefined {
+  if (!status) return undefined;
+  if (status === "OVERDUE") {
+    return {
+      OR: [
+        { status: "OVERDUE" },
+        { status: { in: ["SENT", "PARTIAL"] }, dueDate: { lt: new Date() } },
+      ],
+    };
+  }
+  return { status };
+}
+
 export const invoiceRepository = {
   async findAll(
     options: ListQueryOptions & { clientId?: string; status?: InvoiceStatus; search?: string }
   ): Promise<PaginatedResult<Invoice & { client: { name: string } }>> {
-    const where: Prisma.InvoiceWhereInput = { deletedAt: null, client: { deletedAt: null } };
-    if (options.clientId) where.clientId = options.clientId;
-    if (options.status) where.status = options.status;
+    const filters: Prisma.InvoiceWhereInput[] = [{ deletedAt: null, client: { deletedAt: null } }];
+    if (options.clientId) filters.push({ clientId: options.clientId });
+    const statusClause = statusFilterClause(options.status);
+    if (statusClause) filters.push(statusClause);
     if (options.search) {
-      where.OR = [
-        { title: { contains: options.search, mode: "insensitive" } },
-        { number: { contains: options.search, mode: "insensitive" } },
-      ];
+      filters.push({
+        OR: [
+          { title: { contains: options.search, mode: "insensitive" } },
+          { number: { contains: options.search, mode: "insensitive" } },
+        ],
+      });
     }
+    const where: Prisma.InvoiceWhereInput = { AND: filters };
 
     const skip = (options.page - 1) * options.pageSize;
     const [data, total] = await Promise.all([
@@ -53,8 +78,10 @@ export const invoiceRepository = {
     clientId: string,
     options: { page: number; pageSize: number; status?: InvoiceStatus }
   ): Promise<PaginatedResult<Invoice & { client: { name: string } }>> {
-    const where: Prisma.InvoiceWhereInput = { clientId, deletedAt: null };
-    if (options.status) where.status = options.status;
+    const filters: Prisma.InvoiceWhereInput[] = [{ clientId, deletedAt: null }];
+    const statusClause = statusFilterClause(options.status);
+    if (statusClause) filters.push(statusClause);
+    const where: Prisma.InvoiceWhereInput = { AND: filters };
     const skip = (options.page - 1) * options.pageSize;
     const [data, total] = await Promise.all([
       prismaRead.invoice.findMany({
@@ -86,7 +113,8 @@ export const invoiceRepository = {
       OR: [{ project: { serviceId, deletedAt: null } }, { projectId: null }],
     };
     const filters: Prisma.InvoiceWhereInput[] = [scopeFilter];
-    if (options.status) filters.push({ status: options.status });
+    const statusClause = statusFilterClause(options.status);
+    if (statusClause) filters.push(statusClause);
     if (options.search) {
       filters.push({
         OR: [
@@ -154,15 +182,19 @@ export const invoiceRepository = {
   async findDeleted(
     options: ListQueryOptions & { clientId?: string; status?: InvoiceStatus; search?: string }
   ): Promise<PaginatedResult<Invoice & { client: { name: string } }>> {
-    const where: Prisma.InvoiceWhereInput = { deletedAt: { not: null } };
-    if (options.clientId) where.clientId = options.clientId;
-    if (options.status) where.status = options.status;
+    const filters: Prisma.InvoiceWhereInput[] = [{ deletedAt: { not: null } }];
+    if (options.clientId) filters.push({ clientId: options.clientId });
+    const statusClause = statusFilterClause(options.status);
+    if (statusClause) filters.push(statusClause);
     if (options.search) {
-      where.OR = [
-        { title: { contains: options.search, mode: "insensitive" } },
-        { number: { contains: options.search, mode: "insensitive" } },
-      ];
+      filters.push({
+        OR: [
+          { title: { contains: options.search, mode: "insensitive" } },
+          { number: { contains: options.search, mode: "insensitive" } },
+        ],
+      });
     }
+    const where: Prisma.InvoiceWhereInput = { AND: filters };
     const skip = (options.page - 1) * options.pageSize;
     const [data, total] = await Promise.all([
       prismaRead.invoice.findMany({

@@ -163,7 +163,7 @@ export function BookingCalendar() {
               <CardContent className="flex flex-col gap-3 p-6 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2 font-medium text-ink">
                   <Mail className="h-4 w-4 text-primary" />
-                  hello@secritou.com
+                  contact@secritou.tn
                 </div>
                 <p>{t("contact.booking.helpText", "If nothing fits, email us directly.")}</p>
               </CardContent>
@@ -199,7 +199,7 @@ export function BookingCalendar() {
                 <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-background p-10 text-center">
                   <CalendarIcon className="h-10 w-10 text-primary/40" />
                   <p className="mt-4 text-sm text-muted-foreground">
-                    {t("contact.booking.emptyState", "No availability in the next 30 days.")} <a href="mailto:hello@secritou.com" className="font-semibold text-primary underline underline-offset-2">hello@secritou.com</a>
+                    {t("contact.booking.emptyState", "No availability in the next 30 days.")} <a href="mailto:contact@secritou.tn" className="font-semibold text-primary underline underline-offset-2">contact@secritou.tn</a>
                   </p>
                 </div>
               ) : (

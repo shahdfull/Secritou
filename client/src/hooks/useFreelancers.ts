@@ -28,6 +28,19 @@ export function useFreelancer(id: string) {
   });
 }
 
+// Dedicated lookup for "does the current user have a freelancer profile" —
+// deriving this from a paginated/filtered list (freelancers.find(...)) breaks
+// as soon as the profile isn't on the current page (search, pagination),
+// wrongly showing the "apply" CTA to someone who already applied.
+export function useMyFreelancerProfile(enabled: boolean) {
+  return useQuery<FreelancerProfile | null>({
+    queryKey: queryKeys.myFreelancerProfile(),
+    queryFn: () => freelancersApi.getMyProfile(),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
 export function useCreateMyFreelancerProfile() {
   const queryClient = useQueryClient();
 
@@ -39,6 +52,7 @@ export function useCreateMyFreelancerProfile() {
     mutationFn: (data) => freelancersApi.createMyProfile(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.freelancers() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myFreelancerProfile() });
       toast.success(i18n.t("toasts.freelancerProfileCreated"));
     },
   });
@@ -56,6 +70,7 @@ export function useUpdateMyFreelancerProfile() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.freelancers() });
       queryClient.invalidateQueries({ queryKey: queryKeys.freelancer(data.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myFreelancerProfile() });
       toast.success(i18n.t("toasts.freelancerProfileUpdated"));
     },
   });
@@ -68,6 +83,7 @@ export function useDeleteMyFreelancerProfile() {
     mutationFn: () => freelancersApi.deleteMyProfile(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.freelancers() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myFreelancerProfile() });
       toast.success(i18n.t("toasts.freelancerProfileDeleted"));
     },
   });

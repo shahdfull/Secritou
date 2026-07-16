@@ -19,6 +19,18 @@ import { CreateProposalFromLeadDialog } from "./CreateProposalFromLeadDialog";
 // A Proposal can only be created from a lead that has been WON and converted to a client.
 const CAN_CREATE_PROPOSAL: Lead["status"][] = ["WON"];
 
+// Allowed pipeline transitions, mirrored server-side (lead.service.ts) as the
+// source of truth — this copy only lets the Kanban reject a bad drag
+// instantly instead of round-tripping to the server to find out.
+const NEXT_STATUSES: Record<Lead["status"], Lead["status"][]> = {
+  NEW: ["CONTACTED", "QUALIFIED", "PROPOSAL", "WON", "LOST"],
+  CONTACTED: ["QUALIFIED", "PROPOSAL", "WON", "LOST"],
+  QUALIFIED: ["PROPOSAL", "WON", "LOST"],
+  PROPOSAL: ["WON", "LOST"],
+  WON: [],
+  LOST: [],
+};
+
 interface StatusConfig {
   label: string;
   bgColor: string;
@@ -262,6 +274,25 @@ export const LeadsKanban = memo(function LeadsKanban({ filteredLeads }: { filter
     );
   }, [updateLeadStatus, queryClient, t]);
 
+  const getStatusLabel = useCallback((status: Lead["status"]) => {
+    switch (status) {
+      case "NEW":
+        return t("leadsPage.status.new");
+      case "CONTACTED":
+        return t("leadsPage.status.contacted");
+      case "QUALIFIED":
+        return t("leadsPage.status.qualified");
+      case "PROPOSAL":
+        return t("leadsPage.status.proposal");
+      case "WON":
+        return t("leadsPage.status.won");
+      case "LOST":
+        return t("leadsPage.status.lost");
+      default:
+        return status;
+    }
+  }, [t]);
+
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
@@ -280,6 +311,17 @@ export const LeadsKanban = memo(function LeadsKanban({ filteredLeads }: { filter
     if (!overStatus) return;
 
     if (activeStatus !== overStatus) {
+      if (!NEXT_STATUSES[activeStatus].includes(overStatus)) {
+        toast.error(
+          t("toasts.leadInvalidTransition", {
+            from: getStatusLabel(activeStatus),
+            to: getStatusLabel(overStatus),
+          })
+        );
+        setActiveId(null);
+        return;
+      }
+
       // Optimistic update
       const snapshots = queryClient.getQueriesData({ queryKey: ["leads"], exact: false });
       queryClient.setQueriesData(
@@ -317,31 +359,12 @@ export const LeadsKanban = memo(function LeadsKanban({ filteredLeads }: { filter
     }
 
     setActiveId(null);
-  }, [leadIdToStatus, queryClient, applyStatusChange]);
+  }, [leadIdToStatus, queryClient, applyStatusChange, getStatusLabel, t]);
 
   const activeLead = useMemo(
     () => (activeId ? filteredLeads.find((lead) => lead.id === activeId) ?? null : null),
     [activeId, filteredLeads]
   );
-
-  const getStatusLabel = (status: Lead["status"]) => {
-    switch (status) {
-      case "NEW":
-        return t("leadsPage.status.new");
-      case "CONTACTED":
-        return t("leadsPage.status.contacted");
-      case "QUALIFIED":
-        return t("leadsPage.status.qualified");
-      case "PROPOSAL":
-        return t("leadsPage.status.proposal");
-      case "WON":
-        return t("leadsPage.status.won");
-      case "LOST":
-        return t("leadsPage.status.lost");
-      default:
-        return status;
-    }
-  };
 
   return (
     <div className="overflow-x-auto pb-4">

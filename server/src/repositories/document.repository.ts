@@ -28,6 +28,7 @@ export const documentRepository = {
       role?: Role;
       viewerClientId?: string | null;
       viewerServiceId?: string | null;
+      viewerUserId?: string | null;
     }
   ): Promise<PaginatedResult<Document & { client: { name: string } | null }>> {
     const where: Prisma.DocumentWhereInput = {};
@@ -39,6 +40,11 @@ export const documentRepository = {
         where.clientId = options.viewerClientId ?? "__none__";
       } else if (options.role === "MANAGER" && options.viewerServiceId !== undefined) {
         where.client = { projects: { some: { serviceId: options.viewerServiceId ?? "__none__" } } };
+      } else if (options.role === "FREELANCER") {
+        // A FREELANCER only sees documents attached to a project they have a task on —
+        // previously unscoped, letting any freelancer list every ADMIN_FREELANCER/ALL
+        // document company-wide regardless of which project they're staffed on.
+        where.project = { tasks: { some: { assigneeId: options.viewerUserId ?? "__none__" } } };
       }
     }
     if (options.type) where.type = options.type;
@@ -66,11 +72,14 @@ export const documentRepository = {
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(id: string, viewer?: { role: Role; clientId?: string | null }) {
+  async findById(id: string, viewer?: { role: Role; clientId?: string | null; userId?: string | null }) {
     const where: Prisma.DocumentWhereInput = { id };
     if (viewer) {
       where.accessLevel = { in: visibleAccessLevels(viewer.role) };
       if (viewer.role === "CLIENT") where.clientId = viewer.clientId ?? "__none__";
+      if (viewer.role === "FREELANCER") {
+        where.project = { tasks: { some: { assigneeId: viewer.userId ?? "__none__" } } };
+      }
     }
     return prisma.document.findFirst({
       where,
@@ -126,6 +135,15 @@ export const documentRepository = {
 
   async delete(id: string) {
     return prisma.document.delete({ where: { id } });
+  },
+
+  // Latest version of a given document type for a project — used to find the Document a
+  // regeneration (e.g. AI-written SPECS after brief submission) should version off of.
+  async findLatestByProjectAndType(projectId: string, type: DocumentType) {
+    return prisma.document.findFirst({
+      where: { projectId, type },
+      orderBy: { version: "desc" },
+    });
   },
 
   async addAccessLog(documentId: string, data: { action: string; userId?: string; ipAddress?: string; userAgent?: string }) {

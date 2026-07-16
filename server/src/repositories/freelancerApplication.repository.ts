@@ -39,11 +39,11 @@ export const freelancerApplicationRepository = {
     return prismaRead.freelancerApplication.findFirst({ where: { id } });
   },
 
-  async create(data: { firstName: string; lastName: string; email: string; phone?: string; position: string; cvUrl: string; portfolioUrl: string }): Promise<FreelancerApplication> {
+  async create(data: { firstName: string; lastName: string; email: string; phone?: string; position: string; cvUrl: string; cvKey?: string; portfolioUrl: string; portfolioKey?: string }): Promise<FreelancerApplication> {
     return prisma.freelancerApplication.create({ data });
   },
 
-  async update(id: string, data: Partial<{ status: ApplicationStatus; rejectionReason?: string; userId?: string; accountCreatedAt?: Date }>): Promise<FreelancerApplication> {
+  async update(id: string, data: Partial<{ status: ApplicationStatus; rejectionReason?: string; userId?: string; accountCreatedAt?: Date; aiSummary?: string }>): Promise<FreelancerApplication> {
     return prisma.freelancerApplication.update({ where: { id }, data });
   },
 

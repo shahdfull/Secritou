@@ -4,6 +4,7 @@ import { roundMoney } from "../utils/vat.js";
 import { prisma, prismaRead } from "../config/prisma.js";
 import { enqueueNotifications } from "../jobs/queues.js";
 import { env } from "../config/env.js";
+import { notifyN8n } from "../utils/webhook.js";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 
 type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
@@ -120,6 +121,16 @@ export const commissionService = {
       entityId: updatedCommission.id,
       link: commissionUrl,
     }]);
+
+    void notifyN8n("commission.paid", {
+      commissionId: updatedCommission.id,
+      freelancerId: updatedCommission.partnerId,
+      freelancerEmail: (updatedCommission as any).partner?.email,
+      freelancerName: (updatedCommission as any).partner?.name,
+      amount: Number(updatedCommission.amount),
+      currency: "TND",
+      adminUrl: commissionUrl,
+    });
 
     return updatedCommission;
   },

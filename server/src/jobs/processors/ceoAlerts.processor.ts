@@ -1,10 +1,13 @@
 import { prismaRead } from "../../config/prisma.js";
 import { userRepository } from "../../repositories/user.repository.js";
 import { projectMeetingRepository } from "../../repositories/projectMeeting.repository.js";
-import { enqueueNotifications, enqueueEmail } from "../queues.js";
+import { enqueueNotifications } from "../queues.js";
 import { recordBullMQJob } from "../../observability/collectors.js";
 import { env } from "../../config/env.js";
 import { invoiceService } from "../../services/invoice.service.js";
+import { notifyN8n } from "../../utils/webhook.js";
+import { healthBoardService } from "../../services/healthBoard.service.js";
+import { healthBoardRepository } from "../../repositories/healthBoard.repository.js";
 
 function diffDays(a: Date, b: Date) {
   return Math.round((b.getTime() - a.getTime()) / 86_400_000);
@@ -17,11 +20,16 @@ export async function checkStaleProjects() {
   const now = new Date();
   const cutoff = new Date(now.getTime() - 7 * 86_400_000);
 
+  // `tasks: { every: ... }` is vacuously true for a project with zero tasks (Prisma/SQL
+  // "every" on an empty set), which would flag a brand-new IN_PROGRESS project as stale the
+  // day after creation. Require at least one task before applying the "all tasks stale"
+  // check, matching healthBoardRepository's isStale (which requires lastActivityAt !== null).
   const staleProjects = await prismaRead.project.findMany({
     where: {
       archivedAt: null,
       status: "IN_PROGRESS",
       tasks: {
+        some: {},
         every: { updatedAt: { lt: cutoff } },
       },
     },
@@ -45,6 +53,8 @@ export async function checkStaleProjects() {
     const daysSince = lastTask ? diffDays(lastTask.updatedAt, now) : null;
     const projectUrl = `${env.FRONTEND_URL}/app/projects/${project.id}`;
 
+    // Email is sent by the n8n workflow (see notifyN8n below) — only the in-app notification
+    // is created directly here.
     for (const admin of admins) {
       notifications.push({
         userId: admin.id,
@@ -55,33 +65,39 @@ export async function checkStaleProjects() {
         link: projectUrl,
       });
     }
-
-    const html = `<p>⚠️ Le projet <strong>${project.name}</strong> n'a pas eu d'activité${daysSince !== null ? ` depuis ${daysSince} jours` : ""}.</p><p><a href="${projectUrl}">Voir le projet →</a></p>`;
-    for (const admin of admins) {
-      await enqueueEmail({ to: admin.email, subject: `⚠️ Projet inactif : ${project.name}`, html });
-    }
   }
 
   await enqueueNotifications(notifications);
+
+  void notifyN8n("project.stale", {
+    agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+    projects: staleProjects.map((project) => {
+      const lastTask = project.tasks[0];
+      return {
+        projectId: project.id,
+        name: project.name,
+        daysSince: lastTask ? diffDays(lastTask.updatedAt, now) : null,
+        adminUrl: `${env.FRONTEND_URL}/app/projects/${project.id}`,
+      };
+    }),
+  });
+
   recordBullMQJob("maintenance", "check-stale-projects", "completed", (performance.now() - start) / 1000);
   return staleProjects.length;
 }
 
 // ── check-overdue-deadlines ──────────────────────────────────────────────────
-// Daily 08:30 — projects with deadline < today+3 days and not completed
+// Daily 08:30 — projects with deadline < today+3 days and not completed.
+// Reuses healthBoardRepository's isOverdue/daysUntilDeadline (same source as the live admin
+// Health Board and weeklyHealthBoardDigest) instead of recomputing "overdue" independently,
+// so this alert and the Health Board screen never disagree about which projects are urgent.
 export async function checkOverdueDeadlines() {
   const start = performance.now();
-  const now = new Date();
-  const in3days = new Date(now.getTime() + 3 * 86_400_000);
 
-  const urgentProjects = await prismaRead.project.findMany({
-    where: {
-      archivedAt: null,
-      status: { notIn: ["COMPLETED"] },
-      deadline: { not: null, lte: in3days },
-    },
-    select: { id: true, name: true, deadline: true },
-  });
+  const allActive = await healthBoardRepository.getActiveProjectsHealth();
+  const urgentProjects = allActive.filter(
+    (p) => p.deadline !== null && (p.isOverdue || (p.daysUntilDeadline !== null && p.daysUntilDeadline <= 3))
+  );
 
   if (urgentProjects.length === 0) {
     recordBullMQJob("maintenance", "check-overdue-deadlines", "completed", (performance.now() - start) / 1000);
@@ -92,13 +108,11 @@ export async function checkOverdueDeadlines() {
   const notifications: Parameters<typeof enqueueNotifications>[0] = [];
 
   for (const project of urgentProjects) {
-    const deadline = project.deadline!;
-    const daysLeft = diffDays(now, deadline);
-    const isOverdue = daysLeft < 0;
+    const daysLeft = project.daysUntilDeadline!;
     const projectUrl = `${env.FRONTEND_URL}/app/projects/${project.id}`;
 
-    const title = isOverdue ? "🔴 Projet en retard" : "⏰ Délai imminent";
-    const message = isOverdue
+    const title = project.isOverdue ? "🔴 Projet en retard" : "⏰ Délai imminent";
+    const message = project.isOverdue
       ? `Le projet « ${project.name} » est en retard de ${Math.abs(daysLeft)} jour(s).`
       : `Le délai du projet « ${project.name} » est dans ${daysLeft} jour(s).`;
 
@@ -115,6 +129,19 @@ export async function checkOverdueDeadlines() {
   }
 
   await enqueueNotifications(notifications);
+
+  void notifyN8n("project.deadline_soon", {
+    agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+    projects: urgentProjects.map((project) => ({
+      projectId: project.id,
+      name: project.name,
+      clientName: project.clientName,
+      deadline: project.deadline,
+      isOverdue: project.isOverdue,
+      adminUrl: `${env.FRONTEND_URL}/app/projects/${project.id}`,
+    })),
+  });
+
   recordBullMQJob("maintenance", "check-overdue-deadlines", "completed", (performance.now() - start) / 1000);
   return urgentProjects.length;
 }
@@ -158,6 +185,7 @@ export async function checkInvoiceFollowup() {
 
   const admins = await userRepository.findAdmins();
   const notifications: Parameters<typeof enqueueNotifications>[0] = [];
+  const finalNoticeInvoices: typeof invoices = [];
 
   for (const inv of invoices) {
     const daysOverdue = diffDays(inv.createdAt, new Date());
@@ -165,6 +193,7 @@ export async function checkInvoiceFollowup() {
     const alreadySent = tier ? inv.reminders.some((r) => r.type === tier) : true;
     if (tier && !alreadySent) {
       await invoiceService.addReminder(inv.id, tier);
+      if (tier === "FINAL") finalNoticeInvoices.push(inv);
     }
 
     const invoiceUrl = `${env.FRONTEND_URL}/app/commercial?tab=invoices`;
@@ -181,6 +210,38 @@ export async function checkInvoiceFollowup() {
   }
 
   await enqueueNotifications(notifications);
+
+  void notifyN8n("invoice.followup", {
+    agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+    invoices: invoices.map((inv) => ({
+      invoiceId: inv.id,
+      number: inv.number,
+      amount: Number(inv.amount),
+      currency: inv.currency ?? "TND",
+      clientName: inv.client?.name,
+      daysOverdue: diffDays(inv.createdAt, new Date()),
+      adminUrl: `${env.FRONTEND_URL}/app/commercial?tab=invoices`,
+    })),
+  });
+
+  // Escalation distinct from invoice.followup — fires only for invoices newly crossing the
+  // FINAL reminder tier (30+ days overdue), so a workflow can trigger a stronger action
+  // (e.g. collections escalation) without re-triggering on every weekly followup run.
+  if (finalNoticeInvoices.length > 0) {
+    void notifyN8n("invoice.final_notice", {
+      agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+      invoices: finalNoticeInvoices.map((inv) => ({
+        invoiceId: inv.id,
+        number: inv.number,
+        amount: Number(inv.amount),
+        currency: inv.currency ?? "TND",
+        clientName: inv.client?.name,
+        daysOverdue: diffDays(inv.createdAt, new Date()),
+        adminUrl: `${env.FRONTEND_URL}/app/commercial?tab=invoices`,
+      })),
+    });
+  }
+
   recordBullMQJob("maintenance", "check-invoice-followup", "completed", (performance.now() - start) / 1000);
   return invoices.length;
 }
@@ -212,26 +273,24 @@ export async function weeklyCeoReport() {
   const taskCompletionPct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
   const dashboardUrl = `${env.FRONTEND_URL}/app`;
-  const html = `
-<h2>📊 Rapport hebdomadaire Secritou</h2>
-<p>Semaine du ${weekAgo.toLocaleDateString("fr-FR")} au ${now.toLocaleDateString("fr-FR")}</p>
-<ul>
-  <li>🆕 Nouveaux leads : <strong>${newLeads}</strong></li>
-  <li>✅ Projets complétés : <strong>${completedProjects}</strong></li>
-  <li>💰 Revenus encaissés : <strong>${totalRevenue.toLocaleString("fr-FR")} TND</strong></li>
-  <li>📋 Tâches complétées : <strong>${doneTasks} / ${totalTasks} (${taskCompletionPct}%)</strong></li>
-</ul>
-<p><a href="${dashboardUrl}">Voir le dashboard →</a></p>
-  `.trim();
 
+  // The email itself is sent by the n8n workflow (Mistral-enriched narrative summary +
+  // these same figures) — see notifyN8n below. Only the recipient count is still needed here.
   const admins = await userRepository.findAdmins();
-  for (const admin of admins) {
-    await enqueueEmail({
-      to: admin.email,
-      subject: `📊 Rapport hebdomadaire – ${now.toLocaleDateString("fr-FR")}`,
-      html,
-    });
-  }
+
+  void notifyN8n("ceo.weekly_report", {
+    agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+    weekStart: weekAgo.toLocaleDateString("fr-FR"),
+    weekEnd: now.toLocaleDateString("fr-FR"),
+    newLeads,
+    completedProjects,
+    totalRevenue,
+    currency: "TND",
+    doneTasks,
+    totalTasks,
+    taskCompletionPct,
+    dashboardUrl,
+  });
 
   recordBullMQJob("maintenance", "weekly-ceo-report", "completed", (performance.now() - start) / 1000);
   return admins.length;
@@ -291,6 +350,10 @@ export async function checkTaskDeadlines() {
   );
 
   const notifications: Parameters<typeof enqueueNotifications>[0] = [];
+  // Batched separately from `notifications`: notifyN8n is fired once per run with only the
+  // tasks that actually pass the same dedup gate below, so n8n is never spammed on hourly
+  // reruns while a task sits in the same alert window.
+  const newlyAlerted: Array<{ taskId: string; title: string; projectId: string; dueDate: Date; assigneeId: string }> = [];
 
   for (const task of tasks) {
     if (!task.assigneeId || !task.dueDate) continue;
@@ -312,9 +375,24 @@ export async function checkTaskDeadlines() {
       entityId: task.id,
       link: taskUrl,
     });
+    newlyAlerted.push({ taskId: task.id, title: task.title, projectId: task.projectId, dueDate, assigneeId: task.assigneeId });
   }
 
   if (notifications.length > 0) await enqueueNotifications(notifications);
+
+  if (newlyAlerted.length > 0) {
+    void notifyN8n("task.deadline_soon", {
+      tasks: newlyAlerted.map((t) => ({
+        taskId: t.taskId,
+        title: t.title,
+        projectId: t.projectId,
+        dueDate: t.dueDate,
+        assigneeId: t.assigneeId,
+        adminUrl: `${env.FRONTEND_URL}/app/tasks`,
+      })),
+    });
+  }
+
   recordBullMQJob("maintenance", "check-task-deadlines", "completed", (performance.now() - start) / 1000);
   return notifications.length;
 }
@@ -376,6 +454,8 @@ export async function checkOverdueTasks() {
   const notifications: Parameters<typeof enqueueNotifications>[0] = [];
   const taskUrl = `${env.FRONTEND_URL}/app/tasks`;
 
+  const newlyOverdue: Array<{ taskId: string; title: string; projectId: string; assigneeId: string | null; daysOverdue: number; dueDate: Date }> = [];
+
   for (const task of tasks) {
     if (sentTaskIds.has(task.id)) continue;
     const dueDate = new Date(task.dueDate!);
@@ -396,9 +476,25 @@ export async function checkOverdueTasks() {
         link: taskUrl,
       });
     }
+    newlyOverdue.push({ taskId: task.id, title: task.title, projectId: task.projectId, assigneeId: task.assigneeId, daysOverdue, dueDate });
   }
 
   if (notifications.length > 0) await enqueueNotifications(notifications);
+
+  if (newlyOverdue.length > 0) {
+    void notifyN8n("task.overdue", {
+      tasks: newlyOverdue.map((t) => ({
+        taskId: t.taskId,
+        title: t.title,
+        projectId: t.projectId,
+        assigneeId: t.assigneeId,
+        daysOverdue: t.daysOverdue,
+        dueDate: t.dueDate,
+        adminUrl: taskUrl,
+      })),
+    });
+  }
+
   recordBullMQJob("maintenance", "check-overdue-tasks", "completed", (performance.now() - start) / 1000);
   return notifications.length;
 }
@@ -447,6 +543,15 @@ export async function checkMeetingReminders() {
     }
 
     await projectMeetingRepository.advanceToNextOccurrence(project.id, project.nextMeetingDate!);
+
+    void notifyN8n("meeting.reminder_due", {
+      projectId: project.id,
+      projectName: project.name,
+      clientName: (project as any).client?.name,
+      nextMeetingDate: project.nextMeetingDate,
+      adminUrl: link,
+      agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+    });
   }
 
   if (notifications.length > 0) await enqueueNotifications(notifications);
@@ -481,12 +586,13 @@ export async function checkStaleLeads() {
   for (const lead of staleLeads) {
     const daysSince = diffDays(lead.updatedAt, now);
     const leadUrl = `${env.FRONTEND_URL}/app/leads`;
-    const statusLabel = {
+    const statusLabels = {
       NEW: "nouveau",
       CONTACTED: "contacté",
       QUALIFIED: "qualifié",
       PROPOSAL: "proposition envoyée",
-    }[lead.status as keyof typeof lead.status];
+    } as const;
+    const statusLabel = statusLabels[lead.status as keyof typeof statusLabels];
 
     for (const admin of admins) {
       notifications.push({
@@ -501,6 +607,17 @@ export async function checkStaleLeads() {
   }
 
   await enqueueNotifications(notifications);
+
+  void notifyN8n("lead.stale", {
+    agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+    leads: staleLeads.map((lead) => ({
+      leadId: lead.id,
+      name: lead.name,
+      daysSinceLastActivity: diffDays(lead.updatedAt, now),
+      adminUrl: `${env.FRONTEND_URL}/app/leads`,
+    })),
+  });
+
   recordBullMQJob("maintenance", "check-stale-leads", "completed", (performance.now() - start) / 1000);
   return staleLeads.length;
 }
@@ -551,6 +668,122 @@ export async function checkPendingCommissions() {
   }
 
   await enqueueNotifications(notifications);
+
+  void notifyN8n("commission.pending_approval", {
+    agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+    commissions: pendingCommissions.map((c) => ({
+      commissionId: c.id,
+      freelancerId: c.partnerId,
+      amount: Number(c.amount),
+      daysPending: diffDays(new Date((c as any).createdAt), now),
+      adminUrl: commissionUrl,
+    })),
+  });
+
   recordBullMQJob("maintenance", "check-pending-commissions", "completed", (performance.now() - start) / 1000);
   return pendingCommissions.length;
+}
+
+// ── check-custom-question-sla ────────────────────────────────────────────────
+// Daily — OPEN custom questions whose latest message is from the asker (not yet answered
+// by staff) and older than CUSTOM_QUESTION_SLA_HOURS. This is an escalation signal for
+// notifyN8n, not a replacement for the in-app "Nouvelle question" notification already
+// created in customQuestion.service.ts createQuestion.
+export async function checkCustomQuestionSla() {
+  const start = performance.now();
+  const cutoff = new Date(Date.now() - env.CUSTOM_QUESTION_SLA_HOURS * 3_600_000);
+
+  const openQuestions = await prismaRead.customQuestion.findMany({
+    where: { status: "OPEN", createdAt: { lt: cutoff } },
+    select: {
+      id: true,
+      subject: true,
+      createdAt: true,
+      user: { select: { name: true, email: true } },
+      messages: { orderBy: { createdAt: "desc" }, take: 1, select: { authorRole: true } },
+    },
+  });
+
+  const breaching = openQuestions.filter((q) => {
+    const lastAuthorRole = q.messages[0]?.authorRole;
+    return lastAuthorRole !== "ADMIN" && lastAuthorRole !== "MANAGER";
+  });
+
+  if (breaching.length > 0) {
+    void notifyN8n("customQuestion.sla_breach", {
+      agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+      questions: breaching.map((q) => ({
+        questionId: q.id,
+        subject: q.subject,
+        clientName: q.user?.name,
+        hoursSinceAsked: Math.round((Date.now() - q.createdAt.getTime()) / 3_600_000),
+        adminUrl: `${env.FRONTEND_URL}/app/questions/${q.id}`,
+      })),
+    });
+  }
+
+  recordBullMQJob("maintenance", "check-custom-question-sla", "completed", (performance.now() - start) / 1000);
+  return breaching.length;
+}
+
+// ── check-approval-sla ───────────────────────────────────────────────────────
+// Daily — Approval records still PENDING past APPROVAL_SLA_DAYS since creation. Escalation
+// signal for notifyN8n; the in-app "nouvelle demande" flow (if any) is untouched.
+export async function checkApprovalSla() {
+  const start = performance.now();
+  const cutoff = new Date(Date.now() - env.APPROVAL_SLA_DAYS * 86_400_000);
+
+  const pendingApprovals = await prismaRead.approval.findMany({
+    where: { status: "PENDING", createdAt: { lt: cutoff } },
+    select: { id: true, title: true, createdAt: true, client: { select: { name: true } } },
+  });
+
+  if (pendingApprovals.length > 0) {
+    void notifyN8n("approval.sla_breach", {
+      agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+      approvals: pendingApprovals.map((a) => ({
+        approvalId: a.id,
+        title: a.title,
+        clientName: a.client?.name,
+        daysSinceRequested: diffDays(a.createdAt, new Date()),
+        adminUrl: `${env.FRONTEND_URL}/app/approvals/${a.id}`,
+      })),
+    });
+  }
+
+  recordBullMQJob("maintenance", "check-approval-sla", "completed", (performance.now() - start) / 1000);
+  return pendingApprovals.length;
+}
+
+// ── weekly-health-board-digest ───────────────────────────────────────────────
+// Every Monday — reuses the same red/orange/green scoring already shown live on the admin
+// Health Board screen (healthBoardService.getHealthBoard), so the n8n digest never drifts
+// from what a manager sees when opening the dashboard.
+export async function weeklyHealthBoardDigest() {
+  const start = performance.now();
+
+  const items = await healthBoardService.getHealthBoard();
+  const atRisk = items.filter((p) => p.healthScore !== "green");
+
+  if (items.length > 0) {
+    void notifyN8n("healthBoard.weekly_digest", {
+      agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+      totalProjects: items.length,
+      atRiskCount: atRisk.length,
+      projects: items.map((p) => ({
+        projectId: p.id,
+        name: p.name,
+        clientName: p.clientName,
+        healthScore: p.healthScore,
+        progress: p.progress,
+        isOverdue: p.isOverdue,
+        isStale: p.isStale,
+        adminUrl: `${env.FRONTEND_URL}/app/projects/${p.id}`,
+      })),
+      dashboardUrl: `${env.FRONTEND_URL}/app/health-board`,
+    });
+  }
+
+  recordBullMQJob("maintenance", "weekly-health-board-digest", "completed", (performance.now() - start) / 1000);
+  return items.length;
 }

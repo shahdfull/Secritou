@@ -1,0 +1,456 @@
+# Registre des anomalies — Secritou
+#
+# Schéma par anomalie :
+#   id: SEC-001              # jamais réutilisé, jamais renuméroté
+#   titre:                   # court, stable, ne se reformule pas — on cite l'ID, pas le titre
+#   perimetre:               # module (REFERENTIEL.md §4) ou section du référentiel concerné
+#   regle_violee:            # RG-xxx (REFERENTIEL.md §5) ou null si aucune règle formelle n'existe encore
+#   classe:                  # optionnel, texte stable — regroupe les IDs de même famille de défaut
+#                             # sans les fusionner. Un ID = un critère de résolution ; même classe +
+#                             # même critère → même ID ; critère ou gravité différents → ID distinct
+#                             # relié par la même classe.
+#   gravite: bloquant | majeur | mineur
+#   statut: ouvert | confirme | en_cours | resolu | rejete
+#   critere_de_resolution:   # test factuel : « c'est résolu quand… »
+#   detecte_le:              # date ISO
+#   source: audit_llm | script | manuel
+#   confiance: certain | a_confirmer
+#     # certain      = code lu directement dans la session en cours (ou une session
+#     #                antérieure explicitement citée), méthode = lecture directe.
+#     # a_confirmer  = repris d'un audit antérieur ou d'un document, non revérifié sur
+#     #                le code. Le critère est la MÉTHODE (lu vs repris), jamais le nombre
+#     #                de fois où le constat a été vu.
+#   note:                    # optionnel, texte libre — contexte, nuances de méthode, limites
+#                            # de la vérification. Ne remplace jamais critere_de_resolution.
+#
+# Procédure : voir CLAUDE.md § « Procédure d'audit obligatoire ».
+# Ne jamais reformuler un titre existant pour créer un doublon — citer l'ID.
+# REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
+# fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
+
+dernier_id: SEC-011
+
+anomalies:
+  - id: SEC-001
+    titre: "Vocabulaire des pôles incohérent entre base, code et documentation"
+    perimetre: "4.3 Onboarding client (origine), systémique — voir note"
+    regle_violee: null
+    classe: "vocabulaire_pole_incoherent"
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand un seul vocabulaire de pôle est utilisé partout dans
+      le dépôt (base de données, constants serveur, documentation projet,
+      code client) : les 4 noms canoniques FR ("Management & Performance",
+      "Croissance digitale", "Technologie", "IA & Automatisation") — et qu'un
+      projet de chaque pôle reçoit bien son questionnaire de brief dédié
+      (vérifié par un test couvrant les 4 cas, pas seulement le cas par
+      défaut).
+    detecte_le: "2026-07-15"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Défaut systémique, pas local à un fichier — trois vocabulaires distincts
+      coexistent pour la même notion :
+      (1) server/src/constants/briefQuestions.ts est encore keyé sur les
+      anciens noms anglais ("Technology Solutions", "Digital Growth",
+      "AI & Automation", "Business Performance"), alors que la migration
+      20260711210000_fix_service_name_locale_drift a renommé les lignes
+      Service en français. getBriefQuestions(project.service?.name) ne
+      matche donc plus jamais aucun pôle et retombe silencieusement sur le
+      jeu de questions "Technology Solutions" pour tous les projets (warning
+      loggé, pas d'alerte visible) — le pôle "Technologie" est correct par
+      coïncidence, les 3 autres reçoivent un questionnaire non pertinent.
+      (2) README.md:22 utilise un troisième vocabulaire encore différent,
+      confirmé par lecture directe session du 2026-07-16 : "Client brief
+      questionnaire (WEB / MARKETING / AI question sets)".
+      (3) Recherche d'un 4e vocabulaire (client/, e2e/, seed.ts, SiteContent) :
+      seed.ts utilise bien les 4 noms canoniques FR (vérifié session du
+      2026-07-15) ; SiteContent (valeurs seed) également ; aucune autre
+      variante trouvée dans client/ au-delà de ce qui est déjà listé ici ;
+      e2e/ confirmé absent du dépôt (recherche directe, session du
+      2026-07-16, aucun répertoire de ce nom à la racine ni en profondeur 2)
+      — ce n'est pas un périmètre non exploré, c'est une absence vérifiée.
+
+  - id: SEC-002
+    titre: "Activation du portail client non alignée sur le paiement de la 1re tranche"
+    perimetre: "4.6 Portail client"
+    regle_violee: "RG-018"
+    classe: null
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand l'invitation du compte client / l'activation du
+      portail (portalActivatedAt) est déclenchée uniquement par le passage
+      de la facture d'acompte à PAID (addPayment), et non plus à
+      l'acceptation de la proposition — OU quand une décision produit
+      explicite documente que le comportement actuel (activation à
+      l'acceptation) est le comportement voulu, auquel cas RG-018 doit être
+      mise à jour dans REFERENTIEL.md en conséquence (et cette entrée passée
+      à statut: rejete avec la référence à cette décision).
+    detecte_le: "2026-07-15"
+    source: audit_llm
+    confiance: a_confirmer
+    note: >
+      Le cahier des charges du site (Secritou_CahierDesCharges_Site.docx,
+      document historique — voir REFERENTIEL.md §0) prévoit explicitement :
+      "paiement de la 1re tranche = ouverture de l'espace client". Le
+      comportement observé de acceptWithCascade (proposal.service.ts,
+      session du 2026-07-15 : invitation du client envoyée immédiatement à
+      l'acceptation de la proposition, avant tout paiement) provient d'une
+      lecture directe de ce fichier cette session-là — mais le rapprochement
+      avec la règle du CDC lui-même a été fait via un audit antérieur
+      (round5-report.md, document historique), non revérifié ligne à ligne
+      contre le CDC directement. confiance: a_confirmer reflète cette partie
+      non revérifiée du rapprochement, pas le comportement du code lui-même.
+
+  - id: SEC-003
+    titre: "Documentation historique du fournisseur IA incohérente avec l'implémentation réelle"
+    perimetre: "4.11 Module IA (agent-service)"
+    regle_violee: "RG-015"
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand tout document de référence du projet (CLAUDE.md en
+      tête) décrit le module agent-service comme appelant Ollama/Mistral, et
+      non Anthropic/OpenRouter, sauf décision explicite de migrer
+      effectivement vers ce fournisseur.
+    detecte_le: "2026-07-15"
+    source: audit_llm
+    confiance: certain
+    note: >
+      L'ancien CLAUDE.md (avant remplacement du 2026-07-15) décrivait
+      l'objectif comme "personas IA via l'API Anthropic/OpenRouter", alors
+      que server/src/services/llm.client.ts et server/src/config/env.ts
+      montrent un appel exclusif à Ollama (modèle Mistral, auto-hébergé) —
+      aucune trace d'intégration Anthropic ou OpenRouter dans server/src.
+      Le nouveau CLAUDE.md généré le 2026-07-15 reflète déjà l'état réel
+      (Ollama) ; entrée conservée pour traçabilité en cas de réapparition de
+      la mention Anthropic/OpenRouter dans un autre document du projet.
+
+  - id: SEC-004
+    titre: "README.md décrit une architecture multi-tenant inexistante"
+    perimetre: "documentation projet — voir REFERENTIEL.md §0 « Documents du projet »"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand README.md ne contient plus aucune affirmation
+      multi-tenant ni référence à un middleware tenant, et que sa
+      présentation du projet est cohérente avec le caractère mono-tenant
+      énoncé en REFERENTIEL.md §1/§7.
+    detecte_le: "2026-07-16"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Faits vérifiés directement, session du 2026-07-16 : README.md:3
+      affirme "a full-stack SaaS platform for agencies and SMEs [...] all in
+      one multi-tenant workspace" ; README.md:102 cite un middleware `tenant`
+      dans la liste des middlewares du projet — ce fichier n'existe pas
+      (server/src/middlewares/ listé : auth, cache, error, logging,
+      metricsAuth, mustChangePassword, rateLimit, rbac, upload, validate,
+      verifyN8nWebhook — aucun tenant.middleware.ts). Company est un
+      singleton strict (`singleton Boolean @default(true)` +
+      `@@unique([singleton])`, schema.prisma) ; recherche exhaustive dans
+      schema.prisma : aucun champ companyId ni tenantId sur aucun modèle.
+      Arbitrage rendu : la cible est un outil interne MONO-TENANT (réponse du
+      porteur du projet, session du 2026-07-16, Q2) — voir REFERENTIEL.md §6,
+      "Architecture multi-tenant : REJETÉ".
+
+  - id: SEC-005
+    titre: "Type frontend désynchronisé du schéma Prisma — champ mort (Lead.companyId)"
+    perimetre: "4.1 CRM & Pipeline commercial"
+    regle_violee: null
+    classe: "type_frontend_desynchronise_du_schema_prisma"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand le champ companyId est supprimé du type Lead dans
+      client/src/api/contactRequests.api.ts, OU qu'une recherche exhaustive
+      (client/, shared/, e2e/) confirme qu'aucun autre type frontend ne
+      déclare de champ absent du modèle Prisma correspondant.
+    detecte_le: "2026-07-16"
+    source: audit_llm
+    confiance: certain
+    note: >
+      client/src/api/contactRequests.api.ts:11 déclare companyId: string sur
+      un type Lead ; le modèle Prisma Lead (schema.prisma) ne porte que
+      serviceId, pas de companyId. Champ mort : aucune trace d'un appelant
+      qui le peuplerait ou le lirait réellement, aucune contrepartie côté
+      serveur. Recherche des autres occurrences de cette classe de défaut
+      effectuée par un agent délégué sur les 42 fichiers de client/src/api/,
+      12 fichiers de client/src/types/, et 10 fichiers de shared/src/schemas/
+      — un second cas trouvé, voir SEC-006 (même classe, critère de
+      résolution et gravité différents → ID distinct). Non couvert par cette
+      recherche : types inline dans client/src/features/**/*.tsx et
+      client/src/hooks/*.ts — voir EXPLORATION.md.
+
+  - id: SEC-006
+    titre: "Champ phone accepté et transmis jusqu'à prisma.user.update() sans exister sur le modèle User"
+    perimetre: "4.10 RBAC & Permissions granulaires (compte utilisateur) — [À CONFIRMER — non trié], voir REFERENTIEL.md §4"
+    regle_violee: null
+    classe: "type_frontend_desynchronise_du_schema_prisma"
+    gravite: "[À CONFIRMER] — voir note : le rapport de lecture de code a été produit sans jamais être soumis à validation ; la gravité bloquant proposée n'a pas été confirmée par le porteur du projet, contrairement à ce qu'une version antérieure de cette entrée affirmait à tort"
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand un appel réel à PATCH /users/me avec un champ phone
+      non vide ne provoque plus d'erreur (soit par ajout du champ phone au
+      modèle Prisma User avec migration associée, soit par suppression du
+      champ phone de UpdateMeInput/updateMeSchema/le chemin service-repository
+      correspondant), ET qu'un test couvre ce endpoint (server/test, aucun
+      fichier ne correspond à *user* actuellement).
+    detecte_le: "2026-07-16"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Chemin lu intégralement ligne par ligne, session du 2026-07-16 (pas par
+      grep) : client/src/api/users.api.ts:21-25,33-36 (UpdateMeInput déclare
+      phone?: string | null, transmis tel quel dans PATCH /users/me) →
+      server/src/routes/user.routes.ts:106 (validate(updateMeSchema)) →
+      server/src/validators/user.validator.ts:5-9 (phone accepté par Zod,
+      rien filtré) → server/src/controllers/user.controller.ts:18-26
+      (destructure phone, le passe à userService.updateMe) →
+      server/src/services/user.service.ts:69-78 (seul email est retiré,
+      phone reste dans "rest", transmis à userRepository.updateMe) →
+      server/src/repositories/user.repository.ts:117-126 (data, contenant
+      potentiellement phone, transmis directement à
+      prisma.user.update({ where, data, select })). Le modèle Prisma User ne
+      porte aucun champ phone (schema.prisma, lecture intégrale antérieure).
+      Verdict sur le comportement de Prisma au runtime (rejet de la requête
+      via PrismaClientValidationError avant tout envoi à la base) : fondé sur
+      la lecture complète du chemin de code et la connaissance du
+      comportement standard du client Prisma généré (typage strict de
+      `data`) — PAS sur une exécution observée du endpoint, ni sur les
+      résultats de `npm run typecheck`/`npm run lint`/`npm run test`
+      (commandes non exécutées au moment de la rédaction de cette note).
+      find server/test -iname "*user*" → zéro fichier, aucun test ne couvre
+      updateMe ni aucun autre endpoint user. CORRECTION (session du
+      2026-07-16, v0.2.2) : une version antérieure de cette note affirmait
+      « le porteur du projet a validé la gravité bloquant sur cette base » —
+      c'est faux, cette validation n'a jamais été demandée ni obtenue ; la
+      gravité reste `[À CONFIRMER]` en attendant l'exécution réelle des
+      commandes de vérification (typecheck/lint/test) et leur soumission au
+      porteur du projet. MISE À JOUR (session du 2026-07-16, poursuite) :
+      `npm run typecheck --workspace server` exécuté réellement — voir
+      SEC-007. Aucune erreur relative à `phone`/`updateMe` n'a été identifiée
+      dans la sortie capturée (voir SEC-007 pour la méthode et sa limite :
+      sortie tronquée par le terminal lors de la première tentative, non
+      encore repassée proprement au moment de la rédaction de cette mise à
+      jour). Gravité toujours `[À CONFIRMER]`.
+
+  - id: SEC-007
+    titre: "Le serveur ne compile pas (tsc --noEmit échoue)"
+    perimetre: "transverse — toutes les entités/modules dont le statut IMPLÉMENTÉ s'appuie sur du code server/src"
+    regle_violee: null
+    classe: "typecheck_serveur_en_echec"
+    gravite: bloquant
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `npm run typecheck --workspace server` sort en 0
+      (exit code 0, aucune ligne "error TS").
+    detecte_le: "2026-07-16"
+    source: script
+    confiance: certain
+    note: >
+      Exécuté directement, session du 2026-07-16 : `npm run typecheck
+      --workspace server` échoue avec exit code 2. Sortie complète non encore
+      capturée proprement (première tentative tronquée à 11287 caractères par
+      le terminal ; statistiques précises par code TS et par fichier
+      demandées mais pas encore produites au moment de la création de cette
+      entrée — à compléter dans une note de suivi une fois
+      `npm run typecheck --workspace server > fichier.log 2>&1` exécuté et lu
+      en entier). Erreurs déjà identifiées avec certitude dans la portion
+      capturée : server/src/services/user.service.ts:160 (`revokeSessions`
+      n'existe pas sur le repository — voir SEC-009, même classe, critère de
+      résolution distinct) ; server/src/services/invoice.service.ts:261,271
+      (`commissions` typé implicitement `any[]`) ; server/src/services/
+      approval.service.ts (15 occurrences de `'approval' is possibly
+      'null'`) ; server/src/jobs/processors/ceoAlerts.processor.ts:589
+      (indexation dynamique mal typée provoquant une explosion d'erreurs en
+      cascade) ; server/src/controllers/summary.controller.ts et
+      server/src/repositories/summary.repository.ts (erreurs de type sur des
+      valeurs potentiellement undefined/objets vides). `npm run typecheck
+      --workspace client` passe sans erreur (vérifié la même session) — le
+      défaut est localisé au workspace server. `.github/workflows/ci.yml`
+      (existe, lu en entier session du 2026-07-16) lance
+      `npm run typecheck --workspace=server` à l'étape `server` du job CI —
+      si ce workflow tourne réellement sur les push/PR récents, cette
+      anomalie aurait dû être visible en CI ; je n'ai pas accès à
+      l'historique des exécutions GitHub Actions pour confirmer si la CI
+      échoue effectivement ou si elle n'a simplement pas tourné récemment —
+      `[À CONFIRMER]` sur ce point précis.
+
+  - id: SEC-008
+    titre: "La suite de tests serveur ne va pas à son terme (blocage après auth.service.test.ts)"
+    perimetre: "transverse — 33 fichiers de test agrégés par server/test/run-all.test.ts"
+    regle_violee: null
+    classe: null
+    gravite: bloquant
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `npm run test:unit --workspace server` (ou
+      `test:coverage`) se termine normalement, affiche le résumé final
+      node --test (tests/pass/fail/duration) et un exit code déterministe —
+      exécuté deux fois de suite pour confirmer que ce n'est pas
+      intermittent.
+    detecte_le: "2026-07-16"
+    source: script
+    confiance: certain
+    note: >
+      Un défaut distinct bloquait initialement TOUTE la suite avant même son
+      démarrage : server/test/ai.endpoint.test.ts:1 contenait un caractère
+      invalide (octets 0x23 0x0d 0x0a — un "#" orphelin suivi d'un retour
+      chariot), qui faisait échouer la transpilation esbuild de
+      run-all.test.ts entier. Corrigé session du 2026-07-16 (suppression de
+      la ligne 1 uniquement, aucun autre changement, lecture des octets
+      bruts avant/après pour confirmer). Une fois ce défaut corrigé, la
+      suite démarre et exécute réellement de nombreux tests avec succès
+      (auth, RBAC, IDOR, scope par pôle, commission scope, honeypot, etc. —
+      tous verts, observés directement dans /tmp/tests.log et
+      /tmp/tests2.log, deux exécutions séparées). MAIS la suite ne termine
+      jamais : les deux exécutions s'arrêtent au même point exact (334
+      lignes de log, dernier test affiché :
+      "requestPasswordReset() with unknown email does not throw"), sans
+      jamais produire le résumé final node --test ni le marqueur de fin de
+      commande placé après. Hypothèse (non confirmée par investigation plus
+      poussée) : server/src/services/auth.service.ts importe
+      server/src/config/prisma.ts (instancie un vrai PrismaClient au
+      chargement du module, ligne `new PrismaClient(...)` dans
+      server/src/config/db.ts) et server/src/jobs/queues.ts (instancie
+      plusieurs `new Queue(...)` BullMQ, qui ouvrent une connexion Redis
+      active dès l'instanciation) — même si les tests eux-mêmes utilisent un
+      faux `db` injecté (`AuthService(db as any)`), ces imports au niveau
+      module s'exécutent réellement et laissent des handles ouverts qui
+      empêchent le process Node de se terminer, ce qui expliquerait
+      l'absence de résumé final sans nécessairement indiquer qu'un test
+      précis est bloqué. Redis est confirmé accessible localement (port 6379
+      répond, vérifié via Test-NetConnection) — donc ce n'est pas une
+      attente de connexion en échec. `.github/workflows/ci.yml` lance
+      `npm run test:coverage --workspace=server`, qui agrège le même
+      run-all.test.ts — si la CI tourne réellement, elle devrait rencontrer
+      le même blocage (ou un timeout GitHub Actions la ferait échouer
+      différemment) ; accès à l'historique des exécutions CI non disponible
+      pour confirmer, `[À CONFIRMER]`.
+
+  - id: SEC-009
+    titre: "userRepository.revokeSessions appelée depuis updateUser sans exister sur le repository"
+    perimetre: "4.14 Authentification & Compte utilisateur (module à créer, voir REFERENTIEL.md v0.2.2)"
+    regle_violee: null
+    classe: "typecheck_serveur_en_echec"
+    gravite: bloquant
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `userRepository.revokeSessions(id)` référence une
+      méthode qui existe réellement et révoque bien toutes les sessions
+      actives (tous les refresh tokens, toutes familles confondues) de
+      l'utilisateur ciblé, ET qu'un test couvre le scénario "changement de
+      rôle d'un utilisateur ayant une session active → son ancien token
+      d'accès ne doit plus permettre d'agir avec l'ancien rôle après appel à
+      updateUser".
+    detecte_le: "2026-07-16"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Chemin lu directement, session du 2026-07-16 :
+      server/src/services/user.service.ts:149-168 (`updateUser`) — quand un
+      Admin change le rôle d'un utilisateur (`role && role !== user.role`),
+      le code appelle `userRepository.revokeSessions(id)` (ligne 160) avec
+      l'intention explicite, documentée en commentaire ligne 157-158, de
+      forcer une ré-authentification pour qu'un token déjà émis avec
+      l'ancien rôle ne reste pas valide. `userRepository` (server/src/
+      repositories/user.repository.ts, lu en entier) ne définit aucune
+      méthode `revokeSessions`. Le repository qui gère réellement la
+      révocation de refresh tokens est un fichier différent,
+      server/src/repositories/auth.repository.ts, qui expose
+      `revokeRefreshToken(id)` (par id de token) et
+      `revokeTokenFamily(familyId)` (par famille) — mais aucune méthode qui
+      révoque TOUTES les sessions d'un `userId` donné, toutes familles
+      confondues, n'existe nulle part dans le code lu. Le défaut n'est donc
+      pas seulement un nom de méthode manquant : la capacité elle-même
+      (révoquer toutes les sessions d'un utilisateur par son id) n'est
+      implémentée dans aucun repository. Au runtime, cet appel provoque un
+      TypeError (méthode non définie sur l'objet), qui remonterait comme une
+      erreur 500 sur l'endpoint `PATCH /users/:id` dès qu'un Admin change
+      effectivement le rôle d'un utilisateur — chemin de sécurité RBAC
+      directement affecté (un changement de rôle échouerait après avoir déjà
+      persisté la mise à jour du rôle en base, ligne 156, avant l'appel
+      cassé de la ligne 160 — donc le rôle change bien, mais l'ancien token
+      d'accès reste valide jusqu'à expiration naturelle, ce qui est
+      exactement le risque que le code voulait éviter). Je n'ai pas exécuté
+      ce chemin réellement (pas de test dédié trouvé) — verdict fondé sur la
+      lecture du code, cohérent avec l'erreur TypeScript observée dans
+      SEC-007.
+
+  - id: SEC-010
+    titre: "Aucun workflow CI ne peut être confirmé comme réellement exécuté récemment malgré son existence"
+    perimetre: "infrastructure — .github/workflows/ci.yml"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand l'historique des exécutions GitHub Actions du
+      dépôt confirme que le job "server" (lint, typecheck, test:coverage,
+      build) du workflow ci.yml tourne à chaque push/PR sur main et échoue
+      effectivement quand SEC-007/SEC-008/SEC-009 sont reproduites — ce qui
+      validerait que la CI existante fonctionne comme filet de sécurité.
+      Si l'historique montre au contraire que la CI ne tourne pas ou passe
+      malgré ces défauts, le workflow lui-même est le sujet à corriger.
+    detecte_le: "2026-07-16"
+    source: manuel
+    confiance: certain
+    note: >
+      `.github/workflows/ci.yml` existe et a été lu en entier, session du
+      2026-07-16 — il n'est PAS absent, contrairement à une hypothèse
+      formulée avant vérification. Il est substantiel : jobs "client"
+      (lint/typecheck/test/build + scan de secrets dans le bundle) et
+      "server" (prisma validate/format-check/generate, détection de drift
+      de schéma, lint, typecheck, test:coverage avec seuils de couverture
+      85/80/85/85%, build, détection de dépendances circulaires via madge),
+      plus "restore-smoke-test" (restauration d'un dump PostgreSQL réel) et
+      "i18n-check". Il se déclenche sur push vers main et sur pull_request
+      (lignes 3-6). Étant donné que SEC-007 (typecheck serveur en échec) et
+      SEC-008 (suite de tests bloquée) sont tous deux reproduits directement
+      cette session avec les mêmes commandes que celles utilisées par ce
+      workflow (`typecheck --workspace=server`, `test:coverage
+      --workspace=server`), soit ce workflow échoue actuellement à chaque
+      exécution (et cet échec n'a pas été traité), soit il ne s'est pas
+      exécuté récemment sur les commits qui ont introduit ces défauts (par
+      exemple un push direct sans PR, ou une branche autre que main). Aucun
+      accès à l'historique des exécutions GitHub Actions depuis cet
+      environnement pour trancher entre ces deux hypothèses.
+
+  - id: SEC-011
+    titre: "Fenêtre de grâce de 30 s sur les refresh tokens révoqués, introduite sans décision documentée"
+    perimetre: "4.14 Authentification & Compte utilisateur — server/src/services/auth.service.ts"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand le porteur du projet a tranché : soit un revert (le
+      remplacement de la vérification `if (stored.revokedAt ||
+      stored.expiresAt < new Date())` par la fenêtre de 30 s n'est pas
+      conservé, et le test `refresh() with revoked token throws 401 and
+      revokes family` redevient vert sans modification), soit une RG
+      explicite dans REFERENTIEL.md énonçant que la fenêtre de grâce ne
+      s'applique qu'à la rotation concurrente bénigne — jamais à une
+      révocation par logout explicite ou par détection de rejeu — avec un
+      test qui distingue ces trois cas (la colonne `revokedAt` ne porte
+      aujourd'hui aucun code de raison permettant cette distinction).
+    detecte_le: "2026-07-16"
+    source: manuel
+    confiance: certain
+    note: >
+      Écrite par une session Claude Code antérieure (working tree non
+      commité, ~148 fichiers modifiés au moment de la découverte). Aucun
+      commit, aucune PR, aucune trace du raisonnement — l'intention de
+      l'auteur est définitivement perdue. Affaiblit l'invariant explicite du
+      test d'origine (« tout rejeu d'un token révoqué tue la famille »). Ne
+      distingue pas rotation concurrente / logout / détection de rejeu :
+      `revokedAt` est posé à l'identique par les trois chemins
+      (`revokeRefreshToken`, `revokeTokenFamily`, `revokeAllSessionsForUser`),
+      la colonne ne porte aucun code de raison. Décision du porteur : revert
+      (voir arbitrage du 2026-07-16, §2-3).

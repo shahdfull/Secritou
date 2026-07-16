@@ -3,8 +3,11 @@ import { motion } from "motion/react";
 import { Star, Quote, ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import useEmblaCarousel from "embla-carousel-react";
+import { useLandingCms } from "@/providers/LandingCmsProvider";
 
 type Testimonial = { quote: string; author: string; role: string };
+
+const DEFAULT_TESTIMONIALS: Testimonial[] = [{ quote: "", author: "", role: "" }];
 
 function initialsOf(name: string): string {
   return name
@@ -16,23 +19,11 @@ function initialsOf(name: string): string {
 }
 
 export function SocialProof() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
+  const { cms, cmsJson } = useLandingCms();
 
-  const lang = (i18n.resolvedLanguage ?? i18n.language ?? "fr").split("-")[0];
-  const rawTestimonials = i18n.getResource(
-    lang,
-    "translation",
-    "home.socialProof.testimonials"
-  ) as Testimonial[] | undefined;
-  const testimonials: Testimonial[] = Array.isArray(rawTestimonials)
-    ? rawTestimonials
-    : [
-        {
-          quote: t("home.socialProof.testimonial"),
-          author: t("home.socialProof.testimonialAuthor"),
-          role: t("home.socialProof.testimonialRole"),
-        },
-      ];
+  const trustedBy = cms("socialProof.trustedBy", t("home.socialProof.trustedBy"));
+  const testimonials = cmsJson("socialProof.testimonials", DEFAULT_TESTIMONIALS);
 
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: true,
@@ -78,7 +69,7 @@ export function SocialProof() {
         {/* Trusted by */}
         <div className="text-center">
           <h2 className="font-display text-2xl font-bold uppercase tracking-wider text-ink sm:text-3xl">
-            {t("home.socialProof.trustedBy")}
+            {trustedBy}
           </h2>
         </div>
 
@@ -99,7 +90,7 @@ export function SocialProof() {
             ref={emblaRef}
             role="region"
             aria-roledescription={t("home.socialProof.carousel")}
-            aria-label={t("home.socialProof.trustedBy")}
+            aria-label={trustedBy}
           >
             <div className="flex -ml-4">
               {testimonials.map((item, i) => (

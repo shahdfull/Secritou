@@ -2,7 +2,6 @@ import { prisma, prismaRead } from "../config/prisma.js";
 import { HttpError } from "../utils/httpError.js";
 import type { FreelancerProfile, Skill, PortfolioItem } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
-import { buildTextSearchFilter } from "../utils/listQuery.js";
 
 type FreelancerRaw = FreelancerProfile & {
   user: { id: string; name: string; email: string };
@@ -32,9 +31,16 @@ function serialize(raw: FreelancerRaw): FreelancerWithRelations {
 export const freelancerRepository = {
   async findAll(options: ListQueryOptions & { serviceId?: string | null }): Promise<PaginatedResult<FreelancerWithRelations>> {
     const skip = (options.page - 1) * options.pageSize;
-    const searchFilter = buildTextSearchFilter(options.search, ["user.name", "bio"]);
-    const baseWhere = Object.keys(searchFilter).length
-      ? { OR: [{ user: { name: { contains: options.search, mode: "insensitive" as const } } }, { bio: { contains: options.search, mode: "insensitive" as const } }] }
+    // Matches what the search bar promises ("nom ou compétence") — name/bio alone left
+    // freelancers only findable by skill on other pages, invisible here.
+    const baseWhere = options.search
+      ? {
+          OR: [
+            { user: { name: { contains: options.search, mode: "insensitive" as const } } },
+            { bio: { contains: options.search, mode: "insensitive" as const } },
+            { skills: { some: { name: { contains: options.search, mode: "insensitive" as const } } } },
+          ],
+        }
       : {};
     const serviceWhere = options.serviceId !== undefined
       ? { user: { tasks: { some: { project: { serviceId: options.serviceId ?? "__none__" } } } } }

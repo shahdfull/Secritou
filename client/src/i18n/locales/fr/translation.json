@@ -126,7 +126,7 @@
     "sending": "Envoi en cours...",
     "successMessage": "Merci ! Nous vous recontacterons bientôt.",
     "replyTime": "Nous répondons généralement dans un délai d'un jour ouvrable.",
-    "emailInfo": "hello@secritou.com",
+    "emailInfo": "contact@secritou.tn",
     "bookCall": "Appel de découverte de 30 minutes, gratuit.",
     "bookCallTitle": "Prendre RDV",
     "whereWeWork": "Tunis · À distance partout en Tunisie.",
@@ -524,6 +524,8 @@
     "ongoingProjects": "Projets en cours",
     "completedTasks": "Tâches terminées",
     "fromLastMonth": "Par rapport au mois dernier",
+    "showDetail": "Voir le détail (graphiques, tendances, projets)",
+    "hideDetail": "Masquer le détail",
     "leadsSemester": "Leads ce semestre",
     "leadsByMonth": "Nouveaux leads par mois sur les 6 derniers mois",
     "leadsOverview": "Aperçu des leads",
@@ -563,7 +565,7 @@
     "leadsByStatusAllTime": "Répartition par statut — depuis le début",
     "allTime": "Depuis le début",
     "leadsLabel": "leads",
-    "tabHealthBoard": "Tableau de santé",
+    "tabHealthBoard": "Santé des projets",
     "tabExecutive": "Vue Dirigeant",
     "noOverdue": "Aucun retard",
     "welcomeName": "Bon retour, {{name}} — voici ce qui se passe aujourd'hui.",
@@ -784,6 +786,7 @@
     "questions": "Questions",
     "booking": "Réservations",
     "commissions": "Commissions",
+    "pages": "Pages",
     "groupManage": "Gérer",
     "groupAnalytics": "Analytiques",
     "groupOther": "Compte"
@@ -857,6 +860,7 @@
     "pdfLoadError": "Échec du chargement du PDF",
     "uploadFileFirst": "Veuillez d'abord uploader un fichier",
     "leadStatusUpdateError": "Échec de la mise à jour du statut du lead",
+    "leadInvalidTransition": "Impossible de déplacer un lead de {{from}} vers {{to}}.",
     "taskStatusUpdateError": "Échec de la mise à jour du statut de la tâche",
     "platformColorSaved": "Couleur de la plateforme enregistrée",
     "previousFileRemoveWarning": "Impossible de supprimer le fichier précédent du stockage",
@@ -921,7 +925,7 @@
     "successMessage": "Votre candidature a été envoyée avec succès !",
     "fileTooLarge": "Fichier trop volumineux. CV max 10 Mo, portfolio max 20 Mo.",
     "invalidFileType": "Type de fichier non accepté. Vérifiez le format demandé.",
-    "submitError": "L'envoi a échoué. Réessayez ou écrivez-nous à hello@secritou.com."
+    "submitError": "L'envoi a échoué. Réessayez ou écrivez-nous à contact@secritou.tn."
   },
   "applications": {
     "title": "Candidatures",
@@ -952,15 +956,16 @@
     },
     "rejectModal": {
       "title": "Refuser la candidature",
-      "description": "Veuillez indiquer le motif du refus (ceci créera un brouillon Gmail).",
+      "description": "Veuillez indiquer le motif du refus (un email sera envoyé au candidat).",
       "reason": "Motif du refus",
       "reasonPlaceholder": "Nous avons retenu un autre profil...",
+      "reasonMinLength": "Le motif doit contenir au moins 10 caractères.",
       "cancel": "Annuler",
       "confirm": "Refuser"
     },
     "acceptModal": {
       "title": "Accepter la candidature",
-      "description": "Créez un compte pour ce candidat (ceci créera un brouillon Gmail).",
+      "description": "Créez un compte pour ce candidat (un email lui sera envoyé avec ses identifiants).",
       "firstName": "Prénom",
       "lastName": "Nom",
       "email": "Email",
@@ -974,11 +979,16 @@
     },
     "rejected": "Candidature refusée avec succès",
     "accepted": "Candidature acceptée et compte créé avec succès",
+    "rejectError": "Le refus de la candidature a échoué. Veuillez réessayer.",
+    "acceptError": "L'acceptation de la candidature a échoué. Veuillez réessayer.",
     "newApplications": "Nouvelles candidatures ({{count}})",
     "cvPreview": "Aperçu du CV",
     "portfolioPreview": "Aperçu du portfolio",
     "download": "Télécharger",
-    "close": "Fermer"
+    "close": "Fermer",
+    "aiSummary": "Résumé IA",
+    "aiSummaryTitle": "Résumé du CV généré par IA",
+    "aiSummaryPending": "Résumé en cours de génération..."
   },
   "joinRequests": {
     "title": "Demandes d'adhésion",
@@ -1570,6 +1580,8 @@
       "yourComment": "Votre commentaire",
       "viewTimeline": "Voir le fil",
       "timelineTitle": "Historique",
+      "respondSuccess": "Votre réponse a bien été enregistrée.",
+      "respondError": "L'envoi de votre réponse a échoué. Veuillez réessayer.",
       "statuses": {
         "PENDING": "En attente",
         "APPROVED": "Approuvé",
@@ -1779,10 +1791,16 @@
     },
     "rejectModal": {
       "title": "Refuser la proposition",
-      "description": "Veuillez indiquer le motif du refus (ceci créera un brouillon Gmail).",
+      "description": "Veuillez indiquer le motif du refus.",
       "reasonPlaceholder": "Nous avons décidé de choisir un autre prestataire...",
       "cancel": "Annuler",
       "confirm": "Refuser"
+    },
+    "deleteModal": {
+      "title": "Supprimer la proposition",
+      "description": "Êtes-vous sûr de vouloir supprimer ce brouillon ? Cette action est irréversible.",
+      "cancel": "Annuler",
+      "confirm": "Supprimer"
     },
     "created": "Proposition créée avec succès",
     "updated": "Proposition mise à jour avec succès",
@@ -2107,7 +2125,14 @@
       "guide": "Guide",
       "report": "Rapport",
       "invoice": "Facture",
-      "other": "Autre"
+      "other": "Autre",
+      "welcome_letter": "Lettre de bienvenue",
+      "specs": "Cahier des charges",
+      "client_brief": "Brief client",
+      "quote": "Devis",
+      "invoice_deposit": "Facture d'acompte",
+      "invoice_balance": "Facture de solde",
+      "roadmap": "Feuille de route"
     },
     "created": "Document téléchargé avec succès",
     "updated": "Document mis à jour avec succès",
@@ -2134,6 +2159,10 @@
     "pipeline": "Pipeline propositions",
     "convRate": "Conv.",
     "confidence": "Indice de confiance",
+    "needsAttention": "Nécessite votre attention",
+    "needsAttentionSub_one": "{{count}} dossier à traiter",
+    "needsAttentionSub_other": "{{count}} dossiers à traiter",
+    "allClear": "Rien à signaler",
     "sectionClients": "Clients",
     "activeClients": "Clients actifs",
     "total": "Total",
@@ -2212,7 +2241,7 @@
     "companyEmail": "Email :",
     "companyPhone": "Téléphone :",
     "hostingSection": "Hébergement",
-    "hostingText": "Ce site est hébergé par un prestataire tiers. Les coordonnées de l'hébergeur sont disponibles sur demande à l'adresse hello@secritou.com.",
+    "hostingText": "Ce site est hébergé par un prestataire tiers. Les coordonnées de l'hébergeur sont disponibles sur demande à l'adresse contact@secritou.tn.",
     "ipSection": "Propriété intellectuelle",
     "ipText": "L'ensemble du contenu de ce site (textes, images, logos, graphismes) est la propriété exclusive de Secritou ou de ses partenaires. Toute reproduction, même partielle, est interdite sans autorisation préalable écrite.",
     "liabilitySection": "Responsabilité",

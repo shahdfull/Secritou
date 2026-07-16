@@ -25,14 +25,16 @@ import {
   updateDeliveryValidator,
 } from "../validators/clientOnboarding.validator.js";
 import { COMPANY_ID } from "../config/constants.js";
+import { buildServiceScope } from "../utils/serviceScope.js";
 
 export const getOnboardings: RequestHandler = async (req, res, next) => {
   try {
     const userClientId = req.user?.clientId;
+    const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
     const options = parseListQuery(req.query as Record<string, unknown>);
     const result = await clientOnboardingService.getAllOnboardings({
       ...options,
-    }, userClientId);
+    }, userClientId, scope?.userServiceId);
     res.json(result);
   } catch (error) {
     next(error);
@@ -44,9 +46,11 @@ export const getOnboardingById: RequestHandler[] = [
   async (req, res, next) => {
     try {
       const userClientId = req.user?.clientId;
+      const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
       const onboarding = await clientOnboardingService.getOnboardingById(
         req.params.id as string,
-        userClientId
+        userClientId,
+        scope?.userServiceId
       );
       res.json({ data: onboarding });
     } catch (error) {
@@ -60,9 +64,11 @@ export const getOnboardingByProjectId: RequestHandler[] = [
   async (req, res, next) => {
     try {
       const userClientId = req.user?.clientId;
+      const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
       const onboarding = await clientOnboardingService.getOnboardingByProjectId(
         req.params.projectId as string,
-        userClientId
+        userClientId,
+        scope?.userServiceId
       );
       res.json({ data: onboarding });
     } catch (error) {

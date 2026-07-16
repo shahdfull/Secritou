@@ -38,7 +38,7 @@ function setStructuredData() {
     logo: { "@type": "ImageObject", url: logoUrl },
     description:
       "Agence digitale tunisienne — stratégie, technologie, marketing et IA pour PME, startups et créateurs.",
-    email: "hello@secritou.com",
+    email: "contact@secritou.tn",
     telephone: "+21694243333",
     sameAs: [
       // à compléter : page LinkedIn de l'agence, Facebook, Instagram
@@ -53,7 +53,7 @@ function setStructuredData() {
     image: absoluteUrl("/secritou-og.png"),
     url: siteUrl,
     telephone: "+21694243333",
-    email: "hello@secritou.com",
+    email: "contact@secritou.tn",
     priceRange: "990 TND - sur devis",
     address: {
       "@type": "PostalAddress",
@@ -75,7 +75,7 @@ function setStructuredData() {
     contactPoint: {
       "@type": "ContactPoint",
       telephone: "+21694243333",
-      email: "hello@secritou.com",
+      email: "contact@secritou.tn",
       contactType: "customer service",
       availableLanguage: ["French", "Arabic", "English"],
     },

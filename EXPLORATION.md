@@ -1,0 +1,79 @@
+# EXPLORATION.md — Couverture de l'exploration Secritou
+
+Version associée : REFERENTIEL.md v0.2.1. Ce document répond à C1 : rendre la
+couverture de l'exploration vérifiable, module par module, au lieu d'un
+compte-rendu narratif invérifiable. Validé sans régénération le 2026-07-16 —
+seules les entrées marginales ci-dessous (AuditLog, `users.api.ts`) ont été
+ajoutées suite aux vérifications de la passe de correction v0.2.1.
+
+Convention de couverture :
+- **lu** — fichiers ouverts et lus directement (par moi ou un agent délégué
+  dont j'ai vérifié le rapport) au cours de cette session ou de la session
+  précédente (v0.1.0).
+- **partiel** — au moins un fichier du module lu, mais pas la majorité du
+  périmètre identifiable ; ou lu uniquement via grep ciblé, pas en lecture
+  intégrale.
+- **non exploré** — aucun fichier du module ouvert ; l'entrée §4.x du
+  référentiel repose uniquement sur le schéma Prisma et/ou des documents
+  d'audit antérieurs non revérifiés.
+
+---
+
+## Tableau de couverture par module
+
+| Module (§4.x) | Fichiers réellement lus | Fichiers identifiés mais NON lus | Couverture |
+|---|---|---|---|
+| 4.1 CRM & Pipeline commercial | `lead.service.ts` (grep serviceId), `proposal.service.ts` (intégral: lignes 1-80, 306-465 `acceptWithCascade`), `contactRequests.api.ts` (intégral, session courante) | `lead.repository.ts`, `lead.controller.ts`, `proposal.repository.ts`, `proposal.controller.ts`, `client/src/features/crm/**`, `client/src/features/leads/**`, `client/src/features/proposals/**` | partiel |
+| 4.2 Gestion de projet | `project.service.ts` (lignes 1-100 directes + grep `clientApprove`/BALANCE lignes 194-346) | `task.service.ts` (seulement grep AuditLog), `projectMeeting.service.ts`, `projectTemplate.service.ts`, `project.repository.ts`, `project.controller.ts`, `client/src/features/projects/**`, `client/src/features/tasks/**` | partiel |
+| 4.3 Onboarding client | Modèles Prisma des 7 sous-étapes (schema.prisma intégral), `clientOnboarding.schema.ts` côté shared (via agent, confirmé conforme au schéma Prisma) | `clientOnboarding.service.ts`, `clientOnboarding.controller.ts`, `clientOnboarding.repository.ts` (existence confirmée par grep uniquement, contenu non lu), `client/src/features/client-onboarding/**`, `client/src/features/admin-onboarding/**` | partiel |
+| 4.4 Facturation & Paiements | `invoice.service.ts` (grep ciblé `addPayment`, non lu intégralement), `utils/vat.ts` (intégral), migration numérotation facture (schema Prisma) | `invoice.repository.ts`, `invoice.controller.ts`, `creditNote.service.ts` (lu par un audit antérieur, non relu par moi), `client/src/features/invoices/**` | partiel |
+| 4.5 Rémunération des associés (Commissions) | `commission.service.ts` (intégral, 137 lignes), `commission.validator.ts` (grep ciblé), `analyticsCommissionScope.test.ts` (intégral, 141 lignes) | `commission.repository.ts`, `commission.controller.ts`, `client/src/features/commissions/**` | lu |
+| 4.6 Portail client | `clientPortal.controller.ts` (mentionné, non lu), `LandingCmsProvider.tsx` (intégral, non pertinent à ce module — voir 4.12) | `clientPortal.service.ts`, `client/src/features/client-portal/**` (dont `ApprovalsClientPage.tsx` visible en diff git, non lu) | non exploré |
+| 4.7 Freelances | `freelancer.service.ts` (mentionné dans un audit antérieur — fuite `hourlyRate` — non relu par moi), modèles Prisma (intégral) | `freelancer.repository.ts`, `freelancer.controller.ts`, `freelancerApplication.service.ts`, `rating.service.ts`, `client/src/features/freelancers/**`, `client/src/features/talent/**` | non exploré |
+| 4.8 Analytics & Performance | `gscConnection.service.ts`, `googleOAuth.service.ts`, `searchConsole.service.ts` (existence confirmée par grep listant 9 fichiers touchant GscConnection ; contenu non lu) | Tous les fichiers ci-dessus en lecture intégrale, `client/src/features/analytics/**`, `client/src/features/reports/**`, `executiveMetrics.service.ts`, `metricAnomaly.service.ts`, `revenueForecast.service.ts` | non exploré |
+| 4.9 Client Success | `docs/n8n-events.md` (intégral — source du seuil `CLIENT_SUCCESS_AT_RISK_THRESHOLD=50` et de la mention `recalculateClientScores`), modèles Prisma (intégral) | `clientSuccess.service.ts`, `clientSuccess.controller.ts`, `clientSuccess.repository.ts`, `client/src/features/client-success/**` | partiel |
+| 4.10 RBAC & Permissions | `README.md` (section décrivant `resolvePermissions`, cache Redis 5min) — non revérifié dans le code | `managerPermission.service.ts`, `server/src/middlewares/rbac.middleware.ts`, `client/src/features/settings/**` | non exploré |
+| 4.11 Module IA (agent-service) | `personas.ts` (intégral, 86 lignes), `agentOrchestrator.service.ts` (intégral, 152 lignes), `llm.client.ts` (intégral, 47 lignes), `ai.controller.ts` (intégral, 77 lignes), `ai.endpoint.test.ts` (intégral, 59 lignes), `server/src/config/env.ts` (grep ciblé Anthropic/OpenRouter/Ollama), `reference/ia-agent-dashboard/README.md` (intégral) | `aiConversation.service.ts`, `cvExtraction.service.ts`, `client/src/features/ai-assistant/**` | lu |
+| 4.12 Contenu du site public | `siteContent.routes.ts`/`.controller.ts`/`.service.ts` (existence + enregistrement des routes publiques confirmés, `server/src/routes/index.ts:218-219`), `LandingCmsProvider.tsx` (lignes 1-40, confirme la consommation réelle par le site public dans ce même dépôt), `client/src/api/siteContent.api.ts` (import confirmé, contenu non lu intégralement), `useSiteContent.ts` (import confirmé, non lu), `seed.ts` (grep ciblé, valeurs FR/EN des 4 pôles) | `siteContent.service.ts` (contenu), `useSiteContent.ts` (contenu), `client/scripts/prerender.mjs` (lu uniquement ligne 72, pas la logique de prerendering complète) | partiel — **suffisant pour confirmer que le site public de ce dépôt lit réellement `SiteContent` (pas de build séparé)** |
+| 4.13 Notifications & Automatisations | `docs/n8n-events.md` (intégral, 426 lignes — catalogue des ~25 événements sortants) | `notification.service.ts`, `email.service.ts`, `emailTemplates/**`, `jobs/**` (existence connue via `jobs/index.ts:57-65` cité par un audit antérieur, non relu) | partiel |
+
+### Modules transverses (non numérotés en §4, mais pertinents à l'audit)
+
+| Périmètre | Fichiers lus | Couverture |
+|---|---|---|
+| Rôles / RBAC de base (`enum Role`) | `schema.prisma` (intégral) | lu (schéma seul — middleware `rbac.middleware.ts` non lu) |
+| Scoping par pôle (`serviceId`) | `project.service.ts` (partiel), `lead.service.ts` (grep), `proposal.service.ts` (`assertProposalInScope`, intégral) | partiel |
+| AuditLog (entité 3.24) | Existence + appelants confirmés par grep cette session : `auditLog.service.ts`, appelé depuis `project.service.ts`, `task.service.ts`, `user.service.ts` | partiel — **contredit le `[À CONFIRMER]` de la v0.1.0 qui le disait potentiellement absent : le modèle est bien utilisé, au moins par ces 3 services. Contenu de `auditLog.service.ts` lui-même non lu.** |
+| Défaut de type frontend (SEC-005/SEC-006) | 42 fichiers `client/src/api/*.ts`, 12 fichiers `client/src/types/*.ts`, 10 fichiers `shared/src/schemas/*.ts` (via agent délégué, méthode : comparaison champ par champ contre `schema.prisma`) | lu (ce périmètre précis uniquement — pas une lecture générale de ces fichiers pour d'autres besoins) |
+| Chemin complet `updateMe`/`phone` (SEC-006) | `client/src/api/users.api.ts` (intégral), `server/src/routes/user.routes.ts` (grep ciblé ligne 106), `server/src/validators/user.validator.ts` (intégral), `server/src/controllers/user.controller.ts` (intégral), `server/src/services/user.service.ts` lignes 1-80 (intégral sur ce périmètre), `server/src/repositories/user.repository.ts` lignes 1-130 (intégral sur ce périmètre) — lecture directe ligne par ligne, session du 2026-07-16, pas un grep. `find server/test -iname "*user*"` → zéro fichier (confirmé par listing, pas seulement par recherche du mot `updateMe`). | lu (ce chemin précis uniquement) |
+
+---
+
+## Répertoires et fichiers ignorés, avec raison
+
+- `node_modules/`, `.git/` — hors périmètre, aucun contenu métier.
+- `server/prisma/migrations/` — seule la migration `20260711210000_fix_service_name_locale_drift` a été lue en entier (pertinente à la dérive de nommage des pôles) ; les ~26 autres dossiers de migration n'ont été ni listés individuellement ni ouverts — volume élevé, signal métier faible attendu (l'état final est déjà capturé par `schema.prisma`).
+- `audit/11-round4-security-integrity.md`, `12-round5-b2-security.md`, `14-round6-7-master-audit.md`, `15-round8-operational-audit.md` — non ouverts. Titres indiquant un périmètre sécurité/opérationnel, priorité donnée aux fichiers à forte densité de règles métier (`10-audit-metier.md`, `round5-report.md` section B1). **Ce choix n'a pas été revalidé dans la session courante — ces 4 fichiers peuvent contenir des règles métier non captées.**
+- `reference/ia-agent-dashboard/app.py` — non ouvert (seul le README a été lu), car explicitement hors périmètre du produit réel (matériau d'inspiration seulement, cf. CLAUDE.md).
+- La majorité de `client/src/features/**` — non ouverte fichier par fichier. Les modules 4.6, 4.7, 4.8, 4.10 en particulier reposent presque exclusivement sur le schéma Prisma et des audits antérieurs côté frontend, jamais revérifiés directement par une lecture de code cette session ou la précédente.
+- `client/scripts/prerender.mjs` — lu à la ligne 72 uniquement (contexte du grep sur "content"), pas la logique de prérendu SSG dans son ensemble.
+- `server/src/jobs/**` — non ouvert directement ; son existence et son rôle (tâches planifiées : expiration de propositions, recalcul de score Client Success, relances de facture) proviennent exclusivement de citations dans `docs/n8n-events.md` et d'audits antérieurs.
+
+---
+
+## Ce que je n'ai PAS pu déterminer
+
+- **Contenu réel de `clientOnboarding.service.ts`** : le parcours en 7 étapes est décrit dans README.md et un audit antérieur, jamais lu directement en code par moi. La logique exacte de transition entre étapes reste `[À CONFIRMER]`.
+- **Contenu réel de `managerPermission.service.ts` et `rbac.middleware.ts`** : l'algorithme de résolution des permissions (cache Redis 5 min, fusion profil + surcharges) provient du texte de README.md, jamais vérifié sur le code source du service lui-même.
+- **Contenu réel de `freelancer.repository.ts`** : la fuite de `hourlyRate` mentionnée dans `plan d'action.md` n'a pas été revérifiée comme corrigée ou non dans cette session.
+- **Restitution des métriques externes (GSC/GA4) côté portail client** : présence ou absence d'un composant équivalent à `SearchConsoleTab.tsx` sous `client/src/features/client-portal/` — jamais vérifiée directement, uniquement citée par un audit antérieur.
+- **Contenu de `auditLog.service.ts` lui-même** : je sais qu'il est appelé par 3 services (project, task, user), mais pas ce qu'il enregistre exactement, ni s'il couvre les actions sensibles listées comme manquantes par un audit antérieur (suppression client, changement de rôle, annulation de facture, commission payée, changement de permission manager).
+- **Contenu des 4 fichiers d'audit non ouverts** (`11`, `12`, `14`, `15`) — possibilité non nulle de règles métier ou d'anomalies non captées dans ce référentiel.
+- **Étendue exacte de l'usage du champ `phone` sur `User`** (voir ANOMALIES.yaml SEC-006, chemin `updateMe` lu intégralement ligne par ligne session du 2026-07-16) : je n'ai pas vérifié si d'autres endpoints/vues consomment ce champ au-delà de ce chemin précis. Le verdict sur le comportement runtime de Prisma reste une inférence technique à partir du code lu, pas une exécution observée, et sa gravité reste `[À CONFIRMER]` — une version antérieure de ce document affirmait à tort que le porteur du projet avait confirmé la gravité bloquant ; ce n'est jamais arrivé, corrigé session du 2026-07-16 (v0.2.2). Voir la note complète de SEC-006.
+- **Couverture exhaustive des types frontend hors `client/src/api/` et `client/src/types/`** : les types inline définis dans les composants (`client/src/features/**/*.tsx`) et dans les hooks (`client/src/hooks/*.ts`) n'ont pas été comparés au schéma Prisma — d'autres occurrences du défaut SEC-005 pourraient y exister.
+
+---
+
+## Constat méthodologique
+
+La v0.1.0 comptait 3 anomalies pour 24 entités et 13 modules — ce tableau montre pourquoi : seuls 4.5 (Commissions) et 4.11 (Module IA) ont une couverture **lu** complète ; la majorité des modules sont **partiel** ou **non exploré**. Les statuts affichés dans REFERENTIEL.md pour les modules non explorés directement restent donc dépendants de la fiabilité des audits antérieurs cités, pas d'une vérification indépendante par cette session.

@@ -16,7 +16,7 @@ import {
   deleteSuccessTimeline,
 } from "../controllers/clientSuccess.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
-import { authorize } from "../middlewares/rbac.middleware.js";
+import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import {
   updateScoreSchema,
@@ -38,17 +38,20 @@ router.use(authenticate);
 router.get(
   "/:clientId",
   authorize("ADMIN", "MANAGER"),
+  requirePermission("client-success", "read"),
   getClientSuccess
 );
 router.put(
   "/:clientId/score",
   authorize("ADMIN", "MANAGER"),
+  requirePermission("client-success", "update"),
   validate(updateScoreSchema),
   updateClientSuccessScore
 );
 router.post(
   "/:clientId/calculate-score",
   authorize("ADMIN", "MANAGER"),
+  requirePermission("client-success", "update"),
   calculateClientSuccessScore
 );
 
@@ -56,12 +59,14 @@ router.post(
 router.post(
   "/:clientId/objectives",
   authorize("ADMIN", "MANAGER"),
+  requirePermission("client-success", "create"),
   validate(addObjectiveSchema),
   addSuccessObjective
 );
 router.put(
   "/:clientId/objectives/:objectiveId",
   authorize("ADMIN", "MANAGER"),
+  requirePermission("client-success", "update"),
   validate(updateObjectiveSchema),
   updateSuccessObjective
 );
@@ -75,12 +80,14 @@ router.delete(
 router.post(
   "/:clientId/metrics",
   authorize("ADMIN", "MANAGER"),
+  requirePermission("client-success", "create"),
   validate(addMetricSchema),
   addSuccessMetric
 );
 router.put(
   "/:clientId/metrics/:metricId",
   authorize("ADMIN", "MANAGER"),
+  requirePermission("client-success", "update"),
   validate(updateMetricSchema),
   updateSuccessMetric
 );
@@ -94,12 +101,14 @@ router.delete(
 router.post(
   "/:clientId/recommendations",
   authorize("ADMIN", "MANAGER"),
+  requirePermission("client-success", "create"),
   validate(addRecommendationSchema),
   addSuccessRecommendation
 );
 router.put(
   "/:clientId/recommendations/:recommendationId",
   authorize("ADMIN", "MANAGER"),
+  requirePermission("client-success", "update"),
   validate(updateRecommendationSchema),
   updateSuccessRecommendation
 );
@@ -113,6 +122,7 @@ router.delete(
 router.post(
   "/:clientId/timeline",
   authorize("ADMIN", "MANAGER"),
+  requirePermission("client-success", "create"),
   validate(addTimelineSchema),
   addSuccessTimeline
 );

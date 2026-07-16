@@ -9,6 +9,8 @@ const userPublicFields = {
   name: true,
   role: true,
   clientId: true,
+  mustChangePassword: true,
+  lastLoginAt: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -127,6 +129,28 @@ export const userRepository = {
     return prisma.user.findFirst({
       where: { email, NOT: { id: excludeId } },
       select: { id: true },
+    });
+  },
+
+  async stageEmailChange(id: string, pendingEmail: string, tokenHash: string, expiry: Date): Promise<void> {
+    await prisma.user.update({
+      where: { id },
+      data: { pendingEmail, emailChangeTokenHash: tokenHash, emailChangeTokenExpiry: expiry },
+    });
+  },
+
+  async findByEmailChangeTokenHash(tokenHash: string): Promise<{ id: string; pendingEmail: string | null } | null> {
+    return prisma.user.findFirst({
+      where: { emailChangeTokenHash: tokenHash, emailChangeTokenExpiry: { gt: new Date() } },
+      select: { id: true, pendingEmail: true },
+    });
+  },
+
+  async confirmEmailChange(id: string, newEmail: string): Promise<PublicUser> {
+    return prisma.user.update({
+      where: { id },
+      data: { email: newEmail, pendingEmail: null, emailChangeTokenHash: null, emailChangeTokenExpiry: null },
+      select: userPublicFields,
     });
   },
 

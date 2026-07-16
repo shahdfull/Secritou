@@ -5,15 +5,46 @@ import { validate } from "../middlewares/validate.middleware.js";
 import {
   getMe,
   updateMe,
+  requestEmailChange,
+  confirmEmailChange,
   getUsers,
   inviteUser,
   updateUser,
   deleteUser,
   getPermissions,
+  heartbeat,
 } from "../controllers/user.controller.js";
-import { createUserSchema, updateUserSchema, updateMeSchema } from "../validators/user.validator.js";
+import { createUserSchema, updateUserSchema, updateMeSchema, requestEmailChangeSchema, confirmEmailChangeSchema } from "../validators/user.validator.js";
+import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 
 const router = Router();
+
+/**
+ * @swagger
+ * /users/me/email-change/confirm:
+ *   post:
+ *     summary: Confirm a pending email change via the token emailed to the new address
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [token]
+ *             properties:
+ *               token:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Email changed
+ *       400:
+ *         description: Invalid or expired token
+ */
+// Public (no `authenticate`), like /auth/reset-password: the token itself, sent only to the
+// new address, is the proof of authorization — requiring a live session here would break the
+// flow whenever the confirmation link is opened after the original session expired.
+router.post("/me/email-change/confirm", validate(confirmEmailChangeSchema), confirmEmailChange);
 
 router.use(authenticate);
 
@@ -73,6 +104,51 @@ router.get("/me", getMe);
  *         $ref: '#/components/responses/Unauthorized'
  */
 router.patch("/me", validate(updateMeSchema), updateMe);
+
+/**
+ * @swagger
+ * /users/me/email-change:
+ *   post:
+ *     summary: Request an email change — sends a confirmation link to the new address
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       202:
+ *         description: Confirmation email sent
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       409:
+ *         description: Email already in use
+ */
+router.post("/me/email-change", sensitiveWriteRateLimit, validate(requestEmailChangeSchema), requestEmailChange);
+
+/**
+ * @swagger
+ * /users/me/heartbeat:
+ *   post:
+ *     summary: Record a connected-time heartbeat for the current user
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       204:
+ *         description: Heartbeat recorded
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+router.post("/me/heartbeat", heartbeat);
 
 /**
  * @swagger

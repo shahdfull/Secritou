@@ -44,8 +44,11 @@ export interface FinanceKPIs {
   pendingAmount: number;  // SENT + PARTIAL not yet overdue
   pendingCount: number;
   // Growth
-  cashGrowthMoM: number;   // % vs previous month
-  cashGrowthYoY: number;   // % vs same month last year
+  cashGrowthMoM: number;      // % vs previous month
+  cashGrowthYoY: number;      // % vs same month last year
+  billedGrowthMoM: number;    // % vs previous month
+  overdueGrowthMoM: number;   // % vs end-of-last-month snapshot
+  pendingGrowthMoM: number;   // % vs end-of-last-month snapshot
   // Monthly series (last 12 months, for sparkline)
   cashByMonth: Array<{ month: string; cash: number; billed: number }>;
 }
@@ -158,10 +161,13 @@ export const executiveMetricsRepository = {
       cashPrevMtdRaw,
       cashSameMonthLastYearRaw,
       billedMTDRaw,
+      billedPrevMtdRaw,
       billedYTDRaw,
       billedTotalRaw,
       overdueRaw,
+      overduePrevSnapshotRaw,
       pendingRaw,
+      pendingPrevSnapshotRaw,
       cashByMonthRaw,
       billedByMonthRaw,
 
@@ -205,10 +211,18 @@ export const executiveMetricsRepository = {
       prisma.payment.aggregate({ where: { paidAt: { gte: prevMtdStart, lte: prevMtdEnd }, invoice: { currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope } }, _sum: { amount: true } }),
       prisma.payment.aggregate({ where: { paidAt: { gte: sameMthLastYear, lt: sameMthLastYearEnd }, invoice: { currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope } }, _sum: { amount: true } }),
       prisma.invoice.aggregate({ where: { status: { notIn: ["DRAFT", "CANCELLED"] }, createdAt: { gte: mtdStart }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true } }),
+      prisma.invoice.aggregate({ where: { status: { notIn: ["DRAFT", "CANCELLED"] }, createdAt: { gte: prevMtdStart, lte: prevMtdEnd }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true } }),
       prisma.invoice.aggregate({ where: { status: { notIn: ["DRAFT", "CANCELLED"] }, createdAt: { gte: ytdStart }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true } }),
       prisma.invoice.aggregate({ where: { status: { notIn: ["DRAFT", "CANCELLED"] }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true } }),
       prisma.invoice.aggregate({ where: { status: { in: ["SENT", "PARTIAL", "OVERDUE"] }, dueDate: { lt: now }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true }, _count: true }),
+      // Snapshot of what was overdue as of the end of last month — invoices whose
+      // due date had already passed by then, still unpaid at all (a rough but
+      // consistent point-in-time comparison; doesn't try to reconstruct exact
+      // historical payment state).
+      prisma.invoice.aggregate({ where: { status: { in: ["SENT", "PARTIAL", "OVERDUE"] }, dueDate: { lt: prevMtdEnd }, createdAt: { lte: prevMtdEnd }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true } }),
       prisma.invoice.aggregate({ where: { status: { in: ["SENT", "PARTIAL"] }, dueDate: { gte: now }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true }, _count: true }),
+      // Snapshot of what was pending (sent/partial, not yet due) as of end of last month.
+      prisma.invoice.aggregate({ where: { status: { in: ["SENT", "PARTIAL"] }, dueDate: { gte: prevMtdEnd }, createdAt: { lte: prevMtdEnd }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true } }),
       // Monthly cash + billed (last 12 months)
       prisma.payment.findMany({
         where: { paidAt: { gte: new Date(ytdStart.getFullYear() - 1, ytdStart.getMonth(), 1) }, invoice: { currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope } },
@@ -340,17 +354,27 @@ export const executiveMetricsRepository = {
         return { month: label, cash: Math.round(v.cash), billed: Math.round(v.billed) };
       });
 
+    const billedMTD = Number(billedMTDRaw._sum.amount ?? 0);
+    const billedPrevMTD = Number(billedPrevMtdRaw._sum.amount ?? 0);
+    const overdueAmount = Number(overdueRaw._sum.amount ?? 0);
+    const overduePrevSnapshot = Number(overduePrevSnapshotRaw._sum.amount ?? 0);
+    const pendingAmount = Number(pendingRaw._sum.amount ?? 0);
+    const pendingPrevSnapshot = Number(pendingPrevSnapshotRaw._sum.amount ?? 0);
+
     const finance: FinanceKPIs = {
       cashMTD, cashYTD, cashTotal,
-      billedMTD: Number(billedMTDRaw._sum.amount ?? 0),
+      billedMTD,
       billedYTD: Number(billedYTDRaw._sum.amount ?? 0),
       billedTotal: Number(billedTotalRaw._sum.amount ?? 0),
-      overdueAmount: Number(overdueRaw._sum.amount ?? 0),
+      overdueAmount,
       overdueCount: overdueRaw._count,
-      pendingAmount: Number(pendingRaw._sum.amount ?? 0),
+      pendingAmount,
       pendingCount: pendingRaw._count,
       cashGrowthMoM: growthPct(cashMTD, cashPrevMTD),
       cashGrowthYoY: growthPct(cashMTD, cashSameMthLY),
+      billedGrowthMoM: growthPct(billedMTD, billedPrevMTD),
+      overdueGrowthMoM: growthPct(overdueAmount, overduePrevSnapshot),
+      pendingGrowthMoM: growthPct(pendingAmount, pendingPrevSnapshot),
       cashByMonth,
     };
 

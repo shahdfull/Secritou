@@ -1,21 +1,51 @@
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { Menu, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import logoAsset from "@/assets/secritou-logo.png";
 
+const HOME_SECTION_IDS = ["services", "solutions"] as const;
+
 export function Header() {
   const { t, i18n } = useTranslation();
+  const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const nav = [
-    { to: "/#services", label: t("nav.services") },
-    { to: "/#solutions", label: t("nav.solutions") },
+    { to: "/#services", label: t("nav.services"), sectionId: "services" },
+    { to: "/#solutions", label: t("nav.solutions"), sectionId: "solutions" },
     { to: "/contact", label: t("nav.contact") },
     { to: "/rejoindre", label: t("nav.joinUs") },
   ] as const;
+
+  // Scroll-spy: highlight whichever homepage section is currently in view,
+  // since /#services and /#solutions share the same route and NavLink's
+  // isActive only compares pathnames (not hash), which would mark both active.
+  useEffect(() => {
+    if (pathname !== "/") {
+      setActiveSection(null);
+      return;
+    }
+
+    const elements = HOME_SECTION_IDS.map((id) => document.getElementById(id)).filter(
+      (el): el is HTMLElement => el !== null,
+    );
+    if (elements.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting);
+        setActiveSection(visible.length > 0 ? visible[0].target.id : null);
+      },
+      { rootMargin: "-40% 0px -55% 0px" },
+    );
+
+    elements.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [pathname]);
 
   // Close menu when pressing Escape
   useEffect(() => {
@@ -46,19 +76,44 @@ export function Header() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-1" aria-label="Main navigation">
-          {nav.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                isActive
-                  ? "px-3 py-2 text-sm font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-full"
-                  : "px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-full"
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
+          {nav.map((item) => {
+            const sectionId = "sectionId" in item ? item.sectionId : undefined;
+            if (sectionId) {
+              const isActive = activeSection === sectionId;
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  onClick={(e) => {
+                    if (pathname === "/") {
+                      e.preventDefault();
+                      document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth" });
+                    }
+                  }}
+                  className={
+                    isActive
+                      ? "px-3 py-2 text-sm font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-full"
+                      : "px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-full"
+                  }
+                >
+                  {item.label}
+                </NavLink>
+              );
+            }
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  isActive
+                    ? "px-3 py-2 text-sm font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-full"
+                    : "px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-full"
+                }
+              >
+                {item.label}
+              </NavLink>
+            );
+          })}
         </nav>
 
         <div className="hidden md:flex items-center gap-3">

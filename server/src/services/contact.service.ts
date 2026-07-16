@@ -5,6 +5,7 @@ import { serviceService } from "./service.service.js";
 import { enqueueEmail } from "../jobs/queues.js";
 import type { ContactRequestInput } from "../validators/contact.validator.js";
 import type { ContactStatus } from "@prisma/client";
+import { notifyN8n } from "../utils/webhook.js";
 
 export class ContactService {
   async sendContactMessage(input: ContactRequestInput) {
@@ -53,6 +54,18 @@ export class ContactService {
     } catch (error) {
       logger.warn({ err: error, id: contactRequest.id }, "Failed to enqueue contact email, but request was saved to DB");
     }
+
+    // Additional external channel (e.g. instant Slack/WhatsApp alert to sales) — the
+    // transactional email above already covers the agency inbox, this is not a duplicate.
+    void notifyN8n("contact.hot_lead", {
+      contactRequestId: contactRequest.id,
+      name: input.name,
+      email: input.email,
+      phone: input.phone,
+      message: input.message,
+      adminUrl: `${env.FRONTEND_URL}/app/leads`,
+      agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+    });
   }
 
   async getContactRequests(status?: ContactStatus, page = 1, limit = 20) {

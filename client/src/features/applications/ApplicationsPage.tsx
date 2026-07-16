@@ -56,7 +56,7 @@ import {
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { rejectFormSchema, createAcceptFormSchema } from "@/schemas/application.schema";
+import { createRejectFormSchema, createAcceptFormSchema } from "@/schemas/application.schema";
 import {
   Download,
   CheckCircle2,
@@ -65,6 +65,7 @@ import {
   FileText,
   Copy,
   Inbox,
+  Sparkles,
 } from "lucide-react";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { useListParams } from "@/hooks/useListParams";
@@ -81,6 +82,7 @@ export function ApplicationsPage() {
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [numPages, setNumPages] = useState<number>(0);
   const [previewType, setPreviewType] = useState<"cv" | "portfolio" | null>(null);
+  const [aiSummaryApplication, setAiSummaryApplication] = useState<FreelancerApplication | null>(null);
 
   const { data: applicationsResult, isLoading } = useFreelancerApplications({
     page,
@@ -90,20 +92,25 @@ export function ApplicationsPage() {
   });
   const { data: pendingUnassigned = [] } = usePendingApplications();
 
-  const applications = useMemo(
-    () => Array.isArray(applicationsResult?.data) ? applicationsResult.data : [],
-    [applicationsResult?.data]
-  );
+  // PENDING applications already live in the "New applications" section above — hide them
+  // from the main table when no status filter is explicitly chosen, to avoid showing every
+  // pending application twice. Explicitly filtering by "En attente" still shows them here.
+  const applications = useMemo(() => {
+    const data = Array.isArray(applicationsResult?.data) ? applicationsResult.data : [];
+    if (status) return data;
+    return data.filter((app) => app.status !== "PENDING");
+  }, [applicationsResult?.data, status]);
 
   const rejectMutation = useRejectFreelancerApplication();
   const acceptMutation = useAcceptFreelancerApplication();
 
   // Create schemas with translated messages
   const acceptFormSchema = createAcceptFormSchema(t);
-  
+  const rejectFormSchema = createRejectFormSchema(t);
+
   type RejectForm = z.infer<typeof rejectFormSchema>;
   type AcceptForm = z.infer<typeof acceptFormSchema>;
-  
+
   const rejectForm = useForm<RejectForm>({
     resolver: zodResolver(rejectFormSchema),
   });
@@ -251,6 +258,17 @@ export function ApplicationsPage() {
                         <Eye className="h-3.5 w-3.5" />
                         {t("applications.portfolio")}
                       </Button>
+                      {app.aiSummary && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs gap-1 text-violet-600 hover:bg-violet-50"
+                          onClick={() => setAiSummaryApplication(app)}
+                        >
+                          <Sparkles className="h-3.5 w-3.5" />
+                          {t("applications.aiSummary")}
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -348,6 +366,11 @@ export function ApplicationsPage() {
                           <FileText className="h-3.5 w-3.5" />
                         </Button>
                       )}
+                      {app.aiSummary && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-violet-600 hover:bg-violet-50" title={t("applications.aiSummary")} onClick={() => setAiSummaryApplication(app)}>
+                          <Sparkles className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       {app.status === "PENDING" && (
                         <>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600 hover:bg-green-50" title={t("applications.accept")} onClick={() => openAcceptDialog(app)}>
@@ -404,6 +427,29 @@ export function ApplicationsPage() {
               <Download className="mr-2 h-4 w-4" /> {t("applications.download")}
             </Button>
             <Button variant="ghost" onClick={() => { setPdfPreviewUrl(null); setPreviewType(null); }}>
+              {t("applications.close")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Summary Dialog */}
+      <Dialog open={!!aiSummaryApplication} onOpenChange={(open) => !open && setAiSummaryApplication(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-violet-600" />
+              {t("applications.aiSummaryTitle")}
+            </DialogTitle>
+            <DialogDescription>
+              {aiSummaryApplication?.firstName} {aiSummaryApplication?.lastName} — {aiSummaryApplication?.position}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">
+            {aiSummaryApplication?.aiSummary}
+          </p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAiSummaryApplication(null)}>
               {t("applications.close")}
             </Button>
           </DialogFooter>

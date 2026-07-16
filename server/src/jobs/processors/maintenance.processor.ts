@@ -3,9 +3,11 @@ import { recordBullMQJob } from "../../observability/collectors.js";
 import { dashboardService } from "../../services/dashboard.service.js";
 import { clientSuccessService } from "../../services/clientSuccess.service.js";
 import { userRepository } from "../../repositories/user.repository.js";
+import { userSessionRepository } from "../../repositories/userSession.repository.js";
 import { analyticsEventService } from "../../services/analyticsEvent.service.js";
 import { enqueueNotifications } from "../queues.js";
 import { env } from "../../config/env.js";
+import { notifyN8n } from "../../utils/webhook.js";
 
 export async function cleanupExpiredRefreshTokens() {
   const start = performance.now();
@@ -192,7 +194,7 @@ export async function expireProposals() {
     // Now return the updated proposals for notifications
     return tx.proposal.findMany({
       where: { status: "EXPIRED", updatedAt: { gte: new Date(now.getTime() - 1000) } },
-      select: { id: true, title: true, clientId: true },
+      select: { id: true, title: true, clientId: true, client: { select: { name: true } } },
     });
   });
 
@@ -221,6 +223,17 @@ export async function expireProposals() {
   }
   await enqueueNotifications(notifications);
 
+  void notifyN8n("proposal.expired", {
+    agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+    proposals: expiring.map((p) => ({
+      proposalId: p.id,
+      title: p.title,
+      clientId: p.clientId,
+      clientName: (p as any).client?.name,
+      adminUrl: `${env.FRONTEND_URL}/app/proposals/${p.id}`,
+    })),
+  });
+
   recordBullMQJob("maintenance", "expire-proposals", "completed", (performance.now() - start) / 1000);
   return expiring.length;
 }
@@ -238,7 +251,7 @@ export async function markOverdueInvoices() {
       status: { in: ["SENT", "PARTIAL"] },
       dueDate: { not: null, lt: new Date() },
     },
-    select: { id: true, number: true, clientId: true },
+    select: { id: true, number: true, clientId: true, amount: true, currency: true, client: { select: { name: true } } },
   });
 
   if (newlyOverdue.length === 0) {
@@ -285,24 +298,63 @@ export async function markOverdueInvoices() {
   }
   await enqueueNotifications(notifications);
 
+  void notifyN8n("invoice.overdue", {
+    agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+    invoices: newlyOverdue.map((inv) => ({
+      invoiceId: inv.id,
+      number: inv.number,
+      amount: Number(inv.amount),
+      currency: inv.currency ?? "TND",
+      clientName: inv.client?.name,
+      adminUrl: `${env.FRONTEND_URL}/app/invoices/${inv.id}`,
+    })),
+  });
+
   recordBullMQJob("maintenance", "mark-overdue-invoices", "completed", (performance.now() - start) / 1000);
   return newlyOverdue.length;
 }
 
+// A client crossing at-or-below this score (0-100 scale, see clientSuccessService.calculateScore)
+// is considered newly at-risk. No existing threshold for this score in the codebase (the
+// red/orange/green scoring in healthBoard.repository.ts is a different, project-level metric) —
+// chosen as the midpoint of the 0-100 scale; revisit once there's a track record of real scores.
+const CLIENT_SUCCESS_AT_RISK_THRESHOLD = 50;
+
 export async function recalculateClientScores() {
   const start = performance.now();
 
-  const records = await prisma.clientSuccess.findMany({ select: { clientId: true } });
+  const records = await prisma.clientSuccess.findMany({ select: { clientId: true, score: true, client: { select: { name: true } } } });
 
   let updated = 0;
+  const dropped: Array<{ clientId: string; clientName?: string; previousScore: number; newScore: number }> = [];
+
   for (const record of records) {
     try {
-      const score = await clientSuccessService.calculateScore(record.clientId);
-      await clientSuccessService.updateScore(record.clientId, score);
+      const newScore = await clientSuccessService.calculateScore(record.clientId);
+      await clientSuccessService.updateScore(record.clientId, newScore);
       updated++;
+
+      // Only fire on the transition into the at-risk zone, not on every run for clients
+      // already below the threshold — avoids paging the agency daily for the same client.
+      if (record.score > CLIENT_SUCCESS_AT_RISK_THRESHOLD && newScore <= CLIENT_SUCCESS_AT_RISK_THRESHOLD) {
+        dropped.push({ clientId: record.clientId, clientName: record.client?.name, previousScore: record.score, newScore });
+      }
     } catch {
       // Non-fatal: skip individual failures so one bad record doesn't abort the batch
     }
+  }
+
+  if (dropped.length > 0) {
+    void notifyN8n("clientSuccess.score_dropped", {
+      agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+      clients: dropped.map((d) => ({
+        clientId: d.clientId,
+        clientName: d.clientName,
+        previousScore: d.previousScore,
+        newScore: d.newScore,
+        adminUrl: `${env.FRONTEND_URL}/app/clients/${d.clientId}`,
+      })),
+    });
   }
 
   recordBullMQJob("maintenance", "recalculate-client-scores", "completed", (performance.now() - start) / 1000);
@@ -321,5 +373,12 @@ export async function pruneAnalyticsEvents() {
   const start = performance.now();
   const count = await analyticsEventService.pruneOldEvents(13);
   recordBullMQJob("maintenance", "prune-analytics-events", "completed", (performance.now() - start) / 1000);
+  return count;
+}
+
+export async function closeStaleUserSessions() {
+  const start = performance.now();
+  const count = await userSessionRepository.closeStaleSessions();
+  recordBullMQJob("maintenance", "close-stale-user-sessions", "completed", (performance.now() - start) / 1000);
   return count;
 }

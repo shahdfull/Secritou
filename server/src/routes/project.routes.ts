@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, archiveProject, getDeletedProjects, restoreProject, getMyProjects, getTimelineStatus, getBrief, submitBrief, clientApproveProject } from "../controllers/project.controller.js";
+import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, archiveProject, getDeletedProjects, restoreProject, getMyProjects, getTimelineStatus, getBrief, submitBrief, clientApproveProject, receiveAiSpecs } from "../controllers/project.controller.js";
 import { getHealthBoard } from "../controllers/healthBoard.controller.js";
 import { createTimeEntry, listTimeEntries, getTimeSummary, getMyTimeSummary } from "../controllers/timeEntry.controller.js";
 import { listProjectMeetings, createProjectMeeting, getMeetingSchedule, updateMeetingSchedule } from "../controllers/projectMeeting.controller.js";
@@ -10,6 +10,7 @@ import { createProjectSchema, updateProjectSchema } from "../validators/project.
 import { createTimeEntrySchema } from "../validators/timeEntry.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize, requirePermission, requireActivatedPortal } from "../middlewares/rbac.middleware.js";
+import { verifyN8nWebhook } from "../middlewares/verifyN8nWebhook.middleware.js";
 const router = Router();
 
 router.get("/health-board", authenticate, authorize("ADMIN", "MANAGER"), requirePermission("projects", "read"), getHealthBoard);
@@ -26,6 +27,9 @@ router.get("/:id/timeline-status", authenticate, getTimelineStatus);
 // cadrage's "2e réunion de cadrage" step, which happens after the deposit is paid — gated.
 router.get("/:id/brief", authenticate, getBrief);
 router.post("/:id/brief/submit", authenticate, authorize("CLIENT"), requireActivatedPortal, submitBrief);
+
+// Called back by the n8n brief-to-specs workflow — gated by HMAC signature, not a Secritou session.
+router.patch("/:id/ai-specs", verifyN8nWebhook, receiveAiSpecs);
 
 // Client final approval : triggers project COMPLETED + balance invoice — deep in execution,
 // necessarily after the deposit is paid.
@@ -190,6 +194,10 @@ router.put("/:id", validate(updateProjectSchema), authorize("ADMIN", "MANAGER"),
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
+// ADMIN-only (unlike task deletion, which also allows MANAGER): deleting/archiving/restoring
+// a project is a higher-impact action that cascades to all of its tasks and is gated by
+// invoice/onboarding checks in project.service.ts — kept consistent with archive/restore
+// below rather than opened up to MANAGER.
 router.delete("/:id", authorize("ADMIN"), deleteProject);
 router.post("/:id/archive", authorize("ADMIN"), archiveProject);
 router.post("/:id/restore", authorize("ADMIN"), restoreProject);

@@ -19,16 +19,16 @@ import type {
 } from "../validators/clientOnboarding.validator.js";
 
 export const clientOnboardingService = {
-  async getAllOnboardings(options: ListQueryOptions & { search?: string; clientId?: string }, userClientId?: string | null) {
-    return clientOnboardingRepository.findAll(options, userClientId);
+  async getAllOnboardings(options: ListQueryOptions & { search?: string; clientId?: string }, userClientId?: string | null, managerServiceId?: string | null) {
+    return clientOnboardingRepository.findAll(options, userClientId, managerServiceId);
   },
 
-  async getOnboardingById(id: string, userClientId?: string | null) {
-    return clientOnboardingRepository.findById(id, userClientId);
+  async getOnboardingById(id: string, userClientId?: string | null, managerServiceId?: string | null) {
+    return clientOnboardingRepository.findById(id, userClientId, managerServiceId);
   },
 
-  async getOnboardingByProjectId(projectId: string, userClientId?: string | null) {
-    return clientOnboardingRepository.findByProjectId(projectId, userClientId);
+  async getOnboardingByProjectId(projectId: string, userClientId?: string | null, managerServiceId?: string | null) {
+    return clientOnboardingRepository.findByProjectId(projectId, userClientId, managerServiceId);
   },
 
   async createOnboarding(data: { projectId: string; assignedUserId?: string }) {

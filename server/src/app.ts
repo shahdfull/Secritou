@@ -74,7 +74,17 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json({ limit: "1mb" }));
+// rawBody is captured for endpoints n8n calls back into (HMAC signature verification needs
+// the exact bytes that were signed, not a re-serialized JSON.stringify of the parsed body —
+// see utils/webhook.ts verifyN8nSignature and its callers).
+app.use(
+  express.json({
+    limit: "1mb",
+    verify: (req, _res, buf) => {
+      (req as any).rawBody = buf.toString("utf8");
+    },
+  }),
+);
 app.use(cookieParser());
 app.use(requestIdMiddleware);
 app.use(metricsMiddleware);

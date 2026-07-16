@@ -17,6 +17,13 @@ function applicationSubmitErrorMessage(error: AxiosError, t: (key: string) => st
   return t("joinUs.submitError");
 }
 
+// Server error responses carry the message at { message } or { error: { message } }
+// (see error.middleware.ts) — surface it directly instead of a generic fallback.
+function apiErrorMessage(error: AxiosError, fallback: string): string {
+  const data = error.response?.data as { message?: string } | undefined;
+  return data?.message ?? fallback;
+}
+
 export function useFreelancerApplications(params?: {
   page?: number;
   pageSize?: number;
@@ -59,7 +66,7 @@ export function useRejectFreelancerApplication() {
 
   return useMutation<
     FreelancerApplication,
-    Error,
+    AxiosError,
     { id: string; rejectionReason?: string }
   >({
     mutationFn: ({ id, rejectionReason }) =>
@@ -67,6 +74,9 @@ export function useRejectFreelancerApplication() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["freelancerApplications"] });
       toast.success(t("applications.rejected"));
+    },
+    onError: (error) => {
+      toast.error(apiErrorMessage(error, t("applications.rejectError")));
     },
   });
 }
@@ -77,7 +87,7 @@ export function useAcceptFreelancerApplication() {
 
   return useMutation<
     { user: any; application: FreelancerApplication },
-    Error,
+    AxiosError,
     {
       id: string;
       username: string;
@@ -94,6 +104,9 @@ export function useAcceptFreelancerApplication() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["freelancerApplications"] });
       toast.success(t("applications.accepted"));
+    },
+    onError: (error) => {
+      toast.error(apiErrorMessage(error, t("applications.acceptError")));
     },
   });
 }

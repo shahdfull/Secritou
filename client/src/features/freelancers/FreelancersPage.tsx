@@ -14,11 +14,12 @@ import {
   Loader2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useCallback, useDeferredValue, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   useFreelancers,
+  useMyFreelancerProfile,
   useCreateMyFreelancerProfile,
   useUpdateMyFreelancerProfile,
 } from "@/hooks/useFreelancers";
@@ -66,13 +67,16 @@ import {
 
 
 export function FreelancersPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingFreelancer, setEditingFreelancer] = useState<FreelancerProfile | null>(null);
 
-  const { page, pageSize, orderBy, orderDir, params, setPage, updateParams } = useListParams(12);
+  const { page, pageSize, orderBy, orderDir, search, params, setPage, setSearch, updateParams } = useListParams(12);
+  // Local echo for the input so typing feels instant; the value that actually
+  // drives the query is the URL `search` param (server-side, all pages) — a
+  // client-only filter here used to silently search just the current page.
+  const [searchInput, setSearchInput] = useState(search ?? "");
+  const deferredSearchInput = useDeferredValue(searchInput);
   const { data: freelancersResult, isLoading } = useFreelancers(params);
   const freelancers = freelancersResult?.data ?? [];
   const total = freelancersResult?.total ?? 0;
@@ -81,18 +85,12 @@ export function FreelancersPage() {
   const { user } = useAuthStore();
 
   const isFreelancer = user?.role === "FREELANCER";
-  const myProfile = useMemo(() => freelancers.find((f) => f.userId === user?.id), [freelancers, user?.id]);
+  const { data: myProfile } = useMyFreelancerProfile(isFreelancer);
   const hasProfile = !!myProfile;
 
-  const filteredFreelancers = useMemo(() => {
-    const q = deferredSearchQuery.trim().toLowerCase();
-    if (!q) return freelancers;
-    return freelancers.filter((freelancer) => {
-      const matchesName = freelancer.user.name.toLowerCase().includes(q);
-      const matchesSkill = freelancer.skills.some((skill) => skill.name.toLowerCase().includes(q));
-      return matchesName || matchesSkill;
-    });
-  }, [deferredSearchQuery, freelancers]);
+  useEffect(() => {
+    setSearch(deferredSearchInput);
+  }, [deferredSearchInput, setSearch]);
 
   const createForm = useForm<CreateProfileForm>({
     resolver: zodResolver(createProfileSchema) as any,
@@ -261,8 +259,8 @@ export function FreelancersPage() {
           <Input
             type="search"
             placeholder="Rechercher par nom ou compétence..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             className="pl-10"
           />
         </div>
@@ -286,7 +284,7 @@ export function FreelancersPage() {
 
       {/* Freelancers Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredFreelancers.map((freelancer) => (
+        {freelancers.map((freelancer) => (
           <Card key={freelancer.id} className="hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">

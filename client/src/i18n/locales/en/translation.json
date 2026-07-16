@@ -126,7 +126,7 @@
     "sending": "Sending...",
     "successMessage": "Thank you! We'll be in touch soon.",
     "replyTime": "We typically reply within one business day.",
-    "emailInfo": "hello@secritou.com",
+    "emailInfo": "contact@secritou.tn",
     "bookCall": "30-minute discovery call, free of charge.",
     "bookCallTitle": "Book a call",
     "whereWeWork": "Tunis · Remote across Tunisia.",
@@ -524,6 +524,8 @@
     "ongoingProjects": "Ongoing Projects",
     "completedTasks": "Completed Tasks",
     "fromLastMonth": "From last month",
+    "showDetail": "See detail (charts, trends, projects)",
+    "hideDetail": "Hide detail",
     "leadsSemester": "Leads this semester",
     "leadsByMonth": "New leads per month for the last 6 months",
     "leadsOverview": "Leads Overview",
@@ -563,7 +565,7 @@
     "leadsByStatusAllTime": "Breakdown by status — all time",
     "allTime": "All time",
     "leadsLabel": "leads",
-    "tabHealthBoard": "Health Board",
+    "tabHealthBoard": "Project Health",
     "tabExecutive": "Executive View",
     "noOverdue": "No overdue",
     "welcomeName": "Welcome back, {{name}} — here's what's happening today.",
@@ -784,6 +786,7 @@
     "questions": "Questions",
     "booking": "Booking",
     "commissions": "Commissions",
+    "pages": "Pages",
     "groupManage": "Manage",
     "groupAnalytics": "Analytics",
     "groupOther": "Account"
@@ -857,6 +860,7 @@
     "pdfLoadError": "Failed to load PDF",
     "uploadFileFirst": "Please upload a file first",
     "leadStatusUpdateError": "Failed to update lead status",
+    "leadInvalidTransition": "Cannot move a lead from {{from}} to {{to}}.",
     "taskStatusUpdateError": "Failed to update task status",
     "platformColorSaved": "Platform color saved",
     "previousFileRemoveWarning": "Could not remove previous file from storage",
@@ -921,7 +925,7 @@
     "successMessage": "Your application has been sent successfully!",
     "fileTooLarge": "File too large. CV max 10MB, portfolio max 20MB.",
     "invalidFileType": "File type not accepted. Check the required format.",
-    "submitError": "Submission failed. Try again or email us at hello@secritou.com."
+    "submitError": "Submission failed. Try again or email us at contact@secritou.tn."
   },
   "applications": {
     "title": "Applications",
@@ -952,15 +956,16 @@
     },
     "rejectModal": {
       "title": "Reject application",
-      "description": "Please provide a reason for rejection (this will create a Gmail draft).",
+      "description": "Please provide a reason for rejection (an email will be sent to the candidate).",
       "reason": "Reason for rejection",
       "reasonPlaceholder": "We have selected another profile...",
+      "reasonMinLength": "The reason must be at least 10 characters long.",
       "cancel": "Cancel",
       "confirm": "Reject"
     },
     "acceptModal": {
       "title": "Accept application",
-      "description": "Create an account for this candidate (this will create a Gmail draft).",
+      "description": "Create an account for this candidate (an email with their login details will be sent).",
       "firstName": "First name",
       "lastName": "Last name",
       "email": "Email",
@@ -974,11 +979,16 @@
     },
     "rejected": "Application rejected successfully",
     "accepted": "Application accepted and account created successfully",
+    "rejectError": "Failed to reject the application. Please try again.",
+    "acceptError": "Failed to accept the application. Please try again.",
     "newApplications": "New applications ({{count}})",
     "cvPreview": "CV Preview",
     "portfolioPreview": "Portfolio Preview",
     "download": "Download",
-    "close": "Close"
+    "close": "Close",
+    "aiSummary": "AI Summary",
+    "aiSummaryTitle": "AI-generated CV summary",
+    "aiSummaryPending": "Summary is being generated..."
   },
   "joinRequests": {
     "title": "Join requests",
@@ -1570,6 +1580,8 @@
       "yourComment": "Your comment",
       "viewTimeline": "View Timeline",
       "timelineTitle": "Timeline",
+      "respondSuccess": "Your response has been recorded.",
+      "respondError": "Failed to send your response. Please try again.",
       "statuses": {
         "PENDING": "Pending",
         "APPROVED": "Approved",
@@ -1779,10 +1791,16 @@
     },
     "rejectModal": {
       "title": "Reject proposal",
-      "description": "Please provide a reason for rejection (this will create a Gmail draft).",
+      "description": "Please provide a reason for rejection.",
       "reasonPlaceholder": "We have decided to go with another provider...",
       "cancel": "Cancel",
       "confirm": "Reject"
+    },
+    "deleteModal": {
+      "title": "Delete proposal",
+      "description": "Are you sure you want to delete this draft? This action cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Delete"
     },
     "created": "Proposal created successfully",
     "updated": "Proposal updated successfully",
@@ -2107,7 +2125,14 @@
       "guide": "Guide",
       "report": "Report",
       "invoice": "Invoice",
-      "other": "Other"
+      "other": "Other",
+      "welcome_letter": "Welcome letter",
+      "specs": "Specifications",
+      "client_brief": "Client brief",
+      "quote": "Quote",
+      "invoice_deposit": "Deposit invoice",
+      "invoice_balance": "Balance invoice",
+      "roadmap": "Roadmap"
     },
     "created": "Document uploaded successfully",
     "updated": "Document updated successfully",
@@ -2134,6 +2159,10 @@
     "pipeline": "Proposal pipeline",
     "convRate": "Conv.",
     "confidence": "Confidence index",
+    "needsAttention": "Needs your attention",
+    "needsAttentionSub_one": "{{count}} item to review",
+    "needsAttentionSub_other": "{{count}} items to review",
+    "allClear": "All clear",
     "sectionClients": "Clients",
     "activeClients": "Active clients",
     "total": "Total",
@@ -2212,7 +2241,7 @@
     "companyEmail": "Email:",
     "companyPhone": "Phone:",
     "hostingSection": "Hosting",
-    "hostingText": "This site is hosted by a third-party provider. The host's contact details are available upon request at hello@secritou.com.",
+    "hostingText": "This site is hosted by a third-party provider. The host's contact details are available upon request at contact@secritou.tn.",
     "ipSection": "Intellectual Property",
     "ipText": "All content on this site (texts, images, logos, graphics) is the exclusive property of Secritou or its partners. Any reproduction, even partial, is prohibited without prior written consent.",
     "liabilitySection": "Liability",

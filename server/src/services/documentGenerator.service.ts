@@ -136,6 +136,8 @@ async function uploadAndCreate(
     clientId,
     invoiceId,
     uploadedById,
+    version,
+    parentId,
   }: {
     type: DocumentType;
     filename: string;
@@ -145,6 +147,8 @@ async function uploadAndCreate(
     clientId?: string;
     invoiceId?: string;
     uploadedById: string;
+    version?: number;
+    parentId?: string;
   }
 ): Promise<Document> {
   const folder = projectId
@@ -167,6 +171,8 @@ async function uploadAndCreate(
     clientId,
     invoiceId,
     uploadedById,
+    version,
+    parentId,
   });
 }
 
@@ -285,7 +291,15 @@ export const documentGeneratorService = {
   async generateSpecs(
     project: GeneratorProject,
     client: GeneratorClient,
-    uploadedById: string
+    uploadedById: string,
+    // Pre-written section content (from the AI brief-to-specs pipeline, see
+    // project.service.ts submitBrief + notifyN8n("project.brief_submitted")). Falls back to
+    // placeholder text per section when a section has no AI content yet — e.g. right after
+    // proposal acceptance, before the client has submitted their brief.
+    aiSpecsContent?: Partial<Record<"contexte" | "objectifs" | "besoins" | "fonctionnalites" | "livrables" | "criteres", string>>,
+    // Bumps this document to a new version instead of the initial one (parentId points at the
+    // Document row this replaces) — used when regenerating after brief submission.
+    versioning?: { version: number; parentId: string }
   ): Promise<Document> {
     const buffer = await buildPdf((doc) => {
       header(doc, "Cahier des charges");
@@ -294,13 +308,13 @@ export const documentGeneratorService = {
       field(doc, "Date", fmtDate(new Date()));
       doc.moveDown(1);
 
-      const sections = [
-        ["1. Contexte", project.description ?? "[À compléter : contexte et enjeux du projet]"],
-        ["2. Objectifs", "[À compléter : objectifs mesurables attendus]"],
-        ["3. Besoins", "[À compléter : besoins fonctionnels et non fonctionnels]"],
-        ["4. Fonctionnalités", "[À compléter : liste des fonctionnalités et leur priorité]"],
-        ["5. Livrables", "[À compléter : liste des livrables attendus et leur format]"],
-        ["6. Critères de validation", "[À compléter : conditions d'acceptation des livrables]"],
+      const sections: [string, string][] = [
+        ["1. Contexte", aiSpecsContent?.contexte ?? project.description ?? "[À compléter : contexte et enjeux du projet]"],
+        ["2. Objectifs", aiSpecsContent?.objectifs ?? "[À compléter : objectifs mesurables attendus]"],
+        ["3. Besoins", aiSpecsContent?.besoins ?? "[À compléter : besoins fonctionnels et non fonctionnels]"],
+        ["4. Fonctionnalités", aiSpecsContent?.fonctionnalites ?? "[À compléter : liste des fonctionnalités et leur priorité]"],
+        ["5. Livrables", aiSpecsContent?.livrables ?? "[À compléter : liste des livrables attendus et leur format]"],
+        ["6. Critères de validation", aiSpecsContent?.criteres ?? "[À compléter : conditions d'acceptation des livrables]"],
       ];
       sections.forEach(([title, content]) => {
         sectionTitle(doc, title);
@@ -310,12 +324,13 @@ export const documentGeneratorService = {
 
     return uploadAndCreate(buffer, {
       type: "SPECS",
-      filename: `cahier-des-charges-${project.id}`,
+      filename: `cahier-des-charges-${project.id}${versioning ? `-v${versioning.version}` : ""}`,
       title: `Cahier des charges : ${project.name}`,
       description: project.description ?? undefined,
       projectId: project.id,
       clientId: client.id,
       uploadedById,
+      ...(versioning ? { version: versioning.version, parentId: versioning.parentId } : {}),
     });
   },
 
@@ -510,7 +525,12 @@ export const documentGeneratorService = {
 
   async generateRoadmap(
     project: GeneratorProject,
-    uploadedById: string
+    uploadedById: string,
+    // Pre-written per-step estimates + notes (from the AI brief-to-specs pipeline, see
+    // project.service.ts submitBrief + notifyN8n("project.brief_submitted")). Falls back to
+    // blank fill-in-the-date placeholders when absent.
+    aiRoadmapContent?: { stepEstimates?: Partial<Record<string, string>>; notes?: string },
+    versioning?: { version: number; parentId: string }
   ): Promise<Document> {
     const buffer = await buildPdf((doc) => {
       header(doc, "Roadmap projet");
@@ -522,23 +542,29 @@ export const documentGeneratorService = {
       sectionTitle(doc, "Phases du projet");
       TIMELINE_STEPS.forEach((step, i) => {
         doc.font("Helvetica-Bold").text(step).font("Helvetica");
-        doc.text(`   Statut : [ ] En attente   [ ] En cours   [ ] Terminé`);
-        doc.text(`   Date prévue : _____________     Date réelle : _____________`);
+        const estimate = aiRoadmapContent?.stepEstimates?.[step];
+        if (estimate) {
+          doc.text(`   ${estimate}`);
+        } else {
+          doc.text(`   Statut : [ ] En attente   [ ] En cours   [ ] Terminé`);
+          doc.text(`   Date prévue : _____________     Date réelle : _____________`);
+        }
         if (i < TIMELINE_STEPS.length - 1) doc.moveDown(0.5);
       });
 
       doc.moveDown(1);
       sectionTitle(doc, "Notes");
-      doc.text("[À compléter au fil du projet]");
+      doc.text(aiRoadmapContent?.notes ?? "[À compléter au fil du projet]");
     });
 
     return uploadAndCreate(buffer, {
       type: "ROADMAP",
-      filename: `roadmap-${project.id}`,
+      filename: `roadmap-${project.id}${versioning ? `-v${versioning.version}` : ""}`,
       title: `Roadmap : ${project.name}`,
       description: project.description ?? undefined,
       projectId: project.id,
       uploadedById,
+      ...(versioning ? { version: versioning.version, parentId: versioning.parentId } : {}),
     });
   },
 };

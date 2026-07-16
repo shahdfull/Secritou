@@ -294,7 +294,7 @@ export function userInvitationTemplate(
       [
         h1("Votre compte a été créé 🎉"),
         p(`Bonjour ${esc(name)},`),
-        p("Un compte vous a été créé sur la plateforme Secritou. Voici vos identifiants de connexion :"),
+        p("Votre compte a été créé sur la plateforme Secritou. Voici vos identifiants de connexion :"),
         infoBox([
           ["Email", esc(email)],
           ["Mot de passe temporaire", esc(tempPassword)],
@@ -515,6 +515,38 @@ export function passwordResetTemplate(
       ].join(""),
       resetUrl,
       "Réinitialiser mon mot de passe"
+    ),
+  };
+}
+
+// ─── Email change confirmation template ──────────────────────────────────────
+
+export function emailChangeConfirmationTemplate(
+  name: string,
+  confirmUrl: string
+): { subject: string; html: string } {
+  return {
+    subject: "Confirmez votre nouvelle adresse email Secritou",
+    html: baseTemplate(
+      "Confirmation de changement d'email",
+      [
+        h1("Confirmez votre nouvelle adresse"),
+        p(`Bonjour ${esc(name)},`),
+        p(
+          "Une demande de changement d'adresse email a été faite pour votre compte Secritou, " +
+          "vers cette adresse."
+        ),
+        p(
+          "Cliquez sur le bouton ci-dessous pour confirmer ce changement. " +
+          "<strong>Ce lien expire dans 1 heure.</strong>"
+        ),
+        p(
+          "Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email : " +
+          "votre adresse actuelle reste inchangée."
+        ),
+      ].join(""),
+      confirmUrl,
+      "Confirmer ma nouvelle adresse"
     ),
   };
 }

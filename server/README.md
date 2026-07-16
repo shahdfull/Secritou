@@ -377,7 +377,7 @@ CLIENT_ORIGIN=http://localhost:3000
 
 - Documentation: [API_DOCUMENTATION.md](./API_DOCUMENTATION.md)
 - Issues: GitHub Issues
-- Email: support@secritou.com
+- Email: contact@secritou.tn
 
 ## License
 

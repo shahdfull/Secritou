@@ -330,7 +330,7 @@ export function ProjectsPage() {
         
         <TabsContent value="projects" className="space-y-6 mt-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <Dialog open={createDialogOpen} onOpenChange={openCreateDialog}>
+            <Dialog open={createDialogOpen} onOpenChange={(open) => (open ? openCreateDialog() : closeCreateDialog())}>
               {canCreate && (
                 <DialogTrigger asChild>
                   <Button className="bg-ink text-white hover:bg-ink/90 rounded-full" onClick={openCreateDialog}>

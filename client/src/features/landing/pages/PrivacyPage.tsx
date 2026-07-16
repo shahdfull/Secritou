@@ -52,7 +52,7 @@ export function PrivacyPage() {
             Conformément à la loi tunisienne n° 2004-63 du 27 juillet 2004 portant sur la protection
             des données à caractère personnel, vous disposez d'un droit d'accès, de rectification et
             de suppression de vos données. Pour exercer ces droits, contactez-nous à{" "}
-            <a href="mailto:hello@secritou.com">hello@secritou.com</a>.
+            <a href="mailto:contact@secritou.tn">contact@secritou.tn</a>.
           </p>
 
           <h2>Cookies</h2>
@@ -66,7 +66,7 @@ export function PrivacyPage() {
           <h2>Contact</h2>
           <p>
             Pour toute question relative à cette politique :{" "}
-            <a href="mailto:hello@secritou.com">hello@secritou.com</a>
+            <a href="mailto:contact@secritou.tn">contact@secritou.tn</a>
           </p>
         </div>
       </section>

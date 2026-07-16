@@ -19,9 +19,11 @@ export function httpCache(
     }
     res.setHeader("X-Cache", "MISS");
     const originalJson = res.json.bind(res);
-    res.json = async (body: unknown) => {
-      const tags = tagsFn ? await tagsFn(req) : [];
-      await cacheSet(key, body, ttlSeconds, tags);
+    res.json = (body: unknown) => {
+      void (async () => {
+        const tags = tagsFn ? await tagsFn(req) : [];
+        await cacheSet(key, body, ttlSeconds, tags);
+      })();
       return originalJson(body);
     };
     next();

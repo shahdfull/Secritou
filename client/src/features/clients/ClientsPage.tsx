@@ -185,7 +185,7 @@ export function ClientsPage() {
           <h1 className="font-display text-2xl font-bold text-ink">{t("clientsPage.title")}</h1>
           <p className="text-muted-foreground">{t("clientsPage.subtitle")}</p>
         </div>
-        <Dialog open={createDialogOpen} onOpenChange={openCreateDialog}>
+        <Dialog open={createDialogOpen} onOpenChange={(open) => (open ? openCreateDialog() : closeCreateDialog())}>
           <DialogTrigger asChild>
             <Button onClick={openCreateDialog}>
               <Plus className="h-4 w-4 mr-2" />

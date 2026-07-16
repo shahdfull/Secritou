@@ -1,3 +1,19 @@
+import { after } from "node:test";
+import { communicationQueue, maintenanceQueue, documentsQueue } from "../src/jobs/queues.js";
+import { getBullRedisConnection } from "../src/jobs/redisConnection.js";
+
+// Importing auth.service.ts (via auth.service.test.ts below) loads jobs/queues.ts at module
+// scope, which opens a real BullMQ/ioredis connection even though the tests inject a fake DB
+// and never enqueue anything. Without closing it, node --test never exits after the last test.
+after(async () => {
+  await Promise.all([
+    communicationQueue.close(),
+    maintenanceQueue.close(),
+    documentsQueue.close(),
+  ]);
+  await getBullRedisConnection().quit();
+});
+
 import "./auth.middleware.test.ts";
 import "./rbac.test.ts";
 import "./rateLimit.test.ts";

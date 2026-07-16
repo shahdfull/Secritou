@@ -20,7 +20,7 @@ export function LegalPage() {
             <strong>{t("legalPage.companyName")}</strong><br />
             {t("legalPage.companyDescription")}<br />
             {t("legalPage.companyLocation")}<br />
-            {t("legalPage.companyEmail")} <a href="mailto:hello@secritou.com">hello@secritou.com</a><br />
+            {t("legalPage.companyEmail")} <a href="mailto:contact@secritou.tn">contact@secritou.tn</a><br />
             {t("legalPage.companyPhone")} <a href="tel:+21694243333">+216 94 243 333</a>
           </p>
 

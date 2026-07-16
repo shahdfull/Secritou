@@ -9,6 +9,15 @@ import {
   InvoiceStatus,
   ApprovalStatus,
   NotificationType,
+  CommissionStatus,
+  OnboardingStepStatus,
+  SpecApprovalStatus,
+  ContractStatus,
+  PaymentStatus,
+  DocumentType,
+  DocumentAccessLevel,
+  RecommendationPriority,
+  RecommendationStatus,
 } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { COMPANY_ID } from '../src/config/constants.js';
@@ -562,6 +571,309 @@ async function main() {
       prisma.serviceRequest.create({ data: { title: 'Audit sécurité RGPD plateforme Vermeg',     description: 'Audit conformité RGPD demandé par le DPO avant lancement prod.',   status: ServiceRequestStatus.IN_REVIEW,      priority: 'HIGH'   as const, clientId: vermeg.id,    type: 'SUPPORT'     as const, assignedToId: manager2.id  } }),
     ]);
     console.log('✅ Service requests (5)');
+  }
+
+  // ── Billing, Onboarding, Client Success & Documents (demo enrichment) ──────
+  // Re-fetches the entities created above by their unique/stable identifiers rather
+  // than relying on the const bindings above (which are scoped to the `if` block that
+  // created Projects) — this section runs standalone and is idempotent via skipIf.
+  {
+    const [carrefour, monoprix, geant, vermeg] = await Promise.all([
+      prisma.client.findFirstOrThrow({ where: { email: 'contact@carrefour.tn' } }),
+      prisma.client.findFirstOrThrow({ where: { email: 'info@monoprix.tn' } }),
+      prisma.client.findFirstOrThrow({ where: { email: 'contact@geant.tn' } }),
+      prisma.client.findFirstOrThrow({ where: { email: 'contact@vermeg.tn' } }),
+    ]);
+    const [project1, project2, project3] = await Promise.all([
+      prisma.project.findFirstOrThrow({ where: { name: 'E-commerce Carrefour Tunisia' } }),
+      prisma.project.findFirstOrThrow({ where: { name: 'App Mobile Monoprix Tunisia' } }),
+      prisma.project.findFirstOrThrow({ where: { name: 'Intégration ERP Géant Tunisia' } }),
+    ]);
+    const [inv1, inv2, inv3, inv4, inv5, inv6, inv7] = await Promise.all([
+      prisma.invoice.findUniqueOrThrow({ where: { number: 'INV-2026-001' } }),
+      prisma.invoice.findUniqueOrThrow({ where: { number: 'INV-2026-002' } }),
+      prisma.invoice.findUniqueOrThrow({ where: { number: 'INV-2026-003' } }),
+      prisma.invoice.findUniqueOrThrow({ where: { number: 'INV-2026-004' } }),
+      prisma.invoice.findUniqueOrThrow({ where: { number: 'INV-2026-005' } }),
+      prisma.invoice.findUniqueOrThrow({ where: { number: 'INV-2026-006' } }),
+      prisma.invoice.findUniqueOrThrow({ where: { number: 'INV-2026-007' } }),
+    ]);
+    const [pay1, pay2, pay3, pay4, pay6] = await Promise.all([
+      prisma.payment.findFirstOrThrow({ where: { reference: 'VIR-2025-1110' } }),
+      prisma.payment.findFirstOrThrow({ where: { reference: 'VIR-2026-0215' } }),
+      prisma.payment.findFirstOrThrow({ where: { reference: 'VIR-2026-0505' } }),
+      prisma.payment.findFirstOrThrow({ where: { reference: 'CHQ-20260203' } }),
+      prisma.payment.findFirstOrThrow({ where: { reference: 'VIR-2025-1220' } }),
+    ]);
+    const approvalGeant = await prisma.approval.findFirstOrThrow({ where: { title: { contains: 'Rapport d\'audit ERP Géant' } } });
+    const approvalCarrefourHomepage = await prisma.approval.findFirstOrThrow({ where: { title: 'Validation maquettes homepage Carrefour' } });
+    const approvalMonoprixHF = await prisma.approval.findFirstOrThrow({ where: { title: 'Validation maquettes HF Monoprix (lot 1)' } });
+    const admin2 = await prisma.user.findUniqueOrThrow({ where: { email: 'admin@secritou.tn' } });
+    const manager1b = await prisma.user.findUniqueOrThrow({ where: { email: 'manager@secritou.tn' } });
+    const manager2b = await prisma.user.findUniqueOrThrow({ where: { email: 'manager2@secritou.tn' } });
+    const clientUser1b = await prisma.user.findUniqueOrThrow({ where: { email: 'client1@example.tn' } });
+    const clientUser2b = await prisma.user.findUniqueOrThrow({ where: { email: 'client2@example.tn' } });
+    const clientUser3b = await prisma.user.findUniqueOrThrow({ where: { email: 'client3@example.tn' } });
+
+    // ── Commission splits + Commissions ──────────────────────────────────────
+    // Two partners (admin + a manager) share revenue per project. Splits are set once
+    // per project; Commission rows are derived per payment already recorded above,
+    // mirroring commissionService.computeForPaymentTx (basis = amount received,
+    // amount = basis * ratePct / 100).
+    if (!(await skipIf(prisma.projectCommissionSplit, 'Commission splits'))) {
+      await prisma.projectCommissionSplit.createMany({ data: [
+        { projectId: project1.id, partnerId: admin2.id,    ratePct: 60 },
+        { projectId: project1.id, partnerId: manager1b.id, ratePct: 40 },
+        { projectId: project2.id, partnerId: admin2.id,    ratePct: 70 },
+        { projectId: project2.id, partnerId: manager1b.id, ratePct: 30 },
+        { projectId: project3.id, partnerId: admin2.id,    ratePct: 50 },
+        { projectId: project3.id, partnerId: manager2b.id, ratePct: 50 },
+      ]});
+      console.log('✅ Commission splits (6)');
+    }
+
+    // Note: Commission.paymentId is @unique — exactly one Commission row per Payment
+    // (not one per partner per payment). Since each project has two partners sharing
+    // revenue, we attribute each payment's commission to a single partner, alternating
+    // across payments of the same project so both partners end up with commissions
+    // over the project's lifetime, each still computed at that partner's own ratePct.
+    if (!(await skipIf(prisma.commission, 'Commissions'))) {
+      const commissionRows: { partnerId: string; projectId: string; invoiceId: string; paymentId: string; basis: number; ratePct: number; amount: number; status: CommissionStatus; paidAt?: Date }[] = [
+        // Project 1 (Carrefour) — 60/40 split, alternating attribution across the 3 tranches
+        { partnerId: admin2.id,    projectId: project1.id, invoiceId: inv1.id, paymentId: pay1.id, basis: 9500, ratePct: 60, amount: 5700, status: CommissionStatus.PAID, paidAt: new Date('2025-11-20') },
+        { partnerId: manager1b.id, projectId: project1.id, invoiceId: inv2.id, paymentId: pay2.id, basis: 9500, ratePct: 40, amount: 3800, status: CommissionStatus.PAID, paidAt: new Date('2026-02-25') },
+        { partnerId: admin2.id,    projectId: project1.id, invoiceId: inv3.id, paymentId: pay3.id, basis: 9500, ratePct: 60, amount: 5700, status: CommissionStatus.PENDING },
+        // Project 2 (Monoprix) — 70/30 split, only the deposit collected so far
+        { partnerId: admin2.id,    projectId: project2.id, invoiceId: inv4.id, paymentId: pay4.id, basis: 9000, ratePct: 70, amount: 6300, status: CommissionStatus.PAID, paidAt: new Date('2026-02-10') },
+        // Project 3 (Géant) — 50/50 split, deposit collected, balance overdue (no commission yet)
+        { partnerId: manager2b.id, projectId: project3.id, invoiceId: inv6.id, paymentId: pay6.id, basis: 17500, ratePct: 50, amount: 8750, status: CommissionStatus.PENDING },
+      ];
+      for (const row of commissionRows) {
+        await prisma.commission.create({ data: row });
+      }
+      console.log(`✅ Commissions (${commissionRows.length})`);
+    }
+
+    // ── Invoice reminders ─────────────────────────────────────────────────────
+    if (!(await skipIf(prisma.invoiceReminder, 'Invoice reminders'))) {
+      await prisma.invoiceReminder.createMany({ data: [
+        { invoiceId: inv5.id, type: 'UPCOMING_DUE', sentAt: new Date('2026-05-24') },
+        { invoiceId: inv7.id, type: 'OVERDUE_FIRST', sentAt: new Date('2026-04-16') },
+        { invoiceId: inv7.id, type: 'OVERDUE_SECOND', sentAt: new Date('2026-05-01') },
+        { invoiceId: inv7.id, type: 'OVERDUE_FINAL', sentAt: new Date('2026-06-01') },
+      ]});
+      console.log('✅ Invoice reminders (4)');
+    }
+
+    // ── Credit notes ──────────────────────────────────────────────────────────
+    // Monoprix overpaid the deposit invoice slightly (bank fee rounding on their side);
+    // a credit note was issued and later applied against invoice 5's balance.
+    if (!(await skipIf(prisma.creditNote, 'Credit notes'))) {
+      const cn1 = await prisma.creditNote.create({ data: {
+        number: 'CN-2026-001', amount: 150, reason: 'Trop-perçu suite à un écart de change sur le virement du 03/02/2026.',
+        invoiceId: inv4.id, clientId: monoprix.id, appliedAt: new Date('2026-05-10'), appliedToInvoiceId: inv5.id,
+      }});
+      const cn2 = await prisma.creditNote.create({ data: {
+        number: 'CN-2026-002', amount: 500, reason: 'Avoir commercial suite au retard de livraison des maquettes (lot 1).',
+        invoiceId: inv6.id, clientId: geant.id,
+      }});
+      console.log(`✅ Credit notes (2: ${cn1.number}, ${cn2.number})`);
+    }
+
+    // ── Client onboarding pipeline ────────────────────────────────────────────
+    // 8-step sequence mirrors clientOnboardingService.createOnboarding's defaultSteps.
+    // Project 1 (Carrefour) is fully COMPLETED — all steps done, all sub-records filled.
+    // Project 2 (Monoprix) is IN_PROGRESS — production under way, delivery not yet reached.
+    // Project 3 (Géant) is REVIEW — early steps done, still waiting on kickoff.
+    if (!(await skipIf(prisma.clientOnboarding, 'Client onboardings'))) {
+      const onboarding1 = await prisma.clientOnboarding.create({ data: {
+        projectId: project1.id, clientId: carrefour.id, assignedUserId: manager1b.id,
+        steps: { create: [
+          { stepType: 'welcome',       title: 'Projet confirmé',        orderIndex: 0, status: OnboardingStepStatus.COMPLETED, deadline: new Date('2025-11-06'), completedAt: new Date('2025-11-05') },
+          { stepType: 'contract',      title: 'Contrat',                 orderIndex: 1, status: OnboardingStepStatus.COMPLETED, deadline: new Date('2025-11-10'), completedAt: new Date('2025-11-08') },
+          { stepType: 'payment',       title: 'Paiement',                orderIndex: 2, status: OnboardingStepStatus.COMPLETED, deadline: new Date('2025-11-20'), completedAt: new Date('2025-11-10') },
+          { stepType: 'questionnaire', title: 'Questionnaire',           orderIndex: 3, status: OnboardingStepStatus.COMPLETED, deadline: new Date('2025-11-15'), completedAt: new Date('2025-11-14') },
+          { stepType: 'specifications', title: 'Cahier des charges',     orderIndex: 4, status: OnboardingStepStatus.COMPLETED, deadline: new Date('2025-11-22'), completedAt: new Date('2025-11-20') },
+          { stepType: 'kickoff',       title: 'Réunion de lancement',     orderIndex: 5, status: OnboardingStepStatus.COMPLETED, deadline: new Date('2025-11-25'), completedAt: new Date('2025-11-24') },
+          { stepType: 'production',   title: 'Production',              orderIndex: 6, status: OnboardingStepStatus.COMPLETED, deadline: new Date('2026-04-15'), completedAt: new Date('2026-04-10') },
+          { stepType: 'delivery',     title: 'Livraison',                orderIndex: 7, status: OnboardingStepStatus.COMPLETED, deadline: new Date('2026-04-30'), completedAt: new Date('2026-04-28') },
+        ]},
+      }, include: { steps: true } });
+
+      const onboarding2 = await prisma.clientOnboarding.create({ data: {
+        projectId: project2.id, clientId: monoprix.id, assignedUserId: manager1b.id,
+        steps: { create: [
+          { stepType: 'welcome',       title: 'Projet confirmé',        orderIndex: 0, status: OnboardingStepStatus.COMPLETED, deadline: new Date('2026-01-26'), completedAt: new Date('2026-01-25') },
+          { stepType: 'contract',      title: 'Contrat',                 orderIndex: 1, status: OnboardingStepStatus.COMPLETED, deadline: new Date('2026-01-31'), completedAt: new Date('2026-01-29') },
+          { stepType: 'payment',       title: 'Paiement',                orderIndex: 2, status: OnboardingStepStatus.COMPLETED, deadline: new Date('2026-02-15'), completedAt: new Date('2026-02-03') },
+          { stepType: 'questionnaire', title: 'Questionnaire',           orderIndex: 3, status: OnboardingStepStatus.COMPLETED, deadline: new Date('2026-02-05'), completedAt: new Date('2026-02-01') },
+          { stepType: 'specifications', title: 'Cahier des charges',     orderIndex: 4, status: OnboardingStepStatus.COMPLETED, deadline: new Date('2026-02-12'), completedAt: new Date('2026-02-10') },
+          { stepType: 'kickoff',       title: 'Réunion de lancement',     orderIndex: 5, status: OnboardingStepStatus.COMPLETED, deadline: new Date('2026-02-18'), completedAt: new Date('2026-02-17') },
+          { stepType: 'production',   title: 'Production',              orderIndex: 6, status: OnboardingStepStatus.IN_PROGRESS, deadline: new Date('2026-07-15') },
+          { stepType: 'delivery',     title: 'Livraison',                orderIndex: 7, status: OnboardingStepStatus.PENDING,     deadline: new Date('2026-08-01') },
+        ]},
+      }, include: { steps: true } });
+
+      const onboarding3 = await prisma.clientOnboarding.create({ data: {
+        projectId: project3.id, clientId: geant.id, assignedUserId: manager2b.id,
+        steps: { create: [
+          { stepType: 'welcome',       title: 'Projet confirmé',        orderIndex: 0, status: OnboardingStepStatus.COMPLETED, deadline: new Date('2025-12-13'), completedAt: new Date('2025-12-12') },
+          { stepType: 'contract',      title: 'Contrat',                 orderIndex: 1, status: OnboardingStepStatus.COMPLETED, deadline: new Date('2025-12-18'), completedAt: new Date('2025-12-16') },
+          { stepType: 'payment',       title: 'Paiement',                orderIndex: 2, status: OnboardingStepStatus.COMPLETED, deadline: new Date('2026-01-05'), completedAt: new Date('2025-12-20') },
+          { stepType: 'questionnaire', title: 'Questionnaire',           orderIndex: 3, status: OnboardingStepStatus.COMPLETED, deadline: new Date('2025-12-28'), completedAt: new Date('2025-12-27') },
+          { stepType: 'specifications', title: 'Cahier des charges',     orderIndex: 4, status: OnboardingStepStatus.IN_PROGRESS, deadline: new Date('2026-07-25') },
+          { stepType: 'kickoff',       title: 'Réunion de lancement',     orderIndex: 5, status: OnboardingStepStatus.PENDING,     deadline: new Date('2026-08-01') },
+          { stepType: 'production',   title: 'Production',              orderIndex: 6, status: OnboardingStepStatus.PENDING,     deadline: new Date('2026-09-01') },
+          { stepType: 'delivery',     title: 'Livraison',                orderIndex: 7, status: OnboardingStepStatus.PENDING,     deadline: new Date('2026-09-15') },
+        ]},
+      }, include: { steps: true } });
+
+      const step = (onboarding: typeof onboarding1, type: string) => onboarding.steps.find((s) => s.stepType === type)!;
+
+      // Questionnaires — one per onboarding, project1 & project2 submitted, project3 drafted.
+      await Promise.all([
+        prisma.questionnaire.create({ data: { onboardingStepId: step(onboarding1, 'questionnaire').id, serviceType: 'web',    data: { objectifs: 'Augmenter le taux de conversion de 35%', cible: 'Grand public tunisien', budgetMarketing: '5000 TND/mois' }, isDraft: false, submittedAt: new Date('2025-11-14') } }),
+        prisma.questionnaire.create({ data: { onboardingStepId: step(onboarding2, 'questionnaire').id, serviceType: 'mobile', data: { objectifs: 'Application de fidélité pour 50K clients', plateformes: ['iOS', 'Android'], budgetMarketing: '3000 TND/mois' }, isDraft: false, submittedAt: new Date('2026-02-01') } }),
+        prisma.questionnaire.create({ data: { onboardingStepId: step(onboarding3, 'questionnaire').id, serviceType: 'erp',    data: { objectifs: 'Migration ERP sans interruption de service', systemesExistants: ['SAP R/3', 'Excel'] }, isDraft: false, submittedAt: new Date('2025-12-27') } }),
+      ]);
+
+      // Kickoff meetings
+      await Promise.all([
+        prisma.kickoffMeeting.create({ data: { onboardingStepId: step(onboarding1, 'kickoff').id, meetingDate: new Date('2025-11-24'), participants: 'Ahmed Ben Ali, Sarra Mansouri, équipe marketing Carrefour', meetingLink: 'https://meet.google.com/carrefour-kickoff' } }),
+        prisma.kickoffMeeting.create({ data: { onboardingStepId: step(onboarding2, 'kickoff').id, meetingDate: new Date('2026-02-17'), participants: 'Sarra Mansouri, Yassine Gharbi, Inès Bouali, équipe Monoprix', meetingLink: 'https://meet.google.com/monoprix-kickoff' } }),
+      ]);
+
+      // Production progress — completed for project1, mid-way for project2, not started for project3 (step still PENDING).
+      await Promise.all([
+        prisma.productionProgress.create({ data: { onboardingStepId: step(onboarding1, 'production').id, analysis: 100, design: 100, development: 100, testing: 100, deployment: 100 } }),
+        prisma.productionProgress.create({ data: { onboardingStepId: step(onboarding2, 'production').id, analysis: 100, design: 90,  development: 45,  testing: 10,  deployment: 0   } }),
+      ]);
+
+      // Delivery — only project1 has actually delivered.
+      await prisma.delivery.create({ data: {
+        onboardingStepId: step(onboarding1, 'delivery').id,
+        deliverables: 'Plateforme e-commerce complète (catalogue, panier, paiement Flouci, back-office admin).',
+        documentation: 'https://docs.secritou.tn/carrefour/documentation-technique.pdf',
+        accessDetails: 'Accès admin back-office transmis par email sécurisé. Identifiants AWS transmis via Bitwarden partagé.',
+        userGuides: 'https://docs.secritou.tn/carrefour/guide-utilisateur.pdf',
+      }});
+
+      console.log('✅ Client onboardings (3), steps (24), questionnaires (3), kickoffs (2), production (2), delivery (1)');
+    }
+
+    // ── Client success tracking ───────────────────────────────────────────────
+    if (!(await skipIf(prisma.clientSuccess, 'Client success records'))) {
+      const successCarrefour = await prisma.clientSuccess.create({ data: {
+        clientId: carrefour.id, score: 88,
+        objectives: { create: [
+          { title: 'Augmenter le taux de conversion',      description: 'Objectif fixé lors de la refonte de la plateforme e-commerce.', targetValue: 35, currentValue: 31, unit: '%',       targetDate: new Date('2026-09-30') },
+          { title: 'Réduire le taux d\'abandon panier',    description: 'Suite à l\'intégration Flouci et au nouveau tunnel de commande.', targetValue: 20, currentValue: 24, unit: '%',       targetDate: new Date('2026-10-31') },
+        ]},
+        metrics: { create: [
+          { name: 'Trafic mensuel (visiteurs uniques)', initialValue: 120000, currentValue: 168000, unit: 'visiteurs' },
+          { name: 'Taux de conversion',                  initialValue: 2.1,    currentValue: 2.9,    unit: '%' },
+        ]},
+        recommendations: { create: [
+          { title: 'Lancer une campagne de retargeting', description: 'Cibler les 24% de paniers abandonnés avec des emails personnalisés.', priority: RecommendationPriority.HIGH,   status: RecommendationStatus.IN_PROGRESS },
+          { title: 'Ajouter le paiement en 3x sans frais', description: 'Réduire la friction sur les paniers > 200 TND.',                       priority: RecommendationPriority.MEDIUM, status: RecommendationStatus.PENDING },
+        ]},
+        timeline: { create: [
+          { title: 'Mise en ligne de la plateforme',   description: 'Lancement officiel de la nouvelle plateforme e-commerce.', eventType: 'MILESTONE', date: new Date('2026-04-30') },
+          { title: 'Score de satisfaction : 88/100',    description: 'Suite à l\'enquête de satisfaction post-livraison.',       eventType: 'SCORE_UPDATE', date: new Date('2026-05-15') },
+        ]},
+      }, include: { metrics: true } });
+
+      const successMonoprix = await prisma.clientSuccess.create({ data: {
+        clientId: monoprix.id, score: 72,
+        objectives: { create: [
+          { title: 'Atteindre 50 000 inscrits au programme fidélité', description: 'Objectif de la V1 de l\'application mobile.', targetValue: 50000, currentValue: 8200, unit: 'inscrits', targetDate: new Date('2026-12-31') },
+        ]},
+        metrics: { create: [
+          { name: 'Utilisateurs actifs (bêta fermée)', initialValue: 0, currentValue: 1450, unit: 'utilisateurs' },
+        ]},
+        recommendations: { create: [
+          { title: 'Prioriser le module scan code-barres', description: 'Fonctionnalité la plus demandée par les testeurs bêta.', priority: RecommendationPriority.HIGH, status: RecommendationStatus.PENDING },
+        ]},
+        timeline: { create: [
+          { title: 'Démarrage du projet',  description: 'Acceptation de la proposition et lancement du projet.', eventType: 'MILESTONE', date: new Date('2026-01-25') },
+        ]},
+      }, include: { metrics: true } });
+
+      const successGeant = await prisma.clientSuccess.create({ data: {
+        clientId: geant.id, score: 65,
+        objectives: { create: [
+          { title: 'Migrer 100% des données vers SAP S/4HANA', description: 'Sans interruption de service en magasin.', targetValue: 100, currentValue: 40, unit: '%', targetDate: new Date('2027-01-31') },
+        ]},
+        recommendations: { create: [
+          { title: 'Planifier une réunion CODIR de cadrage phase 2', description: 'Le rapport d\'audit signale 3 risques critiques à trancher avant la migration.', priority: RecommendationPriority.HIGH, status: RecommendationStatus.PENDING },
+        ]},
+        timeline: { create: [
+          { title: 'Livraison du rapport d\'audit',  description: 'Rapport de 80 pages transmis pour validation CODIR.', eventType: 'MILESTONE', date: new Date('2026-03-01') },
+        ]},
+      }});
+
+      // Metric history — a few months of trend data for each Carrefour metric.
+      const trafficMetric = successCarrefour.metrics.find((m) => m.name.startsWith('Trafic'))!;
+      const conversionMetric = successCarrefour.metrics.find((m) => m.name.startsWith('Taux de conversion'))!;
+      await prisma.metricHistory.createMany({ data: [
+        { metricId: trafficMetric.id,    value: 120000, date: new Date('2026-02-01') },
+        { metricId: trafficMetric.id,    value: 138000, date: new Date('2026-03-01') },
+        { metricId: trafficMetric.id,    value: 151000, date: new Date('2026-04-01') },
+        { metricId: trafficMetric.id,    value: 168000, date: new Date('2026-05-01') },
+        { metricId: conversionMetric.id, value: 2.1,     date: new Date('2026-02-01') },
+        { metricId: conversionMetric.id, value: 2.4,     date: new Date('2026-03-01') },
+        { metricId: conversionMetric.id, value: 2.7,     date: new Date('2026-04-01') },
+        { metricId: conversionMetric.id, value: 2.9,     date: new Date('2026-05-01') },
+      ]});
+      void successMonoprix; void successGeant;
+
+      console.log('✅ Client success records (3), objectives (4), metrics (3), metric history (8), recommendations (4), timeline (4)');
+    }
+
+    // ── Documents & approvals (attachments, timeline, access log) ────────────
+    if (!(await skipIf(prisma.document, 'Documents'))) {
+      const documents = await Promise.all([
+        prisma.document.create({ data: { name: 'contrat-carrefour-signe.pdf',        title: 'Contrat — Refonte e-commerce Carrefour',  type: DocumentType.CONTRACT,        url: 'https://docs.secritou.tn/carrefour/contrat-signe.pdf',        accessLevel: DocumentAccessLevel.CLIENT_ADMIN, clientId: carrefour.id, projectId: project1.id, uploadedById: manager1b.id, signedAt: new Date('2025-11-08'), signedByClientId: clientUser1b.id } }),
+        prisma.document.create({ data: { name: 'brief-carrefour.pdf',                title: 'Brief client — Carrefour Tunisia',        type: DocumentType.CLIENT_BRIEF,    url: 'https://docs.secritou.tn/carrefour/brief.pdf',                 accessLevel: DocumentAccessLevel.ADMIN_FREELANCER, clientId: carrefour.id, projectId: project1.id, uploadedById: manager1b.id } }),
+        prisma.document.create({ data: { name: 'roadmap-carrefour-v1.pdf',           title: 'Roadmap projet — Carrefour Tunisia',      type: DocumentType.ROADMAP,         url: 'https://docs.secritou.tn/carrefour/roadmap-v1.pdf',            accessLevel: DocumentAccessLevel.CLIENT_ADMIN, clientId: carrefour.id, projectId: project1.id, uploadedById: admin2.id } }),
+        prisma.document.create({ data: { name: 'livrable-final-carrefour.zip',       title: 'Livrable final — Plateforme e-commerce',  type: DocumentType.DELIVERABLE,     url: 'https://docs.secritou.tn/carrefour/livrable-final.zip',        accessLevel: DocumentAccessLevel.CLIENT_ADMIN, clientId: carrefour.id, projectId: project1.id, uploadedById: freelancer1.id } }),
+        prisma.document.create({ data: { name: 'guide-utilisateur-carrefour.pdf',    title: 'Guide utilisateur back-office',            type: DocumentType.GUIDE,           url: 'https://docs.secritou.tn/carrefour/guide-utilisateur.pdf',     accessLevel: DocumentAccessLevel.ALL,          clientId: carrefour.id, projectId: project1.id, uploadedById: manager1b.id } }),
+        prisma.document.create({ data: { name: 'contrat-monoprix-signe.pdf',        title: 'Contrat — App Mobile Monoprix',           type: DocumentType.CONTRACT,        url: 'https://docs.secritou.tn/monoprix/contrat-signe.pdf',          accessLevel: DocumentAccessLevel.CLIENT_ADMIN, clientId: monoprix.id,  projectId: project2.id, uploadedById: manager1b.id, signedAt: new Date('2026-01-29'), signedByClientId: clientUser2b.id } }),
+        prisma.document.create({ data: { name: 'cahier-charges-monoprix.pdf',        title: 'Cahier des charges — App fidélité',        type: DocumentType.SPECS,           url: 'https://docs.secritou.tn/monoprix/cahier-charges.pdf',         accessLevel: DocumentAccessLevel.ADMIN_FREELANCER, clientId: monoprix.id, projectId: project2.id, uploadedById: manager1b.id } }),
+        prisma.document.create({ data: { name: 'rapport-audit-geant-v1.pdf',         title: 'Rapport d\'audit ERP — V1',               type: DocumentType.REPORT,          url: 'https://docs.secritou.tn/geant/rapport-audit-v1.pdf',          accessLevel: DocumentAccessLevel.CLIENT_ADMIN, clientId: geant.id,     projectId: project3.id, uploadedById: manager2b.id } }),
+        prisma.document.create({ data: { name: 'lettre-bienvenue-vermeg.pdf',        title: 'Lettre de bienvenue — Vermeg Digital',    type: DocumentType.WELCOME_LETTER,  url: 'https://docs.secritou.tn/vermeg/bienvenue.pdf',                accessLevel: DocumentAccessLevel.CLIENT_ADMIN, clientId: vermeg.id,    uploadedById: admin2.id } }),
+      ]);
+      const [docContrat, docBrief, docRoadmap, docLivrable, , docContratMonoprix, , docRapportAudit] = documents;
+
+      await prisma.approvalAttachment.createMany({ data: [
+        { name: 'maquettes-homepage-v2.fig',        url: 'https://docs.secritou.tn/carrefour/maquettes-homepage-v2.fig',        approvalId: approvalCarrefourHomepage.id },
+        { name: 'maquettes-homepage-v2-export.pdf', url: 'https://docs.secritou.tn/carrefour/maquettes-homepage-v2-export.pdf', approvalId: approvalCarrefourHomepage.id },
+        { name: 'maquettes-hf-lot1-monoprix.fig',   url: 'https://docs.secritou.tn/monoprix/maquettes-hf-lot1.fig',              approvalId: approvalMonoprixHF.id },
+        { name: 'rapport-audit-geant-v1.pdf',       url: 'https://docs.secritou.tn/geant/rapport-audit-v1.pdf',                  approvalId: approvalGeant.id },
+      ]});
+
+      await prisma.approvalTimeline.createMany({ data: [
+        { action: 'CREATED',  status: 'PENDING',  comment: 'Maquettes envoyées pour validation.',                                   userId: manager1b.id,  approvalId: approvalCarrefourHomepage.id, createdAt: new Date('2025-11-16') },
+        { action: 'APPROVED', status: 'APPROVED', comment: 'Validé par le directeur marketing Carrefour, RAS.',                       userId: clientUser1b.id, approvalId: approvalCarrefourHomepage.id, createdAt: new Date('2025-11-19') },
+        { action: 'CREATED',  status: 'PENDING',  comment: 'Lot 1 des maquettes HF envoyé (12 écrans sur 15).',                       userId: manager1b.id,  approvalId: approvalMonoprixHF.id,        createdAt: new Date('2026-04-10') },
+        { action: 'COMMENTED', status: 'PENDING', comment: 'Merci de revoir l\'écran wallet et d\'ajouter un onboarding tutoriel.',   userId: clientUser2b.id, approvalId: approvalMonoprixHF.id,        createdAt: new Date('2026-04-12') },
+        { action: 'CREATED',  status: 'PENDING',  comment: 'Rapport d\'audit transmis pour revue CODIR.',                            userId: manager2b.id,  approvalId: approvalGeant.id,              createdAt: new Date('2026-03-01') },
+        { action: 'COMMENTED', status: 'PENDING', comment: '3 risques critiques signalés sur la migration des données legacy.',       userId: admin2.id,     approvalId: approvalGeant.id,              createdAt: new Date('2026-03-08') },
+      ]});
+
+      await prisma.documentAccessLog.createMany({ data: [
+        { action: 'VIEW',     documentId: docContrat.id,         userId: clientUser1b.id, ipAddress: '105.235.12.44', createdAt: new Date('2025-11-08') },
+        { action: 'DOWNLOAD', documentId: docContrat.id,         userId: clientUser1b.id, ipAddress: '105.235.12.44', createdAt: new Date('2025-11-08') },
+        { action: 'VIEW',     documentId: docBrief.id,           userId: manager1b.id,    ipAddress: '41.226.10.201', createdAt: new Date('2025-11-15') },
+        { action: 'VIEW',     documentId: docRoadmap.id,         userId: clientUser1b.id, ipAddress: '105.235.12.44', createdAt: new Date('2025-11-20') },
+        { action: 'DOWNLOAD', documentId: docLivrable.id,        userId: clientUser1b.id, ipAddress: '105.235.12.44', createdAt: new Date('2026-04-29') },
+        { action: 'VIEW',     documentId: docContratMonoprix.id, userId: clientUser2b.id, ipAddress: '197.15.88.6',   createdAt: new Date('2026-01-29') },
+        { action: 'VIEW',     documentId: docRapportAudit.id,    userId: clientUser3b.id, ipAddress: '41.231.44.9',   createdAt: new Date('2026-03-02') },
+        { action: 'DOWNLOAD', documentId: docRapportAudit.id,    userId: clientUser3b.id, ipAddress: '41.231.44.9',   createdAt: new Date('2026-03-02') },
+      ]});
+
+      console.log('✅ Documents (9), approval attachments (4), approval timeline (6), document access logs (8)');
+    }
   }
 
   // ── Notifications ─────────────────────────────────────────────────────────

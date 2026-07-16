@@ -1,6 +1,11 @@
 import type { Task } from "@/types/task";
-import { TASK_STATUSES, TASK_PRIORITIES } from "@secritou/shared";
+import { TASK_STATUSES, TASK_PRIORITIES, ALLOWED_TASK_TRANSITIONS } from "@secritou/shared";
 import type { TFunction } from "i18next";
+
+// Re-exported so task status pickers can disable invalid transitions the same way
+// ProjectsPage does with PROJECT_STATUS_VALID_TRANSITIONS — single source of truth is
+// task.schema.ts in @secritou/shared, mirrored server-side by task.service.ts.
+export { ALLOWED_TASK_TRANSITIONS };
 
 export function getInitials(name: string) {
   return name

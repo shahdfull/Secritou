@@ -1,13 +1,15 @@
 import { serviceRequestRepository } from "../repositories/serviceRequest.repository.js";
 import { notificationRepository } from "../repositories/notification.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
+import { clientRepository } from "../repositories/client.repository.js";
 import { enqueueEmail } from "../jobs/queues.js";
-import { serviceRequestReceivedTemplate, serviceRequestStatusTemplate } from "./emailTemplates/index.js";
+import { serviceRequestStatusTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
 import { HttpError } from "../utils/httpError.js";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import type { ServiceRequestStatus, Priority } from "@prisma/client";
 import type { ServiceScope } from "../utils/serviceScope.js";
+import { notifyN8n } from "../utils/webhook.js";
 
 const ALLOWED_TRANSITIONS: Record<ServiceRequestStatus, ServiceRequestStatus[]> = {
   NEW: ["IN_REVIEW", "CANCELLED"],
@@ -45,11 +47,19 @@ export const serviceRequestService = {
     const admins = await userRepository.findAdmins();
     await notificationRepository.createMany(admins.map((admin) => ({ userId: admin.id, title: "Nouvelle demande de service", message: `Une nouvelle demande de service "${data.title}" a été soumise.`, link: "/app/commercial?tab=service-requests" })));
 
-    const dashboardUrl = `${env.FRONTEND_URL}/app/commercial?tab=service-requests`;
-    for (const admin of admins) {
-      const { subject, html } = serviceRequestReceivedTemplate(admin.name ?? "Admin", "un client", data.title, dashboardUrl);
-      void enqueueEmail({ to: admin.email, subject, html });
-    }
+    // Email to admins is sent by the n8n workflow (see notifyN8n below) — only the in-app
+    // notification is created directly here.
+    const client = await clientRepository.findById(data.clientId).catch(() => null);
+    void notifyN8n("serviceRequest.created", {
+      serviceRequestId: request.id,
+      title: data.title,
+      description: data.description,
+      type: request.type,
+      clientId: data.clientId,
+      clientName: client?.name,
+      adminUrl: `${env.FRONTEND_URL}/app/commercial?tab=service-requests`,
+      agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+    });
 
     return request;
   },

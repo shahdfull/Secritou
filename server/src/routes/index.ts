@@ -35,6 +35,7 @@ import managerPermissionRoutes from "./managerPermission.routes.js";
 import ratingRoutes from "./rating.routes.js";
 import portfolioRoutes from "./portfolio.routes.js";
 import { siteContentPublicRoutes, siteContentAdminRoutes } from "./siteContent.routes.js";
+import translationRoutes from "./translation.routes.js";
 import clientPortalRoutes from "./clientPortal.routes.js";
 import serviceRoutes from "./service.routes.js";
 
@@ -216,3 +217,4 @@ apiRoutes.use("/portfolio", portfolioRoutes);
 // Site Content CMS routes (public read + admin write)
 apiRoutes.use("/site-content", siteContentPublicRoutes);
 apiRoutes.use("/admin/site-content", siteContentAdminRoutes);
+apiRoutes.use("/admin/translate", translationRoutes);

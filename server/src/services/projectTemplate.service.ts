@@ -14,6 +14,9 @@ export const projectTemplateService = {
   async applyToProject(projectId: string) {
     const project = await projectRepository.findByIdAdmin(projectId);
     if (!project) throw new HttpError(404, "Project not found");
+    if (project.status === "COMPLETED") {
+      throw new HttpError(409, "This project is completed and no longer accepts task changes", "PROJECT_COMPLETED");
+    }
     if (!project.serviceId) throw new HttpError(422, "Project has no service/pole assigned", "PROJECT_NO_SERVICE");
 
     const template = await projectTemplateRepository.findByServiceId(project.serviceId);

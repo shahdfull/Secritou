@@ -34,7 +34,8 @@ import type { UpdateTaskForm } from "@/schemas/task.schema";
 import type { Task } from "@/types/task";
 import type { Project } from "@/types/project";
 import type { User } from "@/types/auth";
-import { getInitials, getStatusLabel, STATUS_OPTIONS, PRIORITY_OPTIONS, PRIORITY_BADGE } from "../taskUtils";
+import { getInitials, getStatusLabel, STATUS_OPTIONS, PRIORITY_OPTIONS, PRIORITY_BADGE, ALLOWED_TASK_TRANSITIONS } from "../taskUtils";
+import type { TaskStatus } from "@secritou/shared";
 
 interface TaskEditDialogProps {
   open: boolean;
@@ -58,6 +59,13 @@ export function TaskEditDialog({
   onSubmit,
 }: TaskEditDialogProps) {
   const { t } = useTranslation();
+  // The task's status when the dialog opened (form's default value, unaffected by in-progress
+  // edits) — used to compute which transitions are currently valid, mirroring how ProjectsPage
+  // restricts its own status picker to PROJECT_STATUS_VALID_TRANSITIONS.
+  const initialStatus = form.formState.defaultValues?.status as TaskStatus | undefined;
+  const availableStatuses: TaskStatus[] = initialStatus
+    ? [initialStatus, ...(ALLOWED_TASK_TRANSITIONS[initialStatus] ?? [])]
+    : [...STATUS_OPTIONS];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -70,7 +78,7 @@ export function TaskEditDialog({
           <div className="space-y-4 py-2">
             <p className="text-sm font-medium">{t("common.status")}</p>
             <div className="grid grid-cols-2 gap-2">
-              {STATUS_OPTIONS.map((s) => {
+              {availableStatuses.map((s) => {
                 const current = form.watch("status");
                 return (
                   <button
@@ -128,7 +136,7 @@ export function TaskEditDialog({
                           <SelectTrigger><SelectValue placeholder={t("tasksPage.selectStatus")} /></SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {STATUS_OPTIONS.map((s) => (
+                          {availableStatuses.map((s) => (
                             <SelectItem key={s} value={s}>{getStatusLabel(s, t)}</SelectItem>
                           ))}
                         </SelectContent>

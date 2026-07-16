@@ -3,10 +3,12 @@ import { z } from "zod";
 import { TaskStatus } from "@prisma/client";
 import { taskBaseSchema as sharedTaskBase } from "@secritou/shared";
 
+const isValidDateString = (s: string) => !isNaN(Date.parse(s));
+
 const taskBaseSchema = sharedTaskBase.extend({
   status: z.nativeEnum(TaskStatus).optional(),
-  startDate: z.string().transform((str) => new Date(str)).optional(),
-  dueDate: z.string().transform((str) => new Date(str)).optional(),
+  startDate: z.string().refine(isValidDateString, "Invalid date").transform((str) => new Date(str)).optional(),
+  dueDate: z.string().refine(isValidDateString, "Invalid date").transform((str) => new Date(str)).optional(),
 });
 
 export const createTaskSchema = z.object({
@@ -23,8 +25,8 @@ export const updateTaskSchema = z.object({
 export const getFreelancerAvailabilitySchema = z.object({
   query: z.object({
     freelancerId: z.string().min(1),
-    startDate: z.string().transform((str) => new Date(str)),
-    endDate: z.string().transform((str) => new Date(str)),
+    startDate: z.string().refine(isValidDateString, "Invalid date").transform((str) => new Date(str)),
+    endDate: z.string().refine(isValidDateString, "Invalid date").transform((str) => new Date(str)),
     excludeTaskId: z.string().optional(),
   }),
 });

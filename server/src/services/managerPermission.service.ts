@@ -16,6 +16,8 @@ const MODULES = [
   "documents",
   "proposals",
   "service-requests",
+  "client-success",
+  "client-onboarding",
 ] as const;
 
 const DEFAULT_MANAGER_PERMISSIONS = MODULES.reduce((acc, module) => {

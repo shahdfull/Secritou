@@ -136,9 +136,19 @@ api.interceptors.response.use(
       try {
         // Make refresh request with no retry to avoid recursion
         // Use api instance (not plain axios) to ensure withCredentials is true for HTTP-only cookies
-        const response = await api.post<any>("/auth/refresh", {}, {
-          _retry: true,
-        } as any);
+        let response;
+        try {
+          response = await api.post<any>("/auth/refresh", {}, { _retry: true } as any);
+        } catch (firstErr: any) {
+          // REFRESH_RACE = another tab rotated the token microseconds earlier;
+          // its fresh cookie is already set, so a single immediate retry
+          // succeeds. Only a second failure means the session is really gone.
+          if (firstErr?.response?.data?.error?.code === "REFRESH_RACE") {
+            response = await api.post<any>("/auth/refresh", {}, { _retry: true } as any);
+          } else {
+            throw firstErr;
+          }
+        }
         const { accessToken, user } = response.data.data;
 
         clearRefreshTimeout();

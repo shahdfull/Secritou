@@ -2,8 +2,8 @@ import { z } from "zod";
 
 // Note: These messages should be translated at the component level
 // by wrapping the schema in a function that accepts t()
-export const rejectFormSchema = z.object({
-  rejectionReason: z.string().optional(),
+export const createRejectFormSchema = (t: (key: string) => string) => z.object({
+  rejectionReason: z.string().min(10, t("applications.rejectModal.reasonMinLength")),
 });
 
 export const createAcceptFormSchema = (t: (key: string) => string) => z.object({
@@ -16,5 +16,5 @@ export const createAcceptFormSchema = (t: (key: string) => string) => z.object({
   role: z.enum(["FREELANCER", "MANAGER"]),
 });
 
-export type RejectForm = z.infer<typeof rejectFormSchema>;
+export type RejectForm = z.infer<ReturnType<typeof createRejectFormSchema>>;
 export type AcceptForm = z.infer<ReturnType<typeof createAcceptFormSchema>>;

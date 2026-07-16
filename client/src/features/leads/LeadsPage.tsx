@@ -56,7 +56,7 @@ import {
   RefreshCw,
   RotateCcw,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -110,9 +110,19 @@ export function LeadsPage() {
     setSearch(debouncedSearch);
   }, [debouncedSearch, setSearch]);
 
+  // Reset to page 1 only on a real statusFilter change — not on every re-render of
+  // updateParams, whose identity changes on each navigation (react-router-dom's
+  // setSearchParams isn't referentially stable across URL updates). Without this guard,
+  // clicking "next page" set page=2 then this effect immediately reset it back to 1.
+  const isFirstStatusRender = useRef(true);
   useEffect(() => {
+    if (isFirstStatusRender.current) {
+      isFirstStatusRender.current = false;
+      return;
+    }
     updateParams({ status: statusFilter === ALL_STATUSES_VALUE ? undefined : statusFilter, page: 1 });
-  }, [statusFilter, updateParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter]);
 
   const listParams = useMemo(
     () => ({
@@ -315,7 +325,7 @@ export function LeadsPage() {
           <h1 className="font-display text-2xl font-bold text-ink">{t('leadsPage.title')}</h1>
           <p className="text-muted-foreground">{t('leadsPage.subtitle')}</p>
         </div>
-        <Dialog open={createDialogOpen} onOpenChange={closeCreateDialog}>
+        <Dialog open={createDialogOpen} onOpenChange={(open) => (open ? openCreateDialog() : closeCreateDialog())}>
           {canCreate && (
             <DialogTrigger asChild>
               <Button>

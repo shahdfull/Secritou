@@ -11,6 +11,9 @@ export interface FinanceKPIs {
   pendingCount: number;
   cashGrowthMoM: number;
   cashGrowthYoY: number;
+  billedGrowthMoM: number;
+  overdueGrowthMoM: number;
+  pendingGrowthMoM: number;
   cashByMonth: Array<{ month: string; cash: number; billed: number }>;
 }
 

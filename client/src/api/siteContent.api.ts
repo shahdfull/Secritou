@@ -15,7 +15,7 @@ export type SiteContentItem = {
   key: string;
   locale: CmsLocale;
   value: string;
-  type: "TEXT" | "RICHTEXT" | "IMAGE" | "BOOLEAN";
+  type: "TEXT" | "RICHTEXT" | "IMAGE" | "BOOLEAN" | "JSON" | "SELECT";
   section: string;
   label: string;
 };

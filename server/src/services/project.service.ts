@@ -12,13 +12,15 @@ import type { ListQueryOptions } from "../utils/listQuery.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
 import { prisma, prismaRead } from "../config/prisma.js";
+import { auditLogService } from "./auditLog.service.js";
 import { getBriefQuestions } from "../constants/briefQuestions.js";
 import { invoiceService } from "./invoice.service.js";
 import { emailService } from "./email.service.js";
-import { projectApprovedManagerTemplate, projectApprovedClientTemplate } from "./emailTemplates/index.js";
+import { projectApprovedClientTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
 import { roundMoney } from "../utils/vat.js";
 import { PROJECT_STATUS_VALID_TRANSITIONS } from "@secritou/shared";
+import { notifyN8n } from "../utils/webhook.js";
 
 export type TimelineStepStatus = "done" | "pending" | "locked";
 
@@ -64,6 +66,15 @@ export const projectService = {
     const tagsToInvalidate = [cacheTags.company(), cacheTags.dashboard()];
     if (data.clientId) tagsToInvalidate.push(cacheTags.client(data.clientId));
     await invalidateTags(tagsToInvalidate);
+
+    void notifyN8n("project.created", {
+      projectId: project.id,
+      name: project.name,
+      clientId: project.clientId,
+      adminUrl: `${env.FRONTEND_URL}/app/projects/${project.id}`,
+      agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+    });
+
     return project;
   },
 
@@ -99,9 +110,28 @@ export const projectService = {
 
     const updated = await projectRepository.update(id, safeData);
 
-    if (data.status && data.status !== project.status && project.clientId) {
-      const clientUsers = await userRepository.findByClientId(project.clientId);
-      await enqueueNotifications(clientUsers.map((user) => ({ userId: user.id, title: "Mise à jour du projet", message: `Le projet "${project.name}" est passé à ${data.status}` })));
+    if (data.status && data.status !== project.status) {
+      if (project.clientId) {
+        const clientUsers = await userRepository.findByClientId(project.clientId);
+        await enqueueNotifications(clientUsers.map((user) => ({ userId: user.id, title: "Mise à jour du projet", message: `Le projet "${project.name}" est passé à ${data.status}` })));
+      }
+
+      // Freelancers with an active task on this project were previously never told the
+      // project itself changed status (e.g. paused back to PLANNING) — only clientUsers were.
+      const assignees = await prismaRead.task.findMany({
+        where: { projectId: id, assigneeId: { not: null } },
+        distinct: ["assigneeId"],
+        select: { assigneeId: true },
+      });
+      if (assignees.length > 0) {
+        await enqueueNotifications(
+          assignees.map((a) => ({
+            userId: a.assigneeId!,
+            title: "Mise à jour du projet",
+            message: `Le projet "${project.name}" est passé à ${data.status}`,
+          }))
+        );
+      }
     }
 
     const tagsToInvalidate = [cacheTags.company(), cacheTags.dashboard(), cacheTags.project(id)];
@@ -110,7 +140,7 @@ export const projectService = {
     return updated;
   },
 
-  async deleteProject(id: string) {
+  async deleteProject(id: string, actorId?: string, actorRole?: string) {
     const project = await projectRepository.findByIdAdmin(id);
     if (!project) throw new HttpError(404, "Project not found");
 
@@ -129,26 +159,38 @@ export const projectService = {
     const tagsToInvalidate = [cacheTags.company(), cacheTags.dashboard(), cacheTags.project(id)];
     if (project.clientId) tagsToInvalidate.push(cacheTags.client(project.clientId));
     await invalidateTags(tagsToInvalidate);
+
+    void auditLogService.record({ actorId, actorRole, action: "project.delete", entityType: "Project", entityId: id, before: project });
+
+    void notifyN8n("project.deleted", {
+      projectId: id,
+      name: project.name,
+      clientId: project.clientId,
+      agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+    });
+
     return deleted;
   },
 
-  async restoreProject(id: string) {
+  async restoreProject(id: string, actorId?: string, actorRole?: string) {
     const project = await prismaRead.project.findFirst({ where: { id, deletedAt: { not: null } }, select: { id: true, clientId: true } });
     if (!project) throw new HttpError(404, "Project not found");
     const restored = await projectRepository.restore(id);
     const tagsToInvalidate = [cacheTags.company(), cacheTags.dashboard(), cacheTags.project(id)];
     if (project.clientId) tagsToInvalidate.push(cacheTags.client(project.clientId));
     await invalidateTags(tagsToInvalidate);
+    void auditLogService.record({ actorId, actorRole, action: "project.restore", entityType: "Project", entityId: id });
     return restored;
   },
 
-  async archiveProject(id: string) {
+  async archiveProject(id: string, actorId?: string, actorRole?: string) {
     const project = await projectRepository.findByIdAdmin(id);
     if (!project) throw new HttpError(404, "Project not found");
     const archived = await projectRepository.archive(id);
     const tagsToInvalidate = [cacheTags.company(), cacheTags.dashboard(), cacheTags.project(id)];
     if (project.clientId) tagsToInvalidate.push(cacheTags.client(project.clientId));
     await invalidateTags(tagsToInvalidate);
+    void auditLogService.record({ actorId, actorRole, action: "project.archive", entityType: "Project", entityId: id, before: { status: project.status } });
     return archived;
   },
 
@@ -156,6 +198,20 @@ export const projectService = {
     const where: Record<string, unknown> = { id };
     if (role === "CLIENT") where.clientId = clientId ?? "__none__";
     if (role === "FREELANCER") where.tasks = { some: { assigneeId: userId ?? "__none__" } };
+
+    // A FREELANCER having a single task on the project previously matched the full project
+    // (including briefData — the client's complete questionnaire, potentially confidential
+    // objectives/budget) — restrict the select so a FREELANCER only gets whether the brief
+    // is done, not its content.
+    if (role === "FREELANCER") {
+      const project = await prismaRead.project.findFirst({
+        where,
+        select: { id: true, name: true, serviceType: true, briefCompleted: true, briefCompletedAt: true },
+      });
+      if (!project) throw new HttpError(404, "Project not found");
+      return { project: { ...project, briefData: null, clientId: undefined }, questions: [] };
+    }
+
     const project = await prismaRead.project.findFirst({
       where,
       select: { id: true, name: true, serviceType: true, briefData: true, briefCompleted: true, briefCompletedAt: true, clientId: true, service: { select: { name: true } } },
@@ -192,9 +248,23 @@ export const projectService = {
       } catch (err) {
         logger.error({ err }, "[submitBrief] Manager notification failed");
       }
+
+      void notifyN8n("project.brief_submitted", {
+        projectId: project.id,
+        projectName: project.name,
+        serviceType: project.serviceType,
+        briefData,
+        callbackUrl: `${env.API_URL}/api/v1/projects/${project.id}/ai-specs`,
+        agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+      });
     })();
 
-    await invalidateTags([cacheTags.company(), cacheTags.project(id)]);
+    await invalidateTags([
+      cacheTags.company(),
+      cacheTags.dashboard(),
+      cacheTags.project(id),
+      ...(project.clientId ? [cacheTags.client(project.clientId)] : []),
+    ]);
     return updated;
   },
 
@@ -215,16 +285,21 @@ export const projectService = {
 
     const depositInvoice = preread.invoices.find((inv) => inv.invoiceType === "DEPOSIT");
     if (depositInvoice && depositInvoice.status !== "PAID") {
-      throw new HttpError(409, "L'acompte doit être payé avant de valider le projet", "DEPOSIT_UNPAID");
+      throw new HttpError(409, "L'acompte doit être payé avant de valider le projet", "DEPOSIT_UNPAID", {
+        invoice: { id: depositInvoice.id, title: depositInvoice.title, amountHT: depositInvoice.amountHT, status: depositInvoice.status },
+      });
     }
 
-    const unresolvedApprovals = await prismaRead.approval.count({ where: { projectId, status: { in: ["PENDING", "REJECTED"] } } });
-    if (unresolvedApprovals > 0) {
+    const unresolvedApprovalsList = await prismaRead.approval.findMany({
+      where: { projectId, status: { in: ["PENDING", "REJECTED"] } },
+      select: { id: true, title: true, status: true },
+    });
+    if (unresolvedApprovalsList.length > 0) {
       throw new HttpError(
         409,
-        `Impossible de terminer le projet : ${unresolvedApprovals} validation(s) en attente ou rejetée(s) doivent être résolues d'abord`,
+        `Impossible de terminer le projet : ${unresolvedApprovalsList.length} validation(s) en attente ou rejetée(s) doivent être résolues d'abord`,
         "PENDING_APPROVALS_REMAINING",
-        { unresolvedApprovals }
+        { approvals: unresolvedApprovalsList }
       );
     }
 
@@ -234,6 +309,30 @@ export const projectService = {
     const currency = preread.proposal?.currency ?? "TND";
 
     const result = await prisma.$transaction(async (tx) => {
+      // Re-check inside the transaction: the preread checks above ran outside it, so a task
+      // could be reopened (DONE -> REVIEW is a valid transition), an Approval created, or the
+      // deposit invoice status changed in the window between preread and here. Without this,
+      // the project could complete despite one of these conditions no longer holding.
+      const [openTasksTx, depositTx, unresolvedApprovalsTx] = await Promise.all([
+        tx.task.count({ where: { projectId, status: { not: "DONE" } } }),
+        tx.invoice.findFirst({ where: { projectId, invoiceType: "DEPOSIT" }, select: { status: true } }),
+        tx.approval.count({ where: { projectId, status: { in: ["PENDING", "REJECTED"] } } }),
+      ]);
+      if (openTasksTx > 0) {
+        throw new HttpError(400, `${openTasksTx} tâche(s) non terminée(s)`, "OPEN_TASKS_REMAINING");
+      }
+      if (depositTx && depositTx.status !== "PAID") {
+        throw new HttpError(409, "L'acompte doit être payé avant de valider le projet", "DEPOSIT_UNPAID");
+      }
+      if (unresolvedApprovalsTx > 0) {
+        throw new HttpError(
+          409,
+          `Impossible de terminer le projet : ${unresolvedApprovalsTx} validation(s) en attente ou rejetée(s) doivent être résolues d'abord`,
+          "PENDING_APPROVALS_REMAINING",
+          { unresolvedApprovals: unresolvedApprovalsTx }
+        );
+      }
+
       const project = await tx.project.update({
         where: { id: projectId },
         data: { status: "COMPLETED", clientApprovedAt: new Date(), clientApprovedById: userId },
@@ -289,18 +388,23 @@ export const projectService = {
       }
 
       try {
+        // Email to managers is sent by the n8n workflow (see notifyN8n below) — only the
+        // in-app notification is created directly here.
         const managers = await userRepository.findAdmins();
-        const dashboardUrl = env.FRONTEND_URL ? `${env.FRONTEND_URL}/app/projects/${projectId}` : `https://app.secritou.com/app/projects/${projectId}`;
-        await Promise.all(
-          managers.map((u) => {
-            const tpl = projectApprovedManagerTemplate({ managerName: u.name ?? u.email, clientName: preread.client?.name ?? clientId, projectName: preread.name, dashboardUrl });
-            return emailService.send({ to: u.email, ...tpl });
-          })
-        );
         await enqueueNotifications(managers.map((u) => ({ userId: u.id, title: "Projet approuvé par le client", message: `Le client ${preread.client?.name ?? ""} a approuvé la livraison du projet « ${preread.name} ». Facture de solde générée.` })));
       } catch (err) {
         logger.error({ err }, "[clientApprove] Manager notification failed");
       }
+
+      void notifyN8n("project.client_approved", {
+        projectId,
+        name: preread.name,
+        clientId,
+        clientName: preread.client?.name,
+        balanceInvoiceId: result.balanceInvoiceId,
+        adminUrl: `${env.FRONTEND_URL}/app/projects/${projectId}`,
+        agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+      });
 
       try {
         const clientEmail = preread.client?.email;

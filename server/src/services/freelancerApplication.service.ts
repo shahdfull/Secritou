@@ -10,6 +10,10 @@ import { randomBytes, createHash } from "node:crypto";
 import { prisma } from "../config/prisma.js";
 import type { ApplicationStatus } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
+import { notifyN8n } from "../utils/webhook.js";
+import logger from "../utils/logger.js";
+import { extractCvText } from "./cvExtraction.service.js";
+import { HttpError } from "../utils/httpError.js";
 
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
@@ -24,11 +28,34 @@ export const freelancerApplicationService = {
     return freelancerApplicationRepository.findById(id);
   },
 
+  // Explicit admin action ("Proposer un entretien") rather than a new ApplicationStatus value
+  // — ApplicationStatus only models the terminal PENDING/ACCEPTED/REJECTED outcome, an
+  // interview invite is a side-channel action that doesn't change that outcome. The n8n
+  // workflow (and its resulting email to the candidate, e.g. a Calendly link) is the only
+  // record of this — nothing is persisted on the FreelancerApplication row itself.
+  async requestInterview(id: string) {
+    const application = await freelancerApplicationRepository.findById(id);
+    if (!application) throw new HttpError(404, "Application not found");
+    if (application.status !== "PENDING") {
+      throw new HttpError(409, "Interview can only be requested for a pending application", "APPLICATION_NOT_PENDING");
+    }
+
+    void notifyN8n("freelancerApplication.interview_requested", {
+      applicationId: application.id,
+      candidateName: `${application.firstName} ${application.lastName}`,
+      candidateEmail: application.email,
+      position: application.position,
+      adminUrl: `${env.FRONTEND_URL}/app/talent`,
+    });
+
+    return application;
+  },
+
   async createApplication(data: { firstName: string; lastName: string; email: string; phone?: string; position: string; bio: string; role: string }, cvFile: Express.Multer.File, portfolioFile: Express.Multer.File) {
     const cvUpload = await uploadService.upload(cvFile.buffer, cvFile.originalname, cvFile.mimetype, cvFile.size, "cv");
     const portfolioUpload = await uploadService.upload(portfolioFile.buffer, portfolioFile.originalname, portfolioFile.mimetype, portfolioFile.size, "portfolio");
 
-    const application = await freelancerApplicationRepository.create({ firstName: data.firstName, lastName: data.lastName, email: data.email, phone: data.phone, position: data.position, cvUrl: cvUpload.url, portfolioUrl: portfolioUpload.url });
+    const application = await freelancerApplicationRepository.create({ firstName: data.firstName, lastName: data.lastName, email: data.email, phone: data.phone, position: data.position, cvUrl: cvUpload.url, cvKey: cvUpload.key, portfolioUrl: portfolioUpload.url, portfolioKey: portfolioUpload.key });
 
     const { subject, html } = applicationReceivedTemplate(data.firstName);
     void enqueueEmail({ to: data.email, subject, html });
@@ -44,6 +71,27 @@ export const freelancerApplicationService = {
       );
     }
 
+    void (async () => {
+      // Text-based PDF only (see cvExtraction.service.ts) — a scanned image CV yields null
+      // and is skipped rather than sending an empty/garbage prompt to the LLM summary step.
+      const cvText = await extractCvText(cvFile.buffer);
+      if (!cvText) {
+        logger.info({ applicationId: application.id }, "[createApplication] No extractable text in CV — skipping AI summary");
+        return;
+      }
+      await notifyN8n("freelancer.applied", {
+        applicationId: application.id,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        position: data.position,
+        cvText,
+        adminUrl: `${env.FRONTEND_URL}/app/talent`,
+        agencyEmail: env.CONTACT_RECEIVER_EMAIL,
+        callbackUrl: `${env.API_URL}/api/v1/freelancer-applications/${application.id}/ai-summary`,
+      });
+    })();
+
     return application;
   },
 
@@ -51,9 +99,16 @@ export const freelancerApplicationService = {
     return freelancerApplicationRepository.findPending();
   },
 
+  // Called back by the n8n CV-extraction workflow once it has downloaded the CV, run OCR,
+  // and summarized it — never by a human-facing route, hence no ADMIN auth check here (the
+  // route itself is gated by verifyN8nSignature instead, see freelancerApplication.routes.ts).
+  async setAiSummary(id: string, aiSummary: string) {
+    return freelancerApplicationRepository.update(id, { aiSummary });
+  },
+
   async rejectApplication(id: string, rejectionReason?: string) {
     if (!rejectionReason || rejectionReason.trim().length < 10) {
-      throw new Error("Rejection reason is required and must be at least 10 characters");
+      throw new HttpError(422, "Rejection reason is required and must be at least 10 characters", "REJECTION_REASON_TOO_SHORT");
     }
     const application = await freelancerApplicationRepository.update(id, { status: "REJECTED", rejectionReason });
     const { subject, html } = applicationRejectedTemplate(application.firstName, rejectionReason);

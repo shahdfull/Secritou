@@ -16,6 +16,22 @@ function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
+// Refresh-token rotation revokes the old token and issues a new one on every
+// refresh. Two tabs (or a fast reload / prefetch) share one refresh cookie but
+// refresh independently: tab A rotates first, then tab B sends the token A just
+// revoked. Treating that as token *reuse* and killing the whole family logged
+// everyone out ("session expired") for a completely benign race. So we only
+// treat a *recently* revoked token as a benign race — reject it with a plain
+// 401 (the caller refreshes again with the fresh cookie) without revoking the
+// family. A token revoked longer ago being replayed is still treated as reuse.
+const REFRESH_REUSE_GRACE_MS = 30_000;
+
+// A bcrypt hash of a random, never-issued password — used to equalize login timing when the
+// email doesn't exist, so bcrypt.compare always runs and an attacker can't distinguish
+// "no such account" (fast) from "wrong password" (slow, real bcrypt.compare) via a timing
+// side-channel, despite both cases already returning the identical error message.
+const DUMMY_PASSWORD_HASH = "$2a$12$CwTycUXWue0Thq9StjUM0uJ8pP9V.a9Y0Kx.9zEXZ6UEgQ6t6Gxsi";
+
 function toAuthUser(
   user: Pick<User, "id" | "email" | "name" | "role" | "clientId" | "mustChangePassword">
 ) {
@@ -86,10 +102,11 @@ export class AuthService {
 
   async login(input: { email: string; password: string }) {
     const user = await this.repo.findUserByEmail(input.email);
-    if (!user) throw new HttpError(401, "Invalid email or password");
 
-    const isValid = await bcrypt.compare(input.password, user.passwordHash);
-    if (!isValid) throw new HttpError(401, "Invalid email or password");
+    const isValid = await bcrypt.compare(input.password, user?.passwordHash ?? DUMMY_PASSWORD_HASH);
+    if (!user || !isValid) throw new HttpError(401, "Invalid email or password");
+
+    await this.db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
 
     return this.issueTokens(user);
   }
@@ -121,8 +138,20 @@ export class AuthService {
       throw new HttpError(401, "Refresh token is no longer valid");
     }
 
-    if (stored.revokedAt || stored.expiresAt < new Date()) {
-      // Token was revoked or expired
+    if (stored.expiresAt < new Date()) {
+      await this.repo.revokeTokenFamily(stored.familyId);
+      throw new HttpError(401, "Refresh token is no longer valid");
+    }
+
+    if (stored.revokedAt) {
+      const revokedAgoMs = Date.now() - stored.revokedAt.getTime();
+      if (revokedAgoMs <= REFRESH_REUSE_GRACE_MS) {
+        // Benign concurrent rotation (another tab already refreshed): don't
+        // nuke the family, just tell this caller to retry with the new cookie.
+        // The REFRESH_RACE code tells the controller to keep the (valid) cookie.
+        throw new HttpError(401, "Refresh token already rotated", "REFRESH_RACE");
+      }
+      // Replay of a token revoked long ago — genuine reuse, revoke the family.
       await this.repo.revokeTokenFamily(stored.familyId);
       throw new HttpError(401, "Refresh token is no longer valid");
     }

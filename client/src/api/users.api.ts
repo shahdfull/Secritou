@@ -59,4 +59,8 @@ export const usersApi = {
     const response = await apiClient.get<ApiResponse<PermissionsMatrix>>("/users/permissions");
     return response.data.data;
   },
+
+  sendHeartbeat: async (): Promise<void> => {
+    await apiClient.post("/users/me/heartbeat");
+  },
 };

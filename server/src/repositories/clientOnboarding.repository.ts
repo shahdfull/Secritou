@@ -42,10 +42,15 @@ function buildOrderBy(orderBy: string | undefined, orderDir: "asc" | "desc") {
   return { [field]: orderDir };
 }
 
-function buildWhere(search?: string, clientId?: string, userClientId?: string | null): Prisma.ClientOnboardingWhereInput {
+function buildWhere(search?: string, clientId?: string, userClientId?: string | null, managerServiceId?: string | null): Prisma.ClientOnboardingWhereInput {
   const where: Prisma.ClientOnboardingWhereInput = {};
   if (clientId) where.clientId = clientId;
   if (userClientId) where.clientId = userClientId;
+  // A MANAGER only sees onboardings for clients whose project belongs to their pole —
+  // previously unscoped, letting any manager see/act on every client's onboarding pipeline.
+  if (managerServiceId !== undefined) {
+    where.project = { serviceId: managerServiceId ?? "__none__" };
+  }
   if (search) {
     where.OR = [
       { project: { name: { contains: search, mode: "insensitive" } } },
@@ -58,11 +63,12 @@ function buildWhere(search?: string, clientId?: string, userClientId?: string | 
 export const clientOnboardingRepository = {
   async findAll(
     options: ListQueryOptions & { search?: string; clientId?: string },
-    userClientId?: string | null
+    userClientId?: string | null,
+    managerServiceId?: string | null
   ): Promise<PaginatedResult<ClientOnboarding & { client: Pick<Client, "id" | "name">; project: Pick<Project, "id" | "name"> | null }>> {
     const skip = (options.page - 1) * options.pageSize;
     const orderBy = buildOrderBy(options.orderBy, options.orderDir);
-    const where = buildWhere(options.search, options.clientId, userClientId);
+    const where = buildWhere(options.search, options.clientId, userClientId, managerServiceId);
 
     const [data, total] = await Promise.all([
       prismaRead.clientOnboarding.findMany({
@@ -86,18 +92,25 @@ export const clientOnboardingRepository = {
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(id: string, userClientId?: string | null): Promise<FullOnboarding | null> {
-    const where: Prisma.ClientOnboardingWhereUniqueInput = { id };
-    if (userClientId) {
-      // For userClientId, use first instead of unique since we're adding a clientId filter
-      return prismaRead.clientOnboarding.findFirst({ where: { id, clientId: userClientId }, include: fullOnboardingInclude });
+  async findById(id: string, userClientId?: string | null, managerServiceId?: string | null): Promise<FullOnboarding | null> {
+    if (userClientId || managerServiceId !== undefined) {
+      // Using findFirst (not findUnique) since we're adding a clientId/serviceId filter.
+      return prismaRead.clientOnboarding.findFirst({
+        where: {
+          id,
+          ...(userClientId ? { clientId: userClientId } : {}),
+          ...(managerServiceId !== undefined ? { project: { serviceId: managerServiceId ?? "__none__" } } : {}),
+        },
+        include: fullOnboardingInclude,
+      });
     }
-    return prismaRead.clientOnboarding.findUnique({ where, include: fullOnboardingInclude });
+    return prismaRead.clientOnboarding.findUnique({ where: { id }, include: fullOnboardingInclude });
   },
 
-  async findByProjectId(projectId: string, userClientId?: string | null): Promise<FullOnboarding | null> {
+  async findByProjectId(projectId: string, userClientId?: string | null, managerServiceId?: string | null): Promise<FullOnboarding | null> {
     const where: Prisma.ClientOnboardingWhereInput = { projectId };
     if (userClientId) where.clientId = userClientId;
+    if (managerServiceId !== undefined) where.project = { serviceId: managerServiceId ?? "__none__" };
     return prismaRead.clientOnboarding.findFirst({ where, include: fullOnboardingInclude });
   },
 

@@ -54,4 +54,13 @@ export class AuthRepository {
       data: { revokedAt: new Date() },
     });
   }
+
+  // Revokes every active refresh token for a user, across all token families — used when a
+  // role change must invalidate any session that could still carry the old role's permissions.
+  revokeAllSessionsForUser(userId: string) {
+    return this.db.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
 }

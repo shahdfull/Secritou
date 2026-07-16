@@ -3,6 +3,7 @@ import { SEO } from "@/components/common/SEO";
 import { GlobalErrorBoundary } from "@/components/common/GlobalErrorBoundary";
 import { Toaster } from "@/components/ui/sonner";
 import { usePageViewTracking } from "@/hooks/usePageViewTracking";
+import { useSessionHeartbeat } from "@/hooks/useSessionHeartbeat";
 import { AppRoutes } from "@/routes/AppRoutes";
 import { queryClient } from "@/services/queryClient";
 import { useBootstrapSession } from "@/hooks/useAuth";
@@ -12,6 +13,7 @@ function AppContent() {
   useBootstrapSession();
 
   usePageViewTracking();
+  useSessionHeartbeat();
 
   return (
     <>

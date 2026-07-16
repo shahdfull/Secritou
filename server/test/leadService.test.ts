@@ -7,10 +7,10 @@ import { serviceNameForType } from "../src/constants/serviceMapping.js";
 
 describe("serviceMapping.serviceNameForType", () => {
   test("maps each canonical serviceType to the matching pole name", () => {
-    assert.equal(serviceNameForType("Business Performance"), "Business Performance");
-    assert.equal(serviceNameForType("Digital Growth"), "Digital Growth");
-    assert.equal(serviceNameForType("Technology Solutions"), "Technology Solutions");
-    assert.equal(serviceNameForType("AI & Automation"), "AI & Automation");
+    assert.equal(serviceNameForType("Management & Performance"), "Management & Performance");
+    assert.equal(serviceNameForType("Croissance digitale"), "Croissance digitale");
+    assert.equal(serviceNameForType("Technologie"), "Technologie");
+    assert.equal(serviceNameForType("IA & Automatisation"), "IA & Automatisation");
   });
 
   test("'Other' maps to null (unassigned, ADMIN triage)", () => {

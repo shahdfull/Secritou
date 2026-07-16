@@ -63,7 +63,7 @@ export const getFreelancerAvailability: RequestHandler = async (req, res, next) 
 
 export const deleteTask: RequestHandler = async (req, res, next) => {
   try {
-    await taskService.deleteTask(req.params.id as string, await buildServiceScope(req));
+    await taskService.deleteTask(req.params.id as string, await buildServiceScope(req), req.user?.sub, req.user?.role);
     res.status(204).send();
   } catch (error) {
     next(error);
