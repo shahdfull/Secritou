@@ -261,6 +261,13 @@ anomalies:
       correctif non encore commité + non passé par la CI distante au moment
       de cette note (voir la règle commit+CI de CLAUDE.md).
 
+      Résolu par ajout du champ `phone` au modèle User (décision produit,
+      REFERENTIEL.md §7), et non par retrait de l'API. Le trou de typage
+      sous-jacent (SEC-012) est traité séparément : c'est lui qui rendait ce
+      défaut invisible. Usage confirmé (REFERENTIEL.md §7, 2026-07-16) :
+      champ "Téléphone" du portail Client (ClientProfilePage.tsx),
+      distinct de Client.phone.
+
   - id: SEC-007
     titre: "Le serveur ne compile pas (tsc --noEmit échoue)"
     perimetre: "transverse — toutes les entités/modules dont le statut IMPLÉMENTÉ s'appuie sur du code server/src"

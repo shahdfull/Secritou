@@ -111,6 +111,14 @@ vérité, indiscernable d'une vraie décision une fois datée et écrite. Toute
 mention de « confirmé/validé par le porteur » doit citer le message exact.
 À défaut : ne pas l'écrire.
 
+## Toute décision du porteur s'écrit dans §7 dans la même passe
+
+Une décision rendue oralement/en chat n'existe pas tant qu'elle n'est pas dans
+REFERENTIEL.md §7, avec sa date et son motif. C'est ce qui permet à une
+session ultérieure — ou à un relecteur qui n'a pas assisté à l'échange — de
+distinguer une décision réelle d'une invention. Une décision non écrite sera
+relue comme une fabrication, et à juste titre : rien ne les distingue.
+
 ## Provenance obligatoire de tout statut
 
 Un statut `IMPLÉMENTÉ` (entité §3, module §4, règle §5) n'est autorisé que
