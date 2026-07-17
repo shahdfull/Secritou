@@ -271,8 +271,19 @@ directement cette session ni la précédente.
 ### 3.16 ServiceRequest
 Demande de support ou de nouveau projet initiée côté client. Statuts :
 `NEW → IN_REVIEW → IN_PROGRESS → WAITING_CLIENT → COMPLETED/CANCELLED`.
-**Statut : `[À CONFIRMER]`. `verifie: schema_seul`** — aucun fichier de
-service/controller lu directement.
+**Statut : IMPLÉMENTÉ. `verifie: code_direct`** (session du 2026-07-17 :
+`serviceRequest.service.ts` (130 l.), `.repository.ts` (188 l.),
+`.controller.ts` (105 l.) lus intégralement. Machine à états
+`ALLOWED_TRANSITIONS` confirmée, `type` immuable après création
+(`SERVICE_REQUEST_TYPE_IMMUTABLE`), historique append-only sur
+statut/priorité/assignation, scoping Manager par pôle vérifié sur
+`getServiceRequestById`/`adminUpdateServiceRequest`/
+`deleteServiceRequest`/`addComment` (via `client.projects.some.serviceId`).
+`deleteComment` ne vérifie que la propriété du commentaire
+(`authorId`), pas le scope pôle — vérifié que ce n'est pas exploitable :
+un Manager hors-pôle ne peut jamais être auteur d'un commentaire sur une
+demande hors de son pôle, puisque `addComment` applique déjà le scope à
+la création. Aucune anomalie fonctionnelle trouvée.
 
 ### 3.17 Approval
 Élément soumis à validation du client. Statuts :
@@ -1062,3 +1073,4 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-17** | **Bug d'infrastructure de test trouvé et corrigé en marge de SEC-002 : le nouveau fichier `server/test/portalActivationOnPayment.test.ts` est le premier de toute la suite à déclencher pour de vrai l'invalidation de cache (`cache/redis.ts`, client Redis distinct de celui de BullMQ que `run-all.test.ts` fermait déjà) — laissé ouvert, il maintenait le process Node vivant ~40s après la fin réelle des tests, faisant échouer `node --test` par timeout et rapportant faussement l'ensemble comme en échec malgré des tests individuellement verts en 3.5s. Corrigé par `closeRedisClient()` dans le hook `after()` de ce fichier spécifiquement.** | **Diagnostic direct de l'assistant par isolation progressive (suite complète → 3 fichiers → 1 fichier → inspection `pg_stat_activity`, qui a exclu un verrou base de données réel). Pas une décision produit — documenté pour qu'une future session comprenne pourquoi ce fichier a ce hook supplémentaire.** |
 | **2026-07-17** | **Entité 3.9 ClientOnboarding relevée de `[À CONFIRMER]`/`schema_seul` à IMPLÉMENTÉ/`code_direct` : les 3 fichiers cœur (service 122 l., repository 363 l., controller 388 l.) lus intégralement, aucune anomalie fonctionnelle trouvée. Repository déjà correctement typé sur les types Prisma générés — pas de trace de la classe de défaut SEC-012 ici.** | **Reprise de la lecture exhaustive des modules encore `[À CONFIRMER]`, sur demande du porteur du projet (« continue à lire et corriger », rythme module par module, un rapport à chaque fois), session du 2026-07-17.** |
 | **2026-07-17** | **Entité 3.12 CreditNote relevée de `[À CONFIRMER]`/`schema_seul` à IMPLÉMENTÉ/`code_direct` : `creditNote.service.ts` lu intégralement (183 l.). SEC-022 trouvée et corrigée dans la même passe : `applyCredit` supposait que Prisma retourne `null` sur un `update` conditionnel sans match, alors qu'il lève `P2025` — le garde-fou anti-double-application (409 attendu) ne se déclenchait jamais, l'utilisateur recevait un 500 générique. Reproduit réellement, corrigé, testé.** | **Constat incident pendant la lecture exhaustive des modules `[À CONFIRMER]`, enregistré immédiatement conformément à CLAUDE.md.** |
+| **2026-07-17** | **Entité 3.16 ServiceRequest relevée de `[À CONFIRMER]`/`schema_seul` à IMPLÉMENTÉ/`code_direct` : les 3 fichiers cœur (service 130 l., repository 188 l., controller 105 l.) lus intégralement. Aucune anomalie fonctionnelle trouvée — `deleteComment` ne vérifie que la propriété du commentaire, pas le scope pôle, mais vérifié non exploitable (un Manager hors-pôle ne peut jamais être auteur d'un commentaire sur une demande hors de son pôle).** | **Reprise de la lecture exhaustive des modules `[À CONFIRMER]`, session du 2026-07-17.** |
