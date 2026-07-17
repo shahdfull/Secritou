@@ -13,7 +13,6 @@ import { HttpError } from "../utils/httpError.js";
 import type { ServiceScope } from "../utils/serviceScope.js";
 import { prisma } from "../config/prisma.js";
 import { invoiceService } from "./invoice.service.js";
-import { clientService } from "./client.service.js";
 import { linkLeadToClientTx } from "./lead.service.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
@@ -410,18 +409,12 @@ export const proposalService = {
     const notified = await notifyAdminsAccepted({ id: result.proposalId, title: result.title, amount: result.amount, currency: result.currency, clientId: result.clientId, serviceId: result.serviceId });
     await invalidateTags([cacheTags.company(), cacheTags.dashboard(), cacheTags.client(result.clientId)]);
 
-    let clientInvited = false;
+    // RG-018 / SEC-002: the client portal account (and its invitation email) is no longer
+    // created here. It's created when the DEPOSIT invoice actually reaches PAID
+    // (invoice.service.ts#addPayment) — Cadrage §6: "paiement de la 1re tranche = ouverture
+    // de l'espace client". Accepting a proposal only generates the deposit invoice; it does
+    // not by itself grant the client any account or credentials.
     const client = await clientRepository.findById(result.clientId);
-    const inviteEmail = result.email ?? client?.email ?? undefined;
-    const inviteName = result.clientName ?? client?.name ?? undefined;
-    if (inviteEmail && inviteName) {
-      try {
-        await clientService.inviteClientUser(result.clientId, inviteEmail, inviteName);
-        clientInvited = true;
-      } catch (err) {
-        if (!(err instanceof HttpError && err.statusCode === 409)) throw err;
-      }
-    }
 
     const proposal = await proposalRepository.findById(id);
 
@@ -480,7 +473,11 @@ export const proposalService = {
       internalRecipients: notified.map((r) => ({ name: r.name, email: r.email, role: r.role })),
     });
 
-    return { proposal, projectId: result.projectId, invoiceId: result.invoiceId, clientInvited };
+    // clientInvited is always false here now (RG-018/SEC-002: invitation moved to payment
+    // time, see invoice.service.ts#addPayment) — kept in the response shape rather than
+    // removed, since the client type/i18n string still exist and a future decision might
+    // want to distinguish "already had an account" from "invited by this action".
+    return { proposal, projectId: result.projectId, invoiceId: result.invoiceId, clientInvited: false };
   },
 
   async reject(id: string, comment?: string) {

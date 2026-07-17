@@ -133,7 +133,7 @@ anomalies:
     regle_violee: "RG-018"
     classe: null
     gravite: majeur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand l'invitation du compte client / l'activation du
       portail (portalActivatedAt) est déclenchée uniquement par le passage
@@ -158,6 +158,80 @@ anomalies:
       (round5-report.md, document historique), non revérifié ligne à ligne
       contre le CDC directement. confiance: a_confirmer reflète cette partie
       non revérifiée du rapprochement, pas le comportement du code lui-même.
+
+      DÉCOUVERTE COMPLÉMENTAIRE avant correction, session du 2026-07-17 :
+      le portail n'était PAS ouvert sans garde comme le laissait supposer
+      une lecture rapide — `requireActivatedPortal`
+      (server/src/middlewares/rbac.middleware.ts:23-46) existe déjà et
+      bloque bien l'accès aux données du portail (8 fichiers de routes :
+      approval, client, clientOnboarding, clientPortal, document, project,
+      serviceRequest, summary) tant que `Client.portalActivatedAt` est
+      null — commentaire du code confirmant l'intention : « A CLIENT
+      account can exist and log in beforehand [...] but every portal data
+      route must be gated behind this check ». Le vrai défaut, plus étroit
+      que le titre ne le suggère : le COMPTE (email + mot de passe
+      temporaire) était créé et envoyé dès l'acceptation, avant tout
+      paiement — le client pouvait se connecter mais tombait sur un mur
+      403 (`PORTAL_NOT_ACTIVATED`). Confirmé au porteur du projet avant de
+      choisir entre « garder ce design (compte tôt + gate) » et « retarder
+      aussi le compte » — décision : retarder le compte.
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-17 :
+      `proposal.service.ts#acceptWithCascade` n'appelle plus
+      `clientService.inviteClientUser` (import retiré, devenu inutilisé).
+      `invoice.service.ts#addPayment` l'appelle désormais, post-commit,
+      uniquement quand la transaction vient de faire passer
+      `Client.portalActivatedAt` de `null` à une date réelle (nouveau flag
+      `justActivatedPortal`, dérivé du `count` réel de l'`updateMany`
+      idempotent existant — pas une re-dérivation de la condition
+      `newStatus === "PAID" && invoiceType === "DEPOSIT"`, pour ne jamais
+      ré-inviter sur un paiement ultérieur d'un client déjà activé). 409
+      (compte déjà existant) avalé, même comportement qu'avant au même
+      endroit logique. `acceptWithCascade` retourne toujours `clientInvited`
+      dans sa réponse (type/i18n client inchangés) mais toujours `false`
+      désormais — le toast `proposals.acceptCascade.clientInvited` côté
+      client ne s'affichera donc simplement plus jamais à ce moment, sans
+      erreur, laissé tel quel (hors du périmètre de cette décision).
+
+      Nouveau test `server/test/portalActivationOnPayment.test.ts` (câblé
+      dans `test/run-all.test.ts`), appelle réellement `acceptWithCascade`
+      ET `addPayment` contre une base migrée — pas une réimplémentation
+      (contrairement à `proposalAcceptCascade.test.ts`, qui mocke tout
+      dans un « monde » local et n'aurait PAS détecté cette régression :
+      vérifié en confirmant que la suite complète restait 264/264 même
+      avant ce correctif). 3 cas : accepter ne crée aucun `User` ; payer
+      intégralement l'acompte crée exactement un `User` (role CLIENT,
+      mustChangePassword true) ET active le portail ; un second paiement
+      sur un client déjà activé ne crée pas de doublon.
+
+      BUG D'INFRASTRUCTURE DE TEST TROUVÉ ET CORRIGÉ EN COURS DE ROUTE,
+      même session : ce nouveau fichier est le premier de toute la suite à
+      déclencher pour de vrai `invalidateFinanceCaches` (cache/redis.ts,
+      client Redis du package `redis`, distinct du client `ioredis` de
+      BullMQ que `run-all.test.ts` ferme déjà) — laissé ouvert, il
+      maintenait le process Node vivant ~40s après la fin réelle des tests
+      (3.5s), jusqu'à ce que `node --test` le tue lui-même et rapporte
+      faussement le fichier entier en échec. Diagnostiqué par isolation
+      progressive (base → 3 fichiers → 1 fichier → inspection de
+      `pg_stat_activity`, qui a exclu un verrou DB réel : toutes les
+      connexions étaient `idle`/`ClientRead`, pas bloquées). Corrigé par
+      l'ajout de `closeRedisClient()` dans le hook `after()` de ce fichier
+      spécifiquement (pas dans `run-all.test.ts` — ce fichier est le seul
+      à en avoir besoin pour l'instant, un futur fichier qui toucherait
+      aussi le cache devra faire de même ou ce sera à généraliser). Suite
+      complète reconfirmée à 267/267 (264 + 3 nouveaux), exécutée deux
+      fois de suite, ~16-19s à chaque fois — retour à la vitesse normale.
+
+      `npm run typecheck --workspace server` vert (0 erreur).
+
+      Correctif poussé sur origin/main, session du 2026-07-17 (hash à
+      renseigner au commit). `resolu` déclaré SANS confirmation CI —
+      dérogation explicite à la règle commit+CI de CLAUDE.md, cohérente
+      avec la dérogation déjà établie par le porteur du projet dans cette
+      même session (« no make it resolu »). Comme les autres correctifs de
+      cette session portant un vrai nouveau test appelant le code réel, le
+      critère textuel exact (activation uniquement via addPayment) est
+      satisfait indépendamment de la dérogation CI.
 
   - id: SEC-003
     titre: "Documentation historique du fournisseur IA incohérente avec l'implémentation réelle"

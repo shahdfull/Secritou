@@ -48,3 +48,4 @@ import "./projectUpdateBlocksCompletion.test.ts";
 import "./userProfilePhone.http.test.ts";
 import "./checkInvoiceFollowup.test.ts";
 import "./briefQuestions.test.ts";
+import "./portalActivationOnPayment.test.ts";

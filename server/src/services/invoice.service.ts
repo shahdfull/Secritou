@@ -15,6 +15,7 @@ import { cacheTags } from "../cache/cacheKeys.js";
 import { computeVat, roundMoney } from "../utils/vat.js";
 import { commissionService } from "./commission.service.js";
 import { notifyN8n } from "../utils/webhook.js";
+import { clientService } from "./client.service.js";
 
 // Invoice mutations change dashboard / executive KPIs (overdue, cash, forecast).
 async function invalidateFinanceCaches() {
@@ -243,14 +244,18 @@ export const invoiceService = {
 
       await tx.invoice.update({ where: { id }, data: { amountPaid: newAmountPaid, status: newStatus, paidAt: newStatus === "PAID" ? new Date() : undefined } });
 
-      // Cadrage §6: the client portal opens once the first-tranche deposit is actually paid,
-      // not at proposal acceptance. Activate on the client the moment its DEPOSIT invoice
-      // reaches PAID (idempotent: only set if not already activated).
+      // Cadrage §6 / RG-018 (SEC-002): the client portal opens — and the client's portal
+      // account is created/invited — only once the first-tranche deposit is actually paid,
+      // not at proposal acceptance. `count > 0` means this call is the one that just flipped
+      // portalActivatedAt from null (not a later payment on an already-activated client), so
+      // it's also the signal to invite the client below, post-commit.
+      let justActivatedPortal = false;
       if (newStatus === "PAID" && invoice.invoiceType === "DEPOSIT") {
-        await tx.client.updateMany({
+        const activation = await tx.client.updateMany({
           where: { id: invoice.clientId, portalActivatedAt: null },
           data: { portalActivatedAt: new Date() },
         });
+        justActivatedPortal = activation.count > 0;
       }
 
       let creditNote = null;
@@ -268,7 +273,7 @@ export const invoiceService = {
         });
       }
 
-      return { payment, creditNote, overpaidBy, clientId: invoice.clientId, deduplicated: false, commissions };
+      return { payment, creditNote, overpaidBy, clientId: invoice.clientId, deduplicated: false, commissions, justActivatedPortal };
     });
 
     if (result.deduplicated) return result;
@@ -277,6 +282,19 @@ export const invoiceService = {
 
     const invoiceMeta = await invoiceRepository.findById(id);
     if (invoiceMeta) {
+      // RG-018 / SEC-002: invite the client (create their portal account) the moment their
+      // deposit invoice actually reaches PAID — moved here from proposal.service.ts's
+      // acceptWithCascade, which used to invite immediately at proposal acceptance, before
+      // any payment. 409 (account already exists — e.g. re-invoked, or an Admin already
+      // invited manually) is swallowed, same as the original call site.
+      if (result.justActivatedPortal && invoiceMeta.client?.email && invoiceMeta.client?.name) {
+        try {
+          await clientService.inviteClientUser(invoiceMeta.clientId, invoiceMeta.client.email, invoiceMeta.client.name);
+        } catch (err) {
+          if (!(err instanceof HttpError && err.statusCode === 409)) throw err;
+        }
+      }
+
       const admins = await userRepository.findAdmins();
       await enqueueNotifications(admins.map((admin) => ({ userId: admin.id, title: "Paiement reçu", message: `Un paiement de ${Number(data.amount).toFixed(3)} ${invoiceMeta.currency ?? "TND"} a été enregistré pour la facture ${invoiceMeta.number}.` })));
 
