@@ -19,7 +19,7 @@ A full-stack internal platform for a single digital agency: CRM, project managem
 ### Client Portal
 - Project timeline (7 interactive steps with 30s polling)
 - Document viewer with contract e-signature
-- Client brief questionnaire (WEB / MARKETING / AI question sets)
+- Client brief questionnaire (one question set per pole: Management & Performance / Croissance digitale / Technologie / IA & Automatisation)
 - Invoice history
 - Final project approval (triggers COMPLETED status + balance invoice generation)
 - Service requests & Q&A
