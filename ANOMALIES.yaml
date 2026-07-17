@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-025
+dernier_id: SEC-026
 
 anomalies:
   - id: SEC-001
@@ -736,7 +736,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: majeur
-    statut: resolu
+    statut: en_cours
     critere_de_resolution: >
       C'est résolu au premier push vers origin/main qui déclenche le workflow
       ci.yml et le voit passer au vert (jobs "client" et "server", incluant
@@ -782,6 +782,21 @@ anomalies:
       règle commit+CI de CLAUDE.md, sur instruction directe du porteur du
       projet établie plus tôt dans cette même session (« no make it
       resolu »).
+
+      ROUVERT `en_cours` (session du 2026-07-17, vérification CI réelle) :
+      le critère de résolution textuel exige explicitement « le voit
+      passer au vert » — vérification faite via l'API GitHub REST non
+      authentifiée (`gh` CLI indisponible), 3 jobs échouent réellement sur
+      le HEAD `2c8d3cc` (`client`, `server`, `i18n-check`). Précision
+      importante : les échecs ne portent PAS sur les correctifs que
+      SEC-010 nommait comme précondition (SEC-007/008/009/011/012, tous
+      toujours vérifiés verts individuellement) — ils portent sur une
+      dette ESLint pré-existante et sans rapport, jamais commise par
+      aucune session d'audit, désormais tracée séparément sous SEC-026.
+      SEC-010 reste `en_cours` tant que la CI n'a pas été vue verte sur un
+      HEAD réel, même si la cause du rouge actuel est hors de son propre
+      périmètre — le critère se lit littéralement, pas par intention
+      reconstruite.
 
   - id: SEC-011
     titre: "Fenêtre de grâce de 30 s sur les refresh tokens révoqués, introduite sans décision documentée"
@@ -1949,3 +1964,84 @@ anomalies:
       dans cette même session (« no make it resolu »). Gravité `mineur` :
       fonctionnalité manquante silencieuse, pas de perte de données ni de
       trou de sécurité (défaut = refus, jamais accès).
+
+  - id: SEC-026
+    titre: "37 erreurs ESLint pré-existantes font échouer les jobs CI client/server sur origin/main, hors de tout périmètre touché par les sessions d'audit"
+    perimetre: "systémique — server/src/controllers/**, server/src/services/upload.service.ts, server/src/services/agentOrchestrator.service.ts, server/test/invoice.service.test.ts, client/src/api/axios.ts, client/src/features/projects/ProjectDetailPage.tsx"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `npm run lint --workspace=server` ET
+      `npm run lint --workspace=client` retournent 0 erreur (les warnings
+      restent tolérés, seule la CI actuelle échoue sur les erreurs), vérifié
+      par un push vers origin/main dont le job CI "client" et le job "server"
+      passent réellement au vert (pas seulement une exécution locale).
+    detecte_le: "2026-07-17"
+    source: manuel
+    confiance: certain
+    note: >
+      Trouvé en vérifiant l'état réel de la CI sur `origin/main` (API GitHub
+      REST non authentifiée, `/repos/.../commits/main/check-runs` —
+      `gh` CLI indisponible dans cet environnement) après une série de
+      `resolu` déclarés sous dérogation « no make it resolu » cette session.
+      Sur le HEAD `2c8d3cc` au moment du constat, 3 jobs échouent
+      (`client`, `server`, `i18n-check`), contredisant potentiellement le
+      critère de résolution de SEC-010 (« voit passer au vert ») — voir la
+      note ajoutée à SEC-010 pour la reformulation exacte de ce lien.
+
+      DIAGNOSTIC COMPLET, par exécution locale de `npm run lint` dans
+      chaque workspace (pas seulement lecture des annotations GitHub, qui
+      ne donnent que le nombre de lignes sans détail exploitable pour le
+      job "server") :
+
+      Server — 33 erreurs, 8 fichiers :
+      `src/controllers/project.controller.ts` (12, toutes
+      `@typescript-eslint/no-non-null-asserted-optional-chain` — pattern
+      `x?.y!` répété), `src/controllers/freelancer.controller.ts` (6, même
+      règle), `src/controllers/comment.controller.ts` (4, même règle),
+      `src/controllers/task.controller.ts` (4, même règle + 1
+      `no-useless-catch`), `src/controllers/summary.controller.ts` (3, même
+      règle), `src/services/agentOrchestrator.service.ts` (1
+      `no-useless-catch`), `src/services/upload.service.ts` (1
+      `no-useless-catch`), `test/invoice.service.test.ts` (2
+      `no-constant-condition`). 30 des 33 erreurs sont la même classe de
+      défaut (`no-non-null-asserted-optional-chain`) répétée sur 5
+      contrôleurs, probablement écrits à la même époque avec le même
+      pattern `req.user?.id!` (ou équivalent) — pas 5 défauts indépendants,
+      1 pattern systématique.
+
+      Client — 4 erreurs, 2 fichiers :
+      `src/api/axios.ts` (1 `no-async-promise-executor`, ligne 124),
+      `src/features/projects/ProjectDetailPage.tsx` (3
+      `react-hooks/rules-of-hooks` — hooks appelés conditionnellement,
+      lignes 88-90).
+
+      i18n-check — 1 faux positif du script `scripts/check-i18n.mjs` :
+      signale `exec.needsAttentionSub` comme absente, alors que la clé
+      existe réellement sous forme pluralisée i18next
+      (`needsAttentionSub_one`/`needsAttentionSub_other`,
+      `client/src/i18n/locales/{fr,en}/translation.json:2165-2166`,
+      consommée par `DashboardPage.tsx:258`) — le script ne reconnaît pas
+      la convention de suffixe pluriel. Distinct des 37 erreurs ESLint
+      ci-dessus, pas compté dans le total, mais fait aussi échouer la CI
+      sur ce HEAD ; laissé hors du périmètre de correction de cette
+      anomalie (défaut du script de vérification, pas du code applicatif).
+
+      CONFIRMÉ HORS DU PÉRIMÈTRE DE CETTE SESSION : aucun des 10 fichiers
+      fautifs (8 server + 2 client) ne figure dans la liste des fichiers
+      édités par les commits de cette session
+      (`1f8ff97`..`2c8d3cc`, module 4.7/4.8/4.10 + SEC-024/025), vérifié
+      par `git log --oneline -- <fichier>` sur chacun, tous antérieurs de
+      plusieurs commits/sessions. Un lint isolé sur les fichiers réellement
+      modifiés cette session
+      (`server/src/repositories/executiveMetrics.repository.ts`,
+      `server/test/executiveMetricsProjectRisks.test.ts`,
+      `client/src/types/permissions.ts`) est vert.
+
+      Décision du porteur du projet (AskUserQuestion, session du
+      2026-07-17) : « Ouvrir SEC-026 (dette lint), rouvrir SEC-010
+      (Recommandé) » — pas corrigé dans cette session, seulement enregistré
+      et diagnostiqué avec précision pour qu'une session future puisse
+      corriger directement sans re-diagnostiquer.
