@@ -262,11 +262,13 @@ intégral).**
 
 ### 3.15 FreelancerProfile / Skill / PortfolioItem / Rating
 Profil freelance, compétences, portfolio, évaluations.
-**Statut : `[À CONFIRMER]`. `verifie: audit_anterieur`** — la fuite de
-`hourlyRate` mentionnée dans `plan d'action.md` (historique) et l'existence
-des fichiers `freelancer.service.ts`/`.repository.ts`/`.controller.ts`,
-`rating.service.ts` sont confirmées par listing seul, aucun contenu lu
-directement cette session ni la précédente.
+**Statut : IMPLÉMENTÉ. `verifie: code_direct`** — resynchronisation avec
+le statut déjà établi pour le module 4.7 Freelances (9 fichiers lus
+intégralement, session 2026-07-17, mêmes fichiers exacts que cette
+entité), jamais répercuté sur l'entité elle-même. Pas de nouvelle lecture
+nécessaire, seule une incohérence de statut corrigée. **La fuite de
+`hourlyRate` mentionnée dans `plan d'action.md` (audit antérieur,
+historique) est infirmée par cette lecture directe** — voir §4.7.
 
 ### 3.16 ServiceRequest
 Demande de support ou de nouveau projet initiée côté client. Statuts :
@@ -1161,3 +1163,4 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-17** | **Module 4.8 Analytics & Performance classé ACTIF (6 fichiers restants lus intégralement en plus de l'entité 3.19, aucune autre anomalie après SEC-024).** | **Réponse du porteur du projet, session du 2026-07-17, face au choix ACTIF/GELÉ — « ACTIF (Recommandé) ».** |
 | **2026-07-17** | **SEC-025 ouverte et résolue dans la même session : `client/src/types/permissions.ts#MODULES` (11 entrées) désynchronisé de `server/src/services/managerPermission.service.ts#MODULES` (13 entrées, déjà lu à l'entité 3.21) — `client-success`/`client-onboarding` absents côté client. `PermissionsGrid.tsx`/`SettingsUsersTab.tsx` itèrent génériquement sur `MODULES` sans cas particulier (vérifié par lecture directe), donc ces 2 modules n'affichaient jamais de ligne dans la grille de permissions — un Admin ne pouvait jamais accorder l'accès Client Success/Client Onboarding à un Manager via l'UI. Pas une faille de sécurité : le défaut serveur (`permissions[module]?.[action]` undefined → falsy) est un refus, pas un accès. Corrigé en ajoutant les 2 modules à `MODULES` + clés i18n FR/EN correspondantes. Typecheck client vert. **Limite de vérification signalée : aucun outil de navigateur disponible pour confirmer visuellement le rendu — vérification de niveau code uniquement (lecture directe confirmant l'itération générique + typecheck), pas de test UI en conditions réelles.**** | **Trouvé en lisant `PermissionsGrid.tsx`, dernier fichier du périmètre 4.10 restant à lire ; question posée au porteur du projet conformément à l'instruction « questionne moi si il y a des incohérences » — réponse « Nouvelle anomalie, corriger maintenant (Recommandé) ». `resolu` déclaré SANS confirmation CI, dérogation déjà établie dans cette session (« no make it resolu »).** |
 | **2026-07-17** | **Module 4.10 RBAC & Permissions granulaires classé ACTIF (lecture directe intégrale terminée : 8 fichiers serveur via l'entité 3.21 + `PermissionsGrid.tsx`, SEC-025 trouvée et corrigée, aucune autre anomalie). Les 3 modules `[À CONFIRMER — non trié]` restants (4.7, 4.8, 4.10) sont désormais tous classés.** | **Réponse du porteur du projet, session du 2026-07-17, face au choix ACTIF/GELÉ — « ACTIF (Recommandé) ».** |
+| **2026-07-17** | **Entité 3.15 FreelancerProfile/Skill/PortfolioItem/Rating relevée de `[À CONFIRMER]`/`audit_anterieur` à IMPLÉMENTÉ/`code_direct` — resynchronisation avec le statut déjà établi pour le module 4.7 Freelances (9 fichiers lus intégralement le même jour, exactement les mêmes fichiers que cette entité), jamais répercuté sur l'entité elle-même après la classification ACTIF du module. Pas de nouvelle lecture nécessaire, seule une incohérence de statut corrigée — même défaut de synchronisation déjà rencontré et corrigé une première fois pour l'entité 3.17/module 4.6.** | **Constat direct en vérifiant si d'autres entités §3 étaient tombées dans le même angle mort après la classification tardive de 4.7/4.8/4.10 (postérieure à l'affirmation du 2026-07-17 « toutes les entités §3 encore À CONFIRMER sont désormais résolues », ligne de journal antérieure) — session du 2026-07-17.** |
