@@ -51,3 +51,4 @@ import "./briefQuestions.test.ts";
 import "./portalActivationOnPayment.test.ts";
 import "./creditNoteApply.test.ts";
 import "./documentSignContract.test.ts";
+import "./executiveMetricsProjectRisks.test.ts";

@@ -98,7 +98,7 @@ export interface ProjectKPIs {
 }
 
 export interface RiskItem {
-  type: "INVOICE_OVERDUE" | "APPROVAL_BLOCKED" | "PROJECT_CRITICAL" | "CONTRACT_EXPIRING" | "STALE_PROJECT" | "LEAD_HOT";
+  type: "INVOICE_OVERDUE" | "APPROVAL_BLOCKED" | "PROJECT_CRITICAL" | "LEAD_HOT";
   severity: "critical" | "warning" | "info";
   title: string;
   subtitle: string;
@@ -120,7 +120,6 @@ export interface ExecutiveMetrics {
     pendingApprovals: number;
     criticalProjects: number;
     hotLeads: number;
-    expiringContracts: number;
   };
 }
 
@@ -201,7 +200,6 @@ export const executiveMetricsRepository = {
       overdueInvoicesFull,
       pendingApprovals,
       hotLeads,
-      expiringApprovals,
 
     ] = await Promise.all([
       // ── Finance ──
@@ -316,11 +314,6 @@ export const executiveMetricsRepository = {
       prisma.lead.findMany({
         where: { status: { in: ["QUALIFIED", "PROPOSAL"] }, archivedAt: null },
         select: { id: true, name: true, status: true, createdAt: true },
-        take: 5,
-      }),
-      prisma.approval.findMany({
-        where: { status: "PENDING", dueDate: { gte: now, lte: in30 }, ...(serviceId ? { project: { serviceId } } : {}) },
-        select: { id: true, title: true, dueDate: true },
         take: 5,
       }),
     ]);
@@ -459,12 +452,17 @@ export const executiveMetricsRepository = {
     const activeProjects = await prisma.project.findMany({
       where: { status: { notIn: ["COMPLETED"] }, ...projectScope },
       select: {
-        id: true, status: true, deadline: true,
+        id: true, name: true, status: true, deadline: true,
+        client: { select: { name: true } },
         tasks: { select: { status: true, updatedAt: true } },
       },
     });
 
     let criticalCount = 0, watchCount = 0;
+    // Populated below, alongside criticalCount/watchCount, from the same per-project pass —
+    // this is the only place isOverdue/isStale/blockedTasks are computed, so PROJECT_CRITICAL
+    // risk items must be pushed here, not left as a count with no risk row (SEC-024).
+    const projectRisks: RiskItem[] = [];
     for (const p of activeProjects) {
       const isOverdue = p.deadline ? p.deadline < now : false;
       const lastActivity = p.tasks.reduce<Date | null>((acc, t) => !acc || t.updatedAt > acc ? t.updatedAt : acc, null);
@@ -474,8 +472,21 @@ export const executiveMetricsRepository = {
       const daysUntilDeadline = p.deadline ? Math.ceil((p.deadline.getTime() - now.getTime()) / 86_400_000) : null;
       const isWarnDeadline = daysUntilDeadline !== null && daysUntilDeadline <= 7 && daysUntilDeadline >= 0;
 
-      if (isOverdue || isStale || blockedTasks > 2) criticalCount++;
-      else if (isWarnDeadline || blockedTasks > 0 || (lastActivity && lastActivity < new Date(now.getTime() - 4 * 86_400_000))) watchCount++;
+      if (isOverdue || isStale || blockedTasks > 2) {
+        criticalCount++;
+        const daysAgo = isOverdue && p.deadline ? Math.ceil((now.getTime() - p.deadline.getTime()) / 86_400_000) : undefined;
+        projectRisks.push({
+          type: "PROJECT_CRITICAL",
+          severity: "critical",
+          title: `Projet critique : ${p.name}`,
+          subtitle: `${p.client?.name ?? "?"} — ${isOverdue ? `échéance dépassée de ${daysAgo}j` : isStale ? "aucune activité depuis 7j" : `${blockedTasks} tâches bloquées en révision`}`,
+          link: "/app/projects",
+          entityId: p.id,
+          daysAgo,
+        });
+      } else if (isWarnDeadline || blockedTasks > 0 || (lastActivity && lastActivity < new Date(now.getTime() - 4 * 86_400_000))) {
+        watchCount++;
+      }
     }
 
     const completedDurations = projectsCompletedDuration
@@ -543,6 +554,8 @@ export const executiveMetricsRepository = {
       });
     }
 
+    risks.push(...projectRisks);
+
     // Sort: critical first, then warning, then info
     risks.sort((a, b) => {
       const order = { critical: 0, warning: 1, info: 2 };
@@ -561,7 +574,6 @@ export const executiveMetricsRepository = {
         pendingApprovals: pendingApprovals.length,
         criticalProjects: criticalCount,
         hotLeads: hotLeads.length,
-        expiringContracts: expiringApprovals.length,
       },
     };
   },

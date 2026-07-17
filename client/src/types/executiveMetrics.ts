@@ -86,6 +86,5 @@ export interface ExecutiveMetrics {
     pendingApprovals: number;
     criticalProjects: number;
     hotLeads: number;
-    expiringContracts: number;
   };
 }

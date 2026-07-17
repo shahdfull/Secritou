@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-023
+dernier_id: SEC-024
 
 anomalies:
   - id: SEC-001
@@ -1800,3 +1800,85 @@ anomalies:
       autres anomalies de cette session, celle-ci empêchait TOTALEMENT une
       fonctionnalité citée explicitement dans README.md comme livrée,
       depuis l'introduction du champ — pas une dégradation partielle.
+
+  - id: SEC-024
+    titre: "executiveMetricsRepository.getAll : 3 des 6 types de risque déclarés ne produisent jamais de ligne dans risks[] (PROJECT_CRITICAL, STALE_PROJECT), et CONTRACT_EXPIRING alimente un badge sans donnée réelle ni ligne de risque correspondante"
+    perimetre: "4.8 Analytics & Performance — server/src/repositories/executiveMetrics.repository.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand chaque type de RiskItem déclaré dans le type union
+      est effectivement produit par au moins un chemin de code (vérifié par
+      un test qui appelle réellement `executiveMetricsRepository.getAll`
+      contre une base réelle et trouve une ligne `risks[]` du type attendu),
+      et quand chaque compteur de `alerts` correspond à une donnée réelle du
+      schéma (pas un badge sans source ni ligne de risque associée).
+    detecte_le: "2026-07-17"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Trouvé en lisant intégralement `executiveMetrics.repository.ts` (568
+      lignes) pour confirmer le module 4.8 Analytics & Performance — pas
+      pendant un audit formel du module lui-même mais pendant la lecture
+      exhaustive requise pour le classer, enregistré immédiatement
+      conformément à CLAUDE.md.
+
+      CONSTAT : `RiskItem.type` déclarait 6 valeurs (INVOICE_OVERDUE,
+      APPROVAL_BLOCKED, PROJECT_CRITICAL, CONTRACT_EXPIRING, STALE_PROJECT,
+      LEAD_HOT) mais seules 3 (INVOICE_OVERDUE, APPROVAL_BLOCKED, LEAD_HOT)
+      étaient effectivement poussées dans `risks[]`. `criticalCount` et
+      `watchCount` étaient calculés dans une boucle dédiée par projet
+      (isOverdue / isStale / blockedTasks) mais jamais transformés en
+      `RiskItem`. Le champ `alerts.expiringContracts` comptait
+      `expiringApprovals` — une requête sur le modèle `Approval` (échéance
+      de type `dueDate`), sans aucun rapport avec un contrat : vérifié par
+      lecture directe de `schema.prisma`, `Document` (le seul modèle
+      candidat pour un « contrat ») n'a AUCUN champ d'expiration — seul
+      `RefreshToken.expiresAt` existe dans tout le schéma et n'a aucun lien
+      avec les contrats. Un utilisateur pouvait donc voir un badge
+      « contrats expirants » non nul sans aucune ligne de risque
+      correspondante nulle part dans l'UI, et jamais de ligne
+      PROJECT_CRITICAL malgré des projets comptés critiques ailleurs sur le
+      même tableau de bord.
+
+      DÉCISION UTILISATEUR (AskUserQuestion, session du 2026-07-17) :
+      « Nouvelle anomalie, correction complète (Recommandé) » — pousser
+      réellement PROJECT_CRITICAL/STALE_PROJECT dans risks[], et supprimer
+      ou remplacer CONTRACT_EXPIRING selon l'existence réelle d'un champ
+      d'expiration de contrat.
+
+      CORRECTIF ÉCRIT (conforme à « réparer n'est pas développer » de
+      CLAUDE.md — pas de nouveau champ de schéma inventé pour combler
+      CONTRACT_EXPIRING, qui n'a aucune donnée source réelle) :
+      (1) `CONTRACT_EXPIRING` et `expiringContracts` supprimés du type
+      `RiskItem`/`alerts` (serveur ET type client
+      `client/src/types/executiveMetrics.ts`) et la requête
+      `expiringApprovals` retirée — rien de réel à afficher.
+      (2) `STALE_PROJECT` retiré du type union : `isStale` route déjà
+      inconditionnellement vers la branche `criticalCount`/PROJECT_CRITICAL
+      dans le code existant, aucun chemin ne produit un état "stale mais
+      pas critique" distinct — un type additionnel sans branche de code qui
+      le distingue aurait recréé le même défaut.
+      (3) `PROJECT_CRITICAL` est désormais poussé dans `risks[]` depuis la
+      boucle `activeProjects` existante (celle qui calcule déjà
+      `criticalCount`), avec titre/sous-titre/lien réels, `select` étendu
+      pour inclure `name`/`client.name` nécessaires à l'affichage.
+
+      Nouveau test
+      `server/test/executiveMetricsProjectRisks.test.ts` (câblé dans
+      `test/run-all.test.ts`), crée un projet réel avec échéance dépassée
+      et appelle réellement `executiveMetricsRepository.getAll` contre une
+      base migrée — vérifie qu'une ligne `PROJECT_CRITICAL` apparaît
+      effectivement dans `risks[]` (pas seulement un compteur) et que
+      `expiringContracts` n'existe plus dans `alerts`. `npx tsc --noEmit`
+      vert côté serveur ET client. Suite complète : 274/274 (273 + 1
+      nouveau), ~22s, aucune régression.
+
+      `resolu` déclaré SANS confirmation CI — dérogation explicite à la
+      règle commit+CI de CLAUDE.md, déjà établie par le porteur du projet
+      dans cette même session (« no make it resolu »). Gravité `mineur` :
+      dashboard qui affiche un badge incohérent et masque des risques
+      projet déjà comptés ailleurs, mais aucune perte de données ni
+      blocage fonctionnel (contrairement à SEC-023).

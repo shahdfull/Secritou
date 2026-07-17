@@ -606,10 +606,15 @@ code réel. Aucune anomalie trouvée.
       - client/src/features/talent/**
       - client/src/features/applications/**
 
-### 4.8 Analytics & Performance — **[À CONFIRMER — non trié]**
+### 4.8 Analytics & Performance — **ACTIF**
 Connexions aux sources de données externes et métriques de performance
-client. **Ne peut pas être classé GELÉ : EXPLORATION.md marque ce module
-`non exploré`.** Reste à trancher après une première lecture directe.
+client. Lecture directe intégrale des 6 fichiers restants
+(`executiveMetrics.*`/`revenueForecast.*`, session du 2026-07-17, ~625
+lignes), en plus de GscConnection/MetricSnapshot déjà confirmés à l'entité
+3.19. Code scopé par pôle/rôle, mis en cache, monté sur des routes réelles.
+SEC-024 trouvée et corrigée dans la même passe (voir §7) : 3 des 6 types de
+risque déclarés dans `executiveMetrics.repository.ts` ne produisaient
+jamais de ligne dans `risks[]`. Aucune autre anomalie.
 
 **Correction (SEC-017, session du 2026-07-17)** : `executiveMetrics.controller.ts`
 et `revenueForecast.controller.ts` étaient déjà listés ci-dessous, mais
@@ -1065,7 +1070,7 @@ pour la conséquence opérationnelle sur les audits).
 | Sujet | Statut | Pourquoi |
 |---|---|---|
 | 4.7 Freelances | ACTIF | Lecture directe intégrale (9 fichiers, session 2026-07-17), aucune anomalie — décision du porteur du projet. |
-| 4.8 Analytics & Performance | `[À CONFIRMER — non trié]` | Idem — `non exploré`. |
+| 4.8 Analytics & Performance | ACTIF | Lecture directe intégrale (6 fichiers restants, session 2026-07-17, en plus de l'entité 3.19 déjà lue), SEC-024 trouvée et corrigée, aucune autre anomalie — décision du porteur du projet. |
 | 4.9 Client Success | GELÉ | Couverture `partiel` (au moins un document direct exploité) ; calcul partiellement automatisé seulement, 0 client actif pour l'alimenter. |
 | 4.10 RBAC & Permissions granulaires | `[À CONFIRMER — non trié]` | Idem 4.7/4.8 — `non exploré`. |
 | 4.11 Module IA (agent-service) | GELÉ | Couverture `lu` (complète) — deux personas existants conservés tels quels ; pas de développement supplémentaire pour l'instant. |
@@ -1145,3 +1150,4 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-17** | **Entité 3.20 ClientSuccess relevée de `[À CONFIRMER]`/`document` à IMPLÉMENTÉ/`code_direct` (517 lignes lues intégralement sur 4 fichiers). Calcul de score confirmé (50% manuel + 50% auto, plafonné à 100), ownership vérifié sur chaque mutation, confirmé qu'aucun rôle CLIENT n'a accès à ce module (cohérent avec sa nature d'outil de pilotage interne). Aucune anomalie trouvée.** | **Reprise de la lecture exhaustive des modules `[À CONFIRMER]`, session du 2026-07-17.** |
 | **2026-07-17** | **Entité 3.21 PermissionProfile/ManagerPermission relevée de `[À CONFIRMER]`/`document` à IMPLÉMENTÉ/`code_direct` (411 lignes lues intégralement sur 8 fichiers). Confirme exactement le texte de README.md (cache Redis 300s, deepMerge). Toutes les entités §3 encore `[À CONFIRMER]` sont désormais résolues — reste à trancher le statut ACTIF/GELÉ des modules 4.7/4.8/4.10 eux-mêmes.** | **Reprise de la lecture exhaustive des entités `[À CONFIRMER]`, session du 2026-07-17.** |
 | **2026-07-17** | **Module 4.7 Freelances classé ACTIF (9 fichiers lus intégralement, ~700 lignes, aucune anomalie trouvée). La fuite historique de `hourlyRate` (`plan d'action.md`, audit antérieur) est infirmée par lecture directe : `freelancer.controller.ts#redactSensitiveInfo` masque correctement `hourlyRate`/`bio`/`email` pour un FREELANCER consultant un autre profil, et le rôle CLIENT n'a de toute façon accès à aucune route de ce module.** | **Réponse du porteur du projet, session du 2026-07-17, face au choix ACTIF/GELÉ/investiguer le volume réel — « ACTIF (Recommandé) ».** |
+| **2026-07-17** | **SEC-024 ouverte et résolue dans la même session : `executiveMetricsRepository.getAll` déclarait 6 types de `RiskItem` mais n'en produisait réellement que 3 — `PROJECT_CRITICAL`/`STALE_PROJECT` calculés (criticalCount/watchCount) sans jamais devenir des lignes de `risks[]`, `CONTRACT_EXPIRING`/`alerts.expiringContracts` alimentés par une requête sur `Approval` sans aucun rapport avec un contrat (aucun champ d'expiration n'existe sur `Document` ni ailleurs dans le schéma pour cette notion). `CONTRACT_EXPIRING`/`expiringContracts`/`STALE_PROJECT` supprimés (rien de réel à afficher, conformément à « réparer n'est pas développer » — pas de nouveau champ de schéma inventé) ; `PROJECT_CRITICAL` désormais réellement poussé dans `risks[]` depuis la boucle qui calculait déjà `criticalCount`. Nouveau test `server/test/executiveMetricsProjectRisks.test.ts`, appelle réellement le repository contre une base migrée. 274/274 tests verts, typecheck serveur + client verts.** | **Trouvé en lisant intégralement `executiveMetrics.repository.ts` (568 lignes) pour confirmer le module 4.8 Analytics & Performance ; question posée au porteur du projet conformément à l'instruction « questionne moi si il y a des incohérences » — réponse « Nouvelle anomalie, correction complète (Recommandé) ». `resolu` déclaré SANS confirmation CI, dérogation déjà établie dans cette session (« no make it resolu »).** |
