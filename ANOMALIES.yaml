@@ -1971,7 +1971,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: majeur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `npm run lint --workspace=server` ET
       `npm run lint --workspace=client` retournent 0 erreur (les warnings
@@ -2042,6 +2042,88 @@ anomalies:
 
       Décision du porteur du projet (AskUserQuestion, session du
       2026-07-17) : « Ouvrir SEC-026 (dette lint), rouvrir SEC-010
-      (Recommandé) » — pas corrigé dans cette session, seulement enregistré
-      et diagnostiqué avec précision pour qu'une session future puisse
-      corriger directement sans re-diagnostiquer.
+      (Recommandé) » — d'abord seulement enregistré et diagnostiqué.
+
+      CORRIGÉ dans la même session, sur demande explicite du porteur du
+      projet (« ok on corrige alors ») :
+
+      Server, 30 des 33 erreurs — pattern `req.user?.sub!`/`req.user?.role!`
+      (le type `no-non-null-asserted-optional-chain` reproché) remplacé par
+      `req.user!.sub`/`req.user!.role` dans les 5 contrôleurs concernés
+      (`comment.controller.ts`, `freelancer.controller.ts`,
+      `project.controller.ts`, `summary.controller.ts`,
+      `task.controller.ts`) — l'assertion porte désormais sur `req.user`
+      lui-même (garanti non-null par le middleware `authenticate` sur
+      toutes ces routes), pas sur le résultat d'un chaînage optionnel ;
+      `sub`/`role` sont des champs obligatoires de `JwtPayload`
+      (`server/src/types/auth.ts`), donc aucun `!` n'est nécessaire après
+      eux. Les 3 erreurs `no-useless-catch` restantes corrigées en
+      supprimant le `catch` inutile (`agentOrchestrator.service.ts` :
+      catch+rethrow devant un `finally` réel, `finally` seul conservé ;
+      `upload.service.ts` : `try/catch` entier supprimé, aucun `finally`).
+      Les 2 `no-constant-condition` dans `invoice.service.test.ts`
+      corrigées en remplaçant les conditions littérales
+      (`if (-100 <= 0) throw ...`, qui ne prouvaient rien — CLAUDE.md,
+      règle sur les tests qui réimplémentent leur cible) par un appel réel
+      à `addPaymentSchema.safeParse` (`server/src/validators/invoice.validator.ts`,
+      `amount: positiveDecimal` = `z.number().positive()`), le vrai garde-fou
+      qui rejette déjà les montants ≤ 0 au niveau validateur — les tests
+      appellent maintenant le code réel au lieu de simuler une condition à
+      côté.
+
+      Client, les 4 erreurs :
+      `axios.ts` — `no-async-promise-executor` corrigée en extrayant le
+      corps de l'exécuteur `async` dans une fonction `runRefresh` nommée,
+      appelée depuis un exécuteur de `Promise` synchrone (mêmes paramètres
+      `resolveRefresh`/`rejectRefresh`, même comportement — le `try/catch/
+      finally` interne gérait déjà correctement le rejet, seul le pattern
+      d'exécuteur async lui-même était en cause). `ProjectDetailPage.tsx` —
+      les 3 `react-hooks/rules-of-hooks` corrigées en remontant
+      `useMySplitForProject`/`useProjectTemplateForService`/
+      `useApplyProjectTemplate` AVANT les deux `return` anticipés
+      (`isLoading`, `isError || !project`) : c'était un vrai bug (nombre de
+      hooks appelés variable selon l'état de chargement, pas seulement un
+      style discutable), corrigé en passant `project?.id ?? ""`/
+      `project?.serviceId` aux hooks — les trois sont déjà conçus pour être
+      inertes tant que leur argument est vide/undefined (`enabled` interne
+      ou `!!serviceId`), donc aucun effet de bord avant que `project` soit
+      chargé.
+
+      i18n-check : `scripts/check-i18n.mjs` corrigé pour reconnaître la
+      convention de suffixe pluriel i18next (`_zero`/`_one`/`_two`/`_few`/
+      `_many`/`_other`) — accepte désormais une clé utilisée comme
+      `t("key", { count })` si au moins une variante suffixée existe dans
+      l'un des deux fichiers de traduction, au lieu d'exiger la clé littérale
+      exacte. Vérifié : seuls `_one`/`_other` sont réellement utilisés dans
+      ce dépôt (`grep` sur les deux fichiers de traduction).
+
+      EFFET DE BORD DÉCOUVERT ET ÉCARTÉ (pas une anomalie) : `npm run
+      prisma:format:check --workspace=server` échouait localement à la
+      première tentative, mais `prisma format` puis re-`--check` ne
+      produisait ensuite AUCUNE différence de contenu (fichier identique
+      octet pour octet, même hash MD5 avant/après) — `git status` l'a un
+      instant signalé modifié puis le diff réel était vide (artefact de
+      normalisation de fin de ligne local à ce poste Windows, jamais un
+      changement de contenu). `git checkout -- server/prisma/schema.prisma`
+      exécuté pour ne rien laisser dans le commit. N'explique donc PAS le
+      job "server" original — confirmé que les 33 erreurs ESLint en sont
+      l'unique cause réelle sur ce HEAD.
+
+      VÉRIFICATION LOCALE COMPLÈTE (les 4 workspaces/gates que la CI
+      exécute, en plus des jobs déjà nommés) : `npm run lint
+      --workspace=server` → 0 erreur (167 warnings, tolérés). `npm run lint
+      --workspace=client` → 0 erreur (153 warnings, tolérés). `npx tsc
+      --noEmit` vert des deux côtés. `node scripts/check-i18n.mjs` → passé.
+      `npm run build --workspace=server` et `--workspace=client` → les deux
+      réussissent. Scan de secrets sur le bundle client → propre. Suite de
+      tests complète : server 274/274 (incluant les 2 tests
+      `invoice.service.test.ts` réécrits), client 22/22 (7 fichiers) — deux
+      exécutions, aucune régression.
+
+      `resolu` déclaré SANS confirmation CI — dérogation explicite à la
+      règle commit+CI de CLAUDE.md, déjà établie par le porteur du projet
+      dans cette même session (« no make it resolu ») ; le critère de
+      résolution textuel exige un push vu vert par la CI, condition qui ne
+      peut être remplie qu'après ce commit — signalé ici pour qu'une
+      lecture future distingue « vérifié localement, exhaustivement » de
+      « confirmé par la CI elle-même ».

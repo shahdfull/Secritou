@@ -10,8 +10,8 @@ import { userRepository } from "../repositories/user.repository.js";
 
 export const getAllProjects: RequestHandler = async (req, res, next) => {
   try {
-    const userId = req.user?.sub!;
-    const userRole = req.user?.role!;
+    const userId = req.user!.sub;
+    const userRole = req.user!.role;
     const clientId = req.user?.clientId as string | undefined;
     const options = parseListQuery(req.query as Record<string, unknown>);
     const scope = userRole === "MANAGER" ? await buildServiceScope(req) : undefined;
@@ -24,8 +24,8 @@ export const getAllProjects: RequestHandler = async (req, res, next) => {
 
 export const getDeletedProjects: RequestHandler = async (req, res, next) => {
   try {
-    const userId = req.user?.sub!;
-    const userRole = req.user?.role!;
+    const userId = req.user!.sub;
+    const userRole = req.user!.role;
     const clientId = req.user?.clientId as string | undefined;
     const options = parseListQuery(req.query as Record<string, unknown>);
     const scope = userRole === "MANAGER" ? await buildServiceScope(req) : undefined;
@@ -38,8 +38,8 @@ export const getDeletedProjects: RequestHandler = async (req, res, next) => {
 
 export const getProjectById: RequestHandler = async (req, res, next) => {
   try {
-    const userId = req.user?.sub!;
-    const userRole = req.user?.role!;
+    const userId = req.user!.sub;
+    const userRole = req.user!.role;
     const clientId = req.user?.clientId as string | undefined;
     const scope = userRole === "MANAGER" ? await buildServiceScope(req) : undefined;
     const project = await projectService.getProjectById(req.params.id as string, userId, userRole, clientId, scope?.userServiceId);
@@ -98,9 +98,9 @@ export const archiveProject: RequestHandler = async (req, res, next) => {
 
 export const getMyProjects: RequestHandler = async (req, res, next) => {
   try {
-    const clientId = req.user?.clientId!;
+    const clientId = req.user!.clientId!;
     const options = parseListQuery(req.query as Record<string, unknown>);
-    const result = await projectService.getAllProjects(req.user?.sub!, "CLIENT", options, clientId);
+    const result = await projectService.getAllProjects(req.user!.sub, "CLIENT", options, clientId);
     res.json(result);
   } catch (error) {
     next(error);
@@ -109,7 +109,7 @@ export const getMyProjects: RequestHandler = async (req, res, next) => {
 
 export const getBrief: RequestHandler = async (req, res, next) => {
   try {
-    const role = req.user?.role!;
+    const role = req.user!.role;
     const clientId = req.user?.clientId as string | undefined;
     const userId = req.user?.sub;
     const result = await projectService.getBrief(req.params.id as string, role, clientId, userId);
@@ -123,7 +123,7 @@ export const submitBrief: RequestHandler = async (req, res, next) => {
   try {
     const clientId = req.user?.clientId;
     if (!clientId) return next(new Error("Client access required"));
-    const uploadedById = req.user?.sub!;
+    const uploadedById = req.user!.sub;
     const updated = await projectService.submitBrief(
       req.params.id as string,
       clientId,
@@ -173,7 +173,7 @@ export const clientApproveProject: RequestHandler = async (req, res, next) => {
   try {
     const clientId = req.user?.clientId;
     if (!clientId) return next(new HttpError(403, "Client access required"));
-    const userId = req.user?.sub!;
+    const userId = req.user!.sub;
     const result = await projectService.clientApprove(req.params.id as string, clientId, userId);
     res.json({ data: result });
   } catch (error) {
@@ -183,7 +183,7 @@ export const clientApproveProject: RequestHandler = async (req, res, next) => {
 
 export const getTimelineStatus: RequestHandler = async (req, res, next) => {
   try {
-    const role = req.user?.role!;
+    const role = req.user!.role;
     const clientId = req.user?.clientId as string | undefined;
     const userId = req.user?.sub;
     const steps = await projectService.getTimelineStatus(

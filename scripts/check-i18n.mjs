@@ -131,6 +131,10 @@ function pathPassesThroughArray(obj, segments) {
   return false;
 }
 
+// i18next plural forms: t("key", { count }) resolves at runtime to "key_one"/"key_other"
+// (etc.) instead of the literal "key" — the literal key is never itself present as a leaf.
+const PLURAL_SUFFIXES = ["_zero", "_one", "_two", "_few", "_many", "_other"];
+
 for (const key of usedKeys) {
   // Skip dynamic interpolations (e.g. `ns:${var}`)
   if (key.includes("${")) continue;
@@ -141,6 +145,8 @@ for (const key of usedKeys) {
   // Handle array-indexed access at any depth: "a.0.title" where "a" is an array
   const segments = key.split(".");
   if (pathPassesThroughArray(fr, segments) || pathPassesThroughArray(en, segments)) continue;
+  // Handle i18next pluralization: accept if any "_suffix" variant exists in either locale.
+  if (PLURAL_SUFFIXES.some((s) => frKeys.has(key + s) || enKeys.has(key + s))) continue;
   errors.push(`[MISSING_KEY] "${key}" used in source but absent from translation files`);
 }
 

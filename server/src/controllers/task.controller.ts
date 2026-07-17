@@ -6,8 +6,8 @@ import { buildServiceScope } from "../utils/serviceScope.js";
 
 export const getAllTasks: RequestHandler = async (req, res, next) => {
   try {
-    const userId = req.user?.sub!;
-    const userRole = req.user?.role!;
+    const userId = req.user!.sub;
+    const userRole = req.user!.role;
     const projectId = req.query.projectId as string | undefined;
     const options = parseListQuery(req.query as Record<string, unknown>);
     const result = await taskService.getAllTasks(projectId, userId, userRole, options, await buildServiceScope(req));
@@ -19,8 +19,8 @@ export const getAllTasks: RequestHandler = async (req, res, next) => {
 
 export const getTaskById: RequestHandler = async (req, res, next) => {
   try {
-    const userId = req.user?.sub!;
-    const userRole = req.user?.role!;
+    const userId = req.user!.sub;
+    const userRole = req.user!.role;
     const task = await taskService.getTaskById(req.params.id as string, userId, userRole, await buildServiceScope(req));
     res.json({ data: task });
   } catch (error) {

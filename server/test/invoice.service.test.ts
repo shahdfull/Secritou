@@ -210,21 +210,15 @@ describe("addPayment : guard logic", () => {
   const COMPANY_ID = "company-1";
 
   test("rejects negative payment amount before any DB call", async () => {
-    await assert.rejects(
-      async () => {
-        if (-100 <= 0) throw new Error("Payment amount must be positive");
-      },
-      /positive/i
-    );
+    const { addPaymentSchema } = await import("../src/validators/invoice.validator.js");
+    const result = addPaymentSchema.safeParse({ params: { id: crypto.randomUUID() }, body: { amount: -100 } });
+    assert.equal(result.success, false, "addPaymentSchema must reject a negative amount");
   });
 
   test("rejects zero payment amount before any DB call", async () => {
-    await assert.rejects(
-      async () => {
-        if (0 <= 0) throw new Error("Payment amount must be positive");
-      },
-      /positive/i
-    );
+    const { addPaymentSchema } = await import("../src/validators/invoice.validator.js");
+    const result = addPaymentSchema.safeParse({ params: { id: crypto.randomUUID() }, body: { amount: 0 } });
+    assert.equal(result.success, false, "addPaymentSchema must reject a zero amount");
   });
 
   test("overpayment on PAID invoice stays PAID via computeNewStatus", () => {

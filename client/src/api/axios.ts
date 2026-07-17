@@ -121,58 +121,8 @@ api.interceptors.response.use(
 
     // Start refresh
     refreshState.isRefreshing = true;
-    refreshState.refreshPromise = new Promise(async (resolveRefresh, rejectRefresh) => {
-      // Set timeout to prevent infinite hanging
-      const timeout = setTimeout(() => {
-        clearRefreshTimeout();
-        processQueue(new Error("Refresh timeout"), null);
-        useAuthStore.getState().logout();
-        toast.error(i18n.t("toasts.sessionExpired"));
-        rejectRefresh(new Error("Refresh timeout"));
-      }, REFRESH_TIMEOUT_MS);
-
-      refreshState.refreshTimeout = timeout;
-
-      try {
-        // Make refresh request with no retry to avoid recursion
-        // Use api instance (not plain axios) to ensure withCredentials is true for HTTP-only cookies
-        let response;
-        try {
-          response = await api.post<any>("/auth/refresh", {}, { _retry: true } as any);
-        } catch (firstErr: any) {
-          // REFRESH_RACE = another tab rotated the token microseconds earlier;
-          // its fresh cookie is already set, so a single immediate retry
-          // succeeds. Only a second failure means the session is really gone.
-          if (firstErr?.response?.data?.error?.code === "REFRESH_RACE") {
-            response = await api.post<any>("/auth/refresh", {}, { _retry: true } as any);
-          } else {
-            throw firstErr;
-          }
-        }
-        const { accessToken, user } = response.data.data;
-
-        clearRefreshTimeout();
-
-        // Update store with new token and user
-        useAuthStore.getState().setSession({ user, accessToken });
-
-        // Resolve all queued requests with new token
-        processQueue(null, accessToken);
-
-        resolveRefresh(accessToken);
-      } catch (refreshError) {
-        clearRefreshTimeout();
-
-        // Refresh failed, logout user
-        processQueue(refreshError, null);
-        useAuthStore.getState().logout();
-        toast.error(i18n.t("toasts.sessionExpired"));
-
-        rejectRefresh(refreshError);
-      } finally {
-        refreshState.isRefreshing = false;
-        refreshState.refreshPromise = null;
-      }
+    refreshState.refreshPromise = new Promise((resolveRefresh, rejectRefresh) => {
+      runRefresh(resolveRefresh, rejectRefresh);
     });
 
     return refreshState.refreshPromise
@@ -185,5 +135,62 @@ api.interceptors.response.use(
       .catch((err) => Promise.reject(err));
   }
 );
+
+async function runRefresh(
+  resolveRefresh: (token: string | null) => void,
+  rejectRefresh: (reason?: unknown) => void
+) {
+  // Set timeout to prevent infinite hanging
+  const timeout = setTimeout(() => {
+    clearRefreshTimeout();
+    processQueue(new Error("Refresh timeout"), null);
+    useAuthStore.getState().logout();
+    toast.error(i18n.t("toasts.sessionExpired"));
+    rejectRefresh(new Error("Refresh timeout"));
+  }, REFRESH_TIMEOUT_MS);
+
+  refreshState.refreshTimeout = timeout;
+
+  try {
+    // Make refresh request with no retry to avoid recursion
+    // Use api instance (not plain axios) to ensure withCredentials is true for HTTP-only cookies
+    let response;
+    try {
+      response = await api.post<any>("/auth/refresh", {}, { _retry: true } as any);
+    } catch (firstErr: any) {
+      // REFRESH_RACE = another tab rotated the token microseconds earlier;
+      // its fresh cookie is already set, so a single immediate retry
+      // succeeds. Only a second failure means the session is really gone.
+      if (firstErr?.response?.data?.error?.code === "REFRESH_RACE") {
+        response = await api.post<any>("/auth/refresh", {}, { _retry: true } as any);
+      } else {
+        throw firstErr;
+      }
+    }
+    const { accessToken, user } = response.data.data;
+
+    clearRefreshTimeout();
+
+    // Update store with new token and user
+    useAuthStore.getState().setSession({ user, accessToken });
+
+    // Resolve all queued requests with new token
+    processQueue(null, accessToken);
+
+    resolveRefresh(accessToken);
+  } catch (refreshError) {
+    clearRefreshTimeout();
+
+    // Refresh failed, logout user
+    processQueue(refreshError, null);
+    useAuthStore.getState().logout();
+    toast.error(i18n.t("toasts.sessionExpired"));
+
+    rejectRefresh(refreshError);
+  } finally {
+    refreshState.isRefreshing = false;
+    refreshState.refreshPromise = null;
+  }
+}
 
 export default api;

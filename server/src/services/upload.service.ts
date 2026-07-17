@@ -223,25 +223,20 @@ export async function uploadFile(
   // Encode original name to base64 for safe storage in S3 metadata (preserves UTF-8)
   const encodedName = Buffer.from(originalName, 'utf8').toString('base64');
 
-  try {
-    await getS3().send(
-      new PutObjectCommand({
-        Bucket: BUCKET,
-        Key: key,
-        Body: buffer,
-        ContentType: mimeType,
-        ContentLength: size,
-        // Private by default : use signed URLs to serve
-        ACL: env.S3_PUBLIC_ACL ? "public-read" : "private",
-        Metadata: {
-          originalName: encodedName,
-        },
-      })
-    );
-
-  } catch (s3Error) {
-    throw s3Error;
-  }
+  await getS3().send(
+    new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      Body: buffer,
+      ContentType: mimeType,
+      ContentLength: size,
+      // Private by default : use signed URLs to serve
+      ACL: env.S3_PUBLIC_ACL ? "public-read" : "private",
+      Metadata: {
+        originalName: encodedName,
+      },
+    })
+  );
 
   const url = env.S3_PUBLIC_ACL
     ? buildPublicUrl(key)

@@ -60,6 +60,14 @@ export function ProjectDetailPage() {
   const { data: myDocsResult } = useDocuments({ page: 1, pageSize: 50 });
   const downloadDocumentMutation = useDownloadDocument();
 
+  const isManager = user?.role === "MANAGER";
+  const isAdminOrManager = user?.role === "ADMIN" || user?.role === "MANAGER";
+  const { data: mySplit } = useMySplitForProject(project?.id ?? "", isManager);
+  const { data: projectTemplate } = useProjectTemplateForService(
+    isAdminOrManager ? project?.serviceId : undefined
+  );
+  const applyTemplateMutation = useApplyProjectTemplate(project?.id ?? "");
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -82,12 +90,7 @@ export function ProjectDetailPage() {
     );
   }
 
-  const isAdminOrManager = user?.role === "ADMIN" || user?.role === "MANAGER";
-  const isManager = user?.role === "MANAGER";
   const isFreelancer = user?.role === "FREELANCER";
-  const { data: mySplit } = useMySplitForProject(project.id, isManager);
-  const { data: projectTemplate } = useProjectTemplateForService(isAdminOrManager ? project.serviceId : undefined);
-  const applyTemplateMutation = useApplyProjectTemplate(project.id);
   const canChangeStatus = isAdminOrManager && project.status !== "COMPLETED";
   const validTransitions = PROJECT_STATUS_VALID_TRANSITIONS[project.status] ?? [];
   const deadline = project.deadline ? formatDate(project.deadline) : "—";

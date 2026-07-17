@@ -141,8 +141,6 @@ export const agentOrchestratorService = {
         data: result,
         conversationId: conversation.conversation.id
       };
-    } catch (error) {
-      throw error;
     } finally {
       // Log metrics
       const duration = Date.now() - startTime;

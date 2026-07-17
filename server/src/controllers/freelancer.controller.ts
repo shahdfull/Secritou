@@ -62,8 +62,8 @@ export const getMyProfile: RequestHandler = async (req, res, next) => {
 
 export const createMyProfile: RequestHandler = async (req, res, next) => {
   try {
-    const userId = req.user?.sub!;
-    const userRole = req.user?.role!;
+    const userId = req.user!.sub;
+    const userRole = req.user!.role;
     const profile = await freelancerService.createMyProfile(
       userId,
       userRole,
@@ -77,8 +77,8 @@ export const createMyProfile: RequestHandler = async (req, res, next) => {
 
 export const updateMyProfile: RequestHandler = async (req, res, next) => {
   try {
-    const userId = req.user?.sub!;
-    const userRole = req.user?.role!;
+    const userId = req.user!.sub;
+    const userRole = req.user!.role;
     const profile = await freelancerService.updateMyProfile(
       userId,
       userRole,
@@ -92,8 +92,8 @@ export const updateMyProfile: RequestHandler = async (req, res, next) => {
 
 export const deleteMyProfile: RequestHandler = async (req, res, next) => {
   try {
-    const userId = req.user?.sub!;
-    const userRole = req.user?.role!;
+    const userId = req.user!.sub;
+    const userRole = req.user!.role;
     await freelancerService.deleteMyProfile(userId, userRole);
     res.status(204).send();
   } catch (error) {

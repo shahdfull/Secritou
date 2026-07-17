@@ -7,8 +7,8 @@ import { buildServiceScope } from "../utils/serviceScope.js";
 
 export const getCommentsByTaskId: RequestHandler = async (req, res, next) => {
   try {
-    const userId = req.user?.sub!;
-    const userRole = req.user?.role!;
+    const userId = req.user!.sub;
+    const userRole = req.user!.role;
     const taskId = req.params.taskId as string;
     const scope = await buildServiceScope(req);
 
@@ -26,8 +26,8 @@ export const getCommentsByTaskId: RequestHandler = async (req, res, next) => {
 
 export const createComment: RequestHandler = async (req, res, next) => {
   try {
-    const userId = req.user?.sub!;
-    const userRole = req.user?.role!;
+    const userId = req.user!.sub;
+    const userRole = req.user!.role;
     const taskId = req.params.taskId as string;
     const { content } = req.body;
     const scope = await buildServiceScope(req);
