@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-021
+dernier_id: SEC-022
 
 anomalies:
   - id: SEC-001
@@ -1628,3 +1628,81 @@ anomalies:
       dérogation explicite à la règle commit+CI de CLAUDE.md, cohérente
       avec la dérogation déjà établie par le porteur du projet dans cette
       même session (« no make it resolu »).
+
+  - id: SEC-022
+    titre: "creditNoteService.applyCredit : le garde-fou anti-double-application ne se déclenche jamais (P2025 non catché)"
+    perimetre: "4.4 Facturation & Paiements — server/src/services/creditNote.service.ts"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand appliquer un avoir déjà appliqué (ou appartenant à
+      un autre client) via `creditNoteService.applyCredit` lève une
+      `HttpError(409, ..., "CREDIT_ALREADY_APPLIED")` réelle — pas une
+      `PrismaClientKnownRequestError` brute remontant en 500 générique —
+      vérifié par un test qui appelle réellement `applyCredit` et inspecte
+      le type/statusCode/code de l'erreur reçue, pas seulement qu'une
+      erreur quelconque a été levée.
+    detecte_le: "2026-07-17"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Trouvé en lisant intégralement `creditNoteService` pour confirmer le
+      statut de l'entité 3.12 (§3, `[À CONFIRMER]` → tentative de
+      passage à IMPLÉMENTÉ), session du 2026-07-17 — pas pendant un audit
+      formel du module 4.4, enregistré immédiatement conformément à
+      CLAUDE.md.
+
+      `applyCredit` (creditNote.service.ts:103-155 avant correction)
+      utilisait une mise à jour conditionnelle
+      (`tx.creditNote.update({ where: { id, appliedAt: null, clientId } })`)
+      pour empêcher qu'un avoir soit appliqué deux fois — protection
+      pensée contre une vraie condition de course (deux admins cliquant
+      "appliquer" presque simultanément). Le code supposait que Prisma
+      renvoie `null` si le `where` ne matche rien (`if (!cn) throw new
+      HttpError(409, ..., "CREDIT_ALREADY_APPLIED")`), mais Prisma lève en
+      réalité une `PrismaClientKnownRequestError` (code `P2025`) — jamais
+      catchée. `server/src/middlewares/error.middleware.ts` n'a aucun
+      gestionnaire pour `P2025` (seul `P2002` est traité spécifiquement) :
+      l'erreur tombait dans le bloc générique final, renvoyant un `500
+      Internal server error` opaque au lieu du `409 CREDIT_ALREADY_APPLIED`
+      clair et actionnable que le code visait explicitement.
+
+      CONFIRMÉ PAR REPRODUCTION RÉELLE (pas seulement lecture de code),
+      avant tout correctif : avoir créé avec `appliedAt` déjà renseigné,
+      appel direct de `creditNoteService.applyCredit` (le vrai service, pas
+      une simulation) → `PrismaClientKnownRequestError`, code `P2025`,
+      `statusCode: undefined` (donc pas une `HttpError`, confirmant que
+      `error.middleware.ts` l'aurait laissée tomber dans le 500 générique).
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, même session : l'appel à
+      `tx.creditNote.update(...)` entouré d'un `try/catch` qui détecte
+      spécifiquement `err instanceof Prisma.PrismaClientKnownRequestError
+      && err.code === "P2025"` et lève l'`HttpError(409, ...,
+      "CREDIT_ALREADY_APPLIED")` prévu à l'origine. Le `if (!cn)` restant
+      est mort (Prisma ne renverra jamais `null` ici) mais conservé pour
+      que TypeScript accepte les lectures ultérieures de `cn` — pas
+      supprimé, car son retrait exigerait un cast ou une réécriture du
+      flux de contrôle hors du périmètre de ce correctif ponctuel.
+      Reproduction re-testée après correctif, même scénario : lève bien
+      `HttpError`, `statusCode: 409`, `code: CREDIT_ALREADY_APPLIED`.
+
+      Nouveau test `server/test/creditNoteApply.test.ts` (câblé dans
+      `test/run-all.test.ts`), appelle réellement `applyCredit` contre une
+      base migrée. 2 cas : avoir déjà appliqué → `HttpError` 409 confirmée
+      (type, statusCode, code, pas seulement "une erreur a été levée") ;
+      avoir frais → application réussie, `Invoice.amountPaid` et
+      `Client.creditBalance` vérifiés à leurs valeurs exactes après coup
+      (pas seulement l'absence d'erreur). `npm run typecheck --workspace
+      server` vert. `npm run test:unit --workspace server` : 269/269
+      (267 + 2 nouveaux), exécuté deux fois de suite, ~15-18s (aucune
+      régression du type SEC-002 — ce fichier ne touche pas le cache
+      Redis, seulement BullMQ déjà fermé par `run-all.test.ts`).
+
+      Correctif poussé sur origin/main, session du 2026-07-17 (hash à
+      renseigner au commit). `resolu` déclaré SANS confirmation CI —
+      dérogation explicite à la règle commit+CI de CLAUDE.md, déjà établie
+      par le porteur du projet dans cette même session (« no make it
+      resolu »). Le critère textuel exact est satisfait indépendamment de
+      la dérogation CI (vrai test appelant le code réel).

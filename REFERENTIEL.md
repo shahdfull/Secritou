@@ -234,8 +234,18 @@ déclenchement, intégral).**
 ### 3.12 CreditNote (Avoir)
 Note de crédit pour trop-perçu ou correction, incrémente
 `Client.creditBalance`.
-**Statut : `[À CONFIRMER]`. `verifie: schema_seul`** — `creditNote.service.ts`
-non lu directement (v0.1.0 le citait via un audit antérieur, non revérifié).
+**Statut : IMPLÉMENTÉ. `verifie: code_direct`** (session du 2026-07-17 :
+`creditNote.service.ts` lu intégralement, 183 lignes — pas de repository/
+controller/routes dédiés, les endpoints vivent dans `invoice.controller.ts`/
+`invoice.routes.ts` (déjà confirmé par AUDIT_GRID.md). `create`,
+`listByInvoice`, `listByClient`, `getAll`, `applyCredit`, et le chemin
+automatique `createCreditNoteTx` (déclenché par un trop-perçu dans
+`invoice.service.ts#addPayment`) tous lus. Une anomalie trouvée et corrigée
+dans la même passe — voir SEC-022 : le garde-fou anti-double-application
+d'`applyCredit` ne se déclenchait jamais (Prisma lève `P2025` au lieu de
+retourner `null`, jamais catché, remontait en 500 générique au lieu du 409
+prévu). Reproduit réellement contre la base, corrigé, testé
+(`server/test/creditNoteApply.test.ts`).
 
 ### 3.13 ProjectCommissionSplit
 Répartition manuelle, par projet, du pourcentage de commission attribué à
@@ -1051,3 +1061,4 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-17** | **SEC-002 / RG-018 résolu : `inviteClientUser` (création du compte portail Client + email d'identifiants) déplacé de `proposal.service.ts#acceptWithCascade` (à l'acceptation, avant paiement) vers `invoice.service.ts#addPayment` (au moment précis où `Client.portalActivatedAt` passe de null à une date réelle, sur la facture d'acompte). Découverte en cours de route : le portail n'était pas ouvert sans garde — `requireActivatedPortal` bloque déjà 8 fichiers de routes tant que `portalActivatedAt` est null — seul le COMPTE (email + mot de passe) était créé trop tôt.** | **Décision explicite du porteur du projet, session du 2026-07-17, en deux temps : d'abord « aligner le code sur RG-018 », puis, après découverte du gate déjà existant, confirmation de « retarder aussi la création du compte/l'email jusqu'au paiement » plutôt que documenter le design à deux étages comme voulu.** |
 | **2026-07-17** | **Bug d'infrastructure de test trouvé et corrigé en marge de SEC-002 : le nouveau fichier `server/test/portalActivationOnPayment.test.ts` est le premier de toute la suite à déclencher pour de vrai l'invalidation de cache (`cache/redis.ts`, client Redis distinct de celui de BullMQ que `run-all.test.ts` fermait déjà) — laissé ouvert, il maintenait le process Node vivant ~40s après la fin réelle des tests, faisant échouer `node --test` par timeout et rapportant faussement l'ensemble comme en échec malgré des tests individuellement verts en 3.5s. Corrigé par `closeRedisClient()` dans le hook `after()` de ce fichier spécifiquement.** | **Diagnostic direct de l'assistant par isolation progressive (suite complète → 3 fichiers → 1 fichier → inspection `pg_stat_activity`, qui a exclu un verrou base de données réel). Pas une décision produit — documenté pour qu'une future session comprenne pourquoi ce fichier a ce hook supplémentaire.** |
 | **2026-07-17** | **Entité 3.9 ClientOnboarding relevée de `[À CONFIRMER]`/`schema_seul` à IMPLÉMENTÉ/`code_direct` : les 3 fichiers cœur (service 122 l., repository 363 l., controller 388 l.) lus intégralement, aucune anomalie fonctionnelle trouvée. Repository déjà correctement typé sur les types Prisma générés — pas de trace de la classe de défaut SEC-012 ici.** | **Reprise de la lecture exhaustive des modules encore `[À CONFIRMER]`, sur demande du porteur du projet (« continue à lire et corriger », rythme module par module, un rapport à chaque fois), session du 2026-07-17.** |
+| **2026-07-17** | **Entité 3.12 CreditNote relevée de `[À CONFIRMER]`/`schema_seul` à IMPLÉMENTÉ/`code_direct` : `creditNote.service.ts` lu intégralement (183 l.). SEC-022 trouvée et corrigée dans la même passe : `applyCredit` supposait que Prisma retourne `null` sur un `update` conditionnel sans match, alors qu'il lève `P2025` — le garde-fou anti-double-application (409 attendu) ne se déclenchait jamais, l'utilisateur recevait un 500 générique. Reproduit réellement, corrigé, testé.** | **Constat incident pendant la lecture exhaustive des modules `[À CONFIRMER]`, enregistré immédiatement conformément à CLAUDE.md.** |

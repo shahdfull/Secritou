@@ -5,6 +5,7 @@ import { roundMoney } from "../utils/vat.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { clientRepository } from "../repositories/client.repository.js";
 import { enqueueNotifications } from "../jobs/queues.js";
+import { Prisma } from "@prisma/client";
 import type { InvoiceStatus } from "@prisma/client";
 import { notifyN8n } from "../utils/webhook.js";
 import { env } from "../config/env.js";
@@ -111,16 +112,28 @@ export const creditNoteService = {
       if (invoice.status === "PAID") throw new HttpError(409, "Cannot apply credit to an already paid invoice", "INVOICE_ALREADY_PAID");
       if (invoice.status === "CANCELLED") throw new HttpError(409, "Cannot apply credit to a cancelled invoice", "INVOICE_CANCELLED");
 
-      // 2. Load credit note and mark as applied atomically with conditional update
-      const cn = await tx.creditNote.update({
-        where: { 
-          id: creditNoteId, 
-          appliedAt: null, // Only update if not already applied
-          clientId: invoice.clientId // Ensure same client
-        },
-        data: { appliedAt: new Date(), appliedToInvoiceId: targetInvoiceId },
-        select: { id: true, amount: true, clientId: true, number: true },
-      });
+      // 2. Load credit note and mark as applied atomically with conditional update.
+      // Prisma throws P2025 (not a null return) when the where clause matches nothing —
+      // this catch is what actually produces the intended 409, not the dead `if (!cn)`
+      // below it (kept only because narrowing `cn` to non-undefined satisfies the compiler
+      // for the reads on it further down).
+      let cn: { id: string; amount: Prisma.Decimal; clientId: string; number: string };
+      try {
+        cn = await tx.creditNote.update({
+          where: {
+            id: creditNoteId,
+            appliedAt: null, // Only update if not already applied
+            clientId: invoice.clientId // Ensure same client
+          },
+          data: { appliedAt: new Date(), appliedToInvoiceId: targetInvoiceId },
+          select: { id: true, amount: true, clientId: true, number: true },
+        });
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
+          throw new HttpError(409, "This credit note has already been applied or belongs to a different client", "CREDIT_ALREADY_APPLIED");
+        }
+        throw err;
+      }
       if (!cn) throw new HttpError(409, "This credit note has already been applied or belongs to a different client", "CREDIT_ALREADY_APPLIED");
 
       // 3. Compute the applicable amount (capped at remaining balance and client credit balance)
