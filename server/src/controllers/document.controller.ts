@@ -89,7 +89,8 @@ export const signDocument = async (req: Request, res: Response) => {
   if (!clientId) throw new HttpError(403, "Client access required");
   const document = await documentService.signDocument(
     req.params.id as string,
-    clientId
+    clientId,
+    req.user!.sub
   );
   res.json({ data: document });
 };

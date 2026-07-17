@@ -73,14 +73,23 @@ export const documentService = {
     return documentRepository.addAccessLog(id, data);
   },
 
-  // CLIENT-only: sign the contract document.
-  async signDocument(documentId: string, clientId: string) {
+  // CLIENT-only: sign the contract document. `signingUserId` is the authenticated User's own
+  // id (req.user.sub) — despite its name, Document.signedByClientId is a foreign key to
+  // User.id (relation "SignedDocuments" on User), not Client.id. Writing clientId into it
+  // always violated the FK constraint (SEC-023) — no client has ever been able to actually
+  // sign a contract through this endpoint until this fix.
+  async signDocument(documentId: string, clientId: string, signingUserId: string) {
     const doc = await prisma.document.findFirst({ where: { id: documentId }, include: { project: { select: { clientId: true, name: true } } } });
     if (!doc) throw new HttpError(404, "Document not found");
-    if (doc.project?.clientId !== clientId) throw new HttpError(403, "Forbidden");
+    // Ownership via either the linked project's client, OR the document's own direct
+    // clientId (both are legitimate — createDocument allows a CONTRACT with no projectId,
+    // see SEC-023). Checking only doc.project?.clientId permanently locked the client out
+    // of signing any contract not attached to a project.
+    const owningClientId = doc.project?.clientId ?? doc.clientId;
+    if (owningClientId !== clientId) throw new HttpError(403, "Forbidden");
     if (doc.type !== "CONTRACT") throw new HttpError(400, "Only the contract document can be signed", "NOT_A_CONTRACT");
     if (doc.signedAt) throw new HttpError(409, "Document already signed", "ALREADY_SIGNED");
-    const signed = await prisma.document.update({ where: { id: documentId }, data: { signedAt: new Date(), signedByClientId: clientId } });
+    const signed = await prisma.document.update({ where: { id: documentId }, data: { signedAt: new Date(), signedByClientId: signingUserId } });
     const admins = await userRepository.findAdmins();
     void enqueueNotifications(admins.map((admin) => ({
       userId: admin.id,

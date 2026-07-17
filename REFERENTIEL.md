@@ -300,8 +300,23 @@ comment/attachments, sans écart).
 
 ### 3.18 Document
 Fichier versionné rattaché à un client/projet/facture, avec niveaux d'accès
-et journal d'accès (`DocumentAccessLog`).
-**Statut : `[À CONFIRMER]`. `verifie: schema_seul`.**
+et journal d'accès (`DocumentAccessLog`). Rattaché au module 4.2 Gestion de
+projet (décision du porteur du projet, 2026-07-17, voir §7).
+**Statut : IMPLÉMENTÉ. `verifie: code_direct`** (session du 2026-07-17 :
+`document.service.ts` (114 l.), `.repository.ts` (138 l.),
+`.controller.ts` (103 l.) lus intégralement — 355 lignes. CRUD complet,
+versioning, journal d'accès, URL de téléchargement signée à la demande
+(jamais l'URL longue durée exposée directement au client). **SEC-023
+trouvée et corrigée dans la même passe, gravité `bloquant`** : la
+signature électronique de contrat (citée dans README.md) ne fonctionnait
+JAMAIS, y compris sur le chemin normal (document lié à un projet) —
+`Document.signedByClientId` est en réalité une clé étrangère vers
+`User.id`, pas `Client.id`, malgré son nom ; le code y écrivait l'id du
+Client, violant systématiquement la contrainte FK. Un second défaut
+distinct empêchait en plus la signature de tout document `CONTRACT` créé
+sans `projectId` (chemin pourtant autorisé par le validateur). Reproduit
+réellement (les deux chemins), corrigé, testé
+(`server/test/documentSignContract.test.ts`, 4 cas).
 
 ### 3.19 GscConnection / MetricSnapshot
 Connexion OAuth à Google Search Console par client, et stockage générique de
@@ -1083,3 +1098,4 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-17** | **Entité 3.12 CreditNote relevée de `[À CONFIRMER]`/`schema_seul` à IMPLÉMENTÉ/`code_direct` : `creditNote.service.ts` lu intégralement (183 l.). SEC-022 trouvée et corrigée dans la même passe : `applyCredit` supposait que Prisma retourne `null` sur un `update` conditionnel sans match, alors qu'il lève `P2025` — le garde-fou anti-double-application (409 attendu) ne se déclenchait jamais, l'utilisateur recevait un 500 générique. Reproduit réellement, corrigé, testé.** | **Constat incident pendant la lecture exhaustive des modules `[À CONFIRMER]`, enregistré immédiatement conformément à CLAUDE.md.** |
 | **2026-07-17** | **Entité 3.16 ServiceRequest relevée de `[À CONFIRMER]`/`schema_seul` à IMPLÉMENTÉ/`code_direct` : les 3 fichiers cœur (service 130 l., repository 188 l., controller 105 l.) lus intégralement. Aucune anomalie fonctionnelle trouvée — `deleteComment` ne vérifie que la propriété du commentaire, pas le scope pôle, mais vérifié non exploitable (un Manager hors-pôle ne peut jamais être auteur d'un commentaire sur une demande hors de son pôle).** | **Reprise de la lecture exhaustive des modules `[À CONFIRMER]`, session du 2026-07-17.** |
 | **2026-07-17** | **Entité 3.17 Approval relevée de `[À CONFIRMER]`/`schema_seul` à IMPLÉMENTÉ/`code_direct` — resynchronisation avec le statut déjà établi pour le module 4.6 (marqué `lu` dans EXPLORATION.md depuis le 2026-07-16/17), jamais répercuté sur l'entité elle-même. Pas de nouvelle lecture nécessaire, seule une incohérence de statut corrigée.** | **Constat direct en poursuivant la lecture exhaustive des entités `[À CONFIRMER]`, session du 2026-07-17.** |
+| **2026-07-17** | **Entité 3.18 Document relevée de `[À CONFIRMER]`/`schema_seul` à IMPLÉMENTÉ/`code_direct` (355 lignes lues intégralement). SEC-023 trouvée et corrigée, gravité `bloquant` : la signature de contrat ne fonctionnait jamais, sur aucun chemin — `Document.signedByClientId` est une FK vers `User.id`, pas `Client.id`, malgré son nom ; le code y écrivait l'id du Client, violant systématiquement la contrainte. Reproduit réellement sur le chemin normal (document lié à un projet) et sur le cas limite (document sans projet), corrigé, testé.** | **Constat incident pendant la lecture exhaustive des modules `[À CONFIRMER]`, enregistré immédiatement conformément à CLAUDE.md. Fonctionnalité citée dans README.md comme livrée mais jamais réellement fonctionnelle depuis l'introduction du champ.** |

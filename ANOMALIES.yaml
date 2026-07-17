@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-022
+dernier_id: SEC-023
 
 anomalies:
   - id: SEC-001
@@ -1706,3 +1706,97 @@ anomalies:
       par le porteur du projet dans cette même session (« no make it
       resolu »). Le critère textuel exact est satisfait indépendamment de
       la dérogation CI (vrai test appelant le code réel).
+
+  - id: SEC-023
+    titre: "documentService.signDocument : signature de contrat toujours impossible (FK signedByClientId erronée) + client sans projet permanemment bloqué"
+    perimetre: "3.18 Document — server/src/services/document.service.ts"
+    regle_violee: null
+    classe: null
+    gravite: bloquant
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand un client peut réellement signer un document de
+      type CONTRACT, à la fois quand ce document est lié à un projet et
+      quand il ne l'est pas (directement attaché au client), vérifié par
+      un test qui appelle réellement `documentService.signDocument` contre
+      une base réelle et confirme que `signedAt` est renseigné et que
+      `signedByClientId` contient bien l'id de l'utilisateur signataire
+      (pas juste l'absence d'erreur).
+    detecte_le: "2026-07-17"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Trouvé en lisant intégralement `document.service.ts` pour confirmer
+      le statut de l'entité 3.18 (§3, `[À CONFIRMER]` → tentative de
+      passage à IMPLÉMENTÉ), session du 2026-07-17 — pas pendant un audit
+      formel d'un module, enregistré immédiatement conformément à
+      CLAUDE.md. Deux défauts indépendants dans la même méthode :
+
+      (a) Ownership check incomplet — `signDocument` (avant correction)
+      vérifiait uniquement `doc.project?.clientId !== clientId`. Or
+      `createDocumentSchema` (shared/src/schemas/document.schema.ts)
+      autorise explicitement un document `type: "CONTRACT"` sans
+      `projectId` (`projectId` optionnel). Pour un tel document,
+      `doc.project` est `null`, donc `doc.project?.clientId` vaut
+      `undefined`, qui ne correspond jamais à un `clientId` réel — même le
+      propriétaire légitime (via `Document.clientId`, une relation directe
+      bien réelle sur le modèle) recevait un 403 permanent, sans aucun
+      moyen de le contourner.
+
+      (b) FK erronée, BEAUCOUP plus grave — `Document.signedByClientId`
+      (schema.prisma:804-805) est en réalité une clé étrangère vers
+      `User.id` (relation nommée `"SignedDocuments"` sur le modèle `User`),
+      PAS vers `Client.id`, malgré son nom. Le code écrivait pourtant
+      `signedByClientId: clientId` (un `Client.id`) — ce qui viole
+      systématiquement la contrainte FK, quel que soit le chemin
+      (projet lié ou non). Conséquence concrète, confirmée par
+      reproduction réelle des DEUX scénarios (pas seulement lu dans le
+      code) : AUCUN client n'a jamais pu signer un contrat avec succès via
+      cet endpoint, y compris via le chemin normal/prévu (document lié à
+      un projet) — fonctionnalité citée dans README.md (« Document viewer
+      with contract e-signature ») cassée depuis l'origine.
+
+      REPRODUCTION RÉELLE avant correctif (pas seulement lecture de
+      code) : (1) document CONTRACT sans projectId créé pour un vrai
+      client → `signDocument` → `403 Forbidden` (défaut a). (2) document
+      CONTRACT AVEC projectId réel, client réel propriétaire du projet →
+      `signDocument` → passe le contrôle d'ownership mais échoue avec
+      `PrismaClientKnownRequestError P2003, Foreign key constraint
+      violated on the constraint: Document_signedByClientId_fkey` (défaut
+      b, confirmé sur le chemin normal, pas seulement le cas limite du
+      défaut a).
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, même session :
+      (a) `signDocument` calcule désormais `owningClientId =
+      doc.project?.clientId ?? doc.clientId` — accepte l'ownership via
+      l'une ou l'autre relation légitime.
+      (b) `signDocument` prend un 3e paramètre `signingUserId` (l'id réel
+      de l'utilisateur authentifié, `req.user.sub` — pas `clientId`) et
+      l'écrit dans `signedByClientId`.
+      `document.controller.ts#signDocument` passe désormais
+      `req.user!.sub` en plus de `clientId`.
+      Reproduction re-testée après correctif, les deux scénarios ET un
+      3e (mauvais client rejeté) : les 3 confirmés — signature réussie
+      avec `signedByClientId` égal à l'id utilisateur réel dans les 2 cas
+      valides, 403 confirmé pour un client non-propriétaire.
+
+      Nouveau test `server/test/documentSignContract.test.ts` (câblé dans
+      `test/run-all.test.ts`), appelle réellement `signDocument` contre
+      une base migrée. 4 cas : contrat lié à un projet signé avec succès
+      (signedByClientId = id utilisateur, pas id client) ; contrat sans
+      projet signé avec succès ; un autre client ne peut pas signer un
+      contrat qui n'est pas le sien (403) ; un contrat déjà signé ne peut
+      pas être signé une seconde fois (409 ALREADY_SIGNED). `npm run
+      typecheck --workspace server` vert. `npm run test:unit --workspace
+      server` : 273/273 (269 + 4 nouveaux), exécuté deux fois de suite,
+      ~15-18s, aucune régression du type SEC-002 (pas de cache Redis
+      touché par ce fichier).
+
+      Correctif poussé sur origin/main, session du 2026-07-17 (hash à
+      renseigner au commit). `resolu` déclaré SANS confirmation CI —
+      dérogation explicite à la règle commit+CI de CLAUDE.md, déjà établie
+      par le porteur du projet dans cette même session (« no make it
+      resolu »). Gravité `bloquant` (pas `majeur`) : contrairement aux
+      autres anomalies de cette session, celle-ci empêchait TOTALEMENT une
+      fonctionnalité citée explicitement dans README.md comme livrée,
+      depuis l'introduction du champ — pas une dégradation partielle.
