@@ -44,3 +44,4 @@ import "./booking.routes.test.ts";
 import "./analyticsEventValidator.test.ts";
 import "./analyticsEvent.routes.test.ts";
 import "./analyticsCommissionScope.test.ts";
+import "./projectUpdateBlocksCompletion.test.ts";

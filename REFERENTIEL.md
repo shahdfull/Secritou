@@ -418,6 +418,13 @@ Répartition et calcul des commissions par mission et par paiement reçu.
 Accès externe du Client : projet, factures, brief, approbations, demandes de
 service, questions personnalisées.
 
+Audit du 2026-07-16 : `approval.controller.ts`, `approval.routes.ts` et
+`approval.validator.ts` sont bien le contrôleur/routes/validateur réels
+consommés par `ApprovalsClientPage.tsx` (`POST /approvals/:id/respond`) mais
+n'étaient pas listés dans le `perimetre_code:` — seul `approval.service.ts`
+y figurait, contrairement à `serviceRequest.*` qui a ses 5 couches. Ajoutés
+ci-dessous pour que le périmètre reflète ce qui est réellement consommé.
+
     perimetre_code:
       - server/src/services/clientPortal.service.ts
       - server/src/repositories/clientPortal.repository.ts
@@ -425,6 +432,9 @@ service, questions personnalisées.
       - server/src/routes/clientPortal.routes.ts
       - server/src/services/serviceRequest.service.ts
       - server/src/services/approval.service.ts
+      - server/src/controllers/approval.controller.ts
+      - server/src/routes/approval.routes.ts
+      - server/src/validators/approval.validator.ts
       - server/src/services/customQuestion.service.ts
       - prisma/schema.prisma#ServiceRequest,Approval,CustomQuestion,CustomQuestionMessage
       - client/src/features/client-portal/**
@@ -740,13 +750,21 @@ la logique de numérotation elle-même.
 **RG-013 — Clôture de mission par le client.**
 Un projet ne peut passer au statut `COMPLETED` que via l'action explicite de
 validation finale du Client (`clientApprove`). *Module : 4.2, 4.6.* Statut :
-`[À CONFIRMER]` (affirmation d'exclusivité — « ne peut… que via »).
-`verifie: code_grep` — le chemin nominal `clientApprove` a été inspecté par
-grep ciblé (lignes 194-346, session précédente), pas lu ligne à ligne, et
-aucun test n'assère qu'une mise à jour standard du projet rejette
-effectivement `status: COMPLETED`. Note pour test futur : test confirmant
-qu'un `PUT /projects/:id` avec `status: COMPLETED` est rejeté hors de
-`clientApprove`.
+**IMPLÉMENTÉ**, `verifie: test` — server/src/services/project.service.ts:97-101
+(`updateProject` rejette explicitement `status: "COMPLETED"` avec
+`HttpError(422, ..., "COMPLETION_REQUIRES_CLIENT_APPROVAL")`, lu intégralement,
+session du 2026-07-16, audit 4.6) et
+server/test/projectUpdateBlocksCompletion.test.ts (« projectService.updateProject
+blocks COMPLETED (RG-013) », 2 tests appelant réellement `updateProject` :
+rejet depuis `REVIEW`, rejet depuis `IN_PROGRESS` malgré une transition qui
+serait sinon valide). Un test antérieur existait déjà
+(server/test/project.clientApprove.test.ts) mais réimplémentait la logique de
+garde dans une fonction locale sans jamais importer `project.service.ts` —
+il ne valait que `code_grep` sous la règle sur `verifie: test` (voir §3) ;
+conservé tel quel (il couvre un chemin distinct, les garde-fous internes de
+`clientApprove` lui-même), complété par le nouveau fichier pour la règle
+d'exclusivité proprement dite. Sortie citée : `tests 247 / pass 247 / fail 0`,
+exécuté deux fois de suite, ~5-6s (baseline), typecheck 0 erreur.
 
 ### Autres règles
 
