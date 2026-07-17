@@ -358,10 +358,25 @@ nature interne de cet outil de pilotage). Aucune anomalie trouvée.
 
 ### 3.21 PermissionProfile / ManagerPermission
 Système de permissions granulaires par manager.
-**Statut : `[À CONFIRMER]`. `verifie: document`** — l'algorithme de
-résolution (cache Redis 5 min, fusion profil + surcharges) provient du texte
-de README.md (document historique), non revérifié sur
-`managerPermission.service.ts` ni `rbac.middleware.ts`.
+**Statut : IMPLÉMENTÉ. `verifie: code_direct`** (session du 2026-07-17 :
+`managerPermission.service.ts` (109 l.), `.repository.ts` (39 l.),
+`permissionProfile.repository.ts` (44 l.), `.controller.ts` ×2 (34 + 41 l.),
+`.routes.ts` ×2 (19 + 25 l.), `rbac.middleware.ts` (73 l.) lus
+intégralement — 411 lignes cumulées sur 8 fichiers. Confirme le texte de
+README.md : cache Redis clé `cache:manager:permissions:${userId}`, TTL
+**300s (5 min) exact**, fusion `deepMerge(profil, overrides)` où
+`overrides` gagne. Fail-closed confirmé : un Manager sans
+`ManagerPermission` row reçoit `DEFAULT_MANAGER_PERMISSIONS` (tous modules
+à `false`) ; un Manager avec row mais sans `profileId` reçoit `{}`, qui
+produit le même résultat de rejet côté `requirePermission`
+(`permissions[module]?.[action]` sur `undefined` → falsy → 403) — deux
+représentations différentes, même comportement de sécurité, pas une
+divergence. `permissionProfileService` défini dans le même fichier que
+`managerPermissionService` (pas de `permissionProfile.service.ts` séparé)
+— écart de structure déjà noté par AUDIT_GRID.md, pas une anomalie
+fonctionnelle. `/me` accessible à tout rôle authentifié,
+`/:userId`/gestion des profils : ADMIN uniquement. Aucune anomalie
+fonctionnelle trouvée.
 
 ### 3.22 AiConversation / AiMessage
 Historique des échanges avec les personas IA, par utilisateur.
@@ -1124,3 +1139,4 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-17** | **Entité 3.18 Document relevée de `[À CONFIRMER]`/`schema_seul` à IMPLÉMENTÉ/`code_direct` (355 lignes lues intégralement). SEC-023 trouvée et corrigée, gravité `bloquant` : la signature de contrat ne fonctionnait jamais, sur aucun chemin — `Document.signedByClientId` est une FK vers `User.id`, pas `Client.id`, malgré son nom ; le code y écrivait l'id du Client, violant systématiquement la contrainte. Reproduit réellement sur le chemin normal (document lié à un projet) et sur le cas limite (document sans projet), corrigé, testé.** | **Constat incident pendant la lecture exhaustive des modules `[À CONFIRMER]`, enregistré immédiatement conformément à CLAUDE.md. Fonctionnalité citée dans README.md comme livrée mais jamais réellement fonctionnelle depuis l'introduction du champ.** |
 | **2026-07-17** | **Entité 3.19 GscConnection/MetricSnapshot relevée de `[À CONFIRMER]`/`audit_anterieur` à IMPLÉMENTÉ/`code_direct` (594 lignes lues intégralement sur 8 fichiers). Le statut PARTIEL de la v0.1.0 (« restitution admin-only, absence côté client »), repris d'un audit antérieur, est infirmé par lecture directe : `clientPortal.controller.ts#getClientPortalSeoMetrics` expose bien une lecture des métriques scopée au client authentifié.** | **Reprise de la lecture exhaustive des modules `[À CONFIRMER]`, session du 2026-07-17.** |
 | **2026-07-17** | **Entité 3.20 ClientSuccess relevée de `[À CONFIRMER]`/`document` à IMPLÉMENTÉ/`code_direct` (517 lignes lues intégralement sur 4 fichiers). Calcul de score confirmé (50% manuel + 50% auto, plafonné à 100), ownership vérifié sur chaque mutation, confirmé qu'aucun rôle CLIENT n'a accès à ce module (cohérent avec sa nature d'outil de pilotage interne). Aucune anomalie trouvée.** | **Reprise de la lecture exhaustive des modules `[À CONFIRMER]`, session du 2026-07-17.** |
+| **2026-07-17** | **Entité 3.21 PermissionProfile/ManagerPermission relevée de `[À CONFIRMER]`/`document` à IMPLÉMENTÉ/`code_direct` (411 lignes lues intégralement sur 8 fichiers). Confirme exactement le texte de README.md (cache Redis 300s, deepMerge). Toutes les entités §3 encore `[À CONFIRMER]` sont désormais résolues — reste à trancher le statut ACTIF/GELÉ des modules 4.7/4.8/4.10 eux-mêmes.** | **Reprise de la lecture exhaustive des entités `[À CONFIRMER]`, session du 2026-07-17.** |
