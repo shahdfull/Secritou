@@ -201,11 +201,18 @@ intégralement (grep ciblé AuditLog seulement, voir EXPLORATION.md).**
 ### 3.9 ClientOnboarding et sous-étapes
 Suivi structuré du démarrage d'une mission, en 7 étapes : Contract, Payment,
 Questionnaire, Specifications, KickoffMeeting, ProductionProgress, Delivery.
-**Statut : `[À CONFIRMER]`** — la présence des fichiers
-(`clientOnboarding.service.ts`/`.controller.ts`/`.repository.ts`) est
-confirmée, mais leur contenu n'a pas été lu directement.
-**`verifie: schema_seul`** (structure) — le statut IMPLÉMENTÉ affirmé en
-v0.1.0 est rétrogradé faute de `code_direct`.
+**Statut : IMPLÉMENTÉ. `verifie: code_direct`** (session du 2026-07-17 :
+`clientOnboarding.service.ts` (122 lignes), `.repository.ts` (363 lignes),
+`.controller.ts` (388 lignes) lus intégralement — les 3 fichiers cœur du
+module. CRUD complet sur l'onboarding et les 7 sous-étapes, scoping
+Client (`userClientId`) et Manager par pôle (`managerServiceId`, note du
+repository confirmant une correction antérieure — « previously
+unscoped »). `createOnboarding` initialise les 8 étapes par défaut
+(welcome + les 7 citées). `updateStep` notifie les admins par email
+quand une étape passe COMPLETED (best-effort, erreurs avalées).
+Repository déjà entièrement typé sur les types Prisma générés
+(`Prisma.<Model>UncheckedUpdateInput`/`CreateInput`), pas de trace de la
+classe de défaut SEC-012 ici. Aucune anomalie fonctionnelle trouvée.
 
 ### 3.10 Invoice (Facture)
 Facture émise à un client. Types : `STANDARD`, `DEPOSIT` (acompte, 30% de la
@@ -1043,3 +1050,4 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-17** | **SEC-001 résolu : les 4 clés de `BRIEF_QUESTIONS` (server/src/constants/briefQuestions.ts) renommées des noms anglais pré-migration vers les 4 noms canoniques FR — un 3e vocabulaire trouvé et corrigé dans la même passe (README.md:22, « WEB / MARKETING / AI », ne nommait que 3 pôles sur 4). Seul consommateur confirmé : `project.service.ts:220`. Nouveau test `server/test/briefQuestions.test.ts` couvre les 4 pôles individuellement, plus une garde de non-régression sur les 4 anciens noms.** | **Traité dans le cadre de la demande du porteur du projet de couvrir les 7 anomalies `ouvert` restantes, session du 2026-07-17. Le critère de résolution exact (4 pôles + test couvrant les 4 cas) est satisfait indépendamment de la dérogation CI établie plus tôt dans cette session.** |
 | **2026-07-17** | **SEC-002 / RG-018 résolu : `inviteClientUser` (création du compte portail Client + email d'identifiants) déplacé de `proposal.service.ts#acceptWithCascade` (à l'acceptation, avant paiement) vers `invoice.service.ts#addPayment` (au moment précis où `Client.portalActivatedAt` passe de null à une date réelle, sur la facture d'acompte). Découverte en cours de route : le portail n'était pas ouvert sans garde — `requireActivatedPortal` bloque déjà 8 fichiers de routes tant que `portalActivatedAt` est null — seul le COMPTE (email + mot de passe) était créé trop tôt.** | **Décision explicite du porteur du projet, session du 2026-07-17, en deux temps : d'abord « aligner le code sur RG-018 », puis, après découverte du gate déjà existant, confirmation de « retarder aussi la création du compte/l'email jusqu'au paiement » plutôt que documenter le design à deux étages comme voulu.** |
 | **2026-07-17** | **Bug d'infrastructure de test trouvé et corrigé en marge de SEC-002 : le nouveau fichier `server/test/portalActivationOnPayment.test.ts` est le premier de toute la suite à déclencher pour de vrai l'invalidation de cache (`cache/redis.ts`, client Redis distinct de celui de BullMQ que `run-all.test.ts` fermait déjà) — laissé ouvert, il maintenait le process Node vivant ~40s après la fin réelle des tests, faisant échouer `node --test` par timeout et rapportant faussement l'ensemble comme en échec malgré des tests individuellement verts en 3.5s. Corrigé par `closeRedisClient()` dans le hook `after()` de ce fichier spécifiquement.** | **Diagnostic direct de l'assistant par isolation progressive (suite complète → 3 fichiers → 1 fichier → inspection `pg_stat_activity`, qui a exclu un verrou base de données réel). Pas une décision produit — documenté pour qu'une future session comprenne pourquoi ce fichier a ce hook supplémentaire.** |
+| **2026-07-17** | **Entité 3.9 ClientOnboarding relevée de `[À CONFIRMER]`/`schema_seul` à IMPLÉMENTÉ/`code_direct` : les 3 fichiers cœur (service 122 l., repository 363 l., controller 388 l.) lus intégralement, aucune anomalie fonctionnelle trouvée. Repository déjà correctement typé sur les types Prisma générés — pas de trace de la classe de défaut SEC-012 ici.** | **Reprise de la lecture exhaustive des modules encore `[À CONFIRMER]`, sur demande du porteur du projet (« continue à lire et corriger », rythme module par module, un rapport à chaque fois), session du 2026-07-17.** |
