@@ -1,5 +1,5 @@
 import { documentRepository } from "../repositories/document.repository.js";
-import type { DocumentType, DocumentAccessLevel, Role } from "@prisma/client";
+import type { DocumentType, DocumentAccessLevel, Role, Prisma } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { prisma } from "../config/prisma.js";
 import { getSignedReadUrl, deleteFile } from "./upload.service.js";
@@ -25,7 +25,7 @@ export const documentService = {
     return documentRepository.create(data);
   },
 
-  async update(id: string, data: Partial<{ name: string; title: string; description: string; type: DocumentType; url: string; fileUrl: string; fileKey: string; tags: string[]; accessLevel: DocumentAccessLevel; projectId: string; clientId: string; signedAt: Date; signedByClientId: string }>) {
+  async update(id: string, data: Prisma.DocumentUncheckedUpdateInput) {
     return documentRepository.update(id, data);
   },
 

@@ -3,7 +3,7 @@ import { userRepository } from "../repositories/user.repository.js";
 import { enqueueEmail, enqueueNotifications } from "../jobs/queues.js";
 import { invoiceSentTemplate, invoiceReminderTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
-import type { InvoiceStatus } from "@prisma/client";
+import type { InvoiceStatus, Prisma } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { prisma } from "../config/prisma.js";
 import { HttpError } from "../utils/httpError.js";
@@ -130,7 +130,7 @@ export const invoiceService = {
     return created;
   },
 
-  async update(id: string, data: Partial<{ number: string; title: string; description: string; amount: number; currency: string; dueDate: Date; pdfUrl: string }>, scope?: ServiceScope) {
+  async update(id: string, data: Prisma.InvoiceUncheckedUpdateInput, scope?: ServiceScope) {
     const invoice = await invoiceRepository.findById(id);
     await assertInvoiceInScope(invoice, scope);
     assertInvoiceDraft(invoice!.status);

@@ -206,7 +206,7 @@ export const proposalService = {
     });
   },
 
-  async update(id: string, data: Partial<{ title: string; description: string; status: ProposalStatus; amount: number; currency: string; expiresAt: Date; pdfUrl: string }>, userId?: string, scope?: ServiceScope) {
+  async update(id: string, data: Prisma.ProposalUncheckedUpdateInput, userId?: string, scope?: ServiceScope) {
     const proposal = await proposalRepository.findById(id);
     await assertProposalInScope(proposal, scope);
     if (!proposal) throw new HttpError(404, "Proposal not found");
@@ -217,7 +217,11 @@ export const proposalService = {
       (data.description !== undefined && data.description !== proposal.description) ||
       (data.amount !== undefined && Number(data.amount) !== (proposal.amount != null ? Number(proposal.amount) : null)) ||
       (data.currency !== undefined && data.currency !== proposal.currency) ||
-      (data.expiresAt !== undefined && 
+      // instanceof Date guard: Prisma.ProposalUncheckedUpdateInput allows expiresAt to be a
+      // NullableDateTimeFieldUpdateOperationsInput ({ set: ... }), not just a plain Date — every
+      // real call site (controller) passes a plain Date, so the guard never actually skips a
+      // real change, it only satisfies the wider type.
+      (data.expiresAt !== undefined && data.expiresAt instanceof Date &&
         (proposal.expiresAt == null || data.expiresAt.getTime() !== proposal.expiresAt.getTime()));
 
     if (isLive && contentChanged && data.status === undefined) {

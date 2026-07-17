@@ -3,7 +3,7 @@ import { userRepository } from "../repositories/user.repository.js";
 import { enqueueEmail, enqueueEmails, enqueueNotifications } from "../jobs/queues.js";
 import { approvalRequestedTemplate, approvalDecisionTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
-import type { ApprovalStatus } from "@prisma/client";
+import type { ApprovalStatus, Prisma } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import type { ServiceScope } from "../utils/serviceScope.js";
 import { HttpError } from "../utils/httpError.js";
@@ -78,7 +78,7 @@ export const approvalService = {
     return approval;
   },
 
-  async update(id: string, data: Partial<{ title: string; description: string; status: ApprovalStatus; dueDate: Date }>, scope?: ServiceScope) {
+  async update(id: string, data: Prisma.ApprovalUncheckedUpdateInput, scope?: ServiceScope) {
     const approval = await approvalRepository.findById(id);
     await assertApprovalInScope(approval, scope);
     if (!approval) throw new HttpError(404, "Approval not found");

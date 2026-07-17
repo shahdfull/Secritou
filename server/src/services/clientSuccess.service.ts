@@ -1,5 +1,6 @@
 import { clientSuccessRepository } from "../repositories/clientSuccess.repository.js";
 import { prisma } from "../config/prisma.js";
+import type { Prisma } from "@prisma/client";
 
 export const clientSuccessService = {
   async getByClientId(clientId: string) {
@@ -96,7 +97,7 @@ export const clientSuccessService = {
     return clientSuccessRepository.addObjective(success!.id, data, clientId);
   },
 
-  async updateObjective(id: string, data: Partial<{ title: string; description: string; targetValue: number; currentValue: number; unit: string; targetDate: Date; completedAt: Date }>, clientId?: string) {
+  async updateObjective(id: string, data: Prisma.SuccessObjectiveUncheckedUpdateInput, clientId?: string) {
     const objective = await clientSuccessRepository.updateObjective(id, data, clientId);
     if (data.completedAt !== undefined) await this.recalcForSuccess(objective.successId);
     return objective;
@@ -113,9 +114,9 @@ export const clientSuccessService = {
     return metric;
   },
 
-  async updateMetric(id: string, data: Partial<{ name: string; initialValue: number; currentValue: number; unit: string }>, clientId?: string) {
+  async updateMetric(id: string, data: Prisma.SuccessMetricUncheckedUpdateInput, clientId?: string) {
     const metric = await clientSuccessRepository.updateMetric(id, data, clientId);
-    if (data.currentValue !== undefined) await clientSuccessRepository.addMetricHistory(id, { value: data.currentValue }, clientId);
+    if (data.currentValue !== undefined) await clientSuccessRepository.addMetricHistory(id, { value: Number(metric.currentValue) }, clientId);
     await this.recalcForSuccess(metric.successId);
     return metric;
   },
@@ -129,7 +130,7 @@ export const clientSuccessService = {
     return clientSuccessRepository.addRecommendation(success!.id, data, clientId);
   },
 
-  async updateRecommendation(id: string, data: Partial<{ title: string; description: string; priority: "LOW" | "MEDIUM" | "HIGH"; status: "PENDING" | "IN_PROGRESS" | "DONE" }>, clientId?: string) {
+  async updateRecommendation(id: string, data: Prisma.SuccessRecommendationUncheckedUpdateInput, clientId?: string) {
     const recommendation = await clientSuccessRepository.updateRecommendation(id, data, clientId);
     if (data.status !== undefined) await this.recalcForSuccess(recommendation.successId);
     return recommendation;
