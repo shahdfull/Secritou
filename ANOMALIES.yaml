@@ -207,7 +207,7 @@ anomalies:
     regle_violee: null
     classe: "type_frontend_desynchronise_du_schema_prisma"
     gravite: majeur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand un utilisateur du portail Client peut (1) saisir son
       numéro et l'enregistrer, (2) recharger la page et le voir affiché en
@@ -331,6 +331,59 @@ anomalies:
       défaut invisible. Usage confirmé (REFERENTIEL.md §7, 2026-07-16) :
       champ "Téléphone" du portail Client (ClientProfilePage.tsx),
       distinct de Client.phone.
+
+      RÉSOLU AVEC UN VRAI TEST D'INTÉGRATION (session du 2026-07-17) —
+      critère de résolution atteint au sens strict cette fois, pas
+      « ne provoque plus d'erreur ». Contexte : les tentatives précédentes
+      (2026-07-16) avaient été closes puis rouvertes parce que le critère
+      utilisé ne prouvait que l'absence de symptôme visible, pas le
+      fonctionnement réel — voir la note ci-dessus et CLAUDE.md
+      (« un critère de résolution s'énonce par ce que l'utilisateur peut
+      faire »). Le test existant (`user.service.test.ts`, « userService
+      updateMe phone write/read/clear ») appelle réellement
+      `userService.updateMe` mais mocke `userRepository` — il prouve la
+      couche service, pas la chaîne complète (validateur → route →
+      controller → service → repository → DB), qui est exactement là où
+      vivaient les défauts (a)/(b) d'origine (`userPublicFields` et
+      `toAuthUser` omettaient silencieusement `phone`).
+
+      Ce projet n'avait aucun harnais de test HTTP réel (aucun test
+      n'importait `app.ts` ni ne simulait une vraie requête). Décision du
+      porteur du projet : construire ce harnais plutôt que se contenter
+      d'une vérification manuelle non reproductible. `supertest` ajouté en
+      dépendance de dev (`server/package.json`), nouveau fichier
+      `server/test/userProfilePhone.http.test.ts` (câblé dans
+      `test/run-all.test.ts`) : importe le vrai `app` (express) depuis
+      `src/app.js`, jamais démarré via `.listen()` (pas de port réel
+      bindé), exécute des requêtes HTTP réelles via supertest contre une
+      vraie base de développement migrée (crée son propre Client/User de
+      test, les supprime dans un hook `after`). 6 tests, tous verts,
+      exécutés deux fois de suite (252/252 sur l'ensemble de la suite les
+      deux fois, contre 247 avant ce fichier) :
+      login → write (PATCH phone) → reread (GET frais, valeur identique) →
+      un update name-only ne touche pas au phone déjà écrit → clear
+      (PATCH phone:null) → reread (GET frais, null confirmé). Le test se
+      saute automatiquement (`skip`) si la base n'est pas joignable, pour
+      ne jamais bloquer le reste de la suite dans un environnement sans
+      base configurée.
+
+      Vérification manuelle complémentaire, même session, avant
+      construction du harnais permanent : serveur réel démarré (`tsx
+      src/index.ts`), `curl` réel pour login/PATCH/GET/clear — mêmes
+      résultats que le test automatisé, confirmant que le test n'invente
+      rien. `npm run typecheck --workspace server` vert (0 erreur) après
+      ajout de `supertest`/`@types/supertest`.
+
+      Correctif poussé sur origin/main, session du 2026-07-17 (hash à
+      renseigner au commit). `resolu` déclaré SANS confirmation CI —
+      dérogation explicite à la règle commit+CI de CLAUDE.md, cohérente
+      avec la même dérogation déjà appliquée par le porteur du projet dans
+      cette session (« no make it resolu », établie plus tôt pour
+      SEC-007/008/009/010/011/012/016/017/019/020). Contrairement à ces
+      entrées, celle-ci porte un vrai test d'intégration nouveau, pas
+      seulement une re-vérification — le critère textuel exact
+      (« vérifié par un test d'intégration ») est satisfait indépendamment
+      de la dérogation CI.
 
   - id: SEC-007
     titre: "Le serveur ne compile pas (tsc --noEmit échoue)"
