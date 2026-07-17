@@ -120,14 +120,14 @@ async function ensureMonthlyPartitions(archiveTable: string) {
   for (let current = start; current < end; current = addMonths(current, 1)) {
     const { start: rangeStart, next, suffix } = partitionParts(current);
     const partitionName = `${archiveTable}_${suffix}`;
-    // Table/partition identifiers can't be bound parameters in Postgres DDL — only rangeStart/next
-    // (plain date literals) are parameterizable here, so those are passed as bound args.
+    // SEC-020: the whole statement is DDL (CREATE TABLE ... PARTITION OF), and Postgres
+    // does not accept bound parameters ($1/$2) anywhere in DDL — not just for identifiers.
+    // rangeStart/next are safe to inline: they are always `YYYY-MM-DD` strings produced by
+    // partitionParts() above via toISOString().slice(0, 10), never user input.
     await prisma.$executeRawUnsafe(
       `CREATE TABLE IF NOT EXISTS "${partitionName}"
        PARTITION OF "${archiveTable}"
-       FOR VALUES FROM ($1::date) TO ($2::date);`,
-      rangeStart,
-      next
+       FOR VALUES FROM ('${rangeStart}'::date) TO ('${next}'::date);`
     );
   }
 }

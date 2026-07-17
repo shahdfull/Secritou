@@ -346,33 +346,56 @@ Gestion des leads, conversion en client, propositions/devis.
       - server/src/routes/proposal.routes.ts
       - server/src/validators/lead.validator.ts
       - server/src/validators/proposal.validator.ts
+      - server/src/services/contact.service.ts
       - prisma/schema.prisma#Lead,Client,Proposal,ProposalSection,ProposalHistory
       - client/src/features/crm/**
       - client/src/features/leads/**
       - client/src/features/proposals/**
       - client/src/api/contactRequests.api.ts
 
+Écart perimetre_code corrigé (AUDIT_GRID.md, 2026-07-17) : `contact.service.ts`
+crée/met à jour des `Lead` réels (`sendContactMessage`, `convertToLead`) et
+référence `Service` — actif, non listé jusqu'ici.
+
 ### 4.2 Gestion de projet — **ACTIF**
-Projets, tâches, réunions de projet, templates de tâches par pôle.
+Projets, tâches, réunions de projet, templates de tâches par pôle, documents
+liés aux projets/missions.
 
     perimetre_code:
       - server/src/services/project.service.ts
       - server/src/services/projectMeeting.service.ts
       - server/src/services/projectSpecs.service.ts
       - server/src/services/projectTemplate.service.ts
+      - server/src/services/comment.service.ts
+      - server/src/services/document.service.ts
       - server/src/repositories/project.repository.ts
       - server/src/repositories/projectMeeting.repository.ts
       - server/src/repositories/projectTemplate.repository.ts
+      - server/src/repositories/comment.repository.ts
+      - server/src/repositories/document.repository.ts
       - server/src/controllers/project.controller.ts
       - server/src/controllers/projectMeeting.controller.ts
       - server/src/controllers/projectTemplate.controller.ts
+      - server/src/controllers/comment.controller.ts
+      - server/src/controllers/document.controller.ts
       - server/src/routes/project.routes.ts
+      - server/src/routes/document.routes.ts
       - server/src/validators/project.validator.ts
       - server/src/validators/projectMeeting.validator.ts
       - server/src/utils/projectProgress.ts
-      - prisma/schema.prisma#Project,Task,Comment,ProjectMeeting,ProjectTemplate,TaskTemplate
+      - prisma/schema.prisma#Project,Task,Comment,ProjectMeeting,ProjectTemplate,TaskTemplate,Document,DocumentAccessLog
       - client/src/features/projects/**
       - client/src/features/tasks/**
+
+Écarts perimetre_code corrigés (AUDIT_GRID.md, 2026-07-17) :
+(1) `comment.service.ts`/`.repository.ts`/`.controller.ts` — CRUD réel de
+`Comment` (liée à `Task`), routes montées dans `task.routes.ts` (pas de
+fichier `comment.routes.ts` séparé, cohérent avec l'absence d'entrée
+dédiée ci-dessus).
+(2) `document.service.ts`/`.repository.ts`/`.controller.ts`/`.routes.ts` —
+n'étaient rattachés à aucun module §4 (entité 3.18 documentée au schéma
+seul). Décision du porteur du projet, 2026-07-17 : les documents sont des
+documents projet/mission, pas un module séparé — rattachés à 4.2. Voir §7.
 
 ### 4.3 Onboarding client — **ACTIF**
 Parcours structuré de démarrage de mission en 7 étapes.
@@ -389,6 +412,14 @@ Parcours structuré de démarrage de mission en 7 étapes.
 
 ### 4.4 Facturation & Paiements — **ACTIF**
 Devis, factures (acompte/solde/standard), TVA, paiements, avoirs, relances.
+
+**Note (AUDIT_GRID.md, 2026-07-17)** : `server/src/jobs/processors/maintenance.processor.ts`
+(`markOverdueInvoices`) et `server/src/jobs/processors/ceoAlerts.processor.ts`
+(`checkInvoiceFollowup`, SEC-014/SEC-015) contiennent une logique métier
+réelle de facturation, mais ces fichiers ne sont pas dupliqués dans le
+`perimetre_code:` ci-dessous — ils sont déjà déclarés une seule fois, au
+§4.13 (`server/src/jobs/**`, composant transverse). Se référer à 4.13 pour
+leur périmètre exact.
 
     perimetre_code:
       - server/src/services/invoice.service.ts
@@ -422,8 +453,16 @@ Audit du 2026-07-16 : `approval.controller.ts`, `approval.routes.ts` et
 `approval.validator.ts` sont bien le contrôleur/routes/validateur réels
 consommés par `ApprovalsClientPage.tsx` (`POST /approvals/:id/respond`) mais
 n'étaient pas listés dans le `perimetre_code:` — seul `approval.service.ts`
-y figurait, contrairement à `serviceRequest.*` qui a ses 5 couches. Ajoutés
-ci-dessous pour que le périmètre reflète ce qui est réellement consommé.
+y figurait. Ajoutés ci-dessous pour que le périmètre reflète ce qui est
+réellement consommé.
+
+**Correction (AUDIT_GRID.md, 2026-07-17)** : la note ci-dessus affirmait à
+tort que `serviceRequest.*` avait déjà « ses 5 couches » dans le
+`perimetre_code:` — en réalité seul `serviceRequest.service.ts` y figurait,
+exactement le même écart qu'`approval.*` avant sa propre correction. Les 4
+fichiers manquants (`serviceRequest.repository.ts`, `.controller.ts`,
+`.routes.ts`, `.validator.ts` — réels, actifs, montés indépendamment à
+`/api/v1/service-requests`) sont ajoutés ci-dessous.
 
     perimetre_code:
       - server/src/services/clientPortal.service.ts
@@ -431,6 +470,10 @@ ci-dessous pour que le périmètre reflète ce qui est réellement consommé.
       - server/src/controllers/clientPortal.controller.ts
       - server/src/routes/clientPortal.routes.ts
       - server/src/services/serviceRequest.service.ts
+      - server/src/repositories/serviceRequest.repository.ts
+      - server/src/controllers/serviceRequest.controller.ts
+      - server/src/routes/serviceRequest.routes.ts
+      - server/src/validators/serviceRequest.validator.ts
       - server/src/services/approval.service.ts
       - server/src/controllers/approval.controller.ts
       - server/src/routes/approval.routes.ts
@@ -498,6 +541,12 @@ client. **Ne peut pas être classé GELÉ : EXPLORATION.md marque ce module
 ### 4.9 Client Success — **GELÉ**
 Suivi de la réussite/santé client.
 
+**Note (AUDIT_GRID.md, 2026-07-17)** : `server/src/jobs/processors/maintenance.processor.ts`
+(`recalculateClientScores`, cron quotidien) contient la logique de recalcul
+du score — déjà déclaré une seule fois, au §4.13 (`server/src/jobs/**`).
+Se référer à 4.13 pour son périmètre exact. Correction documentaire
+uniquement (module GELÉ, aucun développement/audit fonctionnel ici).
+
     perimetre_code:
       - server/src/services/clientSuccess.service.ts
       - server/src/repositories/clientSuccess.repository.ts
@@ -535,12 +584,23 @@ Personas IA pour assistance à la production.
       - server/src/services/agentOrchestrator.service.ts
       - server/src/services/llm.client.ts
       - server/src/services/aiConversation.service.ts
+      - server/src/repositories/aiConversation.repository.ts
+      - server/src/controllers/aiConversation.controller.ts
+      - server/src/routes/aiConversation.routes.ts
       - server/src/services/cvExtraction.service.ts
       - server/src/controllers/ai.controller.ts
       - server/test/ai.endpoint.test.ts
       - server/src/config/env.ts
       - prisma/schema.prisma#AiConversation,AiMessage
       - client/src/features/ai-assistant/**
+
+Écart perimetre_code corrigé (AUDIT_GRID.md, 2026-07-17) :
+`aiConversation.repository.ts`/`.controller.ts`/`.routes.ts` forment la
+totalité de la couche CRUD réelle de `AiConversation`/`AiMessage` (le
+persona-orchestrator appelle `aiConversationService.create`, il ne contient
+pas lui-même le CRUD) — n'étaient pas listés, seul le service y figurait.
+Correction documentaire uniquement (module GELÉ, aucun développement/audit
+fonctionnel effectué ici).
 
 ### 4.12 Contenu du site public — **ACTIF**
 Gestion éditoriale bilingue du site vitrine. Confirmé consommé par le site
@@ -575,11 +635,19 @@ Périmètre scindé en deux, comme arrêté en Q3 :
       - docs/n8n-events.md                                    # GELÉ (documentation des webhooks sortants)
       - prisma/schema.prisma#Notification
 
-**`server/src/jobs/**` — ACTIF (composant transverse, première lecture directe
-2026-07-17). Expiration propositions (`expireProposals`), marquage factures
-en retard (`markOverdueInvoices`), relances échelonnées (`checkInvoiceFollowup`),
-alertes CEO/SLA, génération PDF async, e-mails/notifications async. Écart
-relances facture → SEC-014.
+**`server/src/jobs/**` — ACTIF (composant transverse, lecture directe intégrale
+des 8 fichiers, session 2026-07-17). Expiration propositions (`expireProposals`,
+cron horaire, confirmé enregistré et déclenché — c'est le mécanisme d'origine
+qui empêchait de classer ce répertoire GELÉ), marquage factures en retard
+(`markOverdueInvoices`, cron quotidien 4h15), relances échelonnées
+(`checkInvoiceFollowup`, cron hebdomadaire lundi 9h), alertes CEO/SLA
+(tâches, réunions, leads, commissions, questions, approbations — 8 fonctions
+supplémentaires lues intégralement dans `ceoAlerts.processor.ts`), génération
+PDF async, e-mails/notifications async. Deux écarts sur les relances facture,
+même classe, critères de résolution distincts → SEC-014 (paliers calculés sur
+`createdAt` au lieu de `dueDate`) et SEC-015 (aucune relance après passage en
+`OVERDUE` — vérifié qu'aucun des 21 jobs ni des 12 fonctions restantes de
+`ceoAlerts.processor.ts` ne comble ce trou).
 
     perimetre_code:
       - server/src/jobs/index.ts
@@ -894,7 +962,7 @@ pour la conséquence opérationnelle sur les audits).
 | 4.10 RBAC & Permissions granulaires | `[À CONFIRMER — non trié]` | Idem 4.7/4.8 — `non exploré`. |
 | 4.11 Module IA (agent-service) | GELÉ | Couverture `lu` (complète) — deux personas existants conservés tels quels ; pas de développement supplémentaire pour l'instant. |
 | 4.13 (volet webhooks n8n) | GELÉ | Automatisations externes existantes, non prioritaires hors flux argent. |
-| `server/src/jobs/**` (composant transverse de 4.13) | ACTIF | Couverture `lu` (8 fichiers, session 2026-07-17) ; relances facture défectueuses → SEC-014. |
+| `server/src/jobs/**` (composant transverse de 4.13) | ACTIF | Couverture `lu` (8 fichiers, intégral, session 2026-07-17) ; relances facture défectueuses → SEC-014 (calcul de date) et SEC-015 (aucune relance après OVERDUE). |
 | Intégration bancaire / paiement en ligne (Flouci, Konnect, Paymee, e-Dinar) | HORS PÉRIMÈTRE (phase 2) | Aucune passerelle implémentée ; paiements saisis manuellement. |
 | Modèle d'abonnement / mission récurrente | HORS PÉRIMÈTRE (phase 2) | L'agence facture en mission ponctuelle par tranches au lancement ; le récurrent est une phase 2 non modélisée. |
 | Exécution de code en sandbox par un agent IA | HORS PÉRIMÈTRE (phase 2) | Objectif documenté (RG-016) mais non commencé — aucune infrastructure Docker de sandboxing trouvée dans le code. |
@@ -937,3 +1005,8 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-16** | **RG-019 rétrogradée de `IMPLÉMENTÉ` à `[À CONFIRMER]` : `verifie: test` retiré, remplacé par `verifie: code_direct`. Le comportement du code reste conforme à la règle (vérifié par lecture directe) — c'est la preuve par test qui est invalidée : `user.service.test.ts` réimplémentait la condition de révocation dans une fonction locale (`shouldRevokeSessions`) au lieu d'importer et d'appeler `userService.updateUser`, donc resterait vert si le code réel dérivait.** | **Correction du porteur du projet, session du 2026-07-16 (audit 4.14, Constat F), à partir d'un défaut que l'auditeur a lui-même démasqué dans son propre test d'une session antérieure.** |
 | **2026-07-16** | **SEC-006 : les trois défauts (jamais relu, jamais pré-rempli, jamais effaçable) corrigés en une passe (mode audit + correction rapide) — `phone` ajouté à `userPublicFields`/`toAuthUser`/`client/src/types/auth.ts`, formulaire du portail Client pré-rempli depuis `user?.phone`, soumission d'un champ vidé envoie `null` explicite au lieu de `undefined` (que Prisma omettait). Non touché : le swagger de `user.routes.ts` reste sans `phone` — documentation seule, hors périmètre fonctionnel de cette passe.** | **Correction directe, session du 2026-07-16 : les trois défauts ne relevaient d'aucune des 4 exceptions du mode rapide (pas de migration, pas de RBAC/sécurité, pas de suppression, pas de décision produit — celle-ci déjà tranchée en §7 le jour même). `en_cours`, pas `resolu` : non commité/passé en CI au moment de cette entrée.** |
 | **2026-07-16** | **SEC-013 ouverte : 6 tests client en échec (ContactPage, useFreelancerApplications, FileUploadField), rencontrés incidemment en vérifiant l'absence de régression après la correction SEC-006. Confirmés préexistants par `git stash` des fichiers modifiés puis re-exécution — mêmes échecs sans mes changements. Hors périmètre du module 4.14, non corrigés dans cette passe.** | **Constat du 2026-07-16, enregistré immédiatement conformément à CLAUDE.md (« tout écart constaté hors d'un audit formel doit être enregistré dans la même session »).** |
+| **2026-07-17** | **Entité 3.18 Document rattachée au module 4.2 Gestion de projet (pas de module dédié) — les 4 fichiers (`document.service.ts`/`.repository.ts`/`.controller.ts`/`.routes.ts`), actifs et montés indépendamment mais non revendiqués par aucun module §4, sont ajoutés au `perimetre_code:` de 4.2. `comment.service.ts`/`.repository.ts`/`.controller.ts` (CRUD de `Comment`, déjà cité au schéma de 4.2 mais absent du `perimetre_code:`) corrigés dans la même passe. Écarts trouvés par AUDIT_GRID.md (2026-07-17, grille CRUD exhaustive des 24 entités).** | **Réponse du porteur du projet, session du 2026-07-17 : « the documents are the project related documents not a separated module ».** |
+| **2026-07-17** | **Correction perimetre_code de 4.6 Portail client : la note du 2026-07-16 affirmait à tort que `serviceRequest.*` avait déjà « ses 5 couches » déclarées — seul `serviceRequest.service.ts` y figurait. Les 4 fichiers manquants (`serviceRequest.repository.ts`/`.controller.ts`/`.routes.ts`/`.validator.ts`) ajoutés.** | **Constat direct, session du 2026-07-17, via AUDIT_GRID.md — la note existante contredisait le code réellement lu, corrigée pour ne plus induire une future session en erreur.** |
+| **2026-07-17** | **Correction perimetre_code de 4.11 Module IA (GELÉ) : `aiConversation.repository.ts`/`.controller.ts`/`.routes.ts` ajoutés — ils forment la totalité de la couche CRUD réelle de AiConversation/AiMessage, absente jusqu'ici (seul le service figurait). Correction documentaire uniquement, aucun développement/audit fonctionnel effectué sur ce module GELÉ.** | **Constat direct, session du 2026-07-17, via AUDIT_GRID.md.** |
+| **2026-07-17** | **Correction perimetre_code de 4.1 CRM & Pipeline commercial : `contact.service.ts` ajouté — crée/met à jour des `Lead` réels (`sendContactMessage`, `convertToLead`), non listé jusqu'ici.** | **Constat direct, session du 2026-07-17, via AUDIT_GRID.md.** |
+| **2026-07-17** | **`AUDIT_GRID.md` créé à la racine du dépôt : grille CRUD exhaustive des 24 entités de §3, construite par grep + lecture directe (pas devinée), avec statut `verifie:` par opération. Sert de référence pour les futures passes d'audit module par module et a produit les 4 corrections perimetre_code ci-dessus. Commité séparément (`5c31f2e`), poussé sur `origin/main`.** | **Travail demandé par le porteur du projet, session du 2026-07-17 : générer une checklist CRUD de référence, sans corriger ni auditer un module en particulier.** |

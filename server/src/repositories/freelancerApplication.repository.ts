@@ -47,10 +47,6 @@ export const freelancerApplicationRepository = {
     return prisma.freelancerApplication.update({ where: { id }, data });
   },
 
-  async delete(id: string): Promise<FreelancerApplication> {
-    return prisma.freelancerApplication.delete({ where: { id } });
-  },
-
   async findPending(): Promise<FreelancerApplication[]> {
     return prismaRead.freelancerApplication.findMany({ where: { status: "PENDING" }, orderBy: { createdAt: "desc" } });
   },

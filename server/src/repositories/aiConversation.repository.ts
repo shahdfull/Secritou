@@ -49,8 +49,4 @@ export const aiConversationRepository = {
   async delete(id: string, userId: string) {
     await prisma.aiConversation.deleteMany({ where: { id, userId } });
   },
-
-  async deleteAll(userId: string) {
-    await prisma.aiConversation.deleteMany({ where: { userId } });
-  },
 };

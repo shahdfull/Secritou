@@ -209,24 +209,6 @@ export const invoiceRepository = {
     return prisma.invoiceItem.delete({ where: { id } });
   },
 
-  async addPayment(
-    invoiceId: string,
-    data: { amount: number; method?: string; reference?: string; paidAt?: Date },
-    recordedById?: string
-  ) {
-    await prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId }, select: { id: true } });
-    return prisma.payment.create({
-      data: {
-        invoiceId,
-        amount: data.amount,
-        method: data.method,
-        reference: data.reference,
-        paidAt: data.paidAt ?? new Date(),
-        recordedById,
-      },
-    });
-  },
-
   async addReminder(invoiceId: string, data: { type: string; sentAt?: Date }) {
     await prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId }, select: { id: true } });
     return prisma.invoiceReminder.create({ data: { ...data, invoiceId } });

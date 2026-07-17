@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-014
+dernier_id: SEC-020
 
 anomalies:
   - id: SEC-001
@@ -715,32 +715,337 @@ anomalies:
       session.
 
   - id: SEC-014
-    titre: "Relances facture hebdomadaires : paliers calculés sur createdAt et factures OVERDUE exclues"
+    titre: "Relances facture hebdomadaires : paliers calculés sur createdAt au lieu de dueDate"
     perimetre: "4.4 Facturation & Paiements"
     regle_violee: null
-    classe: null
+    classe: "relance_facture_defectueuse"
     gravite: majeur
     statut: ouvert
     critere_de_resolution: >
       C'est résolu quand checkInvoiceFollowup calcule daysOverdue et
       sélectionne le palier FIRST/SECOND/FINAL à partir de dueDate (pas
-      createdAt), inclut les factures OVERDUE encore impayées dans le
-      périmètre de relance, et un test appelle réellement
-      checkInvoiceFollowup (ou la fonction extraite) pour vérifier qu'une
-      facture dont l'échéance est dépassée de 14 jours reçoit le palier
-      SECOND, et qu'une facture passée au statut OVERDUE reste éligible
-      aux relances échelonnées.
+      createdAt), et qu'un test appelle réellement checkInvoiceFollowup
+      (ou la fonction extraite) pour vérifier qu'une facture dont
+      l'échéance (dueDate) est dépassée de 14 jours reçoit le palier
+      SECOND, y compris quand createdAt est très différent de dueDate
+      (facture éditée puis envoyée tardivement, par exemple).
     detecte_le: "2026-07-17"
     source: audit_llm
     confiance: certain
     note: >
       Lecture directe session 2026-07-17 : ceoAlerts.processor.ts
-      checkInvoiceFollowup (:160-247) filtre status IN
-      ["SENT","PARTIAL"] et calcule daysOverdue via
-      diffDays(inv.createdAt, now). markOverdueInvoices
-      (maintenance.processor.ts :246-315) bascule les factures échues en
-      OVERDUE — elles sortent alors du périmètre de checkInvoiceFollowup.
-      invoiceService.addReminder (:323-340) calcule pourtant daysOverdue
-      depuis dueDate pour l'email client, incohérent avec le palier choisi
-      par le job. Commentaire du job (« 7/14/30 days overdue ») contredit
-      l'implémentation (createdAt).
+      checkInvoiceFollowup (:160-247) calcule daysOverdue via
+      diffDays(inv.createdAt, now), et sélectionne le palier sur cette
+      base. invoiceService.addReminder (:323-340) calcule pourtant
+      daysOverdue depuis dueDate pour l'email envoyé au client — incohérent
+      avec le palier choisi par le job qui l'a appelé. Commentaire du job
+      (« 7/14/30 days overdue ») contredit l'implémentation (createdAt, pas
+      l'échéance). RÉVISÉ session du 2026-07-17 (vérification jobs/**
+      complète) : le critère de résolution initial incluait aussi
+      l'exclusion des factures OVERDUE — séparé en SEC-015, critère de
+      résolution distinct (existence d'un mécanisme de relance après
+      passage OVERDUE, pas seulement un calcul de date).
+
+  - id: SEC-015
+    titre: "Aucune relance échelonnée après passage d'une facture au statut OVERDUE"
+    perimetre: "4.4 Facturation & Paiements, transverse server/src/jobs/**"
+    regle_violee: null
+    classe: "relance_facture_defectueuse"
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand une facture passée au statut OVERDUE continue de
+      recevoir les relances échelonnées FIRST/SECOND/FINAL (ou un
+      mécanisme équivalent dédié aux factures OVERDUE existe et tourne
+      réellement), vérifié par un test qui simule une facture OVERDUE
+      dépassant successivement les seuils de relance et observe qu'elle
+      reçoit bien les notifications/emails attendus — pas seulement la
+      notification unique de transition SENT/PARTIAL → OVERDUE.
+    detecte_le: "2026-07-17"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Lecture intégrale session du 2026-07-17 des 8 fichiers de
+      server/src/jobs/** (index.ts, jobNames.ts, queues.ts,
+      redisConnection.ts, et les 4 processors) pour répondre spécifiquement
+      à la question : existe-t-il un mécanisme dédié aux factures déjà en
+      retard qui rendrait volontaire l'exclusion d'OVERDUE dans
+      checkInvoiceFollowup (SEC-014) ? Réponse : oui et non.
+      markOverdueInvoices (maintenance.processor.ts:246-315, cron quotidien
+      4h15, bien enregistré et déclenché — jobs/index.ts:256-260) bascule
+      SENT/PARTIAL → OVERDUE et envoie UNE notification/email au moment de
+      cette transition. Mais aucun job ne relance ensuite une facture déjà
+      OVERDUE : checkInvoiceFollowup (le seul mécanisme de relance
+      échelonnée FIRST/SECOND/FINAL, cron hebdomadaire lundi 9h) filtre
+      `status IN ["SENT","PARTIAL"]` et ne voit donc plus jamais une
+      facture une fois passée OVERDUE. Recherche exhaustive des 21 noms de
+      jobs (jobNames.ts, grep direct) et des 12 fonctions restantes de
+      ceoAlerts.processor.ts (checkTaskDeadlines, checkOverdueTasks,
+      checkMeetingReminders, checkStaleLeads, checkPendingCommissions,
+      checkCustomQuestionSla, checkApprovalSla, weeklyHealthBoardDigest,
+      lues intégralement) : aucune ne touche aux factures. Conséquence
+      concrète : une facture qui devient OVERDUE reçoit une notification
+      unique puis plus aucune relance jamais, quel que soit le nombre de
+      jours de retard supplémentaires accumulés.
+
+  - id: SEC-016
+    titre: "Job archiveColdData référence des tables d'archive absentes du schéma Prisma"
+    perimetre: "transverse — server/src/jobs/processors/maintenance.processor.ts, entités 3.4 Lead (résolu), Document/Notification (hors scope, voir note)"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu, pour Lead et ContactRequest (scope retenu — voir note),
+      quand `archiveColdData` s'exécute réellement sans erreur contre la
+      base de développement, vérifié en déclenchant le job manuellement
+      (pas seulement en lisant le code) et en confirmant qu'une ligne Lead
+      vieille de 30j+ est effectivement déplacée vers LeadArchive avec
+      toutes ses colonnes intactes. NotificationArchive/DocumentArchive
+      restent hors scope de ce critère — voir la note pour leur statut.
+    detecte_le: "2026-07-17"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Constat incident, rencontré pendant la construction d'AUDIT_GRID.md
+      (grille CRUD des 24 entités, session du 2026-07-17), pas pendant un
+      audit formel d'un module — enregistré immédiatement conformément à
+      CLAUDE.md. server/src/jobs/processors/maintenance.processor.ts
+      (fonctions archiveColdData/archiveTableRows) référence des tables
+      LeadArchive, ContactRequestArchive, NotificationArchive,
+      DocumentArchive absentes de schema.prisma et de toute migration
+      (recherche par grep sur les deux, aucun résultat). Le job est pourtant
+      planifié quotidiennement (cron "30 3 * * *", jobs/index.ts:234-238,
+      confirmé enregistré).
+
+      DÉCISION DE PÉRIMÈTRE (porteur du projet, session du 2026-07-17) :
+      migration limitée à Lead + ContactRequest. Document exclu — archiver
+      un Document supprimerait en cascade son DocumentAccessLog
+      (onDelete: Cascade) et casserait le chaînage de version
+      (Document.parentId, onDelete: SetNull sur un enfant dont le parent
+      est archivé). Notification exclu par la même décision, bien que
+      vérifié directement sans FK entrante problématique (aucune table ne
+      référence Notification.id) — reste hors scope de cette passe, pas
+      réévalué depuis.
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ (résolu pour Lead/ContactRequest
+      uniquement), session du 2026-07-17 : migration
+      20260717120000_add_lead_contactrequest_archive_tables créée
+      (LeadArchive, ContactRequestArchive, partitionnées RANGE sur
+      createdAt, @@ignore côté Prisma Client — jamais lues/écrites via le
+      client généré, seulement via $executeRawUnsafe). `npx prisma migrate
+      diff --from-migrations ... --to-schema-datamodel ... --exit-code`
+      confirmé à zéro drift spécifiquement sur ces deux tables (le seul
+      drift restant, Invoice/Proposal index uniques, est préexistant, non
+      introduit par ce correctif — vérifié par comparaison avec/sans ce
+      changement via git stash).
+
+      VÉRIFICATION RÉELLE CONTRE UNE BASE VIVANTE (pas seulement typecheck),
+      session du 2026-07-17 : le porteur du projet a exécuté
+      `prisma migrate reset --force` sur la base de dev locale
+      (secritou_db, localhost:5434, confirmé non-production — aucun
+      pipeline de déploiement n'existe dans ce dépôt, voir REFERENTIEL.md
+      §7) — action bloquée par le garde-fou Prisma anti-agent-IA
+      (PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION), exécutée par
+      l'utilisateur lui-même, pas contournée. Un Lead avec `archivedAt`
+      vieux de 40 jours a été créé, puis `archiveColdData()` appelé
+      directement (via tsx, pas au travers du cron) : succès pour les
+      règles Lead et ContactRequest (aucune erreur), échec attendu et
+      confirmé sur NotificationArchive (`relation "NotificationArchive"
+      does not exist` — comportement correct, cette table est hors scope
+      par décision, pas un bug). Vérifié après coup : la ligne a bien
+      disparu de "Lead" et est apparue dans "LeadArchive" avec toutes ses
+      colonnes intactes (id, name, archivedAt, createdAt, updatedAt,
+      lostReason) — pas seulement "pas d'erreur", la donnée réelle a été
+      inspectée. Données de test nettoyées après vérification.
+
+      DEUX DÉFAUTS SUPPLÉMENTAIRES trouvés en testant réellement contre une
+      base vivante (ce que la seule lecture de code n'aurait pas révélé) —
+      voir SEC-020 pour le premier (bug de paramétrage DDL, corrigé dans la
+      même session) ; le second (ordre des colonnes de LeadArchive ne
+      correspondant pas à l'ordre physique réel de Lead) a été corrigé
+      directement dans la même migration avant tout commit, donc n'a pas
+      reçu d'ID séparé — jamais vu par aucun outil externe avant correction.
+
+      `statut: resolu` porte uniquement sur le scope Lead/ContactRequent
+      retenu par la décision du porteur — pas sur Document/Notification,
+      qui restent une question ouverte non tranchée (le job continuera
+      d'échouer sur NotificationArchive à chaque exécution tant qu'une
+      décision équivalente n'est pas prise pour ces deux entités). `resolu`
+      ici est cohérent avec la règle CLAUDE.md (commit + CI verte requis) :
+      correctif non encore commité au moment de cette note — à relever
+      seulement une fois poussé et la CI confirmée verte sur ce commit
+      (voir SEC-010 pour le précédent sur cette règle).
+
+  - id: SEC-017
+    titre: "executiveMetrics.* et revenueForecast.* ne sont montés sur aucune route HTTP"
+    perimetre: "4.8 Analytics & Performance"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand un grep sur server/src/routes/ pour
+      "executiveMetrics" et "revenueForecast" retourne au moins une route
+      montée pour chacun (fonctionnalité activée), OU quand une décision du
+      porteur du projet documente que ces 6 fichiers sont du code mort
+      intentionnellement laissé de côté (auquel cas cette entrée passe à
+      `rejete` avec référence à cette décision en REFERENTIEL.md §7).
+    detecte_le: "2026-07-17"
+    source: audit_llm
+    confiance: a_confirmer
+    note: >
+      Constat incident (AUDIT_GRID.md, session du 2026-07-17). Grep exhaustif
+      sur server/src/routes/index.ts pour "executiveMetrics" et
+      "revenueForecast" : 0 résultat pour les deux. Les 6 fichiers
+      (executiveMetrics.service.ts/.repository.ts/.controller.ts,
+      revenueForecast.service.ts/.repository.ts/.controller.ts) existent et
+      sont déjà listés dans le perimetre_code de REFERENTIEL.md §4.8, mais
+      ne sont accessibles par aucun endpoint HTTP. `confiance: a_confirmer`
+      — le contenu interne de ces 6 fichiers n'a pas été lu en détail
+      (seule leur absence de montage sur les routes a été vérifiée
+      directement), donc code potentiellement mort ou fonctionnalité
+      inachevée, pas encore tranché.
+
+  - id: SEC-018
+    titre: "rating.controller.ts restreint via req.user!.id au lieu de req.user!.sub"
+    perimetre: "4.7 Freelances"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: rejete
+    critere_de_resolution: >
+      C'est résolu quand rating.controller.ts (méthode getRatingsByFreelancerId
+      ou équivalent) utilise le même champ que le reste du code
+      (`req.user!.sub`, cohérent avec JwtPayload dans client/src/types/auth.ts
+      et le reste des controllers), vérifié par un test d'intégration
+      confirmant qu'un FREELANCER authentifié voit bien ses propres notes
+      (pas de régression silencieuse si le champ actuel se révèle en réalité
+      fonctionnel).
+    detecte_le: "2026-07-17"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Constat incident (AUDIT_GRID.md, session du 2026-07-17) :
+      rating.controller.ts restreint la lecture des notes d'un FREELANCER à
+      ses propres notes via `req.user!.id`, alors que le reste du code
+      (confirmé par les audits 4.14 antérieurs) utilise `req.user!.sub`
+      (champ du JwtPayload). `confiance: a_confirmer` d'origine — pas
+      vérifié si `id` existe réellement comme alias sur ce type ou si c'est
+      un bug silencieux qui romprait le scoping.
+
+      REJETÉ (vérification directe, session du 2026-07-17) : faux positif.
+      `server/src/types/auth.ts:4-5` — `JwtPayload` porte à la fois `id` et
+      `sub`, ce ne sont pas des noms concurrents dont un seul existerait.
+      `server/src/services/auth.service.ts:44-45` (`signAccessToken`) —
+      les deux champs sont signés avec exactement la même valeur
+      (`id: user.id, sub: user.id`) à l'émission du token. `req.user!.id`
+      et `req.user!.sub` sont donc strictement équivalents au runtime pour
+      tout token émis par ce chemin — aucune divergence de scoping possible,
+      juste une incohérence de convention de nommage entre fichiers, pas un
+      bug fonctionnel. Rejeté plutôt que fermé en `resolu` : rien n'a été
+      corrigé, le constat d'origine était simplement faux à la vérification.
+
+  - id: SEC-019
+    titre: "Méthodes repository orphelines (code mort) trouvées lors de la construction d'AUDIT_GRID.md"
+    perimetre: "transverse — invoice.repository.ts, siteContent.repository.ts, aiConversation.repository.ts, freelancerApplication.repository.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand, pour chacune des 4 méthodes listées en note,
+      soit un appelant réel est trouvé (elle n'est pas morte, l'entrée passe
+      à `rejete` avec le chemin d'appel cité), soit elle est supprimée du
+      code (avec le commit qui la retire cité ici).
+    detecte_le: "2026-07-17"
+    source: audit_llm
+    confiance: certain
+    note: >
+      4 méthodes trouvées sans aucun appelant pendant la construction
+      d'AUDIT_GRID.md (session du 2026-07-17), regroupées sous un seul ID
+      car même classe de défaut (code mort) et même critère de résolution,
+      malgré des fichiers différents :
+      (1) invoice.repository.ts:addPayment (lignes 212-228) — jamais appelée,
+      invoiceService.addPayment fait tx.payment.create directement (ligne
+      232 du service) sans passer par cette méthode.
+      (2) siteContentRepository.upsertMany (siteContent.repository.ts:74-91)
+      — zéro appelant trouvé dans server/src (grep confirmé) ; seul
+      upsertOne est utilisé, upsertMany supporterait techniquement la
+      création de nouvelles clés mais rien ne l'invoque.
+      (3) aiConversationRepository.deleteAll (aiConversation.repository.ts:53-55)
+      — existe côté repository mais aucun controller/route ne l'expose.
+      (4) freelancerApplicationRepository.delete (freelancerApplication.repository.ts:50-52)
+      — existe côté repository mais aucun controller/route ne l'appelle
+      (seul reject, qui fait un update de statut, est exposé).
+      Vérifié par grep direct sur server/src pour chaque nom de méthode,
+      pas par lecture exhaustive de tous les appelants possibles — reste
+      une possibilité résiduelle qu'un appel indirect (ex. via un import
+      dynamique) échappe au grep, d'où `confiance: certain` sur l'absence
+      d'appel direct trouvé, mais le critère de résolution exige de statuer
+      définitivement avant fermeture.
+
+      CORRECTIF ÉCRIT (pas résolu), session du 2026-07-17 : les 4 méthodes
+      supprimées (grep re-confirmé zéro appelant pour chacune juste avant
+      suppression, y compris `invoiceRepository.addPayment` et
+      `freelancerApplicationRepository.delete` qui n'étaient pas capturées
+      par le grep initial plus large). `npm run typecheck --workspace
+      server` vert (0 erreur) après suppression — confirme qu'aucun
+      appelant caché n'existait. `npm run test:unit --workspace server` :
+      247/247 verts, exit 0, aucune régression. Statut `en_cours`, pas
+      `resolu` : non commité au moment de cette note, non passé par la CI
+      (voir la règle commit+CI de CLAUDE.md).
+
+  - id: SEC-020
+    titre: "ensureMonthlyPartitions échoue toujours : Postgres n'accepte aucun paramètre lié dans du DDL"
+    perimetre: "transverse — server/src/jobs/processors/maintenance.processor.ts"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand `ensureMonthlyPartitions` crée réellement une
+      partition mensuelle sur une table d'archive existante, sans erreur,
+      vérifié par exécution réelle contre une base de développement (pas
+      seulement par lecture du code) — critère déjà atteint pour
+      LeadArchive/ContactRequestArchive dans le cadre de SEC-016, à
+      reconfirmer si la fonction est appelée sur une nouvelle table.
+    detecte_le: "2026-07-17"
+    source: manuel
+    confiance: certain
+    note: >
+      Trouvé en vérifiant réellement SEC-016 contre une base vivante (pas
+      seulement en lisant le code), session du 2026-07-17. Le commentaire
+      d'origine à maintenance.processor.ts:123-124 affirmait : « Table/
+      partition identifiers can't be bound parameters in Postgres DDL —
+      only rangeStart/next (plain date literals) are parameterizable here,
+      so those are passed as bound args. » C'est faux : l'instruction
+      entière (`CREATE TABLE ... PARTITION OF ... FOR VALUES FROM ($1::date)
+      TO ($2::date)`) est du DDL, et Postgres n'accepte AUCUN paramètre lié
+      nulle part dans une instruction DDL, pas seulement pour les
+      identifiants de table/colonne. Reproduit directement : la même
+      requête échoue avec `$1::date` en paramètre lié (erreur 42P02 « there
+      is no parameter $1 ») et réussit avec la même valeur inlinée en
+      littéral SQL (`'2020-01-01'::date`). Conséquence : `archiveColdData`
+      n'a jamais pu fonctionner, même une fois les tables d'archive créées
+      (SEC-016) — la création de partition, première étape de
+      `archiveTableRows`, échouait systématiquement avant d'atteindre le
+      DELETE/INSERT.
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-17 :
+      maintenance.processor.ts, `ensureMonthlyPartitions` — `rangeStart`/
+      `next` inlinés directement dans la chaîne SQL au lieu d'être passés
+      en arguments liés à `$executeRawUnsafe`. Sûr à inliner : ces deux
+      valeurs sont toujours des chaînes `YYYY-MM-DD` produites par
+      `partitionParts()` via `toISOString().slice(0, 10)`, jamais une
+      entrée utilisateur — même classe de garantie que `sourceTable`/
+      `archiveTable`/`whereClause`, déjà inlinés et protégés par
+      `assertSafeArchiveTable`/`assertSafeWhereClause` juste au-dessus dans
+      le même fichier. Vérifié par exécution réelle (voir SEC-016) :
+      partition `LeadArchive_2026_07` créée avec succès après correctif,
+      plus aucune erreur 42P02. `npm run typecheck --workspace server`
+      vert (0 erreur) après le changement.
+
+      Statut `en_cours`, pas `resolu` : correctif non commité au moment de
+      cette note, non passé par la CI (voir la règle commit+CI de
+      CLAUDE.md).

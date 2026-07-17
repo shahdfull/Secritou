@@ -71,22 +71,4 @@ export const siteContentRepository = {
     });
   },
 
-  async upsertMany(items: SiteContentUpsert[]): Promise<void> {
-    await prisma.$transaction(
-      items.map((item) =>
-        prisma.siteContent.upsert({
-          where: { key_locale: { key: item.key, locale: item.locale } },
-          update: { value: item.value, type: item.type ?? "TEXT", label: item.label },
-          create: {
-            key: item.key,
-            locale: item.locale,
-            value: item.value,
-            type: item.type ?? "TEXT",
-            section: item.section,
-            label: item.label,
-          },
-        })
-      )
-    );
-  },
 };

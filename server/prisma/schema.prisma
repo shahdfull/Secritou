@@ -167,8 +167,8 @@ model User {
   // a stolen session from silently taking over the account's email without proving control of
   // the new inbox.
   pendingEmail                String?                  @db.VarChar(255)
-  emailChangeTokenHash         String?                  @db.VarChar(255)
-  emailChangeTokenExpiry       DateTime?                @db.Timestamptz(6)
+  emailChangeTokenHash        String?                  @db.VarChar(255)
+  emailChangeTokenExpiry      DateTime?                @db.Timestamptz(6)
   freelancerApplications      FreelancerApplication[]
   clientOnboardingsAsAssignee ClientOnboarding[]       @relation("ClientOnboardingAssignedUser")
   proposalHistories           ProposalHistory[]
@@ -227,14 +227,14 @@ model UserSession {
 // Service (business pole/department) : e.g. "Technology Solutions", "AI & Automation".
 // Leads, clients and users are attached to a service so MANAGERs can be scoped to their pole.
 model Service {
-  id        String    @id @default(uuid())
-  name      String    @unique @db.VarChar(100)
+  id        String            @id @default(uuid())
+  name      String            @unique @db.VarChar(100)
   leads     Lead[]
   projects  Project[]
   users     User[]
   clients   Client[]
   templates ProjectTemplate[]
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  createdAt DateTime          @default(now()) @db.Timestamptz(6)
 }
 
 // One reusable task checklist per pole — applied on demand from a project's empty-tasks
@@ -291,6 +291,60 @@ model Lead {
   @@index([email])
   @@index([archivedAt])
   @@index([serviceId])
+}
+
+// Archive copy of "Lead" rows written by archiveColdData()
+// (server/src/jobs/processors/maintenance.processor.ts) via raw SQL only —
+// never read/written through Prisma Client. @@ignore keeps it out of the
+// generated client while still satisfying `prisma migrate diff` against
+// migration.sql (see ANOMALIES.yaml SEC-016). Partitioned by createdAt in
+// migration.sql; the composite id+createdAt key is required because
+// Postgres range-partitioned tables must include the partition column in
+// every unique/primary key.
+// Field order below matches "Lead"'s actual physical column order in Postgres
+// (verified via information_schema.columns, not schema.prisma's own field-declaration
+// order for the Lead model above) — required because the archive job does a positional
+// `INSERT ... SELECT *`, not an order-independent by-name insert. See SEC-020.
+model LeadArchive {
+  id                String
+  name              String     @db.VarChar(255)
+  email             String?    @db.VarChar(255)
+  phone             String?    @db.VarChar(50)
+  source            String?    @db.VarChar(100)
+  status            LeadStatus @default(NEW)
+  notes             String?    @db.Text
+  serviceId         String?
+  convertedClientId String?
+  archivedAt        DateTime?  @db.Timestamptz(6)
+  sourceContactId   String?
+  assignedManagerId String?
+  department        String?    @db.VarChar(255)
+  createdAt         DateTime   @db.Timestamptz(6)
+  updatedAt         DateTime   @db.Timestamptz(6)
+  lostReason        String?    @db.VarChar(500)
+
+  @@id([id, createdAt])
+  @@ignore
+}
+
+// Archive copy of "ContactRequest" rows written by archiveColdData() — see
+// LeadArchive above for the full rationale (SEC-016).
+model ContactRequestArchive {
+  id          String
+  name        String        @db.VarChar(255)
+  email       String        @db.VarChar(255)
+  phone       String?       @db.VarChar(50)
+  serviceType String        @db.VarChar(255)
+  budget      String?       @db.VarChar(255)
+  company     String        @db.VarChar(255)
+  message     String        @db.Text
+  status      ContactStatus @default(NEW)
+  convertedAt DateTime?     @db.Timestamptz(6)
+  createdAt   DateTime      @db.Timestamptz(6)
+  updatedAt   DateTime      @db.Timestamptz(6)
+
+  @@id([id, createdAt])
+  @@ignore
 }
 
 // Client model for paying/active clients
@@ -1210,6 +1264,7 @@ model Invoice {
   createdAt          DateTime          @default(now()) @db.Timestamptz(6)
   updatedAt          DateTime          @updatedAt @db.Timestamptz(6)
 
+  @@unique([projectId, invoiceType])
   @@index([clientId])
   @@index([status])
   @@index([invoiceType])
@@ -1218,7 +1273,6 @@ model Invoice {
   @@index([createdAt])
   @@index([status, createdAt])
   @@index([number])
-  @@unique([projectId, invoiceType])
 }
 
 enum CommissionStatus {
@@ -1592,4 +1646,3 @@ model AuditLog {
   @@index([actorId])
   @@index([createdAt])
 }
-
