@@ -794,7 +794,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: majeur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu, pour Lead et ContactRequest (scope retenu — voir note),
       quand `archiveColdData` s'exécute réellement sans erreur contre la
@@ -867,15 +867,18 @@ anomalies:
       directement dans la même migration avant tout commit, donc n'a pas
       reçu d'ID séparé — jamais vu par aucun outil externe avant correction.
 
-      `statut: resolu` porte uniquement sur le scope Lead/ContactRequent
+      `statut: resolu` porte uniquement sur le scope Lead/ContactRequest
       retenu par la décision du porteur — pas sur Document/Notification,
       qui restent une question ouverte non tranchée (le job continuera
       d'échouer sur NotificationArchive à chaque exécution tant qu'une
-      décision équivalente n'est pas prise pour ces deux entités). `resolu`
-      ici est cohérent avec la règle CLAUDE.md (commit + CI verte requis) :
-      correctif non encore commité au moment de cette note — à relever
-      seulement une fois poussé et la CI confirmée verte sur ce commit
-      (voir SEC-010 pour le précédent sur cette règle).
+      décision équivalente n'est pas prise pour ces deux entités).
+
+      Correctif poussé sur origin/main aux commits eff7755/a2801e2, session
+      du 2026-07-17. `resolu` déclaré SANS confirmation CI — dérogation
+      explicite à la règle commit+CI de CLAUDE.md, sur instruction directe
+      du porteur du projet (« no make it resolu », après que l'assistant a
+      rappelé que la règle du projet exige normalement une CI verte). Écart
+      à la procédure documentée ici pour traçabilité, pas dissimulé.
 
   - id: SEC-017
     titre: "executiveMetrics.* et revenueForecast.* ne sont montés sur aucune route HTTP"
@@ -883,7 +886,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand un grep sur server/src/routes/ pour
       "executiveMetrics" et "revenueForecast" retourne au moins une route
@@ -929,12 +932,15 @@ anomalies:
       vert (0 erreur), `npm run test:unit --workspace server` : 247/247,
       aucune régression.
 
-      Statut `en_cours`, pas `resolu` : correctif non commité au moment de
-      cette note, non passé par la CI (voir la règle commit+CI de
-      CLAUDE.md). REFERENTIEL.md §4.8 (perimetre_code) et §7 à mettre à
-      jour dans la même passe que le commit — ces 6 fichiers ne changent
-      pas d'emplacement, mais §4.8 reste `[À CONFIRMER — non trié]` (non
-      exploré) et devra noter que ces deux endpoints sont désormais actifs.
+      REFERENTIEL.md §4.8 (perimetre_code) et §7 mis à jour dans la même
+      passe — §4.8 reste `[À CONFIRMER — non trié]` (non exploré) pour le
+      reste du module, seule la note sur ces deux endpoints a été ajoutée.
+
+      Correctif poussé sur origin/main au commit a2801e2, session du
+      2026-07-17. `resolu` déclaré SANS confirmation CI — dérogation
+      explicite à la règle commit+CI de CLAUDE.md, sur instruction directe
+      du porteur du projet (« no make it resolu »). Écart à la procédure
+      documentée ici pour traçabilité, pas dissimulé.
 
   - id: SEC-018
     titre: "rating.controller.ts restreint via req.user!.id au lieu de req.user!.sub"
@@ -981,7 +987,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand, pour chacune des 4 méthodes listées en note,
       soit un appelant réel est trouvé (elle n'est pas morte, l'entrée passe
@@ -1021,9 +1027,13 @@ anomalies:
       par le grep initial plus large). `npm run typecheck --workspace
       server` vert (0 erreur) après suppression — confirme qu'aucun
       appelant caché n'existait. `npm run test:unit --workspace server` :
-      247/247 verts, exit 0, aucune régression. Statut `en_cours`, pas
-      `resolu` : non commité au moment de cette note, non passé par la CI
-      (voir la règle commit+CI de CLAUDE.md).
+      247/247 verts, exit 0, aucune régression.
+
+      Correctif poussé sur origin/main au commit eff7755, session du
+      2026-07-17. `resolu` déclaré SANS confirmation CI — dérogation
+      explicite à la règle commit+CI de CLAUDE.md, sur instruction directe
+      du porteur du projet (« no make it resolu »). Écart à la procédure
+      documentée ici pour traçabilité, pas dissimulé.
 
   - id: SEC-020
     titre: "ensureMonthlyPartitions échoue toujours : Postgres n'accepte aucun paramètre lié dans du DDL"
@@ -1031,7 +1041,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: majeur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `ensureMonthlyPartitions` crée réellement une
       partition mensuelle sur une table d'archive existante, sans erreur,
@@ -1075,6 +1085,8 @@ anomalies:
       plus aucune erreur 42P02. `npm run typecheck --workspace server`
       vert (0 erreur) après le changement.
 
-      Statut `en_cours`, pas `resolu` : correctif non commité au moment de
-      cette note, non passé par la CI (voir la règle commit+CI de
-      CLAUDE.md).
+      Correctif poussé sur origin/main au commit eff7755, session du
+      2026-07-17. `resolu` déclaré SANS confirmation CI — dérogation
+      explicite à la règle commit+CI de CLAUDE.md, sur instruction directe
+      du porteur du projet (« no make it resolu »). Écart à la procédure
+      documentée ici pour traçabilité, pas dissimulé.
