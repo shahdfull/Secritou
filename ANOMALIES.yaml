@@ -883,7 +883,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       C'est résolu quand un grep sur server/src/routes/ pour
       "executiveMetrics" et "revenueForecast" retourne au moins une route
@@ -893,7 +893,7 @@ anomalies:
       `rejete` avec référence à cette décision en REFERENTIEL.md §7).
     detecte_le: "2026-07-17"
     source: audit_llm
-    confiance: a_confirmer
+    confiance: certain
     note: >
       Constat incident (AUDIT_GRID.md, session du 2026-07-17). Grep exhaustif
       sur server/src/routes/index.ts pour "executiveMetrics" et
@@ -901,11 +901,40 @@ anomalies:
       (executiveMetrics.service.ts/.repository.ts/.controller.ts,
       revenueForecast.service.ts/.repository.ts/.controller.ts) existent et
       sont déjà listés dans le perimetre_code de REFERENTIEL.md §4.8, mais
-      ne sont accessibles par aucun endpoint HTTP. `confiance: a_confirmer`
-      — le contenu interne de ces 6 fichiers n'a pas été lu en détail
-      (seule leur absence de montage sur les routes a été vérifiée
-      directement), donc code potentiellement mort ou fonctionnalité
-      inachevée, pas encore tranché.
+      ne sont accessibles par aucun endpoint HTTP.
+
+      DÉCISION (porteur du projet, session du 2026-07-17) : monter les
+      routes plutôt que documenter comme intentionnel. Lecture directe des
+      6 fichiers avant correction : `executiveMetricsController.get` et
+      `revenueForecastController.get` sont chacun un seul handler GET,
+      lecture seule, déjà scopés par pôle/rôle
+      (buildServiceScope + MANAGER forcé sur son propre serviceId, même
+      motif que gscConnection.controller.ts), déjà mis en cache
+      (executiveMetricsService avec TTL 3 min taggé
+      dashboard()/company() ; revenueForecastRepository sans cache mais
+      lecture seule pure). Aucune anomalie trouvée dans leur contenu —
+      fonctionnalités complètes, simplement jamais exposées.
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-17 :
+      server/src/routes/dashboard.routes.ts — deux routes ajoutées,
+      GET /dashboard/executive-metrics et GET /dashboard/revenue-forecast,
+      suivant exactement le patron déjà en place pour /dashboard/summary et
+      /dashboard/full (authenticate, authorize("ADMIN","MANAGER"),
+      requirePermission("analytics","read")). Vérifié par exécution réelle
+      (pas seulement typecheck) : serveur démarré, `curl` sans token sur
+      les deux nouvelles routes → 401 (montées, correctement protégées),
+      `curl` sur une route de contrôle inexistante
+      (/dashboard/nonexistent-xyz) → 404 (confirme que le 401 n'est pas un
+      faux positif d'un catch-all). `npm run typecheck --workspace server`
+      vert (0 erreur), `npm run test:unit --workspace server` : 247/247,
+      aucune régression.
+
+      Statut `en_cours`, pas `resolu` : correctif non commité au moment de
+      cette note, non passé par la CI (voir la règle commit+CI de
+      CLAUDE.md). REFERENTIEL.md §4.8 (perimetre_code) et §7 à mettre à
+      jour dans la même passe que le commit — ces 6 fichiers ne changent
+      pas d'emplacement, mais §4.8 reste `[À CONFIRMER — non trié]` (non
+      exploré) et devra noter que ces deux endpoints sont désormais actifs.
 
   - id: SEC-018
     titre: "rating.controller.ts restreint via req.user!.id au lieu de req.user!.sub"

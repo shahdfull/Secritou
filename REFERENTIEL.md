@@ -518,6 +518,19 @@ Connexions aux sources de données externes et métriques de performance
 client. **Ne peut pas être classé GELÉ : EXPLORATION.md marque ce module
 `non exploré`.** Reste à trancher après une première lecture directe.
 
+**Correction (SEC-017, session du 2026-07-17)** : `executiveMetrics.controller.ts`
+et `revenueForecast.controller.ts` étaient déjà listés ci-dessous, mais
+n'étaient montés sur aucune route — code complet (lecture seule, scopé par
+pôle/rôle, mis en cache) jamais exposé. Décision du porteur du projet :
+activer plutôt que documenter comme mort. Montés sur
+`GET /dashboard/executive-metrics` et `GET /dashboard/revenue-forecast`
+(`server/src/routes/dashboard.routes.ts`, ajouté au perimetre_code
+ci-dessous), même garde ADMIN/MANAGER + `requirePermission("analytics",
+"read")` que `/dashboard/summary`/`/dashboard/full`. Vérifié par exécution
+réelle (curl sans token → 401 sur les deux nouvelles routes, 404 sur une
+route de contrôle inexistante — confirme un montage réel, pas un faux
+positif).
+
     perimetre_code:
       - server/src/services/gscConnection.service.ts
       - server/src/services/googleOAuth.service.ts
@@ -534,6 +547,7 @@ client. **Ne peut pas être classé GELÉ : EXPLORATION.md marque ce module
       - server/src/controllers/metricSnapshot.controller.ts
       - server/src/controllers/revenueForecast.controller.ts
       - server/src/routes/gscConnection.routes.ts
+      - server/src/routes/dashboard.routes.ts
       - prisma/schema.prisma#GscConnection,MetricSnapshot
       - client/src/features/analytics/**
       - client/src/features/reports/**
@@ -1010,3 +1024,8 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-17** | **Correction perimetre_code de 4.11 Module IA (GELÉ) : `aiConversation.repository.ts`/`.controller.ts`/`.routes.ts` ajoutés — ils forment la totalité de la couche CRUD réelle de AiConversation/AiMessage, absente jusqu'ici (seul le service figurait). Correction documentaire uniquement, aucun développement/audit fonctionnel effectué sur ce module GELÉ.** | **Constat direct, session du 2026-07-17, via AUDIT_GRID.md.** |
 | **2026-07-17** | **Correction perimetre_code de 4.1 CRM & Pipeline commercial : `contact.service.ts` ajouté — crée/met à jour des `Lead` réels (`sendContactMessage`, `convertToLead`), non listé jusqu'ici.** | **Constat direct, session du 2026-07-17, via AUDIT_GRID.md.** |
 | **2026-07-17** | **`AUDIT_GRID.md` créé à la racine du dépôt : grille CRUD exhaustive des 24 entités de §3, construite par grep + lecture directe (pas devinée), avec statut `verifie:` par opération. Sert de référence pour les futures passes d'audit module par module et a produit les 4 corrections perimetre_code ci-dessus. Commité séparément (`5c31f2e`), poussé sur `origin/main`.** | **Travail demandé par le porteur du projet, session du 2026-07-17 : générer une checklist CRUD de référence, sans corriger ni auditer un module en particulier.** |
+| **2026-07-17** | **SEC-018 rejeté : `req.user!.id` et `req.user!.sub` sont signés avec la même valeur à l'émission du token (`auth.service.ts:44-45`) — pas un bug, juste une incohérence de nommage sans conséquence fonctionnelle.** | **Vérification directe du porteur/session, 2026-07-17 : lecture de `JwtPayload` (les deux champs coexistent) et de `signAccessToken` (les deux reçoivent `user.id`).** |
+| **2026-07-17** | **SEC-019 : les 4 méthodes repository orphelines (invoice/siteContent/aiConversation/freelancerApplication) supprimées — code mort confirmé par grep, zéro appelant, typecheck + 247/247 tests verts après suppression.** | **Décision implicite via la procédure du projet (suppression de code mort confirmé n'est pas un développement) — pas de décision produit distincte requise.** |
+| **2026-07-17** | **SEC-016 : migration `LeadArchive`/`ContactRequestArchive` créée sur décision du porteur (« créer la migration manquante »). Scope volontairement limité à Lead + ContactRequest — Document exclu (cascade DocumentAccessLog + versioning), Notification exclu par la même décision malgré l'absence de risque de cascade trouvé.** | **Réponse du porteur du projet, session du 2026-07-17, face au choix désactiver/créer/laisser tel quel pour le job `archiveColdData`.** |
+| **2026-07-17** | **`prisma migrate reset --force` exécuté sur la base de dev locale (secritou_db, localhost:5434) par le porteur du projet lui-même — bloqué pour l'assistant par le garde-fou anti-agent-IA de Prisma (consentement explicite requis, jamais contourné). A permis la vérification réelle de SEC-016/SEC-020 contre une base migrée plutôt qu'une simple lecture de code.** | **Consentement explicite du porteur du projet, session du 2026-07-17, après explication complète (commande exacte, motif, caractère irréversible, confirmation base non-production).** |
+| **2026-07-17** | **SEC-017 : `executiveMetrics`/`revenueForecast` montés sur `/dashboard/executive-metrics` et `/dashboard/revenue-forecast` plutôt que documentés comme code mort — fonctionnalités trouvées complètes (lecture seule, scopées, cachées) à l'inspection avant activation.** | **Réponse du porteur du projet, session du 2026-07-17, face au choix monter/laisser tel quel/investiguer d'abord pour ces deux contrôleurs jamais exposés.** |
