@@ -170,6 +170,20 @@ trace. Un typecheck ou une suite de tests verte en local ne suffit pas non
 plus à elle seule — elle prouve l'état du working tree à cet instant, pas
 ce que la CI verra une fois poussé.
 
+## Un critère de résolution s'énonce par ce que l'utilisateur peut faire
+
+Jamais par ce que le système ne fait plus. « X ne provoque plus d'erreur »
+n'est jamais un critère valide : une fonctionnalité peut cesser d'échouer
+sans jamais fonctionner. Un critère se formule en écriture-puis-relecture,
+pas en absence d'exception.
+
+## `verifie: test` exige un test qui appelle le code réel
+
+Un test qui réimplémente sa cible, recopie une condition ou teste une
+fonction locale équivalente ne prouve rien : il resterait vert si le code
+réel dérivait. Un tel test vaut `code_grep` au mieux — le code doit être
+importé et appelé, pas simulé à côté.
+
 ## Réparer n'est pas développer
 
 Une correction de typecheck qui AJOUTE une capacité (fonction, méthode,

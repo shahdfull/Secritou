@@ -20,6 +20,12 @@
 #     # des jours précisément parce qu'elle vivait dans un working tree non
 #     # commité).
 #   critere_de_resolution:   # test factuel : « c'est résolu quand… »
+#     # S'énonce par ce que l'utilisateur peut faire, jamais par ce que le
+#     # système ne fait plus. « Ne provoque plus d'erreur » n'est jamais un
+#     # critère valide : une fonctionnalité peut cesser d'échouer sans jamais
+#     # fonctionner (voir SEC-006 : la migration a supprimé le 500, la feature
+#     # est restée cassée — perte silencieuse au lieu d'erreur visible). Se
+#     # formule en écriture-puis-relecture, pas en absence d'exception.
 #   detecte_le:              # date ISO
 #   source: audit_llm | script | manuel
 #   confiance: certain | a_confirmer
@@ -196,23 +202,53 @@ anomalies:
       client/src/hooks/*.ts — voir EXPLORATION.md.
 
   - id: SEC-006
-    titre: "Champ phone accepté et transmis jusqu'à prisma.user.update() sans exister sur le modèle User"
-    perimetre: "4.10 RBAC & Permissions granulaires (compte utilisateur) — [À CONFIRMER — non trié], voir REFERENTIEL.md §4"
+    titre: "Champ phone du portail Client : jamais relu, jamais pré-rempli, jamais effaçable"
+    perimetre: "4.14 Authentification & Compte utilisateur"
     regle_violee: null
     classe: "type_frontend_desynchronise_du_schema_prisma"
     gravite: majeur
-    statut: en_cours
+    statut: ouvert
     critere_de_resolution: >
-      C'est résolu quand un appel réel à PATCH /users/me avec un champ phone
-      non vide ne provoque plus d'erreur (soit par ajout du champ phone au
-      modèle Prisma User avec migration associée, soit par suppression du
-      champ phone de UpdateMeInput/updateMeSchema/le chemin service-repository
-      correspondant), ET qu'un test couvre ce endpoint (server/test, aucun
-      fichier ne correspond à *user* actuellement).
+      C'est résolu quand un utilisateur du portail Client peut (1) saisir son
+      numéro et l'enregistrer, (2) recharger la page et le voir affiché en
+      lecture ET pré-rempli dans le formulaire d'édition, (3) l'effacer et
+      obtenir qu'il soit réellement supprimé — vérifié par un test
+      d'intégration couvrant les trois, écrire/relire/effacer via l'API.
     detecte_le: "2026-07-16"
     source: audit_llm
     confiance: certain
     note: >
+      RÉOUVERTE, session du 2026-07-16 (audit 4.14) : trois défauts distincts,
+      même critère de résolution, un seul ID.
+      (a) jamais relu — `userPublicFields` (server/src/repositories/
+      user.repository.ts:6-16) ne sélectionne pas `phone` ; `toAuthUser`
+      (server/src/services/auth.service.ts:25-36) ne le mappe pas ;
+      `client/src/types/auth.ts` ne le déclare pas ; la vue lecture
+      (client/src/features/client-portal/ClientProfilePage.tsx:217-230) ne
+      l'affiche pas.
+      (b) jamais pré-rempli — `phone: ""` codé en dur
+      (ClientProfilePage.tsx:70, :80), impossible à initialiser depuis
+      `user?.phone` puisque le type ne porte pas le champ.
+      (c) jamais effaçable — `data.phone || undefined`
+      (ClientProfilePage.tsx:87) transforme `""` en `undefined` (confirmé :
+      `"" || undefined` → `undefined` en JS), que Prisma omet de l'UPDATE. Un
+      numéro une fois enregistré ne peut plus jamais être retiré par
+      l'utilisateur. Vérifié : ce n'est PAS un écrasement actif (Prisma
+      ignore `undefined`, la valeur en base n'est pas altérée) — c'est un
+      blocage de suppression, distinct de la perte de données initialement
+      crainte.
+      (d) le swagger de user.routes.ts:87-92 documente `PATCH /users/me` sans
+      `phone` alors que le validateur l'accepte (user.validator.ts:8).
+      Historique : SEC-006 avait été déclarée `resolu`/`en_cours` par la
+      migration du 2026-07-16 (ajout du champ `phone` au modèle `User`) sur
+      un critère défectueux (« ne provoque plus d'erreur »), qui testait
+      l'absence d'un symptôme au lieu de la présence de la fonction. La
+      feature est passée d'une erreur 500 visible à une perte silencieuse —
+      pire, pas mieux. Gravité redescendue de `bloquant`-candidate à `majeur` :
+      le 500 est corrigé (le champ existe désormais en base), mais la feature
+      ne fonctionne toujours pas de bout en bout.
+
+      Historique conservé (note d'origine, avant réouverture) : >
       Chemin lu intégralement ligne par ligne, session du 2026-07-16 (pas par
       grep) : client/src/api/users.api.ts:21-25,33-36 (UpdateMeInput déclare
       phone?: string | null, transmis tel quel dans PATCH /users/me) →
@@ -364,7 +400,7 @@ anomalies:
 
   - id: SEC-009
     titre: "userRepository.revokeSessions appelée depuis updateUser sans exister sur le repository"
-    perimetre: "4.14 Authentification & Compte utilisateur (module à créer, voir REFERENTIEL.md v0.2.2)"
+    perimetre: "4.14 Authentification & Compte utilisateur"
     regle_violee: null
     classe: "typecheck_serveur_en_echec"
     gravite: bloquant

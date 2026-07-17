@@ -80,6 +80,13 @@ partir de `schema.prisma` uniquement), `audit_anterieur` (repris d'un rapport
 d'audit, non revérifié), `document` (repris d'un README/docx/cadrage, non
 revérifié).
 
+**`verifie: test` exige un test qui IMPORTE ET APPELLE le code réel.** Un
+test qui réimplémente sa cible, recopie une condition ou teste une fonction
+locale équivalente ne prouve rien : il resterait vert si le code réel
+dérivait. Un tel test vaut `code_grep` au mieux (voir RG-019 : le test initial
+recopiait la condition de `user.service.ts` sans jamais importer ni appeler
+`userService.updateUser`).
+
 **Règle stricte (voir CLAUDE.md) : un statut `IMPLÉMENTÉ` n'est autorisé que
 si `verifie: code_direct` ou `verifie: test`.** Tout statut établi par
 `code_grep`, `schema_seul`, `audit_anterieur` ou `document` est
@@ -117,9 +124,14 @@ modèle du schéma (recherche exhaustive dans `schema.prisma`).
 ### 3.2 User
 Compte de connexion à la plateforme. Attributs clés : email, rôle,
 `clientId` (si Client), `serviceId` (pôle d'affectation, pertinent pour
-Manager). **Pas de champ `phone`** — voir SEC-006 (ANOMALIES.yaml) pour le détail
-vérifié du chemin `updateMe`, qui accepte et transmet ce champ jusqu'à
-`prisma.user.update()`.
+Manager), `phone` (String?, ajouté par migration `20260716120000_add_phone_to_user`
+— décision produit du 2026-07-16, voir §7). **`phone` est accepté en écriture
+et persisté, mais jamais relu par l'API ni affiché dans le portail Client**
+— voir SEC-006 (ANOMALIES.yaml, réouverte le 2026-07-16) pour le détail
+vérifié : `userPublicFields` (server/src/repositories/user.repository.ts:6-16)
+ne le sélectionne pas, `client/src/types/auth.ts` ne le déclare pas.
+`verifie: code_direct` (schema.prisma:150, lecture directe, session du
+2026-07-16).
 Rôles réellement implémentés (`enum Role`) :
 
 | Rôle | Description |
@@ -559,6 +571,42 @@ score Client Success (module 4.9). **Un répertoire jamais ouvert ne peut pas
 potentiellement critique pour le flux argent sans l'avoir jamais vérifié.**
 Périmètre à explorer en priorité, avant tout autre module non trié.
 
+### 4.14 Authentification & Compte utilisateur — **ACTIF**
+Connexion, sessions (access/refresh tokens, familles, révocation),
+réinitialisation de mot de passe, gestion du compte utilisateur (profil,
+changement d'email différé, invitation, changement de rôle, suppression).
+Cité par SEC-006/SEC-009/SEC-011 et RG-019 depuis le 2026-07-16 sans jamais
+avoir été formalisé ici — voir §7. Périmètre bâti sur l'audit du 2026-07-16
+(27 fichiers lus intégralement).
+
+    perimetre_code:
+      - server/src/services/auth.service.ts
+      - server/src/services/user.service.ts
+      - server/src/repositories/auth.repository.ts
+      - server/src/repositories/user.repository.ts
+      - server/src/repositories/userSession.repository.ts
+      - server/src/services/auditLog.service.ts
+      - server/src/controllers/auth.controller.ts
+      - server/src/controllers/user.controller.ts
+      - server/src/routes/auth.routes.ts
+      - server/src/routes/user.routes.ts
+      - server/src/validators/auth.validator.ts
+      - server/src/validators/user.validator.ts
+      - server/src/middlewares/auth.middleware.ts
+      - server/src/middlewares/rbac.middleware.ts
+      - prisma/schema.prisma#User,UserSession,RefreshToken
+      - server/test/auth.service.test.ts
+      - server/test/user.service.test.ts
+      - server/test/auth.middleware.test.ts
+      - server/test/rbac.test.ts
+      - client/src/api/users.api.ts
+      - client/src/api/auth.api.ts
+      - client/src/hooks/useAuth.ts
+      - client/src/store/auth.store.ts
+      - client/src/types/auth.ts
+      - client/src/features/settings/tabs/SettingsProfileTab.tsx
+      - client/src/features/client-portal/ClientProfilePage.tsx
+
 ---
 
 ## 5. Règles métier
@@ -751,13 +799,54 @@ refresh tokens, toutes familles confondues) de l'utilisateur ciblé
 si et seulement si son `role` change (`role && role !== user.role`).
 Un changement de `name` seul (ou tout autre champ modifiable par cet
 endpoint) ne déclenche aucune révocation. *Module : 4.14.* Statut :
-**IMPLÉMENTÉ**, `verifie: test` — server/src/services/user.service.ts:160-171
-(condition exacte lue directement) et
-server/test/user.service.test.ts (« updateUser révoque les sessions sur
-changement de rôle, pas sur changement de nom seul »), 2026-07-16, GATE 4.
-Voir SEC-009 (`resolu`) : la révocation était inopérante depuis l'introduction
-de l'intention (commit eb93f08, 2026-07-11) jusqu'à cette session, l'appel
-visant une méthode qui n'existait sur aucun repository.
+**IMPLÉMENTÉ**, `verifie: test` — server/src/services/user.service.ts:163
+(condition exacte lue directement) et server/test/user.service.test.ts
+(réécrit session du 2026-07-16 : importe et appelle réellement
+`userService.updateUser`, mocks au niveau module/prototype sur
+`userRepository`/`AuthRepository.prototype.revokeAllSessionsForUser`/
+`auditLogService`, 3 tests couvrant changement de rôle → révocation,
+changement de nom seul → aucune révocation, rôle fourni mais inchangé →
+aucune révocation). Sortie citée : `tests 237 / pass 237 / fail 0`,
+typecheck 0 erreur. RÉTROGRADÉ PUIS RECONFIRMÉ (session du 2026-07-16,
+audit 4.14, Constat F) : la version précédente du test réimplémentait
+`shouldRevokeSessions` en recopiant la condition source en commentaire,
+sans jamais importer ni appeler le code réel — retrogradé à
+`[À CONFIRMER]`/`code_direct` le temps de la réécriture, reconfirmé
+`IMPLÉMENTÉ`/`test` une fois le nouveau test vert contre le code réel. Voir
+SEC-009 (`en_cours`, pas `resolu` — correction du 2026-07-16 :
+REFERENTIEL.md citait à tort `resolu`, ANOMALIES.yaml fait foi) : la
+révocation était inopérante depuis l'introduction de l'intention (commit
+eb93f08, 2026-07-11) jusqu'à la session du 2026-07-16, l'appel visant une
+méthode qui n'existait sur aucun repository.
+
+**RG-020 — Timeout d'inactivité de session (heartbeat).**
+Une session de connexion au back-office est prolongée par un heartbeat reçu
+dans les `SESSION_IDLE_TIMEOUT_MINUTES` (= 3) suivant le dernier heartbeat
+enregistré ; passé ce délai, un nouveau heartbeat ouvre une nouvelle session
+plutôt que d'étendre l'ancienne, et la session précédente est considérée
+périmée (`closeStaleSessions`, qui fixe `closedAt` au dernier
+`lastHeartbeatAt` connu). *Module : 4.14.* Statut : **`[À CONFIRMER]`**,
+`verifie: code_direct` — server/src/repositories/userSession.repository.ts:6
+(constante), :8-33 (`recordHeartbeat`), :35-46 (`closeStaleSessions`),
+lecture intégrale, session du 2026-07-16 (audit 4.14, Constat B). Le seuil
+de 3 minutes n'a aucune source dans REFERENTIEL.md ni dans un document de
+cadrage — vit uniquement dans le code, sans validation produit connue.
+
+**RG-021 — Protection du dernier Admin.**
+`userService.updateUser` refuse (409, code `LAST_ADMIN`) de retirer le rôle
+ADMIN d'un utilisateur si c'est le dernier compte ADMIN du système ; de même,
+`userService.deleteUser` refuse (409, `LAST_ADMIN`) de supprimer le dernier
+compte ADMIN. *Module : 4.14.* Statut : **IMPLÉMENTÉ**, `verifie: test` —
+server/src/services/user.service.ts:156-159 (`updateUser`) et :177-180
+(`deleteUser`), et server/test/user.service.test.ts (« userService
+last-Admin protection (RG-021) », 5 tests : retrait de rôle du dernier
+Admin → 409 LAST_ADMIN ; changement de rôle autorisé si d'autres Admins
+existent ; suppression du dernier Admin → 409 LAST_ADMIN (et `delete`
+jamais appelé) ; suppression autorisée si d'autres Admins existent ;
+suppression d'un non-Admin ne vérifie jamais le nombre d'Admins), session
+du 2026-07-16 (audit 4.14, Constat H). Sortie citée : `tests 242 / pass 242
+/ fail 0`, exécuté deux fois de suite pour écarter l'intermittence,
+typecheck 0 erreur.
 
 ---
 
@@ -815,3 +904,6 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-16** | **`phone` : la chaîne complète remontée jusqu'au premier littéral frais (server/src/controllers/user.controller.ts:21), qui a fini par produire l'erreur tsc attendue une fois `userService.updateMe` lui-même converti. Décision : `phone` EST un champ voulu sur `User` (cohérent avec Client/Lead/FreelancerApplication) — migration `20260716120000_add_phone_to_user` appliquée, `User.phone String? @db.VarChar(50)`. typecheck vert, 237/237 tests verts.** | **Décision du porteur du projet, session du 2026-07-16 : décision produit explicitement demandée avant toute correction — pas déduite du typage.** |
 | **2026-07-16** | **Face à un blocage (`git switch -c` refusé), une cause plausible non vérifiée (« hook du dépôt ») a été présentée comme un fait au lieu de dire « je n'ai pas la permission ». Règle ajoutée à CLAUDE.md : signaler le blocage tel quel, ne jamais l'expliquer par une supposition, ne jamais contourner sans le dire.** | **Correction du porteur du projet, session du 2026-07-16 : aucun hook git ne peut techniquement bloquer `git switch -c` — c'était une restriction de permissions de l'outil, pas un mécanisme du dépôt. Pas de SEC-013 : il n'y a aucun hook cassé dans le dépôt, la faute est dans le compte-rendu, pas dans le code.** |
 | **2026-07-16** | **`phone` est ajouté au modèle `User` (migration `20260716120000_add_phone_to_user`) plutôt que retiré de la chaîne API. Usage confirmé par lecture directe : `client/src/features/client-portal/ClientProfilePage.tsx` (champ "Téléphone" rendu, ligne 188, `profileSchema` ligne 35) — le portail Client permet à l'utilisateur de rôle Client de renseigner un numéro de contact sur son PROPRE compte `User`, via `PATCH /users/me`. Distinct de `Client.phone` (schema.prisma:300), qui porte le numéro de la fiche Client/entreprise elle-même, renseigné par un Admin/Manager à la création du compte — pas celui de l'utilisateur qui se connecte. `SettingsProfileTab.tsx` (profil Admin/Manager/Freelancer) n'a pas de champ phone dans son formulaire ; seul le portail Client l'utilise actuellement.** | **Décision produit du porteur du projet, session Claude Code du 2026-07-16, en réponse au rapport d'erreur tsc sur `user.controller.ts:21` : arbitrage entre les deux réparations possibles (conformer le code au schéma / conformer le schéma au code) — le porteur a retenu la seconde.** |
+| **2026-07-16** | **Module `4.14 Authentification & Compte utilisateur` formalisé en §4 (ACTIF, `perimetre_code:` sur 27 fichiers) et en EXPLORATION.md (couverture `lu`). Le module existait dans le code et était cité par SEC-006/SEC-009/SEC-011 et RG-019 depuis le 2026-07-16 sans jamais figurer au référentiel — une session ultérieure aurait dérivé un périmètre différent du mien, rendant les deux audits incomparables.** | **Instruction du porteur du projet, session du 2026-07-16 (audit 4.14) : la liste de fichiers de l'audit devient le `perimetre_code:` officiel, pour que l'audit soit rejouable.** |
+| **2026-07-16** | **SEC-006 rouverte (`ouvert`, gravité `majeur`) : le critère de résolution qui l'avait fait passer `en_cours` (« PATCH /users/me avec phone ne provoque plus d'erreur ») testait l'absence d'un symptôme (le 500), pas la présence de la fonction. `phone` est bien persisté depuis la migration, mais jamais relu par l'API, jamais pré-rempli dans le formulaire du portail Client, et jamais effaçable une fois enregistré (`data.phone \|\| undefined` transforme une chaîne vide en `undefined`, que Prisma omet de l'UPDATE). Nouveau critère : écriture-puis-relecture-puis-suppression, vérifié par un test d'intégration.** | **Correction du porteur du projet, session du 2026-07-16 (audit 4.14, Constat C) : un critère de résolution qui teste seulement l'absence d'erreur peut se satisfaire d'une fonctionnalité qui ne marche toujours pas — passée d'un échec visible (500) à une perte silencieuse.** |
+| **2026-07-16** | **RG-019 rétrogradée de `IMPLÉMENTÉ` à `[À CONFIRMER]` : `verifie: test` retiré, remplacé par `verifie: code_direct`. Le comportement du code reste conforme à la règle (vérifié par lecture directe) — c'est la preuve par test qui est invalidée : `user.service.test.ts` réimplémentait la condition de révocation dans une fonction locale (`shouldRevokeSessions`) au lieu d'importer et d'appeler `userService.updateUser`, donc resterait vert si le code réel dérivait.** | **Correction du porteur du projet, session du 2026-07-16 (audit 4.14, Constat F), à partir d'un défaut que l'auditeur a lui-même démasqué dans son propre test d'une session antérieure.** |
