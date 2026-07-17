@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-012
+dernier_id: SEC-013
 
 anomalies:
   - id: SEC-001
@@ -207,7 +207,7 @@ anomalies:
     regle_violee: null
     classe: "type_frontend_desynchronise_du_schema_prisma"
     gravite: majeur
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       C'est résolu quand un utilisateur du portail Client peut (1) saisir son
       numéro et l'enregistrer, (2) recharger la page et le voir affiché en
@@ -247,6 +247,34 @@ anomalies:
       pire, pas mieux. Gravité redescendue de `bloquant`-candidate à `majeur` :
       le 500 est corrigé (le champ existe désormais en base), mais la feature
       ne fonctionne toujours pas de bout en bout.
+
+      CORRECTIF ÉCRIT (pas résolu), session du 2026-07-16 (audit + correction
+      4.14, mode rapide) : les trois défauts (a)(b)(c) corrigés.
+      (a) `phone` ajouté à `userPublicFields`
+      (server/src/repositories/user.repository.ts:6-17) et à `toAuthUser`/
+      `issueTokens` (server/src/services/auth.service.ts:25-37, :219-222) ;
+      `client/src/types/auth.ts` porte désormais `phone?: string | null` ;
+      la vue lecture de ClientProfilePage.tsx affiche `user?.phone`.
+      (b) le formulaire d'édition pré-remplit `phone: user?.phone ?? ""`
+      (ClientProfilePage.tsx:70, :80) au lieu de `""` codé en dur.
+      (c) `handleProfileSubmit` envoie désormais `phone: data.phone || null`
+      (ClientProfilePage.tsx:87-90) — un champ vidé écrit explicitement
+      `null` (effacement réel), au lieu de `undefined` (omis par Prisma, donc
+      jamais effaçable). `user.controller.ts:20` et `updateMeSchema`
+      acceptent déjà `phone: string | null`.
+      Non corrigé dans cette passe : (d) le swagger de user.routes.ts:87-92
+      reste sans `phone` — documentation seule, laissée pour ne pas dévier
+      du périmètre fonctionnel de cette correction.
+      Preuve : server/test/user.service.test.ts, nouveau bloc
+      « userService.updateMe phone write/read/clear (SEC-006) », 3 tests —
+      écriture d'un numéro puis relecture exacte de la valeur transmise au
+      repository ; soumission d'un champ vidé → `null` explicite écrit (pas
+      omis) ; mise à jour ne touchant pas `phone` (ex. nom seul) → la clé
+      `phone` est absente du payload d'update (ne touche pas la valeur
+      stockée). Sortie citée : `tests 245 / pass 245 / fail 0`, exécuté deux
+      fois de suite. typecheck server ET client : 0 erreur. Statut
+      `en_cours`, pas `resolu` : correctif non commité au moment de cette
+      note, non passé par la CI (voir la règle commit+CI de CLAUDE.md).
 
       Historique conservé (note d'origine, avant réouverture) : >
       Chemin lu intégralement ligne par ligne, session du 2026-07-16 (pas par
@@ -654,3 +682,34 @@ anomalies:
       après cette migration. SEC-006 (l'anomalie d'origine sur ce même
       champ) peut passer `resolu` sous les mêmes conditions que SEC-009/011
       (commit + CI verte), pas avant.
+
+  - id: SEC-013
+    titre: "6 tests client échouent, préexistants et hors périmètre 4.14"
+    perimetre: "transverse — client/src/features/landing/pages/ContactPage.test.tsx, client/src/hooks/useFreelancerApplications.test.tsx, client/src/components/common/FileUploadField.test.tsx"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `npm run test --workspace=client` sort en 0
+      (exit code 0, aucun test en échec).
+    detecte_le: "2026-07-16"
+    source: script
+    confiance: certain
+    note: >
+      Rencontré incidemment, session du 2026-07-16 (audit + correction 4.14,
+      mode rapide) : `npm run test --workspace=client` exécuté pour vérifier
+      l'absence de régression après les corrections SEC-006 — 6 tests en
+      échec sur 3 fichiers, sans rapport avec 4.14 (ContactPage : validation
+      téléphone tunisien +216, champ budget ; useFreelancerApplications :
+      gestion d'erreur 500 ; FileUploadField : rejet de fichier au-dessus de
+      maxSizeMb). Vérifié directement que ces échecs préexistaient AVANT
+      toute modification de cette session : `git stash push` sur les 2
+      fichiers client modifiés (ClientProfilePage.tsx, types/auth.ts) puis
+      relance des 3 fichiers de test → mêmes 6 échecs, `git stash pop` pour
+      restaurer. Non corrigé dans cette passe : hors périmètre du module
+      4.14 audité, et la règle du mode rapide de cette session limite la
+      correction aux écarts du module cité. `[À CONFIRMER]` sur la cause
+      profonde de chacun des 6 échecs — non investiguée au-delà de la
+      confirmation qu'ils sont indépendants des changements de cette
+      session.

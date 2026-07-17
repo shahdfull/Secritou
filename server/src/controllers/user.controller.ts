@@ -17,7 +17,7 @@ export const getMe: RequestHandler = async (req, res, next) => {
 // requestEmailChange, which requires confirmation via a link sent to the new address.
 export const updateMe: RequestHandler = async (req, res, next) => {
   try {
-    const { name, phone } = req.body as { name?: string; phone?: string };
+    const { name, phone } = req.body as { name?: string; phone?: string | null };
     const user = await userService.updateMe(req.user!.sub, { name, phone });
     res.json({ data: user });
   } catch (error) {

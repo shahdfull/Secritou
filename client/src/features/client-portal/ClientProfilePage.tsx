@@ -67,7 +67,7 @@ export function ClientProfilePage() {
     defaultValues: {
       name: user?.name ?? "",
       email: user?.email ?? "",
-      phone: "",
+      phone: user?.phone ?? "",
     },
   });
 
@@ -77,14 +77,17 @@ export function ClientProfilePage() {
       profileForm.reset({
         name: user.name ?? "",
         email: user.email ?? "",
-        phone: "",
+        phone: user.phone ?? "",
       });
     }
   }, [user, profileForm]);
 
   const handleProfileSubmit = (data: ProfileForm) => {
     updateMe.mutate(
-      { name: data.name, email: data.email, phone: data.phone || undefined },
+      // An empty string means the user cleared the field and wants the number removed —
+      // must be sent as `null` (an explicit write), not `undefined` (Prisma omits the
+      // field entirely from the UPDATE, which would leave a previously-saved number in place).
+      { name: data.name, email: data.email, phone: data.phone || null },
       {
         onSuccess: () => {
           setIsEditing(false);
@@ -222,6 +225,10 @@ export function ClientProfilePage() {
               <div>
                 <dt className="text-sm text-muted-foreground">Email</dt>
                 <dd className="font-medium">{user?.email ?? ":"}</dd>
+              </div>
+              <div>
+                <dt className="text-sm text-muted-foreground">Téléphone</dt>
+                <dd className="font-medium">{user?.phone || ":"}</dd>
               </div>
               <div>
                 <dt className="text-sm text-muted-foreground">Rôle</dt>

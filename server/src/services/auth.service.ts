@@ -23,12 +23,13 @@ function hashToken(token: string) {
 const DUMMY_PASSWORD_HASH = "$2a$12$CwTycUXWue0Thq9StjUM0uJ8pP9V.a9Y0Kx.9zEXZ6UEgQ6t6Gxsi";
 
 function toAuthUser(
-  user: Pick<User, "id" | "email" | "name" | "role" | "clientId" | "mustChangePassword">
+  user: Pick<User, "id" | "email" | "name" | "phone" | "role" | "clientId" | "mustChangePassword">
 ) {
   return {
     id: user.id,
     email: user.email,
     name: user.name,
+    phone: user.phone,
     role: user.role,
     clientId: user.clientId,
     mustChangePassword: user.mustChangePassword,
@@ -216,7 +217,7 @@ export class AuthService {
   }
 
   private async issueTokens(
-    user: Pick<User, "id" | "email" | "name" | "role" | "clientId" | "mustChangePassword">,
+    user: Pick<User, "id" | "email" | "name" | "phone" | "role" | "clientId" | "mustChangePassword">,
     existingFamilyId?: string
   ) {
     const familyId = existingFamilyId || randomBytes(16).toString("hex");

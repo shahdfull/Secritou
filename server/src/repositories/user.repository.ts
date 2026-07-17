@@ -7,6 +7,7 @@ const userPublicFields = {
   id: true,
   email: true,
   name: true,
+  phone: true,
   role: true,
   clientId: true,
   mustChangePassword: true,

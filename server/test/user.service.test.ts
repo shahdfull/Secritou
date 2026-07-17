@@ -176,3 +176,46 @@ describe("userService last-Admin protection (RG-021)", () => {
     assert.equal(deleteMock.mock.callCount(), 1);
   });
 });
+
+describe("userService.updateMe phone write/read/clear (SEC-006)", () => {
+  let findByIdMock: ReturnType<typeof mock.method>;
+  let updateMeMock: ReturnType<typeof mock.method>;
+
+  before(() => {
+    findByIdMock = mock.method(userRepository, "findById", async () => makeUser());
+    // Mirrors the real repository: `data` is passed straight to `prisma.user.update`,
+    // so whatever was written is exactly what a subsequent read would return.
+    updateMeMock = mock.method(userRepository, "updateMe", async (id: string, data: Record<string, unknown>) => ({
+      ...makeUser(),
+      phone: "phone" in data ? data.phone : undefined,
+    }));
+  });
+
+  after(() => {
+    mock.restoreAll();
+  });
+
+  test("writing a phone number persists it and it is read back unchanged", async () => {
+    const result = await userService.updateMe("user-1", { phone: "+216 12 345 678" });
+
+    assert.equal(updateMeMock.mock.callCount(), 1);
+    const [, dataArg] = updateMeMock.mock.calls[0]!.arguments as [string, Record<string, unknown>];
+    assert.equal(dataArg.phone, "+216 12 345 678", "the exact value written must reach the repository");
+    assert.equal(result.phone, "+216 12 345 678", "the value returned to the caller (and re-displayed) must match");
+  });
+
+  test("submitting an empty phone clears it (writes null, not omitted)", async () => {
+    const result = await userService.updateMe("user-1", { phone: null });
+
+    const [, dataArg] = updateMeMock.mock.calls[updateMeMock.mock.callCount() - 1]!.arguments as [string, Record<string, unknown>];
+    assert.equal(dataArg.phone, null, "clearing the field must write an explicit null, not omit the key");
+    assert.equal(result.phone, null, "the number must actually be gone, not silently kept");
+  });
+
+  test("omitting phone entirely (e.g. a name-only update) does not touch the stored value", async () => {
+    await userService.updateMe("user-1", { name: "New Name" });
+
+    const [, dataArg] = updateMeMock.mock.calls[updateMeMock.mock.callCount() - 1]!.arguments as [string, Record<string, unknown>];
+    assert.ok(!("phone" in dataArg), "phone must be absent from the update payload, not sent as undefined/null");
+  });
+});
