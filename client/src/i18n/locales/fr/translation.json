@@ -625,7 +625,9 @@
       "approvals": "Approbations",
       "documents": "Documents",
       "proposals": "Propositions",
-      "service-requests": "Demandes de service"
+      "service-requests": "Demandes de service",
+      "client-success": "Succès Client",
+      "client-onboarding": "Onboarding client"
     },
     "actions": {
       "read": "Voir",

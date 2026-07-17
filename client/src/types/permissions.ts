@@ -10,6 +10,8 @@ export const MODULES = [
   "documents",
   "proposals",
   "service-requests",
+  "client-success",
+  "client-onboarding",
 ] as const;
 
 export type Module = (typeof MODULES)[number];

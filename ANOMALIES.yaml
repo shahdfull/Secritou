@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-024
+dernier_id: SEC-025
 
 anomalies:
   - id: SEC-001
@@ -1882,3 +1882,70 @@ anomalies:
       dashboard qui affiche un badge incohérent et masque des risques
       projet déjà comptés ailleurs, mais aucune perte de données ni
       blocage fonctionnel (contrairement à SEC-023).
+
+  - id: SEC-025
+    titre: "client/src/types/permissions.ts#MODULES désynchronisé du serveur : client-success et client-onboarding absents, jamais affichés dans la grille de permissions"
+    perimetre: "4.10 RBAC & Permissions granulaires — client/src/types/permissions.ts, client/src/features/settings/PermissionsGrid.tsx"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand un Admin peut réellement cocher/décocher les
+      permissions client-success et client-onboarding pour un Manager dans
+      la grille de permissions (Settings → Utilisateurs), et que la liste
+      de modules côté client correspond exactement à celle utilisée par
+      `requirePermission(module, action)` côté serveur.
+    detecte_le: "2026-07-17"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Trouvé en lisant `client/src/features/settings/PermissionsGrid.tsx`,
+      dernier fichier du `perimetre_code` de 4.10 restant à lire après
+      l'entité 3.21 (server déjà confirmé intégralement le même jour) —
+      pas pendant un audit formel du module lui-même mais pendant la
+      lecture exhaustive requise pour le classer, enregistré immédiatement
+      conformément à CLAUDE.md.
+
+      CONSTAT : `client/src/types/permissions.ts#MODULES` listait 11
+      modules ; `server/src/services/managerPermission.service.ts#MODULES`
+      (déjà lu intégralement à l'entité 3.21, même session) en liste 13 —
+      `client-success` et `client-onboarding` manquants côté client.
+      `PermissionsGrid.tsx` et `SettingsUsersTab.tsx` itèrent tous deux
+      génériquement sur `MODULES` (aucun cas particulier par module,
+      vérifié par lecture directe), donc les 2 modules manquants
+      n'affichaient tout simplement aucune ligne dans la grille — un Admin
+      ne pouvait jamais accorder l'accès Client Success / Client
+      Onboarding à un Manager via l'UI, quelle que soit la configuration.
+      PAS une faille de sécurité : `requirePermission` (rbac.middleware.ts)
+      refuse par défaut (`permissions[module]?.[action]` est `undefined`
+      pour un module absent de la map résolue, donc falsy → 403) — c'est
+      une régression fonctionnelle silencieuse (refus permanent, jamais un
+      accès accordé à tort), pas une élévation de privilège.
+
+      CORRECTIF ÉCRIT : `client-success`/`client-onboarding` ajoutés à
+      `client/src/types/permissions.ts#MODULES` (source de vérité unique
+      consommée par `PermissionsGrid.tsx` et `SettingsUsersTab.tsx`, aucun
+      autre fichier ne duplique la liste — vérifié par grep). Clés i18n
+      `permissions.modules.client-success`/`client-onboarding` ajoutées en
+      FR et EN (`client/src/i18n/locales/{fr,en}/translation.json`),
+      libellé FR aligné sur la convention déjà existante du menu
+      (`nav.clientSuccess`: "Succès Client").
+
+      `npx tsc --noEmit` vert côté client. Pas de test automatisé ajouté :
+      composant purement présentationnel sans harnais de test existant
+      dans ce dépôt (aucun `*.test.tsx` pour `features/settings/**`) — la
+      garantie tient à la lecture directe confirmant que `MODULES` est
+      bien la seule source consommée génériquement, pas à un test. **Limite
+      de vérification signalée explicitement : aucun outil de navigateur
+      disponible dans cet environnement pour cliquer réellement sur
+      Settings → Utilisateurs et confirmer visuellement les 2 nouvelles
+      lignes — vérification de niveau code uniquement (typecheck +
+      lecture directe du rendu générique), pas un test UI en conditions
+      réelles.**
+
+      `resolu` déclaré SANS confirmation CI — dérogation explicite à la
+      règle commit+CI de CLAUDE.md, déjà établie par le porteur du projet
+      dans cette même session (« no make it resolu »). Gravité `mineur` :
+      fonctionnalité manquante silencieuse, pas de perte de données ni de
+      trou de sécurité (défaut = refus, jamais accès).
