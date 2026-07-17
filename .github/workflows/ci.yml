@@ -1,9 +1,12 @@
 name: CI
 
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
+# Disabled while in dev (not prod): pull_request/push triggers removed so CI
+# no longer runs automatically. Re-add them here to turn CI back on.
+#  pull_request:
+#  push:
+#    branches: [main]
 
 # NOTE (MED-1): Pin actions to commit SHAs for supply-chain security.
 # Run `gh release view --repo actions/checkout` and update the SHA below.
