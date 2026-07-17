@@ -46,3 +46,4 @@ import "./analyticsEvent.routes.test.ts";
 import "./analyticsCommissionScope.test.ts";
 import "./projectUpdateBlocksCompletion.test.ts";
 import "./userProfilePhone.http.test.ts";
+import "./checkInvoiceFollowup.test.ts";

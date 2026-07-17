@@ -147,9 +147,14 @@ export async function checkOverdueDeadlines() {
 }
 
 // ── check-invoice-followup ───────────────────────────────────────────────────
-// Every Monday 09:00 — SENT/PARTIAL invoices without full payment for > 7 days.
-// Auto-sends a tiered client reminder (FIRST/SECOND/FINAL at 7/14/30 days overdue),
-// deduplicated against InvoiceReminder so each tier is only ever sent once per invoice.
+// Every Monday 09:00 — SENT/PARTIAL/OVERDUE invoices past their dueDate for > 7 days.
+// Auto-sends a tiered client reminder (FIRST/SECOND/FINAL at 7/14/30 days overdue,
+// measured from dueDate — not createdAt, see SEC-014), deduplicated against
+// InvoiceReminder so each tier is only ever sent once per invoice. Includes OVERDUE
+// invoices (SEC-015): markOverdueInvoices (maintenance.processor.ts) only fires a
+// single transition notification when SENT/PARTIAL → OVERDUE — without this filter
+// covering OVERDUE too, an invoice that crosses that line stops receiving any further
+// reminder forever, no matter how many additional days of retard accumulate.
 function reminderTierForDaysOverdue(daysOverdue: number): "FIRST" | "SECOND" | "FINAL" | null {
   if (daysOverdue >= 30) return "FINAL";
   if (daysOverdue >= 14) return "SECOND";
@@ -163,8 +168,8 @@ export async function checkInvoiceFollowup() {
 
   const invoices = await prismaRead.invoice.findMany({
     where: {
-      status: { in: ["SENT", "PARTIAL"] },
-      createdAt: { lt: cutoff },
+      status: { in: ["SENT", "PARTIAL", "OVERDUE"] },
+      dueDate: { lt: cutoff },
       reminderPaused: false,
     },
     select: {
@@ -172,7 +177,7 @@ export async function checkInvoiceFollowup() {
       number: true,
       amount: true,
       currency: true,
-      createdAt: true,
+      dueDate: true,
       client: { select: { name: true } },
       reminders: { select: { type: true } },
     },
@@ -188,7 +193,11 @@ export async function checkInvoiceFollowup() {
   const finalNoticeInvoices: typeof invoices = [];
 
   for (const inv of invoices) {
-    const daysOverdue = diffDays(inv.createdAt, new Date());
+    // dueDate is guaranteed non-null here (query filters on `dueDate: { lt: cutoff }`,
+    // which never matches null) — the type stays nullable because Prisma can't encode
+    // that filter->non-null relationship, so this is a defensive skip, not an expected path.
+    if (!inv.dueDate) continue;
+    const daysOverdue = diffDays(inv.dueDate, new Date());
     const tier = reminderTierForDaysOverdue(daysOverdue);
     const alreadySent = tier ? inv.reminders.some((r) => r.type === tier) : true;
     if (tier && !alreadySent) {
@@ -213,15 +222,17 @@ export async function checkInvoiceFollowup() {
 
   void notifyN8n("invoice.followup", {
     agencyEmail: env.CONTACT_RECEIVER_EMAIL,
-    invoices: invoices.map((inv) => ({
-      invoiceId: inv.id,
-      number: inv.number,
-      amount: Number(inv.amount),
-      currency: inv.currency ?? "TND",
-      clientName: inv.client?.name,
-      daysOverdue: diffDays(inv.createdAt, new Date()),
-      adminUrl: `${env.FRONTEND_URL}/app/commercial?tab=invoices`,
-    })),
+    invoices: invoices
+      .filter((inv) => inv.dueDate)
+      .map((inv) => ({
+        invoiceId: inv.id,
+        number: inv.number,
+        amount: Number(inv.amount),
+        currency: inv.currency ?? "TND",
+        clientName: inv.client?.name,
+        daysOverdue: diffDays(inv.dueDate!, new Date()),
+        adminUrl: `${env.FRONTEND_URL}/app/commercial?tab=invoices`,
+      })),
   });
 
   // Escalation distinct from invoice.followup — fires only for invoices newly crossing the
@@ -236,7 +247,9 @@ export async function checkInvoiceFollowup() {
         amount: Number(inv.amount),
         currency: inv.currency ?? "TND",
         clientName: inv.client?.name,
-        daysOverdue: diffDays(inv.createdAt, new Date()),
+        // Non-null: finalNoticeInvoices is only ever populated after the loop's
+        // `if (!inv.dueDate) continue` guard above.
+        daysOverdue: diffDays(inv.dueDate!, new Date()),
         adminUrl: `${env.FRONTEND_URL}/app/commercial?tab=invoices`,
       })),
     });
