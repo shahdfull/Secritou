@@ -577,12 +577,16 @@ fichiers manquants (`serviceRequest.repository.ts`, `.controller.ts`,
       - client/src/features/service-requests/**
       - client/src/features/questions/**
 
-### 4.7 Freelances — **[À CONFIRMER — non trié]**
-Recrutement (candidatures), profils, compétences, évaluations. **Ne peut pas
-être classé GELÉ : EXPLORATION.md marque ce module `non exploré` (aucun
-fichier ouvert directement, structure supposée uniquement via schema.prisma).
-Geler exige d'abord de savoir ce qu'on gèle — voir CLAUDE.md.** Reste à
-trancher ACTIF/GELÉ/HORS PÉRIMÈTRE après une première lecture directe.
+### 4.7 Freelances — **ACTIF**
+Recrutement (candidatures), profils, compétences, évaluations. Lecture
+directe intégrale des 9 fichiers serveur (session 2026-07-17, ~700 lignes) :
+CRUD complet et sain, rédaction correcte des champs sensibles
+(`hourlyRate`/`bio`/`email` masqués pour un FREELANCER consultant un autre
+profil, jamais exposés à un CLIENT qui n'a de toute façon aucun accès à ces
+routes). **La fuite historique de `hourlyRate` mentionnée dans
+`plan d'action.md` (audit antérieur, historique) est infirmée par cette
+lecture directe** — soit déjà corrigée depuis, soit jamais confirmée sur le
+code réel. Aucune anomalie trouvée.
 
     perimetre_code:
       - server/src/services/freelancer.service.ts
@@ -1060,7 +1064,7 @@ pour la conséquence opérationnelle sur les audits).
 
 | Sujet | Statut | Pourquoi |
 |---|---|---|
-| 4.7 Freelances | `[À CONFIRMER — non trié]` | EXPLORATION.md le marque `non exploré` ; ne peut être classé GELÉ avant une première lecture directe (voir CLAUDE.md). |
+| 4.7 Freelances | ACTIF | Lecture directe intégrale (9 fichiers, session 2026-07-17), aucune anomalie — décision du porteur du projet. |
 | 4.8 Analytics & Performance | `[À CONFIRMER — non trié]` | Idem — `non exploré`. |
 | 4.9 Client Success | GELÉ | Couverture `partiel` (au moins un document direct exploité) ; calcul partiellement automatisé seulement, 0 client actif pour l'alimenter. |
 | 4.10 RBAC & Permissions granulaires | `[À CONFIRMER — non trié]` | Idem 4.7/4.8 — `non exploré`. |
@@ -1140,3 +1144,4 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-17** | **Entité 3.19 GscConnection/MetricSnapshot relevée de `[À CONFIRMER]`/`audit_anterieur` à IMPLÉMENTÉ/`code_direct` (594 lignes lues intégralement sur 8 fichiers). Le statut PARTIEL de la v0.1.0 (« restitution admin-only, absence côté client »), repris d'un audit antérieur, est infirmé par lecture directe : `clientPortal.controller.ts#getClientPortalSeoMetrics` expose bien une lecture des métriques scopée au client authentifié.** | **Reprise de la lecture exhaustive des modules `[À CONFIRMER]`, session du 2026-07-17.** |
 | **2026-07-17** | **Entité 3.20 ClientSuccess relevée de `[À CONFIRMER]`/`document` à IMPLÉMENTÉ/`code_direct` (517 lignes lues intégralement sur 4 fichiers). Calcul de score confirmé (50% manuel + 50% auto, plafonné à 100), ownership vérifié sur chaque mutation, confirmé qu'aucun rôle CLIENT n'a accès à ce module (cohérent avec sa nature d'outil de pilotage interne). Aucune anomalie trouvée.** | **Reprise de la lecture exhaustive des modules `[À CONFIRMER]`, session du 2026-07-17.** |
 | **2026-07-17** | **Entité 3.21 PermissionProfile/ManagerPermission relevée de `[À CONFIRMER]`/`document` à IMPLÉMENTÉ/`code_direct` (411 lignes lues intégralement sur 8 fichiers). Confirme exactement le texte de README.md (cache Redis 300s, deepMerge). Toutes les entités §3 encore `[À CONFIRMER]` sont désormais résolues — reste à trancher le statut ACTIF/GELÉ des modules 4.7/4.8/4.10 eux-mêmes.** | **Reprise de la lecture exhaustive des entités `[À CONFIRMER]`, session du 2026-07-17.** |
+| **2026-07-17** | **Module 4.7 Freelances classé ACTIF (9 fichiers lus intégralement, ~700 lignes, aucune anomalie trouvée). La fuite historique de `hourlyRate` (`plan d'action.md`, audit antérieur) est infirmée par lecture directe : `freelancer.controller.ts#redactSensitiveInfo` masque correctement `hourlyRate`/`bio`/`email` pour un FREELANCER consultant un autre profil, et le rôle CLIENT n'a de toute façon accès à aucune route de ce module.** | **Réponse du porteur du projet, session du 2026-07-17, face au choix ACTIF/GELÉ/investiguer le volume réel — « ACTIF (Recommandé) ».** |
