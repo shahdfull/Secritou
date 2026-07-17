@@ -149,7 +149,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: majeur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand README.md ne contient plus aucune affirmation
       multi-tenant ni référence à un middleware tenant, et que sa
@@ -172,6 +172,18 @@ anomalies:
       Arbitrage rendu : la cible est un outil interne MONO-TENANT (réponse du
       porteur du projet, session du 2026-07-16, Q2) — voir REFERENTIEL.md §6,
       "Architecture multi-tenant : REJETÉ".
+
+      RÉSOLU (session du 2026-07-17) : README.md:3 reformulé (« a full-stack
+      internal platform for a single digital agency [...] mono-tenant
+      workspace », au lieu de « multi-tenant workspace ») ; README.md:102
+      corrigé (`tenant` retiré de la liste illustrative des middlewares).
+      Recherche exhaustive `grep -in "tenant"` sur tout README.md après
+      correction : plus aucune occurrence hors la mention correcte
+      « mono-tenant » elle-même. Confirmé directement : `ls
+      server/src/middlewares/` liste toujours les 11 mêmes fichiers réels
+      (auth, cache, error, logging, metricsAuth, mustChangePassword,
+      rateLimit, rbac, upload, validate, verifyN8nWebhook), aucun
+      `tenant.middleware.ts`.
 
   - id: SEC-005
     titre: "Type frontend désynchronisé du schéma Prisma — champ mort (Lead.companyId)"

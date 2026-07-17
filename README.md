@@ -1,6 +1,6 @@
 # Secritou : Growth & Digital Transformation Platform
 
-A full-stack SaaS platform for agencies and SMEs: CRM, project management, client portal, freelancer marketplace, and document automation : all in one multi-tenant workspace.
+A full-stack internal platform for a single digital agency: CRM, project management, client portal, freelancer marketplace, and document automation : all in one mono-tenant workspace.
 
 ## Features
 
@@ -99,7 +99,7 @@ secritou/
 │       ├── services/        # Business logic layer
 │       ├── repositories/    # Data access layer (Prisma)
 │       ├── routes/          # Express routers
-│       ├── middlewares/     # auth, RBAC, tenant, validate, rate-limit
+│       ├── middlewares/     # auth, RBAC, validate, rate-limit, upload
 │       ├── jobs/            # BullMQ queues + processors
 │       ├── cache/           # Redis helpers + cache keys
 │       ├── constants/       # Brief questions, etc.
