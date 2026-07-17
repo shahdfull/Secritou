@@ -342,10 +342,19 @@ ADMIN/MANAGER de `/integrations/gsc` qui gère connexion/déconnexion.
 
 ### 3.20 ClientSuccess (et sous-entités)
 Suivi de la réussite client, score 0-100.
-**Statut : `[À CONFIRMER]`. `verifie: document`** — le seuil d'alerte (50) et
-la tâche planifiée quotidienne proviennent de `docs/n8n-events.md` (lu
-intégralement, mais ce document décrit des événements, pas le code source
-du calcul lui-même) ; `clientSuccess.service.ts` non lu directement.
+**Statut : IMPLÉMENTÉ. `verifie: code_direct`** (session du 2026-07-17 :
+`clientSuccess.service.ts` (151 l.), `.repository.ts` (123 l.),
+`.controller.ts` (108 l.), `.routes.ts` (135 l.) lus intégralement — 517
+lignes. Score calculé (`calculateScore`) : 50% manuel (objectifs 20%,
+métriques 15%, recommandations 15%) + 50% auto (ponctualité paiement 20%,
+délai paiement 15%, projet actif 10%, ancienneté 5%), plafonné à 100.
+Recalcul déclenché après tout changement pertinent (`recalcAndPersist`,
+non-fatal — une erreur de scoring n'interrompt jamais l'action
+déclenchante). Repository vérifie l'ownership par `clientId` sur chaque
+mutation quand fourni par le portail (jamais exposé au rôle CLIENT
+lui-même — `clientSuccess.routes.ts` est intégralement ADMIN/MANAGER,
+confirmé aucune fuite vers `clientPortal.controller.ts`, cohérent avec la
+nature interne de cet outil de pilotage). Aucune anomalie trouvée.
 
 ### 3.21 PermissionProfile / ManagerPermission
 Système de permissions granulaires par manager.
@@ -1114,3 +1123,4 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-17** | **Entité 3.17 Approval relevée de `[À CONFIRMER]`/`schema_seul` à IMPLÉMENTÉ/`code_direct` — resynchronisation avec le statut déjà établi pour le module 4.6 (marqué `lu` dans EXPLORATION.md depuis le 2026-07-16/17), jamais répercuté sur l'entité elle-même. Pas de nouvelle lecture nécessaire, seule une incohérence de statut corrigée.** | **Constat direct en poursuivant la lecture exhaustive des entités `[À CONFIRMER]`, session du 2026-07-17.** |
 | **2026-07-17** | **Entité 3.18 Document relevée de `[À CONFIRMER]`/`schema_seul` à IMPLÉMENTÉ/`code_direct` (355 lignes lues intégralement). SEC-023 trouvée et corrigée, gravité `bloquant` : la signature de contrat ne fonctionnait jamais, sur aucun chemin — `Document.signedByClientId` est une FK vers `User.id`, pas `Client.id`, malgré son nom ; le code y écrivait l'id du Client, violant systématiquement la contrainte. Reproduit réellement sur le chemin normal (document lié à un projet) et sur le cas limite (document sans projet), corrigé, testé.** | **Constat incident pendant la lecture exhaustive des modules `[À CONFIRMER]`, enregistré immédiatement conformément à CLAUDE.md. Fonctionnalité citée dans README.md comme livrée mais jamais réellement fonctionnelle depuis l'introduction du champ.** |
 | **2026-07-17** | **Entité 3.19 GscConnection/MetricSnapshot relevée de `[À CONFIRMER]`/`audit_anterieur` à IMPLÉMENTÉ/`code_direct` (594 lignes lues intégralement sur 8 fichiers). Le statut PARTIEL de la v0.1.0 (« restitution admin-only, absence côté client »), repris d'un audit antérieur, est infirmé par lecture directe : `clientPortal.controller.ts#getClientPortalSeoMetrics` expose bien une lecture des métriques scopée au client authentifié.** | **Reprise de la lecture exhaustive des modules `[À CONFIRMER]`, session du 2026-07-17.** |
+| **2026-07-17** | **Entité 3.20 ClientSuccess relevée de `[À CONFIRMER]`/`document` à IMPLÉMENTÉ/`code_direct` (517 lignes lues intégralement sur 4 fichiers). Calcul de score confirmé (50% manuel + 50% auto, plafonné à 100), ownership vérifié sur chaque mutation, confirmé qu'aucun rôle CLIENT n'a accès à ce module (cohérent avec sa nature d'outil de pilotage interne). Aucune anomalie trouvée.** | **Reprise de la lecture exhaustive des modules `[À CONFIRMER]`, session du 2026-07-17.** |
