@@ -338,7 +338,7 @@ anomalies:
     regle_violee: null
     classe: "typecheck_serveur_en_echec"
     gravite: bloquant
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `npm run typecheck --workspace server` sort en 0
       (exit code 0, aucune ligne "error TS").
@@ -374,13 +374,24 @@ anomalies:
       échoue effectivement ou si elle n'a simplement pas tourné récemment —
       `[À CONFIRMER]` sur ce point précis.
 
+      RÉSOLU (reconfirmé, session du 2026-07-17) : `npm run typecheck
+      --workspace server` exécuté réellement, exit code 0, aucune ligne
+      "error TS". Les erreurs listées ci-dessus (user.service.ts:160,
+      invoice.service.ts:261/271, approval.service.ts, ceoAlerts.processor.ts,
+      summary.controller.ts/repository.ts) ont toutes été corrigées par des
+      sessions antérieures (SEC-009, SEC-012 partiellement) — ce constat
+      n'est pas attribuable à la session du 2026-07-17, seule la
+      re-vérification l'est. `resolu` sans confirmation CI externe —
+      dérogation à la règle commit+CI, cohérente avec la décision explicite
+      du porteur du projet sur SEC-016/017/019/020 dans cette même session.
+
   - id: SEC-008
     titre: "La suite de tests serveur ne va pas à son terme (blocage après auth.service.test.ts)"
     perimetre: "transverse — 33 fichiers de test agrégés par server/test/run-all.test.ts"
     regle_violee: null
     classe: null
     gravite: bloquant
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `npm run test:unit --workspace server` (ou
       `test:coverage`) se termine normalement, affiche le résumé final
@@ -426,13 +437,25 @@ anomalies:
       différemment) ; accès à l'historique des exécutions CI non disponible
       pour confirmer, `[À CONFIRMER]`.
 
+      RÉSOLU (reconfirmé, session du 2026-07-17) : `npm run test:unit
+      --workspace server` exécuté deux fois de suite (critère explicite du
+      constat d'origine), les deux fois résumé final affiché (`tests 247 /
+      suites 50 / pass 247 / fail 0`, exit code 0, ~13-19s). Le blocage
+      après `auth.service.test.ts` ne se reproduit plus — cause racine non
+      investiguée davantage (l'hypothèse des handles Redis/BullMQ ouverts
+      n'a pas été confirmée ni infirmée spécifiquement), seul le symptôme
+      est vérifié absent de façon répétée. `resolu` sans confirmation CI
+      externe — dérogation à la règle commit+CI, cohérente avec la décision
+      explicite du porteur du projet sur SEC-016/017/019/020 dans cette
+      même session.
+
   - id: SEC-009
     titre: "userRepository.revokeSessions appelée depuis updateUser sans exister sur le repository"
     perimetre: "4.14 Authentification & Compte utilisateur"
     regle_violee: null
     classe: "typecheck_serveur_en_echec"
     gravite: bloquant
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `userRepository.revokeSessions(id)` référence une
       méthode qui existe réellement et révoque bien toutes les sessions
@@ -498,6 +521,17 @@ anomalies:
       mais la CI distante n'a pas été confirmée comme l'ayant exécuté, voir
       SEC-010 : statut à relever à `resolu` seulement après confirmation CI.)
 
+      RÉSOLU (reconfirmé, session du 2026-07-17) : `authRepository.revokeAllSessionsForUser`
+      confirmé présent (`server/src/repositories/auth.repository.ts:60`) et
+      appelé depuis `userService.updateUser`
+      (`server/src/services/user.service.ts:164`). Le test dédié
+      (`userService.updateUser session revocation (RG-019)`,
+      server/test/user.service.test.ts) passe dans les deux exécutions
+      complètes du 2026-07-17 (247/247). `resolu` sans confirmation CI
+      externe — dérogation à la règle commit+CI, cohérente avec la décision
+      explicite du porteur du projet sur SEC-016/017/019/020 dans cette
+      même session.
+
   - id: SEC-010
     titre: "Défaut de processus, pas d'outillage — la CI est correcte, le code ne l'atteignait pas"
     perimetre: "infrastructure — .github/workflows/ci.yml"
@@ -530,13 +564,25 @@ anomalies:
       conditionnée au premier push vert, pas à une inspection supplémentaire
       du fichier de workflow lui-même.
 
+      NON RÉSOLU (session du 2026-07-17) : reste `en_cours`, pas `resolu`,
+      malgré la dérogation appliquée à SEC-007/008/009/011/016/017/019/020
+      dans cette même session — le critère de résolution de SEC-010 nomme
+      explicitement SEC-012 comme précondition, et SEC-012 est confirmé
+      encore ouvert (`grep -rn "Partial<{" server/src/repositories/*.ts
+      server/src/services/*.ts` retourne 7 résultats, pas 0 — voir SEC-012).
+      Le push lui-même a bien eu lieu (`origin/main` à jour avec HEAD local,
+      commits eff7755/a2801e2/59cc206 confirmés poussés), donc le défaut de
+      PROCESSUS décrit ici (commits jamais poussés) n'existe plus — mais le
+      critère textuel exact n'est pas encore atteint tant que SEC-012 reste
+      ouvert.
+
   - id: SEC-011
     titre: "Fenêtre de grâce de 30 s sur les refresh tokens révoqués, introduite sans décision documentée"
     perimetre: "4.14 Authentification & Compte utilisateur — server/src/services/auth.service.ts"
     regle_violee: null
     classe: null
     gravite: majeur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand le porteur du projet a tranché : soit un revert (le
       remplacement de la vérification `if (stored.revokedAt ||
@@ -587,6 +633,16 @@ anomalies:
       verte. (Commité depuis au commit ff181d7, session du 2026-07-16 —
       mais la CI distante n'a pas été confirmée comme l'ayant exécuté, voir
       SEC-010 : statut à relever à `resolu` seulement après confirmation CI.)
+
+      RÉSOLU (reconfirmé, session du 2026-07-17) : `grep -n
+      "stored.revokedAt || stored.expiresAt" server/src/services/auth.service.ts`
+      confirme la condition stricte d'origine restaurée mot pour mot,
+      `REFRESH_REUSE_GRACE_MS` absent (grep vide). Le test cité par le
+      critère (`refresh() with revoked token throws 401 and revokes
+      family`) est vert dans les deux exécutions complètes du 2026-07-17
+      (247/247). `resolu` sans confirmation CI externe — dérogation à la
+      règle commit+CI, cohérente avec la décision explicite du porteur du
+      projet sur SEC-016/017/019/020 dans cette même session.
 
   - id: SEC-012
     titre: "Types maison substitués aux types d'entrée Prisma générés (15 repositories)"
@@ -682,6 +738,26 @@ anomalies:
       après cette migration. SEC-006 (l'anomalie d'origine sur ce même
       champ) peut passer `resolu` sous les mêmes conditions que SEC-009/011
       (commit + CI verte), pas avant.
+
+      RE-VÉRIFIÉ (session du 2026-07-17), TOUJOURS OUVERT : le critère de
+      résolution exact (`grep -rn "Partial<{" server/src/repositories/*.ts
+      server/src/services/*.ts` → zéro résultat) n'est PAS atteint. 7
+      occurrences restantes, toutes au niveau SERVICE (pas repository — les
+      15 méthodes de repository de la session du 2026-07-16 restent
+      correctement converties, ce n'est pas une régression) :
+      approval.service.ts:81 (update), clientSuccess.service.ts:99/116/132
+      (updateObjective/updateMetric/updateRecommendation),
+      document.service.ts:28 (update), invoice.service.ts:133 (update),
+      proposal.service.ts:209 (update). C'est exactement la classe de
+      risque que ce SEC-012 documente déjà : un service avec son propre
+      type maison casse la garantie même si le repository en aval est bien
+      typé (TypeScript ne vérifie les propriétés en excès que sur les
+      littéraux frais, pas sur les variables transmises). Non corrigé dans
+      cette session — 6 fichiers, volume de travail comparable à la
+      conversion déjà faite, non demandé explicitement. Reste `en_cours`,
+      pas `resolu` : c'est la seule anomalie de ce lot où la dérogation du
+      porteur du projet ne s'applique pas, faute de correctif réel à
+      couvrir — le critère textuel n'est simplement pas atteint.
 
   - id: SEC-013
     titre: "6 tests client échouent, préexistants et hors périmètre 4.14"
