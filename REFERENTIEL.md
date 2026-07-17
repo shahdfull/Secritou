@@ -321,10 +321,24 @@ réellement (les deux chemins), corrigé, testé
 ### 3.19 GscConnection / MetricSnapshot
 Connexion OAuth à Google Search Console par client, et stockage générique de
 métriques externes.
-**Statut : `[À CONFIRMER]`. `verifie: audit_anterieur`** — 9 fichiers
-identifiés par grep (existence confirmée), aucun contenu lu directement. Le
-statut PARTIEL de la v0.1.0 (« restitution admin-only, absence côté client »)
-provient exclusivement d'un audit antérieur non revérifié — voir PISTES.md.
+**Statut : IMPLÉMENTÉ. `verifie: code_direct`** (session du 2026-07-17 :
+`gscConnection.service.ts` (126 l.), `.repository.ts` (45 l.),
+`googleOAuth.service.ts` (66 l.), `searchConsole.service.ts` (174 l.),
+`metricSnapshot.repository.ts` (55 l.), `metricAnomaly.service.ts` (58 l.),
+`gscConnection.controller.ts` (55 l.), `metricSnapshot.controller.ts`
+(15 l.) lus intégralement — 594 lignes cumulées, les 9 fichiers déjà
+identifiés par grep. Flux OAuth complet et sécurisé (state signé HMAC,
+CSRF, tokens jamais transmis en clair au client, `prompt=consent` pour
+garantir un `refresh_token`), révocation gérée à deux points d'entrée
+(échec de refresh + 401 sur requête), détection d'anomalie de trafic
+(moyenne mobile 7 jours). Aucune anomalie fonctionnelle trouvée.
+**Le statut PARTIEL de la v0.1.0 (« restitution admin-only, absence côté
+client »), repris d'un audit antérieur (voir PISTES.md), est infirmé par
+lecture directe** : `clientPortal.controller.ts#getClientPortalSeoMetrics`
+expose bien une lecture des métriques scopée au client authentifié
+(`req.user!.clientId`, jamais un paramètre d'URL arbitraire) — le portail
+Client a bien accès à ses propres métriques SEO, distinct du chemin
+ADMIN/MANAGER de `/integrations/gsc` qui gère connexion/déconnexion.
 
 ### 3.20 ClientSuccess (et sous-entités)
 Suivi de la réussite client, score 0-100.
@@ -1099,3 +1113,4 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-17** | **Entité 3.16 ServiceRequest relevée de `[À CONFIRMER]`/`schema_seul` à IMPLÉMENTÉ/`code_direct` : les 3 fichiers cœur (service 130 l., repository 188 l., controller 105 l.) lus intégralement. Aucune anomalie fonctionnelle trouvée — `deleteComment` ne vérifie que la propriété du commentaire, pas le scope pôle, mais vérifié non exploitable (un Manager hors-pôle ne peut jamais être auteur d'un commentaire sur une demande hors de son pôle).** | **Reprise de la lecture exhaustive des modules `[À CONFIRMER]`, session du 2026-07-17.** |
 | **2026-07-17** | **Entité 3.17 Approval relevée de `[À CONFIRMER]`/`schema_seul` à IMPLÉMENTÉ/`code_direct` — resynchronisation avec le statut déjà établi pour le module 4.6 (marqué `lu` dans EXPLORATION.md depuis le 2026-07-16/17), jamais répercuté sur l'entité elle-même. Pas de nouvelle lecture nécessaire, seule une incohérence de statut corrigée.** | **Constat direct en poursuivant la lecture exhaustive des entités `[À CONFIRMER]`, session du 2026-07-17.** |
 | **2026-07-17** | **Entité 3.18 Document relevée de `[À CONFIRMER]`/`schema_seul` à IMPLÉMENTÉ/`code_direct` (355 lignes lues intégralement). SEC-023 trouvée et corrigée, gravité `bloquant` : la signature de contrat ne fonctionnait jamais, sur aucun chemin — `Document.signedByClientId` est une FK vers `User.id`, pas `Client.id`, malgré son nom ; le code y écrivait l'id du Client, violant systématiquement la contrainte. Reproduit réellement sur le chemin normal (document lié à un projet) et sur le cas limite (document sans projet), corrigé, testé.** | **Constat incident pendant la lecture exhaustive des modules `[À CONFIRMER]`, enregistré immédiatement conformément à CLAUDE.md. Fonctionnalité citée dans README.md comme livrée mais jamais réellement fonctionnelle depuis l'introduction du champ.** |
+| **2026-07-17** | **Entité 3.19 GscConnection/MetricSnapshot relevée de `[À CONFIRMER]`/`audit_anterieur` à IMPLÉMENTÉ/`code_direct` (594 lignes lues intégralement sur 8 fichiers). Le statut PARTIEL de la v0.1.0 (« restitution admin-only, absence côté client »), repris d'un audit antérieur, est infirmé par lecture directe : `clientPortal.controller.ts#getClientPortalSeoMetrics` expose bien une lecture des métriques scopée au client authentifié.** | **Reprise de la lecture exhaustive des modules `[À CONFIRMER]`, session du 2026-07-17.** |
