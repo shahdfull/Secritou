@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-013
+dernier_id: SEC-014
 
 anomalies:
   - id: SEC-001
@@ -713,3 +713,34 @@ anomalies:
       profonde de chacun des 6 échecs — non investiguée au-delà de la
       confirmation qu'ils sont indépendants des changements de cette
       session.
+
+  - id: SEC-014
+    titre: "Relances facture hebdomadaires : paliers calculés sur createdAt et factures OVERDUE exclues"
+    perimetre: "4.4 Facturation & Paiements"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand checkInvoiceFollowup calcule daysOverdue et
+      sélectionne le palier FIRST/SECOND/FINAL à partir de dueDate (pas
+      createdAt), inclut les factures OVERDUE encore impayées dans le
+      périmètre de relance, et un test appelle réellement
+      checkInvoiceFollowup (ou la fonction extraite) pour vérifier qu'une
+      facture dont l'échéance est dépassée de 14 jours reçoit le palier
+      SECOND, et qu'une facture passée au statut OVERDUE reste éligible
+      aux relances échelonnées.
+    detecte_le: "2026-07-17"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Lecture directe session 2026-07-17 : ceoAlerts.processor.ts
+      checkInvoiceFollowup (:160-247) filtre status IN
+      ["SENT","PARTIAL"] et calcule daysOverdue via
+      diffDays(inv.createdAt, now). markOverdueInvoices
+      (maintenance.processor.ts :246-315) bascule les factures échues en
+      OVERDUE — elles sortent alors du périmètre de checkInvoiceFollowup.
+      invoiceService.addReminder (:323-340) calcule pourtant daysOverdue
+      depuis dueDate pour l'email client, incohérent avec le palier choisi
+      par le job. Commentaire du job (« 7/14/30 days overdue ») contredit
+      l'implémentation (createdAt).

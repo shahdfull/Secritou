@@ -436,6 +436,9 @@ ci-dessous pour que le périmètre reflète ce qui est réellement consommé.
       - server/src/routes/approval.routes.ts
       - server/src/validators/approval.validator.ts
       - server/src/services/customQuestion.service.ts
+      - server/src/controllers/customQuestion.controller.ts
+      - server/src/routes/customQuestion.routes.ts
+      - server/src/validators/customQuestion.validator.ts
       - prisma/schema.prisma#ServiceRequest,Approval,CustomQuestion,CustomQuestionMessage
       - client/src/features/client-portal/**
       - client/src/features/approvals/**
@@ -572,15 +575,21 @@ Périmètre scindé en deux, comme arrêté en Q3 :
       - docs/n8n-events.md                                    # GELÉ (documentation des webhooks sortants)
       - prisma/schema.prisma#Notification
 
-**`server/src/jobs/**` — [À CONFIRMER — non trié, jamais ouvert.]**
-EXPLORATION.md confirme que ce répertoire n'a jamais été ouvert directement.
-Son rôle supposé (via citations d'audits antérieurs, non revérifiées)
-inclurait l'expiration automatique des propositions (module 4.1, ACTIF — voir
-§3.6) et les relances de facture (module 4.4, ACTIF), à côté du recalcul de
-score Client Success (module 4.9). **Un répertoire jamais ouvert ne peut pas
-être classé GELÉ : le geler mettrait hors audit de l'automatisation
-potentiellement critique pour le flux argent sans l'avoir jamais vérifié.**
-Périmètre à explorer en priorité, avant tout autre module non trié.
+**`server/src/jobs/**` — ACTIF (composant transverse, première lecture directe
+2026-07-17). Expiration propositions (`expireProposals`), marquage factures
+en retard (`markOverdueInvoices`), relances échelonnées (`checkInvoiceFollowup`),
+alertes CEO/SLA, génération PDF async, e-mails/notifications async. Écart
+relances facture → SEC-014.
+
+    perimetre_code:
+      - server/src/jobs/index.ts
+      - server/src/jobs/jobNames.ts
+      - server/src/jobs/queues.ts
+      - server/src/jobs/redisConnection.ts
+      - server/src/jobs/processors/maintenance.processor.ts
+      - server/src/jobs/processors/communication.processor.ts
+      - server/src/jobs/processors/documents.processor.ts
+      - server/src/jobs/processors/ceoAlerts.processor.ts
 
 ### 4.14 Authentification & Compte utilisateur — **ACTIF**
 Connexion, sessions (access/refresh tokens, familles, révocation),
@@ -885,7 +894,7 @@ pour la conséquence opérationnelle sur les audits).
 | 4.10 RBAC & Permissions granulaires | `[À CONFIRMER — non trié]` | Idem 4.7/4.8 — `non exploré`. |
 | 4.11 Module IA (agent-service) | GELÉ | Couverture `lu` (complète) — deux personas existants conservés tels quels ; pas de développement supplémentaire pour l'instant. |
 | 4.13 (volet webhooks n8n) | GELÉ | Automatisations externes existantes, non prioritaires hors flux argent. |
-| `server/src/jobs/**` (composant transverse de 4.13) | `[À CONFIRMER — non trié, priorité d'exploration]` | Jamais ouvert ; rôle supposé incluant expiration de propositions (4.1 ACTIF) et relances de facture (4.4 ACTIF) — ne peut être gelé sans vérification, risque de trou d'audit sur le flux argent. |
+| `server/src/jobs/**` (composant transverse de 4.13) | ACTIF | Couverture `lu` (8 fichiers, session 2026-07-17) ; relances facture défectueuses → SEC-014. |
 | Intégration bancaire / paiement en ligne (Flouci, Konnect, Paymee, e-Dinar) | HORS PÉRIMÈTRE (phase 2) | Aucune passerelle implémentée ; paiements saisis manuellement. |
 | Modèle d'abonnement / mission récurrente | HORS PÉRIMÈTRE (phase 2) | L'agence facture en mission ponctuelle par tranches au lancement ; le récurrent est une phase 2 non modélisée. |
 | Exécution de code en sandbox par un agent IA | HORS PÉRIMÈTRE (phase 2) | Objectif documenté (RG-016) mais non commencé — aucune infrastructure Docker de sandboxing trouvée dans le code. |
