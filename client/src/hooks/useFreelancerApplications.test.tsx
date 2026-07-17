@@ -63,7 +63,7 @@ describe("useCreateFreelancerApplication error handling", () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(toastError).toHaveBeenCalledWith(
-      "L'envoi a échoué. Réessayez ou écrivez-nous à hello@secritou.com."
+      "L'envoi a échoué. Réessayez ou écrivez-nous à contact@secritou.tn."
     );
     expect(result.current.isPending).toBe(false);
   });

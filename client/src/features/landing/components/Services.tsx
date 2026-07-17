@@ -4,9 +4,11 @@ import { useNavigate } from "react-router-dom";
 import { trackServiceCardClicked } from "@/services/analytics.service";
 import { useTranslation } from "react-i18next";
 import { useLandingCms } from "@/providers/LandingCmsProvider";
+import { CONTACT_SERVICE_TYPES } from "@secritou/shared";
 
 // `serviceType` is the canonical enum value sent to the backend (must match
-// server/src/validators/contact.validator.ts). It never changes with the CMS/i18n title.
+// server/src/validators/contact.validator.ts / CONTACT_SERVICE_TYPES). It never changes
+// with the CMS/i18n title.
 export function Services() {
   const { t } = useTranslation();
   const { cms } = useLandingCms();
@@ -15,7 +17,7 @@ export function Services() {
   const services = [
     {
       icon: BarChart3,
-      serviceType: "Business Performance",
+      serviceType: CONTACT_SERVICE_TYPES[0], // "Management & Performance"
       title: cms("services.items.0.title", t("home.services.items.0.title")),
       body:  cms("services.items.0.body",  t("home.services.items.0.body")),
       items: [
@@ -27,7 +29,7 @@ export function Services() {
     },
     {
       icon: Rocket,
-      serviceType: "Digital Growth",
+      serviceType: CONTACT_SERVICE_TYPES[1], // "Croissance digitale"
       title: cms("services.items.1.title", t("home.services.items.1.title")),
       body:  cms("services.items.1.body",  t("home.services.items.1.body")),
       items: [
@@ -39,7 +41,7 @@ export function Services() {
     },
     {
       icon: Monitor,
-      serviceType: "Technology Solutions",
+      serviceType: CONTACT_SERVICE_TYPES[2], // "Technologie"
       title: cms("services.items.2.title", t("home.services.items.2.title")),
       body:  cms("services.items.2.body",  t("home.services.items.2.body")),
       items: [
@@ -51,7 +53,7 @@ export function Services() {
     },
     {
       icon: Sparkles,
-      serviceType: "AI & Automation",
+      serviceType: CONTACT_SERVICE_TYPES[3], // "IA & Automatisation"
       title: cms("services.items.3.title", t("home.services.items.3.title")),
       body:  cms("services.items.3.body",  t("home.services.items.3.body")),
       items: [

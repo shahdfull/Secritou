@@ -8,7 +8,6 @@ export type Lead = {
   source?: string | null;
   status: string;
   notes?: string | null;
-  companyId: string;
   serviceId?: string | null;
   convertedClientId?: string | null;
   archivedAt?: string | null;

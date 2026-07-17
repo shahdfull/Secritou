@@ -72,7 +72,7 @@ export function ContactPage() {
       name: "",
       email: "",
       phone: "",
-      serviceType: (selectedService as any) || "Business Performance",
+      serviceType: (selectedService as any) || CANONICAL_SERVICE_TYPES[0],
       budget: undefined,
       company: "",
       message: "",

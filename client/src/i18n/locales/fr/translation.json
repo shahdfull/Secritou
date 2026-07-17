@@ -734,7 +734,7 @@
     "sending": "Envoi...",
     "total": "Total",
     "close": "Fermer",
-    "fileTooLargeMax": "Fichier trop volumineux (max {{max}}Mo).",
+    "fileTooLargeMax": "Fichier trop volumineux (max {{max}} Mo).",
     "uploading": "Envoi en cours…",
     "clickToUploadFile": "Cliquez pour envoyer un fichier",
     "removeFile": "Supprimer le fichier",

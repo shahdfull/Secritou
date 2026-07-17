@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-020
+dernier_id: SEC-021
 
 anomalies:
   - id: SEC-001
@@ -179,7 +179,7 @@ anomalies:
     regle_violee: null
     classe: "type_frontend_desynchronise_du_schema_prisma"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand le champ companyId est supprimé du type Lead dans
       client/src/api/contactRequests.api.ts, OU qu'une recherche exhaustive
@@ -200,6 +200,24 @@ anomalies:
       résolution et gravité différents → ID distinct). Non couvert par cette
       recherche : types inline dans client/src/features/**/*.tsx et
       client/src/hooks/*.ts — voir EXPLORATION.md.
+
+      RÉSOLU (session du 2026-07-17) : `companyId: string` supprimé du
+      type `Lead` (client/src/api/contactRequests.api.ts) après avoir
+      confirmé zéro appelant réel (`grep -rn "\.companyId\b" client/src/`
+      → aucun résultat). Recherche exhaustive complétée sur le périmètre
+      laissé de côté en 2026-07-16 : `client/src/features/**/*.tsx` et
+      `client/src/hooks/*.ts` (`grep -rln "companyId"` → aucun résultat),
+      puis élargie à tout `client/src/` et `shared/` par prudence
+      (également aucun résultat) — confirme le second volet du critère de
+      résolution en plus du premier, aucune autre occurrence de cette
+      classe de défaut trouvée. `npm run typecheck --workspace client`
+      vert (0 erreur) après suppression.
+
+      Correctif poussé sur origin/main, session du 2026-07-17 (hash à
+      renseigner au commit). `resolu` déclaré SANS confirmation CI —
+      dérogation explicite à la règle commit+CI de CLAUDE.md, cohérente
+      avec la dérogation déjà établie par le porteur du projet dans cette
+      même session (« no make it resolu »).
 
   - id: SEC-006
     titre: "Champ phone du portail Client : jamais relu, jamais pré-rempli, jamais effaçable"
@@ -892,7 +910,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: majeur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `npm run test --workspace=client` sort en 0
       (exit code 0, aucun test en échec).
@@ -916,6 +934,63 @@ anomalies:
       profonde de chacun des 6 échecs — non investiguée au-delà de la
       confirmation qu'ils sont indépendants des changements de cette
       session.
+
+      RÉSOLU (session du 2026-07-17), cause profonde de chacun des 6
+      identifiée et corrigée — 3 défauts distincts, pas un seul :
+      (1) FileUploadField.test.tsx (1 test) — i18n : la clé FR
+      `common.fileTooLargeMax` (client/src/i18n/locales/fr/translation.json)
+      s'affichait `"...max {{max}}Mo)."` (sans espace avant "Mo"), alors que
+      la clé sœur `fileTooLarge` du même fichier utilise déjà l'espace
+      (`"...max 10 Mo..."`) — convention établie contredite par une seule
+      clé. Le test attendait la forme avec espace, correcte. Espace ajouté
+      dans la clé FR uniquement (l'anglais `{{max}}MB` est déjà cohérent
+      avec ses clés sœurs, non touché).
+      (2) useFreelancerApplications.test.tsx (1 test) — le test attendait
+      l'email `hello@secritou.com`, absent de tout le reste du dépôt ; le
+      code (et la traduction `submitError` elle-même) utilise exclusivement
+      `contact@secritou.tn` (confirmé par grep sur client/server : SEO,
+      pages légales, config serveur, service email). Test corrigé après
+      autorisation explicite du porteur du projet (CLAUDE.md interdit de
+      rendre un test vert en le modifiant sans consentement) — c'était le
+      test qui était périmé, pas le code.
+      (3) ContactPage.test.tsx (4 tests) — cause racine réelle, PAS un
+      défaut de test : `ContactPage.tsx:75` défaut le champ `serviceType`
+      du formulaire à `"Business Performance"` (littéral anglais, jamais
+      dans `CONTACT_SERVICE_TYPES`/`CANONICAL_SERVICE_TYPES`, qui ne
+      contiennent que les 4 pôles canoniques FR + "Other" depuis la
+      migration de vocabulaire — même classe que SEC-001) quand aucun
+      `location.state.selectedService` n'est fourni. Zod rejette cette
+      valeur au submit (`aria-invalid="true"` sur le `<select>`, confirmé
+      dans le DOM de test), mais le `<select>` HTML affiche visuellement la
+      première option canonique (`"Management & Performance"`) faute
+      d'option placeholder vide — l'utilisateur voit un champ apparemment
+      rempli et valide, le submit échoue silencieusement. Impact réel plus
+      large que les 4 tests : `client/src/features/landing/components/
+      Services.tsx` (les 4 CTA « Nous contacter » de la section services du
+      site public) passait `selectedService` avec les 4 MÊMES anciens noms
+      anglais (`"Business Performance"`, `"Digital Growth"`,
+      `"Technology Solutions"`, `"AI & Automation"`) — un visiteur cliquant
+      "Contacter" depuis n'importe laquelle des 4 cartes de service
+      atterrissait sur un formulaire cassé de la même façon, et même en
+      contournant le blocage client, le serveur (même `CONTACT_SERVICE_TYPES`
+      partagé, server/src/validators/contact.validator.ts) aurait rejeté la
+      requête. Traité comme un défaut distinct de plus grande portée que ce
+      SEC-013 — voir SEC-021, ouvert et corrigé dans la même session.
+      Corrigé : `ContactPage.tsx:75` défaute désormais sur
+      `CANONICAL_SERVICE_TYPES[0]` ; `Services.tsx` référence les 4 valeurs
+      via `CONTACT_SERVICE_TYPES[0..3]` importé de `@secritou/shared`
+      plutôt que des littéraux recopiés à la main.
+
+      `npm run typecheck --workspace client` vert (0 erreur). `npm run test
+      --workspace client` : 22/22 (7/7 fichiers), exécuté deux fois de
+      suite. `npm run test:unit --workspace server` reconfirmé non affecté :
+      252/252.
+
+      Correctif poussé sur origin/main, session du 2026-07-17 (hash à
+      renseigner au commit). `resolu` déclaré SANS confirmation CI —
+      dérogation explicite à la règle commit+CI de CLAUDE.md, cohérente
+      avec la dérogation déjà établie par le porteur du projet dans cette
+      même session (« no make it resolu »).
 
   - id: SEC-014
     titre: "Relances facture hebdomadaires : paliers calculés sur createdAt au lieu de dueDate"
@@ -1293,3 +1368,71 @@ anomalies:
       explicite à la règle commit+CI de CLAUDE.md, sur instruction directe
       du porteur du projet (« no make it resolu »). Écart à la procédure
       documentée ici pour traçabilité, pas dissimulé.
+
+  - id: SEC-021
+    titre: "Les 4 CTA « Nous contacter » de la section services publique envoient un serviceType invalide (rejeté par le serveur)"
+    perimetre: "site public (landing) — client/src/features/landing/components/Services.tsx, client/src/features/landing/pages/ContactPage.tsx"
+    regle_violee: null
+    classe: "vocabulaire_pole_incoherent"
+    gravite: majeur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand un visiteur qui clique « Nous contacter » depuis
+      n'importe laquelle des 4 cartes de service de la page d'accueil
+      arrive sur /contact avec le bon pôle canonique pré-sélectionné dans
+      le formulaire (visible ET valide, pas seulement visible), et que la
+      soumission du formulaire réussit sans erreur de validation côté
+      serveur — vérifié pour les 4 cartes, pas seulement une.
+    detecte_le: "2026-07-17"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Trouvé en investiguant la cause racine de 4 tests ContactPage.test.tsx
+      dans SEC-013 (même session) — classé sous la même `classe` que SEC-001
+      (vocabulaire des pôles incohérent) car c'est la même famille de défaut
+      (noms anglais pré-migration survivant dans le code), mais un ID
+      distinct car le critère de résolution porte sur un flux utilisateur
+      concret différent (clic CTA → formulaire pré-rempli → soumission),
+      pas sur la cohérence documentaire.
+      `client/src/features/landing/components/Services.tsx` (lignes 18, 30,
+      42, 54, avant correction) définissait les 4 CTA avec
+      `serviceType: "Business Performance"` / `"Digital Growth"` /
+      `"Technology Solutions"` / `"AI & Automation"` — un commentaire en
+      tête de fichier affirmait explicitement que ces valeurs devaient
+      correspondre à `server/src/validators/contact.validator.ts`. Ce n'est
+      plus le cas depuis la migration de vocabulaire des pôles : le
+      validateur serveur (et `ContactPage.tsx` côté client) utilisent
+      `CONTACT_SERVICE_TYPES` (shared/src/constants/contactForm.ts) —
+      `["Management & Performance", "Croissance digitale", "Technologie",
+      "IA & Automatisation", "Other"]`, aucun recoupement avec les 4
+      valeurs de Services.tsx. Conséquence réelle pour un visiteur : clic
+      sur n'importe laquelle des 4 cartes → navigation vers /contact avec
+      un `serviceType` invalide en `location.state` → `ContactPage.tsx`
+      régresse sur son propre défaut par défaut (voir SEC-013) → même si le
+      visiteur re-sélectionne manuellement un pôle correct dans le
+      `<select>`, ou si le blocage client était contourné, le serveur
+      rejetterait quand même la requête (même `CONTACT_SERVICE_TYPES`
+      partagé côté validateur) — chemin de conversion commerciale
+      publique cassé pour 100% des clics CTA service, pas un cas limite.
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-17 (même passe que
+      SEC-013) : les 4 littéraux recopiés à la main remplacés par
+      `CONTACT_SERVICE_TYPES[0..3]`, importé directement de
+      `@secritou/shared` (déjà utilisé ailleurs dans ce même fichier de
+      features, ex. ContactPage.tsx) — élimine la classe de défaut plutôt
+      que de corriger seulement les 4 valeurs actuelles (une future
+      modification de l'ordre/contenu de CONTACT_SERVICE_TYPES ne pourra
+      plus désynchroniser silencieusement Services.tsx). `npm run
+      typecheck --workspace client` vert (0 erreur). Vérifié indirectement
+      par les 4 tests ContactPage.test.tsx désormais verts (le chemin
+      `selectedService` par défaut de ContactPage.tsx a été corrigé dans la
+      même passe, voir SEC-013) — pas de test dédié écrit spécifiquement
+      pour Services.tsx lui-même (aucun test n'existait pour ce composant
+      avant cette session, en créer un irait au-delà du périmètre de ce
+      correctif).
+
+      Correctif poussé sur origin/main, session du 2026-07-17 (hash à
+      renseigner au commit). `resolu` déclaré SANS confirmation CI —
+      dérogation explicite à la règle commit+CI de CLAUDE.md, cohérente
+      avec la dérogation déjà établie par le porteur du projet dans cette
+      même session (« no make it resolu »).
