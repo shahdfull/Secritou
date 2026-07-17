@@ -288,7 +288,15 @@ la création. Aucune anomalie fonctionnelle trouvée.
 ### 3.17 Approval
 Élément soumis à validation du client. Statuts :
 `PENDING → APPROVED/REJECTED`.
-**Statut : `[À CONFIRMER]`. `verifie: schema_seul`.**
+**Statut : IMPLÉMENTÉ. `verifie: code_direct`** — `approval.service.ts`,
+`.repository.ts`, `.controller.ts`, `.routes.ts`, `.validator.ts` lus
+intégralement (EXPLORATION.md, module 4.6 marqué `lu`, sessions
+2026-07-16/17). Statut de l'entité resynchronisé avec celui déjà établi
+pour le module — RG-013 (clôture de mission par validation client)
+vérifié directement sur ce chemin (`respondToApproval`). Aucune anomalie
+trouvée sur Approval spécifiquement (AUDIT_GRID.md, session 2026-07-17,
+confirme le CRUD complet : create/read/update/delete/approve/reject/
+comment/attachments, sans écart).
 
 ### 3.18 Document
 Fichier versionné rattaché à un client/projet/facture, avec niveaux d'accès
@@ -1074,3 +1082,4 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-17** | **Entité 3.9 ClientOnboarding relevée de `[À CONFIRMER]`/`schema_seul` à IMPLÉMENTÉ/`code_direct` : les 3 fichiers cœur (service 122 l., repository 363 l., controller 388 l.) lus intégralement, aucune anomalie fonctionnelle trouvée. Repository déjà correctement typé sur les types Prisma générés — pas de trace de la classe de défaut SEC-012 ici.** | **Reprise de la lecture exhaustive des modules encore `[À CONFIRMER]`, sur demande du porteur du projet (« continue à lire et corriger », rythme module par module, un rapport à chaque fois), session du 2026-07-17.** |
 | **2026-07-17** | **Entité 3.12 CreditNote relevée de `[À CONFIRMER]`/`schema_seul` à IMPLÉMENTÉ/`code_direct` : `creditNote.service.ts` lu intégralement (183 l.). SEC-022 trouvée et corrigée dans la même passe : `applyCredit` supposait que Prisma retourne `null` sur un `update` conditionnel sans match, alors qu'il lève `P2025` — le garde-fou anti-double-application (409 attendu) ne se déclenchait jamais, l'utilisateur recevait un 500 générique. Reproduit réellement, corrigé, testé.** | **Constat incident pendant la lecture exhaustive des modules `[À CONFIRMER]`, enregistré immédiatement conformément à CLAUDE.md.** |
 | **2026-07-17** | **Entité 3.16 ServiceRequest relevée de `[À CONFIRMER]`/`schema_seul` à IMPLÉMENTÉ/`code_direct` : les 3 fichiers cœur (service 130 l., repository 188 l., controller 105 l.) lus intégralement. Aucune anomalie fonctionnelle trouvée — `deleteComment` ne vérifie que la propriété du commentaire, pas le scope pôle, mais vérifié non exploitable (un Manager hors-pôle ne peut jamais être auteur d'un commentaire sur une demande hors de son pôle).** | **Reprise de la lecture exhaustive des modules `[À CONFIRMER]`, session du 2026-07-17.** |
+| **2026-07-17** | **Entité 3.17 Approval relevée de `[À CONFIRMER]`/`schema_seul` à IMPLÉMENTÉ/`code_direct` — resynchronisation avec le statut déjà établi pour le module 4.6 (marqué `lu` dans EXPLORATION.md depuis le 2026-07-16/17), jamais répercuté sur l'entité elle-même. Pas de nouvelle lecture nécessaire, seule une incohérence de statut corrigée.** | **Constat direct en poursuivant la lecture exhaustive des entités `[À CONFIRMER]`, session du 2026-07-17.** |
