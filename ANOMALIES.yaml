@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-026
+dernier_id: SEC-027
 
 anomalies:
   - id: SEC-001
@@ -2127,3 +2127,86 @@ anomalies:
       peut être remplie qu'après ce commit — signalé ici pour qu'une
       lecture future distingue « vérifié localement, exhaustivement » de
       « confirmé par la CI elle-même ».
+
+  - id: SEC-027
+    titre: "RG-008 (déclenchement de la commission) : affirmation d'exclusivité jamais prouvée par test, seul le chemin nominal était vérifié"
+    perimetre: "4.5 Rémunération des associés, 4.4 Facturation — server/src/services/commission.service.ts, server/src/services/invoice.service.ts"
+    regle_violee: "RG-008"
+    classe: null
+    gravite: majeur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand un test appelle réellement `invoiceService.addPayment`
+      contre une base réelle et confirme à la fois qu'un paiement effectivement
+      appliqué à une facture crée une `Commission` par partenaire proratisée
+      correctement, ET qu'un paiement sans effet réel sur le solde de la
+      facture (entièrement absorbé par un trop-perçu) n'en crée aucune —
+      pas seulement une lecture du chemin nominal ou un grep.
+    detecte_le: "2026-07-17"
+    source: manuel
+    confiance: certain
+    note: >
+      Trouvé en répondant à la question du porteur du projet « is there
+      something a vérifier dans ce projet » — un audit de lecture (agent
+      general-purpose, sans modification) sur REFERENTIEL.md §5 (RG-001 à
+      RG-021) a identifié 8 règles métier à provenance faible ou négative
+      non testée, aucune trackée dans ANOMALIES.yaml. RG-008 choisie en
+      premier par le porteur du projet (« RG-008 (commission) puis RG-002
+      (scoping pôle) (Recommandé) ») comme la plus critique côté argent.
+
+      CONSTAT (déjà noté dans REFERENTIEL.md v0.2.1, jamais formalisé en
+      anomalie) : RG-008 affirme qu'une `Commission` est créée
+      « uniquement lorsqu'un paiement est effectivement enregistré » —
+      une exclusivité. Seul le chemin nominal (`computeForPaymentTx`
+      appelé depuis `addPayment`) était vérifié par lecture directe ;
+      aucun test n'assérait qu'aucun autre chemin ne crée de commission
+      hors de ce déclencheur, ni que le déclencheur lui-même est bien
+      conditionné sur un montant réellement appliqué (pas seulement sur
+      l'existence d'un `Payment`).
+
+      VÉRIFICATION RÉELLE effectuée :
+      (1) Grep exhaustif sur `server/src` : un seul point d'écriture
+      `tx.commission.create` dans tout le dépôt
+      (`commission.repository.ts:49`, dans `createManyTx`). Un seul
+      appelant de `computeForPaymentTx` dans tout le dépôt :
+      `invoice.service.ts:268`, à l'intérieur de `addPayment`, conditionné
+      sur `appliedAmount > 0`.
+      (2) `commission.service.ts` lu intégralement (137 lignes) : aucun
+      autre chemin de création de `Commission` n'existe (les autres
+      méthodes du service sont toutes en lecture ou en mutation de statut
+      PENDING→PAID, jamais en création).
+      (3) Contrainte structurelle en renfort : `Commission.paymentId` est
+      `@unique` dans `schema.prisma` — au plus une commission par
+      paiement, garanti par la base elle-même, pas seulement par la
+      logique applicative.
+
+      Nouveau test `server/test/commissionCreationExclusivity.test.ts`
+      (câblé dans `test/run-all.test.ts`), appelle réellement
+      `invoiceService.addPayment` contre une base migrée — pas une
+      réimplémentation :
+      - un paiement réel (400 sur une facture de 1000, split 50%) crée
+        exactement 1 `Commission`, `basis` = 400, `amount` = 200 ;
+      - un paiement entièrement absorbé par un trop-perçu (facture déjà
+        soldée à `amountPaid = amount` mais statut encore `PARTIAL`,
+        état atteignable en écrivant directement la ligne de test, jamais
+        par `addPayment` lui-même) ne crée aucune `Commission` —
+        confirme que le déclencheur porte sur le montant réellement
+        appliqué, pas la simple existence du `Payment`.
+
+      Un premier essai du 2e test utilisait une facture `status: PAID`
+      pour simuler un trop-perçu total, mais `addPayment` refuse tout
+      paiement sur une facture déjà `PAID`/hors `SENT`/`PARTIAL`/`OVERDUE`
+      (`HttpError 409 INVOICE_NOT_ACCEPTING_PAYMENTS`) — corrigé en gardant
+      le statut `PARTIAL` avec `amountPaid` déjà égal au montant total,
+      un état qu'`addPayment` lui-même ne produirait jamais mais qui isole
+      correctement la branche `appliedAmount = 0` sans dépendre du guard
+      de statut.
+
+      `npx tsc --noEmit` vert. Suite complète : 276/276 (274 + 2 nouveaux),
+      ~15-18s, aucune régression. `resolu` déclaré SANS confirmation CI —
+      la CI est actuellement désactivée sur `origin/main` (déclenchement
+      automatique retiré à la demande du porteur du projet, `workflow_dispatch`
+      seul) — dérogation déjà établie dans cette session (« no make it
+      resolu »), documentée pour qu'une lecture future ne prenne pas ce
+      `resolu` pour une confirmation CI, qui est actuellement impossible à
+      obtenir par un push normal tant que la CI reste désactivée.

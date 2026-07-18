@@ -906,16 +906,22 @@ implémentée à ce jour — réponse du porteur du projet, session du
 
 **RG-008 — Déclenchement de la commission.**
 Une ligne de commission est créée uniquement lorsqu'un paiement (`Payment`)
-est effectivement enregistré contre une facture. *Module : 4.5, 4.4.*
-Statut : `[À CONFIRMER]` (affirmation d'exclusivité — « uniquement
-lorsqu'un… »). `verifie: code_direct` pour le chemin nominal observé
-(`computeForPaymentTx` appelé depuis `addPayment`, dans la même transaction),
-mais aucun test n'assère qu'aucun autre chemin ne crée de commission hors de
-ce déclencheur — `verifie: test` manquant pour l'exclusivité elle-même. Note
-pour test futur : confirmer qu'aucune commission n'est créée en dehors de
-`computeForPaymentTx`.
-Le chemin nominal lui-même reste établi par (`commission.service.ts`,
-intégral).
+est effectivement enregistré ET réellement appliqué à une facture (montant
+> 0 après déduction d'un éventuel trop-perçu). *Module : 4.5, 4.4.* Statut :
+**IMPLÉMENTÉ. `verifie: test`** (session du 2026-07-17, SEC-027) —
+`commission.repository.ts` grep confirmé : un seul point d'écriture
+`tx.commission.create` dans tout `server/src`, exclusivement via
+`createManyTx` ← `computeForPaymentTx` ← `invoice.service.ts#addPayment`
+(aucun autre appelant de `computeForPaymentTx` dans le dépôt). Nouveau test
+`server/test/commissionCreationExclusivity.test.ts`, appelle réellement
+`invoiceService.addPayment` contre une base migrée : (1) un paiement réel
+crée bien une `Commission` par partenaire, proratisée sur le montant
+appliqué ; (2) un paiement entièrement absorbé par un trop-perçu
+(`appliedAmount = 0`) n'en crée aucune — l'exclusivité porte donc sur le
+montant réellement appliqué, pas la simple existence d'un `Payment`.
+Contrainte structurelle en renfort : `Commission.paymentId` est
+`@unique` (schema.prisma) — au plus une commission par paiement, garanti
+par la base, pas seulement par la logique applicative.
 
 **RG-009 — Cycle de vie du paiement de commission.**
 Une commission naît au statut `PENDING`. Le passage à `PAID` est une action
@@ -1166,3 +1172,4 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-17** | **Entité 3.15 FreelancerProfile/Skill/PortfolioItem/Rating relevée de `[À CONFIRMER]`/`audit_anterieur` à IMPLÉMENTÉ/`code_direct` — resynchronisation avec le statut déjà établi pour le module 4.7 Freelances (9 fichiers lus intégralement le même jour, exactement les mêmes fichiers que cette entité), jamais répercuté sur l'entité elle-même après la classification ACTIF du module. Pas de nouvelle lecture nécessaire, seule une incohérence de statut corrigée — même défaut de synchronisation déjà rencontré et corrigé une première fois pour l'entité 3.17/module 4.6.** | **Constat direct en vérifiant si d'autres entités §3 étaient tombées dans le même angle mort après la classification tardive de 4.7/4.8/4.10 (postérieure à l'affirmation du 2026-07-17 « toutes les entités §3 encore À CONFIRMER sont désormais résolues », ligne de journal antérieure) — session du 2026-07-17.** |
 | **2026-07-17** | **SEC-010 rouverte `en_cours` : vérification directe de l'état réel de la CI sur `origin/main` (API GitHub REST non authentifiée, `gh` CLI indisponible dans cet environnement) montre 3 jobs en échec sur le HEAD courant (`client`, `server`, `i18n-check`) — le critère de résolution de SEC-010 exige littéralement « le voit passer au vert », condition non remplie à ce jour malgré la dérogation « no make it resolu » appliquée à de nombreux correctifs cette session. SEC-026 ouverte séparément pour tracer la cause réelle : 37 erreurs ESLint pré-existantes (30 de la même classe `no-non-null-asserted-optional-chain` sur 5 contrôleurs, jamais touchés par aucune session d'audit) + 1 faux positif du script `check-i18n.mjs` sur une clé pluralisée i18next — aucun rapport avec les correctifs SEC-007/008/009/011/012 que SEC-010 nommait comme précondition, ni avec aucun fichier édité cette session (vérifié par `git log` sur chaque fichier fautif et par un lint isolé, vert, des fichiers réellement modifiés).** | **Vérification proactive du porteur du projet — « Re-vérifier les resolu sans CI (Recommandé) » — après la fermeture des modules 4.7/4.8/4.10. Décision de traitement, AskUserQuestion : « Ouvrir SEC-026 (dette lint), rouvrir SEC-010 (Recommandé) ».** |
 | **2026-07-17** | **SEC-026 corrigée dans la même session (« ok on corrige alors ») : 30 des 33 erreurs server = pattern `req.user?.sub!`/`req.user?.role!` (5 contrôleurs) remplacé par `req.user!.sub`/`req.user!.role` (l'assertion porte sur `req.user`, garanti non-null par `authenticate`, jamais sur le résultat du chaînage optionnel) ; 3 `no-useless-catch` supprimés ; 2 `no-constant-condition` dans `invoice.service.test.ts` remplacées par un appel réel à `addPaymentSchema.safeParse` (le vrai garde-fou, au lieu d'une condition littérale qui ne prouvait rien). Client : `axios.ts` — exécuteur `async` de `Promise` extrait en fonction nommée `runRefresh` (`no-async-promise-executor`) ; `ProjectDetailPage.tsx` — 3 hooks (`useMySplitForProject`/`useProjectTemplateForService`/`useApplyProjectTemplate`) remontés avant les 2 `return` anticipés, vrai bug d'ordre de hooks corrigé (pas un style discutable), les 3 hooks étant déjà conçus pour être inertes tant que `project` est undefined. `scripts/check-i18n.mjs` corrigé pour reconnaître la convention de suffixe pluriel i18next. Vérification locale complète : lint 0 erreur des deux côtés, typecheck vert, i18n-check passé, build serveur+client réussis, scan de secrets propre, 274/274 + 22/22 tests verts (deux exécutions). `resolu` déclaré SANS confirmation CI — même dérogation « no make it resolu » — le critère exige un push vu vert par la CI elle-même, condition distincte de la vérification locale exhaustive ci-dessus.** | **Instruction du porteur du projet, session du 2026-07-17 : « ok on corrige alors », en réponse à la vérification CI qui avait rouvert SEC-010 et créé SEC-026.** |
+| **2026-07-18** | **RG-008 relevée de `[À CONFIRMER]` à IMPLÉMENTÉ, `verifie: test` — SEC-027 ouverte et résolue dans la même session : seul le chemin nominal était vérifié par lecture directe pour cette affirmation d'exclusivité, jamais l'exclusivité elle-même. Grep exhaustif confirme un seul point d'écriture `tx.commission.create` dans tout le dépôt, un seul appelant de `computeForPaymentTx`. Nouveau test `commissionCreationExclusivity.test.ts`, appelle réellement `invoiceService.addPayment` contre une base migrée : un paiement réel crée la commission attendue, un paiement sans effet réel sur le solde (trop-perçu total) n'en crée aucune. Contrainte `Commission.paymentId @unique` citée en renfort structurel.** | **Réponse du porteur du projet à « is there something a vérifier dans ce projet » : un audit de lecture (agent dédié) a identifié 8 règles §5 à provenance faible ou négative non testée, aucune trackée dans ANOMALIES.yaml — choix du porteur, « RG-008 (commission) puis RG-002 (scoping pôle) (Recommandé) ». `resolu` déclaré SANS confirmation CI : la CI est actuellement désactivée sur `origin/main` sur demande du porteur (workflow_dispatch seul, session du 2026-07-17), dérogation « no make it resolu » déjà établie.** |
