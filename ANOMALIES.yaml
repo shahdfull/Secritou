@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-040
+dernier_id: SEC-041
 
 anomalies:
   - id: SEC-001
@@ -3354,3 +3354,92 @@ anomalies:
       dans cet environnement — seule la vérification au niveau code
       (typecheck/lint/build) a été possible, pas d'interaction
       navigateur réelle sur le bouton/dialogue.
+  - id: SEC-041
+    titre: "assertProjectInScope duplique a l'identique entre task.service.ts et projectMeeting.service.ts — risque de 3e reecriture divergente pour un futur module ; aucun test n'appelait createProject/archiveProject/restoreProject directement"
+    perimetre: "4.2 Gestion de projet — server/src/services/task.service.ts, server/src/services/projectMeeting.service.ts, server/src/utils/serviceScope.ts, server/test/"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand assertProjectInScope n'existe plus qu'à un seul
+      endroit (server/src/utils/serviceScope.ts), importé par
+      task.service.ts et projectMeeting.service.ts sans aucun changement
+      de comportement — vérifié par lecture directe et par un typecheck
+      serveur vert — ET quand un test d'intégration appelle réellement
+      projectService.createProject/archiveProject/restoreProject contre
+      une base migrée (pas une réimplémentation) et passe.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Signalé dans le rapport "2.3 Autorisations et scoping (RBAC)" et
+      "2.6 Couverture de tests" (casquette revue de conception), tous
+      deux confirmés intégralement par lecture directe avant toute
+      action, conformément à CLAUDE.md.
+
+      CONSTAT 1 (confirmé) : `assertProjectInScope` était défini deux
+      fois, mot pour mot identique (mêmes noms de variables, même
+      message d'erreur, même code `PROJECT_OUT_OF_SCOPE`), dans
+      `task.service.ts` (introduit lors du correctif initial) et
+      `projectMeeting.service.ts` (introduit par SEC-036, session
+      2026-07-18, avec un commentaire citant explicitement
+      `task.service.ts` comme modèle copié). `projectTemplate
+      .service.ts#applyToProject` a délibérément SA PROPRE vérification
+      inline (le projet est déjà chargé avec son `serviceId` à ce point,
+      une 2e requête serait un gaspillage) — confirmé par lecture
+      directe de son commentaire existant, donc volontairement exclu du
+      regroupement plutôt que force-fitté dans le helper commun.
+
+      CONSTAT 2 (confirmé) : recherche exhaustive dans `server/test/`
+      montre zéro test appelant `projectService.createProject` avec un
+      payload direct (le seul test touchant ce chemin,
+      `proposalCreationScope.test.ts`, passe par
+      `proposalService.create`/`acceptWithCascade`, pas par
+      `createProject` lui-même) et zéro test référençant
+      `archiveProject`/`restoreProject`. Le rapport note à juste titre
+      que cette lacune explique en partie pourquoi SEC-039 (bouton
+      "Nouveau projet" cassé) n'avait pas été détecté plus tôt : les
+      tests existants validaient le service avec un `proposalId` valide
+      fourni directement, jamais le payload réel envoyé par le
+      formulaire (`{name, description, status, clientId}`, sans
+      `proposalId`).
+
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-19) : traiter les deux points — « Factoriser
+      assertProjectInScope (Recommandé) » ET « Ajouter les tests
+      manquants (Recommandé) ».
+
+      CORRECTIF ÉCRIT (refactor pur, aucun changement de comportement) :
+      `assertProjectInScope` déplacé dans
+      `server/src/utils/serviceScope.ts` (aux côtés de
+      `buildServiceScope`/`ServiceScope`, déjà le point d'origine du
+      concept de scope). `task.service.ts` et
+      `projectMeeting.service.ts` importent désormais la version
+      commune ; leurs définitions locales supprimées (import `HttpError`
+      devenu inutile retiré de `projectMeeting.service.ts` au passage).
+
+      TEST AJOUTÉ : nouveau fichier
+      `server/test/projectCreateArchiveRestore.test.ts` (enregistré dans
+      `run-all.test.ts`), appelle réellement `projectService
+      .createProject/archiveProject/restoreProject/deleteProject/
+      getAllProjects` contre une base migrée — pas de réimplémentation.
+      8 cas : `createProject` rejette un `proposalId` inexistant (404)
+      et un proposal non `ACCEPTED` (422 `PROPOSAL_NOT_ACCEPTED`),
+      réussit depuis un vrai proposal `ACCEPTED`, et force `serviceId`
+      au pôle du MANAGER appelant même si un autre pôle est passé
+      explicitement (mirrors la garde déjà existante d'`updateProject`).
+      `archiveProject` positionne `archivedAt` et rend le projet invisible
+      à `findAll` ; rejette 404 sur un second archivage. `restoreProject`
+      ne renverse que `deletedAt` (rejette 404 sur un projet archivé mais
+      non supprimé, les deux axes étant indépendants — voir SEC-040) et
+      renverse correctement un vrai soft-delete.
+
+      314/314 tests verts (272 précédents + 8 nouveaux, confirmant que
+      les nouveaux tests s'exécutent réellement et ne sont pas skip).
+      `npx tsc --noEmit` vert, `npm run lint` : 0 erreur (165 warnings
+      pré-existants, aucun nouveau sur les 4 fichiers touchés, vérifié
+      individuellement). `resolu` déclaré SANS confirmation CI : la CI
+      est actuellement désactivée sur `origin/main` sur demande du
+      porteur du projet (workflow_dispatch seul, session du 2026-07-17),
+      dérogation "no make it resolu" déjà établie dans cette session.

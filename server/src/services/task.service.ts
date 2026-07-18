@@ -8,7 +8,7 @@ import type { Role, TaskStatus } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
-import type { ServiceScope } from "../utils/serviceScope.js";
+import { assertProjectInScope, type ServiceScope } from "../utils/serviceScope.js";
 import { notifyN8n } from "../utils/webhook.js";
 import { env } from "../config/env.js";
 import { ALLOWED_TASK_TRANSITIONS } from "@secritou/shared";
@@ -19,16 +19,6 @@ function assertValidTaskTransition(from: TaskStatus, to: TaskStatus): void {
   if (!allowed.includes(to)) {
     throw new HttpError(422, `Cannot transition from ${from} to ${to}. Allowed: ${allowed.join(", ") || "none"}`, "INVALID_TASK_TRANSITION");
   }
-}
-
-async function assertProjectInScope(projectId: string, scope?: ServiceScope) {
-  if (!scope || scope.userRole !== "MANAGER") return;
-  const { prismaRead: prisma } = await import("../config/prisma.js");
-  const project = await prisma.project.findFirst({
-    where: { id: projectId, serviceId: scope.userServiceId ?? "__none__" },
-    select: { id: true },
-  });
-  if (!project) throw new HttpError(403, "This project is not in your service", "PROJECT_OUT_OF_SCOPE");
 }
 
 // A COMPLETED or archived project is done: no new tasks and no changes to its existing tasks
