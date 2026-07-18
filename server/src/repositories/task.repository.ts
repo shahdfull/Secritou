@@ -6,7 +6,12 @@ import { buildTextSearchFilter } from "../utils/listQuery.js";
 import { taskWithRelationsSelect } from "../utils/prismaSelects.js";
 import { HttpError } from "../utils/httpError.js";
 
-const SORTABLE_FIELDS = ["title", "status", "dueDate", "createdAt"];
+// priority added (SEC-047): TasksListView.tsx already renders a clickable "priority" sort header
+// for non-freelancers, but the server rejected it here — clicking it silently fell back to
+// createdAt. The Priority enum is declared LOW→NORMAL→HIGH→URGENT, so Postgres orders it in that
+// sequence: orderDir "desc" surfaces URGENT first. This only makes the existing header work; it
+// does not change the default ordering (still createdAt).
+const SORTABLE_FIELDS = ["title", "status", "priority", "dueDate", "createdAt"];
 
 type TaskWithRelations = Prisma.TaskGetPayload<{ select: typeof taskWithRelationsSelect }>;
 

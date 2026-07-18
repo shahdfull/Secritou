@@ -3772,14 +3772,15 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
-      Ce constat sera résolu quand une décision produit explicite aura
-      été prise et écrite (REFERENTIEL.md §7) sur l'usage voulu de
-      `Task.priority` — soit l'implémenter (tri par défaut, alerte
-      URGENT en retard, etc.) avec le test correspondant, soit
-      documenter formellement qu'il est volontairement informatif.
-      Tant que la décision n'est pas rendue, reste `ouvert`.
+      C'est résolu quand `priority` est un champ de tri accepté côté
+      serveur (`SORTABLE_FIELDS` des tâches), de sorte que l'en-tête de
+      tri « priority » déjà présent dans `TasksListView.tsx` (non-
+      freelancer) fonctionne réellement au lieu de retomber
+      silencieusement sur `createdAt` — vérifié par un test qui appelle
+      réellement `taskService.getAllTasks` avec `orderBy=priority` et
+      confirme l'ordre (URGENT avant LOW en `desc`).
     detecte_le: "2026-07-19"
     source: manuel
     confiance: certain
@@ -3789,19 +3790,34 @@ anomalies:
       (`Priority @default(NORMAL)`, schema.prisma:594) est présent en
       Prisma, accepté par le schéma Zod partagé
       (`shared/src/schemas/task.schema.ts:28`) et renvoyé au client
-      (`taskWithRelationsSelect`), MAIS n'apparaît dans AUCUNE logique
-      métier serveur : absent de `SORTABLE_FIELDS`
-      (`task.repository.ts:9` = `["title","status","dueDate","createdAt"]`),
-      aucune notification ni règle n'en dépend (contrairement à
-      `ServiceRequest.priority`, qui journalise ses changements). Donnée
-      purement déclarative.
+      (`taskWithRelationsSelect`), MAIS n'apparaissait dans AUCUNE
+      logique métier serveur : absent de `SORTABLE_FIELDS`
+      (`task.repository.ts` = `["title","status","dueDate","createdAt"]`),
+      aucune notification ni règle n'en dépendait (contrairement à
+      `ServiceRequest.priority`, qui journalise ses changements).
 
-      ENREGISTRÉ SANS CORRECTIF (décision du porteur, AskUserQuestion
-      session du 2026-07-19 : « Documenter les 3 comme anomalies ») :
-      l'usage voulu de `priority` est une décision produit qui doit être
-      demandée, pas déduite — conformément à CLAUDE.md (ne pas créer une
-      règle métier absente de REFERENTIEL.md sans demande explicite). Ne
-      pas rouvrir en développement sans instruction.
+      RÉSOLUTION (décision produit rendue le 2026-07-19, AskUserQuestion,
+      après un premier enregistrement `ouvert`) : « Rendre "priority"
+      triable (Recommandé) » — portée minimale. L'approfondissement a
+      révélé que `TasksListView.tsx:138` rendait DÉJÀ un en-tête de tri
+      `priority` cliquable pour les non-freelancers, mais que le serveur
+      rejetait `priority` (absent de `SORTABLE_FIELDS`), si bien qu'un
+      clic retombait silencieusement sur `createdAt` — une interaction
+      morte, pas seulement une donnée inerte. `priority` ajouté à
+      `SORTABLE_FIELDS` (`task.repository.ts`). L'enum `Priority` étant
+      déclaré `LOW→NORMAL→HIGH→URGENT`, Postgres trie dans cet ordre :
+      `orderDir "desc"` remonte URGENT. Le tri par DÉFAUT n'a PAS été
+      changé (reste `createdAt`) — seule l'option de tri manquante est
+      réparée. Options plus lourdes écartées par le porteur (tri par
+      défaut par priorité ; alerte URGENT en retard).
+
+      TEST AJOUTÉ : `server/test/taskPrioritySort.test.ts`, appelle
+      réellement `taskService.getAllTasks` avec `orderBy=priority&
+      orderDir=desc` contre une base migrée et confirme URGENT avant LOW.
+      331/331 tests verts, typecheck/lint serveur propres. `resolu`
+      déclaré SANS confirmation CI : CI désactivée sur `origin/main`
+      (workflow_dispatch seul, session du 2026-07-17), dérogation
+      "no make it resolu" déjà établie.
 
   - id: SEC-048
     titre: "Scoping MANAGER par pole = source repetee d'oublis d'autorisation sur le module Project/Task (SEC-036 : getBrief/getTimelineStatus/applyToProject/projectMeeting) — pas de checklist de revue systematique"
@@ -3809,14 +3825,14 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
-      Ce constat sera résolu quand une checklist de revue de code
-      documentée existe (dans le dépôt ou REFERENTIEL.md) imposant que
-      toute nouvelle route Project/Task scope explicitement CLIENT,
-      MANAGER (pôle) et FREELANCER (assignation) — et qu'elle soit
-      référencée par le process de revue. C'est un livrable de process,
-      pas de code.
+      C'est résolu quand une checklist de revue de code documentée
+      existe dans le dépôt, imposant que toute route Project/Task nouvelle
+      ou modifiée scope explicitement CLIENT (clientId), MANAGER (pôle/
+      serviceId) et FREELANCER (assignation), vérifié au niveau service —
+      vérifié par la présence de cette section dans CLAUDE.md (lu à chaque
+      session).
     detecte_le: "2026-07-19"
     source: manuel
     confiance: certain
@@ -3829,10 +3845,15 @@ anomalies:
       `getTimelineStatus`) — le scoping par pôle est bien une source
       répétée d'oublis d'autorisation ici.
 
-      ENREGISTRÉ SANS ACTION (décision du porteur, AskUserQuestion
-      session du 2026-07-19 : « Documenter les 3 comme anomalies ») :
-      c'est une recommandation de PROCESS (checklist de revue), pas un
-      défaut de code corrigeable par un patch. La formalisation de la
-      checklist (où la publier, comment l'intégrer au workflow) reste à
-      trancher avec le porteur avant rédaction. Ne pas inventer un
-      fichier de process sans décision.
+      RÉSOLUTION (décision du porteur, AskUserQuestion session du
+      2026-07-19, après un premier enregistrement `ouvert` : « Section
+      dédiée dans CLAUDE.md (Recommandé) ») : checklist ajoutée à
+      `CLAUDE.md` sous « Checklist de revue — scoping des routes
+      Project/Task (SEC-048) », près de la convention de scoping
+      existante. Elle impose de répondre explicitement, avant merge et au
+      niveau service, aux 3 questions CLIENT/MANAGER/FREELANCER pour toute
+      route Project/Task nouvelle OU modifiée, et renvoie à
+      `assertProjectInScope` (`utils/serviceScope.js`) pour ne pas
+      réécrire le contrôle. CLAUDE.md étant chargé à chaque session, la
+      checklist est effectivement au chemin de toute revue future.
+      Aucun test (livrable de documentation/process, pas de code).

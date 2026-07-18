@@ -205,6 +205,28 @@ déduit pas du fait que le code compile ensuite.
 - Événements sortants vers n8n : `notifyN8n(...)`, HMAC-signés, fire-and-forget.
 - i18n : clés FR/EN dans `client/src/i18n`, `fallbackLng: "fr"`.
 
+## Checklist de revue — scoping des routes Project/Task (SEC-048)
+
+Le scoping par pôle a été une source répétée d'oublis d'autorisation sur ce
+module précis (SEC-036 a trouvé 4 trous d'un coup : `getBrief`,
+`getTimelineStatus`, `projectMeeting.service.ts`,
+`projectTemplate.service.ts#applyToProject`). Toute route nouvelle **ou
+modifiée** touchant `Project` ou `Task` doit, avant merge, répondre
+explicitement à ces trois questions — et le vérifier au niveau **service**,
+jamais au seul frontend :
+
+1. **CLIENT** est-il restreint à ses propres projets/tâches (`clientId`) ?
+2. **MANAGER** est-il scopé à son pôle (`serviceId`) ? Ne jamais supposer
+   qu'une lecture « admin » (`findByIdAdmin`) refait ce contrôle — c'est à
+   l'appelant de le refaire selon le rôle réel de l'action.
+3. **FREELANCER** est-il restreint à ses tâches assignées (`assigneeId`),
+   et ne peut-il modifier **que** les champs autorisés (statut seul sur une
+   tâche — voir SEC-045) ?
+
+Une route qui ne peut répondre « oui » ou « sans objet justifié » aux trois
+n'est pas prête. Réutiliser `assertProjectInScope` (`utils/serviceScope.ts`)
+plutôt que réécrire le contrôle.
+
 ## Contraintes de sécurité
 
 - Aucune clé API en dur dans le code — toujours via variables d'environnement.
