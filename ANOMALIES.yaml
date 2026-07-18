@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-028
+dernier_id: SEC-029
 
 anomalies:
   - id: SEC-001
@@ -2294,6 +2294,77 @@ anomalies:
 
       `npx tsc --noEmit` vert. Suite complète : 281/281 (276 + 5 nouveaux),
       ~27s, aucune régression. `resolu` déclaré SANS confirmation CI — la
+      CI est actuellement désactivée sur `origin/main` sur demande du
+      porteur du projet (workflow_dispatch seul, session du 2026-07-17),
+      dérogation « no make it resolu » déjà établie dans cette session.
+
+  - id: SEC-029
+    titre: "RG-017 (Client sans accès aux outils d'exécution) : provenance déduction/conditionnelle, jamais vérifiée directement par test — aucun défaut trouvé, preuve manquante comblée"
+    perimetre: "4.11 Module IA (agent-service, GELÉ) — server/src/services/agentOrchestrator.service.ts, server/src/routes/ai.routes.ts, server/src/routes/aiConversation.routes.ts"
+    regle_violee: "RG-017"
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand un test appelle réellement
+      `agentOrchestratorService.executeAgent` (le garde-fou métier réel,
+      pas seulement le middleware `authorize` générique déjà testé
+      ailleurs) avec un rôle CLIENT et confirme le rejet, ET qu'un scan
+      direct confirme l'absence de toute primitive d'exécution de commande
+      dans `server/src` — pas seulement une déduction combinant l'absence
+      de RG-016 à un contrôle de rôle observé ailleurs.
+    detecte_le: "2026-07-18"
+    source: manuel
+    confiance: certain
+    note: >
+      Traité en réponse à la question du porteur du projet « is there
+      something a vérifier dans ce projet », après RG-008 (SEC-027) et
+      RG-002 (SEC-028) — RG-017 nommée dans l'audit de lecture initial
+      comme priorité sécurité (3e position), mais touchant exclusivement
+      le module 4.11 Module IA, classé GELÉ. CLAUDE.md interdit tout
+      audit sur un module GELÉ sauf si une anomalie remontée bloque le
+      flux argent — pas le cas ici (question de sécurité, pas d'argent).
+
+      DÉCISION EXPLICITE DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-18) : « Dégeler explicitement 4.11 pour cette vérification
+      uniquement » — lecture directe ciblée autorisée pour RG-017
+      spécifiquement, sans lever le gel pour le reste (aucune correction
+      fonctionnelle, aucune nouvelle capacité, module 4.11 reste GELÉ pour
+      tout le reste après cette vérification).
+
+      VÉRIFICATION RÉELLE, AUCUN DÉFAUT TROUVÉ (contrairement à SEC-027/
+      SEC-028) :
+      (1) `server/src/routes/ai.routes.ts` : les 3 routes (`/chat`,
+      `/brief`, `/tasks`) portent chacune `authorize("ADMIN", "MANAGER")`
+      explicitement, jamais CLIENT.
+      (2) `server/src/routes/aiConversation.routes.ts` : `router.use(
+      authenticate, authorize("ADMIN", "MANAGER"))` appliqué à toutes les
+      routes du fichier avant même leur définition.
+      (3) `agentOrchestratorService.executeAgent` (le service métier réel
+      derrière `/brief` et `/tasks`) revérifie lui-même le rôle
+      (`if (!["ADMIN", "MANAGER"].includes(userRole)) throw 403`) — un
+      second garde-fou indépendant du middleware de route, qui rejetterait
+      même un appel interne qui aurait oublié le middleware.
+      (4) `aiConversation.controller.ts` lu intégralement : toutes les
+      méthodes dérivent l'identité de `req.user!.sub` (le JWT authentifié),
+      aucun paramètre `userId`/`role` manipulable par le corps de requête.
+      (5) Grep exhaustif sur tout `server/src` : aucune primitive
+      `child_process`/`execSync`/`spawn`/`eval` nulle part — confirme
+      directement la base de RG-016 (aucun sandboxing car aucune
+      exécution n'existe du tout), pas seulement repris comme fait acquis.
+      (6) Côté client : aucune référence à `ai/chat`/`ai/brief`/`ai/tasks`/
+      `ai-conversations` dans `client/src/features/client-portal/**` — le
+      portail Client ne tente même pas d'appeler ces endpoints.
+
+      Nouveau test `server/test/aiExecutionAccessClient.test.ts` (câblé
+      dans `test/run-all.test.ts`), appelle réellement
+      `agentOrchestratorService.executeAgent` avec un rôle CLIENT puis
+      FREELANCER (403 confirmé sur les deux, indépendamment du middleware
+      de route déjà couvert par `ai.endpoint.test.ts`), plus un scan direct
+      confirmant l'absence de primitive d'exécution dans tout `server/src`.
+
+      `npx tsc --noEmit` vert. Suite complète : 284/284 (281 + 3 nouveaux),
+      ~27s, aucune régression. `resolu` déclaré SANS confirmation CI : la
       CI est actuellement désactivée sur `origin/main` sur demande du
       porteur du projet (workflow_dispatch seul, session du 2026-07-17),
       dérogation « no make it resolu » déjà établie dans cette session.
