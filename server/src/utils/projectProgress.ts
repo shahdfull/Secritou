@@ -1,4 +1,4 @@
-import { prisma } from "../config/prisma.js";
+import { prismaRead } from "../config/prisma.js";
 
 export type ProjectProgressData = {
   progress: number;
@@ -11,7 +11,7 @@ export async function getProgressByProjectIds(projectIds: string[]): Promise<Map
     return new Map();
   }
 
-  const rows = await prisma.$queryRaw<Array<{ projectId: string; progress: number; taskDone: bigint; taskTotal: bigint }>>`
+  const rows = await prismaRead.$queryRaw<Array<{ projectId: string; progress: number; taskDone: bigint; taskTotal: bigint }>>`
     SELECT t."projectId",
       COALESCE(
         ROUND(100.0 * COUNT(*) FILTER (WHERE t.status = 'DONE') / NULLIF(COUNT(*), 0)),

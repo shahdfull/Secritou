@@ -106,6 +106,16 @@ export function TasksPage() {
         </p>
       )}
 
+      {/* Kanban view is capped at 200 tasks (a single unpaginated request) — past that, tasks
+          beyond the cap were silently missing from the board with no indication. Not a real
+          limit yet at this product stage, but flagging it now avoids a silent data loss as the
+          agency's task volume grows. */}
+      {viewMode === "kanban" && total > 200 && (
+        <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+          {t("tasksPage.kanbanTruncatedNotice", { shown: 200, total })}
+        </p>
+      )}
+
       {viewMode === "list" ? (
         <TasksListView
           tasks={tasks}

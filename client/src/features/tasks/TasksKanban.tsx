@@ -22,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { useUpdateTask } from "@/hooks/useTasks";
 import type { Task } from "@/types/task";
-import { TASK_STATUSES } from "@secritou/shared";
+import { TASK_STATUSES, ALLOWED_TASK_TRANSITIONS } from "@secritou/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -275,6 +275,15 @@ export const TasksKanban = memo(function TasksKanban({ filteredTasks, onTaskClic
 
     if (!overStatus || activeStatus === overStatus) return;
 
+    // Reject the drop outright if the transition isn't allowed (e.g. TODO -> DONE) — previously
+    // any drop was accepted visually, then rolled back after a round-trip to the server with a
+    // generic error toast, even though ALLOWED_TASK_TRANSITIONS already knows this is invalid
+    // before any network call.
+    if (!ALLOWED_TASK_TRANSITIONS[activeStatus]?.includes(overStatus)) {
+      toast.error(t("toasts.taskInvalidTransition", { from: activeStatus, to: overStatus }));
+      return;
+    }
+
     // Optimistic update
     const snapshots = queryClient.getQueriesData({ queryKey: ["tasks"], exact: false });
     queryClient.setQueriesData({ queryKey: ["tasks"], exact: false }, (old: unknown) => {
@@ -302,11 +311,17 @@ export const TasksKanban = memo(function TasksKanban({ filteredTasks, onTaskClic
     updateTask(
       { id: activeId, data: { status: overStatus } },
       {
-        onError: () => {
+        onError: (error: any) => {
           for (const [key, data] of snapshots) {
             queryClient.setQueryData(key, data);
           }
-          toast.error(t("toasts.taskStatusUpdateError"));
+          // Surface the server's actual message (e.g. "Cannot transition from TODO to DONE.
+          // Allowed: IN_PROGRESS") when available — it's more actionable than the generic
+          // fallback, and the ALLOWED_TASK_TRANSITIONS check above only catches transitions
+          // this client build knows about, not every server-side rejection (e.g. a completed
+          // project no longer accepting task changes).
+          const serverMessage = error?.response?.data?.error?.message;
+          toast.error(serverMessage || t("toasts.taskStatusUpdateError"));
         },
       }
     );

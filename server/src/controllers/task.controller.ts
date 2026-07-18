@@ -48,6 +48,12 @@ export const updateTask: RequestHandler = async (req, res, next) => {
 
 export const getFreelancerAvailability: RequestHandler = async (req, res, next) => {
   try {
+    // req.query is genuinely { startDate: Date; endDate: Date } here, not a lie about raw
+    // strings — validate(getFreelancerAvailabilitySchema) on this route (task.routes.ts)
+    // already parsed and .transform()'d them into real Date objects, and reassigned req.query
+    // in place (validate.middleware.ts). This cast only holds as long as that middleware stays
+    // mounted on this route — removing it would silently make startDate/endDate raw strings
+    // again without any type error here.
     const { freelancerId, startDate, endDate, excludeTaskId } = req.query as unknown as {
       freelancerId: string;
       startDate: Date;

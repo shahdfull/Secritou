@@ -1,5 +1,5 @@
 // Project Repository - Data access layer
-import { prismaRead as prisma } from "../config/prisma.js";
+import { prisma, prismaRead } from "../config/prisma.js";
 import type { Project, ProjectStatus, Role, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildOrderBy, buildTextSearchFilter } from "../utils/listQuery.js";
@@ -73,8 +73,8 @@ export const projectRepository = {
     const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
 
     const [projects, total] = await Promise.all([
-      prisma.project.findMany({ where, select: projectListSelect, orderBy, skip, take: options.pageSize }),
-      prisma.project.count({ where }),
+      prismaRead.project.findMany({ where, select: projectListSelect, orderBy, skip, take: options.pageSize }),
+      prismaRead.project.count({ where }),
     ]);
 
     const progressMap = await getProgressByProjectIds(projects.map((p) => p.id));
@@ -104,16 +104,16 @@ export const projectRepository = {
     let project: (Project & { client?: ProjectWithProgress["client"]; tasks?: { id: string; title: string; status: string }[] }) | null;
 
     if (userRole === "ADMIN") {
-      project = await prisma.project.findUnique({ where: { id }, select: baseSelect });
+      project = await prismaRead.project.findUnique({ where: { id }, select: baseSelect });
     } else if (userRole === "MANAGER") {
-      project = await prisma.project.findFirst({ where: { id, serviceId: serviceId ?? undefined }, select: baseSelect });
+      project = await prismaRead.project.findFirst({ where: { id, serviceId: serviceId ?? undefined }, select: baseSelect });
     } else if (userRole === "FREELANCER") {
-      project = await prisma.project.findFirst({
+      project = await prismaRead.project.findFirst({
         where: { id, tasks: { some: { assigneeId: userId } } },
         select: baseSelect,
       });
     } else {
-      project = await prisma.project.findUnique({ where: { id, clientId }, select: baseSelect });
+      project = await prismaRead.project.findUnique({ where: { id, clientId }, select: baseSelect });
     }
 
     if (!project) return null;
@@ -121,6 +121,9 @@ export const projectRepository = {
     return { ...project, ...pd };
   },
 
+  // Reads via the primary connection, not prismaRead: every caller uses this as an
+  // immediately-preceding read before writing the same row (update/delete/applyTemplate) — a
+  // lagging replica could otherwise base that write on stale data.
   async findByIdAdmin(id: string) {
     return prisma.project.findFirst({
       where: { id, archivedAt: null, deletedAt: null },
@@ -191,8 +194,8 @@ export const projectRepository = {
     const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
 
     const [projects, total] = await Promise.all([
-      prisma.project.findMany({ where, select: projectListSelect, orderBy, skip, take: options.pageSize }),
-      prisma.project.count({ where }),
+      prismaRead.project.findMany({ where, select: projectListSelect, orderBy, skip, take: options.pageSize }),
+      prismaRead.project.count({ where }),
     ]);
 
     const progressMap = await getProgressByProjectIds(projects.map((p) => p.id));
@@ -205,18 +208,18 @@ export const projectRepository = {
   },
 
   async countNonDraftInvoices(id: string): Promise<number> {
-    return prisma.invoice.count({ where: { projectId: id, status: { not: "DRAFT" } } });
+    return prismaRead.invoice.count({ where: { projectId: id, status: { not: "DRAFT" } } });
   },
 
   // Surfaces the "proposal.amount was null/zero — deposit invoice intentionally skipped"
   // case from the accept-proposal cascade (proposal.service.ts) so the UI can explain an
   // otherwise-silent absence rather than leaving a manager wondering where the invoice is.
   async hasDepositInvoice(id: string): Promise<boolean> {
-    const count = await prisma.invoice.count({ where: { projectId: id, invoiceType: "DEPOSIT" } });
+    const count = await prismaRead.invoice.count({ where: { projectId: id, invoiceType: "DEPOSIT" } });
     return count > 0;
   },
 
   async countOnboardings(id: string): Promise<number> {
-    return prisma.clientOnboarding.count({ where: { projectId: id } });
+    return prismaRead.clientOnboarding.count({ where: { projectId: id } });
   },
 };

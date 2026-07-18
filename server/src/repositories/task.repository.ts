@@ -1,5 +1,5 @@
 // Task Repository - Data access layer
-import { prisma } from "../config/prisma.js";
+import { prisma, prismaRead } from "../config/prisma.js";
 import type { TaskStatus, Role, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildTextSearchFilter } from "../utils/listQuery.js";
@@ -54,8 +54,8 @@ export const taskRepository = {
     const orderBy = buildOrderBy(options.orderBy, options.orderDir);
 
     const [data, total] = await Promise.all([
-      prisma.task.findMany({ where, select: taskWithRelationsSelect, orderBy, skip, take: options.pageSize }),
-      prisma.task.count({ where }),
+      prismaRead.task.findMany({ where, select: taskWithRelationsSelect, orderBy, skip, take: options.pageSize }),
+      prismaRead.task.count({ where }),
     ]);
 
     return { data, total, page: options.page, pageSize: options.pageSize };
@@ -75,9 +75,12 @@ export const taskRepository = {
     } else {
       where = { id, project: { deletedAt: null } };
     }
-    return prisma.task.findFirst({ where, select: taskWithRelationsSelect });
+    return prismaRead.task.findFirst({ where, select: taskWithRelationsSelect });
   },
 
+  // Reads via the primary connection, not prismaRead: both callers (task.service.ts's
+  // updateTask/deleteTask) use this as an immediately-preceding read before writing the same
+  // row — a lagging replica could otherwise base that write on stale data.
   async findByIdAdmin(id: string): Promise<TaskWithRelations | null> {
     return prisma.task.findFirst({ where: { id }, select: taskWithRelationsSelect });
   },
@@ -91,7 +94,7 @@ export const taskRepository = {
     } else {
       where = { id, project: { deletedAt: null } };
     }
-    const count = await prisma.task.count({ where });
+    const count = await prismaRead.task.count({ where });
     return count > 0;
   },
 
