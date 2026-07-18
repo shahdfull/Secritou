@@ -119,14 +119,11 @@ export const invoiceService = {
     return invoice;
   },
 
-  async create(data: { number?: string; title: string; description?: string; amount: number; currency?: string; dueDate?: Date; pdfUrl?: string; clientId: string; projectId?: string; proposalId?: string }) {
-    let created;
-    if (!data.number) {
-      const { number, ...rest } = data;
-      created = await createInvoiceWithGeneratedNumber(rest);
-    } else {
-      created = await invoiceRepository.create(data as any);
-    }
+  // RG-012: number is always generated via nextInvoiceNumber (InvoiceCounter, sequential,
+  // gapless per month) — never accepted as caller input, which would bypass the counter
+  // entirely (SEC-031).
+  async create(data: { title: string; description?: string; amount: number; currency?: string; dueDate?: Date; pdfUrl?: string; clientId: string; projectId?: string; proposalId?: string }) {
+    const created = await createInvoiceWithGeneratedNumber(data);
     await invalidateFinanceCaches();
     return created;
   },
