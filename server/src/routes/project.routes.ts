@@ -113,7 +113,12 @@ router.get("/:id", requirePermission("projects", "read"), getProjectById);
  * @swagger
  * /projects:
  *   post:
- *     summary: Create a new project
+ *     summary: Create a project from an already-accepted proposal
+ *     description: >
+ *       Low-level route: a project is normally created automatically by the accept-proposal
+ *       cascade (proposal.service.ts), not by this endpoint — no UI screen calls it. `proposalId`
+ *       is REQUIRED and must reference a proposal whose status is ACCEPTED, otherwise the request
+ *       is rejected (404 if the proposal does not exist, 422 PROPOSAL_NOT_ACCEPTED otherwise).
  *     tags: [Projects]
  *     security:
  *       - bearerAuth: []
@@ -123,9 +128,12 @@ router.get("/:id", requirePermission("projects", "read"), getProjectById);
  *         application/json:
  *           schema:
  *             type: object
+ *             required: [name, proposalId]
  *             properties:
  *               name: { type: string }
  *               description: { type: string }
+ *               proposalId: { type: string, format: uuid, description: "Must reference an ACCEPTED proposal" }
+ *               clientId: { type: string, format: uuid }
  *     responses:
  *       201:
  *         description: Project created
@@ -135,6 +143,10 @@ router.get("/:id", requirePermission("projects", "read"), getProjectById);
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
  *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         description: Proposal not found
+ *       422:
+ *         description: PROPOSAL_NOT_ACCEPTED — the referenced proposal is not in ACCEPTED status
  */
 router.post("/", validate(createProjectSchema), authorize("ADMIN", "MANAGER"), requirePermission("projects", "create"), createProject);
 

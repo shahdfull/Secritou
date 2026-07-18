@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-042
+dernier_id: SEC-048
 
 anomalies:
   - id: SEC-001
@@ -3563,3 +3563,276 @@ anomalies:
       (typecheck/lint/build/tests d'intégration serveur) a été
       possible pour la partie UI, pas d'interaction navigateur réelle
       sur le Kanban ou les boutons désactivés.
+  - id: SEC-043
+    titre: "applyToProject (templates) sans garde-fou serveur d'idempotence : double-clic/rejeu/appel API direct dupliquait tout le lot de taches du template — seule l'UI masquait le bouton"
+    perimetre: "4.2 Gestion de projet — server/src/services/projectTemplate.service.ts, server/src/repositories/project.repository.ts, server/src/repositories/projectTemplate.repository.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand `projectTemplateService.applyToProject` rejette
+      `409 TEMPLATE_ALREADY_APPLIED` sur un projet qui a déjà au moins une
+      tâche — vérifié par un test qui appelle réellement le service contre
+      une base migrée : première application OK sur projet vide, seconde
+      application rejetée, et le compte de tâches ne bouge pas après le
+      rejet.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport du porteur du projet, casquette backend/sécurité (constat
+      B1), confirmé par lecture directe avant action.
+
+      CONSTAT (confirmé) : `projectTemplate.repository.ts#applyToProject`
+      exécute `prisma.task.createMany(...)` sans condition, et
+      `projectTemplate.service.ts#applyToProject` vérifiait le scope, le
+      statut COMPLETED, la présence de serviceId et l'existence du
+      template — mais JAMAIS si le projet avait déjà des tâches. Seule
+      l'UI (`ProjectDetailPage.tsx`, état vide de l'onglet Tâches)
+      masque le bouton une fois le projet doté de tâches — protection
+      contournable par double-clic, rejeu réseau, ou appel API direct,
+      chacun dupliquant l'intégralité du lot.
+
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-19) : « B1 : garde serveur 409 (Recommandé) ».
+
+      CORRECTIF ÉCRIT : garde d'idempotence ajouté dans
+      `projectTemplate.service.ts#applyToProject` — nouveau
+      `projectRepository.countTasks(projectId)` (lit via `prisma`
+      primaire, pas `prismaRead` : la lecture précède immédiatement un
+      insert en masse, un réplica en retard pourrait rater les tâches
+      d'une première application qui vient de committer). Si le compte
+      est > 0, `409 TEMPLATE_ALREADY_APPLIED`. La recommandation
+      alternative du rapport (`templateAppliedAt` pour tracer/idempotenter)
+      n'a pas été retenue : elle ajouterait un champ de schéma
+      (migration), le compte de tâches suffit au critère de résolution
+      sans nouvelle colonne.
+
+      TEST AJOUTÉ :
+      `server/test/projectTemplateIdempotencyAndFreelancerFields.test.ts`
+      (bloc B1, 3 cas), appelle réellement le service contre une base
+      migrée. 330/330 tests verts, typecheck/lint/build propres.
+      `resolu` déclaré SANS confirmation CI : CI désactivée sur
+      `origin/main` (workflow_dispatch seul, session du 2026-07-17),
+      dérogation "no make it resolu" déjà établie.
+
+  - id: SEC-044
+    titre: "Incoherence de rigueur entre validateurs de dates : dates de reunion en ISO strict avec fuseau, dates de tache acceptant tout Date.parse (March 3, 2024/1/1, etc.)"
+    perimetre: "4.3 Gestion des taches — server/src/validators/task.validator.ts, server/src/validators/projectMeeting.validator.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand `createTaskSchema`/`updateTaskSchema`
+      n'acceptent plus qu'une date calendaire `YYYY-MM-DD` OU un datetime
+      ISO 8601 complet, et rejettent les formes libres que `Date.parse`
+      tolérait auparavant — vérifié par un test qui appelle réellement
+      `createTaskSchema.safeParse` (pas une réimplémentation) : accepte
+      `2024-03-15` et `2024-03-20T09:30:00.000Z`, rejette `March 3`/
+      `2024/1/1`/`Sat Jan 01 2024`/`demain`, autorise toujours l'absence
+      de date.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport du porteur du projet, casquette backend/sécurité (constat
+      B4), confirmé ET approfondi par lecture directe.
+
+      CONSTAT (confirmé) : `projectMeeting.validator.ts` exige
+      `z.string().datetime({ offset: true })` (ISO strict avec fuseau) ;
+      `task.validator.ts` définissait
+      `isValidDateString = (s) => !isNaN(Date.parse(s))`, acceptant tout
+      ce que `Date.parse` tolère.
+
+      APPROFONDISSEMENT DÉTERMINANT (a évité un correctif cassant) : les
+      DEUX côtés client utilisent `<input type="date">` (donc
+      `YYYY-MM-DD`), mais le client réunion convertit en ISO avant envoi
+      (`new Date(d).toISOString()`, `ProjectMeetingsTab.tsx`) tandis que
+      le client tâche (`TaskCreateDialog.tsx`/`TaskEditDialog.tsx`)
+      envoie le `YYYY-MM-DD` brut. Resserrer NAÏVEMENT le validateur
+      tâche sur `datetime({ offset: true })` aurait donc cassé la
+      création/édition de tâche réelle. La question a été posée au
+      porteur plutôt que tranchée seul.
+
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-19) : « Accepter YYYY-MM-DD explicitement, des 2 côtés
+      (Recommandé) » — resserrer sans casser le format réellement
+      envoyé.
+
+      CORRECTIF ÉCRIT : `isValidDateString` remplacé par un test regex
+      `^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$`
+      COMBINÉ à `!isNaN(Date.parse(s))` (le regex borne le format, le
+      Date.parse rejette les dates syntaxiquement valides mais
+      impossibles). Accepte `YYYY-MM-DD` et l'ISO complet, rejette les
+      formes libres. Le validateur réunion n'a PAS été touché (déjà
+      strict, le client réunion lui envoie de l'ISO complet).
+
+      TEST AJOUTÉ : bloc B4 (4 cas) dans
+      `projectTemplateIdempotencyAndFreelancerFields.test.ts`, appelle
+      réellement `createTaskSchema.safeParse`. `resolu` SANS
+      confirmation CI, dérogation "no make it resolu" déjà établie.
+
+  - id: SEC-045
+    titre: "Aucun test ne prouvait la regle negative « un FREELANCER ne peut modifier QUE le statut de SES propres taches » — restriction vivant uniquement dans task.service.ts, non asseree"
+    perimetre: "4.3 Gestion des taches — server/src/services/task.service.ts, server/src/routes/task.routes.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand un test appelle réellement
+      `taskService.updateTask` et prouve : (1) un FREELANCER peut changer
+      le `status` de sa propre tâche ; (2) toute modification d'un champ
+      autre que `status` (seul ou combiné à `status`) est rejetée
+      `403 DISALLOWED_FIELD_UPDATE` ; (3) une tâche non assignée au
+      FREELANCER est refusée `403 TASK_NOT_ASSIGNED_TO_YOU`.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport du porteur du projet, casquette backend/sécurité (constat
+      B5), confirmé par lecture directe.
+
+      CONSTAT (confirmé) : `task.routes.ts` autorise FREELANCER au
+      niveau routeur (`authorize("ADMIN","MANAGER","FREELANCER")` +
+      `requirePermission("tasks","update")`) ; la vraie restriction vit
+      dans `task.service.ts#updateTask` (lignes ~158-169 : refus si la
+      tâche n'est pas assignée au freelance, puis refus de tout champ ≠
+      `status`). Défense en profondeur saine, mais recherche exhaustive
+      dans `server/test/` confirme qu'AUCUN test n'assérait cette règle
+      (`DISALLOWED_FIELD_UPDATE`/`TASK_NOT_ASSIGNED_TO_YOU` absents,
+      `updateTask` jamais appelé en test). Or c'est une règle
+      négative/d'exclusivité (« ne peut modifier QUE… ») — CLAUDE.md
+      exige spécifiquement `verifie: test` appelant le code réel, un
+      grep ne prouvant jamais l'exclusivité.
+
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-19) : « B5 : ajouter le test manquant (Recommandé) ».
+
+      CORRECTIF : aucun changement de code (la règle était déjà
+      correctement implémentée) — seul un test manquait pour la prouver
+      et la protéger d'une régression. Bloc B5 (4 cas) dans
+      `projectTemplateIdempotencyAndFreelancerFields.test.ts`, appelle
+      réellement `taskService.updateTask` contre une base migrée.
+      `resolu` SANS confirmation CI, dérogation "no make it resolu"
+      déjà établie.
+
+  - id: SEC-046
+    titre: "Route POST /projects sans consommateur UL (morte cote front depuis SEC-039) et doc Swagger fausse/trompeuse : requestBody omettait proposalId, le champ requis"
+    perimetre: "4.2 Gestion de projet — server/src/routes/project.routes.ts, client/src/hooks/useProjects.ts, client/src/api/projects.api.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand la doc Swagger de `POST /projects` déclare
+      `proposalId` comme requis (`required: [name, proposalId]`) et
+      explique que la création réelle passe par la cascade
+      d'acceptation de proposition — ET quand le hook client orphelin
+      `useCreateProject` (sans consommateur depuis SEC-039) est retiré.
+      Vérifié par lecture directe et typecheck/build client vert.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport du porteur du projet, casquette backend/sécurité (constat
+      B2), confirmé ET aggravé par lecture directe : la doc Swagger était
+      non seulement trompeuse sur l'usage (route présentée comme création
+      « libre ») mais FACTUELLEMENT FAUSSE — son `requestBody` ne listait
+      que `name`/`description`, omettant `proposalId` (requis, UUID, par
+      `createProjectSchema`), si bien qu'un intégrateur suivant le
+      Swagger aurait reçu un rejet systématique. `useCreateProject`
+      (hook) et `projectsApi.create` étaient orphelins depuis SEC-039
+      (retrait du bouton « Nouveau projet », son seul consommateur) —
+      confirmé par grep (aucun composant ne les appelle,
+      `useCreateProjectMeeting` étant un faux positif de sous-chaîne).
+
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-19) : « B2 : corriger la doc Swagger » (+ retrait du hook
+      orphelin).
+
+      CORRECTIF ÉCRIT : bloc Swagger de `POST /projects` réécrit —
+      `required: [name, proposalId]`, `proposalId` documenté (doit
+      référencer une proposition ACCEPTED), réponses 404/422 ajoutées,
+      summary/description clarifiant que la création normale passe par
+      la cascade (`proposal.service.ts`). `useCreateProject` retiré de
+      `useProjects.ts` (commentaire expliquant pourquoi) ; import
+      `CreateProjectInput` devenu inutile nettoyé. `projectsApi.create`
+      et la route serveur CONSERVÉS (chemin API bas niveau volontaire,
+      seul le point d'entrée UI cassé et le hook orphelin sont retirés).
+      Clé i18n `toasts.projectCreated` laissée en place (orpheline mais
+      inoffensive, hors périmètre). `resolu` SANS confirmation CI,
+      dérogation "no make it resolu" déjà établie.
+
+  - id: SEC-047
+    titre: "Task.priority modelise (Prisma/Zod/UI) mais absent de toute logique metier serveur — jamais critere de tri, notification ou regle : donnee purement declarative"
+    perimetre: "4.3 Gestion des taches — server/prisma/schema.prisma, server/src/repositories/task.repository.ts, server/src/validators/task.validator.ts, shared/src/schemas/task.schema.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      Ce constat sera résolu quand une décision produit explicite aura
+      été prise et écrite (REFERENTIEL.md §7) sur l'usage voulu de
+      `Task.priority` — soit l'implémenter (tri par défaut, alerte
+      URGENT en retard, etc.) avec le test correspondant, soit
+      documenter formellement qu'il est volontairement informatif.
+      Tant que la décision n'est pas rendue, reste `ouvert`.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport du porteur du projet, casquette backend/sécurité (constat
+      B3), confirmé par lecture directe : `Task.priority`
+      (`Priority @default(NORMAL)`, schema.prisma:594) est présent en
+      Prisma, accepté par le schéma Zod partagé
+      (`shared/src/schemas/task.schema.ts:28`) et renvoyé au client
+      (`taskWithRelationsSelect`), MAIS n'apparaît dans AUCUNE logique
+      métier serveur : absent de `SORTABLE_FIELDS`
+      (`task.repository.ts:9` = `["title","status","dueDate","createdAt"]`),
+      aucune notification ni règle n'en dépend (contrairement à
+      `ServiceRequest.priority`, qui journalise ses changements). Donnée
+      purement déclarative.
+
+      ENREGISTRÉ SANS CORRECTIF (décision du porteur, AskUserQuestion
+      session du 2026-07-19 : « Documenter les 3 comme anomalies ») :
+      l'usage voulu de `priority` est une décision produit qui doit être
+      demandée, pas déduite — conformément à CLAUDE.md (ne pas créer une
+      règle métier absente de REFERENTIEL.md sans demande explicite). Ne
+      pas rouvrir en développement sans instruction.
+
+  - id: SEC-048
+    titre: "Scoping MANAGER par pole = source repetee d'oublis d'autorisation sur le module Project/Task (SEC-036 : getBrief/getTimelineStatus/applyToProject/projectMeeting) — pas de checklist de revue systematique"
+    perimetre: "4.2 Gestion de projet / 4.3 Gestion des taches — process de revue de code"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      Ce constat sera résolu quand une checklist de revue de code
+      documentée existe (dans le dépôt ou REFERENTIEL.md) imposant que
+      toute nouvelle route Project/Task scope explicitement CLIENT,
+      MANAGER (pôle) et FREELANCER (assignation) — et qu'elle soit
+      référencée par le process de revue. C'est un livrable de process,
+      pas de code.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport du porteur du projet, casquette backend/sécurité (constat
+      B6), prémisse confirmée par l'historique : SEC-036 (session du
+      2026-07-18) a trouvé QUATRE oublis de scoping MANAGER sur ce même
+      module (`projectMeeting.service.ts`,
+      `projectTemplate.service.ts#applyToProject`, `getBrief`,
+      `getTimelineStatus`) — le scoping par pôle est bien une source
+      répétée d'oublis d'autorisation ici.
+
+      ENREGISTRÉ SANS ACTION (décision du porteur, AskUserQuestion
+      session du 2026-07-19 : « Documenter les 3 comme anomalies ») :
+      c'est une recommandation de PROCESS (checklist de revue), pas un
+      défaut de code corrigeable par un patch. La formalisation de la
+      checklist (où la publier, comment l'intégrer au workflow) reste à
+      trancher avec le porteur avant rédaction. Ne pas inventer un
+      fichier de process sans décision.

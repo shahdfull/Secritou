@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { projectsApi } from "../api/projects.api";
-import type { Project, CreateProjectInput, UpdateProjectInput } from "../types/project";
+import type { Project, UpdateProjectInput } from "../types/project";
 import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 import { toast } from "sonner";
 import i18n from "@/i18n";
@@ -25,17 +25,10 @@ export function useProject(id: string) {
   });
 }
 
-export function useCreateProject() {
-  const queryClient = useQueryClient();
-
-  return useMutation<Project, Error, CreateProjectInput>({
-    mutationFn: (data) => projectsApi.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.projects() });
-      toast.success(i18n.t("toasts.projectCreated"));
-    },
-  });
-}
+// useCreateProject removed (SEC-043): its only consumer was the "Nouveau projet" button, itself
+// removed by SEC-039 (direct creation is not a real flow — a project is born from an accepted
+// proposal via the cascade). The POST /projects route and projectsApi.create are kept for the
+// low-level/API path; no client hook wraps them.
 
 export function useUpdateProject() {
   const queryClient = useQueryClient();

@@ -3,7 +3,14 @@ import { z } from "zod";
 import { TaskStatus } from "@prisma/client";
 import { taskBaseSchema as sharedTaskBase } from "@secritou/shared";
 
-const isValidDateString = (s: string) => !isNaN(Date.parse(s));
+// SEC-044: previously `(s) => !isNaN(Date.parse(s))`, which accepted anything Date.parse tolerates
+// ("March 3", "2024/1/1", "Sat Jan 01 2024"), far looser than the project-meeting validator
+// (strict ISO with offset). The client sends `YYYY-MM-DD` (from <input type="date">) for tasks and
+// a full ISO string for meetings, so the documented convention is: accept a calendar date
+// (YYYY-MM-DD) OR a full ISO 8601 datetime, and reject everything else. This rejects the loose
+// free-text forms above while keeping every real client payload valid.
+const ISO_DATE_OR_DATETIME = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$/;
+const isValidDateString = (s: string) => ISO_DATE_OR_DATETIME.test(s) && !isNaN(Date.parse(s));
 
 const taskBaseSchema = sharedTaskBase.extend({
   status: z.nativeEnum(TaskStatus).optional(),

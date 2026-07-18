@@ -26,6 +26,15 @@ export const projectTemplateService = {
     }
     if (!project.serviceId) throw new HttpError(422, "Project has no service/pole assigned", "PROJECT_NO_SERVICE");
 
+    // Idempotence guard (SEC-043): the client only ever surfaces "apply template" from a
+    // project's empty-tasks state, but nothing server-side stopped a double-click, a network
+    // replay, or a direct API call from bulk-inserting the whole batch a second time. Applying a
+    // template is meaningful only on a project with no tasks yet — reject otherwise.
+    const existingTaskCount = await projectRepository.countTasks(projectId);
+    if (existingTaskCount > 0) {
+      throw new HttpError(409, "This project already has tasks; a template can only seed an empty project", "TEMPLATE_ALREADY_APPLIED");
+    }
+
     const template = await projectTemplateRepository.findByServiceId(project.serviceId);
     if (!template) throw new HttpError(404, "No template configured for this pole", "TEMPLATE_NOT_FOUND");
 

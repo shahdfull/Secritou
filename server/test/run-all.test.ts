@@ -65,3 +65,4 @@ import "./managerScopeIdorFixes.test.ts";
 import "./prismaReadWriteSeparation.test.ts";
 import "./projectCreateArchiveRestore.test.ts";
 import "./archivedProjectTaskVisibility.test.ts";
+import "./projectTemplateIdempotencyAndFreelancerFields.test.ts";

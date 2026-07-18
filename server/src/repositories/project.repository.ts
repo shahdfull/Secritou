@@ -222,4 +222,11 @@ export const projectRepository = {
   async countOnboardings(id: string): Promise<number> {
     return prismaRead.clientOnboarding.count({ where: { projectId: id } });
   },
+
+  // Reads via the primary connection, not prismaRead: this count gates an immediately-following
+  // bulk task insert (projectTemplate.service.ts idempotence guard, SEC-043) — a lagging replica
+  // could miss tasks from a first apply that just committed and wrongly let a second apply through.
+  async countTasks(id: string): Promise<number> {
+    return prisma.task.count({ where: { projectId: id } });
+  },
 };
