@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-035
+dernier_id: SEC-036
 
 anomalies:
   - id: SEC-001
@@ -2874,3 +2874,108 @@ anomalies:
       actuellement désactivée sur `origin/main` sur demande du porteur du
       projet (workflow_dispatch seul, session du 2026-07-17), dérogation
       « no make it resolu » déjà établie dans cette session.
+
+  - id: SEC-036
+    titre: "4 failles IDOR de scope MANAGER : réunions de projet, application de template, brief et timeline lisibles/modifiables hors du pôle du Manager"
+    perimetre: "4.2 Gestion de projet — server/src/services/projectMeeting.service.ts, server/src/services/projectTemplate.service.ts, server/src/services/project.service.ts, server/src/routes/project.routes.ts"
+    regle_violee: "RG-002"
+    classe: "scope_manager_manquant"
+    gravite: bloquant
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand un Manager du pôle A reçoit un rejet (403 ou 404
+      selon le point d'entrée) sur toute tentative de lister/créer des
+      réunions, lire/modifier la cadence de rappel, appliquer un template,
+      ou lire le brief/la timeline d'un projet du pôle B — vérifié par un
+      test qui appelle réellement chaque méthode contre une base réelle,
+      sur les 4 axes, ET confirme qu'un Manager du même pôle (ou un ADMIN
+      non scopé) continue de fonctionner normalement.
+    detecte_le: "2026-07-18"
+    source: manuel
+    confiance: certain
+    note: >
+      Signalé directement par le porteur du projet, sous la casquette
+      « ingénieur sécurité » — 3 constats précis fournis, tous confirmés
+      par lecture directe avant toute correction. Un 4e trou distinct
+      trouvé en vérifiant le 3e, non mentionné dans le signalement
+      initial — enregistré et corrigé dans la même passe conformément à
+      CLAUDE.md.
+
+      CONSTAT 1 (confirmé) : `projectMeeting.service.ts`
+      (`listByProject`/`create`/`getSchedule`/`setSchedule`) n'appliquait
+      AUCUN contrôle de scope — contrairement au pattern déjà en place
+      dans `task.service.ts#assertProjectInScope`. Un Manager du pôle A
+      pouvait lister/créer des réunions et lire/modifier la cadence de
+      rappel (`meeting-schedule`, qui pilote le job de rappel quotidien)
+      d'un projet du pôle B, en connaissant/devinant son UUID. Vérifié sur
+      toute la chaîne (route → controller → service → repository) :
+      aucun niveau ne filtrait.
+
+      CONSTAT 2 (confirmé) : `projectTemplate.service.ts#applyToProject`
+      chargeait bien `project.serviceId` (pour choisir le bon template du
+      pôle) mais ne le comparait jamais au pôle du Manager appelant. Un
+      Manager hors périmètre pouvait injecter en masse les tâches du
+      template de son propre pôle dans un projet qui n'était pas le sien.
+
+      CONSTAT 3 (confirmé) : `GET /:id/timeline-status` et `GET /:id/brief`
+      n'avaient que `authenticate`, jamais `authorize(...)` — la
+      protection reposait entièrement sur le filtrage interne du service,
+      sans filet de sécurité au niveau routeur (un futur rôle ajouté ou un
+      oubli de scoping service serait passé inaperçu).
+
+      CONSTAT 4, TROUVÉ EN VÉRIFIANT LE CONSTAT 3 (pas dans le signalement
+      initial) : `project.service.ts#getBrief`/`getTimelineStatus`
+      construisaient un `where` qui ne filtrait EXPLICITEMENT que
+      `CLIENT` et `FREELANCER` — le rôle `MANAGER` n'était jamais scopé
+      par pôle dans ces deux méthodes, contrairement à
+      `project.repository.ts#findById` qui gère bien ce cas
+      (`serviceId: serviceId ?? undefined`). Un Manager du pôle A pouvait
+      donc lire le BRIEF (potentiellement des objectifs/budget client
+      confidentiels) ET la timeline complète de n'importe quel projet,
+      indépendamment du problème d'`authorize()` du constat 3 — même avec
+      un `authorize()` ajouté, sans ce correctif un Manager MANAGER aurait
+      continué à tout voir.
+
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-18) : « Corriger les 4 dans la même passe (Recommandé) ».
+
+      CORRECTIFS ÉCRITS :
+      (1) `assertProjectInScope` (identique au pattern de
+      `task.service.ts`) ajouté à `projectMeeting.service.ts`, appliqué
+      aux 4 méthodes ; controllers mis à jour pour construire et
+      transmettre le `scope` via `buildServiceScope`.
+      (2) `projectTemplate.service.ts#applyToProject` : vérification
+      directe `project.serviceId !== scope.userServiceId` (le projet est
+      déjà chargé avec son `serviceId`, pas besoin d'une requête séparée
+      comme dans le pattern générique) — `403 PROJECT_OUT_OF_SCOPE`.
+      (3) `authorize("ADMIN", "MANAGER", "CLIENT", "FREELANCER")` ajouté
+      explicitement aux 2 routes (`timeline-status`, `brief`), en filet de
+      sécurité, pas en remplacement du scoping interne déjà nécessaire.
+      (4) Filtre `if (role === "MANAGER") where.serviceId = managerServiceId
+      ?? "__none__"` ajouté à `getBrief` ET `getTimelineStatus` ; les deux
+      controllers construisent désormais le scope MANAGER et le
+      transmettent en paramètre supplémentaire.
+
+      Nouveau test `server/test/managerScopeIdorFixes.test.ts` (câblé
+      dans `test/run-all.test.ts`), appelle réellement les 4 services
+      contre une base migrée, 5 cas : rejet cross-pôle sur les 4 méthodes
+      de `projectMeeting.service.ts` ; fonctionnement normal same-pole/
+      ADMIN confirmé pour ne pas sur-restreindre ; rejet cross-pôle sur
+      `applyToProject`, `getBrief`, `getTimelineStatus`.
+
+      BUG DE TEST TROUVÉ ET CORRIGÉ EN COURS DE ROUTE (pas dans le code
+      applicatif) : le premier jet du test déclarait `managerAScope` comme
+      `const` au niveau module, capturant `serviceA` avant que le hook
+      `before()` ne l'assigne (donc toujours `undefined`) — masquait un
+      vrai bug de test sous un faux positif (tous les rejets passaient,
+      mais pour la mauvaise raison : `userServiceId: undefined` rejette
+      n'importe quel pôle, pas seulement le pôle B). Détecté par le test
+      "same-pole Manager" qui échouait à tort. Corrigé en transformant
+      `managerAScope` en fonction, appelée après l'assignation réelle de
+      `serviceA`.
+
+      `npx tsc --noEmit` vert. Suite complète : 303/303 (298 + 5 nouveaux),
+      ~28-30s, aucune régression. `resolu` déclaré SANS confirmation CI :
+      la CI est actuellement désactivée sur `origin/main` sur demande du
+      porteur du projet (workflow_dispatch seul, session du 2026-07-17),
+      dérogation « no make it resolu » déjà établie dans cette session.

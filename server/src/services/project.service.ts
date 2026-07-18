@@ -194,10 +194,16 @@ export const projectService = {
     return archived;
   },
 
-  async getBrief(id: string, role: Role, clientId?: string, userId?: string) {
+  // SEC (session 2026-07-18): serviceId was previously never checked against the target
+  // project — GET /:id/brief has no authorize() (CLIENT/MANAGER/ADMIN can all reach the
+  // controller), and this method itself only scoped CLIENT/FREELANCER, never MANAGER. A
+  // Manager from another pole could read any project's brief (potentially confidential
+  // client objectives/budget).
+  async getBrief(id: string, role: Role, clientId?: string, userId?: string, managerServiceId?: string | null) {
     const where: Record<string, unknown> = { id };
     if (role === "CLIENT") where.clientId = clientId ?? "__none__";
     if (role === "FREELANCER") where.tasks = { some: { assigneeId: userId ?? "__none__" } };
+    if (role === "MANAGER") where.serviceId = managerServiceId ?? "__none__";
 
     // A FREELANCER having a single task on the project previously matched the full project
     // (including briefData — the client's complete questionnaire, potentially confidential
@@ -456,10 +462,12 @@ export const projectService = {
     return result;
   },
 
-  async getTimelineStatus(id: string, role: Role, clientId?: string, userId?: string): Promise<TimelineStep[]> {
+  // SEC (session 2026-07-18): same gap as getBrief above — MANAGER was never scoped by pole.
+  async getTimelineStatus(id: string, role: Role, clientId?: string, userId?: string, managerServiceId?: string | null): Promise<TimelineStep[]> {
     const where: Record<string, unknown> = { id };
     if (role === "CLIENT") where.clientId = clientId ?? "__none__";
     if (role === "FREELANCER") where.tasks = { some: { assigneeId: userId ?? "__none__" } };
+    if (role === "MANAGER") where.serviceId = managerServiceId ?? "__none__";
     const project = await prismaRead.project.findFirst({
       where,
       select: { id: true, status: true, createdAt: true, briefCompleted: true, briefCompletedAt: true, tasks: { select: { status: true, updatedAt: true } } },

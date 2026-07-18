@@ -126,7 +126,8 @@ export const getBrief: RequestHandler = async (req, res, next) => {
     const role = req.user!.role;
     const clientId = req.user?.clientId as string | undefined;
     const userId = req.user?.sub;
-    const result = await projectService.getBrief(req.params.id as string, role, clientId, userId);
+    const scope = role === "MANAGER" ? await buildServiceScope(req) : undefined;
+    const result = await projectService.getBrief(req.params.id as string, role, clientId, userId, scope?.userServiceId);
     res.json({ data: result });
   } catch (error) {
     next(error);
@@ -200,11 +201,13 @@ export const getTimelineStatus: RequestHandler = async (req, res, next) => {
     const role = req.user!.role;
     const clientId = req.user?.clientId as string | undefined;
     const userId = req.user?.sub;
+    const scope = role === "MANAGER" ? await buildServiceScope(req) : undefined;
     const steps = await projectService.getTimelineStatus(
       req.params.id as string,
       role,
       clientId,
-      userId
+      userId,
+      scope?.userServiceId
     );
     res.json({ data: steps });
   } catch (error) {

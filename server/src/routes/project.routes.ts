@@ -19,13 +19,16 @@ router.get("/health-board", authenticate, authorize("ADMIN", "MANAGER"), require
 router.get("/my", authenticate, authorize("CLIENT"), requireActivatedPortal, getMyProjects);
 router.get("/trash", authenticate, authorize("ADMIN", "MANAGER"), requirePermission("projects", "read"), getDeletedProjects);
 
-// Timeline : accessible to CLIENT (own project only), MANAGER, ADMIN — not gated, may be
-// needed to show progress (including the pending-payment step) before activation.
-router.get("/:id/timeline-status", authenticate, getTimelineStatus);
+// Timeline : accessible to CLIENT (own project only), MANAGER (own pole only), FREELANCER (own
+// task only), ADMIN — not gated (payment activation), each scoped inside the service. authorize
+// added explicitly (SEC, session 2026-07-18) as a router-level safety net, not the sole guard —
+// a future added role or a service scoping mistake would otherwise fall through silently.
+router.get("/:id/timeline-status", authenticate, authorize("ADMIN", "MANAGER", "CLIENT", "FREELANCER"), getTimelineStatus);
 
-// Brief questionnaire : CLIENT submits, MANAGER/ADMIN read. Submitting the brief is the
-// cadrage's "2e réunion de cadrage" step, which happens after the deposit is paid — gated.
-router.get("/:id/brief", authenticate, getBrief);
+// Brief questionnaire : CLIENT submits, MANAGER (own pole)/ADMIN/FREELANCER (own task, redacted)
+// read. Submitting the brief is the cadrage's "2e réunion de cadrage" step, which happens after
+// the deposit is paid — gated. authorize added explicitly (SEC, session 2026-07-18), see above.
+router.get("/:id/brief", authenticate, authorize("ADMIN", "MANAGER", "CLIENT", "FREELANCER"), getBrief);
 router.post("/:id/brief/submit", authenticate, authorize("CLIENT"), requireActivatedPortal, submitBrief);
 
 // Called back by the n8n brief-to-specs workflow — gated by HMAC signature, not a Secritou session.
