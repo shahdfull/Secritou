@@ -94,7 +94,11 @@ export function ProjectDetailPage() {
   }
 
   const isFreelancer = user?.role === "FREELANCER";
-  const canChangeStatus = isAdminOrManager && project.status !== "COMPLETED";
+  // !project.archivedAt added (SEC-041 follow-up): findByIdAdmin (used by updateProject) already
+  // filters archivedAt: null, so this button was silently failing (404) on an archived project
+  // reachable by direct URL — the button now reflects the server's real acceptance condition
+  // instead of only checking status.
+  const canChangeStatus = isAdminOrManager && project.status !== "COMPLETED" && !project.archivedAt;
   // ProjectStatus has no CANCELLED value by design (schema.prisma) — an abandoned project is
   // represented via archivedAt instead. POST /:id/archive is authorize("ADMIN") only, matching
   // canArchive here. No un-archive endpoint exists yet (unlike restore for deletedAt), so this
@@ -319,7 +323,7 @@ export function ProjectDetailPage() {
                 <div className="flex flex-col items-center py-8 gap-3">
                   <FileText className="h-8 w-8 text-muted-foreground/40" />
                   <p className="text-sm text-muted-foreground">{t("projects.noTasks")}</p>
-                  {isAdminOrManager && projectTemplate && projectTemplate.tasks.length > 0 && (
+                  {isAdminOrManager && !project.archivedAt && projectTemplate && projectTemplate.tasks.length > 0 && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -505,10 +509,11 @@ export function ProjectDetailPage() {
           <DialogHeader>
             <DialogTitle>Archiver ce projet ?</DialogTitle>
             <DialogDescription>
-              Le projet disparaîtra de toutes les listes et vues. Aucune fonction de désarchivage
-              n'existe actuellement dans l'interface : cette action est donc irréversible tant
-              qu'elle n'est pas effectuée manuellement en base de données. Confirmez-vous
-              l'archivage de « {project.name} » ?
+              Le projet disparaîtra de toutes les listes (projets, tâches). Sa fiche détaillée
+              reste consultable par lien direct si vous connaissez son adresse. Aucune fonction
+              de désarchivage n'existe actuellement dans l'interface : cette action est donc
+              irréversible tant qu'elle n'est pas effectuée manuellement en base de données.
+              Confirmez-vous l'archivage de « {project.name} » ?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

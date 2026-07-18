@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-041
+dernier_id: SEC-042
 
 anomalies:
   - id: SEC-001
@@ -3443,3 +3443,123 @@ anomalies:
       est actuellement désactivée sur `origin/main` sur demande du
       porteur du projet (workflow_dispatch seul, session du 2026-07-17),
       dérogation "no make it resolu" déjà établie dans cette session.
+  - id: SEC-042
+    titre: "SEC-040 (bouton Archiver) a rendu atteignable un chemin jamais exerce : les taches d'un projet archive restaient visibles/glissables dans /app/tasks, et sa fiche detail restait accessible par URL directe avec des boutons actifs qui echouaient silencieusement (404 invisible a l'ecran)"
+    perimetre: "4.2 Gestion de projet — server/src/repositories/task.repository.ts, server/src/repositories/project.repository.ts, client/src/features/projects/ProjectDetailPage.tsx"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand une tâche dont le projet parent est archivé
+      n'apparaît plus dans aucune liste de tâches (`GET /tasks`,
+      `GET /tasks/:id`) pour aucun rôle (ADMIN, MANAGER, FREELANCER
+      assigné) — vérifié par un test qui appelle réellement
+      `taskService.getAllTasks`/`getTaskById` contre une base migrée,
+      pas une réimplémentation — ET quand les deux boutons de
+      `ProjectDetailPage.tsx` qui échouaient silencieusement
+      (« Changer de statut », « Partir du template ») sont masqués dès
+      que `project.archivedAt` est renseigné, vérifié par lecture
+      directe et un typecheck/build client vert.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport de suivi du porteur du projet sur le correctif SEC-040
+      lui-même (« 1.3 État "projet abandonné" (reformulé) » +
+      « 2. Nouvelles anomalies trouvées »), confirmé intégralement par
+      lecture directe avant toute action, conformément à CLAUDE.md.
+      Constat de fond du rapport, exact : SEC-040 n'a rien cassé en soi
+      — il a rendu réellement atteignable par un clic un état
+      (`archivedAt` non nul) qui n'avait jamais pu être déclenché
+      depuis l'UI auparavant, ce qui a transformé deux trous
+      jusque-là purement théoriques en incohérences réelles.
+
+      CONSTAT 2.1 (confirmé par lecture directe et recherche exhaustive) :
+      `task.repository.ts#buildWhere`/`findById`/`existsInCompany`
+      filtraient tous `project: { deletedAt: null }` mais JAMAIS
+      `archivedAt` (zéro occurrence confirmée par grep). Une tâche
+      d'un projet archivé restait donc visible dans `/app/tasks`
+      (Kanban et liste) pour ADMIN/MANAGER/le FREELANCER assigné,
+      avec le nom du projet toujours affiché
+      (`TasksKanban.tsx:116`, `{task.project.name}`), alors que
+      `assertProjectIsOpenForTaskChanges` (`task.service.ts`) rejette
+      déjà toute écriture sur cette tâche avec
+      `409 PROJECT_ARCHIVED` — confirmé ligne par ligne. Un
+      utilisateur pouvait donc voir la carte, essayer de la glisser
+      vers une autre colonne, et recevoir un rejet serveur pour une
+      raison invisible à l'écran.
+
+      CONSTAT 2.2 (confirmé par lecture directe) :
+      `project.repository.ts#findById` (utilisé par
+      `GET /projects/:id`, donc par `ProjectDetailPage.tsx`) ne filtre
+      ni `archivedAt` ni `deletedAt` pour AUCUN rôle — seul
+      `findByIdAdmin` (utilisé par `updateProject`/`deleteProject`/
+      `archiveProject`/`applyToProject`) le fait. La fiche d'un projet
+      archivé restait donc parfaitement consultable par lien direct,
+      contredisant le texte du dialogue de confirmation
+      (« disparaîtra de toutes les listes et vues »). Sur cette même
+      fiche, `canChangeStatus`
+      (`ProjectDetailPage.tsx`) ne testait que `project.status !==
+      "COMPLETED"`, jamais `archivedAt` — le bouton "Changer de
+      statut" restait actif, son clic aboutissant à un rejet 404
+      silencieux côté serveur (`updateProject` passe par
+      `findByIdAdmin`, qui filtre `archivedAt: null`). Même
+      constat sur le bouton "Partir du template" (protégé côté
+      serveur par le même `findByIdAdmin`, donc aucun risque
+      fonctionnel, mais la même expérience d'échec sans explication).
+
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-19) : « Corriger les 2 dans la même passe (Recommandé) »
+      — task.repository.ts ET ProjectDetailPage.tsx.
+
+      CORRECTIF ÉCRIT :
+      `server/src/repositories/task.repository.ts` — `archivedAt:
+      null` ajouté à côté de `deletedAt: null` dans les 3 endroits où
+      le filtre projet apparaissait (`buildWhere`, `findById`,
+      `existsInCompany`) ; `findByIdAdmin` volontairement inchangé
+      (chemin d'écriture, déjà protégé en amont par
+      `assertProjectIsOpenForTaskChanges`).
+      `client/src/features/projects/ProjectDetailPage.tsx` —
+      `canChangeStatus` teste désormais aussi `!project.archivedAt` ;
+      le bouton "Partir du template" gagne la même condition ; le
+      texte du dialogue de confirmation d'archivage corrigé
+      (« listes (projets, tâches) » au lieu de « listes et vues »,
+      avec une phrase explicite précisant que la fiche détail reste
+      consultable par lien direct — honnêteté du produit sur sa
+      propre limite, saluée par le rapport comme un point positif).
+      `project.repository.ts#findById` volontairement NON modifié
+      (hors périmètre de la décision du porteur : rendre la fiche
+      elle-même inaccessible après archivage serait un changement de
+      comportement plus large, non demandé).
+
+      TEST AJOUTÉ : nouveau fichier
+      `server/test/archivedProjectTaskVisibility.test.ts` (enregistré
+      dans `run-all.test.ts`), appelle réellement
+      `taskService.getAllTasks`/`getTaskById` et
+      `projectService.getProjectById`/`archiveProject` contre une base
+      migrée — pas de réimplémentation. 5 cas : `getAllTasks` exclut
+      la tâche d'un projet archivé pour ADMIN, pour MANAGER (même
+      pôle), et pour le FREELANCER assigné ; `getTaskById` 404 sur une
+      tâche dont le projet est archivé ; `getProjectById` continue de
+      renvoyer le projet archivé lui-même (documente explicitement
+      l'asymétrie assumée : seule la visibilité des tâches change,
+      pas celle de la fiche projet).
+
+      319/319 tests verts (314 précédents + 5 nouveaux, confirmant que
+      les nouveaux tests s'exécutent réellement). `npx tsc --noEmit`
+      vert des deux côtés, `npm run lint` : 0 erreur des deux côtés
+      (165 warnings serveur, 152 warnings client, tous pré-existants,
+      aucun nouveau sur les fichiers touchés). `npm run build` client
+      réussi. `node scripts/check-i18n.mjs` vert (aucune nouvelle clé
+      cette fois). `resolu` déclaré SANS confirmation CI : la CI est
+      actuellement désactivée sur `origin/main` sur demande du
+      porteur du projet (workflow_dispatch seul, session du
+      2026-07-17), dérogation "no make it resolu" déjà établie dans
+      cette session.
+
+      LIMITE DE VÉRIFICATION SIGNALÉE : aucun navigateur disponible
+      dans cet environnement — seule la vérification au niveau code
+      (typecheck/lint/build/tests d'intégration serveur) a été
+      possible pour la partie UI, pas d'interaction navigateur réelle
+      sur le Kanban ou les boutons désactivés.

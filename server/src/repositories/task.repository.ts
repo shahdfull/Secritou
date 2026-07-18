@@ -18,11 +18,15 @@ function buildWhere(
   userServiceId?: string | null
 ) {
   // A MANAGER only sees tasks whose project belongs to their service (pole). "__none__"
-  // guarantees no match when the manager has no service.
+  // guarantees no match when the manager has no service. archivedAt filtered alongside
+  // deletedAt (SEC-041 follow-up): once SEC-040 exposed a real "Archiver" button in the UI,
+  // an archived project's tasks kept showing up here as if nothing had changed, contradicting
+  // both the project detail page (vanishes from every list) and the write path (blocked with
+  // 409 PROJECT_ARCHIVED, invisible from this read side until now).
   const projectFilter =
     userRole === "MANAGER"
-      ? { serviceId: userServiceId ?? "__none__", deletedAt: null }
-      : { deletedAt: null };
+      ? { serviceId: userServiceId ?? "__none__", deletedAt: null, archivedAt: null }
+      : { deletedAt: null, archivedAt: null };
   const base = {
     project: projectFilter,
     ...(projectId && { projectId }),
@@ -69,11 +73,11 @@ export const taskRepository = {
   ): Promise<TaskWithRelations | null> {
     let where: Prisma.TaskWhereInput;
     if (userRole === "FREELANCER") {
-      where = { id, assigneeId: userId, project: { deletedAt: null } };
+      where = { id, assigneeId: userId, project: { deletedAt: null, archivedAt: null } };
     } else if (userRole === "MANAGER") {
-      where = { id, project: { serviceId: userServiceId ?? "__none__", deletedAt: null } };
+      where = { id, project: { serviceId: userServiceId ?? "__none__", deletedAt: null, archivedAt: null } };
     } else {
-      where = { id, project: { deletedAt: null } };
+      where = { id, project: { deletedAt: null, archivedAt: null } };
     }
     return prismaRead.task.findFirst({ where, select: taskWithRelationsSelect });
   },
@@ -88,11 +92,11 @@ export const taskRepository = {
   async existsInCompany(id: string, userId: string, userRole: Role, userServiceId?: string | null): Promise<boolean> {
     let where: Prisma.TaskWhereInput;
     if (userRole === "FREELANCER") {
-      where = { id, assigneeId: userId, project: { deletedAt: null } };
+      where = { id, assigneeId: userId, project: { deletedAt: null, archivedAt: null } };
     } else if (userRole === "MANAGER") {
-      where = { id, project: { serviceId: userServiceId ?? "__none__", deletedAt: null } };
+      where = { id, project: { serviceId: userServiceId ?? "__none__", deletedAt: null, archivedAt: null } };
     } else {
-      where = { id, project: { deletedAt: null } };
+      where = { id, project: { deletedAt: null, archivedAt: null } };
     }
     const count = await prismaRead.task.count({ where });
     return count > 0;
