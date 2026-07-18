@@ -215,7 +215,10 @@ export function ProjectsPage() {
   const { mutate: updateProject, isPending: isUpdating } = useUpdateProject();
   const { mutate: deleteProject, isPending: isDeleting } = useDeleteProject();
   const { mutate: restoreProject, isPending: isRestoring } = useRestoreProject();
-  const { data: trashResult, isLoading: trashLoading } = useProjectTrash({ ...params, search });
+  // GET /projects/trash is authorize("ADMIN", "MANAGER") only — a FREELANCER always got a
+  // wasted, guaranteed-to-fail request here, for a trash section they were never meant to see
+  // in the first place (the section below is also hidden for this role now).
+  const { data: trashResult, isLoading: trashLoading } = useProjectTrash({ ...params, search }, !isFreelancer);
 
   const clientById = useMemo(() => {
     const map = new Map<string, (typeof clients)[number]>();
@@ -524,34 +527,36 @@ export function ProjectsPage() {
             <ProjectGrid projects={filteredProjects} clientById={clientById} getStatusBadgeClass={getStatusBadgeClass} getStatusLabel={getStatusLabel} t={t} canDelete={canDelete} onEdit={handleEdit} onDelete={handleDelete} />
           )}
 
-          <div className="space-y-4 rounded-xl border border-dashed p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="font-semibold">{t("common.trash")}</h2>
-                <p className="text-sm text-muted-foreground">{t("projectsPage.trashDesc")}</p>
+          {!isFreelancer && (
+            <div className="space-y-4 rounded-xl border border-dashed p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-semibold">{t("common.trash")}</h2>
+                  <p className="text-sm text-muted-foreground">{t("projectsPage.trashDesc")}</p>
+                </div>
               </div>
+              {trashLoading ? (
+                <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
+              ) : trashedProjects.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{t("projectsPage.trashEmpty")}</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {trashedProjects.map((project) => (
+                    <Card key={project.id} className="border-dashed">
+                      <CardHeader>
+                        <div className="flex items-start justify-between gap-2">
+                          <CardTitle className="text-lg">{project.name}</CardTitle>
+                          <Button variant="secondary" size="sm" onClick={() => handleRestore(project)} disabled={isRestoring}>
+                            {t("common.restore")}
+                          </Button>
+                        </div>
+                      </CardHeader>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
-            {trashLoading ? (
-              <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
-            ) : trashedProjects.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t("projectsPage.trashEmpty")}</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {trashedProjects.map((project) => (
-                  <Card key={project.id} className="border-dashed">
-                    <CardHeader>
-                      <div className="flex items-start justify-between gap-2">
-                        <CardTitle className="text-lg">{project.name}</CardTitle>
-                        <Button variant="secondary" size="sm" onClick={() => handleRestore(project)} disabled={isRestoring}>
-                          {t("common.restore")}
-                        </Button>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
+          )}
 
           {!isFreelancer && (
             <DataTablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} />

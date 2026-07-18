@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-037
+dernier_id: SEC-038
 
 anomalies:
   - id: SEC-001
@@ -3102,6 +3102,65 @@ anomalies:
       transition et le bandeau de troncature — vérification de niveau
       code uniquement (typecheck, lint, build, test structurel réel côté
       serveur), pas un test UI en conditions réelles.
+
+      "resolu" déclaré SANS confirmation CI : la CI est actuellement
+      désactivée sur origin/main sur demande du porteur du projet
+      (workflow_dispatch seul, session du 2026-07-17), dérogation "no
+      make it resolu" déjà établie dans cette session.
+
+  - id: SEC-038
+    titre: "ProjectsPage.tsx appelle GET /projects/trash pour tout rôle, y compris FREELANCER — requête systématiquement vouée à l'échec (403) pour une section jamais destinée à ce rôle"
+    perimetre: "4.2 Gestion de projet, 4.7 Freelances — client/src/features/projects/ProjectsPage.tsx, client/src/hooks/useProjects.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand un utilisateur FREELANCER ouvrant ProjectsPage.tsx
+      ne déclenche plus aucune requête GET /projects/trash, ET ne voit
+      plus le bloc de rendu de la corbeille du tout — vérifié par lecture
+      directe confirmant enabled: !isFreelancer sur useProjectTrash et le
+      wrapping conditionnel !isFreelancer sur le bloc JSX correspondant.
+    detecte_le: "2026-07-18"
+    source: manuel
+    confiance: certain
+    note: >
+      Trouvé en vérifiant un rapport "casquette Product Owner" du porteur
+      du projet, qui mentionnait en passant "appel trash inutile" pour le
+      Freelance parmi une liste de priorités — jamais isolé comme
+      anomalie distincte jusqu'ici. Enregistré et corrigé immédiatement
+      conformément à CLAUDE.md.
+
+      CONSTAT : GET /projects/trash (route serveur) est gardée
+      authorize("ADMIN", "MANAGER") — FREELANCER reçoit systématiquement
+      un 403. Or ProjectsPage.tsx#useProjectTrash({...params, search})
+      était appelée SANS AUCUNE condition de rôle, donc chaque ouverture
+      de cette page par un Freelancer déclenchait une requête réseau
+      garantie à l'échec, pour alimenter un bloc de rendu (section
+      "Corbeille") lui-même affiché inconditionnellement — alors que la
+      pagination générique juste en dessous avait déjà été corrigée
+      (SEC-035) pour exclure ce rôle, laissant cette incohérence
+      partiellement corrigée dans le même fichier.
+
+      CORRECTIF ÉCRIT : `useProjectTrash` (useProjects.ts) accepte
+      désormais un second paramètre `enabled = true`, suivant le pattern
+      déjà établi ailleurs dans le même fichier
+      (`useCommissions.ts#useMySplitForProject(projectId, enabled)`).
+      `ProjectsPage.tsx` l'appelle avec `!isFreelancer`. Le bloc JSX de la
+      section Corbeille est désormais enveloppé dans `{!isFreelancer &&
+      (...)}`, cohérent avec le traitement déjà appliqué à la pagination
+      générique du bas de page dans le même fichier (SEC-035).
+
+      `npx tsc --noEmit` vert. `npm run build` réussi. Aucun autre
+      appelant de `useProjectTrash` dans tout le dépôt (grep confirmé) —
+      changement de signature rétrocompatible (paramètre optionnel avec
+      valeur par défaut).
+
+      Limite de vérification signalée : aucun outil de navigateur
+      disponible dans cet environnement pour confirmer visuellement
+      l'absence de la section Corbeille pour un compte Freelancer réel —
+      vérification de niveau code uniquement (typecheck, lint, build,
+      grep exhaustif des appelants).
 
       "resolu" déclaré SANS confirmation CI : la CI est actuellement
       désactivée sur origin/main sur demande du porteur du projet

@@ -75,11 +75,15 @@ export function useRestoreProject() {
   });
 }
 
-export function useProjectTrash(params: ListQueryParams = {}) {
+// enabled defaults to true; callers whose role can never reach GET /projects/trash
+// (authorize("ADMIN", "MANAGER") on that route — FREELANCER and CLIENT always 403) should pass
+// false, otherwise every render fires a request that's guaranteed to fail for no reason.
+export function useProjectTrash(params: ListQueryParams = {}, enabled = true) {
   return useQuery<PaginatedResponse<Project>>({
     queryKey: [...queryKeys.projects(params), "trash"],
     queryFn: () => projectsApi.getTrash(params),
     placeholderData: (prev) => prev,
     staleTime: 60_000,
+    enabled,
   });
 }
