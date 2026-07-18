@@ -5,7 +5,6 @@ import { projectService } from "../services/project.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
 import { HttpError } from "../utils/httpError.js";
 import { buildServiceScope } from "../utils/serviceScope.js";
-import { COMPANY_ID } from "../config/constants.js";
 import { regenerateSpecsWithAiContent, regenerateRoadmapWithAiContent } from "../services/projectSpecs.service.js";
 import { userRepository } from "../repositories/user.repository.js";
 

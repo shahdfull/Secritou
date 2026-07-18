@@ -3,7 +3,6 @@ import type { RequestHandler } from "express";
 import { leadService } from "../services/lead.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
 import { buildServiceScope as buildScope } from "../utils/serviceScope.js";
-import { COMPANY_ID } from "../config/constants.js";
 
 export const getLeads: RequestHandler = async (req, res, next) => {
   try {

@@ -1,4 +1,4 @@
-import { Role, ProjectStatus, TaskStatus, LeadStatus, ContactStatus } from "@prisma/client";
+import { Role, ProjectStatus, TaskStatus, LeadStatus } from "@prisma/client";
 
 // Base interface for all entities
 export interface BaseEntity {

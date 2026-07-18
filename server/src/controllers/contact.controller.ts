@@ -1,7 +1,6 @@
 import type { RequestHandler } from "express";
 import { ContactService } from "../services/contact.service.js";
 import type { ContactStatus } from "@prisma/client";
-import { COMPANY_ID } from "../config/constants.js";
 import logger from "../utils/logger.js";
 
 const contactService = new ContactService();

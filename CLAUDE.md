@@ -194,6 +194,32 @@ au moins deux réparations possibles — supprimer l'appel, ou créer la méthod
 Choisir « créer » est une décision produit : elle se demande, elle ne se
 déduit pas du fait que le code compile ensuite.
 
+## Zéro warning lint : porte obligatoire (SEC-049)
+
+Aucun warning ESLint n'est toléré, ni côté serveur ni côté client — pas
+seulement zéro erreur. Toute session qui modifie du code doit finir avec
+`npm run lint` **totalement propre** (0 error, 0 warning) sur les deux
+workspaces avant tout commit. En particulier :
+
+- **`@typescript-eslint/no-explicit-any`** : ne jamais introduire de `any`.
+  Utiliser un vrai type, `unknown` + garde, ou un générique. Un `any` qui
+  masquerait un vrai défaut de typage se corrige en typant, pas en
+  désactivant la règle.
+- **`@typescript-eslint/no-unused-vars`** : pas d'import, de variable ni de
+  constante inutilisés. Les supprimer. Une variable délibérément inutilisée
+  (destructuration pour exclure un champ, paramètre positionnel) se préfixe
+  `_` (convention `Allowed unused vars must match /^_/u`).
+- **`prefer-const`** : `const` par défaut ; `let` seulement si le binding est
+  réellement réassigné (une mutation de propriété n'est pas une
+  réassignation).
+
+Ne jamais faire taire un warning en désactivant la règle (`eslint-disable`)
+ni en élargissant les exceptions de config sans instruction explicite du
+porteur. Si supprimer un `any` ou une variable morte révèle un vrai bug
+(ex. une valeur calculée jamais utilisée là où elle devrait l'être), c'est un
+constat à remonter (anomalie), pas à « réparer » en douce — « réparer n'est
+pas développer » s'applique.
+
 ## Conventions de code observées dans le dépôt
 
 - TypeScript strict, Express 5, couches routes → controllers → services →

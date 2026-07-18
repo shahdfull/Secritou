@@ -11,9 +11,6 @@ import {
   NotificationType,
   CommissionStatus,
   OnboardingStepStatus,
-  SpecApprovalStatus,
-  ContractStatus,
-  PaymentStatus,
   DocumentType,
   DocumentAccessLevel,
   RecommendationPriority,
@@ -165,7 +162,7 @@ async function main() {
   ]);
 
   // Reload client users with clientId
-  const [clientUser1, clientUser2, clientUser3, clientUser4] = await Promise.all(
+  const [clientUser1, clientUser2, clientUser3, _clientUser4] = await Promise.all(
     rawClientUsers.map(u => prisma.user.findUniqueOrThrow({ where: { id: u.id } }))
   );
 

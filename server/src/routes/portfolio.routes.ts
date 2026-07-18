@@ -25,7 +25,7 @@ const getFreelancerId: RequestHandler = async (req, _res, next) => {
     select: { id: true },
   });
   if (!profile) return next(new HttpError(404, "Freelancer profile not found"));
-  (req as any).freelancerId = profile.id;
+  req.freelancerId = profile.id;
   next();
 };
 
@@ -34,7 +34,7 @@ router.use(getFreelancerId);
 router.get("/", async (req, res, next) => {
   try {
     const items = await prismaRead.portfolioItem.findMany({
-      where: { freelancerId: (req as any).freelancerId },
+      where: { freelancerId: req.freelancerId },
       orderBy: { createdAt: "desc" },
     });
     res.json({ data: items });
@@ -43,6 +43,9 @@ router.get("/", async (req, res, next) => {
 
 router.post("/", validate(portfolioItemSchema), async (req, res, next) => {
   try {
+    // getFreelancerId (mounted above) guarantees this is set or already errored; assert for the
+    // type system so create() gets a definite string rather than string | undefined.
+    if (!req.freelancerId) return next(new HttpError(404, "Freelancer profile not found"));
     const body = req.body as { title: string; description?: string; url?: string; imageUrl?: string };
     const item = await prisma.portfolioItem.create({
       data: {
@@ -50,7 +53,7 @@ router.post("/", validate(portfolioItemSchema), async (req, res, next) => {
         description: body.description ?? null,
         url: body.url || null,
         imageUrl: body.imageUrl || null,
-        freelancerId: (req as any).freelancerId,
+        freelancerId: req.freelancerId,
       },
     });
     res.status(201).json({ data: item });
@@ -61,7 +64,7 @@ router.put("/:id", validate(portfolioItemSchema), async (req, res, next) => {
   try {
     const itemId = String(req.params.id);
     const existing = await prismaRead.portfolioItem.findFirst({
-      where: { id: itemId, freelancerId: (req as any).freelancerId },
+      where: { id: itemId, freelancerId: req.freelancerId },
     });
     if (!existing) return next(new HttpError(404, "Portfolio item not found"));
     const body = req.body as { title: string; description?: string; url?: string; imageUrl?: string };
@@ -82,7 +85,7 @@ router.delete("/:id", async (req, res, next) => {
   try {
     const itemId = String(req.params.id);
     const existing = await prismaRead.portfolioItem.findFirst({
-      where: { id: itemId, freelancerId: (req as any).freelancerId },
+      where: { id: itemId, freelancerId: req.freelancerId },
     });
     if (!existing) return next(new HttpError(404, "Portfolio item not found"));
     await prisma.portfolioItem.delete({ where: { id: itemId } });

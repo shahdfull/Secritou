@@ -1,8 +1,6 @@
 import { z } from "zod";
 import {
   documentBaseSchema as sharedDocumentBase,
-  documentType,
-  documentAccessLevel,
 } from "@secritou/shared";
 
 const uuidParam = z.string().uuid();

@@ -36,15 +36,14 @@ function makeUser(overrides: Record<string, unknown> = {}) {
 
 describe("userService.updateUser session revocation (RG-019)", () => {
   let findByIdMock: ReturnType<typeof mock.method>;
-  let countByRoleMock: ReturnType<typeof mock.method>;
-  let updateMock: ReturnType<typeof mock.method>;
   let revokeMock: ReturnType<typeof mock.method>;
   let auditMock: ReturnType<typeof mock.method>;
 
   before(() => {
     findByIdMock = mock.method(userRepository, "findById", async () => makeUser());
-    countByRoleMock = mock.method(userRepository, "countByRole", async () => 5);
-    updateMock = mock.method(userRepository, "update", async (id: string, data: unknown) => ({
+    // countByRole/update are stubbed for their side effect only; their handles are never read here.
+    mock.method(userRepository, "countByRole", async () => 5);
+    mock.method(userRepository, "update", async (id: string, data: unknown) => ({
       ...makeUser(),
       ...(data as object),
     }));
@@ -97,7 +96,6 @@ describe("userService last-Admin protection (RG-021)", () => {
   let countByRoleMock: ReturnType<typeof mock.method>;
   let deleteMock: ReturnType<typeof mock.method>;
   let getWaitingMock: ReturnType<typeof mock.method>;
-  let auditMock: ReturnType<typeof mock.method>;
 
   before(() => {
     findByIdMock = mock.method(userRepository, "findById", async () => makeUser({ role: "ADMIN" }));
@@ -108,7 +106,8 @@ describe("userService last-Admin protection (RG-021)", () => {
     }));
     deleteMock = mock.method(userRepository, "delete", async () => makeUser({ role: "ADMIN" }));
     getWaitingMock = mock.method(communicationQueue, "getWaiting", async () => []);
-    auditMock = mock.method(auditLogService, "record", async () => {});
+    // audit record stubbed for its side effect only; the handle is never read in this block.
+    mock.method(auditLogService, "record", async () => {});
   });
 
   after(() => {
@@ -178,11 +177,11 @@ describe("userService last-Admin protection (RG-021)", () => {
 });
 
 describe("userService.updateMe phone write/read/clear (SEC-006)", () => {
-  let findByIdMock: ReturnType<typeof mock.method>;
   let updateMeMock: ReturnType<typeof mock.method>;
 
   before(() => {
-    findByIdMock = mock.method(userRepository, "findById", async () => makeUser());
+    // findById stubbed for its side effect only; the handle is never read in this block.
+    mock.method(userRepository, "findById", async () => makeUser());
     // Mirrors the real repository: `data` is passed straight to `prisma.user.update`,
     // so whatever was written is exactly what a subsequent read would return.
     updateMeMock = mock.method(userRepository, "updateMe", async (id: string, data: Record<string, unknown>) => ({

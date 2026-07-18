@@ -3,7 +3,6 @@ import { approvalService } from "../services/approval.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
 import { ApprovalStatus } from "@prisma/client";
 import { HttpError } from "../utils/httpError.js";
-import { COMPANY_ID } from "../config/constants.js";
 import { buildServiceScope } from "../utils/serviceScope.js";
 
 function queryText(value: unknown): string | undefined {

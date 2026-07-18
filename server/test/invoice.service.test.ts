@@ -206,9 +206,6 @@ describe("addPayment : status logic", () => {
 // ─── Additional payment guard tests ──────────────────────────────────────────
 
 describe("addPayment : guard logic", () => {
-  const INVOICE_ID = "inv-1";
-  const COMPANY_ID = "company-1";
-
   test("rejects negative payment amount before any DB call", async () => {
     const { addPaymentSchema } = await import("../src/validators/invoice.validator.js");
     const result = addPaymentSchema.safeParse({ params: { id: crypto.randomUUID() }, body: { amount: -100 } });

@@ -1,6 +1,5 @@
 import type { RequestHandler } from "express";
 import { permissionProfileService } from "../services/managerPermission.service.js";
-import { HttpError } from "../utils/httpError.js";
 
 export const getPermissionProfiles: RequestHandler = async (req, res, next) => {
   try {

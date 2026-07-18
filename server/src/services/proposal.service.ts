@@ -2,7 +2,7 @@ import { proposalRepository } from "../repositories/proposal.repository.js";
 import logger from "../utils/logger.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { clientRepository } from "../repositories/client.repository.js";
-import { enqueueEmail, enqueueEmails, enqueueNotifications, enqueueDocumentGeneration } from "../jobs/queues.js";
+import { enqueueEmails, enqueueNotifications, enqueueDocumentGeneration } from "../jobs/queues.js";
 import type { DocumentJob } from "../jobs/queues.js";
 import { proposalSentTemplate, proposalAcceptedTemplate, proposalRejectedTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";

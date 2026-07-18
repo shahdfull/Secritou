@@ -43,7 +43,9 @@ export const analyticsRepository = {
   },
 
   async getClientStats(from?: Date, to?: Date, serviceId?: string | null) {
-    const sf = serviceFilter(serviceId);
+    // A Client has no serviceId of its own, so it is scoped by pole via its projects
+    // (clientServiceFilter) rather than serviceFilter() — which is why the generic serviceFilter
+    // result is not used here (getProjectStats below does use it directly on Project.serviceId).
     const clientServiceFilter = serviceId !== undefined
       ? { projects: { some: { serviceId: serviceId ?? "__none__" } } }
       : {};

@@ -1,6 +1,6 @@
 import { approvalRepository } from "../repositories/approval.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
-import { enqueueEmail, enqueueEmails, enqueueNotifications } from "../jobs/queues.js";
+import { enqueueEmails, enqueueNotifications } from "../jobs/queues.js";
 import { approvalRequestedTemplate, approvalDecisionTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
 import type { ApprovalStatus, Prisma } from "@prisma/client";

@@ -1,4 +1,4 @@
-import { siteContentRepository, type SiteContentUpsert } from "../repositories/siteContent.repository.js";
+import { siteContentRepository } from "../repositories/siteContent.repository.js";
 import { HttpError } from "../utils/httpError.js";
 
 const VALID_LOCALES = new Set(["fr", "en"]);

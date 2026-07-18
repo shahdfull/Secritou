@@ -4,7 +4,6 @@ import { clientService } from "../services/client.service.js";
 import { creditNoteService } from "../services/creditNote.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
 import { buildServiceScope } from "../utils/serviceScope.js";
-import { COMPANY_ID } from "../config/constants.js";
 import { HttpError } from "../utils/httpError.js";
 
 export const getClients: RequestHandler = async (req, res, next) => {

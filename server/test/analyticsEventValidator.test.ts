@@ -45,7 +45,7 @@ describe("analyticsEventSchema", () => {
   });
 
   test("rejects a missing sessionId", () => {
-    const { sessionId, ...rest } = validBody();
+    const { sessionId: _sessionId, ...rest } = validBody();
     assert.throws(() => analyticsEventSchema.parse({ body: rest }));
   });
 

@@ -1,6 +1,5 @@
 import { prisma } from "../config/prisma.js";
 import type { ClientSuccess, Prisma } from "@prisma/client";
-import { HttpError } from "../utils/httpError.js";
 
 export const clientSuccessRepository = {
   async findByClientId(clientId: string) {

@@ -13,7 +13,7 @@ export const managerPermissionRepository = {
   async create(data: {
     userId: string;
     profileId?: string;
-    overrides?: any;
+    overrides?: Prisma.InputJsonValue;
   }): Promise<ManagerPermission> {
     return prisma.managerPermission.create({
       data,

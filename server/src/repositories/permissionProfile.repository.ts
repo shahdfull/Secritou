@@ -18,7 +18,7 @@ export const permissionProfileRepository = {
   async create(data: {
     name: string;
     description?: string;
-    permissions: any;
+    permissions: Prisma.InputJsonValue;
     isDefault?: boolean;
   }): Promise<PermissionProfile> {
     return prisma.permissionProfile.create({

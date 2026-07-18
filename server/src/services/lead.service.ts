@@ -8,7 +8,6 @@ import { prisma } from "../config/prisma.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
 import { userRepository } from "../repositories/user.repository.js";
-import { clientRepository } from "../repositories/client.repository.js";
 import { enqueueNotifications } from "../jobs/queues.js";
 import { env } from "../config/env.js";
 import { clientService } from "./client.service.js";

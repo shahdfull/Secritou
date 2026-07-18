@@ -12,7 +12,6 @@ import {
 import { validate } from "../middlewares/validate.middleware.js";
 import {
   createServiceRequestSchema,
-  updateServiceRequestSchema,
   adminUpdateServiceRequestSchema,
   addCommentSchema,
 } from "../validators/serviceRequest.validator.js";

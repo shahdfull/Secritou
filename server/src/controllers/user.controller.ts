@@ -1,6 +1,5 @@
 import type { RequestHandler } from "express";
 import { userService, permissionsMatrix } from "../services/user.service.js";
-import { HttpError } from "../utils/httpError.js";
 import { parseListQuery } from "../utils/listQuery.js";
 
 // GET /users/me : any authenticated role

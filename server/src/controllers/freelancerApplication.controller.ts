@@ -8,7 +8,6 @@ import {
   acceptFreelancerApplicationValidator,
   rejectFreelancerApplicationValidator,
 } from "../validators/freelancerApplication.validator.js";
-import { COMPANY_ID } from "../config/constants.js";
 import { HttpError } from "../utils/httpError.js";
 import logger from "../utils/logger.js";
 

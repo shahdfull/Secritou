@@ -2,14 +2,14 @@
 import type { Role } from "@prisma/client";
 import { z } from "zod";
 import { callOllama } from "./llm.client.js";
-import { getPersona, personas } from "../agents/personas.js";
+import { getPersona } from "../agents/personas.js";
 import { aiConversationService } from "./aiConversation.service.js";
 import { HttpError } from "../utils/httpError.js";
 import { businessMetrics } from "../observability/businessMetrics.js";
 
 export function extractJson(text: string): string {
   // Remove markdown code blocks (both ```json and ```)
-  let cleaned = text.replace(/```(?:json)?\s*([\s\S]*?)\s*```/g, "$1").trim();
+  const cleaned = text.replace(/```(?:json)?\s*([\s\S]*?)\s*```/g, "$1").trim();
 
   // Find the first occurrence of { and the corresponding closing }
   const firstBrace = cleaned.indexOf("{");
@@ -55,7 +55,7 @@ async function callAgentWithRetry(
       // Build user message with context data
       const userMessage = `Context data:\n${JSON.stringify(contextData, null, 2)}`;
 
-      let messages = [
+      const messages = [
         { role: "user", content: userMessage }
       ];
 

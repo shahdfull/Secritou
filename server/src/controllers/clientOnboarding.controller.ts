@@ -24,7 +24,6 @@ import {
   createDeliveryValidator,
   updateDeliveryValidator,
 } from "../validators/clientOnboarding.validator.js";
-import { COMPANY_ID } from "../config/constants.js";
 import { buildServiceScope } from "../utils/serviceScope.js";
 
 export const getOnboardings: RequestHandler = async (req, res, next) => {

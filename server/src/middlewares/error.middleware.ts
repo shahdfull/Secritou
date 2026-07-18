@@ -9,7 +9,7 @@ import logger from "../utils/logger.js";
 
 export const errorMiddleware: ErrorRequestHandler = (error, req, res, _next) => {
   // Handle Prisma errors
-  if ((error as any).code === "P2002") {
+  if (error instanceof Error && "code" in error && (error as { code?: unknown }).code === "P2002") {
     appErrorsTotal.inc({ type: "prisma_p2002", source: "database" });
     res.status(409).json({
       error: {
@@ -57,9 +57,9 @@ export const errorMiddleware: ErrorRequestHandler = (error, req, res, _next) => 
     error instanceof Error &&
     !(error instanceof HttpError) &&
     "statusCode" in error &&
-    typeof (error as any).statusCode === "number"
+    typeof (error as { statusCode?: unknown }).statusCode === "number"
   ) {
-    const statusCode = (error as any).statusCode;
+    const statusCode = (error as { statusCode: number }).statusCode;
     appErrorsTotal.inc({ type: `http_${statusCode}`, source: "validation" });
     res.status(statusCode).json({
       error: {

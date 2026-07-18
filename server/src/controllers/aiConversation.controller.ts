@@ -1,6 +1,5 @@
 import type { RequestHandler } from "express";
 import { aiConversationService } from "../services/aiConversation.service.js";
-import { COMPANY_ID } from "../config/constants.js";
 
 export const listConversations: RequestHandler = async (req, res, next) => {
   try {

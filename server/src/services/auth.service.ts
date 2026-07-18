@@ -1,4 +1,4 @@
-import { Prisma, type Role, type User } from "@prisma/client";
+import { Prisma, type User } from "@prisma/client";
 import logger from "../utils/logger.js";
 import bcrypt from "bcryptjs";
 import jwt, { type SignOptions } from "jsonwebtoken";
@@ -10,7 +10,6 @@ import { enqueueEmail } from "../jobs/queues.js";
 import { passwordResetTemplate } from "./emailTemplates/index.js";
 import { HttpError } from "../utils/httpError.js";
 import { parseDurationToDate } from "../utils/parseDuration.js";
-import { COMPANY_ID } from "../config/constants.js";
 
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");

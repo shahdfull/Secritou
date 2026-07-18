@@ -86,7 +86,7 @@ export const projectService = {
     }
 
     // Prevent MANAGER from changing serviceId or clientId
-    let safeData = { ...data };
+    const safeData = { ...data };
     if (scope?.userRole === "MANAGER") {
       // For MANAGER, force serviceId to remain as original, and don't allow changing clientId
       safeData.serviceId = project.serviceId ?? undefined;

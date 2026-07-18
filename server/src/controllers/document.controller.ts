@@ -3,7 +3,6 @@ import { documentService } from "../services/document.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
 import { HttpError } from "../utils/httpError.js";
 import { DocumentType } from "@prisma/client";
-import { COMPANY_ID } from "../config/constants.js";
 import { buildServiceScope } from "../utils/serviceScope.js";
 
 function textQuery(value: unknown): string | undefined {
@@ -15,7 +14,9 @@ function textQuery(value: unknown): string | undefined {
 // the file must go through GET /documents/:id/download, which mints a short-TTL URL on demand
 // after re-checking scope.
 function redactStorageUrl<T extends { url?: unknown; fileUrl?: unknown }>(doc: T): Omit<T, "url" | "fileUrl"> {
-  const { url, fileUrl, ...rest } = doc;
+  // url/fileUrl are destructured only to strip them from the returned object (storage-URL
+  // redaction); the _ prefix marks them intentionally unused per the lint convention.
+  const { url: _url, fileUrl: _fileUrl, ...rest } = doc;
   return rest;
 }
 

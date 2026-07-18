@@ -116,7 +116,7 @@ export const commissionService = {
     await enqueueNotifications([{
       userId: updatedCommission.partnerId,
       title: "Commission versée",
-      message: `Votre commission de ${Number(updatedCommission.amount).toFixed(3)} ${(updatedCommission as any).invoice?.number ? "" : ""} a été versée.`,
+      message: `Votre commission de ${Number(updatedCommission.amount).toFixed(3)} ${updatedCommission.invoice?.number ? "" : ""} a été versée.`,
       type: "COMMISSION_PAID" as const,
       entityId: updatedCommission.id,
       link: commissionUrl,
@@ -125,8 +125,8 @@ export const commissionService = {
     void notifyN8n("commission.paid", {
       commissionId: updatedCommission.id,
       freelancerId: updatedCommission.partnerId,
-      freelancerEmail: (updatedCommission as any).partner?.email,
-      freelancerName: (updatedCommission as any).partner?.name,
+      freelancerEmail: updatedCommission.partner?.email,
+      freelancerName: updatedCommission.partner?.name,
       amount: Number(updatedCommission.amount),
       currency: "TND",
       adminUrl: commissionUrl,
