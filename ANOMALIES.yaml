@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-038
+dernier_id: SEC-039
 
 anomalies:
   - id: SEC-001
@@ -3166,3 +3166,90 @@ anomalies:
       désactivée sur origin/main sur demande du porteur du projet
       (workflow_dispatch seul, session du 2026-07-17), dérogation "no
       make it resolu" déjà établie dans cette session.
+
+  - id: SEC-039
+    titre: "Le bouton Nouveau projet (ProjectsPage.tsx) était 100% non fonctionnel — le formulaire ne collectait jamais proposalId, requis et strictement validé côté serveur"
+    perimetre: "4.2 Gestion de projet, 4.1 CRM & Pipeline commercial — client/src/features/projects/ProjectsPage.tsx, server/src/validators/project.validator.ts, server/src/services/project.service.ts"
+    regle_violee: null
+    classe: null
+    gravite: bloquant
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand ProjectsPage.tsx ne présente plus de bouton ni
+      de dialogue "Nouveau projet" (ce chemin de création directe étant
+      incohérent avec la règle métier réelle "un projet naît toujours
+      d'une proposition acceptée"), ET qu'aucun code mort correspondant
+      (formulaire, handler, imports) ne subsiste — vérifié par lecture
+      directe du fichier et par un build/typecheck client vert.
+    detecte_le: "2026-07-18"
+    source: manuel
+    confiance: certain
+    note: >
+      Signalé directement par le porteur du projet, avec une analyse de
+      cause racine déjà fournie et deux options explicitement proposées
+      "à trancher avec le PO" — confirmé intégralement par lecture
+      directe des 4 fichiers cités avant toute action, conformément à
+      CLAUDE.md (ne jamais inférer une décision produit).
+
+      CONSTAT (confirmé) : `project.validator.ts#createProjectSchema`
+      exige `proposalId: z.string().uuid()`, non optionnel.
+      `project.service.ts#createProject` interroge cette proposition et
+      lève `404 "Proposal not found"` si absente, ou
+      `422 PROPOSAL_NOT_ACCEPTED` si son statut n'est pas `ACCEPTED`.
+      Or `ProjectsPage.tsx` importait `createProjectSchema`/
+      `CreateProjectForm` depuis `@secritou/shared` (schéma générique
+      SANS `proposalId`), et `CreateProjectInput`
+      (`client/src/types/project.ts`) ne déclare pas ce champ non plus —
+      confirmé par lecture directe des deux schémas. Aucun champ du
+      formulaire ne le collectait. Conséquence vérifiée de bout en bout
+      (formulaire → hook → API → validateur → service) : tout ADMIN/
+      MANAGER cliquant "Nouveau projet" recevait systématiquement un
+      rejet serveur. `POST /projects` confirmé comme SEUL appelant de ce
+      chemin dans tout le dépôt (grep exhaustif de `projectsApi.create`/
+      `useCreateProject`).
+
+      CAUSE RACINE CONFIRMÉE : le vrai flux métier passe par
+      `proposal.service.ts#acceptWithCascade` (transaction qui crée
+      réellement le `Project`, la facture d'acompte, etc., à
+      l'acceptation d'une proposition) — vérifié par lecture directe,
+      `tx.project.create` s'y trouve bien. La création directe via
+      `POST /projects` est un vestige d'une version antérieure où les
+      projets pouvaient être créés indépendamment, jamais mis à jour
+      pour refléter ce changement de règle métier.
+
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-18) : « Retirer le bouton/dialogue (Recommandé) » — plutôt
+      que de réparer le formulaire avec un sélecteur de proposition (2e
+      option proposée, nécessitant un nouvel endpoint
+      `GET /proposals?status=ACCEPTED&projectId=null`, non créé).
+
+      CORRECTIF ÉCRIT : bouton "Nouveau projet", son `<Dialog>`/
+      `<DialogTrigger>`, le formulaire `createForm` (react-hook-form +
+      `createProjectSchema`), le handler `handleCreate`, et
+      `useCreateProject()` retirés de `ProjectsPage.tsx`. `canCreate`
+      (`usePermission("projects", "create")`) retiré, son seul usage
+      étant ce bouton (confirmé par grep, aucun autre composant du dépôt
+      ne consomme cette permission). Imports devenus morts nettoyés
+      (`Plus`, `DialogTrigger`, `createProjectSchema`,
+      `CreateProjectForm`, `useCreateProject`). Le formulaire d'ÉDITION
+      (`editForm`/`handleEdit`, sur un projet existant, sans
+      `proposalId`) reste intact et fonctionnel — seul le chemin de
+      CRÉATION directe est retiré. Route serveur `POST /projects`
+      (validateur, service) volontairement non touchée : reste
+      disponible pour un futur usage programmatique/API directe si
+      besoin, seul le point d'entrée UI cassé est retiré.
+
+      Aucun test ajouté : retrait de code mort côté UI, pas de nouvelle
+      logique métier à prouver — la garantie tient au typecheck (0
+      erreur après retrait, confirmant qu'aucun autre code du dépôt ne
+      dépendait de ce formulaire) et à la lecture directe. Clés i18n
+      (`newProject`, `createProject`, `createProjectDesc`, etc.)
+      volontairement laissées en place (orphelines mais inoffensives —
+      `check-i18n.mjs` ne signale que les clés manquantes/désynchronisées,
+      pas les clés inutilisées, hors périmètre de ce correctif).
+
+      `npx tsc --noEmit` vert. `npm run build` réussi. `resolu` déclaré
+      SANS confirmation CI : la CI est actuellement désactivée sur
+      `origin/main` sur demande du porteur du projet (workflow_dispatch
+      seul, session du 2026-07-17), dérogation "no make it resolu" déjà
+      établie dans cette session.

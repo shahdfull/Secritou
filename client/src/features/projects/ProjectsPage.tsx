@@ -18,7 +18,6 @@ import { TasksPage } from "@/features/tasks/TasksPage";
 import { DocumentsPage } from "@/features/documents/DocumentsPage";
 import {
   Search,
-  Plus,
   Edit,
   Trash2,
   Loader2,
@@ -29,15 +28,12 @@ import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  createProjectSchema,
   updateProjectSchema,
-  type CreateProjectForm,
   type UpdateProjectForm,
   PROJECT_STATUS_VALID_TRANSITIONS,
 } from "@secritou/shared";
 import {
   useProjects,
-  useCreateProject,
   useUpdateProject,
   useDeleteProject,
   useRestoreProject,
@@ -51,7 +47,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -162,16 +157,12 @@ export function ProjectsPage() {
   const { t } = useTranslation();
   const currentUser = useAuthStore((s) => s.user);
   const isFreelancer = currentUser?.role === "FREELANCER";
-  const canCreate = usePermission("projects", "create");
   const canDelete = usePermission("projects", "delete");
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
 
   const {
-    createDialogOpen,
     editDialogOpen,
     editingEntity: editingProject,
-    openCreateDialog,
-    closeCreateDialog,
     openEditDialog,
     closeEditDialog,
   } = useCrudDialogState<Project>();
@@ -211,7 +202,6 @@ export function ProjectsPage() {
   const doneProjects = doneProjectsResult?.data ?? [];
   const doneTotal = doneProjectsResult?.total ?? 0;
   const clients = clientsResult?.data ?? [];
-  const { mutate: createProject, isPending: isCreating } = useCreateProject();
   const { mutate: updateProject, isPending: isUpdating } = useUpdateProject();
   const { mutate: deleteProject, isPending: isDeleting } = useDeleteProject();
   const { mutate: restoreProject, isPending: isRestoring } = useRestoreProject();
@@ -229,28 +219,9 @@ export function ProjectsPage() {
   const filteredProjects = projects;
   const trashedProjects = trashResult?.data ?? [];
 
-  const createForm = useForm<CreateProjectForm>({
-    resolver: zodResolver(createProjectSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-      status: "PLANNING",
-      clientId: "",
-    },
-  });
-
   const editForm = useForm<UpdateProjectForm>({
     resolver: zodResolver(updateProjectSchema),
   });
-
-  const handleCreate = useCallback(async (data: CreateProjectForm) => {
-    createProject(data, {
-      onSuccess: () => {
-        closeCreateDialog();
-        createForm.reset();
-      },
-    });
-  }, [createForm, createProject, closeCreateDialog]);
 
   const handleEdit = useCallback((project: Project) => {
     openEditDialog(project);
@@ -350,104 +321,6 @@ export function ProjectsPage() {
         </TabsList>
         
         <TabsContent value="projects" className="space-y-6 mt-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <Dialog open={createDialogOpen} onOpenChange={(open) => (open ? openCreateDialog() : closeCreateDialog())}>
-              {canCreate && (
-                <DialogTrigger asChild>
-                  <Button className="bg-ink text-white hover:bg-ink/90 rounded-full" onClick={openCreateDialog}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    {t("projectsPage.newProject")}
-                  </Button>
-                </DialogTrigger>
-              )}
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{t("projectsPage.createProject")}</DialogTitle>
-                  <DialogDescription>{t("projectsPage.createProjectDesc")}</DialogDescription>
-                </DialogHeader>
-                <Form {...createForm}>
-                  <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-4">
-                    <FormField
-                      control={createForm.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t("common.name")}</FormLabel>
-                          <FormControl>
-                            <Input placeholder={t("projectsPage.name")} {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={createForm.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t("common.description")}</FormLabel>
-                          <FormControl>
-                            <Textarea placeholder={t("projectsPage.description")} {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={createForm.control}
-                      name="status"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t("common.status")}</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder={t("projectsPage.selectStatus")} />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="PLANNING">{t("projectsPage.statuses.planning")}</SelectItem>
-                              <SelectItem value="IN_PROGRESS">{t("projectsPage.statuses.inProgress")}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={createForm.control}
-                      name="clientId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t("common.client")}</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder={t("projectsPage.selectClient")} />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {clients?.map((client) => (
-                                <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <DialogFooter>
-                      <Button type="submit" disabled={isCreating}>
-                        {isCreating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                        {t("common.create")}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
-          </div>
-
           {/* Search & Sort */}
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative max-w-md flex-1">
