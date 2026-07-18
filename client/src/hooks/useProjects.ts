@@ -75,6 +75,19 @@ export function useRestoreProject() {
   });
 }
 
+export function useArchiveProject() {
+  const queryClient = useQueryClient();
+
+  return useMutation<Project, Error, string>({
+    mutationFn: (id) => projectsApi.archive(id),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.project(data.id) });
+      toast.success(i18n.t("toasts.projectArchived"));
+    },
+  });
+}
+
 // enabled defaults to true; callers whose role can never reach GET /projects/trash
 // (authorize("ADMIN", "MANAGER") on that route — FREELANCER and CLIENT always 403) should pass
 // false, otherwise every render fires a request that's guaranteed to fail for no reason.

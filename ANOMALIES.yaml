@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-039
+dernier_id: SEC-040
 
 anomalies:
   - id: SEC-001
@@ -3253,3 +3253,104 @@ anomalies:
       `origin/main` sur demande du porteur du projet (workflow_dispatch
       seul, session du 2026-07-17), dérogation "no make it resolu" déjà
       établie dans cette session.
+  - id: SEC-040
+    titre: "Archivage de projet (archivedAt) invisible côté UI — aucun moyen de marquer un projet abandonné autrement que par suppression dure"
+    perimetre: "4.2 Gestion de projet — client/src/features/projects/ProjectDetailPage.tsx, server/src/routes/project.routes.ts, server/src/repositories/project.repository.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand un ADMIN dispose, depuis ProjectDetailPage.tsx,
+      d'un bouton "Archiver" déclenchant réellement `POST /:id/archive`,
+      avec une confirmation qui énonce explicitement que l'action est
+      actuellement irréversible via l'interface (aucun endpoint de
+      désarchivage n'existe) — vérifié par lecture directe du code
+      (handler, appel API, dialogue) et par un build/typecheck client
+      vert. Le désarchivage et une liste des projets archivés restent
+      explicitement HORS PÉRIMÈTRE de cette résolution (voir note).
+    detecte_le: "2026-07-18"
+    source: manuel
+    confiance: certain
+    note: >
+      Signalé dans le rapport "2.2 Cohérence des statuts et des
+      transitions" (casquette revue de conception), section "Absence
+      d'état « Annulé »" : un projet qu'on veut abandonner n'a que deux
+      issues visibles côté UI — suppression dure, ou rien — alors que
+      l'archivage (`archivedAt`) existe déjà côté serveur mais
+      n'apparaît nulle part dans l'UI de gestion de statut.
+
+      CONSTAT CONFIRMÉ PAR LECTURE DIRECTE (pas pris au mot) :
+      `schema.prisma` documente explicitement par commentaire (lignes
+      25-27) que `ProjectStatus` n'a délibérément PAS de valeur
+      `CANCELLED` — un projet abandonné est représenté via
+      `archivedAt`/`deletedAt` au lieu d'un statut terminal, cohérent
+      avec le fait qu'il est déjà exclu de toute requête "projets
+      actifs" (`status: {notIn: ["COMPLETED"]}, archivedAt: null`). Ce
+      n'est donc PAS un défaut de modèle de données — le mécanisme
+      existe et est intentionnel. Le vrai manque est double :
+      1) `POST /:id/archive` existe (`project.routes.ts`,
+         `authorize("ADMIN")`) mais `ProjectDetailPage.tsx` et
+         `ProjectsPage.tsx` ne l'exposaient nulle part (grep "archive"/
+         "Archive" : zéro occurrence dans les deux fichiers avant
+         correctif) ;
+      2) `archivedAt` n'a AUCUN chemin retour, contrairement à
+         `deletedAt` qui a `restore` + `GET /projects/trash` : aucun
+         endpoint de désarchivage n'existe, et `findAll`/`findById`/
+         `findByIdAdmin` (`project.repository.ts`) filtrent tous
+         inconditionnellement `archivedAt: null` — un projet archivé
+         disparaît donc de toute requête pour de bon via la surface
+         API actuelle, confirmé par lecture directe des 3 méthodes du
+         repository.
+
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-18) : « Exposer l'archivage côté UI, sans construire le
+      désarchivage/la liste (Recommandé minimal) » — bouton "Archiver"
+      (ADMIN seul, cohérent avec la route) sur ProjectDetailPage.tsx,
+      confirmation explicite prévenant l'irréversibilité actuelle,
+      lacune de désarchivage documentée séparément (ce paragraphe) mais
+      non corrigée cette session.
+
+      CORRECTIF ÉCRIT : `client/src/api/projects.api.ts` — fonction
+      `archive()` (POST `/projects/:id/archive`), avec commentaire
+      documentant l'absence d'endpoint retour. `client/src/hooks/
+      useProjects.ts` — hook `useArchiveProject()` (invalide les
+      queries `projects`/`project(id)`, toast succès). `client/src/
+      types/project.ts` — ajout du champ manquant `archivedAt?: string
+      | null` sur `Project` (le serveur le renvoyait déjà via
+      `projectListSelect`, absent du type client — gap de typage
+      découvert en cours de correctif, comblé au passage).
+      `client/src/features/projects/ProjectDetailPage.tsx` — flag
+      `isAdmin`, `canArchive = isAdmin && !project.archivedAt`
+      (commenté : pas de CANCELLED par design, action actuellement à
+      sens unique), bouton "Archiver" à côté de "Changer de statut"
+      dans la barre d'en-tête, `handleArchive()`, et un `<Dialog>` de
+      confirmation dédié (pas de réutilisation de
+      `ConfirmDeleteDialog` — son bouton de confirmation est câblé en
+      dur sur "Supprimer"/icône corbeille, inadapté ici) dont le texte
+      énonce explicitement l'irréversibilité actuelle. Clés i18n FR/EN
+      ajoutées : `toasts.projectArchived` (`client/src/i18n/locales/
+      {fr,en}/translation.json`).
+
+      HORS PÉRIMÈTRE (documenté, non corrigé, sur décision explicite du
+      porteur) : endpoint de désarchivage, liste des projets archivés
+      (équivalent de `GET /projects/trash` pour `archivedAt`). Tant que
+      ni l'un ni l'autre n'existe, l'archivage reste une action à sens
+      unique via l'interface — le dialogue de confirmation le dit
+      explicitement à l'utilisateur au moment de l'action.
+
+      `npx tsc --noEmit` vert, `npm run lint` : 0 erreur (warnings
+      pré-existants uniquement, aucun nouveau). `npm run build` réussi.
+      `node scripts/check-i18n.mjs` vert (FR/EN synchronisés).
+      Aucun test d'intégration ajouté : correctif purement UI
+      (câblage front vers une route serveur déjà existante et déjà
+      testée en amont), pas de nouvelle règle métier serveur à prouver.
+      `resolu` déclaré SANS confirmation CI : la CI est actuellement
+      désactivée sur `origin/main` sur demande du porteur du projet
+      (workflow_dispatch seul, session du 2026-07-17), dérogation
+      "no make it resolu" déjà établie dans cette session.
+
+      LIMITE DE VÉRIFICATION SIGNALÉE : aucun navigateur disponible
+      dans cet environnement — seule la vérification au niveau code
+      (typecheck/lint/build) a été possible, pas d'interaction
+      navigateur réelle sur le bouton/dialogue.

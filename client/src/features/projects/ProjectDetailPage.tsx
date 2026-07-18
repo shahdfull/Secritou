@@ -14,8 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, ExternalLink, FileText, CheckSquare, Activity, ClipboardCheck, Upload, X, Users } from "lucide-react";
-import { useProject, useUpdateProject } from "@/hooks/useProjects";
+import { ArrowLeft, Loader2, ExternalLink, FileText, CheckSquare, Activity, ClipboardCheck, Upload, X, Users, Archive } from "lucide-react";
+import { useProject, useUpdateProject, useArchiveProject } from "@/hooks/useProjects";
 import { useMe } from "@/hooks/useAuth";
 import { useMySplitForProject } from "@/hooks/useCommissions";
 import { TASK_STATUSES, PROJECT_STATUS_VALID_TRANSITIONS, PROJECT_STATUS_LABELS_FR } from "@secritou/shared";
@@ -51,8 +51,10 @@ export function ProjectDetailPage() {
   const { data: project, isLoading, isError } = useProject(id);
   const { user } = useMe();
   const { mutate: updateProject, isPending: isUpdating } = useUpdateProject();
+  const { mutate: archiveProject, isPending: isArchiving } = useArchiveProject();
 
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [targetStatus, setTargetStatus] = useState<string>("");
   const [deliverableName, setDeliverableName] = useState("");
   const uploadedDeliverable = useRef<UploadResult | null>(null);
@@ -61,6 +63,7 @@ export function ProjectDetailPage() {
   const downloadDocumentMutation = useDownloadDocument();
 
   const isManager = user?.role === "MANAGER";
+  const isAdmin = user?.role === "ADMIN";
   const isAdminOrManager = user?.role === "ADMIN" || user?.role === "MANAGER";
   const { data: mySplit } = useMySplitForProject(project?.id ?? "", isManager);
   const { data: projectTemplate } = useProjectTemplateForService(
@@ -92,6 +95,11 @@ export function ProjectDetailPage() {
 
   const isFreelancer = user?.role === "FREELANCER";
   const canChangeStatus = isAdminOrManager && project.status !== "COMPLETED";
+  // ProjectStatus has no CANCELLED value by design (schema.prisma) — an abandoned project is
+  // represented via archivedAt instead. POST /:id/archive is authorize("ADMIN") only, matching
+  // canArchive here. No un-archive endpoint exists yet (unlike restore for deletedAt), so this
+  // is currently a one-way action — the confirmation dialog says so explicitly.
+  const canArchive = isAdmin && !project.archivedAt;
   const validTransitions = PROJECT_STATUS_VALID_TRANSITIONS[project.status] ?? [];
   const deadline = project.deadline ? formatDate(project.deadline) : "—";
 
@@ -113,6 +121,15 @@ export function ProjectDetailPage() {
         },
       }
     );
+  };
+
+  const handleArchive = () => {
+    archiveProject(project.id, {
+      onSuccess: () => {
+        setArchiveDialogOpen(false);
+        navigate("/app/projects");
+      },
+    });
   };
 
   const tabTriggerClass =
@@ -151,6 +168,17 @@ export function ProjectDetailPage() {
           {canChangeStatus && validTransitions.length > 0 && (
             <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setStatusDialogOpen(true)}>
               Changer de statut
+            </Button>
+          )}
+          {canArchive && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs gap-1 text-destructive hover:text-destructive"
+              onClick={() => setArchiveDialogOpen(true)}
+            >
+              <Archive className="h-3.5 w-3.5" />
+              Archiver
             </Button>
           )}
         </div>
@@ -466,6 +494,29 @@ export function ProjectDetailPage() {
             <Button onClick={handleStatusChange} disabled={!targetStatus || isUpdating}>
               {isUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Confirmer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Archive Confirmation Dialog */}
+      <Dialog open={archiveDialogOpen} onOpenChange={setArchiveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Archiver ce projet ?</DialogTitle>
+            <DialogDescription>
+              Le projet disparaîtra de toutes les listes et vues. Aucune fonction de désarchivage
+              n'existe actuellement dans l'interface : cette action est donc irréversible tant
+              qu'elle n'est pas effectuée manuellement en base de données. Confirmez-vous
+              l'archivage de « {project.name} » ?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setArchiveDialogOpen(false)}>Annuler</Button>
+            <Button variant="destructive" onClick={handleArchive} disabled={isArchiving}>
+              {isArchiving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <Archive className="h-4 w-4 mr-2" />
+              Archiver
             </Button>
           </DialogFooter>
         </DialogContent>

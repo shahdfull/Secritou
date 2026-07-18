@@ -18,6 +18,7 @@ export interface Project {
   briefCompleted?: boolean;
   briefCompletedAt?: string | null;
   clientApprovedAt?: string | null;
+  archivedAt?: string | null;
   budget?: string | null;
   deadline?: string | null;
   createdAt: string;

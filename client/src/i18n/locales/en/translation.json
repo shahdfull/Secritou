@@ -870,7 +870,8 @@
     "invitationSent": "Invitation sent",
     "leadReopened": "Lead reopened",
     "clientRestored": "Client restored",
-    "projectRestored": "Project restored"
+    "projectRestored": "Project restored",
+    "projectArchived": "Project archived"
   },
   "aiAssistant": {
     "title": "AI Assistant",
