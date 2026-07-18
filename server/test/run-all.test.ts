@@ -53,3 +53,4 @@ import "./creditNoteApply.test.ts";
 import "./documentSignContract.test.ts";
 import "./executiveMetricsProjectRisks.test.ts";
 import "./commissionCreationExclusivity.test.ts";
+import "./proposalCreationScope.test.ts";

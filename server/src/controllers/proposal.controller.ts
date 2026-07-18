@@ -69,14 +69,16 @@ export const getProposalById = async (req: Request, res: Response) => {
 };
 
 export const createProposal = async (req: Request, res: Response) => {
+  const scope = await buildServiceScope(req);
   if (req.user!.role === "MANAGER" && req.body.projectId) {
-    const scope = await buildServiceScope(req);
     if (scope.userServiceId !== undefined) {
       const project = await (await import("../services/project.service.js")).projectService.getProjectById(req.body.projectId, req.user!.sub!, "MANAGER", scope.userServiceId ?? undefined);
       if (!project) throw new HttpError(403, "Project not in your service scope");
     }
   }
-  const proposal = await proposalService.create(req.body);
+  // RG-002/SEC-028: covers the leadId/serviceRequestId/clientId-only path (a proposal created
+  // before any project exists), which the projectId-specific check above does not reach.
+  const proposal = await proposalService.create(req.body, scope);
   res.status(201).json({ data: proposal });
 };
 

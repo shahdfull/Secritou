@@ -844,16 +844,28 @@ différente de TND en écriture.
 
 **RG-002 — Rattachement mission → pôle → associé.**
 Un `Project` est rattaché à un `Service` (pôle) via `serviceId`. Un Manager
-(associé) ne peut créer ou modifier un projet que dans son propre pôle.
-*Module : 4.2.* Statut : `[À CONFIRMER]` (affirmation négative/exclusivité —
-« ne peut… que »). `verifie: code_direct` pour le chemin nominal lu
-(`project.service.ts` lignes 1-100, session précédente, confirme que
-`createProject`/`updateProject` forcent le `serviceId` du Manager), mais
-aucun test n'assère qu'aucun autre chemin (import en masse, endpoint annexe)
-ne permet le contournement — la règle telle qu'énoncée (exclusivité) exige
-`verifie: test`, absent. Note pour test futur : test d'intégration
-confirmant qu'un Manager ne peut, par aucune route, créer/modifier un projet
-hors de son `serviceId`.
+(associé) ne peut créer ou modifier un projet que dans son propre pôle — y
+compris via la proposition qui en est à l'origine (un Manager ne peut créer
+une proposition pour un Lead assigné à un autre pôle, ni pour un Client déjà
+exclusivement lié à un projet d'un autre pôle). *Module : 4.1, 4.2.* Statut :
+**IMPLÉMENTÉ. `verifie: test`** (session du 2026-07-18, SEC-028) —
+`createProject`/`updateProject` forcent bien `serviceId` au pôle du Manager
+(chemin nominal, déjà `code_direct`), MAIS la chaîne remontée jusqu'à
+`proposalService.create` (seul point d'entrée réel de création d'une
+proposition, donc en amont de tout projet) ne vérifiait AUCUN scope de
+pôle — un Manager pouvait créer une proposition sur un client/lead d'un
+autre pôle, contournant l'intention de la règle sans violer son texte
+littéral sur `Project`. Corrigé : nouvelle fonction
+`assertProposalCreationInScope` dans `proposal.service.ts`, appliquée à
+`create()` — `Lead.serviceId` vérifié directement, `Client` (sans pôle
+propre — un même client peut avoir des projets dans plusieurs pôles)
+scopé via l'ensemble des `serviceId` distincts de ses projets existants
+(neutre si aucun projet, autorisé si au moins un projet dans le pôle du
+Manager, rejeté si exclusivement lié à un autre pôle). Nouveau test
+`server/test/proposalCreationScope.test.ts`, appelle réellement
+`proposalService.create` contre une base migrée sur 5 cas (Lead autre
+pôle rejeté, Lead même pôle autorisé, Client autre pôle exclusif rejeté,
+Client neuf autorisé, ADMIN toujours autorisé). Voir SEC-028.
 
 **RG-003 — TVA fixe.**
 Le taux de TVA appliqué aux factures d'acompte et de solde est fixe à 19%
@@ -1173,3 +1185,4 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-17** | **SEC-010 rouverte `en_cours` : vérification directe de l'état réel de la CI sur `origin/main` (API GitHub REST non authentifiée, `gh` CLI indisponible dans cet environnement) montre 3 jobs en échec sur le HEAD courant (`client`, `server`, `i18n-check`) — le critère de résolution de SEC-010 exige littéralement « le voit passer au vert », condition non remplie à ce jour malgré la dérogation « no make it resolu » appliquée à de nombreux correctifs cette session. SEC-026 ouverte séparément pour tracer la cause réelle : 37 erreurs ESLint pré-existantes (30 de la même classe `no-non-null-asserted-optional-chain` sur 5 contrôleurs, jamais touchés par aucune session d'audit) + 1 faux positif du script `check-i18n.mjs` sur une clé pluralisée i18next — aucun rapport avec les correctifs SEC-007/008/009/011/012 que SEC-010 nommait comme précondition, ni avec aucun fichier édité cette session (vérifié par `git log` sur chaque fichier fautif et par un lint isolé, vert, des fichiers réellement modifiés).** | **Vérification proactive du porteur du projet — « Re-vérifier les resolu sans CI (Recommandé) » — après la fermeture des modules 4.7/4.8/4.10. Décision de traitement, AskUserQuestion : « Ouvrir SEC-026 (dette lint), rouvrir SEC-010 (Recommandé) ».** |
 | **2026-07-17** | **SEC-026 corrigée dans la même session (« ok on corrige alors ») : 30 des 33 erreurs server = pattern `req.user?.sub!`/`req.user?.role!` (5 contrôleurs) remplacé par `req.user!.sub`/`req.user!.role` (l'assertion porte sur `req.user`, garanti non-null par `authenticate`, jamais sur le résultat du chaînage optionnel) ; 3 `no-useless-catch` supprimés ; 2 `no-constant-condition` dans `invoice.service.test.ts` remplacées par un appel réel à `addPaymentSchema.safeParse` (le vrai garde-fou, au lieu d'une condition littérale qui ne prouvait rien). Client : `axios.ts` — exécuteur `async` de `Promise` extrait en fonction nommée `runRefresh` (`no-async-promise-executor`) ; `ProjectDetailPage.tsx` — 3 hooks (`useMySplitForProject`/`useProjectTemplateForService`/`useApplyProjectTemplate`) remontés avant les 2 `return` anticipés, vrai bug d'ordre de hooks corrigé (pas un style discutable), les 3 hooks étant déjà conçus pour être inertes tant que `project` est undefined. `scripts/check-i18n.mjs` corrigé pour reconnaître la convention de suffixe pluriel i18next. Vérification locale complète : lint 0 erreur des deux côtés, typecheck vert, i18n-check passé, build serveur+client réussis, scan de secrets propre, 274/274 + 22/22 tests verts (deux exécutions). `resolu` déclaré SANS confirmation CI — même dérogation « no make it resolu » — le critère exige un push vu vert par la CI elle-même, condition distincte de la vérification locale exhaustive ci-dessus.** | **Instruction du porteur du projet, session du 2026-07-17 : « ok on corrige alors », en réponse à la vérification CI qui avait rouvert SEC-010 et créé SEC-026.** |
 | **2026-07-18** | **RG-008 relevée de `[À CONFIRMER]` à IMPLÉMENTÉ, `verifie: test` — SEC-027 ouverte et résolue dans la même session : seul le chemin nominal était vérifié par lecture directe pour cette affirmation d'exclusivité, jamais l'exclusivité elle-même. Grep exhaustif confirme un seul point d'écriture `tx.commission.create` dans tout le dépôt, un seul appelant de `computeForPaymentTx`. Nouveau test `commissionCreationExclusivity.test.ts`, appelle réellement `invoiceService.addPayment` contre une base migrée : un paiement réel crée la commission attendue, un paiement sans effet réel sur le solde (trop-perçu total) n'en crée aucune. Contrainte `Commission.paymentId @unique` citée en renfort structurel.** | **Réponse du porteur du projet à « is there something a vérifier dans ce projet » : un audit de lecture (agent dédié) a identifié 8 règles §5 à provenance faible ou négative non testée, aucune trackée dans ANOMALIES.yaml — choix du porteur, « RG-008 (commission) puis RG-002 (scoping pôle) (Recommandé) ». `resolu` déclaré SANS confirmation CI : la CI est actuellement désactivée sur `origin/main` sur demande du porteur (workflow_dispatch seul, session du 2026-07-17), dérogation « no make it resolu » déjà établie.** |
+| **2026-07-18** | **RG-002 relevée de `[À CONFIRMER]` à IMPLÉMENTÉ, `verifie: test` — SEC-028 ouverte et résolue dans la même session : `createProject`/`updateProject` forçaient bien le pôle du Manager, mais `proposalService.create` (seul point d'entrée réel, en amont de tout projet) n'appliquait aucun scope de pôle sur clientId/leadId/serviceRequestId. Un Manager pouvait créer une proposition — donc plus tard un projet accepté — sur un client/lead d'un autre pôle, contournant l'intention de RG-002 sans violer son texte littéral sur Project. `Client` n'a pas de pôle propre (schéma vérifié directement) ; scope dérivé pour clientId via les projets existants (neutre si aucun, autorisé si même pôle, rejeté si exclusivement ailleurs), et directement via Lead.serviceId pour leadId. Nouveau test proposalCreationScope.test.ts, 5 cas, appelle réellement le service contre une base migrée.** | **Réponse du porteur du projet à « is there something a vérifier dans ce projet » — RG-002 choisie en second après RG-008 (« RG-008 (commission) puis RG-002 (scoping pôle) (Recommandé) »). Décision produit sur la règle de scope à appliquer (AskUserQuestion, session du 2026-07-18) : « Vérifier le pôle du Lead directement (Lead.serviceId), et pour ServiceRequest/clientId nu, autoriser si le client a AU MOINS un projet dans le pôle du Manager OU aucun projet du tout (client neuf) (Recommandé) ». `resolu` déclaré SANS confirmation CI : la CI est actuellement désactivée sur `origin/main` sur demande du porteur (workflow_dispatch seul, session du 2026-07-17), dérogation « no make it resolu » déjà établie.** |

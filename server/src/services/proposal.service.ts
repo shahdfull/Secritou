@@ -34,6 +34,41 @@ async function assertProposalInScope(proposal: { projectId: string | null } | nu
   if (!project) throw new HttpError(404, "Proposal not found");
 }
 
+// RG-002 (REFERENTIEL.md §5) / SEC-028: at creation, a proposal has no projectId yet (the
+// project is created FROM the accepted proposal), so assertProposalInScope can't apply here —
+// it would always reject a MANAGER's own proposal since projectId is null at this point.
+// A Client has no fixed pole of its own (a client can have projects across multiple poles), so
+// scope is derived the same way ServiceRequest reads are already scoped elsewhere
+// (serviceRequest.repository.ts): a client with no project at all is neutral (any Manager may
+// start a proposal for it), a client already tied to a project in the Manager's own pole is
+// allowed, and a client tied EXCLUSIVELY to another pole's project(s) is rejected. Lead has its
+// own serviceId field (no ambiguity), checked directly instead.
+async function assertProposalCreationInScope(
+  data: { clientId: string; leadId?: string },
+  scope?: ServiceScope
+) {
+  if (!scope || scope.userRole !== "MANAGER") return;
+  const { prismaRead: prisma } = await import("../config/prisma.js");
+
+  if (data.leadId) {
+    const lead = await prisma.lead.findUnique({ where: { id: data.leadId }, select: { serviceId: true } });
+    if (lead?.serviceId && lead.serviceId !== scope.userServiceId) {
+      throw new HttpError(404, "Lead not found");
+    }
+  }
+
+  const clientServiceIds = await prisma.project.findMany({
+    where: { clientId: data.clientId },
+    select: { serviceId: true },
+    distinct: ["serviceId"],
+  });
+  const hasAnyProject = clientServiceIds.length > 0;
+  const hasProjectInOwnPole = clientServiceIds.some((p) => p.serviceId === scope.userServiceId);
+  if (hasAnyProject && !hasProjectInOwnPole) {
+    throw new HttpError(404, "Client not found");
+  }
+}
+
 async function notifyClientRevertedToDraft(proposal: { id: string; title: string; clientId: string }) {
   const clientUsers = await userRepository.findByClientId(proposal.clientId);
   const viewUrl = `${env.FRONTEND_URL}/client/proposals/${proposal.id}`;
@@ -170,7 +205,8 @@ export const proposalService = {
     return proposal;
   },
 
-  async create(data: { title: string; description?: string; amount?: number; currency?: string; expiresAt?: Date; pdfUrl?: string; clientId: string; clientName?: string; email?: string; projectId?: string; serviceRequestId?: string; leadId?: string }) {
+  async create(data: { title: string; description?: string; amount?: number; currency?: string; expiresAt?: Date; pdfUrl?: string; clientId: string; clientName?: string; email?: string; projectId?: string; serviceRequestId?: string; leadId?: string }, scope?: ServiceScope) {
+    await assertProposalCreationInScope(data, scope);
     return prisma.$transaction(async (tx) => {
       if (data.serviceRequestId) {
         const serviceRequest = await tx.serviceRequest.findFirst({

@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-027
+dernier_id: SEC-028
 
 anomalies:
   - id: SEC-001
@@ -2210,3 +2210,90 @@ anomalies:
       resolu »), documentée pour qu'une lecture future ne prenne pas ce
       `resolu` pour une confirmation CI, qui est actuellement impossible à
       obtenir par un push normal tant que la CI reste désactivée.
+
+  - id: SEC-028
+    titre: "proposalService.create n'appliquait aucun scoping de pôle sur clientId/leadId/serviceRequestId — un Manager pouvait créer une proposition (donc plus tard un projet) sur un client/lead d'un autre pôle"
+    perimetre: "4.1 CRM & Pipeline commercial, 4.2 Gestion de projet — server/src/services/proposal.service.ts, server/src/controllers/proposal.controller.ts"
+    regle_violee: "RG-002"
+    classe: null
+    gravite: majeur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand un Manager ne peut, par aucune combinaison de
+      clientId/leadId/serviceRequestId, créer une proposition rattachée à
+      un Lead assigné à un autre pôle ou à un Client déjà exclusivement lié
+      à un projet d'un autre pôle — vérifié par un test qui appelle
+      réellement `proposalService.create` contre une base réelle sur les
+      deux axes (rejet ET autorisation légitime), pas seulement une lecture
+      de code.
+    detecte_le: "2026-07-18"
+    source: manuel
+    confiance: certain
+    note: >
+      Trouvé en vérifiant RG-002 (« Un Manager ne peut créer ou modifier un
+      projet que dans son propre pôle ») en réponse à la question du
+      porteur du projet « is there something a vérifier dans ce projet » —
+      pas pendant un audit formel de 4.1/4.2, enregistré immédiatement
+      conformément à CLAUDE.md.
+
+      CONSTAT : `project.service.ts#createProject`/`updateProject` forcent
+      bien `serviceId` au pôle du Manager (déjà vérifié `code_direct`), ce
+      qui couvre le texte littéral de RG-002. Mais `createProject` ne
+      vérifie jamais que la proposition source (`data.proposalId`)
+      appartient elle-même au pôle du Manager — et en remontant la chaîne,
+      `proposalService.create` (appelée par `POST /proposals`, seul point
+      d'entrée réel de création) n'appliquait AUCUN scoping de pôle sur
+      `clientId`/`leadId`/`serviceRequestId`, seulement le RBAC générique
+      (`authorize("ADMIN","MANAGER")` + `requirePermission("proposals",
+      "create")`, rôle/permission, jamais le pôle de la cible). Le seul
+      contrôle existant (`createProposal` controller, branche
+      `req.body.projectId`) ne s'active que si un `projectId` est fourni à
+      la création — or une proposition naît presque toujours SANS projet
+      existant (c'est justement `createProject` qui le crée ensuite à
+      partir de la proposition acceptée). Un Manager du pôle A pouvait donc
+      créer une proposition — et plus tard un projet, une fois acceptée —
+      sur un client/lead du pôle B, contournant l'intention de RG-002 sans
+      violer son texte littéral.
+
+      NUANCE STRUCTURELLE CONFIRMÉE PAR LECTURE DIRECTE DU SCHÉMA :
+      `Client` n'a PAS de pôle propre (`schema.prisma` : aucun champ
+      `serviceId` sur `Client`, un même client peut avoir des projets dans
+      plusieurs pôles) ; `ServiceRequest` non plus (son pôle, quand il en a
+      un, se déduit de `client.projects.some.serviceId` — mécanisme déjà
+      utilisé pour scoper `ServiceRequest` en LECTURE dans
+      `serviceRequest.repository.ts`, jamais repris ici) ; `Lead`, en
+      revanche, a un `serviceId` propre et non ambigu.
+
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-18) : « Vérifier le pôle du Lead directement
+      (`Lead.serviceId`), et pour ServiceRequest/clientId nu, autoriser si
+      le client a AU MOINS un projet dans le pôle du Manager OU aucun
+      projet du tout (client neuf) (Recommandé) ».
+
+      CORRECTIF ÉCRIT : nouvelle fonction
+      `assertProposalCreationInScope(data, scope)` dans
+      `proposal.service.ts` — pour `leadId`, rejette si
+      `Lead.serviceId` existe et diffère du pôle du Manager ; pour
+      `clientId`, calcule l'ensemble des `serviceId` distincts des projets
+      existants du client et rejette seulement si le client a AU MOINS un
+      projet ET aucun dans le pôle du Manager (un client sans aucun projet
+      reste neutre/accessible). Appelée en tête de `proposalService.create`
+      (nouveau paramètre `scope?: ServiceScope`, optionnel donc
+      rétrocompatible — un seul appelant réel dans tout le dépôt,
+      `proposal.controller.ts`, déjà mis à jour). Le contrôle existant sur
+      `projectId` (déjà présent, plus précis via `getProjectById`) est
+      conservé tel quel, pas remplacé.
+
+      Nouveau test `server/test/proposalCreationScope.test.ts` (câblé dans
+      `test/run-all.test.ts`), appelle réellement `proposalService.create`
+      contre une base migrée, 5 cas : Lead d'un autre pôle → rejeté (404) ;
+      Lead du même pôle → autorisé ; Client déjà exclusivement lié à un
+      projet d'un autre pôle → rejeté (404) ; Client neuf sans aucun projet
+      → autorisé ; ADMIN (sans scope de pôle) → toujours autorisé quel que
+      soit le pôle cible.
+
+      `npx tsc --noEmit` vert. Suite complète : 281/281 (276 + 5 nouveaux),
+      ~27s, aucune régression. `resolu` déclaré SANS confirmation CI — la
+      CI est actuellement désactivée sur `origin/main` sur demande du
+      porteur du projet (workflow_dispatch seul, session du 2026-07-17),
+      dérogation « no make it resolu » déjà établie dans cette session.
