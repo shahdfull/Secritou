@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-033
+dernier_id: SEC-034
 
 anomalies:
   - id: SEC-001
@@ -2691,3 +2691,96 @@ anomalies:
       actuellement désactivée sur `origin/main` sur demande du porteur du
       projet (workflow_dispatch seul, session du 2026-07-17), dérogation
       « no make it resolu » déjà établie dans cette session.
+
+  - id: SEC-034
+    titre: "L'onglet « Mes livrables » n'était filtré par aucun projet — et les livrables déposés n'avaient jamais de projectId, les rendant invisibles pour le freelance qui les dépose"
+    perimetre: "4.2 Gestion de projet, 4.7 Freelances — client/src/features/projects/ProjectDetailPage.tsx, server/src/repositories/document.repository.ts"
+    regle_violee: null
+    classe: null
+    gravite: bloquant
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand un Freelancer ouvrant le détail d'un projet ne
+      voit que les livrables de CE projet (pas ceux d'autres affaires), ET
+      quand un livrable qu'il vient de déposer est réellement visible pour
+      lui-même dans cette même liste — vérifié par un test qui appelle
+      réellement `documentService.create` puis `documentService.getAll`
+      contre une base réelle, scopé FREELANCER.
+    detecte_le: "2026-07-18"
+    source: manuel
+    confiance: certain
+    note: >
+      Signalé directement par le porteur du projet (constat détaillé,
+      session du 2026-07-18), immédiatement après SEC-033 (même fichier,
+      même page) — enregistré et corrigé immédiatement conformément à
+      CLAUDE.md.
+
+      CONSTAT INITIAL (confirmé par lecture directe) :
+      `ProjectDetailPage.tsx:60` appelait `useDocuments({ page: 1,
+      pageSize: 50 })` sans jamais passer `projectId: project.id`, alors
+      que le hook (`useDocuments`) et l'API (`documentsApi.getDocuments`)
+      supportent ce paramètre. Un Freelancer ouvrant le projet A voyait
+      donc la liste de tous ses documents `DELIVERABLE` toutes affaires
+      confondues (et au-delà de 50 documents, certains disparaissaient
+      silencieusement de la liste, pagination oblige).
+
+      SECOND DÉFAUT TROUVÉ EN VÉRIFIANT (plus grave que le constat
+      initial, empilé sur le même flux) : le dépôt du livrable
+      (`createDocument`, lignes 366-375) ne transmettait JAMAIS
+      `projectId`/`clientId` non plus — seulement `tags: [project.name]`
+      (texte libre, fragile, cassable si le projet est renommé). Or
+      `documentRepository.findAll`'s scope FREELANCER filtre `where
+      .project = { tasks: { some: { assigneeId } } }` — vérifié
+      EMPIRIQUEMENT contre une vraie base (script de vérification isolé,
+      supprimé après usage) qu'une relation Prisma imbriquée sur un champ
+      `null` (`Document.projectId` optionnel) ne matche JAMAIS ce filtre.
+      Conséquence réelle : un livrable déposé par un freelance était
+      INVISIBLE POUR LUI-MÊME dès qu'il consultait via ce chemin, y
+      compris juste après l'avoir déposé — corriger uniquement la lecture
+      (ajouter `projectId` à `useDocuments`) n'aurait rien changé tant que
+      les documents créés n'avaient pas de `projectId` réel. Un ADMIN (pas
+      de filtre `project`) ou un MANAGER dont le scope de pôle dépend de
+      `Document.clientId` (`where.client = { projects: { some: {...} } }`)
+      voyaient malgré tout ces documents — seul FREELANCER était
+      strictement aveugle à ses propres dépôts.
+
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-18) : « Corriger les deux : lecture (projectId sur
+      useDocuments) ET écriture (projectId sur createDocument)
+      (Recommandé) ».
+
+      CORRECTIF ÉCRIT : `ProjectDetailPage.tsx:60` passe désormais
+      `projectId: id` (le paramètre de route, disponible dès le rendu,
+      avant même le chargement de `project` — évite tout souci d'ordre de
+      hooks). L'appel `createDocument` (lignes 366-378) transmet
+      désormais `projectId: project.id` ET `clientId: project.clientId`
+      en plus du `tags: [project.name]` existant (conservé pour la
+      recherche texte déjà supportée côté serveur) — couvre à la fois le
+      scope FREELANCER (`project.tasks.some`) et le scope MANAGER
+      (`client.projects.some`).
+
+      Nouveau test `server/test/freelancerSeesOwnDeliverable.test.ts`
+      (câblé dans `test/run-all.test.ts`), appelle réellement
+      `documentService.create` puis `documentService.getAll` contre une
+      base migrée, 2 cas : (1) un livrable créé avec `projectId`/
+      `clientId` est bien visible pour le freelance staffé sur ce projet ;
+      (2) le même livrable SANS `projectId` (reproduisant le comportement
+      d'avant correctif) reste invisible pour ce même freelance — preuve
+      rigoureuse que le défaut était réel, pas supposé.
+
+      ÉCART NON CORRIGÉ, SIGNALÉ MAIS HORS PÉRIMÈTRE DE CETTE PASSE : en
+      lisant `document.schema.ts` (`shared/`), le champ `title` envoyé par
+      `ProjectDetailPage.tsx` à la création n'existe dans AUCUN schéma de
+      validation (`documentBaseSchema` ne connaît que `name`, pas
+      `title`), alors que `Document.title` est un champ `String` requis
+      (non nullable) dans `schema.prisma`. Zod strippe silencieusement ce
+      champ avant qu'il n'atteigne le service — comportement à vérifier
+      séparément (une future anomalie, pas ouverte ici faute de
+      vérification complète du chemin de persistance réel).
+
+      `npx tsc --noEmit` vert (server, client). Suite complète serveur :
+      296/296 (294 + 2 nouveaux), ~21-25s, aucune régression. `resolu`
+      déclaré SANS confirmation CI : la CI est actuellement désactivée sur
+      `origin/main` sur demande du porteur du projet (workflow_dispatch
+      seul, session du 2026-07-17), dérogation « no make it resolu » déjà
+      établie dans cette session.

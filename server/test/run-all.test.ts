@@ -59,3 +59,4 @@ import "./projectClientApproveBalanceInvoice.test.ts";
 import "./invoiceNumberingGapless.test.ts";
 import "./currencyRejectsNonTnd.test.ts";
 import "./projectDetailIncludesTasks.test.ts";
+import "./freelancerSeesOwnDeliverable.test.ts";

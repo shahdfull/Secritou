@@ -57,7 +57,7 @@ export function ProjectDetailPage() {
   const [deliverableName, setDeliverableName] = useState("");
   const uploadedDeliverable = useRef<UploadResult | null>(null);
   const { mutate: createDocument, isPending: isUploadingDeliverable } = useCreateDocument();
-  const { data: myDocsResult } = useDocuments({ page: 1, pageSize: 50 });
+  const { data: myDocsResult } = useDocuments({ page: 1, pageSize: 50, projectId: id });
   const downloadDocumentMutation = useDownloadDocument();
 
   const isManager = user?.role === "MANAGER";
@@ -372,6 +372,8 @@ export function ProjectDetailPage() {
                           fileUrl: uploadedDeliverable.current.url,
                           fileKey: uploadedDeliverable.current.key,
                           tags: [project.name],
+                          projectId: project.id,
+                          clientId: project.clientId,
                         },
                         {
                           onSuccess: () => {
