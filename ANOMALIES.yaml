@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-032
+dernier_id: SEC-033
 
 anomalies:
   - id: SEC-001
@@ -2616,3 +2616,78 @@ anomalies:
       sont désormais traitées ou explicitement écartées comme non
       pertinentes (RG-005 statut PRÉVU par construction, RG-020 code déjà
       lu sans lacune technique réelle).
+
+  - id: SEC-033
+    titre: "Le détail d'un projet n'affichait jamais ses tâches — projectListSelect ne sélectionnait jamais la relation tasks"
+    perimetre: "4.2 Gestion de projet — server/src/repositories/project.repository.ts, client/src/features/projects/ProjectDetailPage.tsx"
+    regle_violee: null
+    classe: null
+    gravite: bloquant
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand un utilisateur peut ouvrir le détail d'un projet
+      et voir réellement la liste de ses tâches (pas seulement l'absence
+      d'erreur) — vérifié par un test qui appelle réellement
+      `projectService.getProjectById` contre une base réelle et confirme
+      que les tâches créées apparaissent dans le résultat, avec leurs
+      champs id/title/status.
+    detecte_le: "2026-07-18"
+    source: manuel
+    confiance: certain
+    note: >
+      Signalé directement par le porteur du projet (constat détaillé,
+      session du 2026-07-18), hors du fil des règles §5 en cours de
+      vérification — enregistré immédiatement conformément à CLAUDE.md.
+
+      CONSTAT (vérifié intégralement avant correction, pas pris tel quel) :
+      `projectListSelect` (`project.repository.ts`, partagé par `findAll`
+      ET `findById`) ne sélectionnait jamais la relation `tasks`. Le type
+      `ProjectWithProgress` (même fichier) ne déclarait que `progress`/
+      `taskDone`/`taskTotal`, jamais `tasks` — confirmant que ce champ
+      n'avait jamais été prévu côté serveur pour ce chemin. Côté client,
+      `types/project.ts#Project.tasks?: Task[]` (optionnel) masquait
+      totalement l'absence côté TypeScript ; `ProjectDetailPage.tsx:98`
+      (`const tasks = project.tasks ?? []`) recevait donc systématiquement
+      un tableau vide. Conséquences confirmées par lecture directe :
+      l'onglet Tâches toujours vide (ligne 199, condition `tasks.length >
+      0` toujours fausse), le compteur par statut (ligne 203) et le lien
+      « Voir toutes les tâches (n) » (lignes 278-286) jamais affichés, le
+      bandeau « Partir du template » (lignes 294-303) affiché à tort en
+      permanence dès qu'un template avec des tâches existe (branche
+      `tasks.length === 0` toujours empruntée). Le % de progression restait
+      correct car calculé par une requête SQL indépendante
+      (`getProgressForProject`, agrégation directe sur `Task` sans passer
+      par la relation Prisma), ce qui rendait l'incohérence visible pour
+      l'utilisateur (barre à 60%, liste vide) plutôt que masquée.
+
+      RBAC vérifié avant de choisir le correctif : `GET /tasks` (route
+      dédiée) est gardée `authorize("ADMIN", "MANAGER", "FREELANCER")`,
+      EXCLUANT explicitement CLIENT — un correctif « ajouter un
+      `useTasks({projectId})` côté front » aurait cassé silencieusement
+      pour le rôle CLIENT (403), qui accède à son propre projet via un
+      chemin de scope différent (`findById`'s branche `else`, filtrée sur
+      `clientId`). Corrigé côté SERVEUR à la place : `tasks` ajouté
+      uniquement au `baseSelect` de `findById` (projet unique), PAS à
+      `projectListSelect` lui-même (partagé avec `findAll`, la liste
+      paginée — y ajouter `tasks` aurait tiré toutes les tâches de tous
+      les projets listés, une régression de performance réelle sur un
+      endpoint de liste). Scope du select limité aux 3 champs réellement
+      consommés par `ProjectDetailPage.tsx` (`id`/`title`/`status` — les 2
+      appels à `TimeTrackingTab` ne consomment que `{id, title}`),
+      `ProjectWithProgress` mis à jour pour déclarer `tasks?` en cohérence.
+
+      Nouveau test `server/test/projectDetailIncludesTasks.test.ts` (câblé
+      dans `test/run-all.test.ts`), appelle réellement
+      `projectService.getProjectById` contre une base migrée, 2 cas : un
+      projet avec 3 tâches renvoie bien les 3 (titres et statuts corrects,
+      pas juste "non vide") ; un projet sans tâche renvoie un tableau vide
+      (pas `undefined`, pour que `?? []` côté front reste une garde
+      défensive et non le masque du bug).
+
+      `npx tsc --noEmit` vert (server, client — le type client `Project
+      .tasks?: Task[]` accepte structurellement le shape réduit renvoyé).
+      Suite complète serveur : 294/294 (292 + 2 nouveaux), ~23-25s, aucune
+      régression. `resolu` déclaré SANS confirmation CI : la CI est
+      actuellement désactivée sur `origin/main` sur demande du porteur du
+      projet (workflow_dispatch seul, session du 2026-07-17), dérogation
+      « no make it resolu » déjà établie dans cette session.

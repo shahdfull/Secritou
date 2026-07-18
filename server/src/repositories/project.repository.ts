@@ -8,6 +8,9 @@ import { clientBriefSelect } from "../utils/prismaSelects.js";
 
 type ProjectWithProgress = Project & {
   client?: { id: string; name: string; email: string | null; phone: string | null } | null;
+  // Only populated by findById (project detail) — findAll's paginated list never fetches tasks,
+  // to avoid pulling every task for every listed project.
+  tasks?: { id: string; title: string; status: string }[];
   progress: number;
   taskDone: number;
   taskTotal: number;
@@ -84,8 +87,15 @@ export const projectRepository = {
     clientId?: string,
     serviceId?: string | null
   ): Promise<ProjectWithProgress | null> {
-    const baseSelect = { ...projectListSelect, client: { select: clientBriefSelect } };
-    let project: (Project & { client?: ProjectWithProgress["client"] }) | null;
+    // tasks is only fetched on the single-project detail path (not projectListSelect, which is
+    // shared with findAll's paginated project list — pulling every task for every listed
+    // project would be a real performance regression there).
+    const baseSelect = {
+      ...projectListSelect,
+      client: { select: clientBriefSelect },
+      tasks: { select: { id: true, title: true, status: true }, orderBy: { createdAt: "asc" as const } },
+    };
+    let project: (Project & { client?: ProjectWithProgress["client"]; tasks?: { id: string; title: string; status: string }[] }) | null;
 
     if (userRole === "ADMIN") {
       project = await prisma.project.findUnique({ where: { id }, select: baseSelect });
