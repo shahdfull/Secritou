@@ -1,5 +1,6 @@
 // Controller for Projects - HTTP request handlers
 import type { RequestHandler } from "express";
+import { ProjectStatus } from "@prisma/client";
 import { projectService } from "../services/project.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
 import { HttpError } from "../utils/httpError.js";
@@ -8,14 +9,27 @@ import { COMPANY_ID } from "../config/constants.js";
 import { regenerateSpecsWithAiContent, regenerateRoadmapWithAiContent } from "../services/projectSpecs.service.js";
 import { userRepository } from "../repositories/user.repository.js";
 
+const VALID_PROJECT_STATUSES = new Set(Object.values(ProjectStatus));
+
+// A set of statuses (e.g. the freelancer "active" sub-tab spanning PLANNING/IN_PROGRESS/REVIEW)
+// — distinct from parseListQuery's single-value `status`, which every other entity's
+// ListQueryOptions also uses. Invalid values are silently dropped rather than 400ing, matching
+// the tolerant style of the rest of parseListQuery's own parsing.
+function parseStatusIn(raw: unknown): ProjectStatus[] | undefined {
+  if (typeof raw !== "string" || raw.trim() === "") return undefined;
+  const statuses = raw.split(",").map((s) => s.trim()).filter((s): s is ProjectStatus => VALID_PROJECT_STATUSES.has(s as ProjectStatus));
+  return statuses.length > 0 ? statuses : undefined;
+}
+
 export const getAllProjects: RequestHandler = async (req, res, next) => {
   try {
     const userId = req.user!.sub;
     const userRole = req.user!.role;
     const clientId = req.user?.clientId as string | undefined;
     const options = parseListQuery(req.query as Record<string, unknown>);
+    const statusIn = parseStatusIn(req.query.statusIn);
     const scope = userRole === "MANAGER" ? await buildServiceScope(req) : undefined;
-    const result = await projectService.getAllProjects(userId, userRole, options, clientId, scope?.userServiceId);
+    const result = await projectService.getAllProjects(userId, userRole, options, clientId, scope?.userServiceId, statusIn);
     res.json(result);
   } catch (error) {
     next(error);

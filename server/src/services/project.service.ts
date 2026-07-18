@@ -6,7 +6,7 @@ import { clientRepository } from "../repositories/client.repository.js";
 import { enqueueNotifications, enqueueDocumentGeneration } from "../jobs/queues.js";
 import type { CreateProjectDTO } from "../types/entities.js";
 import { HttpError } from "../utils/httpError.js";
-import type { Role } from "@prisma/client";
+import type { Role, ProjectStatus } from "@prisma/client";
 import type { ServiceScope } from "../utils/serviceScope.js";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { invalidateTags } from "../cache/cacheService.js";
@@ -32,8 +32,8 @@ export interface TimelineStep {
 }
 
 export const projectService = {
-  async getAllProjects(userId: string, userRole: Role, options: ListQueryOptions, clientId?: string, serviceId?: string | null) {
-    return projectRepository.findAll(userId, userRole, options, clientId, serviceId);
+  async getAllProjects(userId: string, userRole: Role, options: ListQueryOptions, clientId?: string, serviceId?: string | null, statusIn?: ProjectStatus[]) {
+    return projectRepository.findAll(userId, userRole, options, clientId, serviceId, statusIn);
   },
 
   async getDeletedProjects(userId: string, userRole: Role, options: ListQueryOptions, clientId?: string, serviceId?: string | null) {

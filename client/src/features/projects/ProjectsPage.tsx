@@ -177,6 +177,23 @@ export function ProjectsPage() {
   } = useCrudDialogState<Project>();
 
   const { page, pageSize, orderBy, orderDir, search, params, setPage, setSearch, updateParams } = useListParams(12);
+  // Freelancer sub-tabs (Active/Done) are each their own independently paginated request — never
+  // derived by filtering a single loaded page client-side, which silently hid projects beyond
+  // that page's 12 items while the pagination control at the bottom still showed the true,
+  // unfiltered total. Not used for the ADMIN/MANAGER flat list below.
+  const [activePage, setActivePage] = useState(1);
+  const [donePage, setDonePage] = useState(1);
+  const FREELANCER_SUBTAB_PAGE_SIZE = 12;
+  const { data: activeProjectsResult, isLoading: activeProjectsLoading } = useProjects({
+    page: activePage,
+    pageSize: FREELANCER_SUBTAB_PAGE_SIZE,
+    statusIn: "PLANNING,IN_PROGRESS,REVIEW",
+  });
+  const { data: doneProjectsResult, isLoading: doneProjectsLoading } = useProjects({
+    page: donePage,
+    pageSize: FREELANCER_SUBTAB_PAGE_SIZE,
+    statusIn: "COMPLETED",
+  });
   const { data: projectsResult, isLoading: projectsLoading } = useProjects({ ...params, search });
   const { data: clientsResult, isLoading: clientsLoading } = useClients({ page: 1, pageSize: 100 });
   const [searchInput, setSearchInput] = useState(search ?? "");
@@ -189,9 +206,10 @@ export function ProjectsPage() {
   const projects = projectsResult?.data ?? [];
   const total = projectsResult?.total ?? 0;
 
-  const ACTIVE_STATUSES = ["PLANNING", "IN_PROGRESS", "REVIEW"];
-  const activeProjects = useMemo(() => projects.filter((p) => ACTIVE_STATUSES.includes(p.status)), [projects]);
-  const doneProjects = useMemo(() => projects.filter((p) => !ACTIVE_STATUSES.includes(p.status)), [projects]);
+  const activeProjects = activeProjectsResult?.data ?? [];
+  const activeTotal = activeProjectsResult?.total ?? 0;
+  const doneProjects = doneProjectsResult?.data ?? [];
+  const doneTotal = doneProjectsResult?.total ?? 0;
   const clients = clientsResult?.data ?? [];
   const { mutate: createProject, isPending: isCreating } = useCreateProject();
   const { mutate: updateProject, isPending: isUpdating } = useUpdateProject();
@@ -459,32 +477,46 @@ export function ProjectsPage() {
             </Select>
           </div>
 
-          {/* Freelancer: active / done sub-tabs */}
+          {/* Freelancer: active / done sub-tabs — each its own independently paginated request */}
           {isFreelancer ? (
             <Tabs defaultValue="active">
               <TabsList className="bg-muted/50 border border-border h-9">
                 <TabsTrigger value="active" className="text-xs h-7">
                   {t("projectsPage.subtabs.active")}
-                  {activeProjects.length > 0 && (
+                  {activeTotal > 0 && (
                     <span className="ml-1.5 text-[10px] bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
-                      {activeProjects.length}
+                      {activeTotal}
                     </span>
                   )}
                 </TabsTrigger>
                 <TabsTrigger value="done" className="text-xs h-7">
                   {t("projectsPage.subtabs.done")}
-                  {doneProjects.length > 0 && (
+                  {doneTotal > 0 && (
                     <span className="ml-1.5 text-[10px] bg-muted-foreground/30 text-muted-foreground rounded-full px-1.5 py-0.5">
-                      {doneProjects.length}
+                      {doneTotal}
                     </span>
                   )}
                 </TabsTrigger>
               </TabsList>
-              <TabsContent value="active" className="mt-4">
-                <ProjectGrid projects={activeProjects} clientById={clientById} getStatusBadgeClass={getStatusBadgeClass} getStatusLabel={getStatusLabel} t={t} canDelete={canDelete} onEdit={handleEdit} onDelete={handleDelete} />
+              <TabsContent value="active" className="mt-4 space-y-4">
+                {activeProjectsLoading ? (
+                  <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
+                ) : (
+                  <>
+                    <ProjectGrid projects={activeProjects} clientById={clientById} getStatusBadgeClass={getStatusBadgeClass} getStatusLabel={getStatusLabel} t={t} canDelete={canDelete} onEdit={handleEdit} onDelete={handleDelete} />
+                    <DataTablePagination page={activePage} pageSize={FREELANCER_SUBTAB_PAGE_SIZE} total={activeTotal} onPageChange={setActivePage} />
+                  </>
+                )}
               </TabsContent>
-              <TabsContent value="done" className="mt-4">
-                <ProjectGrid projects={doneProjects} clientById={clientById} getStatusBadgeClass={getStatusBadgeClass} getStatusLabel={getStatusLabel} t={t} canDelete={canDelete} onEdit={handleEdit} onDelete={handleDelete} />
+              <TabsContent value="done" className="mt-4 space-y-4">
+                {doneProjectsLoading ? (
+                  <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
+                ) : (
+                  <>
+                    <ProjectGrid projects={doneProjects} clientById={clientById} getStatusBadgeClass={getStatusBadgeClass} getStatusLabel={getStatusLabel} t={t} canDelete={canDelete} onEdit={handleEdit} onDelete={handleDelete} />
+                    <DataTablePagination page={donePage} pageSize={FREELANCER_SUBTAB_PAGE_SIZE} total={doneTotal} onPageChange={setDonePage} />
+                  </>
+                )}
               </TabsContent>
             </Tabs>
           ) : (
@@ -521,7 +553,9 @@ export function ProjectsPage() {
             )}
           </div>
 
-          <DataTablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} />
+          {!isFreelancer && (
+            <DataTablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} />
+          )}
 
           {/* Edit Dialog */}
           {editingProject && (

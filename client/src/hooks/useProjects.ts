@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import i18n from "@/i18n";
 import { queryKeys } from "@/lib/query-keys";
 
-export function useProjects(params: ListQueryParams = {}) {
+export function useProjects(params: ListQueryParams & { statusIn?: string } = {}) {
   return useQuery<PaginatedResponse<Project>>({
     queryKey: queryKeys.projects(params),
     queryFn: () => projectsApi.getAll(params),

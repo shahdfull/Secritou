@@ -24,7 +24,11 @@ export interface BriefProject {
 }
 
 export const projectsApi = {
-  getAll: async (params: ListQueryParams = {}): Promise<PaginatedResponse<Project>> => {
+  // statusIn: comma-separated ProjectStatus values (e.g. "PLANNING,IN_PROGRESS,REVIEW") — a
+  // set filter distinct from ListQueryParams' generic single-value `status`, shared by every
+  // other entity's list query. Used by the freelancer Active/Done sub-tabs, each its own
+  // independently paginated request rather than filtering a single loaded page client-side.
+  getAll: async (params: ListQueryParams & { statusIn?: string } = {}): Promise<PaginatedResponse<Project>> => {
     const response = await apiClient.get<PaginatedResponse<Project>>("/projects", { params });
     return response.data;
   },

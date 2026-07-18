@@ -18,9 +18,14 @@ type ProjectWithProgress = Project & {
 
 const SORTABLE_FIELDS = ["name", "status", "createdAt"];
 
-function buildWhere(userId: string, userRole: Role, options: ListQueryOptions, clientId?: string, serviceId?: string | null) {
+function buildWhere(userId: string, userRole: Role, options: ListQueryOptions, clientId?: string, serviceId?: string | null, statusIn?: ProjectStatus[]) {
   const searchFilter = buildTextSearchFilter(options.search, ["name", "description"]);
-  const statusFilter = options.status ? { status: options.status as ProjectStatus } : {};
+  // statusIn (a set, e.g. the freelancer "active" sub-tab spanning PLANNING/IN_PROGRESS/REVIEW)
+  // takes precedence over the generic single-value `status` filter shared with every other
+  // entity's ListQueryOptions — a caller never needs both at once.
+  const statusFilter = statusIn && statusIn.length > 0
+    ? { status: { in: statusIn } }
+    : options.status ? { status: options.status as ProjectStatus } : {};
   const base = { archivedAt: null, deletedAt: null, ...statusFilter, ...searchFilter };
 
   if (userRole === "ADMIN") return base;
@@ -60,9 +65,10 @@ export const projectRepository = {
     userRole: Role,
     options: ListQueryOptions,
     clientId?: string,
-    serviceId?: string | null
+    serviceId?: string | null,
+    statusIn?: ProjectStatus[]
   ): Promise<PaginatedResult<ProjectWithProgress>> {
-    const where = buildWhere(userId, userRole, options, clientId, serviceId);
+    const where = buildWhere(userId, userRole, options, clientId, serviceId, statusIn);
     const skip = (options.page - 1) * options.pageSize;
     const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
 
