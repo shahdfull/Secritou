@@ -1,7 +1,10 @@
 import { z } from "zod";
+import { DEFAULT_CURRENCY } from "../constants/currency.js";
 
 const uuidParam = z.string().uuid();
-const currencyCode = z.string().length(3).toUpperCase();
+// RG-001: every proposal/invoice is denominated in TND — no other currency is accepted in
+// writing (SEC-032). See invoice.validator.ts for the full rationale.
+const currencyCode = z.literal(DEFAULT_CURRENCY);
 
 export const createProposalSchema = z.object({
   body: z.object({

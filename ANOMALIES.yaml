@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-031
+dernier_id: SEC-032
 
 anomalies:
   - id: SEC-001
@@ -2512,3 +2512,107 @@ anomalies:
       CI est actuellement désactivée sur `origin/main` sur demande du
       porteur du projet (workflow_dispatch seul, session du 2026-07-17),
       dérogation « no make it resolu » déjà établie dans cette session.
+
+  - id: SEC-032
+    titre: "Le validateur currencyCode acceptait n'importe quelle devise à 3 lettres — aucune contrainte réelle à TND en écriture sur POST /invoices et POST /proposals"
+    perimetre: "4.4 Facturation, 4.1 CRM & Pipeline commercial — server/src/validators/invoice.validator.ts, server/src/validators/proposal.validator.ts, shared/src/schemas/common.schema.ts"
+    regle_violee: "RG-001"
+    classe: null
+    gravite: majeur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand `createInvoiceSchema`/`createProposalSchema`
+      rejettent explicitement toute devise différente de TND, ET qu'un
+      test appelle réellement ces validateurs (pas une réimplémentation
+      locale) pour confirmer le rejet d'une devise arbitraire ET
+      l'acceptation de TND (explicite ou par défaut).
+    detecte_le: "2026-07-18"
+    source: manuel
+    confiance: certain
+    note: >
+      Trouvé en vérifiant RG-001 (« toute proposition/facture est libellée
+      en TND ») en réponse à la question du porteur du projet « is there
+      something a vérifier dans ce projet », 6e règle traitée après
+      RG-008/RG-002/RG-017/RG-004b/RG-012 — la dernière de la liste
+      initiale des 8 règles à provenance faible identifiées par l'audit de
+      lecture du début de cette série.
+
+      CONSTAT : `currencyCode` (défini séparément dans
+      `invoice.validator.ts` ET `proposal.validator.ts`, deux copies
+      dupliquées) valait `z.string().length(3).toUpperCase()` — AUCUNE
+      contrainte de valeur, n'importe quelle devise à 3 lettres (`USD`,
+      `EUR`, etc.) passait la validation sur `POST /invoices` et `POST
+      /proposals`. Seul un `.default("TND")` existait, mais rien
+      n'empêchait un appelant de fournir explicitement une autre valeur.
+      Aucun filtre de rattrapage dans `invoice.service.ts`/
+      `proposal.service.ts` : `data.currency` transite tel quel jusqu'à la
+      base. Impact réel confirmé : `DEFAULT_CURRENCY = "TND"`
+      (`server/src/constants/currency.ts`) est déjà utilisée comme FILTRE
+      dans les repositories analytics/forecast
+      (`executiveMetrics.repository.ts`, `revenueForecast.repository.ts`,
+      déjà lus intégralement lors de l'audit du module 4.8) — une facture
+      créée dans une autre devise aurait été silencieusement exclue de
+      TOUS les KPIs financiers (cash, forecast, executive metrics), pas
+      seulement « non conforme à TND » mais invisible du pilotage.
+
+      TROISIÈME COPIE TROUVÉE, également corrigée : `shared/src/schemas/
+      common.schema.ts` exporte sa propre `currencyCode` identique (même
+      défaut), utilisée par `shared/src/schemas/invoice.schema.ts`/
+      `proposal.schema.ts` — ces deux fichiers sont du CODE MORT confirmé
+      (grep exhaustif sur tout le monorepo : zéro import réel côté client
+      ou serveur, seulement réexportés via `shared/src/index.ts`), mais
+      portant le même nom exact que les vrais validateurs serveur — un
+      risque de piège pour un développeur futur qui importerait
+      `createInvoiceSchema` depuis `@secritou/shared` en pensant utiliser
+      le vrai validateur. Corrigée par cohérence, sans activer ce code mort
+      ni créer de nouvelle capacité.
+
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-18) : « Lacune réelle à corriger : contraindre `currencyCode`
+      à TND uniquement (Recommandé) ».
+
+      CORRECTIF ÉCRIT : `currencyCode` changée en `z.literal(DEFAULT_CURRENCY)`
+      (import de la constante serveur existante, une seule source de
+      vérité) dans `invoice.validator.ts` et `proposal.validator.ts` ; même
+      changement en dur (`z.literal("TND")`, `shared/` ne peut pas
+      dépendre de `server/`) dans `shared/src/schemas/common.schema.ts`.
+      Vérifié qu'aucun test réel n'était affecté : les seuls usages de
+      devises non-TND dans les tests (`idor.test.ts`,
+      `proposal.service.test.ts`, `proposalAcceptCascade.test.ts`,
+      `validators.test.ts`) sont soit des fixtures de données pour tester
+      une logique différente (IDOR, cascade), soit — pour `validators
+      .test.ts` — un schéma réimplémenté localement, déjà identifié comme
+      déconnecté du vrai validateur, non affecté par ce changement.
+
+      ÉCART INCIDENT TROUVÉ ET CORRIGÉ DANS LA MÊME PASSE (hors périmètre
+      strict de SEC-032, enregistré immédiatement conformément à
+      CLAUDE.md) : en exécutant les tests du workspace `shared` pour
+      confirmer l'absence de régression, `shared/src/constants/
+      contactForm.test.ts` échouait — un test figé (« frozen enum test »)
+      attendait encore les 4 anciens noms de pôles anglais pré-migration
+      (`Business Performance`, `Digital Growth`, `Technology Solutions`,
+      `AI & Automation`) alors que `contactForm.ts` utilise déjà les 4 noms
+      canoniques FR depuis une session antérieure (cf. SEC-001, déjà
+      résolue côté serveur/client mais cette occurrence dans `shared/`
+      n'avait jamais été couverte). Le code était déjà correct, seul le
+      test était faux — corrigé (pas le code), même classe de défaut que
+      SEC-001, occurrence distincte du même vocabulaire obsolète.
+
+      Nouveau test `server/test/currencyRejectsNonTnd.test.ts` (câblé dans
+      `test/run-all.test.ts`), appelle réellement `createInvoiceSchema`/
+      `createProposalSchema` (pas une réimplémentation) : rejette USD/EUR,
+      accepte TND explicite et par défaut sur les deux schémas.
+
+      `npx tsc --noEmit` vert (server, client). `npm test` du workspace
+      `shared` vert (9/9, après correction du test figé). Suite complète
+      serveur : 292/292 (288 + 4 nouveaux), ~24-28s, aucune régression.
+      `resolu` déclaré SANS confirmation CI : la CI est actuellement
+      désactivée sur `origin/main` sur demande du porteur du projet
+      (workflow_dispatch seul, session du 2026-07-17), dérogation « no
+      make it resolu » déjà établie dans cette session.
+
+      Toutes les 8 règles §5 identifiées par l'audit de lecture initial
+      (RG-001, RG-002, RG-004b, RG-008, RG-012, RG-017, RG-005, RG-020)
+      sont désormais traitées ou explicitement écartées comme non
+      pertinentes (RG-005 statut PRÉVU par construction, RG-020 code déjà
+      lu sans lacune technique réelle).

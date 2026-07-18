@@ -8,10 +8,10 @@ import { CONTACT_SERVICE_TYPES, CONTACT_BUDGET_OPTIONS } from "./contactForm.js"
 describe("contact form enums are frozen (audit 03 #9)", () => {
   test("CONTACT_SERVICE_TYPES matches the exact persisted values", () => {
     assert.deepEqual(CONTACT_SERVICE_TYPES, [
-      "Business Performance",
-      "Digital Growth",
-      "Technology Solutions",
-      "AI & Automation",
+      "Management & Performance",
+      "Croissance digitale",
+      "Technologie",
+      "IA & Automatisation",
       "Other",
     ]);
   });

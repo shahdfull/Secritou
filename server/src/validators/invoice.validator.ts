@@ -1,8 +1,13 @@
 import { z } from "zod";
+import { DEFAULT_CURRENCY } from "../constants/currency.js";
 
 const uuidParam = z.string().uuid();
 const positiveDecimal = z.number().positive();
-const currencyCode = z.string().length(3).toUpperCase();
+// RG-001: every proposal/invoice is denominated in TND — no other currency is accepted in
+// writing (SEC-032). Not just a default: a caller-supplied non-TND value must be rejected,
+// since analytics/forecast repositories already filter on DEFAULT_CURRENCY and would silently
+// exclude any other-currency invoice from every financial KPI.
+const currencyCode = z.literal(DEFAULT_CURRENCY);
 
 export const createInvoiceSchema = z.object({
   body: z.object({
