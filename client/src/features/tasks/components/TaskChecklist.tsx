@@ -15,6 +15,10 @@ interface TaskChecklistProps {
   taskId: string;
 }
 
+// SEC-075: mirrors the server-side cap (taskChecklist.service.ts#MAX_CHECKLIST_ITEMS_PER_TASK) —
+// disabling the input client-side here is a UX courtesy only, the server remains the real gate.
+const MAX_CHECKLIST_ITEMS_PER_TASK = 100;
+
 // SEC-060 (sous-tâches, item 4 du constat P1 rapport Product Owner) : checklist plate sur une
 // tâche (décision du porteur, session 2026-07-19) — un seul niveau, aucun assignee/statut/échéance
 // propre, aucune règle de complétion automatique de la tâche parente : le pourcentage affiché ici
@@ -29,6 +33,7 @@ export function TaskChecklist({ taskId }: TaskChecklistProps) {
   const list = items ?? [];
   const doneCount = list.filter((item) => item.done).length;
   const progress = list.length > 0 ? Math.round((doneCount / list.length) * 100) : 0;
+  const atLimit = list.length >= MAX_CHECKLIST_ITEMS_PER_TASK;
 
   const handleAdd = () => {
     if (!newItemTitle.trim()) return;
@@ -79,23 +84,29 @@ export function TaskChecklist({ taskId }: TaskChecklistProps) {
         <p className="text-sm text-muted-foreground">Aucune sous-tâche.</p>
       )}
 
-      <div className="flex gap-2">
-        <Input
-          placeholder="Ajouter une sous-tâche..."
-          value={newItemTitle}
-          onChange={(e) => setNewItemTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleAdd();
-            }
-          }}
-          className="h-8 text-sm"
-        />
-        <Button size="icon" className="h-8 w-8 shrink-0" onClick={handleAdd} disabled={!newItemTitle.trim() || isCreating}>
-          <Plus className="h-4 w-4" />
-        </Button>
-      </div>
+      {atLimit ? (
+        <p className="text-xs text-muted-foreground">
+          Limite de {MAX_CHECKLIST_ITEMS_PER_TASK} sous-tâches atteinte pour cette tâche.
+        </p>
+      ) : (
+        <div className="flex gap-2">
+          <Input
+            placeholder="Ajouter une sous-tâche..."
+            value={newItemTitle}
+            onChange={(e) => setNewItemTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAdd();
+              }
+            }}
+            className="h-8 text-sm"
+          />
+          <Button size="icon" className="h-8 w-8 shrink-0" onClick={handleAdd} disabled={!newItemTitle.trim() || isCreating}>
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

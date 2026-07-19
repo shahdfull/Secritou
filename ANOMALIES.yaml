@@ -5632,7 +5632,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: faible
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       Sera résolu en enveloppant la lecture de `countTasks` et
       l'insertion des tâches du template dans un même `$transaction`
@@ -5643,14 +5643,40 @@ anomalies:
     confiance: certain
     note: >
       Rapport externe, confirmé par lecture directe :
-      `projectTemplateService.applyToProject` appelle `countTasks`
+      `projectTemplateService.applyToProject` appelait `countTasks`
       puis, séparément, la création du lot de tâches — aucun
-      `$transaction` ne les enveloppe. La garde d'idempotence
+      `$transaction` ne les enveloppait. La garde d'idempotence
       introduite par SEC-043 (409 `TEMPLATE_ALREADY_APPLIED` si le
-      projet a déjà des tâches) couvre le cas séquentiel (double-clic,
+      projet a déjà des tâches) couvrait le cas séquentiel (double-clic,
       rejeu après réponse) mais pas deux appels strictement
-      concurrents avant qu'aucune réponse ne soit reçue. Non corrigé
-      cette session (décision du porteur : ne pas traiter cette passe).
+      concurrents avant qu'aucune réponse ne soit reçue.
+
+      Corrigé (reprise de session, 2026-07-19, sur confirmation
+      explicite du porteur « oui on le fait ») : le check de
+      `countTasks` et l'insertion du lot (`createMany`) sont
+      désormais dans un seul `$transaction` Prisma en isolation
+      `Serializable` (même pattern que `auth.service.ts#resetPassword`)
+      — deux appels strictement concurrents ne peuvent plus jamais
+      lire tous les deux `count=0` avant qu'aucun n'ait inséré ; l'un
+      des deux échoue avec une erreur de sérialisation Postgres
+      (`P2034`), explicitement mappée vers le même 409
+      `TEMPLATE_ALREADY_APPLIED` que le cas séquentiel. Nettoyage
+      corrélé : `projectRepository.countTasks` et
+      `projectTemplateRepository.applyToProject` (ancienne version non
+      transactionnelle) supprimés, devenus morts après le déplacement
+      de la logique dans le service. Preuve par test réel :
+      `projectTemplateIdempotencyAndFreelancerFields.test.ts` (« SEC-073
+      »), lance deux vrais appels `applyToProject` strictement
+      concurrents via `Promise.allSettled`, prouve qu'un seul réussit,
+      que l'autre reçoit un 409, et que le lot n'est jamais dupliqué
+      (comptage final = comptage du template, pas 2×). `verifie: test`.
+      Vérification complète : `npx tsc --noEmit` (serveur, propre),
+      `npx tsx --test test/run-all.test.ts` (381/381, stable sur 2
+      exécutions consécutives malgré la contention volontaire du
+      test), `npm run lint` (serveur, 0 warning). Résolu SANS
+      confirmation CI : workflow GitHub Actions sur `origin/main` en
+      `workflow_dispatch` uniquement (déviation établie en session le
+      2026-07-17, citée à chaque clôture depuis).
 
   - id: SEC-074
     titre: "taskChecklistService.createItem : le commentaire affirme qu'un calcul de position derive d'un simple count() empeche toute collision entre creations concurrentes, ce qui est faux — aucune transaction ni contrainte @@unique([taskId, position]) ne protege ce calcul"
@@ -5658,7 +5684,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: faible
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       Sera résolu soit en alignant le commentaire sur la garantie
       réellement offerte (protection contre un double-clic simple, pas
@@ -5671,16 +5697,41 @@ anomalies:
     note: >
       Rapport externe, confirmé par lecture directe (SEC-067, session
       2026-07-19) : le commentaire de `taskChecklistService.createItem`
-      affirme explicitement qu'une collision entre créations
-      concurrentes est impossible car « position toujours dérivée
+      affirmait explicitement qu'une collision entre créations
+      concurrentes était impossible car « position toujours dérivée
       côté serveur » — mais `countByTaskId` (repository) puis
-      `create` (service) sont deux appels séparés, sans
+      `create` (service) étaient deux appels séparés, sans
       `$transaction` ; le schéma ne déclare qu'un index non-unique
       `@@index([taskId, position])`, pas une contrainte `@@unique`.
-      L'affirmation du commentaire est donc inexacte en cas de
-      concurrence réelle (même défaut de nature que SEC-073). Non
-      corrigé cette session (décision du porteur : ne pas traiter
-      cette passe).
+      L'affirmation du commentaire était donc inexacte en cas de
+      concurrence réelle (même défaut de nature que SEC-073).
+
+      Corrigé (reprise de session, 2026-07-19, sur confirmation
+      explicite du porteur « oui on le fait ») : `taskChecklistRepository.create`
+      enveloppe désormais le `count()` et le `create()` dans un seul
+      `$transaction` Prisma en isolation `Serializable` (même pattern
+      que SEC-073/auth.service.ts#resetPassword). Différence
+      volontaire par rapport à SEC-073 : ici, une collision perdue
+      n'est jamais une vraie erreur métier (deux personnes qui ajoutent
+      un item de checklist au même moment est un usage normal, pas une
+      soumission dupliquée) — le perdant de la course retente
+      automatiquement (jusqu'à 8 fois, backoff aléatoire court) plutôt
+      que de faire remonter l'erreur de sérialisation Postgres
+      (`P2034`) à l'utilisateur. Nettoyage corrélé :
+      `taskChecklistService.createItem` ne calcule plus le `position`
+      lui-même (déplacé dans la transaction du repository), la
+      signature de `taskChecklistRepository.create` simplifiée en
+      conséquence. Preuve par test réel : `taskChecklist.test.ts`
+      (« SEC-074 »), lance 5 créations réellement concurrentes via
+      `Promise.all` sur la même tâche, prouve que les positions
+      obtenues sont exactement `[0,1,2,3,4]` — jamais de collision, ni
+      de trou. `verifie: test`. Vérification complète : `npx tsc
+      --noEmit` (serveur, propre), `npx tsx --test
+      test/run-all.test.ts` (381/381, stable sur 2 exécutions
+      consécutives), `npm run lint` (serveur, 0 warning). Résolu SANS
+      confirmation CI : workflow GitHub Actions sur `origin/main` en
+      `workflow_dispatch` uniquement (déviation établie en session le
+      2026-07-17, citée à chaque clôture depuis).
 
   - id: SEC-075
     titre: "Aucune limite sur le nombre d'items de checklist par tache — contrairement aux autres garde-fous du module (bulk plafonne a 100, kanban/calendrier a 200), createChecklistItemSchema ne borne que la longueur du titre et getChecklistItems charge tout sans pagination ni limite"
@@ -5688,7 +5739,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: faible
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       Sera résolu par l'ajout d'un plafond raisonnable au nombre
       d'items de checklist par tâche (avec message explicite au-delà),
@@ -5700,13 +5751,38 @@ anomalies:
     confiance: certain
     note: >
       Rapport externe, confirmé par lecture directe (SEC-067, session
-      2026-07-19) : `createChecklistItemSchema` ne valide que
+      2026-07-19) : `createChecklistItemSchema` ne validait que
       `title` (longueur), aucune limite de nombre total d'items par
-      tâche. `taskChecklistRepository.findByTaskId` charge tout via
-      `findMany` sans `take`/`skip`, et `TaskChecklist.tsx` rend la
-      liste entière sans pagination ni virtualisation. Non corrigé
-      cette session (décision du porteur : ne pas traiter cette
-      passe).
+      tâche. `taskChecklistRepository.findByTaskId` chargeait tout via
+      `findMany` sans `take`/`skip`, et `TaskChecklist.tsx` rendait la
+      liste entière sans pagination ni virtualisation.
+
+      Corrigé partiellement (reprise de session, 2026-07-19, sur
+      confirmation explicite du porteur « oui on le fait ») :
+      `taskChecklistService.createItem` refuse désormais toute
+      création au-delà de 100 items par tâche (422
+      `CHECKLIST_LIMIT_REACHED`), cohérent avec le plafond des actions
+      en masse (SEC-066). Côté client, `TaskChecklist.tsx` masque le
+      champ d'ajout et affiche « Limite de 100 sous-tâches atteinte
+      pour cette tâche. » une fois la limite atteinte — courtoisie UX,
+      le serveur reste la garde réelle. Le plafond de création borne
+      la liste dans la pratique (jamais plus de 100 lignes), mais la
+      pagination/virtualisation de `findByTaskId` et de l'affichage
+      elle-même n'a délibérément pas été construite dans cette passe
+      — jugée disproportionnée pour une liste maintenant bornée à 100
+      lignes maximum. Preuve par test réel : `taskChecklist.test.ts`
+      (« SEC-075 », serveur — seed direct à 100 items, prouve le rejet
+      422 et l'absence d'insertion) ; `TaskChecklist.test.tsx`
+      (« SEC-075 », client, 2 cas — message affiché et champ masqué à
+      100, champ visible à 99). `verifie: test`. Vérification
+      complète : `npx tsc --noEmit` (serveur+client, propres), `npx
+      tsx --test test/run-all.test.ts` (381/381), `npm run lint`
+      (serveur 0 warning, client 12 warnings — SEC-049, stable), `npx
+      vitest run` (client, 73/73), `npm run build` (client, succès).
+      Résolu SANS confirmation CI : workflow GitHub Actions sur
+      `origin/main` en `workflow_dispatch` uniquement (déviation
+      établie en session le 2026-07-17, citée à chaque clôture
+      depuis).
 
   - id: SEC-076
     titre: "ProjectMeetingsTab.tsx : le formulaire d'edition d'une reunion (editingMeeting) est rendu apres la liste paginee et sa pagination, sans scrollIntoView ni mecanisme de defilement automatique — invisible sans defilement manuel sur une liste longue"

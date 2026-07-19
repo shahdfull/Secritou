@@ -2,16 +2,30 @@
 import { taskChecklistRepository } from "../repositories/taskChecklist.repository.js";
 import { HttpError } from "../utils/httpError.js";
 
+// SEC-075: caps the number of items per task, consistent with the other guardrails already in
+// this module (bulk task actions capped at 100 ids, Kanban/calendar loaded unpaginated up to 200).
+// Enforced here (not in the Zod validator) because it depends on existing DB state, not just the
+// shape of the incoming request.
+const MAX_CHECKLIST_ITEMS_PER_TASK = 100;
+
 export const taskChecklistService = {
   async getByTaskId(taskId: string) {
     return taskChecklistRepository.findByTaskId(taskId);
   },
 
-  // Appended at the end — position is derived server-side from the current count, never trusted
-  // from the client, so two concurrent creates can't collide on the same position.
+  // Appended at the end — position is derived server-side inside taskChecklistRepository.create's
+  // own transaction (SEC-074), never trusted from the client, so two concurrent creates can't
+  // collide on the same position.
   async createItem(taskId: string, title: string) {
-    const position = await taskChecklistRepository.countByTaskId(taskId);
-    return taskChecklistRepository.create({ title, taskId, position });
+    const existingCount = await taskChecklistRepository.countByTaskId(taskId);
+    if (existingCount >= MAX_CHECKLIST_ITEMS_PER_TASK) {
+      throw new HttpError(
+        422,
+        `A task cannot have more than ${MAX_CHECKLIST_ITEMS_PER_TASK} checklist items`,
+        "CHECKLIST_LIMIT_REACHED"
+      );
+    }
+    return taskChecklistRepository.create({ title, taskId });
   },
 
   async updateItem(taskId: string, itemId: string, data: { title?: string; done?: boolean }) {

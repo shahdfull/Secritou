@@ -4,6 +4,8 @@ import { HttpError } from "../utils/httpError.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
 import type { ServiceScope } from "../utils/serviceScope.js";
+import { prisma } from "../config/prisma.js";
+import { Prisma } from "@prisma/client";
 
 export const projectTemplateService = {
   async getForService(serviceId: string) {
@@ -26,20 +28,39 @@ export const projectTemplateService = {
     }
     if (!project.serviceId) throw new HttpError(422, "Project has no service/pole assigned", "PROJECT_NO_SERVICE");
 
-    // Idempotence guard (SEC-043): the client only ever surfaces "apply template" from a
-    // project's empty-tasks state, but nothing server-side stopped a double-click, a network
-    // replay, or a direct API call from bulk-inserting the whole batch a second time. Applying a
-    // template is meaningful only on a project with no tasks yet — reject otherwise.
-    const existingTaskCount = await projectRepository.countTasks(projectId);
-    if (existingTaskCount > 0) {
-      throw new HttpError(409, "This project already has tasks; a template can only seed an empty project", "TEMPLATE_ALREADY_APPLIED");
-    }
-
     const template = await projectTemplateRepository.findByServiceId(project.serviceId);
     if (!template) throw new HttpError(404, "No template configured for this pole", "TEMPLATE_NOT_FOUND");
+    if (template.tasks.length === 0) return [];
 
-    const tasks = await projectTemplateRepository.applyToProject(template.id, projectId);
-    await invalidateTags([cacheTags.dashboard()]);
-    return tasks;
+    // Idempotence guard (SEC-043) + SEC-073: applying a template is meaningful only on a project
+    // with no tasks yet. The count check and the batch insert are wrapped in a single Serializable
+    // transaction (same pattern as auth.service.ts#resetPassword) so two strictly concurrent calls
+    // can never both read count=0 before either has inserted — one succeeds, the other gets a
+    // serialization failure, mapped below to the same 409 the sequential case already returns.
+    try {
+      const tasks = await prisma.$transaction(async (tx) => {
+        const existingTaskCount = await tx.task.count({ where: { projectId } });
+        if (existingTaskCount > 0) {
+          throw new HttpError(409, "This project already has tasks; a template can only seed an empty project", "TEMPLATE_ALREADY_APPLIED");
+        }
+
+        await tx.task.createMany({
+          data: template.tasks.map((t) => ({
+            title: t.title,
+            description: t.description ?? undefined,
+            projectId,
+          })),
+        });
+        return tx.task.findMany({ where: { projectId }, orderBy: { createdAt: "desc" }, take: template.tasks.length });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+      await invalidateTags([cacheTags.dashboard()]);
+      return tasks;
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2034") {
+        throw new HttpError(409, "This project already has tasks; a template can only seed an empty project", "TEMPLATE_ALREADY_APPLIED");
+      }
+      throw err;
+    }
   },
 };

@@ -105,3 +105,46 @@ describe("TaskChecklist — SEC-060", () => {
     });
   });
 });
+
+describe("TaskChecklist limit indicator — SEC-075", () => {
+  test("hides the add input and shows the limit message once 100 items are loaded", async () => {
+    getMock.mockResolvedValue({
+      data: {
+        data: Array.from({ length: 100 }, (_, i) => ({
+          id: `item-${i}`,
+          title: `Item ${i}`,
+          done: false,
+          position: i,
+          taskId: "task-1",
+          createdAt: "",
+          updatedAt: "",
+        })),
+      },
+    });
+
+    render(<TaskChecklist taskId="task-1" />, { wrapper: makeWrapper() });
+
+    expect(await screen.findByText("Limite de 100 sous-tâches atteinte pour cette tâche.")).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Ajouter une sous-tâche...")).not.toBeInTheDocument();
+  });
+
+  test("shows the add input under the limit", async () => {
+    getMock.mockResolvedValue({
+      data: {
+        data: Array.from({ length: 99 }, (_, i) => ({
+          id: `item-${i}`,
+          title: `Item ${i}`,
+          done: false,
+          position: i,
+          taskId: "task-1",
+          createdAt: "",
+          updatedAt: "",
+        })),
+      },
+    });
+
+    render(<TaskChecklist taskId="task-1" />, { wrapper: makeWrapper() });
+
+    expect(await screen.findByPlaceholderText("Ajouter une sous-tâche...")).toBeInTheDocument();
+  });
+});

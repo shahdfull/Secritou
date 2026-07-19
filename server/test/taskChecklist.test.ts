@@ -130,4 +130,47 @@ describe("taskChecklistService — SEC-060", () => {
     const stillThere = await prisma.taskChecklistItem.findUnique({ where: { id: item.id } });
     assert.ok(stillThere, "the item must not have been affected by the cross-task calls");
   });
+
+  test("SEC-074: several strictly concurrent creates on the same task never collide on position", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const task = await makeTask();
+
+    const created = await Promise.all(
+      Array.from({ length: 5 }, (_, i) => taskChecklistService.createItem(task.id, `Item ${i}`))
+    );
+    created.forEach((item) => createdItemIds.push(item.id));
+
+    const positions = created.map((item) => item.position).sort((a, b) => a - b);
+    assert.deepEqual(
+      positions,
+      [0, 1, 2, 3, 4],
+      "five concurrent creates must land on five distinct, contiguous positions — never a collision"
+    );
+  });
+
+  test("SEC-075: creating beyond the per-task cap is rejected 422 CHECKLIST_LIMIT_REACHED", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const task = await makeTask();
+
+    // Seed directly at the cap rather than looping 100 real creates (slow, and not the point of
+    // this test — it verifies the cap check, not that 100 individual creates succeed).
+    await prisma.taskChecklistItem.createMany({
+      data: Array.from({ length: 100 }, (_, i) => ({ taskId: task.id, title: `Seed ${i}`, position: i })),
+    });
+    const seeded = await prisma.taskChecklistItem.findMany({ where: { taskId: task.id }, select: { id: true } });
+    createdItemIds.push(...seeded.map((s) => s.id));
+
+    await assert.rejects(
+      () => taskChecklistService.createItem(task.id, "Item 101"),
+      (err: unknown) => {
+        assert.ok(err instanceof HttpError);
+        assert.equal(err.statusCode, 422);
+        assert.equal(err.code, "CHECKLIST_LIMIT_REACHED");
+        return true;
+      }
+    );
+
+    const finalCount = await prisma.taskChecklistItem.count({ where: { taskId: task.id } });
+    assert.equal(finalCount, 100, "the rejected create must not have been inserted");
+  });
 });

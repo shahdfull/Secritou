@@ -122,6 +122,32 @@ describe("projectTemplateService.applyToProject idempotence — SEC-043 (B1)", (
       (err: unknown) => err instanceof HttpError && err.statusCode === 409 && err.code === "TEMPLATE_ALREADY_APPLIED"
     );
   });
+
+  test("SEC-073: two strictly concurrent applies on the same empty project never both succeed", { skip: !dbAvailable }, async () => {
+    const template = await ensureTemplateForServiceA();
+    const project = await makeProject();
+    const templateTaskCount = await prisma.taskTemplate.count({ where: { templateId: template.id } });
+
+    const results = await Promise.allSettled([
+      projectTemplateService.applyToProject(project.id, { userRole: "ADMIN" }),
+      projectTemplateService.applyToProject(project.id, { userRole: "ADMIN" }),
+    ]);
+
+    const fulfilled = results.filter((r) => r.status === "fulfilled");
+    const rejected = results.filter((r) => r.status === "rejected");
+    assert.equal(fulfilled.length, 1, "exactly one of the two concurrent applies must succeed");
+    assert.equal(rejected.length, 1, "the other concurrent apply must be rejected, never silently no-op");
+    assert.ok(
+      rejected[0]!.status === "rejected" &&
+        rejected[0].reason instanceof HttpError &&
+        rejected[0].reason.statusCode === 409,
+      "the losing call must surface as 409, not an unrelated error"
+    );
+
+    // The critical property this test exists for: the template batch was never inserted twice.
+    const finalCount = await prisma.task.count({ where: { projectId: project.id } });
+    assert.equal(finalCount, templateTaskCount, "concurrent applies must never duplicate the template's task batch");
+  });
 });
 
 describe("task.service.updateTask FREELANCER field restriction — SEC-045 (B5)", () => {
