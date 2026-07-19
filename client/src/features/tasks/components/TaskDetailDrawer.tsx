@@ -1,4 +1,4 @@
-import { memo, useCallback, useRef } from "react";
+import { memo, useCallback, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslation } from "react-i18next";
@@ -19,12 +19,20 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Send, Loader2 } from "lucide-react";
+import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialog";
+import { Send, Loader2, Edit, Trash2, X } from "lucide-react";
 import { commentFormSchema, type CommentForm as CommentFormValues } from "@/schemas/task.schema";
 import type { Task } from "@/types/task";
 import type { User } from "@/types/auth";
 import type { Comment } from "@/types/comment";
 import { getInitials, getStatusLabel } from "../taskUtils";
+
+// SEC-059: a comment can now be edited/deleted, but only by its own author or an ADMIN — the
+// server is the real authority (403 COMMENT_NOT_YOURS), this is only to avoid showing controls
+// that will predictably be refused.
+function canEditComment(comment: Comment, currentUserId: string | undefined, isAdmin: boolean): boolean {
+  return isAdmin || (!!currentUserId && comment.authorId === currentUserId);
+}
 
 const CommentForm = memo(function CommentForm({
   onCreateComment,
@@ -87,6 +95,12 @@ interface TaskDetailDrawerProps {
   comments: Comment[];
   onAddComment: (content: string) => void;
   createCommentMutation: { isPending: boolean };
+  currentUserId: string | undefined;
+  isAdmin: boolean;
+  onUpdateComment: (commentId: string, content: string) => void;
+  onDeleteComment: (commentId: string) => void;
+  isUpdatingComment: boolean;
+  isDeletingComment: boolean;
 }
 
 export function TaskDetailDrawer({
@@ -98,6 +112,12 @@ export function TaskDetailDrawer({
   comments,
   onAddComment,
   createCommentMutation,
+  currentUserId,
+  isAdmin,
+  onUpdateComment,
+  onDeleteComment,
+  isUpdatingComment,
+  isDeletingComment,
 }: TaskDetailDrawerProps) {
   const { t } = useTranslation();
   const commentsScrollRef = useRef<HTMLDivElement | null>(null);
@@ -107,6 +127,32 @@ export function TaskDetailDrawer({
     estimateSize: () => 84,
     overscan: 8,
   });
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState("");
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
+
+  const startEditComment = useCallback((comment: Comment) => {
+    setEditingCommentId(comment.id);
+    setEditingContent(comment.content);
+  }, []);
+
+  const cancelEditComment = useCallback(() => {
+    setEditingCommentId(null);
+    setEditingContent("");
+  }, []);
+
+  const submitEditComment = useCallback(() => {
+    if (!editingCommentId || !editingContent.trim()) return;
+    onUpdateComment(editingCommentId, editingContent);
+    setEditingCommentId(null);
+    setEditingContent("");
+  }, [editingCommentId, editingContent, onUpdateComment]);
+
+  const confirmDeleteComment = useCallback(() => {
+    if (!deletingCommentId) return;
+    onDeleteComment(deletingCommentId);
+    setDeletingCommentId(null);
+  }, [deletingCommentId, onDeleteComment]);
 
   if (!task) return null;
 
@@ -183,16 +229,54 @@ export function TaskDetailDrawer({
                               <span>{getInitials(comment.author.name)}</span>
                             </Avatar>
                             <div className="flex-1">
-                              <div className="flex items-center justify-between">
+                              <div className="flex items-center justify-between gap-2">
                                 <span className="font-medium">{comment.author.name}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {formatDistanceToNow(new Date(comment.createdAt), {
-                                    addSuffix: true,
-                                    locale: fr,
-                                  })}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                    {formatDistanceToNow(new Date(comment.createdAt), {
+                                      addSuffix: true,
+                                      locale: fr,
+                                    })}
+                                  </span>
+                                  {canEditComment(comment, currentUserId, isAdmin) && editingCommentId !== comment.id && (
+                                    <div className="flex items-center gap-1">
+                                      <Button variant="ghost" size="icon" className="h-6 w-6" aria-label={t("common.edit")} onClick={() => startEditComment(comment)}>
+                                        <Edit className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                        aria-label={t("common.delete")}
+                                        onClick={() => setDeletingCommentId(comment.id)}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                              <p className="text-sm text-muted-foreground mt-1">{comment.content}</p>
+                              {editingCommentId === comment.id ? (
+                                <div className="mt-1 space-y-2">
+                                  <Textarea
+                                    value={editingContent}
+                                    onChange={(e) => setEditingContent(e.target.value)}
+                                    rows={2}
+                                    className="text-sm"
+                                  />
+                                  <div className="flex gap-2 justify-end">
+                                    <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={cancelEditComment}>
+                                      <X className="h-3.5 w-3.5" />
+                                      Annuler
+                                    </Button>
+                                    <Button size="sm" className="h-7 text-xs" onClick={submitEditComment} disabled={isUpdatingComment || !editingContent.trim()}>
+                                      Enregistrer
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-muted-foreground mt-1">{comment.content}</p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -211,6 +295,15 @@ export function TaskDetailDrawer({
           </div>
         </div>
       </SheetContent>
+
+      <ConfirmDeleteDialog
+        open={!!deletingCommentId}
+        onOpenChange={(open) => { if (!open) setDeletingCommentId(null); }}
+        onConfirm={confirmDeleteComment}
+        title="Supprimer ce commentaire ?"
+        description="Cette action est irréversible. Le commentaire sera définitivement supprimé."
+        isDeleting={isDeletingComment}
+      />
     </Sheet>
   );
 }

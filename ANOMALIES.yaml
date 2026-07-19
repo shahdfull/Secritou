@@ -4549,11 +4549,11 @@ anomalies:
 
   - id: SEC-059
     titre: "Un commentaire de tache n'est jamais modifiable ni supprimable, ni par son auteur ni par un ADMIN — seules les routes GET/POST existent sur /tasks/:taskId/comments"
-    perimetre: "4.3 Gestion des tâches — server/src/routes/task.routes.ts, server/src/controllers/comment.controller.ts, server/src/services/comment.service.ts, server/src/repositories/comment.repository.ts"
+    perimetre: "4.3 Gestion des tâches — server/src/routes/task.routes.ts, server/src/controllers/comment.controller.ts, server/src/services/comment.service.ts, server/src/repositories/comment.repository.ts, server/src/validators/task.validator.ts, client/src/api/comments.api.ts, client/src/features/tasks/hooks/useTaskCommentMutation.ts, client/src/features/tasks/hooks/useTaskActions.ts, client/src/features/tasks/components/TaskDetailDrawer.tsx"
     regle_violee: null
     classe: null
     gravite: faible
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       Sera résolu par l'ajout de routes `PUT`/`DELETE` sur
       `/tasks/:taskId/comments/:commentId`, avec une autorisation
@@ -4594,8 +4594,61 @@ anomalies:
       (65 lignes, lu intégralement) n'expose que `createComment` et
       `getCommentsByTaskId`, aucune méthode `update`/`delete`.
 
-      Non corrigé cette session (décision du porteur : « Nouvel ID sur
-      (c) seulement, documenter sans corriger cette session »).
+      Non corrigé lors de la première passe sur ce rapport (décision du
+      porteur alors : « Nouvel ID sur (c) seulement, documenter sans
+      corriger cette session »). Repris ensuite sur instruction
+      explicite du porteur (« corriger maintenant »), portée confirmée
+      via AskUserQuestion : « SEC-059 seul (Recommandé) » — SEC-060 et
+      SEC-061 restent `ouvert`, non repris dans cette passe.
+
+      Correctif, sur le même modèle que `projectMeetingService.update`/
+      `.delete` (SEC-055/F6) : `commentRepository.findById`/`update`/
+      `delete` ajoutés ; `commentService.updateComment`/`.deleteComment`
+      avec autorisation explicite auteur-ou-ADMIN (404 si le
+      commentaire n'existe pas ou n'appartient pas à la tâche donnée,
+      403 `COMMENT_NOT_YOURS` si l'acteur n'est ni l'auteur ni ADMIN —
+      un accès partagé à la tâche, ADMIN/MANAGER/FREELANCER, ne suffit
+      pas à altérer la remarque d'un autre) ; nouvelles routes
+      `PUT`/`DELETE /tasks/:taskId/comments/:commentId`
+      (`task.routes.ts`), schémas de validation ajoutés
+      (`task.validator.ts`). Côté client : `comments.api.ts#update`/
+      `.delete`, hooks `useUpdateTaskComment`/`useDeleteTaskComment`
+      (`useTaskCommentMutation.ts`), câblés dans `useTaskActions.ts`
+      (`handleUpdateComment`/`handleDeleteComment`) ; `TaskDetailDrawer.tsx`
+      affiche boutons Modifier/Supprimer par commentaire (masqués si
+      l'utilisateur courant n'est ni l'auteur ni ADMIN — le serveur
+      reste l'autorité réelle), formulaire d'édition inline,
+      `ConfirmDeleteDialog` réutilisé pour la suppression.
+
+      Test réel ajouté : `server/test/taskCommentUpdateDelete.test.ts`
+      (5 cas — auteur peut éditer/supprimer, tiers non-auteur refusé en
+      403 COMMENT_NOT_YOURS pour édition ET suppression avec
+      vérification que le commentaire n'a pas été altéré, ADMIN peut
+      tout éditer/supprimer, 404 sur taskId non correspondant) ;
+      `client/src/features/tasks/components/TaskDetailDrawer.test.tsx`
+      (5 cas — contrôles visibles pour l'auteur, masqués pour un tiers
+      non-admin, visibles pour ADMIN quel que soit l'auteur, édition
+      soumet le bon contenu, suppression + confirmation appelle le bon
+      id). Écart d'infrastructure de test découvert et corrigé au
+      passage : lancer `taskCommentUpdateDelete.test.ts` isolément (hors
+      `run-all.test.ts`) reste bloqué ~30s car importer
+      `comment.service.ts` charge `jobs/queues.ts` au niveau module, qui
+      ouvre une vraie connexion Redis/BullMQ jamais fermée sans le hook
+      `after()` déjà présent dans `run-all.test.ts` (mécanisme
+      préexistant, documenté par son propre commentaire) — confirmé
+      inoffensif : le fichier s'exécute normalement (349/349) dans le
+      run complet de la suite, seul un lancement isolé du fichier est
+      affecté. Aucune modification de code de production pour ce point,
+      qui n'est pas un défaut du correctif.
+
+      Vérification complète : serveur `npx tsc --noEmit` (clean),
+      `npm run lint` (0/0), `npx tsx --test test/run-all.test.ts`
+      (349/349, 5 nouveaux) ; client `npx tsc --noEmit` (clean), `npm
+      run lint` (12 warnings — exception SEC-049, stable), `npx vitest
+      run` (48/48, 5 nouveaux), `npm run build` (succès). Résolu SANS
+      confirmation CI : workflow GitHub Actions sur `origin/main` en
+      `workflow_dispatch` uniquement (déviation établie en session le
+      2026-07-17, citée à chaque clôture depuis).
 
   - id: SEC-060
     titre: "Absence de fonctionnalites de gestion de projet standard sur des outils comparables : sous-taches, dependances entre taches, vue calendrier/Gantt, actions en masse, pieces jointes sur tache, mentions @ dans les commentaires"

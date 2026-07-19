@@ -265,6 +265,12 @@ export function TasksPage() {
         comments={comments ?? []}
         onAddComment={actions.handleAddComment}
         createCommentMutation={actions.createCommentMutation}
+        currentUserId={currentUser?.id}
+        isAdmin={currentUser?.role === "ADMIN"}
+        onUpdateComment={actions.handleUpdateComment}
+        onDeleteComment={actions.handleDeleteComment}
+        isUpdatingComment={actions.isUpdatingComment}
+        isDeletingComment={actions.isDeletingComment}
       />
 
       <ConfirmDeleteDialog

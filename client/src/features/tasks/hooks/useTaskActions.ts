@@ -11,7 +11,7 @@ import {
   type UpdateTaskForm,
 } from "@/schemas/task.schema";
 import type { Task, FreelancerConflict } from "@/types/task";
-import { useTaskCommentMutation } from "./useTaskCommentMutation";
+import { useTaskCommentMutation, useUpdateTaskComment, useDeleteTaskComment } from "./useTaskCommentMutation";
 
 /**
  * Owns all task CRUD + comment state and handlers: the create/edit forms, the
@@ -32,6 +32,8 @@ export function useTaskActions() {
   const { mutate: deleteTask, isPending: isDeleting } = useDeleteTask();
   const { mutateAsync: checkAvailability, isPending: isCheckingAvailability } = useCheckFreelancerAvailability();
   const createCommentMutation = useTaskCommentMutation();
+  const updateCommentMutation = useUpdateTaskComment();
+  const deleteCommentMutation = useDeleteTaskComment();
 
   // Conflict-confirmation state, shared by create + edit: holds the conflicts found for the
   // pending submission (create has no excludeTaskId, edit excludes the task being edited so it
@@ -213,6 +215,23 @@ export function useTaskActions() {
     [createCommentMutation, selectedTaskId]
   );
 
+  // SEC-059: edit/delete for a task comment, mirroring the meeting edit/delete flow (SEC-055/F6).
+  const handleUpdateComment = useCallback(
+    (commentId: string, content: string) => {
+      if (!selectedTaskId || !content.trim()) return;
+      updateCommentMutation.mutate({ taskId: selectedTaskId, commentId, content });
+    },
+    [updateCommentMutation, selectedTaskId]
+  );
+
+  const handleDeleteComment = useCallback(
+    (commentId: string) => {
+      if (!selectedTaskId) return;
+      deleteCommentMutation.mutate({ taskId: selectedTaskId, commentId });
+    },
+    [deleteCommentMutation, selectedTaskId]
+  );
+
   return {
     // selection / drawer
     selectedTask,
@@ -252,5 +271,9 @@ export function useTaskActions() {
     // comments
     createCommentMutation,
     handleAddComment,
+    handleUpdateComment,
+    handleDeleteComment,
+    isUpdatingComment: updateCommentMutation.isPending,
+    isDeletingComment: deleteCommentMutation.isPending,
   };
 }

@@ -47,3 +47,44 @@ export const createComment: RequestHandler = async (req, res, next) => {
     next(error);
   }
 };
+
+export const updateComment: RequestHandler = async (req, res, next) => {
+  try {
+    const userId = req.user!.sub;
+    const userRole = req.user!.role;
+    const taskId = req.params.taskId as string;
+    const commentId = req.params.commentId as string;
+    const { content } = req.body as { content: string };
+    const scope = await buildServiceScope(req);
+
+    const hasAccess = await taskRepository.existsInCompany(taskId, userId, userRole, scope.userServiceId);
+    if (!hasAccess) {
+      throw new HttpError(404, "Task not found");
+    }
+
+    const comment = await commentService.updateComment(taskId, commentId, content, userId, userRole);
+    res.json({ data: comment });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteComment: RequestHandler = async (req, res, next) => {
+  try {
+    const userId = req.user!.sub;
+    const userRole = req.user!.role;
+    const taskId = req.params.taskId as string;
+    const commentId = req.params.commentId as string;
+    const scope = await buildServiceScope(req);
+
+    const hasAccess = await taskRepository.existsInCompany(taskId, userId, userRole, scope.userServiceId);
+    if (!hasAccess) {
+      throw new HttpError(404, "Task not found");
+    }
+
+    await commentService.deleteComment(taskId, commentId, userId, userRole);
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+};

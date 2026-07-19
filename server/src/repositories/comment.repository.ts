@@ -1,5 +1,5 @@
 // Comment Repository - Data access layer
-import { prismaRead as prisma } from "../config/prisma.js";
+import { prisma as writePrisma, prismaRead as prisma } from "../config/prisma.js";
 import type { Prisma } from "@prisma/client";
 import { authorPublicSelect } from "../utils/prismaSelects.js";
 
@@ -32,5 +32,21 @@ export const commentRepository = {
       select: commentSelect,
       orderBy: { createdAt: "asc" },
     });
+  },
+
+  async findById(id: string) {
+    return prisma.comment.findUnique({ where: { id } });
+  },
+
+  async update(id: string, content: string): Promise<CommentWithAuthor> {
+    return writePrisma.comment.update({
+      where: { id },
+      data: { content },
+      select: commentSelect,
+    });
+  },
+
+  async delete(id: string): Promise<void> {
+    await writePrisma.comment.delete({ where: { id } });
   },
 };

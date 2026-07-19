@@ -49,3 +49,28 @@ export function useTaskCommentMutation() {
     },
   });
 }
+
+// SEC-059: comment edit/delete, mirroring useProjectMeetings' update/delete mutations
+// (SEC-055/F6) — the server is the real authority (403 COMMENT_NOT_YOURS), these just invalidate
+// the task's comment list on success.
+export function useUpdateTaskComment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ taskId, commentId, content }: { taskId: string; commentId: string; content: string }) =>
+      commentsApi.update(taskId, commentId, content),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["taskComments", vars.taskId] });
+    },
+  });
+}
+
+export function useDeleteTaskComment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ taskId, commentId }: { taskId: string; commentId: string }) =>
+      commentsApi.delete(taskId, commentId),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["taskComments", vars.taskId] });
+    },
+  });
+}

@@ -12,4 +12,13 @@ export const commentsApi = {
     const response = await apiClient.post<ApiResponse<Comment>>(`/tasks/${taskId}/comments`, data);
     return response.data.data;
   },
+
+  update: async (taskId: string, commentId: string, content: string): Promise<Comment> => {
+    const response = await apiClient.put<ApiResponse<Comment>>(`/tasks/${taskId}/comments/${commentId}`, { content });
+    return response.data.data;
+  },
+
+  delete: async (taskId: string, commentId: string): Promise<void> => {
+    await apiClient.delete(`/tasks/${taskId}/comments/${commentId}`);
+  },
 };

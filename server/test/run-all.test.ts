@@ -70,3 +70,4 @@ import "./taskPrioritySort.test.ts";
 import "./authPhoneRoundTrip.test.ts";
 import "./taskAssigneeAndOverdueFilters.test.ts";
 import "./projectMeetingUpdateDelete.test.ts";
+import "./taskCommentUpdateDelete.test.ts";

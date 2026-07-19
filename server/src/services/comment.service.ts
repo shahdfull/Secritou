@@ -5,6 +5,7 @@ import { userRepository } from "../repositories/user.repository.js";
 import { enqueueNotifications } from "../jobs/queues.js";
 import { notifyN8n } from "../utils/webhook.js";
 import { env } from "../config/env.js";
+import { HttpError } from "../utils/httpError.js";
 
 const EXCERPT_LENGTH = 150;
 
@@ -61,5 +62,28 @@ export const commentService = {
 
   async getCommentsByTaskId(taskId: string) {
     return commentRepository.findByTaskId(taskId);
+  },
+
+  // SEC-059: update/delete were entirely absent — only createComment/getCommentsByTaskId existed.
+  // Authorization mirrors projectMeetingService.update/.delete (SEC-055/F6): the comment's own
+  // author may edit/delete it; an ADMIN may edit/delete any (a MANAGER of the same pole who
+  // didn't write the comment doesn't get to alter someone else's remark just by sharing task
+  // access — requirePermission alone wouldn't distinguish this).
+  async updateComment(taskId: string, commentId: string, content: string, actorId: string, actorRole: string) {
+    const comment = await commentRepository.findById(commentId);
+    if (!comment || comment.taskId !== taskId) throw new HttpError(404, "Comment not found");
+    if (actorRole !== "ADMIN" && comment.authorId !== actorId) {
+      throw new HttpError(403, "You can only edit your own comments", "COMMENT_NOT_YOURS");
+    }
+    return commentRepository.update(commentId, content);
+  },
+
+  async deleteComment(taskId: string, commentId: string, actorId: string, actorRole: string) {
+    const comment = await commentRepository.findById(commentId);
+    if (!comment || comment.taskId !== taskId) throw new HttpError(404, "Comment not found");
+    if (actorRole !== "ADMIN" && comment.authorId !== actorId) {
+      throw new HttpError(403, "You can only delete your own comments", "COMMENT_NOT_YOURS");
+    }
+    return commentRepository.delete(commentId);
   },
 };

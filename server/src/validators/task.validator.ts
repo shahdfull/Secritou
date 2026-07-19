@@ -46,3 +46,20 @@ export const addTaskCommentSchema = z.object({
     taskId: z.string(),
   }),
 });
+
+export const updateTaskCommentSchema = z.object({
+  body: z.object({
+    content: z.string().min(1).max(2000),
+  }),
+  params: z.object({
+    taskId: z.string(),
+    commentId: z.string(),
+  }),
+});
+
+export const deleteTaskCommentSchema = z.object({
+  params: z.object({
+    taskId: z.string(),
+    commentId: z.string(),
+  }),
+});

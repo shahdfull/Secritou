@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { getAllTasks, getTaskById, createTask, updateTask, deleteTask, getFreelancerAvailability } from "../controllers/task.controller.js";
-import { getCommentsByTaskId, createComment } from "../controllers/comment.controller.js";
+import { getCommentsByTaskId, createComment, updateComment, deleteComment } from "../controllers/comment.controller.js";
 import { validate } from "../middlewares/validate.middleware.js";
-import { createTaskSchema, updateTaskSchema, getFreelancerAvailabilitySchema, addTaskCommentSchema } from "../validators/task.validator.js";
+import { createTaskSchema, updateTaskSchema, getFreelancerAvailabilitySchema, addTaskCommentSchema, updateTaskCommentSchema, deleteTaskCommentSchema } from "../validators/task.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
 const router = Router();
@@ -24,8 +24,13 @@ router.put("/:id", authorize("ADMIN", "MANAGER", "FREELANCER"), requirePermissio
 // assertProjectInScope in task.service.ts.
 router.delete("/:id", authorize("ADMIN", "MANAGER"), requirePermission("tasks", "delete"), deleteTask);
 
-// Comment routes — comments are internal; same access as the task itself
+// Comment routes — comments are internal; same access as the task itself. Update/delete
+// (SEC-059) additionally require, at the service layer, that the actor is the comment's own
+// author or ADMIN — authorize("ADMIN","MANAGER","FREELANCER") alone would let anyone with access
+// to the task edit/delete someone else's remark.
 router.get("/:taskId/comments", authorize("ADMIN", "MANAGER", "FREELANCER"), getCommentsByTaskId);
 router.post("/:taskId/comments", authorize("ADMIN", "MANAGER", "FREELANCER"), validate(addTaskCommentSchema), createComment);
+router.put("/:taskId/comments/:commentId", authorize("ADMIN", "MANAGER", "FREELANCER"), validate(updateTaskCommentSchema), updateComment);
+router.delete("/:taskId/comments/:commentId", authorize("ADMIN", "MANAGER", "FREELANCER"), validate(deleteTaskCommentSchema), deleteComment);
 
 export default router;
