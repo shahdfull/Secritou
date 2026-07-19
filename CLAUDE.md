@@ -220,6 +220,29 @@ porteur. Si supprimer un `any` ou une variable morte révèle un vrai bug
 constat à remonter (anomalie), pas à « réparer » en douce — « réparer n'est
 pas développer » s'applique.
 
+**Exception acceptée, `react-refresh/only-export-components` (12
+occurrences, décision du porteur, session du 2026-07-19)** : cette règle
+signale les fichiers qui exportent à la fois un composant et une valeur
+non-composant (hook, fonction, constante) depuis le même module — sans
+impact en production, seulement sur le hot-reload du serveur de
+développement (une édition déclenche un rechargement complet plutôt qu'un
+Fast Refresh). Deux origines, aucune des deux corrigée :
+- 6 fichiers `client/src/components/ui/*.tsx` (`badge`, `button`, `form`,
+  `navigation-menu`, `sidebar`, `toggle`) : convention shadcn/ui standard
+  (composant + fonction `cva`/variants exportés ensemble) — dévier de ce
+  patron gênerait toute future resynchronisation via `npx shadcn add`.
+- 6 fichiers applicatifs qui co-localisent un hook et son
+  composant/provider (`useTheme`+`ThemeProvider`,
+  `useLandingCms`+`LandingCmsProvider`,
+  `useProjectTimeline`+`ProjectTimeline`, etc.) : patron React idiomatique,
+  scinder 6 fichiers pour un confort de hot-reload dev n'est pas
+  proportionné.
+
+Ne pas retenter de « corriger » ces 12 occurrences sans nouvelle
+instruction explicite du porteur — ce ne sont ni des `any`, ni du code
+mort, ni un bug : `npm run lint` reste attendu à 0 error partout, mais ces
+12 warnings précis sont une exception documentée, pas un oubli.
+
 ## Conventions de code observées dans le dépôt
 
 - TypeScript strict, Express 5, couches routes → controllers → services →

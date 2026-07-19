@@ -3863,14 +3863,14 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `npm run lint` est totalement propre (0 error,
       0 warning) sur les DEUX workspaces (server et client), sans
-      `eslint-disable` ni élargissement des exceptions de config — ET
+      `eslint-disable` ni élargissement des exceptions de config — sauf
+      exception documentée explicitement acceptée par le porteur — ET
       quand la règle « zéro warning » est écrite dans CLAUDE.md pour que
-      toute session future la respecte. Reste `en_cours` tant que le
-      compte n'est pas à zéro des deux côtés.
+      toute session future la respecte.
     detecte_le: "2026-07-19"
     source: manuel
     confiance: certain
@@ -3890,13 +3890,32 @@ anomalies:
       accès de relations Prisma déjà typés par leurs `select`, interop
       ioredis/bullmq via casts `unknown` documentés). 165 → objectif 0.
 
-      BLOCAGE PARTIEL : le typage strict de `auth.repository.ts` a
-      révélé SEC-050 (bug réel de `phone` non sélectionné) — ce point
-      reste `en_cours` tant que SEC-050 n'est pas tranché, car le
-      dernier `any` de ce fichier ne peut être retiré sans corriger (ou
-      décider de ne pas corriger) le bug sous-jacent. Conformément à la
-      règle elle-même : un `any` qui masque un vrai défaut se remonte en
-      anomalie, ne se force pas. Voir [[SEC-050]].
+      BLOCAGE PARTIEL LEVÉ : le typage strict de `auth.repository.ts` a
+      révélé SEC-050 (bug réel de `phone` non sélectionné, incohérent
+      entre les 3 chemins auth) — tranché par le porteur (« rendre phone
+      cohérent = présent partout »), ce qui a débloqué le retrait du
+      dernier `any` de production. Un second bug réel a été découvert de
+      la même façon en cours de route : SEC-051 (perte silencieuse des
+      réponses du questionnaire d'onboarding client), également tranché
+      et corrigé avec test. Conformément à la règle elle-même : un `any`
+      qui masque un vrai défaut se remonte en anomalie, ne se force pas
+      — les deux cas ont suivi ce chemin. Voir [[SEC-050]], [[SEC-051]].
+
+      RÉSOLUTION FINALE : serveur et client tous deux à 0 error/0
+      warning, à l'exception de 12 warnings `react-refresh/only-export-
+      components` côté client, documentés comme exception acceptée dans
+      CLAUDE.md (décision du porteur, AskUserQuestion : « Laisser les
+      12, documenter comme exception ») — 6 fichiers shadcn/ui vendor
+      (convention standard, à ne pas dévier pour rester resynchronisable
+      via `npx shadcn add`) et 6 fichiers applicatifs co-localisant un
+      hook et son composant/provider (patron React idiomatique, impact
+      dev-only sur le Fast Refresh, aucun impact production). Décompte
+      final : serveur 165→0 ; client 152→12 (tous exception documentée).
+      333/333 tests serveur verts, 24/24 tests client verts (2 nouveaux
+      pour SEC-051), typecheck et build propres des deux côtés sur
+      l'ensemble du nettoyage. `resolu` déclaré SANS confirmation CI :
+      CI désactivée sur `origin/main` (workflow_dispatch seul, session
+      du 2026-07-17), dérogation "no make it resolu" déjà établie.
 
   - id: SEC-050
     titre: "Le champ phone promis par le contrat auth-user (toAuthUser + AuthUser client) n'est JAMAIS selectionne par userPublicSelect : login/register/refresh renvoient toujours phone: undefined, quel que soit le telephone reellement stocke"
