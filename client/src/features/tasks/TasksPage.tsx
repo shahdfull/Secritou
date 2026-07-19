@@ -17,6 +17,7 @@ import { TaskDetailDrawer } from "./components/TaskDetailDrawer";
 import { TasksListView } from "./components/TasksListView";
 import { useTasksPageData } from "./hooks/useTasksPageData";
 import { useTaskActions } from "./hooks/useTaskActions";
+import { filterAssignableUsers } from "./taskUtils";
 
 export function TasksPage() {
   const { t } = useTranslation();
@@ -64,8 +65,12 @@ export function TasksPage() {
   );
 
   const actions = useTaskActions();
-  const { tasks, total, projects, users, comments, projectNameById, userById, isLoading } =
+  const { tasks, total, projects, projectsTotal, users, comments, projectNameById, userById, isLoading } =
     useTasksPageData(listParams, actions.selectedTaskId, projectIdFilter);
+
+  // The assignee selector must not offer a choice the server always refuses; `users` itself stays
+  // unfiltered (userById still needs every role to label assignees already on a task).
+  const assignableUsers = useMemo(() => filterAssignableUsers(users), [users]);
 
   const handleViewModeChange = useCallback((v: string) => {
     if (!v) return;
@@ -108,7 +113,7 @@ export function TasksPage() {
             onOpenChange={actions.closeCreateDialog}
             form={actions.createForm}
             projects={projects}
-            users={users}
+            users={assignableUsers}
             canCreate={canCreateTask}
             isCreating={actions.isCreating}
             onSubmit={actions.handleCreate}
@@ -145,6 +150,15 @@ export function TasksPage() {
         </p>
       )}
 
+      {/* SEC-053: the project selector in the create/edit task forms loads a single unpaginated
+          page of 100 projects — past that, some active projects silently become unselectable,
+          with no indication (mirrors the Kanban notice above for the same class of cap). */}
+      {projectsTotal > 100 && (
+        <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+          {t("tasksPage.projectSelectorTruncatedNotice", { shown: 100, total: projectsTotal })}
+        </p>
+      )}
+
       {viewMode === "list" ? (
         <TasksListView
           tasks={tasks}
@@ -175,7 +189,7 @@ export function TasksPage() {
           onOpenChange={actions.closeEditDialog}
           form={actions.editForm}
           projects={projects}
-          users={users}
+          users={assignableUsers}
           isFreelancer={isFreelancer}
           isUpdating={actions.isUpdating}
           onSubmit={actions.handleUpdate}

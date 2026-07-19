@@ -22,6 +22,7 @@ export function useTasksPageData(listParams: ListParams, selectedTaskId: string 
   const tasks = useMemo(() => tasksResult?.data ?? [], [tasksResult?.data]);
   const total = tasksResult?.total ?? 0;
   const projects = useMemo(() => projectsResult?.data ?? [], [projectsResult?.data]);
+  const projectsTotal = projectsResult?.total ?? 0;
 
   const { data: users = [], isLoading: usersLoading } = useQuery({
     queryKey: ["companyUsers"],
@@ -59,6 +60,7 @@ export function useTasksPageData(listParams: ListParams, selectedTaskId: string 
     tasks,
     total,
     projects,
+    projectsTotal,
     users,
     comments,
     projectNameById,

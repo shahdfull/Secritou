@@ -4123,14 +4123,15 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: moyen
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
-      Ce constat sera résolu soit en remplaçant le sélecteur par un
-      combobox à recherche serveur (debounced), soit en ajoutant un
-      bandeau d'avertissement explicite au-delà du seuil (miroir du
-      comportement déjà existant sur le Kanban de tâches au-delà de 200
-      tâches). Reste `ouvert` tant qu'aucune des deux options n'est
-      choisie par le porteur.
+      C'est résolu quand un bandeau d'avertissement explicite apparaît
+      sur `TasksPage.tsx` dès que le nombre réel de projets actifs
+      dépasse la page chargée (100), sur le même modèle que le bandeau
+      déjà existant pour le Kanban de tâches au-delà de 200 tâches —
+      vérifié par un test qui appelle réellement `useTasksPageData` et
+      confirme que le total réel de l'API (pas la longueur de la page
+      chargée) est exposé au composant.
     detecte_le: "2026-07-19"
     source: manuel
     confiance: certain
@@ -4141,8 +4142,37 @@ anomalies:
       `useProjects({ page: 1, pageSize: 100 })` sans recherche serveur
       ni avertissement — contrairement au Kanban de tâches qui affiche
       un bandeau explicite au-delà de 200 tâches
-      (`tasksPage.kanbanTruncatedNotice`, déjà en place). Non corrigé
-      cette session (décision du porteur : « F1 seul, urgent »).
+      (`tasksPage.kanbanTruncatedNotice`, déjà en place).
+
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-19) : « Bandeau d'avertissement (Recommandé, rapide) »
+      plutôt qu'un combobox à recherche serveur complet — le serveur
+      supporte déjà `search` sur les projets
+      (`project.repository.ts#buildTextSearchFilter`), donc un vrai
+      combobox serait faisable, mais représente un travail plus lourd
+      (état de recherche local, requête débouncée, gestion de la
+      valeur sélectionnée hors résultats pour le formulaire d'édition,
+      clavier/focus) jugé disproportionné pour ce correctif.
+
+      CORRECTIF ÉCRIT : `useTasksPageData.ts` expose désormais
+      `projectsTotal` (le vrai total renvoyé par l'API, distinct de la
+      longueur de la page de 100 chargée). `TasksPage.tsx` affiche un
+      bandeau `tasksPage.projectSelectorTruncatedNotice` dès que
+      `projectsTotal > 100`, sur le même modèle visuel/textuel que le
+      bandeau Kanban existant. Clés i18n FR/EN ajoutées. Ne résout pas
+      la limite elle-même (un projet au-delà du seuil reste
+      inatteignable dans le sélecteur), seulement sa visibilité —
+      conforme à la décision du porteur.
+
+      TEST AJOUTÉ : bloc supplémentaire dans
+      `useTasksPageData.test.tsx`, appelle réellement le hook avec une
+      réponse API mockée à `total: 137` et confirme que
+      `result.current.projectsTotal` vaut bien 137 (pas 0, la longueur
+      du tableau vide de données). 30/30 tests client verts (1
+      nouveau), typecheck/lint/build propres, `check-i18n.mjs` vert.
+      `resolu` déclaré SANS confirmation CI : CI désactivée sur
+      `origin/main` (workflow_dispatch seul, session du 2026-07-17),
+      dérogation "no make it resolu" déjà établie.
 
   - id: SEC-054
     titre: "Le selecteur Assigne a du formulaire de creation de tache liste usersApi.getUsers() sans filtrer par role : un CLIENT peut y apparaitre alors que le serveur rejette l'assignation en 422 INVALID_ASSIGNEE_ROLE, decouvert seulement apres soumission"
@@ -4150,30 +4180,60 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: moyen
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
-      Ce constat sera résolu quand le sélecteur « Assigné à » n'affiche
-      que les rôles réellement assignables (ADMIN/MANAGER/FREELANCER),
-      soit par un filtrage côté client sur la réponse de
-      `usersApi.getUsers()`, soit via un endpoint dédié
-      (`GET /users?assignable=true`) — décision à trancher avec le
-      porteur sur l'approche retenue.
+      C'est résolu quand le sélecteur « Assigné à » (création ET
+      édition de tâche) n'affiche que les rôles réellement assignables
+      (ADMIN/MANAGER/FREELANCER) — vérifié par un test qui appelle
+      réellement la fonction de filtrage sur un jeu des 4 rôles et
+      confirme l'exclusion de CLIENT.
     detecte_le: "2026-07-19"
     source: manuel
     confiance: certain
     note: >
       Rapport du porteur du projet, casquette développeur full-stack
       (constat F3), confirmé par lecture directe :
-      `TaskCreateDialog.tsx` fait `users?.map((user) => ...)` sans
-      filtre de rôle ; `usersApi.getUsers()` (client) /
-      `getUsersByCompany` → `userRepository.findAll` (serveur) ne
-      filtrent aucun rôle non plus — un CLIENT apparaît donc bien dans
-      la liste. `task.service.ts` ligne 51 confirme le rejet serveur :
-      `throw new HttpError(422, "A task cannot be assigned to a
-      CLIENT", "INVALID_ASSIGNEE_ROLE")`. L'erreur n'est donc visible
-      qu'après soumission, jamais anticipée dans le formulaire. Non
-      corrigé cette session (décision du porteur : « F1 seul,
-      urgent »).
+      `TaskCreateDialog.tsx` ET `TaskEditDialog.tsx` font
+      `users?.map((user) => ...)` sans filtre de rôle ;
+      `usersApi.getUsers()` (client) / `getUsersByCompany` →
+      `userRepository.findAll` (serveur) ne filtrent aucun rôle non
+      plus — un CLIENT apparaît donc bien dans la liste des deux
+      côtés. `task.service.ts#assertAssigneeIsValid` confirme le rejet
+      serveur : `throw new HttpError(422, "A task cannot be assigned
+      to a CLIENT", "INVALID_ASSIGNEE_ROLE")` — seul CLIENT est exclu,
+      ADMIN/MANAGER/FREELANCER sont tous acceptés. L'erreur n'était
+      donc visible qu'après soumission, jamais anticipée dans le
+      formulaire.
+
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-19) : traiter SEC-054 (recommandé) avant SEC-053.
+
+      CORRECTIF ÉCRIT : nouvelle fonction `filterAssignableUsers`
+      (`client/src/features/tasks/taskUtils.ts`, colocalisée avec les
+      autres utilitaires du module tâches — pas dans
+      `TasksPage.tsx`, pour ne pas ajouter un 13e cas à l'exception
+      `react-refresh` déjà documentée en SEC-049). `TasksPage.tsx`
+      dérive `assignableUsers = filterAssignableUsers(users)` et le
+      transmet aux DEUX dialogues (`TaskCreateDialog` et
+      `TaskEditDialog`) à la place de `users` brut. `users` non filtré
+      reste inchangé pour `userById` (nécessaire pour étiqueter un
+      assigné existant sur une tâche, quel que soit son rôle
+      historique). Aucun autre sélecteur d'assignation trouvé ailleurs
+      dans le module (recherche exhaustive de `assigneeId` sur
+      `features/tasks/` et `features/projects/` : les autres
+      occurrences sont de l'affichage/logique de drag, jamais un
+      sélecteur).
+
+      TEST AJOUTÉ : `client/src/features/tasks/taskUtils.test.ts`
+      (nouveau fichier), appelle réellement `filterAssignableUsers`
+      sur un jeu des 4 rôles réels (pas une réimplémentation) — confirme
+      l'exclusion de CLIENT, la conservation des 3 rôles serveur-valides,
+      et le cas vide. 29/29 tests client verts (3 nouveaux), typecheck
+      et build propres, lint stable à 12 warnings (l'exception
+      `react-refresh` documentée, aucun nouveau cas introduit).
+      `resolu` déclaré SANS confirmation CI : CI désactivée sur
+      `origin/main` (workflow_dispatch seul, session du 2026-07-17),
+      dérogation "no make it resolu" déjà établie.
 
   - id: SEC-055
     titre: "Aucun bouton Ajouter une tache contextualise sur l'onglet Taches de la fiche projet des qu'il contient deja une tache (le bouton template n'apparait qu'a l'etat vide) ; ProjectMeetingsTab n'a ni edition ni suppression de reunion, et sa liste n'est pas paginee"

@@ -1275,6 +1275,7 @@
     "subtitle": "Gérez et suivez les tâches de vos projets",
     "freelancerScopeNotice": "Vous voyez uniquement vos tâches assignées.",
     "kanbanTruncatedNotice": "Affichage limité aux {{shown}} premières tâches sur {{total}} — utilisez la vue liste ou un filtre pour voir les autres.",
+    "projectSelectorTruncatedNotice": "Le sélecteur de projet n'affiche que les {{shown}} premiers projets sur {{total}} — un projet plus récent peut être introuvable dans la liste.",
     "filteredByProject": "Filtré sur le projet :",
     "clearProjectFilter": "Voir toutes les tâches",
     "newTask": "Nouvelle tâche",

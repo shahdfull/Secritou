@@ -1,6 +1,14 @@
 import type { Task } from "@/types/task";
+import type { User } from "@/types/auth";
 import { TASK_STATUSES, TASK_PRIORITIES, ALLOWED_TASK_TRANSITIONS } from "@secritou/shared";
 import type { TFunction } from "i18next";
+
+// SEC-054: a task can never be assigned to a CLIENT (task.service.ts#assertAssigneeIsValid
+// rejects it with 422 INVALID_ASSIGNEE_ROLE — a CLIENT has no route access to tasks at all).
+// The assignee selector must not offer a choice the server always refuses.
+export function filterAssignableUsers(users: User[]): User[] {
+  return users.filter((u) => u.role !== "CLIENT");
+}
 
 // Re-exported so task status pickers can disable invalid transitions the same way
 // ProjectsPage does with PROJECT_STATUS_VALID_TRANSITIONS — single source of truth is

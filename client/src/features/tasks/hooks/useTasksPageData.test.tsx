@@ -57,3 +57,28 @@ describe("useTasksPageData — SEC-052 projectId propagation", () => {
     });
   });
 });
+
+describe("useTasksPageData — SEC-053 projectsTotal exposure", () => {
+  beforeEach(() => {
+    getMock.mockClear();
+  });
+
+  test("exposes the real project total from the API response, not just the loaded page's length", async () => {
+    getMock.mockImplementation((url: string) => {
+      if (url === "/projects") {
+        return Promise.resolve({ data: { data: [], total: 137, page: 1, pageSize: 100 } });
+      }
+      return Promise.resolve({ data: { data: [], total: 0, page: 1, pageSize: 10 } });
+    });
+
+    const { result } = renderHook(() => useTasksPageData({ page: 1, pageSize: 10 }, null), {
+      wrapper: makeWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.projectsTotal).toBe(137);
+    });
+
+    getMock.mockResolvedValue({ data: { data: [], total: 0, page: 1, pageSize: 10 } });
+  });
+});
