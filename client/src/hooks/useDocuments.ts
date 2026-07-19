@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   documentsApi,
   type Document,
+  type DocumentType,
   type PaginatedResponse,
 } from "../api/documents.api";
 import { toast } from "sonner";
@@ -11,7 +12,7 @@ export function useDocuments(params?: {
   page?: number;
   pageSize?: number;
   search?: string;
-  type?: any;
+  type?: DocumentType;
   clientId?: string;
   projectId?: string;
   tags?: string[];

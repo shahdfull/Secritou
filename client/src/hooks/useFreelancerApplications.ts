@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
 import {
   freelancerApplicationsApi,
-  authApi,
   type FreelancerApplication,
   type PaginatedResponse,
 } from "../api/freelancerApplications.api";
@@ -116,20 +115,5 @@ export function usePendingApplications() {
     queryKey: ["freelancerApplications", "pending"],
     queryFn: () => freelancerApplicationsApi.getPendingApplications(),
     staleTime: 60_000,
-  });
-}
-
-
-export function useChangePassword() {
-  const { t } = useTranslation();
-  return useMutation<
-    any,
-    Error,
-    { currentPassword: string; newPassword: string }
-  >({
-    mutationFn: (data) => authApi.changePassword(data),
-    onSuccess: () => {
-      toast.success(t("auth.passwordChanged"));
-    },
   });
 }

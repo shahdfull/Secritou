@@ -1,4 +1,5 @@
 import { memo, useCallback, useMemo, useRef, useState, type CSSProperties } from "react";
+import { AxiosError } from "axios";
 import {
   DndContext,
   closestCenter,
@@ -311,7 +312,7 @@ export const TasksKanban = memo(function TasksKanban({ filteredTasks, onTaskClic
     updateTask(
       { id: activeId, data: { status: overStatus } },
       {
-        onError: (error: any) => {
+        onError: (error: Error) => {
           for (const [key, data] of snapshots) {
             queryClient.setQueryData(key, data);
           }
@@ -320,7 +321,7 @@ export const TasksKanban = memo(function TasksKanban({ filteredTasks, onTaskClic
           // fallback, and the ALLOWED_TASK_TRANSITIONS check above only catches transitions
           // this client build knows about, not every server-side rejection (e.g. a completed
           // project no longer accepting task changes).
-          const serverMessage = error?.response?.data?.error?.message;
+          const serverMessage = error instanceof AxiosError ? (error.response?.data as { error?: { message?: string } })?.error?.message : undefined;
           toast.error(serverMessage || t("toasts.taskStatusUpdateError"));
         },
       }

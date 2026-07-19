@@ -2,6 +2,18 @@ import { useState, useMemo } from "react";
 import { formatDate, formatNumber } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 import type { Invoice } from "@/api/invoices.api";
+
+type CreditNote = {
+  id: string;
+  number: string;
+  amount: number | string;
+  reason?: string;
+  appliedAt?: string | null;
+  createdAt: string;
+  client?: { name: string };
+  invoice?: { number: string } | null;
+  appliedToInvoice?: { number: string } | null;
+};
 import { useInvoices, useSendInvoice, useCancelInvoice, useRestoreInvoice, useSetReminderPaused } from "@/hooks/useInvoices";
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/api/axios";
@@ -60,7 +72,7 @@ export function InvoicesPage() {
   const { data: creditNotesResult, isLoading: creditNotesLoading } = useQuery({
     queryKey: ["creditNotesAll"],
     queryFn: async () => {
-      const res = await apiClient.get<{ data: any[] }>("/invoices/credit-notes/all");
+      const res = await apiClient.get<{ data: CreditNote[] }>("/invoices/credit-notes/all");
       return res.data;
     },
   });
@@ -306,7 +318,7 @@ export function InvoicesPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  creditNotes.map((cn: any) => (
+                  creditNotes.map((cn) => (
                     <TableRow key={cn.id}>
                       <TableCell className="font-mono text-sm">{cn.number}</TableCell>
                       <TableCell>{cn.client?.name}</TableCell>

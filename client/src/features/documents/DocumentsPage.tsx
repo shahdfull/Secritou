@@ -120,7 +120,9 @@ export function DocumentsPage() {
     page,
     pageSize,
     search,
-    type: status,
+    // status comes from a URL query param (free text at the source); the dropdown that sets it
+    // only ever offers valid DocumentType values, but the type itself can't express that.
+    type: status as DocumentType | undefined,
   });
 
   const documents = useMemo(

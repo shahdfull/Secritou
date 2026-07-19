@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, Calendar, Mail, MapPin, Check, Phone } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useForm, type UseFormRegisterReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -72,7 +73,7 @@ export function ContactPage() {
       name: "",
       email: "",
       phone: "",
-      serviceType: (selectedService as any) || CANONICAL_SERVICE_TYPES[0],
+      serviceType: selectedService || CANONICAL_SERVICE_TYPES[0],
       budget: undefined,
       company: "",
       message: "",
@@ -321,7 +322,7 @@ function InfoCard({
   title,
   children,
 }: {
-  icon: any;
+  icon: LucideIcon;
   title: string;
   children: ReactNode;
 }) {

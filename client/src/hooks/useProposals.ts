@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AxiosError } from "axios";
 import {
   proposalsApi,
   type Proposal,
@@ -47,7 +48,7 @@ export function useCreateProposal() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
 
-  return useMutation<Proposal, any, Parameters<typeof proposalsApi.createProposal>[0]>({
+  return useMutation<Proposal, AxiosError<{ error?: { code?: string } }>, Parameters<typeof proposalsApi.createProposal>[0]>({
     mutationFn: (data) => proposalsApi.createProposal(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["proposals"] });

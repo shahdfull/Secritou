@@ -6,6 +6,17 @@ import apiClient from "@/api/axios";
 import { formatCurrency } from "@/utils/format";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+
+type CreditNote = {
+  id: string;
+  number: string;
+  amount: number | string;
+  reason?: string;
+  appliedAt?: string | null;
+  createdAt: string;
+  invoice?: { number: string } | null;
+  appliedToInvoice?: { number: string } | null;
+};
 import { Receipt } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -70,7 +81,7 @@ export function InvoicesClientPage() {
   const { data: creditNotes, isLoading: myCreditNotesLoading } = useQuery({
     queryKey: ["myCreditNotes"],
     queryFn: async () => {
-      const res = await apiClient.get<{ data: any[] }>("/clients/my/credit-notes");
+      const res = await apiClient.get<{ data: CreditNote[] }>("/clients/my/credit-notes");
       return res.data.data;
     },
   });
@@ -225,7 +236,7 @@ export function InvoicesClientPage() {
                 </CardContent>
               </Card>
             ) : (
-              creditNotesList.map((cn: any) => (
+              creditNotesList.map((cn) => (
                 <Card key={cn.id} className="rounded-3xl border border-border shadow-soft overflow-hidden">
                   <CardHeader className="flex flex-row items-start justify-between gap-4">
                     <div>

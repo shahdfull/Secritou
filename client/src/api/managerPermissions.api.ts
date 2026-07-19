@@ -4,7 +4,7 @@ import type { ManagerPermission, PermissionsMap } from "../types/permissions";
 
 export interface UpdateManagerPermissionInput {
   profileId?: string | null;
-  overrides?: any;
+  overrides?: Partial<PermissionsMap>;
 }
 
 export const managerPermissionsApi = {

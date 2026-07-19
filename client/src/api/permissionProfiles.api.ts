@@ -1,18 +1,18 @@
 import apiClient from "./axios";
 import type { ApiResponse } from "../types/auth";
-import type { PermissionProfile } from "../types/permissions";
+import type { PermissionProfile, PermissionsMap } from "../types/permissions";
 
 export interface CreateProfileInput {
   name: string;
   description?: string;
-  permissions: any;
+  permissions: PermissionsMap;
   isDefault?: boolean;
 }
 
 export interface UpdateProfileInput {
   name?: string;
   description?: string;
-  permissions?: any;
+  permissions?: Partial<PermissionsMap>;
   isDefault?: boolean;
 }
 

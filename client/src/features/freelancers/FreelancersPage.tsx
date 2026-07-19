@@ -87,7 +87,7 @@ export function FreelancersPage() {
   }, [deferredSearchInput, setSearch]);
 
   const createForm = useForm<CreateProfileForm>({
-    resolver: zodResolver(createProfileSchema) as any,
+    resolver: zodResolver(createProfileSchema),
     defaultValues: {
       bio: "",
       hourlyRate: undefined,
@@ -96,7 +96,7 @@ export function FreelancersPage() {
   });
 
   const editForm = useForm<UpdateProfileForm>({
-    resolver: zodResolver(updateProfileSchema) as any,
+    resolver: zodResolver(updateProfileSchema),
     defaultValues: {
       bio: "",
       hourlyRate: undefined,

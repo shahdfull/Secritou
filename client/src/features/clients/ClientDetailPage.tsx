@@ -59,6 +59,17 @@ import type { UploadResult } from "@/api/upload.api";
 import { documentSchema } from "@secritou/shared";
 import type { Project } from "@/types/project";
 
+type CreditNote = {
+  id: string;
+  number: string;
+  amount: number | string;
+  reason?: string;
+  appliedAt?: string | null;
+  createdAt: string;
+  invoice?: { number: string } | null;
+  appliedToInvoice?: { number: string } | null;
+};
+
 type DocumentForm = z.infer<typeof documentFormSchema>;
 const documentFormSchema = documentSchema.pick({ name: true, type: true });
 
@@ -125,7 +136,7 @@ export function ClientDetailPage() {
     queryKey: ["clientCreditNotes", id],
     queryFn: async () => {
       if (!id) return { data: [] };
-      const res = await apiClient.get<{ data: any[] }>(`/clients/${id}/credit-notes`);
+      const res = await apiClient.get<{ data: CreditNote[] }>(`/clients/${id}/credit-notes`);
       return res.data;
     },
     enabled: !!id,
@@ -639,7 +650,7 @@ export function ClientDetailPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {creditNotes.map((cn: any) => (
+                    {creditNotes.map((cn) => (
                       <TableRow key={cn.id}>
                         <TableCell className="font-mono text-sm">{cn.number}</TableCell>
                         <TableCell className="font-semibold text-emerald-600">

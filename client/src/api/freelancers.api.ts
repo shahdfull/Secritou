@@ -1,4 +1,5 @@
 import apiClient from "./axios";
+import { AxiosError } from "axios";
 import type {
   FreelancerProfile,
   CreateFreelancerProfileInput,
@@ -29,8 +30,8 @@ export const freelancersApi = {
     try {
       const response = await apiClient.get<ApiResponse<FreelancerProfile>>("/freelancers/me");
       return response.data.data;
-    } catch (error: any) {
-      if (error?.response?.status === 404) return null;
+    } catch (error) {
+      if (error instanceof AxiosError && error.response?.status === 404) return null;
       throw error;
     }
   },
