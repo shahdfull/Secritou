@@ -36,7 +36,7 @@ export const summaryRepository = {
     const projectIds = projects.map((p) => p.id);
     const progressMap = await getProgressByProjectIds(projectIds);
 
-    const projectSummaries = projects.map((project: any) => ({
+    const projectSummaries = projects.map((project) => ({
       id: project.id,
       name: project.name,
       status: project.status,
@@ -95,7 +95,7 @@ export const summaryRepository = {
     ]);
 
     const taskCounts: Record<string, number> = {};
-    tasks.forEach((t: any) => { taskCounts[t.status] = t._count.id; });
+    tasks.forEach((t) => { taskCounts[t.status] = t._count.id; });
 
     return { project, taskCounts, documentCount: documents, invoiceCount: invoices, commentCount: comments };
   },

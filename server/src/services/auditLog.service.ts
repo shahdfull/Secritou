@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import logger from "../utils/logger.js";
 
@@ -24,8 +25,8 @@ export const auditLogService = {
           action: entry.action,
           entityType: entry.entityType,
           entityId: entry.entityId,
-          before: entry.before === undefined ? undefined : (entry.before as any),
-          after: entry.after === undefined ? undefined : (entry.after as any),
+          before: entry.before === undefined ? undefined : (entry.before as Prisma.InputJsonValue),
+          after: entry.after === undefined ? undefined : (entry.after as Prisma.InputJsonValue),
           ipAddress: entry.ipAddress ?? undefined,
         },
       });

@@ -249,9 +249,9 @@ export async function deleteFile(key: string): Promise<void> {
   if (!BUCKET || !key) return;
   try {
     await getS3().send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
-  } catch (s3Error: any) {
+  } catch (s3Error) {
     // Only ignore "no such key" errors (object already gone)
-    if (s3Error.name !== "NoSuchKey") {
+    if (!(s3Error instanceof Error) || s3Error.name !== "NoSuchKey") {
       logger.error({ err: s3Error, key }, "Failed to delete file from storage");
     }
   }

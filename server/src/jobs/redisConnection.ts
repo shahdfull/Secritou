@@ -1,7 +1,9 @@
 import * as IORedis from "ioredis";
 import { env } from "../config/env.js";
 
-const Redis = (IORedis as any).default ?? IORedis;
+// ioredis ships as CJS with the constructor on `.default` under esModuleInterop; fall back to the
+// namespace itself when that shape isn't present.
+const Redis = ((IORedis as unknown as { default?: typeof IORedis.Redis }).default ?? (IORedis as unknown as typeof IORedis.Redis));
 
 let connection: InstanceType<typeof Redis> | null = null;
 

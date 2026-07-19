@@ -8,10 +8,15 @@ import { createBookingRepository, type BookingRepository } from "../repositories
 import type { BookSlotInput, CreateAvailabilitySlotInput, CreateRecurringAvailabilityInput } from "../validators/booking.validator.js";
 import { notifyN8n } from "../utils/webhook.js";
 
-type DbLike = typeof prisma | any;
+// The transaction client the *extended* Prisma client hands to $transaction — structurally
+// distinct from the base Prisma.TransactionClient because of client extensions ($extends).
+type TxClient = Parameters<Parameters<(typeof prisma)["$transaction"]>[0]>[0];
+type DbLike = typeof prisma | TxClient;
 
 type BookingServiceDeps = {
-  db?: DbLike;
+  // The top-level db must be the full client (it opens transactions); only the repository factory
+  // also accepts a transaction client, for use inside those transactions.
+  db?: typeof prisma;
   repositoryFactory?: (db: DbLike) => BookingRepository;
   emailSender?: typeof emailService;
   adminNotificationEmail?: string;
@@ -87,7 +92,7 @@ export function createBookingService(deps: BookingServiceDeps = {}) {
         for (let cursor = startMinutes; cursor + input.intervalMinutes <= endMinutes; cursor += input.intervalMinutes) {
           const startTime = combineDateAndMinutes(day, cursor);
           const endTime = combineDateAndMinutes(day, cursor + input.intervalMinutes);
-          const duplicate = existing.some((slot: any) => sameSlot(slot, { startTime, endTime })) || candidates.some((slot) => sameSlot(slot, { startTime, endTime }));
+          const duplicate = existing.some((slot) => sameSlot(slot, { startTime, endTime })) || candidates.some((slot) => sameSlot(slot, { startTime, endTime }));
           if (!duplicate) {
             candidates.push({ startTime, endTime });
           }
@@ -111,7 +116,7 @@ export function createBookingService(deps: BookingServiceDeps = {}) {
     },
 
     async bookSlot(slotId: string, input: BookSlotInput) {
-      const booking = await db.$transaction(async (tx: DbLike) => {
+      const booking = await db.$transaction(async (tx) => {
         const repo = repositoryFactory(tx);
         const slot = await repo.findSlotById(slotId);
 
@@ -175,7 +180,7 @@ export function createBookingService(deps: BookingServiceDeps = {}) {
     },
 
     async cancelBooking(id: string) {
-      return db.$transaction(async (tx: DbLike) => {
+      return db.$transaction(async (tx) => {
         const repo = repositoryFactory(tx);
         const booking = await repo.findBookingById(id);
         if (!booking) throw new HttpError(404, "Booking not found");

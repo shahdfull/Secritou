@@ -1,4 +1,5 @@
 import { Queue } from "bullmq";
+import type { ConnectionOptions } from "bullmq";
 import * as Sentry from "@sentry/node";
 import { jobNames, queueNames } from "./jobNames.js";
 import { getBullRedisConnection } from "./redisConnection.js";
@@ -13,7 +14,9 @@ import type {
   GeneratorInvoice,
 } from "../services/documentGenerator.service.js";
 
-const connection = getBullRedisConnection();
+// bullmq bundles its own ioredis copy whose Redis type is structurally distinct from ours; the
+// instance is compatible at runtime, so bridge through bullmq's ConnectionOptions.
+const connection = getBullRedisConnection() as unknown as ConnectionOptions;
 
 export const communicationQueue = new Queue(queueNames.communication, {
   connection,

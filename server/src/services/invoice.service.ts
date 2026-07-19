@@ -303,7 +303,7 @@ export const invoiceService = {
       // Send COMMISSION_EARNED notifications
       if (result.commissions && result.commissions.length > 0) {
         const commissionUrl = `${env.FRONTEND_URL}/admin/commissions`;
-        await enqueueNotifications(result.commissions.map((commission: any) => ({
+        await enqueueNotifications(result.commissions.map((commission) => ({
           userId: commission.partnerId,
           title: "Commission gagnée",
           message: `Vous avez gagné une commission de ${Number(commission.amount).toFixed(3)} sur la facture ${commission.invoice?.number}.`,

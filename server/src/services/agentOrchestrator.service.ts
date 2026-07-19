@@ -39,12 +39,12 @@ export function extractJson(text: string): string {
   return cleaned.slice(firstBrace, lastBrace);
 }
 
-async function callAgentWithRetry(
+async function callAgentWithRetry<T>(
   personaId: string,
-  contextData: Record<string, any>,
-  schema: z.ZodType<any>,
+  contextData: Record<string, unknown>,
+  schema: z.ZodType<T>,
   maxRetries = 1
-): Promise<any> {
+): Promise<T> {
   let lastError: Error | undefined;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -82,7 +82,7 @@ async function callAgentWithRetry(
 export const agentOrchestratorService = {
   async executeAgent(
     personaId: string,
-    contextData: Record<string, any>,
+    contextData: Record<string, unknown>,
     userId: string,
     userRole: Role
   ) {
@@ -102,7 +102,7 @@ export const agentOrchestratorService = {
 
     try {
       // Determine the schema based on persona
-      let schema: z.ZodType<any>;
+      let schema: z.ZodType<unknown>;
       if (personaId === "brief-generator") {
         schema = z.object({
           cahier_des_charges: z.string(),

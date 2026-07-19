@@ -560,7 +560,7 @@ export async function checkMeetingReminders() {
     void notifyN8n("meeting.reminder_due", {
       projectId: project.id,
       projectName: project.name,
-      clientName: (project as any).client?.name,
+      clientName: project.client?.name,
       nextMeetingDate: project.nextMeetingDate,
       adminUrl: link,
       agencyEmail: env.CONTACT_RECEIVER_EMAIL,
@@ -667,7 +667,7 @@ export async function checkPendingCommissions() {
   const commissionUrl = `${env.FRONTEND_URL}/admin/commissions`;
 
   for (const commission of pendingCommissions) {
-    const daysSince = diffDays(new Date((commission as any).createdAt), now);
+    const daysSince = diffDays(new Date(commission.createdAt), now);
     for (const admin of admins) {
       notifications.push({
         userId: admin.id,
@@ -688,7 +688,7 @@ export async function checkPendingCommissions() {
       commissionId: c.id,
       freelancerId: c.partnerId,
       amount: Number(c.amount),
-      daysPending: diffDays(new Date((c as any).createdAt), now),
+      daysPending: diffDays(new Date(c.createdAt), now),
       adminUrl: commissionUrl,
     })),
   });

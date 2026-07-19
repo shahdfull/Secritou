@@ -356,7 +356,7 @@ export const projectService = {
           currency,
           clientId,
           projectId,
-          proposalId: preread.proposal ? (preread as any).proposal.id : undefined,
+          proposalId: preread.proposal ? preread.proposal.id : undefined,
           dueInDays: 30,
         });
       }

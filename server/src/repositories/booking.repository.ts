@@ -1,6 +1,9 @@
 import { prisma } from "../config/prisma.js";
 
-type DbLike = typeof prisma | any;
+// Accepts the full client or the (extension-aware) transaction client it hands to $transaction —
+// both expose the availabilitySlot delegate.
+type TxClient = Parameters<Parameters<(typeof prisma)["$transaction"]>[0]>[0];
+type DbLike = typeof prisma | TxClient;
 
 export function createBookingRepository(db: DbLike = prisma) {
   return {

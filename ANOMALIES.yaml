@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-048
+dernier_id: SEC-050
 
 anomalies:
   - id: SEC-001
@@ -3857,3 +3857,90 @@ anomalies:
       réécrire le contrôle. CLAUDE.md étant chargé à chaque session, la
       checklist est effectivement au chemin de toute revue future.
       Aucun test (livrable de documentation/process, pas de code).
+  - id: SEC-049
+    titre: "165 warnings ESLint serveur (0 erreur) toleres de longue date : 124 no-explicit-any + 38 no-unused-vars + 3 prefer-const — dette de typage/proprete jamais nettoyee"
+    perimetre: "Tout le workspace server/ — regle transverse"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand `npm run lint` est totalement propre (0 error,
+      0 warning) sur les DEUX workspaces (server et client), sans
+      `eslint-disable` ni élargissement des exceptions de config — ET
+      quand la règle « zéro warning » est écrite dans CLAUDE.md pour que
+      toute session future la respecte. Reste `en_cours` tant que le
+      compte n'est pas à zéro des deux côtés.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Demande explicite du porteur du projet (« ajouter cette regle dans
+      claude.md je ne veux pas aucun warning de ce type de rien avant »)
+      après avoir constaté 165 warnings serveur. Règle « Zéro warning
+      lint : porte obligatoire » ajoutée à CLAUDE.md.
+
+      Nettoyage en cours (première passe committée, `chore(lint)`) :
+      38 no-unused-vars supprimés (imports morts `COMPANY_ID`×11 /
+      `HttpError`×3 hérités du refactor mono-tenant, mocks write-only,
+      redéclarations en double, destructurations préfixées `_`), 3
+      prefer-const, et une large passe no-explicit-any typée proprement
+      (matrice de permissions, `req.freelancerId`/`req.rawBody`/`req.id`
+      via augmentation Express, narrowing d'erreurs sans `as any`,
+      accès de relations Prisma déjà typés par leurs `select`, interop
+      ioredis/bullmq via casts `unknown` documentés). 165 → objectif 0.
+
+      BLOCAGE PARTIEL : le typage strict de `auth.repository.ts` a
+      révélé SEC-050 (bug réel de `phone` non sélectionné) — ce point
+      reste `en_cours` tant que SEC-050 n'est pas tranché, car le
+      dernier `any` de ce fichier ne peut être retiré sans corriger (ou
+      décider de ne pas corriger) le bug sous-jacent. Conformément à la
+      règle elle-même : un `any` qui masque un vrai défaut se remonte en
+      anomalie, ne se force pas. Voir [[SEC-050]].
+
+  - id: SEC-050
+    titre: "Le champ phone promis par le contrat auth-user (toAuthUser + AuthUser client) n'est JAMAIS selectionne par userPublicSelect : login/register/refresh renvoient toujours phone: undefined, quel que soit le telephone reellement stocke"
+    perimetre: "4.11 Auth & comptes — server/src/repositories/auth.repository.ts, server/src/services/auth.service.ts, client/src/types/auth.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      Ce constat sera résolu quand le champ `phone` du contrat auth-user
+      est cohérent de bout en bout — soit `userPublicSelect` sélectionne
+      `phone` et un test prouve que login/refresh renvoient le téléphone
+      réellement stocké, soit une décision explicite retire `phone` du
+      contrat (toAuthUser + type client) si l'exposer n'est pas voulu.
+      Reste `ouvert` tant que la décision produit n'est pas rendue.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert en retirant le `any` de `AuthRepository`
+      (`db: ExtendedPrismaClient | any`) pendant le nettoyage SEC-049 :
+      le typage strict a fait apparaître un vrai décalage que le `any`
+      masquait, exactement le cas prévu par la règle SEC-049 (« un `any`
+      qui masque un vrai défaut se remonte en anomalie, ne se répare pas
+      en douce »).
+
+      CONSTAT CONFIRMÉ PAR LECTURE DIRECTE : `auth.repository.ts#
+      userPublicSelect` (`id, email, name, role, clientId,
+      mustChangePassword`) N'inclut PAS `phone`. Or `auth.service.ts#
+      toAuthUser` lit `user.phone` et le renvoie dans l'objet auth-user
+      exposé au client par login/register/refresh, et le type client
+      `AuthUser` (`client/src/types/auth.ts`) déclare `phone?: string |
+      null`. Tous les chemins auth (`findUserByEmail`, `createUser`,
+      l'`include.user` du refresh) passent par `userPublicSelect` — donc
+      `phone` est TOUJOURS `undefined` dans la réponse auth, quel que
+      soit le téléphone réellement stocké en base. Le contrat promet un
+      champ que le serveur ne remplit jamais.
+
+      NON CORRIGÉ (à trancher) : ajouter `phone: true` à
+      `userPublicSelect` réparerait le bug mais CHANGE le comportement
+      (la réponse auth commencerait à porter le vrai téléphone) — c'est
+      une décision produit, pas une réparation neutre, et elle ne se
+      déduit pas. Alternative : retirer `phone` du contrat si l'exposer
+      n'est pas voulu. En attendant, `auth.repository.ts` garde son
+      dernier `any` (le seul warning restant volontairement, tracé ici
+      et par [[SEC-049]]) — aucun `eslint-disable` employé, conformément
+      à la règle. NE PAS trancher ni retirer ce `any` sans instruction.

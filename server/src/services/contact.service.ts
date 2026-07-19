@@ -18,7 +18,7 @@ export class ContactService {
 
       const notes = [`Service: ${input.serviceType}`, input.budget ? `Budget: ${input.budget}` : null, `Company: ${input.company}`, "", input.message].filter((line) => line !== null).join("\n");
 
-      const serviceId = await serviceService.resolveServiceIdForType(input.serviceType, tx as any);
+      const serviceId = await serviceService.resolveServiceIdForType(input.serviceType, tx);
 
       // Lead.email is not a unique column, so upsert-by-email is not available.
       // Emulate find-or-create: re-submissions by the same email update the

@@ -1,4 +1,5 @@
 import { Worker, QueueEvents, Job } from "bullmq";
+import type { ConnectionOptions } from "bullmq";
 import * as Sentry from "@sentry/node";
 import { env } from "../config/env.js";
 import logger from "../utils/logger.js";
@@ -38,7 +39,9 @@ import {
 import { userRepository } from "../repositories/user.repository.js";
 import type { NotificationJob, EmailJob, DocumentJob } from "./queues.js";
 
-const connection = getBullRedisConnection();
+// bullmq bundles its own ioredis copy whose Redis type is structurally distinct from ours; the
+// instance is compatible at runtime, so bridge through bullmq's ConnectionOptions.
+const connection = getBullRedisConnection() as unknown as ConnectionOptions;
 
 function startWorkers() {
   if (!env.JOBS_ENABLED) return;

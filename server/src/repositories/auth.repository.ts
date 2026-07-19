@@ -11,6 +11,10 @@ const userPublicSelect = {
 } as const;
 
 export class AuthRepository {
+  // Kept loosely typed until SEC-050 is resolved: tightening this to ExtendedPrismaClient makes
+  // the compiler surface a real latent bug (userPublicSelect omits `phone`, which the auth-user
+  // contract promises), and fixing that is a behavior change to decide, not a silent patch. This
+  // is the one remaining lint warning, tracked by SEC-049/SEC-050 rather than suppressed.
   constructor(private readonly db: ExtendedPrismaClient | any) {}
 
   findUserByEmail(email: string) {

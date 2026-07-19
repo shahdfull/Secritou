@@ -40,7 +40,7 @@ export const chat: RequestHandler = async (req, res, next) => {
 export const generateBrief: RequestHandler = async (req, res, next) => {
   try {
     const { context } = req.body as {
-      context: Record<string, any>;
+      context: Record<string, unknown>;
     };
 
     const result = await agentOrchestratorService.executeAgent(
@@ -59,7 +59,7 @@ export const generateBrief: RequestHandler = async (req, res, next) => {
 export const generateTasks: RequestHandler = async (req, res, next) => {
   try {
     const { context } = req.body as {
-      context: Record<string, any>;
+      context: Record<string, unknown>;
     };
 
     const result = await agentOrchestratorService.executeAgent(

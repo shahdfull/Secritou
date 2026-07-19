@@ -115,7 +115,7 @@ export async function syncClient(clientId: string, projectId: string | null, per
     return rows.length;
   } catch (error) {
     // Check if it's a 401 unauthorized error from Google's API
-    const is401Error = (error as any)?.response?.status === 401;
+    const is401Error = (error as { response?: { status?: number } })?.response?.status === 401;
     if (is401Error) {
       await handleGscRevocation(clientId, connection.siteUrl);
     }
@@ -142,7 +142,7 @@ export async function syncAllConnectedClients() {
       // If it's a GSC_TOKEN_REVOKED or 401 error, we already handled it in syncClient, so don't record error again? Wait no, let's check:
       const isHandledError =
         (err instanceof HttpError && err.code === "GSC_TOKEN_REVOKED") ||
-        (err as any)?.response?.status === 401;
+        (err as { response?: { status?: number } })?.response?.status === 401;
       if (!isHandledError) {
         await gscConnectionRepository.recordSyncError(connection.clientId, err instanceof Error ? err.message : String(err));
         gscSyncErrors.inc({ clientId: connection.clientId });

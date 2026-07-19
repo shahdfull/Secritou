@@ -229,7 +229,7 @@ export async function expireProposals() {
       proposalId: p.id,
       title: p.title,
       clientId: p.clientId,
-      clientName: (p as any).client?.name,
+      clientName: p.client?.name,
       adminUrl: `${env.FRONTEND_URL}/app/proposals/${p.id}`,
     })),
   });

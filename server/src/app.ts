@@ -1,3 +1,4 @@
+import type { IncomingMessage } from "node:http";
 import compression from "compression";
 import cookieParser from "cookie-parser";
 import cors from "cors";
@@ -85,8 +86,8 @@ app.use(
 app.use(
   express.json({
     limit: "1mb",
-    verify: (req, _res, buf) => {
-      (req as any).rawBody = buf.toString("utf8");
+    verify: (req: IncomingMessage & { rawBody?: string }, _res, buf) => {
+      req.rawBody = buf.toString("utf8");
     },
   }),
 );

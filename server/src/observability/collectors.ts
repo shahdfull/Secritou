@@ -1,5 +1,7 @@
 import { Queue } from "bullmq";
+import type { ConnectionOptions } from "bullmq";
 import * as IORedis from "ioredis";
+import type { Redis as RedisClient } from "ioredis";
 import {
   bullmqJobDuration,
   bullmqJobsActive,
@@ -28,9 +30,13 @@ function isRedisConfigured() {
   return Boolean(process.env.REDIS_URL || process.env.REDIS_HOST);
 }
 
-function createRedisConnection() {
+function createRedisConnection(): RedisClient {
   const url = process.env.REDIS_URL;
-  const Redis = (IORedis as any).default ?? IORedis;
+  // ioredis ships as CJS with the constructor on `.default` under esModuleInterop; fall back to the
+  // namespace itself when that shape isn't present. Routed through `unknown` because the two shapes
+  // (namespace vs. constructor) don't structurally overlap.
+  const mod = IORedis as unknown as { default?: typeof IORedis.Redis };
+  const Redis = (mod.default ?? (IORedis as unknown as typeof IORedis.Redis));
   if (url) {
     return new Redis(url, { maxRetriesPerRequest: 1, lazyConnect: true, connectTimeout: 3000 });
   }
@@ -58,7 +64,7 @@ async function collectProcessMetrics() {
   processCpuPercent.set(Math.min(cpuPercent, 100));
 }
 
-async function collectRedisMetrics(redis: any) {
+async function collectRedisMetrics(redis: RedisClient) {
   try {
     if (redis.status !== "ready") {
       await redis.connect();
@@ -82,10 +88,12 @@ async function collectRedisMetrics(redis: any) {
   }
 }
 
-async function collectBullMQMetrics(redis: any) {
+async function collectBullMQMetrics(redis: RedisClient) {
   for (const queueName of BULLMQ_QUEUES) {
     try {
-      const queue = new Queue(queueName, { connection: redis as any });
+      // bullmq bundles its own ioredis copy whose Redis type is structurally distinct from ours;
+      // the instance is compatible at runtime, so bridge through bullmq's ConnectionOptions.
+      const queue = new Queue(queueName, { connection: redis as unknown as ConnectionOptions });
       const counts = await queue.getJobCounts("waiting", "active", "failed", "delayed");
       bullmqJobsWaiting.set({ queue: queueName }, counts.waiting ?? 0);
       bullmqJobsActive.set({ queue: queueName }, counts.active ?? 0);
@@ -101,7 +109,7 @@ async function collectBullMQMetrics(redis: any) {
   }
 }
 
-async function collectAll(redis: any | null) {
+async function collectAll(redis: RedisClient | null) {
   await collectProcessMetrics();
   if (redis) {
     await collectRedisMetrics(redis);

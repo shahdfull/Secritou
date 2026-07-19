@@ -54,9 +54,10 @@ export async function refreshAccessToken(refreshToken: string) {
     return credentials;
   } catch (error) {
     // Check if the error is invalid_grant (revoked token, etc.)
-    const isInvalidGrant = 
-      (error as any)?.response?.data?.error === "invalid_grant" ||
-      (error as any)?.message?.includes("invalid_grant");
+    const err = error as { response?: { data?: { error?: string } }; message?: string };
+    const isInvalidGrant =
+      err?.response?.data?.error === "invalid_grant" ||
+      err?.message?.includes("invalid_grant") === true;
     
     if (isInvalidGrant) {
       throw new HttpError(401, "Google OAuth token is invalid or revoked", "GSC_TOKEN_REVOKED");

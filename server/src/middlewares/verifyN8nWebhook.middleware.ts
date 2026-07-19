@@ -39,7 +39,7 @@ export const verifyN8nWebhook: RequestHandler = async (req, _res, next) => {
   }
 
   const signature = req.headers["x-secritou-signature"] as string | undefined;
-  const rawBody = (req as any).rawBody as string | undefined;
+  const rawBody = req.rawBody;
 
   if (!rawBody || !signature || !verifyN8nSignature(rawBody, signature)) {
     next(new HttpError(401, "Invalid or missing signature"));

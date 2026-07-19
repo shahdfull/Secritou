@@ -1,4 +1,5 @@
 import type { RequestHandler } from "express";
+import type { ApplicationStatus } from "@prisma/client";
 import multer from "multer";
 import { freelancerApplicationService } from "../services/freelancerApplication.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
@@ -30,7 +31,7 @@ export const getApplications: RequestHandler = async (req, res, next) => {
     const options = parseListQuery(req.query as Record<string, unknown>);
     const result = await freelancerApplicationService.getAllApplications({
       ...options,
-      status: req.query.status as any,
+      status: req.query.status as ApplicationStatus | undefined,
     });
     res.json(result);
   } catch (error) {
@@ -76,8 +77,9 @@ export const createApplication: RequestHandler[] = [
         return;
       }
 
-      const cvFile = (req.files as any)?.cvFile?.[0];
-      const portfolioFile = (req.files as any)?.portfolioFile?.[0];
+      const files = req.files as { [field: string]: Express.Multer.File[] } | undefined;
+      const cvFile = files?.cvFile?.[0];
+      const portfolioFile = files?.portfolioFile?.[0];
 
       if (!cvFile) {
         res.status(400).json({ error: "CV file is required" });
