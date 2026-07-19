@@ -132,18 +132,18 @@ modifiable dans le portail Client — correctif du 2026-07-16 (SEC-006,
 moment de la rédaction). `verifie: code_direct` (schema.prisma:150 pour la
 structure ; server/src/repositories/user.repository.ts:6-17 et
 server/src/services/auth.service.ts:25-37 pour la lecture, session du
-2026-07-16). **SEC-050 ouverte (session du 2026-07-19, `ouvert`)** :
-nuance ce « relu par `toAuthUser` ». Le chemin AUTH (login/register/
-refresh) passe par `auth.repository.ts#userPublicSelect`, qui
-n'inclut PAS `phone` — `toAuthUser` renvoie donc toujours
-`phone: undefined` sur ces réponses, alors que le type client
-`AuthUser` le déclare. Découvert en retirant un `any` de
-`AuthRepository` pendant le nettoyage lint (SEC-049) : le typage
-strict a fait surgir le décalage. Non corrigé (ajouter `phone` au
-select changerait le comportement de la réponse auth — décision
-produit à trancher). Le `phone` reste correctement lu/écrit par le
-chemin PORTAIL CLIENT (`userRepository`/`updateMe`, SEC-006), distinct
-du chemin auth. Voir SEC-050.
+2026-07-16). **SEC-050 trouvée et corrigée (session du 2026-07-19,
+`mineur`)** : les 3 chemins auth utilisaient 3 selects différents —
+login/register (`userPublicSelect`) et refresh renvoyaient `phone`
+absent, alors que `GET /auth/me` (`findUserById`, record complet) le
+renvoyait ; le type client `AuthUser` le promet et
+`ClientProfilePage.tsx` s'en sert. Incohérence découverte en retirant
+un `any` de `AuthRepository` pendant le nettoyage lint (SEC-049).
+Corrigé (décision du porteur : rendre `phone` cohérent = présent
+partout) : `phone: true` ajouté à `userPublicSelect`, alignant les 3
+chemins ; test réel (`authPhoneRoundTrip.test.ts`) prouvant que
+`login`/`me` renvoient le téléphone stocké. `verifie: test`. Voir
+SEC-050.
 Rôles réellement implémentés (`enum Role`) :
 
 | Rôle | Description |

@@ -5,17 +5,17 @@ const userPublicSelect = {
   id: true,
   email: true,
   name: true,
+  // phone included (SEC-050): toAuthUser and the client AuthUser type both expose phone, and
+  // GET /auth/me (findUserById, full record) already returns it — login/register/refresh must
+  // match so the auth-user shape is consistent across every path.
+  phone: true,
   role: true,
   clientId: true,
   mustChangePassword: true,
 } as const;
 
 export class AuthRepository {
-  // Kept loosely typed until SEC-050 is resolved: tightening this to ExtendedPrismaClient makes
-  // the compiler surface a real latent bug (userPublicSelect omits `phone`, which the auth-user
-  // contract promises), and fixing that is a behavior change to decide, not a silent patch. This
-  // is the one remaining lint warning, tracked by SEC-049/SEC-050 rather than suppressed.
-  constructor(private readonly db: ExtendedPrismaClient | any) {}
+  constructor(private readonly db: ExtendedPrismaClient) {}
 
   findUserByEmail(email: string) {
     return this.db.user.findFirst({ where: { email } });

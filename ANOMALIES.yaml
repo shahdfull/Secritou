@@ -3904,14 +3904,13 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
-      Ce constat sera résolu quand le champ `phone` du contrat auth-user
-      est cohérent de bout en bout — soit `userPublicSelect` sélectionne
-      `phone` et un test prouve que login/refresh renvoient le téléphone
-      réellement stocké, soit une décision explicite retire `phone` du
-      contrat (toAuthUser + type client) si l'exposer n'est pas voulu.
-      Reste `ouvert` tant que la décision produit n'est pas rendue.
+      C'est résolu quand le champ `phone` du contrat auth-user est
+      cohérent de bout en bout sur les 3 chemins (login, register/refresh,
+      me) — vérifié par un test qui appelle réellement `authService.login`
+      contre une base migrée et confirme que la réponse porte le téléphone
+      réellement stocké (et jamais `passwordHash`).
     detecte_le: "2026-07-19"
     source: manuel
     confiance: certain
@@ -3935,12 +3934,33 @@ anomalies:
       soit le téléphone réellement stocké en base. Le contrat promet un
       champ que le serveur ne remplit jamais.
 
-      NON CORRIGÉ (à trancher) : ajouter `phone: true` à
-      `userPublicSelect` réparerait le bug mais CHANGE le comportement
-      (la réponse auth commencerait à porter le vrai téléphone) — c'est
-      une décision produit, pas une réparation neutre, et elle ne se
-      déduit pas. Alternative : retirer `phone` du contrat si l'exposer
-      n'est pas voulu. En attendant, `auth.repository.ts` garde son
-      dernier `any` (le seul warning restant volontairement, tracé ici
-      et par [[SEC-049]]) — aucun `eslint-disable` employé, conformément
-      à la règle. NE PAS trancher ni retirer ce `any` sans instruction.
+      CORRECTION DU CONSTAT (approfondissement avant décision) : le titre
+      dit « toujours undefined » — INEXACT après vérification. Les 3
+      chemins auth utilisaient TROIS selects différents : login/register
+      (`findUserByEmail`/`createUser`, `userPublicSelect` SANS phone) et
+      refresh (`include.user` SANS phone) renvoyaient phone absent, MAIS
+      `GET /auth/me` (`findUserById`, `findUnique` SANS `select` → record
+      COMPLET) renvoyait bien phone. Le vrai défaut était l'INCOHÉRENCE
+      entre chemins, pas une absence totale — et `ClientProfilePage.tsx`
+      lit réellement `user.phone` (store auth) pour pré-remplir son
+      formulaire, donc l'exposer EST voulu.
+
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-19, après la correction du constat ci-dessus) : « Rendre
+      phone cohérent = présent partout » — plutôt que le retirer du
+      contrat (2e option, écartée car ClientProfilePage s'en sert).
+
+      CORRECTIF ÉCRIT : `phone: true` ajouté à
+      `auth.repository.ts#userPublicSelect`, alignant login/register/
+      refresh sur `GET /auth/me` et sur le type client `AuthUser`. Cela a
+      débloqué le retrait du dernier `any` de production
+      (`AuthRepository#db` repassé à `ExtendedPrismaClient` seul, le
+      `Pick<..., "phone">` d'`issueTokens`/`toAuthUser` étant désormais
+      satisfait par le select). Test ajouté :
+      `server/test/authPhoneRoundTrip.test.ts`, appelle réellement
+      `authService.login`/`me` contre une base migrée (user créé avec un
+      phone) et prouve que la réponse porte le phone stocké, jamais le
+      `passwordHash`. 333/333 tests verts, typecheck + lint production
+      propres. `resolu` SANS confirmation CI : CI désactivée sur
+      `origin/main` (workflow_dispatch seul, session du 2026-07-17),
+      dérogation « no make it resolu » déjà établie.
