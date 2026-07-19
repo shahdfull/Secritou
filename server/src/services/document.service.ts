@@ -21,7 +21,26 @@ export const documentService = {
     return documentRepository.findById(id, viewer);
   },
 
-  async create(data: { name: string; title: string; description?: string; type: DocumentType; url: string; fileUrl?: string; fileKey?: string; version?: number; parentId?: string; tags?: string[]; accessLevel?: DocumentAccessLevel; clientId?: string; projectId?: string; taskId?: string; invoiceId?: string; uploadedById: string; signedAt?: Date; signedByClientId?: string }) {
+  // SEC-063: a FREELANCER can now reach this route (previously always 403'd before reaching here —
+  // ProjectDetailPage.tsx's "Mes livrables" tab called this with no server-side path that ever
+  // accepted it). Restricted to depositing their own DELIVERABLE on a project they're actually
+  // staffed on — anything else (a different type, a project with no task assigned to them) would
+  // let a freelancer create/attach documents company-wide, well beyond "deposit my own deliverable".
+  async create(data: { name: string; title: string; description?: string; type: DocumentType; url: string; fileUrl?: string; fileKey?: string; version?: number; parentId?: string; tags?: string[]; accessLevel?: DocumentAccessLevel; clientId?: string; projectId?: string; taskId?: string; invoiceId?: string; uploadedById: string; signedAt?: Date; signedByClientId?: string }, viewer: Viewer) {
+    if (viewer.role === "FREELANCER") {
+      if (data.type !== "DELIVERABLE") {
+        throw new HttpError(403, "A freelancer can only deposit a DELIVERABLE", "FREELANCER_DELIVERABLE_ONLY");
+      }
+      if (!data.projectId) {
+        throw new HttpError(403, "A freelancer must attach a deliverable to a project they're staffed on", "FREELANCER_DELIVERABLE_ONLY");
+      }
+      const staffed = await prisma.project.count({
+        where: { id: data.projectId, tasks: { some: { assigneeId: viewer.userId ?? "__none__" } } },
+      });
+      if (staffed === 0) {
+        throw new HttpError(403, "You are not staffed on this project", "FREELANCER_NOT_STAFFED");
+      }
+    }
     return documentRepository.create(data);
   },
 

@@ -71,16 +71,19 @@ describe("FREELANCER sees their own project-scoped deliverable (document upload 
     const task = await prisma.task.create({ data: { title: "assigned task", projectId: project.id, assigneeId: freelancer.id } });
     createdTaskIds.push(task.id);
 
-    const doc = await documentService.create({
-      name: "Rapport final",
-      title: "Rapport final",
-      type: "DELIVERABLE",
-      accessLevel: "ADMIN_FREELANCER",
-      url: "https://example.com/rapport.pdf",
-      projectId: project.id,
-      clientId: client.id,
-      uploadedById: freelancer.id,
-    });
+    const doc = await documentService.create(
+      {
+        name: "Rapport final",
+        title: "Rapport final",
+        type: "DELIVERABLE",
+        accessLevel: "ADMIN_FREELANCER",
+        url: "https://example.com/rapport.pdf",
+        projectId: project.id,
+        clientId: client.id,
+        uploadedById: freelancer.id,
+      },
+      { role: "FREELANCER", userId: freelancer.id }
+    );
     createdDocIds.push(doc.id);
 
     const result = await documentService.getAll(
@@ -106,15 +109,18 @@ describe("FREELANCER sees their own project-scoped deliverable (document upload 
     const task = await prisma.task.create({ data: { title: "assigned task", projectId: project.id, assigneeId: freelancer.id } });
     createdTaskIds.push(task.id);
 
-    const doc = await documentService.create({
-      name: "Sans projectId",
-      title: "Sans projectId",
-      type: "DELIVERABLE",
-      accessLevel: "ADMIN_FREELANCER",
-      url: "https://example.com/sans-projet.pdf",
-      uploadedById: freelancer.id,
-      // projectId intentionally omitted — reproduces the original bug.
-    });
+    const doc = await documentService.create(
+      {
+        name: "Sans projectId",
+        title: "Sans projectId",
+        type: "DELIVERABLE",
+        accessLevel: "ADMIN_FREELANCER",
+        url: "https://example.com/sans-projet.pdf",
+        uploadedById: freelancer.id,
+        // projectId intentionally omitted — reproduces the original bug.
+      },
+      { role: "ADMIN" }
+    );
     createdDocIds.push(doc.id);
 
     const result = await documentService.getAll(

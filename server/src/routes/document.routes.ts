@@ -34,9 +34,13 @@ router.get(
   validate(documentIdParamSchema),
   getDocumentById
 );
+// SEC-063: FREELANCER added — ProjectDetailPage.tsx's "Mes livrables" tab already called this
+// route, but it always 403'd before reaching requirePermission (never actually reachable). The
+// service layer (documentService.create) restricts a FREELANCER to depositing their own
+// DELIVERABLE on a project they're staffed on — this authorize() alone doesn't cover that.
 router.post(
   "/",
-  authorize("ADMIN", "MANAGER"),
+  authorize("ADMIN", "MANAGER", "FREELANCER"),
   requirePermission("documents", "create"),
   validate(createDocumentSchema),
   createDocument

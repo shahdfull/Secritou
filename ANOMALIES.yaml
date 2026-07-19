@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-067
+dernier_id: SEC-068
 
 anomalies:
   - id: SEC-001
@@ -4792,11 +4792,11 @@ anomalies:
 
   - id: SEC-063
     titre: "L'onglet Mes livrables (FREELANCER) appelle POST /documents pour deposer un livrable, mais cette route est authorize(ADMIN, MANAGER) seul — un FREELANCER recoit systematiquement 403 avant meme le controle requirePermission, jamais atteignable via ce flux"
-    perimetre: "4.2 Gestion de projet — server/src/routes/document.routes.ts, client/src/features/projects/ProjectDetailPage.tsx"
+    perimetre: "4.2 Gestion de projet — server/src/routes/document.routes.ts, server/src/services/document.service.ts, server/src/controllers/document.controller.ts, client/src/features/projects/ProjectDetailPage.tsx"
     regle_violee: null
     classe: null
     gravite: majeur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       Sera résolu quand un FREELANCER peut effectivement déposer un
       livrable depuis l'onglet « Mes livrables » de
@@ -4831,10 +4831,57 @@ anomalies:
       donc, tel quel, un bouton qui échoue systématiquement en
       production — jamais vérifié par un test d'intégration réel
       (recherche : aucun test n'appelle `POST /documents` avec un
-      acteur FREELANCER). Non corrigé cette session : hors du périmètre
-      demandé (SEC-060, pièces jointes sur tâche), et nécessite une
-      décision de conception sur la portée exacte de ce qu'un
-      FREELANCER peut créer, non déductible seul.
+      acteur FREELANCER). Non corrigée lors de sa découverte (hors du
+      périmètre demandé à ce moment-là — SEC-060, pièces jointes sur
+      tâche —, et nécessitait une décision de conception sur la portée
+      exacte de ce qu'un FREELANCER peut créer, non déductible seul).
+
+      Reprise ensuite sur instruction explicite du porteur (« ouii »
+      confirmant la poursuite des anomalies ouvertes, puis choix «
+      SEC-063 (Recommandé) » via AskUserQuestion parmi les 3 anomalies
+      restantes du périmètre). Correctif : `authorize("ADMIN",
+      "MANAGER", "FREELANCER")` ajouté à `POST /documents`
+      (`document.routes.ts`) ; garde d'autorisation ajoutée dans
+      `documentService.create` (nouveau second paramètre `viewer`,
+      absent jusqu'ici de cette méthode) — un FREELANCER ne peut créer
+      qu'un document `type: "DELIVERABLE"`, et seulement sur un projet
+      où il a une tâche assignée (`project.count({ tasks: { some:
+      { assigneeId } } })`, même pattern déjà utilisé pour le scope de
+      lecture FREELANCER dans `documentRepository`) — sinon 403
+      `FREELANCER_DELIVERABLE_ONLY`/`FREELANCER_NOT_STAFFED`. Sans
+      cette garde, ajouter `FREELANCER` à `authorize()` seul aurait
+      permis à n'importe quel freelancer de créer un document de
+      n'importe quel type sur n'importe quel projet de l'entreprise —
+      `requirePermission` ne fait rien pour les rôles non-MANAGER
+      (confirmé par lecture directe de `rbac.middleware.ts`), donc
+      cette vérification service est la seule barrière réelle.
+
+      Effet de bord découvert en écrivant le test réel de ce
+      correctif : un test préexistant non écrit cette session
+      (`freelancerSeesOwnDeliverable.test.ts`) appelait
+      `documentService.create` avec un seul argument — cassé par
+      l'ajout du second paramètre `viewer` obligatoire, corrigé en lui
+      passant un `viewer` cohérent avec l'intention du test (le second
+      cas, qui teste délibérément un document SANS `projectId`, utilise
+      `{ role: "ADMIN" }` plutôt que `FREELANCER` pour ne pas se heurter
+      à la nouvelle garde qui n'est pas ce que ce test-là vérifie).
+
+      SEC-068 (voir plus bas) découverte incidemment en corrigeant
+      celle-ci : même avec cette garde d'autorisation, la création
+      échouait quand même car `title` était retiré silencieusement par
+      le schéma de validation partagé — corrigée dans la même passe
+      sur décision du porteur (« Corriger SEC-068 aussi, dans la même
+      passe (Recommandé) »), sans quoi ce correctif SEC-063 n'aurait
+      jamais fonctionné réellement.
+
+      Test réel ajouté (avec SEC-068) : `server/test/documentCreateHttp.test.ts`,
+      4 cas via `supertest` contre la vraie route HTTP `POST /documents`
+      (pas seulement le service) — ADMIN crée un document et son
+      `title` persiste ; FREELANCER staffé dépose son livrable avec
+      succès ; FREELANCER tentant un type non-DELIVERABLE refusé 403 ;
+      FREELANCER non staffé sur le projet refusé 403. Vérification
+      complète : voir note de SEC-068 (correctifs et vérification
+      livrés dans la même passe).
 
   - id: SEC-064
     titre: "Aucune piece jointe ne peut etre attachee directement a une tache — Document supporte deja un projectId optionnel mais aucun taskId"
@@ -5190,6 +5237,111 @@ anomalies:
       4 nouveaux) ; client `npx tsc --noEmit` (clean), `npm run lint`
       (12 warnings — exception SEC-049, stable), `npx vitest run`
       (61/61, 4 nouveaux), `npm run build` (succès). Résolu SANS
+      confirmation CI : workflow GitHub Actions sur `origin/main` en
+      `workflow_dispatch` uniquement (déviation établie en session le
+      2026-07-17, citée à chaque clôture depuis).
+
+  - id: SEC-068
+    titre: "createDocumentSchema (validateur POST /documents) n'a pas de champ title, alors que title est obligatoire (String, sans defaut) sur le modele Prisma Document — le middleware validate() retire silencieusement title du body avant le controleur, faisant echouer toute creation de document via cette route"
+    perimetre: "4.2/4.4 — shared/src/schemas/document.schema.ts, server/src/validators/document.validator.ts, server/src/middlewares/validate.middleware.ts, server/src/controllers/document.controller.ts, client/src/features/documents/DocumentsPage.tsx, client/src/features/projects/ProjectDetailPage.tsx"
+    regle_violee: null
+    classe: null
+    gravite: bloquant
+    statut: resolu
+    critere_de_resolution: >
+      Sera résolu par l'ajout du champ `title` (requis, cohérent avec
+      `Document.title` non nullable) à `documentBaseSchema`
+      (`shared/src/schemas/document.schema.ts`), puis par un test réel
+      appelant la vraie route HTTP `POST /documents` (pas seulement le
+      service, qui ne passe jamais par le middleware `validate()`) —
+      confirmant qu'un document est créé avec son `title` réellement
+      persisté, pas silencieusement vidé par la validation.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert incidemment en travaillant sur SEC-063 (autoriser
+      FREELANCER sur `POST /documents`) — enregistré immédiatement
+      conformément à la règle CLAUDE.md « enregistrement immédiat de
+      tout écart constaté hors d'un audit formel ».
+
+      Confirmé de façon empirique (pas seulement par lecture) : un
+      fichier de test temporaire (`test/_scratch_title_check.test.ts`,
+      créé pour la vérification puis supprimé, jamais commité)
+      important le vrai `createDocumentSchema`
+      (`server/src/validators/document.validator.ts`) et lui
+      soumettant `{ name: "x", title: "y", url: "...", type:
+      "DELIVERABLE" }` retourne `{ name: "x", type: "DELIVERABLE",
+      url: "...", tags: [], accessLevel: "CLIENT_ADMIN" }` — `title`
+      absent du résultat. `shared/src/schemas/document.schema.ts#documentBaseSchema`
+      ne déclare aucun champ `title` (confirmé par lecture directe),
+      et Zod retire silencieusement toute clé non déclarée par défaut
+      (`.parse`/`.safeParse` sans `.strict()`) — comportement Zod
+      vérifié directement dans ce contexte, pas supposé.
+      `validate.middleware.ts#validate` réassigne ensuite
+      `req.body = parsed.body`, donc le contrôleur ne voit jamais le
+      `title` envoyé par le client, alors que
+      `documentService.create`/`documentRepository.create` exigent ce
+      champ (`Document.title` : `String` sans `?` ni `@default` dans
+      `schema.prisma`).
+
+      Portée réelle confirmée : ce n'est pas spécifique à SEC-063/
+      FREELANCER — recherche directe montre que le flux principal
+      `DocumentsPage.tsx` (`client/src/features/documents/DocumentsPage.tsx:173`)
+      envoie aussi `title: data.name`, donc TOUTE création de document
+      via `POST /documents` (ADMIN/MANAGER inclus) est affectée, pas
+      seulement le dépôt de livrable freelance. Recherche exhaustive :
+      aucun test existant n'exerce la vraie route HTTP
+      `POST /documents` (seul `test/userProfilePhone.http.test.ts`
+      utilise `supertest`/`request(app)` dans tout le dépôt, sur un
+      module différent) — les tests existants
+      (`freelancerSeesOwnDeliverable.test.ts`) appellent
+      `documentService.create` directement, contournant le middleware
+      `validate()` où le bug se produit réellement, ce qui explique
+      pourquoi ce défaut n'avait jamais été détecté.
+
+      Gravité `bloquant` (pas seulement `majeur`) : ce défaut empêchait
+      purement et simplement toute création de document via l'UI dès
+      que la route HTTP réelle était exercée (confirmé ensuite par le
+      test HTTP ajouté — voir plus bas).
+
+      Reprise dans la même passe que SEC-063 sur décision explicite du
+      porteur (« Corriger SEC-068 aussi, dans la même passe
+      (Recommandé) » via AskUserQuestion) : sans ce correctif, celui de
+      SEC-063 (autoriser FREELANCER) n'aurait jamais fonctionné
+      réellement — un FREELANCER franchissant la nouvelle garde
+      d'autorisation se serait quand même heurté à la perte silencieuse
+      de `title`. Correctif : `title: z.string().min(1).max(255)`
+      ajouté à `documentBaseSchema` (`shared/src/schemas/document.schema.ts`),
+      requis (pas optionnel) — tous les appelants existants l'envoient
+      déjà (`DocumentsPage.tsx`, `ProjectDetailPage.tsx` : `title:
+      data.name` ou `title: deliverableName.trim()`), donc un futur
+      appelant qui l'omettrait échouera avec un 400 explicite plutôt
+      qu'une erreur Prisma opaque sur champ requis manquant.
+      `updateDocumentSchema` (qui applique `.partial()` sur le même
+      schéma de base) rend `title` de nouveau optionnel pour la mise à
+      jour, sans changement nécessaire de ce côté.
+
+      Test réel ajouté (partagé avec SEC-063) :
+      `server/test/documentCreateHttp.test.ts`, 4 cas via `supertest`
+      contre la vraie route HTTP `POST /documents` (`app.ts` → routes →
+      `validate()` → contrôleur → service → repository → vraie base) —
+      le premier cas (ADMIN) prouve spécifiquement que le `title`
+      envoyé par le client survit à la validation et se retrouve
+      persisté dans la réponse, ce que `freelancerSeesOwnDeliverable.test.ts`
+      (appel direct au service, contournant `validate()`) n'aurait
+      jamais pu détecter — exactement le écart méthodologique qui avait
+      laissé ce défaut invisible jusqu'ici.
+
+      Vérification complète (SEC-063 + SEC-068, corrigées et
+      vérifiées dans la même passe) : serveur `npx tsc --noEmit`
+      (clean), `npm run lint` (0/0), `npx tsx --test
+      test/run-all.test.ts` (374/374, 4 nouveaux dans
+      `documentCreateHttp.test.ts`, plus la correction du test
+      préexistant cassé par le changement de signature de
+      `documentService.create`) ; client `npx tsc --noEmit` (clean),
+      `npm run lint` (12 warnings — exception SEC-049, stable), `npx
+      vitest run` (61/61), `npm run build` (succès). Résolu SANS
       confirmation CI : workflow GitHub Actions sur `origin/main` en
       `workflow_dispatch` uniquement (déviation établie en session le
       2026-07-17, citée à chaque clôture depuis).

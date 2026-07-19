@@ -59,10 +59,13 @@ export const getDocumentById = async (req: Request, res: Response) => {
 };
 
 export const createDocument = async (req: Request, res: Response) => {
-  const document = await documentService.create({
-    ...req.body,
-    uploadedById: req.user!.sub,
-  });
+  const document = await documentService.create(
+    {
+      ...req.body,
+      uploadedById: req.user!.sub,
+    },
+    { role: req.user!.role, clientId: req.user!.clientId, userId: req.user!.sub }
+  );
   res.status(201).json({ data: document });
 };
 
