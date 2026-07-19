@@ -269,6 +269,7 @@ export function TasksPage() {
         currentUserId={currentUser?.id}
         isAdmin={currentUser?.role === "ADMIN"}
         canManageAttachments={!isFreelancer}
+        mentionableUsers={assignableUsers}
         onUpdateComment={actions.handleUpdateComment}
         onDeleteComment={actions.handleDeleteComment}
         isUpdatingComment={actions.isUpdatingComment}

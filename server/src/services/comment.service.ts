@@ -6,6 +6,7 @@ import { enqueueNotifications } from "../jobs/queues.js";
 import { notifyN8n } from "../utils/webhook.js";
 import { env } from "../config/env.js";
 import { HttpError } from "../utils/httpError.js";
+import { extractMentionedUserIds } from "../utils/mentions.js";
 
 const EXCERPT_LENGTH = 150;
 
@@ -28,18 +29,31 @@ export const commentService = {
     if (task) {
       const recipientIds = new Set<string>();
       if (task.assigneeId) recipientIds.add(task.assigneeId);
-      for (const user of await userRepository.findAdminsAndPoleManagers(task.project?.serviceId ?? null)) {
-        recipientIds.add(user.id);
-      }
+      const staff = await userRepository.findAdminsAndPoleManagers(task.project?.serviceId ?? null);
+      const staffIds = new Set(staff.map((user) => user.id));
+      for (const id of staffIds) recipientIds.add(id);
       recipientIds.delete(data.authorId);
+
+      // SEC-060 (mentions @): the standard recipient set above (assignee + pole staff) already
+      // covers everyone who has access to this task, so a mention can never reach someone new —
+      // it only changes HOW a recipient who was already going to be notified learns about the
+      // comment. A mention naming someone without task access (not the assignee, not staff for
+      // this pole) is silently dropped rather than notified — this must never become a way to
+      // leak a task's existence/content to an arbitrary user by mentioning their id. Decision
+      // (session 2026-07-19): mentioned recipients get ONE notification with the more specific
+      // "Vous avez été mentionné" wording, not a duplicate second notification alongside the
+      // generic one.
+      const mentionedIds = new Set(extractMentionedUserIds(data.content).filter((id) => recipientIds.has(id)));
 
       const taskUrl = `${env.FRONTEND_URL}/app/tasks?taskId=${task.id}`;
       if (recipientIds.size > 0) {
         void enqueueNotifications(
           Array.from(recipientIds).map((userId) => ({
             userId,
-            title: "Nouveau commentaire",
-            message: `Un commentaire a été ajouté sur la tâche « ${task.title} ».`,
+            title: mentionedIds.has(userId) ? "Vous avez été mentionné" : "Nouveau commentaire",
+            message: mentionedIds.has(userId)
+              ? `Vous avez été mentionné dans un commentaire sur la tâche « ${task.title} ».`
+              : `Un commentaire a été ajouté sur la tâche « ${task.title} ».`,
             type: "GENERAL" as const,
             entityId: comment.id,
             link: taskUrl,

@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-064
+dernier_id: SEC-065
 
 anomalies:
   - id: SEC-001
@@ -4711,8 +4711,9 @@ anomalies:
       (critère de résolution différent de celui de SEC-060 —
       implémentation réelle testée, pas un simple arbitrage documenté),
       relié à SEC-060 par le champ `classe`, jamais fusionné : SEC-064
-      (pièces jointes sur tâche, `resolu`, cette session). Les items
-      mentions @/actions en masse/sous-tâches restants suivront le même
+      (pièces jointes sur tâche, `resolu`, cette session), SEC-065
+      (mentions @ dans les commentaires, `resolu`, cette session). Les
+      items actions en masse/sous-tâches restants suivront le même
       principe au fur et à mesure de leur traitement — cette anomalie
       (SEC-060) reste `ouvert` tant que tous les items retenus n'ont
       pas leur propre ID `resolu`.
@@ -4900,5 +4901,100 @@ anomalies:
       migration de `TaskDetailDrawer.test.tsx` pour mocker le nouveau
       composant), `npm run build` (succès). Résolu SANS confirmation
       CI : workflow GitHub Actions sur `origin/main` en
+      `workflow_dispatch` uniquement (déviation établie en session le
+      2026-07-17, citée à chaque clôture depuis).
+
+  - id: SEC-065
+    titre: "Aucune logique de mention @ n'existe dans les commentaires de tache — ni parsing, ni notification dediee, ni UI d'autocomplete"
+    perimetre: "4.3 Gestion des tâches — server/src/utils/mentions.ts, server/src/services/comment.service.ts, client/src/features/tasks/components/MentionTextarea.tsx, client/src/features/tasks/components/TaskDetailDrawer.tsx, client/src/features/tasks/TasksPage.tsx"
+    regle_violee: null
+    classe: "fonctionnalites-pm-standard-absentes"
+    gravite: moyen
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand un utilisateur peut taper `@` dans le champ de
+      commentaire d'une tâche, voir une liste de personnes suggérées,
+      en sélectionner une, et que cette personne reçoit une
+      notification explicitement formulée comme une mention (plutôt
+      que la notification générique de nouveau commentaire) — sans
+      jamais notifier quelqu'un qui n'a pas accès à la tâche, même s'il
+      est mentionné par son identifiant.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Sous-ensemble de SEC-060 (item 6 du constat P1, rapport Product
+      Owner), relié par `classe` — jamais fusionné avec SEC-060, qui
+      reste `ouvert` pour l'item non retenu (dépendances) et l'item
+      encore en cours (sous-tâches). Deuxième des 4 items retenus,
+      traité après SEC-064 (pièces jointes) dans l'ordre confirmé par
+      le porteur.
+
+      Approche technique tranchée via AskUserQuestion : autocomplete +
+      identifiant, plutôt qu'un parsing de texte libre `@Nom` (jugé
+      ambigu sur des homonymes et cassant sur un nom contenant un
+      espace). Le client insère un token explicite
+      `@[Nom affiché](userId)` ; le serveur
+      (`utils/mentions.ts#extractMentionedUserIds`) n'utilise jamais le
+      nom affiché pour la résolution, seulement l'identifiant.
+
+      Décision de conception tranchée en cours de route, après qu'un
+      premier test a révélé une incohérence : le flux de notification
+      existant (assignee + ADMIN + MANAGER du pôle) couvre déjà tout le
+      monde ayant accès à la tâche, donc une mention ne peut jamais
+      atteindre quelqu'un de nouveau — elle ne fait que dupliquer une
+      notification déjà prévue. Tranché via AskUserQuestion : le
+      destinataire mentionné reçoit UNE seule notification, avec le
+      libellé spécifique « Vous avez été mentionné » au lieu du
+      libellé générique « Nouveau commentaire » — pas de doublon.
+
+      Invariant de sécurité central, testé explicitement : mentionner
+      un identifiant d'utilisateur SANS accès à la tâche (ni assignee,
+      ni staff du pôle du projet) n'aboutit à aucune notification pour
+      cette personne — la liste de candidats proposée côté client
+      (`mentionableUsers`, dérivée de `filterAssignableUsers(users)`)
+      n'est PAS la barrière de sécurité réelle ; le serveur revérifie
+      indépendamment l'accès à la tâche avant toute notification de
+      mention, conformément au principe déjà appliqué ailleurs dans
+      cette session (le client ne doit jamais être la seule barrière
+      d'autorisation).
+
+      Correctif serveur : `utils/mentions.ts#extractMentionedUserIds`
+      (regex ciblée sur la syntaxe `@[...](uuid)`, dédoublonnée) ;
+      `comment.service.ts#createComment` calcule `mentionedIds`
+      (intersection des mentions extraites avec l'ensemble des
+      destinataires standard déjà résolus) et personnalise le
+      titre/message de leur notification en conséquence — aucune
+      notification supplémentaire n'est enfilée pour un mentionné hors
+      de cet ensemble.
+
+      Correctif client : nouveau composant `MentionTextarea.tsx`
+      (extrait pour rester réutilisable) — taper `@` ouvre un
+      `Popover` listant `mentionableUsers` filtrés par le texte tapé
+      après `@` ; la sélection insère le token `@[Nom](id)` et
+      repositionne le curseur. Câblé dans `TaskDetailDrawer.tsx`
+      (remplace le `Textarea` brut du formulaire de commentaire) via
+      une nouvelle prop `mentionableUsers`, elle-même alimentée par
+      `assignableUsers` déjà calculé dans `TasksPage.tsx` (exclut
+      CLIENT, déjà utilisé pour le sélecteur d'assigné — SEC-054).
+
+      Tests réels ajoutés : `server/test/mentions.test.ts` (5 cas,
+      logique pure d'extraction) ; `server/test/taskCommentMentions.test.ts`
+      (3 cas d'intégration réelle contre une base migrée, observant les
+      vrais appels `communicationQueue.addBulk` via `node:test`
+      `mock.method` plutôt qu'une réimplémentation — mention de
+      l'assignee reçoit une notification unique au libellé spécifique ;
+      mention d'un utilisateur hors scope n'aboutit à aucune
+      notification pour lui ; un destinataire standard non mentionné
+      garde le libellé générique) ; `client/src/features/tasks/components/MentionTextarea.test.tsx`
+      (3 cas — ouverture de l'autocomplete, filtrage par texte tapé,
+      token inséré correspondant exactement à ce que le serveur attend).
+
+      Vérification complète : serveur `npx tsc --noEmit` (clean), `npm
+      run lint` (0/0), `npx tsx --test test/run-all.test.ts` (362/362,
+      8 nouveaux) ; client `npx tsc --noEmit` (clean), `npm run lint`
+      (12 warnings — exception SEC-049, stable), `npx vitest run`
+      (51/51, 3 nouveaux), `npm run build` (succès). Résolu SANS
+      confirmation CI : workflow GitHub Actions sur `origin/main` en
       `workflow_dispatch` uniquement (déviation établie en session le
       2026-07-17, citée à chaque clôture depuis).

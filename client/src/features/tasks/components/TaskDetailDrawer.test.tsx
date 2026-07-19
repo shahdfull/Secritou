@@ -102,6 +102,7 @@ function renderDrawer(
       currentUserId={overrides.currentUserId ?? "user-author"}
       isAdmin={overrides.isAdmin ?? false}
       canManageAttachments={true}
+      mentionableUsers={[]}
       onUpdateComment={onUpdateComment}
       onDeleteComment={onDeleteComment}
       isUpdatingComment={false}

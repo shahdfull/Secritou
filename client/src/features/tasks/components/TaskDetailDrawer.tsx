@@ -27,6 +27,7 @@ import type { User } from "@/types/auth";
 import type { Comment } from "@/types/comment";
 import { getInitials, getStatusLabel } from "../taskUtils";
 import { TaskAttachments } from "./TaskAttachments";
+import { MentionTextarea } from "./MentionTextarea";
 
 // SEC-059: a comment can now be edited/deleted, but only by its own author or an ADMIN — the
 // server is the real authority (403 COMMENT_NOT_YOURS), this is only to avoid showing controls
@@ -38,9 +39,11 @@ function canEditComment(comment: Comment, currentUserId: string | undefined, isA
 const CommentForm = memo(function CommentForm({
   onCreateComment,
   createCommentMutation,
+  mentionableUsers,
 }: {
   onCreateComment: (content: string) => void;
   createCommentMutation: { isPending: boolean };
+  mentionableUsers: User[];
 }) {
   const { t } = useTranslation();
   const commentForm = useForm<CommentFormValues>({
@@ -65,10 +68,12 @@ const CommentForm = memo(function CommentForm({
           render={({ field }) => (
             <FormItem className="flex-1">
               <FormControl>
-                <Textarea
+                <MentionTextarea
+                  value={field.value}
+                  onChange={field.onChange}
                   placeholder={t("common.writeComment")}
                   className="flex-1"
-                  {...field}
+                  mentionableUsers={mentionableUsers}
                 />
               </FormControl>
               <FormMessage />
@@ -100,6 +105,7 @@ interface TaskDetailDrawerProps {
   currentUserId: string | undefined;
   isAdmin: boolean;
   canManageAttachments: boolean;
+  mentionableUsers: User[];
   onUpdateComment: (commentId: string, content: string) => void;
   onDeleteComment: (commentId: string) => void;
   isUpdatingComment: boolean;
@@ -119,6 +125,7 @@ export function TaskDetailDrawer({
   currentUserId,
   isAdmin,
   canManageAttachments,
+  mentionableUsers,
   onUpdateComment,
   onDeleteComment,
   isUpdatingComment,
@@ -303,6 +310,7 @@ export function TaskDetailDrawer({
             <CommentForm
               onCreateComment={onAddComment}
               createCommentMutation={createCommentMutation}
+              mentionableUsers={mentionableUsers}
             />
           </div>
         </div>
