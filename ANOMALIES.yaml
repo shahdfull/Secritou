@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-069
+dernier_id: SEC-076
 
 anomalies:
   - id: SEC-001
@@ -5481,3 +5481,278 @@ anomalies:
       Actions sur `origin/main` en `workflow_dispatch` uniquement
       (déviation établie en session le 2026-07-17, citée à chaque
       clôture depuis).
+
+  - id: SEC-070
+    titre: "getCompletedTasksForClient derive completedAt de task.updatedAt, qui reflete la derniere modification de la ligne pour n'importe quelle cause, pas specifiquement l'instant de la transition vers DONE — une correction ulterieure du titre d'une tache deja terminee avance silencieusement la date affichee au client"
+    perimetre: "4.2 Gestion de projet — server/src/services/project.service.ts#getCompletedTasksForClient, client/src/features/client-portal/components/CompletedTasksList.tsx"
+    regle_violee: null
+    classe: null
+    gravite: moyen
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand la date affichée au CLIENT dans « Ce qui a été
+      livré » reflète réellement l'instant où la tâche est passée à
+      DONE, pas la dernière modification de la ligne pour une cause
+      quelconque — vérifié en modifiant le titre d'une tâche déjà
+      DONE et en confirmant que la date affichée au client ne change
+      pas.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport externe (revue de code sur les correctifs SEC-055 à
+      SEC-069 de cette session). Confirmé par lecture directe :
+      `project.service.ts#getCompletedTasksForClient` sélectionne
+      `updatedAt` et le mappe tel quel en `completedAt` — `updatedAt`
+      est mis à jour par Prisma à chaque écriture sur la ligne
+      `Task`, quelle qu'en soit la cause (changement de titre,
+      description, priorité, etc.), pas seulement le passage à DONE.
+      `auditLogService` existe déjà dans le dépôt mais n'est pas
+      utilisé ici comme source plus fiable.
+
+      Corrigé dans cette même session (choix du porteur : "Corriger
+      1.1, 1.2, 1.3, 1.7"). Ajout de `Task.completedAt`
+      (`schema.prisma`, migration
+      `20260719200000_add_task_completedat_comment_editedat`), fixé
+      dans `task.service.ts#updateTask` exactement sur la transition
+      de/vers DONE (jamais sur une autre écriture), consommé par
+      `project.service.ts#getCompletedTasksForClient` avec fallback
+      sur `updatedAt` uniquement pour les tâches déjà DONE avant
+      l'existence du champ. Preuve par test réel (pas de
+      réimplémentation) :
+      `server/test/clientCompletedTasks.test.ts` (« SEC-070 »),
+      appelle `taskService.updateTask` puis
+      `projectService.getCompletedTasksForClient` réels contre une
+      base migrée, prouve qu'une édition ultérieure non liée au
+      statut ne fait pas bouger `completedAt`. Vérification complète :
+      `npx tsc --noEmit` (serveur, propre), `npx tsx --test
+      test/run-all.test.ts` (378/378, 2 nouveaux), `npm run lint`
+      (serveur, 0 warning), `npm run lint` (client, 12 warnings —
+      SEC-049, stable), `npx vitest run` (client, 71/71, 3 nouveaux),
+      `npm run build` (client, succès). Résolu SANS confirmation CI :
+      workflow GitHub Actions sur `origin/main` en `workflow_dispatch`
+      uniquement (déviation établie en session le 2026-07-17, citée à
+      chaque clôture depuis).
+
+  - id: SEC-071
+    titre: "Un commentaire de tache modifie (SEC-059) est indiscernable d'un commentaire original — model Comment n'a pas de champ updatedAt/editedAt, aucun indicateur de modification affiche cote UI"
+    perimetre: "4.3 Gestion des tâches — server/prisma/schema.prisma (model Comment), server/src/repositories/comment.repository.ts, client/src/features/tasks/components/TaskDetailDrawer.tsx"
+    regle_violee: null
+    classe: null
+    gravite: faible
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand un commentaire édité affiche un indicateur visible
+      (par exemple « modifié le <date> ») distinct de sa date de
+      création, permettant à tout collaborateur de savoir qu'un
+      commentaire a été altéré après sa publication initiale.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport externe. Confirmé par lecture directe : `model Comment`
+      (`schema.prisma`) ne déclare que `createdAt`, aucun
+      `updatedAt`/`editedAt`. `commentRepository.update` (ajouté en
+      SEC-059) modifie `content` sans laisser de trace exploitable.
+      `TaskDetailDrawer.tsx` affiche la même chose pour un commentaire
+      édité ou non. Significatif car un ADMIN peut éditer le
+      commentaire de n'importe qui (autorisation déjà correcte depuis
+      SEC-059) sans qu'aucune traçabilité de la modification ne soit
+      visible pour les autres collaborateurs.
+
+      Corrigé dans cette même session (choix du porteur : "Corriger
+      1.1, 1.2, 1.3, 1.7"). Ajout de `Comment.editedAt`
+      (`schema.prisma`, même migration que SEC-070,
+      `20260719200000_add_task_completedat_comment_editedat`),
+      renseigné dans `commentRepository.update` à chaque édition,
+      exposé via `commentSelect`, affiché dans `TaskDetailDrawer.tsx`
+      (« (modifié) » à côté de l'horodatage, avec titre = date/heure
+      exacte). Preuve par test réel : `server/test/
+      taskCommentUpdateDelete.test.ts` (« SEC-071 »), appelle
+      `commentService.updateComment` réel et vérifie que seul le
+      commentaire édité porte `editedAt`, jamais un autre ;
+      `client/src/features/tasks/components/TaskDetailDrawer.test.tsx`
+      (« SEC-071 ») rend le composant réel et vérifie l'affichage/
+      absence de l'indicateur. Vérification complète : `npx tsc
+      --noEmit` (serveur, propre), `npx tsx --test
+      test/run-all.test.ts` (378/378), `npm run lint` (serveur, 0
+      warning), `npm run lint` (client, 12 warnings — SEC-049,
+      stable), `npx vitest run` (client, 71/71), `npm run build`
+      (client, succès). Résolu SANS confirmation CI : workflow GitHub
+      Actions sur `origin/main` en `workflow_dispatch` uniquement
+      (déviation établie en session le 2026-07-17, citée à chaque
+      clôture depuis).
+
+  - id: SEC-072
+    titre: "Commentaire de code obsolete dans TaskAttachments.tsx : cite une restriction d'autorisation FREELANCER sur POST /documents deja levee par SEC-063, alors que la vraie cause du blocage actuel (type toujours fixe a OTHER, incompatible avec FREELANCER_DELIVERABLE_ONLY) n'est pas documentee"
+    perimetre: "4.3 Gestion des tâches — client/src/features/tasks/components/TaskAttachments.tsx"
+    regle_violee: null
+    classe: null
+    gravite: faible
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand le commentaire au-dessus de `canUpload`/`canManageAttachments`
+      dans `TaskAttachments.tsx` décrit la cause réelle actuelle de la
+      restriction FREELANCER (type toujours `"OTHER"`, incompatible
+      avec la garde service `FREELANCER_DELIVERABLE_ONLY`), pas une
+      restriction d'autorisation route déjà levée par SEC-063.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport externe, confirmé par lecture directe — et confirmé
+      FAUX tel que formulé littéralement par le rapport lui-même :
+      le rapport présente ceci comme si le comportement actuel restait
+      justifié « pour une raison différente et non documentée », ce
+      qui est exact, mais le titre du constat aurait pu laisser croire
+      à un vrai bug de permission — vérifié qu'il n'y en a pas
+      (`document.routes.ts` autorise bien FREELANCER depuis SEC-063,
+      `document.service.ts#create` applique bien la garde
+      `FREELANCER_DELIVERABLE_ONLY`). Seul le commentaire de code est
+      en cause, pas le comportement, qui reste correct.
+
+      Corrigé dans cette même session (choix du porteur : "Corriger
+      1.1, 1.2, 1.3, 1.7") : commentaire de
+      `client/src/features/tasks/components/TaskAttachments.tsx`
+      réécrit pour citer SEC-072 et décrire la cause réelle
+      (`type: "OTHER"` toujours envoyé par `handleUpload`,
+      incompatible avec `FREELANCER_DELIVERABLE_ONLY`), aucun
+      changement de comportement (le composant se comportait déjà
+      correctement). Vérification complète : `npx tsc --noEmit`
+      (client, propre), `npm run lint` (client, 12 warnings —
+      SEC-049, stable), `npx vitest run` (client, 71/71), `npm run
+      build` (client, succès). Résolu SANS confirmation CI : workflow
+      GitHub Actions sur `origin/main` en `workflow_dispatch`
+      uniquement (déviation établie en session le 2026-07-17, citée à
+      chaque clôture depuis).
+
+  - id: SEC-073
+    titre: "projectTemplateService.applyToProject : la lecture du compte de taches existantes et l'insertion du lot ne sont pas dans une meme transaction Prisma — deux appels strictement concurrents sur un projet vide peuvent tous deux lire count=0 avant qu'aucun n'ait insere, dupliquant le lot malgre la garde d'idempotence"
+    perimetre: "4.2 Gestion de projet — server/src/services/projectTemplate.service.ts#applyToProject"
+    regle_violee: null
+    classe: null
+    gravite: faible
+    statut: ouvert
+    critere_de_resolution: >
+      Sera résolu en enveloppant la lecture de `countTasks` et
+      l'insertion des tâches du template dans un même `$transaction`
+      Prisma (ou une contrainte d'unicité applicative), fermant la
+      fenêtre de concurrence entre les deux opérations.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport externe, confirmé par lecture directe :
+      `projectTemplateService.applyToProject` appelle `countTasks`
+      puis, séparément, la création du lot de tâches — aucun
+      `$transaction` ne les enveloppe. La garde d'idempotence
+      introduite par SEC-043 (409 `TEMPLATE_ALREADY_APPLIED` si le
+      projet a déjà des tâches) couvre le cas séquentiel (double-clic,
+      rejeu après réponse) mais pas deux appels strictement
+      concurrents avant qu'aucune réponse ne soit reçue. Non corrigé
+      cette session (décision du porteur : ne pas traiter cette passe).
+
+  - id: SEC-074
+    titre: "taskChecklistService.createItem : le commentaire affirme qu'un calcul de position derive d'un simple count() empeche toute collision entre creations concurrentes, ce qui est faux — aucune transaction ni contrainte @@unique([taskId, position]) ne protege ce calcul"
+    perimetre: "4.3 Gestion des tâches — server/src/services/taskChecklist.service.ts#createItem, server/prisma/schema.prisma (model TaskChecklistItem)"
+    regle_violee: null
+    classe: null
+    gravite: faible
+    statut: ouvert
+    critere_de_resolution: >
+      Sera résolu soit en alignant le commentaire sur la garantie
+      réellement offerte (protection contre un double-clic simple, pas
+      contre une vraie concurrence), soit en fermant la fenêtre par une
+      transaction Prisma ou une contrainte `@@unique([taskId,
+      position])` sur `TaskChecklistItem`.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport externe, confirmé par lecture directe (SEC-067, session
+      2026-07-19) : le commentaire de `taskChecklistService.createItem`
+      affirme explicitement qu'une collision entre créations
+      concurrentes est impossible car « position toujours dérivée
+      côté serveur » — mais `countByTaskId` (repository) puis
+      `create` (service) sont deux appels séparés, sans
+      `$transaction` ; le schéma ne déclare qu'un index non-unique
+      `@@index([taskId, position])`, pas une contrainte `@@unique`.
+      L'affirmation du commentaire est donc inexacte en cas de
+      concurrence réelle (même défaut de nature que SEC-073). Non
+      corrigé cette session (décision du porteur : ne pas traiter
+      cette passe).
+
+  - id: SEC-075
+    titre: "Aucune limite sur le nombre d'items de checklist par tache — contrairement aux autres garde-fous du module (bulk plafonne a 100, kanban/calendrier a 200), createChecklistItemSchema ne borne que la longueur du titre et getChecklistItems charge tout sans pagination ni limite"
+    perimetre: "4.3 Gestion des tâches — server/src/validators/taskChecklist.validator.ts, server/src/controllers/taskChecklist.controller.ts#getChecklistItems, server/src/repositories/taskChecklist.repository.ts#findByTaskId, client/src/features/tasks/components/TaskChecklist.tsx"
+    regle_violee: null
+    classe: null
+    gravite: faible
+    statut: ouvert
+    critere_de_resolution: >
+      Sera résolu par l'ajout d'un plafond raisonnable au nombre
+      d'items de checklist par tâche (avec message explicite au-delà),
+      par cohérence avec les autres garde-fous déjà en place dans ce
+      module (100 pour les actions en masse, 200 pour le Kanban/
+      calendrier).
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport externe, confirmé par lecture directe (SEC-067, session
+      2026-07-19) : `createChecklistItemSchema` ne valide que
+      `title` (longueur), aucune limite de nombre total d'items par
+      tâche. `taskChecklistRepository.findByTaskId` charge tout via
+      `findMany` sans `take`/`skip`, et `TaskChecklist.tsx` rend la
+      liste entière sans pagination ni virtualisation. Non corrigé
+      cette session (décision du porteur : ne pas traiter cette
+      passe).
+
+  - id: SEC-076
+    titre: "ProjectMeetingsTab.tsx : le formulaire d'edition d'une reunion (editingMeeting) est rendu apres la liste paginee et sa pagination, sans scrollIntoView ni mecanisme de defilement automatique — invisible sans defilement manuel sur une liste longue"
+    perimetre: "4.2 Gestion de projet — client/src/features/projects/ProjectMeetingsTab.tsx"
+    regle_violee: null
+    classe: null
+    gravite: faible
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand cliquer sur « Modifier » pour une réunion amène le
+      formulaire d'édition dans la vue automatiquement (défilement),
+      sans dépendre de la position de la réunion dans la liste
+      paginée.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport externe (constat 1.7, revue de code sur les correctifs
+      SEC-055 à SEC-069 de cette session), confirmé par lecture
+      directe : le bloc `{editingMeeting && (...)}` est rendu après
+      `DataTablePagination`, sans `ref`/`scrollIntoView` ni aucun
+      mécanisme de défilement automatique — sur une liste de
+      plusieurs pages, le formulaire d'édition apparaît hors de la
+      zone visible sans que l'utilisateur sache qu'il doit défiler.
+
+      Point complémentaire du même rapport (constat 1.8, désarchivage
+      de projet) : reformule une décision déjà actée sous SEC-040
+      (« Exposer l'archivage côté UI, sans construire le
+      désarchivage ») — non un nouveau constat, cité tel quel
+      conformément à l'interdiction de reformulation, non traité de
+      nouveau cette session (décision du porteur : traiter uniquement
+      1.1/1.2/1.3/1.7 cette passe).
+
+      Corrigé dans cette même session (choix du porteur : "Corriger
+      1.1, 1.2, 1.3, 1.7") : ajout d'un `ref` sur la `Card` du
+      formulaire d'édition et d'un `useEffect` appelant
+      `scrollIntoView({ behavior: "smooth", block: "center" })` dès
+      que `editingMeeting` devient non-null
+      (`ProjectMeetingsTab.tsx`). Preuve par test réel : `client/src/
+      features/projects/ProjectMeetingsTab.test.tsx` (« SEC-076 »),
+      rend le composant réel, clique sur « Modifier » et vérifie
+      l'appel réel à `scrollIntoView` avec les bons paramètres.
+      Vérification complète : `npx tsc --noEmit` (client, propre),
+      `npm run lint` (client, 12 warnings — SEC-049, stable), `npx
+      vitest run` (client, 71/71), `npm run build` (client, succès).
+      Résolu SANS confirmation CI : workflow GitHub Actions sur
+      `origin/main` en `workflow_dispatch` uniquement (déviation
+      établie en session le 2026-07-17, citée à chaque clôture
+      depuis).

@@ -155,3 +155,15 @@ describe("TaskDetailDrawer comment edit/delete authorization — SEC-059", () =>
     expect(onDeleteComment).toHaveBeenCalledWith("comment-77");
   });
 });
+
+describe("TaskDetailDrawer comment edited indicator — SEC-071", () => {
+  test("shows a (modifié) marker on a comment that carries editedAt", () => {
+    renderDrawer([makeComment({ editedAt: "2026-07-19T10:00:00.000Z" })]);
+    expect(screen.getByText("(modifié)")).toBeInTheDocument();
+  });
+
+  test("shows no marker on a comment that was never edited", () => {
+    renderDrawer([makeComment({ editedAt: null })]);
+    expect(screen.queryByText("(modifié)")).not.toBeInTheDocument();
+  });
+});

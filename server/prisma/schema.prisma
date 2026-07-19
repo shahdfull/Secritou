@@ -597,6 +597,9 @@ model Task {
   // tasks with only a dueDate keep working; a task without a startDate is never checked for overlap.
   startDate   DateTime?   @db.Timestamptz(6)
   dueDate     DateTime?   @db.Timestamptz(6)
+  // SEC-070: set exactly when status transitions to DONE (task.service.ts#updateTask), cleared if
+  // it transitions away from DONE — unlike updatedAt, never touched by unrelated field edits.
+  completedAt DateTime?   @db.Timestamptz(6)
   projectId   String
   project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   assigneeId  String?
@@ -633,6 +636,9 @@ model Comment {
   authorId  String?
   author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now()) @db.Timestamptz(6)
+  // SEC-071: set only by commentRepository.update (edit path) — null means never edited, so the
+  // UI can show a "modifié" indicator without confusing it with createdAt on first write.
+  editedAt  DateTime? @db.Timestamptz(6)
 
   @@index([taskId])
   @@index([authorId])

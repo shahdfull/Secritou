@@ -146,6 +146,22 @@ describe("commentService.updateComment/deleteComment authorization — SEC-059",
     assert.equal(stillThere, null);
   });
 
+  test("SEC-071: editing a comment sets editedAt, distinguishing it from an untouched comment", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const task = await makeTask();
+    const author = await makeUser("author6");
+    const untouched = await makeComment(task.id, author.id, "jamais modifié");
+    const edited = await makeComment(task.id, author.id, "note initiale");
+
+    assert.equal(untouched.editedAt, null, "a freshly created comment must not carry editedAt");
+
+    const updated = await commentService.updateComment(task.id, edited.id, "note corrigée", author.id, "MANAGER");
+    assert.ok(updated.editedAt, "editing a comment must set editedAt");
+
+    const untouchedAfter = await prisma.comment.findUnique({ where: { id: untouched.id } });
+    assert.equal(untouchedAfter?.editedAt, null, "editing one comment must never set editedAt on another");
+  });
+
   test("updating/deleting a comment that doesn't belong to the given task 404s", async (t) => {
     if (!dbAvailable) return t.skip("no database available");
     const task = await makeTask();

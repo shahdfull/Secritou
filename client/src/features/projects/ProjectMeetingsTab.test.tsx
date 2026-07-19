@@ -166,3 +166,43 @@ describe("ProjectMeetingsTab edit/delete authorization — SEC-055 (F6)", () => 
     });
   });
 });
+
+describe("ProjectMeetingsTab edit form auto-scroll — SEC-076", () => {
+  test("clicking Modifier scrolls the edit form into view", async () => {
+    useAuthStore.setState({ user: makeUser({ id: "user-author" }), status: "authenticated" });
+    getMock.mockImplementation((url: string) => {
+      if (url.includes("/meeting-schedule")) {
+        return Promise.resolve({ data: { data: { id: "sched-1", meetingFrequency: "NONE", nextMeetingDate: null } } });
+      }
+      return Promise.resolve({
+        data: {
+          data: [
+            {
+              id: "meeting-4",
+              projectId: "project-1",
+              meetingDate: "2026-07-10T00:00:00.000Z",
+              participants: null,
+              notes: "à modifier",
+              createdBy: { id: "user-author", name: "Author Manager" },
+              createdAt: "2026-07-10T00:00:00.000Z",
+            },
+          ],
+          total: 1,
+        },
+      });
+    });
+
+    const scrollIntoViewMock = vi.fn();
+    window.HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
+
+    const user = userEvent.setup();
+    render(<ProjectMeetingsTab projectId="project-1" />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByLabelText("Modifier")).toBeInTheDocument());
+    await user.click(screen.getByLabelText("Modifier"));
+
+    await waitFor(() => {
+      expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
+    });
+  });
+});

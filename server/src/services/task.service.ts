@@ -199,7 +199,13 @@ export const taskService = {
       }
     }
 
-    const updated = await taskRepository.update(id, data);
+    // SEC-070: completedAt is set/cleared exactly on a DONE transition here, never left to
+    // updatedAt (which changes on any field edit, unrelated to completion).
+    const completedAtPatch =
+      data.status && data.status !== task.status
+        ? { completedAt: data.status === "DONE" ? new Date() : null }
+        : {};
+    const updated = await taskRepository.update(id, { ...data, ...completedAtPatch });
     const { prismaRead: prisma } = await import("../config/prisma.js");
     const project = await prisma.project.findUnique({ where: { id: task.projectId }, select: { id: true, clientId: true, serviceId: true } });
 

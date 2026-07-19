@@ -524,10 +524,17 @@ export const projectService = {
 
     const tasks = await prismaRead.task.findMany({
       where: { projectId: id, status: "DONE" },
-      select: { id: true, title: true, updatedAt: true },
-      orderBy: { updatedAt: "desc" },
+      select: { id: true, title: true, completedAt: true, updatedAt: true },
+      orderBy: [{ completedAt: "desc" }, { updatedAt: "desc" }],
     });
 
-    return tasks.map((t) => ({ id: t.id, title: t.title, completedAt: t.updatedAt.toISOString() }));
+    // SEC-070: completedAt is set by task.service.ts#updateTask on the DONE transition and is the
+    // reliable source. updatedAt is only a fallback for tasks that reached DONE before this field
+    // existed (completedAt is null for those, never for anything completed afterwards).
+    return tasks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      completedAt: (t.completedAt ?? t.updatedAt).toISOString(),
+    }));
   },
 };

@@ -7,6 +7,7 @@ export interface Comment {
   authorId: string;
   author: User;
   createdAt: string;
+  editedAt?: string | null;
 }
 
 export interface CreateCommentInput {

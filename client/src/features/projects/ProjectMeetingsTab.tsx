@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatDate } from "@/utils/format";
 import {
   useProjectMeetings,
@@ -174,6 +174,13 @@ export function ProjectMeetingsTab({ projectId }: Props) {
   const [editParticipants, setEditParticipants] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [deletingMeeting, setDeletingMeeting] = useState<ProjectMeeting | null>(null);
+  const editFormRef = useRef<HTMLDivElement>(null);
+
+  // SEC-076 : le formulaire d'édition est rendu après la liste paginée, donc invisible sans
+  // défilement manuel sur une liste longue — on l'amène dans la vue dès qu'il apparaît.
+  useEffect(() => {
+    if (editingMeeting) editFormRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [editingMeeting]);
 
   const handleSubmit = () => {
     if (!date) return;
@@ -298,7 +305,7 @@ export function ProjectMeetingsTab({ projectId }: Props) {
       )}
 
       {editingMeeting && (
-        <Card className="rounded-2xl border border-border shadow-none">
+        <Card ref={editFormRef} className="rounded-2xl border border-border shadow-none">
           <CardContent className="pt-5 space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-ink">Modifier la réunion</p>

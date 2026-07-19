@@ -11,10 +11,12 @@ interface TaskAttachmentsProps {
   taskId: string;
   projectId: string;
   clientId: string | undefined;
-  // SEC-063 (découverte incidente, session 2026-07-19) : POST /documents est authorize("ADMIN",
-  // "MANAGER") seul côté serveur — un FREELANCER y recevrait systématiquement 403. Tant que ce
-  // bug préexistant (hors périmètre de SEC-060) n'est pas corrigé, l'upload n'est proposé qu'à
-  // ADMIN/MANAGER ; un FREELANCER peut seulement consulter/télécharger les pièces déjà jointes.
+  // SEC-072 (le commentaire précédent, citant SEC-063, était devenu faux après la résolution de
+  // SEC-063 dans cette session : POST /documents autorise bien FREELANCER côté route depuis lors).
+  // La vraie raison de restreindre l'upload à ADMIN/MANAGER ici est que ce composant envoie
+  // toujours `type: "OTHER"` (voir handleUpload plus bas), incompatible avec la garde service
+  // FREELANCER_DELIVERABLE_ONLY (document.service.ts#create) qui n'accepte que `type: "DELIVERABLE"`
+  // pour ce rôle — ce n'est pas un problème d'autorisation de route.
   canUpload: boolean;
 }
 

@@ -259,6 +259,14 @@ export function TaskDetailDrawer({
                                       addSuffix: true,
                                       locale: fr,
                                     })}
+                                    {comment.editedAt && (
+                                      <span
+                                        title={new Date(comment.editedAt).toLocaleString("fr-FR")}
+                                      >
+                                        {" "}
+                                        (modifié)
+                                      </span>
+                                    )}
                                   </span>
                                   {canEditComment(comment, currentUserId, isAdmin) && editingCommentId !== comment.id && (
                                     <div className="flex items-center gap-1">

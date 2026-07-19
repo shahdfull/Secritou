@@ -7,6 +7,9 @@
 // 1. Only DONE tasks are returned, ordered most-recently-completed first.
 // 2. The critical security property: a CLIENT cannot read another client's project — 404, not an
 //    empty list (which would leak the project's existence).
+// 3. (SEC-070) completedAt is set by taskService.updateTask exactly on the DONE transition, and a
+//    later unrelated edit to the same DONE task never changes it — unlike the previous behavior
+//    (derived from updatedAt), which would have silently moved the client-visible date forward.
 //
 // Requires a real database; skipped if unreachable.
 
@@ -16,6 +19,7 @@ import { HttpError } from "../src/utils/httpError.js";
 
 let prisma: typeof import("../src/config/prisma.js").prisma;
 let projectService: typeof import("../src/services/project.service.js").projectService;
+let taskService: typeof import("../src/services/task.service.js").taskService;
 let dbAvailable = true;
 
 let serviceId: string;
@@ -27,6 +31,7 @@ before(async () => {
   try {
     ({ prisma } = await import("../src/config/prisma.js"));
     ({ projectService } = await import("../src/services/project.service.js"));
+    ({ taskService } = await import("../src/services/task.service.js"));
     await prisma.$queryRaw`SELECT 1`;
     const service = await prisma.service.findFirst();
     if (!service) throw new Error("no Service seeded");
@@ -65,6 +70,32 @@ describe("projectService.getCompletedTasksForClient — SEC-061", () => {
     assert.ok(ids.includes(newer.id));
     assert.ok(!ids.includes(inProgress.id), "an IN_PROGRESS task must never appear in the completed list");
     assert.ok(result[0]?.completedAt, "each returned task must carry a completion date");
+  });
+
+  test("SEC-070: completedAt is set on the DONE transition and survives a later unrelated edit", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const client = await prisma.client.create({ data: { name: "sec070 client", serviceId } });
+    createdClientIds.push(client.id);
+    const project = await prisma.project.create({ data: { name: "sec070 project", clientId: client.id, serviceId } });
+    createdProjectIds.push(project.id);
+    const task = await prisma.task.create({ data: { title: "À terminer", projectId: project.id, status: "REVIEW" } });
+    createdTaskIds.push(task.id);
+
+    await taskService.updateTask(task.id, { status: "DONE" }, { userRole: "ADMIN" });
+    const afterCompletion = await projectService.getCompletedTasksForClient(project.id, client.id);
+    const completedAtAfterDone = afterCompletion.find((x) => x.id === task.id)?.completedAt;
+    assert.ok(completedAtAfterDone, "completedAt must be set once the task reaches DONE");
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await taskService.updateTask(task.id, { title: "Titre corrigé après coup" }, { userRole: "ADMIN" });
+    const afterUnrelatedEdit = await projectService.getCompletedTasksForClient(project.id, client.id);
+    const completedAtAfterEdit = afterUnrelatedEdit.find((x) => x.id === task.id)?.completedAt;
+
+    assert.equal(
+      completedAtAfterEdit,
+      completedAtAfterDone,
+      "editing an unrelated field on an already-DONE task must never move the client-visible completion date"
+    );
   });
 
   test("a CLIENT cannot read another client's project — 404, not an empty list (security)", async (t) => {

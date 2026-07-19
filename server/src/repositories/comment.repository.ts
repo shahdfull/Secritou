@@ -9,6 +9,7 @@ const commentSelect = {
   taskId: true,
   authorId: true,
   createdAt: true,
+  editedAt: true,
   author: { select: authorPublicSelect },
 } satisfies Prisma.CommentSelect;
 
@@ -39,9 +40,11 @@ export const commentRepository = {
   },
 
   async update(id: string, content: string): Promise<CommentWithAuthor> {
+    // SEC-071: editedAt marks any edit past creation — the UI uses it to show a "modifié"
+    // indicator distinct from createdAt.
     return writePrisma.comment.update({
       where: { id },
-      data: { content },
+      data: { content, editedAt: new Date() },
       select: commentSelect,
     });
   },
