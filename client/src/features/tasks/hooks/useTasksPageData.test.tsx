@@ -82,3 +82,37 @@ describe("useTasksPageData — SEC-053 projectsTotal exposure", () => {
     getMock.mockResolvedValue({ data: { data: [], total: 0, page: 1, pageSize: 10 } });
   });
 });
+
+describe("useTasksPageData — SEC-056 assignee/overdue filter propagation", () => {
+  beforeEach(() => {
+    getMock.mockClear();
+    getMock.mockResolvedValue({ data: { data: [], total: 0, page: 1, pageSize: 10 } });
+  });
+
+  test("passes assigneeId and overdue through to the real GET /tasks request", async () => {
+    renderHook(
+      () => useTasksPageData({ page: 1, pageSize: 10 }, null, undefined, { assigneeId: "user-9", overdue: true }),
+      { wrapper: makeWrapper() }
+    );
+
+    await waitFor(() => {
+      const tasksCall = getMock.mock.calls.find(([url]) => url === "/tasks");
+      expect(tasksCall).toBeDefined();
+      expect(tasksCall?.[1]?.params?.assigneeId).toBe("user-9");
+      expect(tasksCall?.[1]?.params?.overdue).toBe("true");
+    });
+  });
+
+  test("omits assigneeId and overdue entirely when neither is given", async () => {
+    renderHook(() => useTasksPageData({ page: 1, pageSize: 10 }, null), {
+      wrapper: makeWrapper(),
+    });
+
+    await waitFor(() => {
+      const tasksCall = getMock.mock.calls.find(([url]) => url === "/tasks");
+      expect(tasksCall).toBeDefined();
+      expect(tasksCall?.[1]?.params?.assigneeId).toBeUndefined();
+      expect(tasksCall?.[1]?.params?.overdue).toBeUndefined();
+    });
+  });
+});

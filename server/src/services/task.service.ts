@@ -93,8 +93,15 @@ export async function checkFreelancerAvailability(
 }
 
 export const taskService = {
-  async getAllTasks(projectId: string | undefined, userId: string, userRole: Role, options: ListQueryOptions, scope?: ServiceScope) {
-    return taskRepository.findAll(userId, userRole, options, projectId, scope?.userServiceId);
+  async getAllTasks(
+    projectId: string | undefined,
+    userId: string,
+    userRole: Role,
+    options: ListQueryOptions,
+    scope?: ServiceScope,
+    taskFilters?: { assigneeId?: string; overdue?: boolean }
+  ) {
+    return taskRepository.findAll(userId, userRole, options, projectId, scope?.userServiceId, taskFilters);
   },
 
   async getFreelancerAvailability(freelancerId: string, startDate: Date, endDate: Date, excludeTaskId?: string) {

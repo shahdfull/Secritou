@@ -47,6 +47,39 @@ export function TasksPage() {
     });
   }, [setSearchParams]);
 
+  // SEC-056 (U1): assignee and "overdue only" filters, persisted in the URL the same way
+  // projectId is above — not folded into useListParams, which is shared by every other list page
+  // (clients, invoices, ...) and must stay generic.
+  const assigneeIdFilter = searchParams.get("assigneeId") ?? undefined;
+  const overdueFilter = searchParams.get("overdue") === "true";
+  const setAssigneeIdFilter = useCallback(
+    (value: string | undefined) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set("assigneeId", value);
+        else next.delete("assigneeId");
+        return next;
+      });
+    },
+    [setSearchParams]
+  );
+  const setOverdueFilter = useCallback(
+    (value: boolean) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set("overdue", "true");
+        else next.delete("overdue");
+        return next;
+      });
+      // Mirrors the server (task.repository.ts#buildWhere): overdue already implies
+      // status != DONE, and the two combined would otherwise silently conflict — so the status
+      // dropdown is disabled while this is active (see TasksListView) and reset here.
+      // statusFilter is separate local state (useState below), not part of the URL.
+      if (value) setStatusFilter("All");
+    },
+    [setSearchParams]
+  );
+
   useEffect(() => {
     setSearch(debouncedSearch);
   }, [debouncedSearch, setSearch]);
@@ -64,9 +97,14 @@ export function TasksPage() {
     [params, viewMode, pageSize, page, orderBy, orderDir, search, statusFilter]
   );
 
+  const taskFilters = useMemo(
+    () => ({ assigneeId: assigneeIdFilter, overdue: overdueFilter }),
+    [assigneeIdFilter, overdueFilter]
+  );
+
   const actions = useTaskActions();
   const { tasks, total, projects, projectsTotal, users, comments, projectNameById, userById, isLoading } =
-    useTasksPageData(listParams, actions.selectedTaskId, projectIdFilter);
+    useTasksPageData(listParams, actions.selectedTaskId, projectIdFilter, taskFilters);
 
   // The assignee selector must not offer a choice the server always refuses; `users` itself stays
   // unfiltered (userById still needs every role to label assignees already on a task).
@@ -169,6 +207,11 @@ export function TasksPage() {
             onSearchChange: setSearchInput,
             status: statusFilter,
             onStatusChange: setStatusFilter,
+            assigneeId: assigneeIdFilter,
+            onAssigneeChange: setAssigneeIdFilter,
+            assignableUsers,
+            overdue: overdueFilter,
+            onOverdueChange: setOverdueFilter,
           }}
           sort={{ orderBy, orderDir, onSort: handleSort }}
           pagination={{ page, pageSize, total, onPageChange: setPage }}

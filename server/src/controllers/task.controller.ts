@@ -9,8 +9,13 @@ export const getAllTasks: RequestHandler = async (req, res, next) => {
     const userId = req.user!.sub;
     const userRole = req.user!.role;
     const projectId = req.query.projectId as string | undefined;
+    // assigneeId/overdue (SEC-056): kept out of ListQueryOptions (shared across every list
+    // endpoint — clients, invoices, etc.) since they're specific to tasks, mirroring how
+    // projectId is already threaded through as its own argument rather than folded into options.
+    const assigneeId = typeof req.query.assigneeId === "string" && req.query.assigneeId.trim() ? req.query.assigneeId.trim() : undefined;
+    const overdue = req.query.overdue === "true";
     const options = parseListQuery(req.query as Record<string, unknown>);
-    const result = await taskService.getAllTasks(projectId, userId, userRole, options, await buildServiceScope(req));
+    const result = await taskService.getAllTasks(projectId, userId, userRole, options, await buildServiceScope(req), { assigneeId, overdue });
     res.json(result);
   } catch (error) {
     next(error);

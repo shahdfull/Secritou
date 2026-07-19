@@ -1,15 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { tasksApi } from "../api/tasks.api";
+import { tasksApi, type TaskListFilters } from "../api/tasks.api";
 import type { Task, CreateTaskInput, UpdateTaskInput } from "../types/task";
 import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 import { toast } from "sonner";
 import i18n from "@/i18n";
 import { queryKeys } from "@/lib/query-keys";
 
-export function useTasks(params: ListQueryParams = {}, projectId?: string) {
+export function useTasks(params: ListQueryParams = {}, projectId?: string, taskFilters?: TaskListFilters) {
   return useQuery<PaginatedResponse<Task>>({
-    queryKey: queryKeys.tasks({ ...params, projectId }),
-    queryFn: () => tasksApi.getAll(params, projectId),
+    queryKey: queryKeys.tasks({ ...params, projectId, ...taskFilters }),
+    queryFn: () => tasksApi.getAll(params, projectId, taskFilters),
     placeholderData: (prev) => prev,
     staleTime: 30_000,
     gcTime: 10 * 60_000,

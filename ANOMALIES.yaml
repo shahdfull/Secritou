@@ -4283,11 +4283,11 @@ anomalies:
 
   - id: SEC-056
     titre: "TasksListView n'offre qu'un filtre statut + recherche texte (manquent projet/assigne/echeance en retard) et utilise une grille CSS a colonnes fixes en pixels sans variante empilee mobile, contrairement a la grille responsive de ProjectsPage"
-    perimetre: "4.3 Gestion des taches — client/src/features/tasks/TasksPage.tsx, client/src/features/tasks/components/TasksListView.tsx"
+    perimetre: "4.3 Gestion des taches — client/src/features/tasks/TasksPage.tsx, client/src/features/tasks/components/TasksListView.tsx, client/src/features/tasks/hooks/useTasksPageData.ts, client/src/api/tasks.api.ts, client/src/hooks/useTasks.ts, server/src/controllers/task.controller.ts, server/src/services/task.service.ts, server/src/repositories/task.repository.ts"
     regle_violee: null
     classe: null
     gravite: moyen
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       U1 sera résolu par l'ajout de filtres combinables (projet,
       assigné, échéance en retard) persistés dans l'URL, sur le modèle
@@ -4318,8 +4318,66 @@ anomalies:
       md:grid-cols-2` sur petit écran. Probablement inutilisable sans
       défilement horizontal sur écran étroit.
 
-      Non corrigés cette session (décision du porteur : « F1 seul,
-      urgent »).
+      Non corrigés lors du traitement de F1 (décision du porteur alors :
+      « F1 seul, urgent »). Repris ensuite sur décision explicite du
+      porteur via question posée (« Les deux (U1 et U2) »).
+
+      U1 — correctif : filtres `assigneeId`/`overdue` ajoutés de bout
+      en bout (`TasksListView.tsx` : Select assigné + Checkbox « en
+      retard » ; `TasksPage.tsx` : lecture/écriture des deux valeurs
+      via `useSearchParams` ; `tasks.api.ts#TaskListFilters`,
+      `useTasks.ts`, `useTasksPageData.ts` : propagation du filtre
+      jusqu'à l'appel HTTP réel ; `task.controller.ts` → `task.service.ts`
+      → `task.repository.ts#buildWhere` : filtre appliqué côté serveur,
+      jamais laissé au seul frontend). Conflit `overdue`/`options.status`
+      (les deux mappent la même clé Prisma `status`) résolu par priorité
+      explicite à `overdue` dans `buildWhere`, doublée côté client d'une
+      désactivation du select statut quand `overdue` est coché (ceinture
+      et bretelles). Invariant de sécurité vérifié par test dédié : un
+      FREELANCER fournissant l'id d'un autre freelancer en `assigneeId`
+      ne voit toujours que ses propres tâches (l'auto-scope serveur
+      n'est jamais contournable par le paramètre de requête) —
+      `server/test/taskAssigneeAndOverdueFilters.test.ts`, 4 tests
+      (ADMIN filtre par assigneeId, non-contournement FREELANCER,
+      overdue=true ne retourne que du passé non-DONE, priorité
+      overdue/status). `ListQueryOptions` (utilisé par tous les
+      endpoints de liste) délibérément non étendu — filtres tâche
+      passés en paramètre séparé `taskFilters` à chaque couche, sur le
+      modèle déjà en place pour `projectId` (SEC-052).
+
+      U2 — correctif : table virtualisée existante (`useVirtualizer`,
+      hauteur de ligne fixe 56px) conservée intacte et encapsulée dans
+      `hidden sm:block` ; nouvelle liste de cartes non virtualisée
+      (`sm:hidden divide-y`, `.map()` direct) ajoutée pour l'écran
+      étroit — la liste étant déjà paginée à 10/page (contrairement au
+      Kanban à 200 tâches), le cas de performance justifiant la
+      virtualisation ne s'applique pas à cette vue mobile. Clé i18n
+      `tasksPage.noTasksFound` ajoutée (fr/en) pour l'état vide de la
+      vue carte.
+
+      Test ajouté : `client/src/features/tasks/components/TasksListView.test.tsx`
+      (2 tests) — rend le composant réel, vérifie la présence des deux
+      conteneurs (`hidden sm:block` desktop, `sm:hidden` mobile) et que
+      la vue carte (non virtualisée, donc fiable en JSDOM) affiche
+      effectivement les données de la tâche ; second test pour l'état
+      vide. La table desktop virtualisée ne rend aucune ligne en JSDOM
+      (aucune taille de viewport réelle pour `@tanstack/react-virtual`)
+      — comportement connu de la lib en environnement de test, pas un
+      défaut du correctif ; seule la présence du conteneur y est
+      vérifiée. `useTasksPageData.test.tsx` étendu de 2 tests
+      (propagation réelle de `assigneeId`/`overdue` jusqu'à la requête
+      GET /tasks, et leur omission quand absents).
+
+      Vérification complète : serveur `npx tsc --noEmit` (clean),
+      `npm run lint` (0 erreur, 0 warning), `npx tsx --test
+      test/run-all.test.ts` (337/337) ; client `npx tsc --noEmit`
+      (clean), `npm run lint` (12 warnings — exception documentée
+      SEC-049, aucune régression), `npx vitest run` (34/34), `npm run
+      build` (succès). Résolu SANS confirmation CI : le workflow GitHub
+      Actions sur `origin/main` est en `workflow_dispatch` uniquement
+      (déviation établie en session le 2026-07-17, citée à chaque
+      clôture depuis) — vérification limitée aux portes locales
+      ci-dessus.
 
   - id: SEC-057
     titre: "Boutons d'action a icone seule (title mais pas d'aria-label systematique) ; aucune aide contextuelle n'explique l'absence du bouton Nouveau projet ; la cadence/prochaine reunion n'est visible que dans l'onglet Reunions, absente de la vue d'ensemble de la fiche projet"

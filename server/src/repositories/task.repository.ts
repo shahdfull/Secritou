@@ -20,7 +20,8 @@ function buildWhere(
   userRole: Role,
   options: ListQueryOptions,
   projectId?: string,
-  userServiceId?: string | null
+  userServiceId?: string | null,
+  taskFilters?: { assigneeId?: string; overdue?: boolean }
 ) {
   // A MANAGER only sees tasks whose project belongs to their service (pole). "__none__"
   // guarantees no match when the manager has no service. archivedAt filtered alongside
@@ -32,16 +33,30 @@ function buildWhere(
     userRole === "MANAGER"
       ? { serviceId: userServiceId ?? "__none__", deletedAt: null, archivedAt: null }
       : { deletedAt: null, archivedAt: null };
+  // "Overdue" mirrors the red-text convention already used client-side (dueDate in the past,
+  // not yet DONE) — a task done late isn't "overdue" anymore. Deliberately takes priority over
+  // options.status if both are somehow supplied at once (the client never offers both together —
+  // the "en retard" toggle disables the status dropdown — but the server must not silently
+  // produce two conflicting `status` keys in the same where clause either way).
+  const statusFilter = taskFilters?.overdue
+    ? { status: { not: "DONE" as TaskStatus } }
+    : options.status
+      ? { status: options.status as TaskStatus }
+      : {};
+  const overdueDateFilter = taskFilters?.overdue ? { dueDate: { lt: new Date() } } : {};
   const base = {
     project: projectFilter,
     ...(projectId && { projectId }),
-    ...(options.status ? { status: options.status as TaskStatus } : {}),
+    ...statusFilter,
+    ...overdueDateFilter,
     ...buildTextSearchFilter(options.search, ["title", "description"]),
   };
   if (userRole === "FREELANCER") {
+    // A FREELANCER is always scoped to their own tasks — an arbitrary assigneeId filter must
+    // never override this, or one freelancer could browse another's task list by URL param.
     return { ...base, assigneeId: userId };
   }
-  return base;
+  return { ...base, ...(taskFilters?.assigneeId && { assigneeId: taskFilters.assigneeId }) };
 }
 
 function buildOrderBy(orderBy: string | undefined, orderDir: "asc" | "desc") {
@@ -56,9 +71,10 @@ export const taskRepository = {
     userRole: Role,
     options: ListQueryOptions,
     projectId?: string,
-    userServiceId?: string | null
+    userServiceId?: string | null,
+    taskFilters?: { assigneeId?: string; overdue?: boolean }
   ): Promise<PaginatedResult<TaskWithRelations>> {
-    const where = buildWhere(userId, userRole, options, projectId, userServiceId);
+    const where = buildWhere(userId, userRole, options, projectId, userServiceId, taskFilters);
     const skip = (options.page - 1) * options.pageSize;
     const orderBy = buildOrderBy(options.orderBy, options.orderDir);
 

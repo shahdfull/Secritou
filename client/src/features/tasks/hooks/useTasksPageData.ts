@@ -4,6 +4,7 @@ import { useTasks } from "@/hooks/useTasks";
 import { useProjects } from "@/hooks/useProjects";
 import { usersApi } from "@/api/users.api";
 import { commentsApi } from "@/api/comments.api";
+import type { TaskListFilters } from "@/api/tasks.api";
 import type { User } from "@/types/auth";
 import type { Comment } from "@/types/comment";
 
@@ -14,9 +15,16 @@ type ListParams = Parameters<typeof useTasks>[0];
  * comments-for-selected-task) plus the derived lookup maps.
  * `projectId` (SEC-052) narrows the tasks query to a single project — set when TasksPage is
  * reached via a project's "Voir toutes les tâches" link (?projectId=... in the URL).
+ * `taskFilters` (SEC-056) adds assignee/overdue narrowing, both persisted in the URL the same
+ * way status/search already are via useListParams.
  */
-export function useTasksPageData(listParams: ListParams, selectedTaskId: string | null, projectId?: string) {
-  const { data: tasksResult, isLoading: tasksLoading } = useTasks(listParams, projectId);
+export function useTasksPageData(
+  listParams: ListParams,
+  selectedTaskId: string | null,
+  projectId?: string,
+  taskFilters?: TaskListFilters
+) {
+  const { data: tasksResult, isLoading: tasksLoading } = useTasks(listParams, projectId, taskFilters);
   const { data: projectsResult, isLoading: projectsLoading } = useProjects({ page: 1, pageSize: 100 });
 
   const tasks = useMemo(() => tasksResult?.data ?? [], [tasksResult?.data]);

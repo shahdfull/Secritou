@@ -3,13 +3,24 @@ import type { Task, CreateTaskInput, UpdateTaskInput, FreelancerConflict } from 
 import type { ApiResponse } from "../types/auth";
 import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 
+export interface TaskListFilters {
+  assigneeId?: string;
+  overdue?: boolean;
+}
+
 export const tasksApi = {
   getAll: async (
     params: ListQueryParams = {},
-    projectId?: string
+    projectId?: string,
+    taskFilters?: TaskListFilters
   ): Promise<PaginatedResponse<Task>> => {
     const response = await apiClient.get<PaginatedResponse<Task>>("/tasks", {
-      params: { ...params, ...(projectId && { projectId }) },
+      params: {
+        ...params,
+        ...(projectId && { projectId }),
+        ...(taskFilters?.assigneeId && { assigneeId: taskFilters.assigneeId }),
+        ...(taskFilters?.overdue && { overdue: "true" }),
+      },
     });
     return response.data;
   },
