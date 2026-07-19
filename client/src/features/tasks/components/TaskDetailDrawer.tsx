@@ -28,6 +28,7 @@ import type { Comment } from "@/types/comment";
 import { getInitials, getStatusLabel } from "../taskUtils";
 import { TaskAttachments } from "./TaskAttachments";
 import { MentionTextarea } from "./MentionTextarea";
+import { TaskChecklist } from "./TaskChecklist";
 
 // SEC-059: a comment can now be edited/deleted, but only by its own author or an ADMIN — the
 // server is the real authority (403 COMMENT_NOT_YOURS), this is only to avoid showing controls
@@ -215,6 +216,8 @@ export function TaskDetailDrawer({
               )}
             </div>
           </div>
+
+          <TaskChecklist taskId={task.id} />
 
           <TaskAttachments
             taskId={task.id}

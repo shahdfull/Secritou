@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-066
+dernier_id: SEC-067
 
 anomalies:
   - id: SEC-001
@@ -4713,10 +4713,18 @@ anomalies:
       relié à SEC-060 par le champ `classe`, jamais fusionné : SEC-064
       (pièces jointes sur tâche, `resolu`, cette session), SEC-065
       (mentions @ dans les commentaires, `resolu`, cette session),
-      SEC-066 (actions en masse, `resolu`, cette session). L'item
-      sous-tâches restant suivra le même principe à son traitement —
-      cette anomalie (SEC-060) reste `ouvert` tant que tous les items
-      retenus n'ont pas leur propre ID `resolu`.
+      SEC-066 (actions en masse, `resolu`, cette session), SEC-067
+      (sous-tâches, `resolu`, cette session — dernier des 4 items
+      retenus). Les 4 items retenus par le porteur sont donc tous
+      `resolu` sous leur propre ID. Cette anomalie (SEC-060) reste
+      `ouvert` : son critère de résolution original couvre les 6 items
+      du constat, et l'item (2) dépendances entre tâches n'a reçu
+      aucune décision de reprise — SEC-060 ne peut être déclarée
+      `resolu` alors qu'un des items qu'elle décrit reste sans réponse
+      du porteur (ce serait une fabrication de statut au sens de
+      CLAUDE.md). Reste `ouvert` uniquement comme registre de ce
+      dernier item non tranché, jusqu'à décision explicite du porteur
+      (traiter, ou classer définitivement hors périmètre).
 
   - id: SEC-061
     titre: "Le CLIENT ne voit son projet qu'via une timeline synthetique en 7 etapes et un brief, jamais le detail des taches — friction de confiance potentielle sur des projets longs"
@@ -5093,6 +5101,95 @@ anomalies:
       4 nouveaux) ; client `npx tsc --noEmit` (clean), `npm run lint`
       (12 warnings — exception SEC-049, stable), `npx vitest run`
       (57/57, 6 nouveaux), `npm run build` (succès). Résolu SANS
+      confirmation CI : workflow GitHub Actions sur `origin/main` en
+      `workflow_dispatch` uniquement (déviation établie en session le
+      2026-07-17, citée à chaque clôture depuis).
+
+  - id: SEC-067
+    titre: "Aucune sous-tache/checklist n'existe sur une tache — model Task n'a ni parentId ni relation vers des Task[] enfants"
+    perimetre: "4.3 Gestion des tâches — server/prisma/schema.prisma (model Task, model TaskChecklistItem), server/src/repositories/taskChecklist.repository.ts, server/src/services/taskChecklist.service.ts, server/src/controllers/taskChecklist.controller.ts, server/src/validators/taskChecklist.validator.ts, server/src/routes/task.routes.ts, client/src/api/taskChecklist.api.ts, client/src/features/tasks/hooks/useTaskChecklist.ts, client/src/features/tasks/components/TaskChecklist.tsx, client/src/features/tasks/components/TaskDetailDrawer.tsx"
+    regle_violee: null
+    classe: "fonctionnalites-pm-standard-absentes"
+    gravite: moyen
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand un utilisateur ayant accès à une tâche (ADMIN,
+      MANAGER de son pôle, FREELANCER assigné) peut ajouter des
+      sous-tâches sous forme de checklist (titre + fait/pas fait), les
+      cocher/décocher, les renommer et les supprimer, sans qu'aucune
+      règle automatique ne relie leur complétion au statut de la tâche
+      parente (décision explicite du porteur : statuts indépendants).
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Sous-ensemble de SEC-060 (item 1 du constat P1, rapport Product
+      Owner), relié par `classe` — jamais fusionné avec SEC-060, qui
+      reste `ouvert` uniquement pour l'item non retenu (dépendances
+      entre tâches). Quatrième et dernier des 4 items retenus, traité
+      après SEC-064 (pièces jointes), SEC-065 (mentions) et SEC-066
+      (actions en masse), dans l'ordre confirmé par le porteur.
+
+      Trois décisions de conception tranchées via AskUserQuestion avant
+      tout code, chacune changeant significativement le modèle de
+      données à construire : (1) profondeur — un seul niveau, une
+      sous-tâche ne peut pas elle-même avoir de sous-tâches (écarte
+      l'imbrication récursive et son UI) ; (2) autonomie — une
+      sous-tâche est une simple checklist (titre + fait/pas fait), PAS
+      une entité `Task` complète avec assignee/statut/échéance propres
+      (écarte la réutilisation de `Task.parentId`, qui aurait laissé
+      croire à tort qu'une sous-tâche est une vraie tâche) ; (3)
+      complétion — aucune règle automatique ne bloque le statut du
+      parent en fonction de ses sous-tâches, statuts totalement
+      indépendants (écarte une nouvelle règle métier de blocage à
+      concevoir et tester).
+
+      Conséquence directe de (1)+(2) : nouveau modèle Prisma dédié et
+      plus léger, `TaskChecklistItem` (titre, `done` booléen,
+      `position`, `taskId`), plutôt qu'un self-reference
+      `Task.parentId` — migration
+      `20260719193000_add_task_checklist_item`. `position` toujours
+      dérivée côté serveur du nombre d'items existants (jamais
+      transmise/fiée par le client), pour que deux créations
+      concurrentes ne collisionnent pas sur le même index.
+
+      Autorisation : même audience que les commentaires de tâche
+      (ADMIN/MANAGER/FREELANCER assigné, `taskRepository.existsInCompany`
+      réutilisé tel quel dans le contrôleur) — une checklist est un
+      outil de travail collaboratif sur la tâche, pas un contenu
+      réservé au management, cohérent avec le fait qu'un FREELANCER
+      peut déjà modifier le statut de ses propres tâches. Contrairement
+      aux commentaires (SEC-059) et réunions (SEC-055/F6), pas de
+      restriction supplémentaire par auteur — n'importe qui ayant accès
+      à la tâche peut cocher/modifier/supprimer n'importe quel item,
+      décision cohérente avec la nature « checklist partagée » du
+      concept retenu. Isolation cross-tâche testée explicitement :
+      modifier/supprimer un item via un `taskId` qui ne correspond pas
+      au sien 404 (même garde que SEC-059/SEC-055).
+
+      Nouvelles routes : `GET`/`POST /tasks/:taskId/checklist`,
+      `PUT`/`DELETE /tasks/:taskId/checklist/:itemId`. Côté client :
+      nouveau composant `TaskChecklist.tsx` (case à cocher par item,
+      barre de progression purement informative — n'influence jamais
+      le statut de la tâche, ajout via champ + Entrée, suppression au
+      survol), câblé dans `TaskDetailDrawer.tsx` au-dessus de
+      `TaskAttachments`.
+
+      Tests réels ajoutés : `server/test/taskChecklist.test.ts` (4 cas
+      d'intégration réelle contre une base migrée — position dérivée
+      serveur et non transmise, bascule fait/renommage sans effet de
+      bord croisé, suppression isolée des autres items, isolation
+      cross-tâche 404) ;
+      `client/src/features/tasks/components/TaskChecklist.test.tsx` (4
+      cas — affichage des items et du compteur, ajout appelle la vraie
+      requête POST, bascule appelle la vraie requête PUT avec
+      `done: true`, suppression appelle la vraie requête DELETE).
+
+      Vérification complète : serveur `npx tsc --noEmit` (clean), `npm
+      run lint` (0/0), `npx tsx --test test/run-all.test.ts` (370/370,
+      4 nouveaux) ; client `npx tsc --noEmit` (clean), `npm run lint`
+      (12 warnings — exception SEC-049, stable), `npx vitest run`
+      (61/61, 4 nouveaux), `npm run build` (succès). Résolu SANS
       confirmation CI : workflow GitHub Actions sur `origin/main` en
       `workflow_dispatch` uniquement (déviation établie en session le
       2026-07-17, citée à chaque clôture depuis).

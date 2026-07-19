@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { getAllTasks, getTaskById, createTask, updateTask, deleteTask, getFreelancerAvailability, bulkUpdateTaskStatus, bulkDeleteTasks } from "../controllers/task.controller.js";
 import { getCommentsByTaskId, createComment, updateComment, deleteComment } from "../controllers/comment.controller.js";
+import { getChecklistItems, createChecklistItem, updateChecklistItem, deleteChecklistItem } from "../controllers/taskChecklist.controller.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { createTaskSchema, updateTaskSchema, getFreelancerAvailabilitySchema, addTaskCommentSchema, updateTaskCommentSchema, deleteTaskCommentSchema, bulkUpdateTaskStatusSchema, bulkDeleteTasksSchema } from "../validators/task.validator.js";
+import { createChecklistItemSchema, updateChecklistItemSchema, deleteChecklistItemSchema } from "../validators/taskChecklist.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
 const router = Router();
@@ -38,5 +40,14 @@ router.get("/:taskId/comments", authorize("ADMIN", "MANAGER", "FREELANCER"), get
 router.post("/:taskId/comments", authorize("ADMIN", "MANAGER", "FREELANCER"), validate(addTaskCommentSchema), createComment);
 router.put("/:taskId/comments/:commentId", authorize("ADMIN", "MANAGER", "FREELANCER"), validate(updateTaskCommentSchema), updateComment);
 router.delete("/:taskId/comments/:commentId", authorize("ADMIN", "MANAGER", "FREELANCER"), validate(deleteTaskCommentSchema), deleteComment);
+
+// SEC-060 (sous-tâches, item 4 du constat P1 rapport Product Owner) : checklist plate sur une
+// tâche (pas une Task imbriquée — décision du porteur, session 2026-07-19). Même audience que les
+// commentaires : la checklist est un outil de travail collaboratif sur la tâche, pas un contenu
+// réservé au management — un FREELANCER assigné peut déjà cocher le statut de sa propre tâche.
+router.get("/:taskId/checklist", authorize("ADMIN", "MANAGER", "FREELANCER"), getChecklistItems);
+router.post("/:taskId/checklist", authorize("ADMIN", "MANAGER", "FREELANCER"), validate(createChecklistItemSchema), createChecklistItem);
+router.put("/:taskId/checklist/:itemId", authorize("ADMIN", "MANAGER", "FREELANCER"), validate(updateChecklistItemSchema), updateChecklistItem);
+router.delete("/:taskId/checklist/:itemId", authorize("ADMIN", "MANAGER", "FREELANCER"), validate(deleteChecklistItemSchema), deleteChecklistItem);
 
 export default router;

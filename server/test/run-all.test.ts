@@ -75,3 +75,4 @@ import "./taskAttachments.test.ts";
 import "./mentions.test.ts";
 import "./taskCommentMentions.test.ts";
 import "./taskBulkActions.test.ts";
+import "./taskChecklist.test.ts";

@@ -606,6 +606,11 @@ model Task {
   // SEC-060: attachments directly on a task (distinct from a project-level Document) — Document
   // already supports an optional projectId, taskId follows the same optional-FK pattern.
   documents   Document[]
+  // SEC-060 (sous-tâches, décision du porteur 2026-07-19): a checklist, not a nested Task — a
+  // single flat level, no independent assignee/status/dueDate. TaskChecklistItem is a distinct,
+  // lighter model rather than a self-referencing Task.parentId, to avoid implying a subtask is a
+  // full task (which the porteur explicitly ruled out).
+  checklistItems TaskChecklistItem[]
   createdAt   DateTime    @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime    @updatedAt @db.Timestamptz(6)
 
@@ -631,6 +636,23 @@ model Comment {
 
   @@index([taskId])
   @@index([authorId])
+}
+
+// SEC-060 (sous-tâches, item 4 du constat P1 rapport Product Owner) : une checklist plate sur une
+// tâche — pas une Task imbriquée. Décision du porteur (session 2026-07-19) : un seul niveau,
+// aucun assignee/statut/échéance propre (juste titre + fait/pas fait), aucune règle de complétion
+// automatique du parent.
+model TaskChecklistItem {
+  id        String   @id @default(uuid())
+  title     String   @db.VarChar(255)
+  done      Boolean  @default(false)
+  position  Int
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([taskId, position])
 }
 
 // ContactRequest model for contact form submissions
