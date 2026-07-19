@@ -25,6 +25,8 @@ type Task = {
   dueDate: string | null;
   priority: string;
   project: { id: string; name: string } | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 type Project = {
@@ -168,8 +170,8 @@ export function FreelancerDashboardPage() {
 
   // Completion rate: current month only
   const monthTasks = tasks.filter((t) => {
-    const updatedAt = (t as any).updatedAt ? new Date((t as any).updatedAt) : null;
-    const createdAt = (t as any).createdAt ? new Date((t as any).createdAt) : null;
+    const updatedAt = t.updatedAt ? new Date(t.updatedAt) : null;
+    const createdAt = t.createdAt ? new Date(t.createdAt) : null;
     const ref = updatedAt ?? createdAt;
     if (!ref) return true;
     return ref >= monthStart && ref <= monthEnd;

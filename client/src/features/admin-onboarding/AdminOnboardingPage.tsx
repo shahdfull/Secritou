@@ -6,6 +6,7 @@ import {
   useClientOnboardings,
   useCreateClientOnboarding,
 } from "@/hooks/useClientOnboarding";
+import type { ClientOnboarding, OnboardingStep } from "@secritou/shared";
 import { useProjects } from "@/hooks/useProjects";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,14 +61,14 @@ export function AdminOnboardingPage() {
     );
   };
 
-  const calculateProgress = (onboarding: any) => {
+  const calculateProgress = (onboarding: ClientOnboarding) => {
     const completed = onboarding.steps.filter(
-      (s: any) => s.status === "COMPLETED"
+      (s) => s.status === "COMPLETED"
     ).length;
     return Math.round((completed / onboarding.steps.length) * 100);
   };
 
-  const getOnboardingStatus = (steps: any[]) => {
+  const getOnboardingStatus = (steps: OnboardingStep[]) => {
     if (steps.every((s) => s.status === "COMPLETED")) return t("onboarding.timeline.statuses.completed");
     if (steps.some((s) => s.status === "REJECTED")) return t("onboarding.timeline.statuses.rejected");
     if (steps.some((s) => s.status === "IN_PROGRESS" || s.status === "COMPLETED")) return t("onboarding.timeline.statuses.inProgress");
@@ -106,7 +107,7 @@ export function AdminOnboardingPage() {
                   <SelectValue placeholder={t("common.selectProject")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {projects?.data.map((p: any) => (
+                  {projects?.data.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.name}
                     </SelectItem>

@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-050
+dernier_id: SEC-051
 
 anomalies:
   - id: SEC-001
@@ -3964,3 +3964,69 @@ anomalies:
       propres. `resolu` SANS confirmation CI : CI désactivée sur
       `origin/main` (workflow_dispatch seul, session du 2026-07-17),
       dérogation « no make it resolu » déjà établie.
+  - id: SEC-051
+    titre: "Le formulaire questionnaire du portail client (QuestionnaireStep) envoyait les reponses dynamiques (companyName/colors/references/pages, etc.) au top-level du payload au lieu de les envelopper sous data, alors que le serveur ne persiste que serviceType/isDraft/data.data — toutes les reponses etaient silencieusement perdues"
+    perimetre: "4.9 ClientOnboarding et sous-etapes — client/src/features/client-onboarding/ClientOnboardingPage.tsx, server/src/repositories/clientOnboarding.repository.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand le formulaire questionnaire envoie ses réponses
+      dynamiques imbriquées sous la clé `data` (`{ serviceType, data:
+      fields, isDraft }`), correspondant exactement à ce que
+      `clientOnboarding.repository.ts#updateQuestionnaire` persiste
+      réellement — vérifié par un test qui rend le composant réel
+      `QuestionnaireStep` et confirme que le payload de mutation contient
+      `data` (jamais les champs au top-level).
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert en typant `ClientOnboardingPage.tsx` pendant le
+      nettoyage lint (SEC-049) : `QuestionnaireStep({ step: any,
+      updateQuestionnaire: any, t: any })` masquait un vrai défaut de
+      forme de payload que le typage a fait apparaître à la lecture du
+      code (pas via une erreur TypeScript — le spread `...fields` dans
+      un objet littéral passé à une fonction typée ne déclenche pas de
+      vérification stricte des propriétés en excès).
+
+      CONSTAT CONFIRMÉ PAR LECTURE DIRECTE (des deux côtés) :
+      `handleSave` construisait `{ serviceType, ...fields, isDraft }` —
+      `fields` étant un `Record<string, string>` des réponses saisies
+      selon le `serviceType` choisi (`companyName`/`colors`/
+      `references`/`pages` pour "website", équivalents pour "marketing"/
+      "analytics"). Côté serveur,
+      `clientOnboarding.repository.ts#updateQuestionnaire` construit
+      `updateData = { serviceType: data.serviceType, isDraft:
+      data.isDraft }` et n'ajoute `updateData.data` QUE si
+      `data.data !== undefined` — un champ imbriqué `data` que le client
+      n'envoyait JAMAIS. Confirmé par recherche exhaustive : aucune
+      lecture de `questionnaire.data` nulle part côté client non plus
+      (ni pour un pré-remplissage, ni pour un affichage). Un client
+      remplissant le questionnaire voyait donc ses réponses acceptées
+      sans erreur, mais silencieusement jetées — jamais sauvegardées,
+      jamais réaffichées.
+
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-19, après description précise du défaut) : « Corriger
+      maintenant : envelopper fields sous data (Recommandé) » — plutôt
+      que documenter sans corriger, ou ignorer.
+
+      CORRECTIF ÉCRIT : `handleSave` envoie désormais `{ serviceType,
+      data: fields, isDraft }`. Aucun changement côté serveur (déjà
+      correct). Pré-remplissage de `fields` depuis
+      `questionnaire.data` au montage (pour reprendre un brouillon)
+      volontairement PAS ajouté — fonctionnalité additionnelle
+      distincte de ce correctif, hors périmètre (« réparer n'est pas
+      développer »).
+
+      TEST AJOUTÉ : `client/src/features/client-onboarding/
+      ClientOnboardingPage.test.tsx` (nouveau fichier), rend le vrai
+      composant `QuestionnaireStep` (exporté à cette occasion, était
+      seulement local à son module) et vérifie sur 2 cas (soumission,
+      brouillon) que le payload de mutation contient `data` et jamais
+      les champs au top-level. 24/24 tests client verts, typecheck et
+      build client propres. `resolu` déclaré SANS confirmation CI : CI
+      désactivée sur `origin/main` (workflow_dispatch seul, session du
+      2026-07-17), dérogation "no make it resolu" déjà établie.

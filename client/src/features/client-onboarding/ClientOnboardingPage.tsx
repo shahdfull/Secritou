@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useParams, Link } from "react-router-dom";
 import { formatDateTime } from "@/utils/format";
 import {
@@ -8,6 +9,7 @@ import {
   useUpdateContract,
   useUpdateQuestionnaire,
 } from "@/hooks/useClientOnboarding";
+import type { OnboardingStep } from "@secritou/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,14 +33,28 @@ import {
   Download,
 } from "lucide-react";
 
-function QuestionnaireStep({ step, updateQuestionnaire, t }: { step: any; updateQuestionnaire: any; t: any }) {
+export function QuestionnaireStep({
+  step,
+  updateQuestionnaire,
+  t,
+}: {
+  step: OnboardingStep;
+  updateQuestionnaire: ReturnType<typeof useUpdateQuestionnaire>;
+  t: TFunction;
+}) {
   const [serviceType, setServiceType] = useState(step.questionnaire?.serviceType || "");
   const [fields, setFields] = useState<Record<string, string>>({});
 
   const handleSave = (isDraft: boolean) => {
+    // step.questionnaire is guaranteed non-null here: this form only renders past the
+    // `!step.questionnaire` early return below.
+    // SEC-051 fix: `fields` (the dynamic per-serviceType answers — companyName/colors/
+    // references/pages, etc.) must be nested under `data` — that's the only key the server
+    // persists (clientOnboarding.repository.ts#updateQuestionnaire writes serviceType/isDraft/
+    // data.data). Spreading `fields` at the top level silently discarded every answer.
     updateQuestionnaire.mutate({
-      questionnaireId: step.questionnaire.id,
-      data: { serviceType, ...fields, isDraft },
+      questionnaireId: step.questionnaire!.id,
+      data: { serviceType, data: fields, isDraft },
     });
   };
 
@@ -197,7 +213,7 @@ export function ClientOnboardingPage() {
     }
   };
 
-  const renderStepContent = (step: any) => {
+  const renderStepContent = (step: OnboardingStep) => {
     switch (step.stepType) {
       case "welcome":
         return (
@@ -249,21 +265,22 @@ export function ClientOnboardingPage() {
           </div>
         );
 
-      case "contract":
+      case "contract": {
+        const contract = step.contract;
         return (
           <div className="space-y-4">
             <h3 className="text-2xl font-bold">{t("onboarding.contract.title")}</h3>
             <p className="text-muted-foreground">{t("onboarding.contract.subtitle")}</p>
 
-            {step.contract ? (
+            {contract ? (
               <div className="space-y-2">
                 <p>
                   <strong>{t("onboarding.contract.status")}: </strong>
-                  {step.contract.status}
+                  {contract.status}
                 </p>
-                {step.contract.contractUrl && (
+                {contract.contractUrl && (
                   <Link
-                    to={step.contract.contractUrl}
+                    to={contract.contractUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="text-primary underline"
@@ -272,11 +289,11 @@ export function ClientOnboardingPage() {
                   </Link>
                 )}
 
-                {step.contract.status !== "SIGNED" && (
+                {contract.status !== "SIGNED" && (
                   <Button
                     onClick={() => {
                       updateContract.mutate({
-                        contractId: step.contract.id,
+                        contractId: contract.id,
                         data: { status: "SIGNED" },
                       });
                     }}
@@ -291,6 +308,7 @@ export function ClientOnboardingPage() {
             )}
           </div>
         );
+      }
 
       case "payment":
         return (
