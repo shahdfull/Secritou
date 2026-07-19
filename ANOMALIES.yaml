@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-068
+dernier_id: SEC-069
 
 anomalies:
   - id: SEC-001
@@ -4656,7 +4656,7 @@ anomalies:
     regle_violee: null
     classe: "fonctionnalites-pm-standard-absentes"
     gravite: moyen
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       Pas de critère de résolution technique au sens strict : c'est un
       arbitrage de positionnement produit (outil interne d'agence vs
@@ -4665,9 +4665,9 @@ anomalies:
       implémentation — chacune constituerait un développement notable
       (nouveau champ de modèle Prisma + migration pour les
       sous-tâches/dépendances, nouvelle vue pour le Gantt, etc.),
-      jamais une simple réparation. Reste `ouvert` comme registre de
-      backlog produit jusqu'à décision explicite du porteur sur
-      laquelle prioriser, le cas échéant.
+      jamais une simple réparation. `resolu` quand les 6 items du
+      constat ont chacun reçu une décision explicite du porteur —
+      correctif réel ou rejet assumé — ce qui est désormais le cas.
     detecte_le: "2026-07-19"
     source: manuel
     confiance: certain
@@ -4711,20 +4711,36 @@ anomalies:
       (critère de résolution différent de celui de SEC-060 —
       implémentation réelle testée, pas un simple arbitrage documenté),
       relié à SEC-060 par le champ `classe`, jamais fusionné : SEC-064
-      (pièces jointes sur tâche, `resolu`, cette session), SEC-065
-      (mentions @ dans les commentaires, `resolu`, cette session),
-      SEC-066 (actions en masse, `resolu`, cette session), SEC-067
-      (sous-tâches, `resolu`, cette session — dernier des 4 items
-      retenus). Les 4 items retenus par le porteur sont donc tous
-      `resolu` sous leur propre ID. Cette anomalie (SEC-060) reste
-      `ouvert` : son critère de résolution original couvre les 6 items
-      du constat, et l'item (2) dépendances entre tâches n'a reçu
-      aucune décision de reprise — SEC-060 ne peut être déclarée
-      `resolu` alors qu'un des items qu'elle décrit reste sans réponse
-      du porteur (ce serait une fabrication de statut au sens de
-      CLAUDE.md). Reste `ouvert` uniquement comme registre de ce
-      dernier item non tranché, jusqu'à décision explicite du porteur
-      (traiter, ou classer définitivement hors périmètre).
+      (pièces jointes sur tâche, `resolu`), SEC-065 (mentions @ dans
+      les commentaires, `resolu`), SEC-066 (actions en masse,
+      `resolu`), SEC-067 (sous-tâches, `resolu`).
+
+      Repris une seconde fois (même session, plus tard) sur instruction
+      explicite du porteur (« continuer » puis choix « Rouvrir SEC-060
+      (dépendances entre tâches) » via AskUserQuestion) pour statuer sur
+      les 2 items qui restaient sans réponse :
+
+      Item (2) dépendances entre tâches : question posée sur trois
+      décisions de conception nécessaires avant tout code (effet du
+      blocage, cardinalité, gestion des cycles) — réponse du porteur :
+      rejet explicite, aucune dépendance entre tâches ne sera
+      implémentée. Décision de portée, pas un correctif : aucun code
+      écrit pour cet item, aucun nouvel ID créé — le rejet lui-même est
+      la résolution, consignée ici.
+
+      Item (3) vue calendrier/Gantt : porteur a demandé sa mise en
+      œuvre. Question de portée technique posée (calendrier mensuel
+      simple vs vrai Gantt à barres de durée) — réponse : « Calendrier
+      mensuel simple (Recommandé) ». Voir SEC-069 pour le correctif et
+      sa vérification.
+
+      Les 6 items du constat P1 ont désormais chacun une décision
+      explicite du porteur — 4 corrigés et testés sous leur propre ID
+      (SEC-064/065/066/067), 1 corrigé et testé sous SEC-069 (calendrier),
+      1 explicitement rejeté sans correctif (dépendances). SEC-060 passe
+      `resolu` sur cette base : plus aucun des 6 items ne reste sans
+      réponse du porteur, condition posée lors de la clôture précédente
+      pour ne pas fabriquer un statut prématuré.
 
   - id: SEC-061
     titre: "Le CLIENT ne voit son projet qu'via une timeline synthetique en 7 etapes et un brief, jamais le detail des taches — friction de confiance potentielle sur des projets longs"
@@ -5400,3 +5416,68 @@ anomalies:
       confirmation CI : workflow GitHub Actions sur `origin/main` en
       `workflow_dispatch` uniquement (déviation établie en session le
       2026-07-17, citée à chaque clôture depuis).
+
+  - id: SEC-069
+    titre: "Aucune vue calendrier n'existe sur le module Taches — seules les vues liste et Kanban sont disponibles"
+    perimetre: "4.3 Gestion des tâches — client/src/features/tasks/TasksPage.tsx, client/src/features/tasks/components/TasksCalendar.tsx"
+    regle_violee: null
+    classe: "fonctionnalites-pm-standard-absentes"
+    gravite: moyen
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand un utilisateur peut basculer vers une troisième vue
+      (calendrier mensuel) sur la page Tâches, voir les jours portant
+      une échéance marqués visuellement, et consulter les tâches dues
+      un jour donné en cliquant dessus — sans reconstruire un vrai
+      Gantt à barres de durée, portée explicitement écartée par le
+      porteur.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Sous-ensemble de SEC-060 (item 3 du constat P1, rapport Product
+      Owner), relié par `classe` — jamais fusionné avec SEC-060.
+      Dernier des items du constat original à recevoir une décision
+      (rouvert en fin de session sur instruction explicite du porteur,
+      après clôture initiale de SEC-060 avec 4 items retenus sur 6).
+
+      Portée technique tranchée via AskUserQuestion avant tout code :
+      « Calendrier mensuel simple (Recommandé) » — une grille jour
+      affichant les tâches à leur date d'échéance, pas un vrai Gantt à
+      barres de durée (jugé nettement plus lourd : nouvelle librairie
+      de rendu, alignement temporel par projet, bien au-delà de la
+      portée d'un calendrier).
+
+      Correctif : réutilisation du composant `Calendar` existant
+      (`react-day-picker`, déjà une dépendance du dépôt, déjà utilisé
+      par `BookingCalendar.tsx` — mais celui-ci sert la prise de
+      rendez-vous commerciale, sans rapport, non touché) via
+      `modifiers`/`modifiersClassNames` pour marquer les jours portant
+      une tâche à échéance. Nouveau composant `TasksCalendar.tsx`,
+      troisième option du `ToggleGroup` déjà en place pour
+      list/kanban dans `TasksPage.tsx` (`viewMode` étendu à `"list" |
+      "kanban" | "calendar"`). Chargement des tâches sur le même modèle
+      que le Kanban existant (`pageSize: 200`, non paginé — un
+      calendrier a besoin de voir toutes les tâches du mois affiché à
+      la fois, pas une seule page) ; la bannière d'avertissement de
+      troncature au-delà de 200 tâches, déjà en place pour le Kanban,
+      étendue aux deux vues non paginées via un `isUnpaginatedView`
+      commun plutôt que dupliquée. Seules les tâches avec `dueDate`
+      renseigné apparaissent — cohérent avec le reste de l'app, où
+      `dueDate` est déjà optionnel.
+
+      Test réel ajouté :
+      `client/src/features/tasks/components/TasksCalendar.test.tsx`
+      (4 cas — tâches du jour affichées avec leur projet, état vide
+      correct, clic sur une tâche déclenche `onView` avec la bonne
+      tâche, une tâche sans `dueDate` n'apparaît jamais).
+
+      Vérification complète : aucun changement serveur (les tâches
+      déjà chargées côté client suffisent), suite serveur relancée par
+      précaution et confirmée inchangée (376/376) ; client `npx tsc
+      --noEmit` (clean), `npm run lint` (12 warnings — exception
+      SEC-049, stable), `npx vitest run` (68/68, 4 nouveaux), `npm run
+      build` (succès). Résolu SANS confirmation CI : workflow GitHub
+      Actions sur `origin/main` en `workflow_dispatch` uniquement
+      (déviation établie en session le 2026-07-17, citée à chaque
+      clôture depuis).

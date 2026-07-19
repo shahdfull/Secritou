@@ -1,4 +1,4 @@
-import { Layout, KanbanSquare, Loader2, X } from "lucide-react";
+import { Layout, KanbanSquare, CalendarDays, Loader2, X } from "lucide-react";
 import { useEffect, useMemo, useState, useTransition, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useListParams } from "@/hooks/useListParams";
@@ -15,6 +15,7 @@ import { TaskCreateDialog } from "./components/TaskCreateDialog";
 import { TaskEditDialog } from "./components/TaskEditDialog";
 import { TaskDetailDrawer } from "./components/TaskDetailDrawer";
 import { TasksListView } from "./components/TasksListView";
+import { TasksCalendar } from "./components/TasksCalendar";
 import { useTasksPageData } from "./hooks/useTasksPageData";
 import { useTaskActions } from "./hooks/useTaskActions";
 import { filterAssignableUsers } from "./taskUtils";
@@ -28,7 +29,7 @@ export function TasksPage() {
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [isViewTransitionPending, startViewTransition] = useTransition();
   const [searchInput, setSearchInput] = useState("");
-  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
+  const [viewMode, setViewMode] = useState<"list" | "kanban" | "calendar">("list");
 
   const { page, pageSize, orderBy, orderDir, search, params, setPage, setSearch, setSort } = useListParams(10);
   const debouncedSearch = useDebouncedValue(searchInput, 300);
@@ -84,17 +85,18 @@ export function TasksPage() {
     setSearch(debouncedSearch);
   }, [debouncedSearch, setSearch]);
 
+  const isUnpaginatedView = viewMode === "kanban" || viewMode === "calendar";
   const listParams = useMemo(
     () => ({
       ...params,
-      pageSize: viewMode === "kanban" ? 200 : pageSize,
-      page: viewMode === "kanban" ? 1 : page,
+      pageSize: isUnpaginatedView ? 200 : pageSize,
+      page: isUnpaginatedView ? 1 : page,
       orderBy: orderBy ?? "createdAt",
       orderDir,
       search,
       status: statusFilter === "All" ? undefined : statusFilter,
     }),
-    [params, viewMode, pageSize, page, orderBy, orderDir, search, statusFilter]
+    [params, isUnpaginatedView, pageSize, page, orderBy, orderDir, search, statusFilter]
   );
 
   const taskFilters = useMemo(
@@ -129,7 +131,7 @@ export function TasksPage() {
 
   const handleViewModeChange = useCallback((v: string) => {
     if (!v) return;
-    startViewTransition(() => setViewMode(v as "list" | "kanban"));
+    startViewTransition(() => setViewMode(v as "list" | "kanban" | "calendar"));
   }, []);
 
   const handleSort = useCallback(
@@ -161,6 +163,9 @@ export function TasksPage() {
             </ToggleGroupItem>
             <ToggleGroupItem value="kanban" aria-label="Kanban view" disabled={isViewTransitionPending}>
               <KanbanSquare className="h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="calendar" aria-label="Calendar view" disabled={isViewTransitionPending}>
+              <CalendarDays className="h-4 w-4" />
             </ToggleGroupItem>
           </ToggleGroup>
           <TaskCreateDialog
@@ -195,11 +200,11 @@ export function TasksPage() {
         </div>
       )}
 
-      {/* Kanban view is capped at 200 tasks (a single unpaginated request) — past that, tasks
-          beyond the cap were silently missing from the board with no indication. Not a real
-          limit yet at this product stage, but flagging it now avoids a silent data loss as the
-          agency's task volume grows. */}
-      {viewMode === "kanban" && total > 200 && (
+      {/* Kanban and calendar views are capped at 200 tasks (a single unpaginated request) — past
+          that, tasks beyond the cap were silently missing from the board with no indication. Not
+          a real limit yet at this product stage, but flagging it now avoids a silent data loss as
+          the agency's task volume grows. */}
+      {isUnpaginatedView && total > 200 && (
         <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
           {t("tasksPage.kanbanTruncatedNotice", { shown: 200, total })}
         </p>
@@ -235,12 +240,14 @@ export function TasksPage() {
           permissions={{ isFreelancer, currentUserId: currentUser?.id, canDelete: canDeleteTask }}
           actions={{ onView: actions.handleView, onEdit: actions.handleEditTask, onDelete: actions.handleDelete }}
         />
-      ) : (
+      ) : viewMode === "kanban" ? (
         <TasksKanban
           filteredTasks={tasks}
           onTaskClick={actions.handleView}
           restrictDragToUserId={isFreelancer ? currentUser?.id : undefined}
         />
+      ) : (
+        <TasksCalendar tasks={tasks} projectNameById={projectNameById} onView={actions.handleView} />
       )}
 
       {actions.editingTask && (
