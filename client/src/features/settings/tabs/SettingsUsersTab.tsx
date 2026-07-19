@@ -107,7 +107,7 @@ function ManagerPermissionsPanel({ userId }: { userId: string }) {
   const overrides = overridesDraft ?? currentOverrides;
 
   const handleProfileChange = (profileId: string) => {
-    updateMutation.mutate({ profileId: profileId === "__none__" ? null : profileId, overrides: overrides as any });
+    updateMutation.mutate({ profileId: profileId === "__none__" ? null : profileId, overrides });
   };
 
   const toggleOverride = (mod: (typeof MODULES)[number], action: keyof PermissionsMap[typeof mod]) => {
@@ -125,7 +125,7 @@ function ManagerPermissionsPanel({ userId }: { userId: string }) {
   const handleSaveOverrides = () => {
     updateMutation.mutate({
       profileId: managerPerm?.profileId ?? null,
-      overrides: overrides as any,
+      overrides,
     });
     setOverridesDraft(null);
   };
@@ -428,7 +428,7 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
   deleteUser(id: string): void;
 }) {
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
-  const [inviteForm, setInviteForm] = useState({ name: "", email: "", role: "MANAGER" as const });
+  const [inviteForm, setInviteForm] = useState<{ name: string; email: string; role: "ADMIN" | "MANAGER" }>({ name: "", email: "", role: "MANAGER" });
   const [editingUser, setEditingUser] = useState<{ id: string; name: string; role: "ADMIN" | "MANAGER" | "CLIENT" | "FREELANCER" } | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<string | null>(null);
   const [expandedPermissions, setExpandedPermissions] = useState<string | null>(null);
@@ -519,7 +519,7 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
                   </div>
                   <div>
                     <Label htmlFor="invite-role">Rôle</Label>
-                    <Select value={inviteForm.role} onValueChange={(val) => setInviteForm((s) => ({ ...s, role: val as any }))}>
+                    <Select value={inviteForm.role} onValueChange={(val) => setInviteForm((s) => ({ ...s, role: val as "ADMIN" | "MANAGER" }))}>
                       <SelectTrigger>
                         <SelectValue placeholder="Choisir un rôle" />
                       </SelectTrigger>

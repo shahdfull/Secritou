@@ -180,7 +180,7 @@ export function useUpdateMe() {
     mutationFn: (data: UpdateMeInput) => usersApi.updateMe(data),
     onSuccess: (updatedUser: User) => {
       setUser(updatedUser);
-      queryClient.setQueryData(["auth.bootstrap"], (prev: any) =>
+      queryClient.setQueryData(["auth.bootstrap"], (prev?: { user: User; tokens: AuthTokens }) =>
         prev ? { ...prev, user: updatedUser } : undefined
       );
       toast.success(i18n.t("toasts.profileUpdated", "Profil mis à jour avec succès"));
@@ -209,7 +209,7 @@ export function useChangePassword() {
       if (user) {
         const updatedUser = { ...user, mustChangePassword: false };
         setUser(updatedUser);
-        queryClient.setQueryData(["auth.bootstrap"], (prev: any) =>
+        queryClient.setQueryData(["auth.bootstrap"], (prev?: { user: User; tokens: AuthTokens }) =>
           prev ? { ...prev, user: updatedUser } : undefined
         );
       }

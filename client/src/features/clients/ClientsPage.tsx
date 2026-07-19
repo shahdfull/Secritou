@@ -4,6 +4,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AxiosError } from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -154,8 +155,8 @@ export function ClientsPage() {
     if (!deleteTarget) return;
     deleteClient(deleteTarget.id, {
       onSuccess: () => setDeleteTarget(null),
-      onError: (error: any) => {
-        const code = error?.response?.data?.error?.code;
+      onError: (error: Error) => {
+        const code = error instanceof AxiosError ? (error.response?.data as { error?: { code?: string } })?.error?.code : undefined;
         if (code === "CLIENT_HAS_PROJECTS") {
           toast.error(t("clientsPage.errors.hasProjects"));
         } else if (code === "CLIENT_HAS_INVOICES") {

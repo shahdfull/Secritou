@@ -75,8 +75,10 @@ export const freelancerApplicationsApi = {
       role: "FREELANCER" | "MANAGER";
     }
   ) => {
+    // `user` is never read client-side beyond existing (a temp password/reset-token flow is
+    // handled entirely server-side); kept as `unknown` rather than assuming a shape unused here.
     const response = await apiClient.post<{
-      data: { user: any; application: FreelancerApplication };
+      data: { user: unknown; application: FreelancerApplication };
     }>(`/freelancer-applications/${id}/accept`, data);
     return response.data.data;
   },

@@ -4,6 +4,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import type { TFunction } from "i18next";
+import { AxiosError } from "axios";
 import { getProjectStatusBadgeClass } from "@/utils/statusColors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,7 +92,7 @@ function ProjectGrid({
   clientById: Map<string, { id: string; name: string }>;
   getStatusBadgeClass: (status: string) => string;
   getStatusLabel: (status: string) => string;
-  t: (key: string, options?: any) => string;
+  t: TFunction;
   canDelete: boolean;
   onEdit: (p: Project) => void;
   onDelete: (p: Project) => void;
@@ -239,8 +241,8 @@ export function ProjectsPage() {
         onSuccess: () => {
           closeEditDialog();
         },
-        onError: (error: any) => {
-          const errorCode = error?.response?.data?.error?.code;
+        onError: (error: Error) => {
+          const errorCode = error instanceof AxiosError ? (error.response?.data as { error?: { code?: string } })?.error?.code : undefined;
           if (errorCode === "COMPLETION_REQUIRES_CLIENT_APPROVAL") {
             toast.error(t("projectsPage.projectCompletionRequiresApproval"));
           } else if (errorCode === "INVALID_STATUS_TRANSITION") {
@@ -265,8 +267,8 @@ export function ProjectsPage() {
     if (!deleteTarget) return;
     deleteProject(deleteTarget.id, {
       onSuccess: () => setDeleteTarget(null),
-      onError: (error: any) => {
-        const errorCode = error?.response?.data?.error?.code;
+      onError: (error: Error) => {
+        const errorCode = error instanceof AxiosError ? (error.response?.data as { error?: { code?: string } })?.error?.code : undefined;
         if (errorCode === "PROJECT_HAS_INVOICES") {
           toast.error(t("projectsPage.projectHasInvoices"));
         } else if (errorCode === "PROJECT_HAS_ONBOARDING") {

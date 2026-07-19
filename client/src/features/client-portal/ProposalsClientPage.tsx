@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { AxiosError } from "axios";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -76,8 +77,9 @@ export function ProposalsClientPage() {
       setRejectDialogOpen(false);
       setComment("");
     },
-    onError: (error: any) => {
-      if (error?.response?.data?.error?.code === "PROPOSAL_VERSION_MISMATCH") {
+    onError: (error: Error) => {
+      const errorCode = error instanceof AxiosError ? (error.response?.data as { error?: { code?: string } })?.error?.code : undefined;
+      if (errorCode === "PROPOSAL_VERSION_MISMATCH") {
         // The proposal changed since it was loaded : refetch and ask the client to review again.
         queryClient.invalidateQueries({ queryKey: ["my-proposals"] });
         setSelected(null);

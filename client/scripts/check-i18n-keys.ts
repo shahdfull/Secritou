@@ -10,12 +10,12 @@ const __dirname = path.dirname(__filename);
 const I18N_DIR = path.resolve(__dirname, "../src/i18n/locales");
 const LANGS = ["en", "fr"];
 
-function getNestedKeys(obj: any, prefix: string = ""): string[] {
+function getNestedKeys(obj: Record<string, unknown>, prefix: string = ""): string[] {
   let keys: string[] = [];
   for (const [key, value] of Object.entries(obj)) {
     const fullKey = prefix ? `${prefix}.${key}` : key;
     if (typeof value === "object" && value !== null) {
-      keys = keys.concat(getNestedKeys(value, fullKey));
+      keys = keys.concat(getNestedKeys(value as Record<string, unknown>, fullKey));
     } else {
       keys.push(fullKey);
     }
@@ -26,7 +26,7 @@ function getNestedKeys(obj: any, prefix: string = ""): string[] {
 async function checkI18nKeys() {
   console.log("🔍 Checking i18n keys...");
   
-  const translations: Record<string, any> = {};
+  const translations: Record<string, Record<string, unknown>> = {};
   const allKeys: Set<string> = new Set();
 
   // Load all translations
@@ -60,7 +60,10 @@ async function checkI18nKeys() {
     // Check for empty values
     const emptyKeys: string[] = [];
     for (const key of langKeys) {
-      const value = key.split(".").reduce<any>((acc, part) => (acc == null ? acc : acc[part]), translations[lang]);
+      const value = key.split(".").reduce<unknown>(
+        (acc, part) => (acc == null ? acc : (acc as Record<string, unknown>)[part]),
+        translations[lang]
+      );
       if (typeof value === "string" && value.trim() === "") {
         emptyKeys.push(key);
       }

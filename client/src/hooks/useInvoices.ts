@@ -141,7 +141,11 @@ export function useAddInvoicePayment() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
 
-  return useMutation<any, Error, { id: string; data: any }>({
+  return useMutation<
+    Awaited<ReturnType<typeof invoicesApi.addPayment>>,
+    Error,
+    { id: string; data: Parameters<typeof invoicesApi.addPayment>[1] }
+  >({
     mutationFn: ({ id, data }) => invoicesApi.addPayment(id, data),
     onSuccess: (result) => {
       invalidateInvoiceRelatedCaches(queryClient);

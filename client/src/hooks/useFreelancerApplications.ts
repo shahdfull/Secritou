@@ -86,7 +86,7 @@ export function useAcceptFreelancerApplication() {
   const { t } = useTranslation();
 
   return useMutation<
-    { user: any; application: FreelancerApplication },
+    { user: unknown; application: FreelancerApplication },
     AxiosError,
     {
       id: string;
