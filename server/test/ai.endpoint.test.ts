@@ -1,12 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import type { Request, Response } from "express";
+import type { HttpError } from "../src/utils/httpError.js";
 import { authorize } from "../src/middlewares/rbac.middleware.js";
 import { personas } from "../src/agents/personas.js";
 import { extractJson } from "../src/services/agentOrchestrator.service.js";
 
-function runMiddleware(middleware: ReturnType<typeof authorize>, req: any) {
+function runMiddleware(middleware: ReturnType<typeof authorize>, req: Partial<Request>) {
   return new Promise<unknown>((resolve) => {
-    middleware(req, {} as any, (err?: unknown) => resolve(err));
+    middleware(req as Request, {} as Response, (err?: unknown) => resolve(err));
   });
 }
 
@@ -22,11 +24,11 @@ test.describe("AI Endpoints", () => {
     
     err = await runMiddleware(middleware, { user: { role: "CLIENT" } });
     assert.ok(err);
-    assert.equal((err as any).statusCode, 403);
+    assert.equal((err as HttpError).statusCode, 403);
     
     err = await runMiddleware(middleware, { user: { role: "FREELANCER" } });
     assert.ok(err);
-    assert.equal((err as any).statusCode, 403);
+    assert.equal((err as HttpError).statusCode, 403);
   });
 
   test("personas are defined", () => {

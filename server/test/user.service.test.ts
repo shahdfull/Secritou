@@ -5,6 +5,7 @@
 // (node:test mock), not reimplemented.
 
 import test, { describe, mock, before, after } from "node:test";
+import type { HttpError } from "../src/utils/httpError.js";
 import assert from "node:assert/strict";
 
 process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET ?? "a".repeat(32);
@@ -120,7 +121,7 @@ describe("userService last-Admin protection (RG-021)", () => {
 
     await assert.rejects(
       () => userService.updateUser("user-1", undefined, "MANAGER", { id: "actor-1", role: "ADMIN" }),
-      (err: any) => {
+      (err: HttpError) => {
         assert.equal(err.statusCode, 409);
         assert.equal(err.code, "LAST_ADMIN");
         return true;
@@ -143,7 +144,7 @@ describe("userService last-Admin protection (RG-021)", () => {
 
     await assert.rejects(
       () => userService.deleteUser("user-1", { id: "actor-1", role: "ADMIN" }),
-      (err: any) => {
+      (err: HttpError) => {
         assert.equal(err.statusCode, 409);
         assert.equal(err.code, "LAST_ADMIN");
         return true;

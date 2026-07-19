@@ -5,6 +5,7 @@
 // never exercises this refusal path.
 
 import test, { describe, mock, before, after } from "node:test";
+import type { HttpError } from "../src/utils/httpError.js";
 import assert from "node:assert/strict";
 
 const { projectRepository } = await import("../src/repositories/project.repository.js");
@@ -41,7 +42,7 @@ describe("projectService.updateProject blocks COMPLETED (RG-013)", () => {
 
     await assert.rejects(
       () => projectService.updateProject("project-1", { status: "COMPLETED" }),
-      (err: any) => {
+      (err: HttpError) => {
         assert.equal(err.statusCode, 422);
         assert.equal(err.code, "COMPLETION_REQUIRES_CLIENT_APPROVAL");
         return true;
@@ -54,7 +55,7 @@ describe("projectService.updateProject blocks COMPLETED (RG-013)", () => {
 
     await assert.rejects(
       () => projectService.updateProject("project-1", { status: "COMPLETED" }),
-      (err: any) => {
+      (err: HttpError) => {
         assert.equal(err.statusCode, 422);
         assert.equal(err.code, "COMPLETION_REQUIRES_CLIENT_APPROVAL");
         return true;

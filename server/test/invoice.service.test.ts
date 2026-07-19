@@ -269,7 +269,7 @@ describe("invoice.service item guard (assertInvoiceDraft)", () => {
     test(`blocks item changes on a ${status} invoice with INVOICE_NOT_DRAFT`, () => {
       assert.throws(
         () => assertInvoiceDraft(status),
-        (err: any) => err.code === "INVOICE_NOT_DRAFT" && err.statusCode === 409
+        (err: Error & { code?: string; statusCode?: number }) => err.code === "INVOICE_NOT_DRAFT" && err.statusCode === 409
       );
     });
   }
@@ -316,11 +316,11 @@ describe("creditNoteService.create : amount validation", () => {
   });
 
   test("rejects a non-positive amount", () => {
-    assert.throws(() => assertCreditAmount(0, 1000), (e: any) => e.code === "INVALID_CREDIT_AMOUNT");
+    assert.throws(() => assertCreditAmount(0, 1000), (e: Error & { code?: string }) => e.code === "INVALID_CREDIT_AMOUNT");
   });
 
   test("rejects a credit exceeding the amount paid", () => {
-    assert.throws(() => assertCreditAmount(1200, 1000), (e: any) => e.code === "CREDIT_EXCEEDS_PAID");
+    assert.throws(() => assertCreditAmount(1200, 1000), (e: Error & { code?: string }) => e.code === "CREDIT_EXCEEDS_PAID");
   });
 });
 

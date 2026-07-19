@@ -1,6 +1,20 @@
 import test, { describe } from "node:test";
 import assert from "node:assert/strict";
+import type { HttpError } from "../src/utils/httpError.js";
 import { createBookingService } from "../src/services/booking.service.js";
+
+type FakeBooking = {
+  id: string;
+  slotId: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  notes: string | null;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  slot: { id: string; startTime: Date; endTime: Date; isBooked: boolean };
+};
 
 function makeWorld() {
   const slot = {
@@ -12,13 +26,13 @@ function makeWorld() {
 
   const state = {
     slot: { ...slot },
-    bookings: [] as Array<any>,
+    bookings: [] as FakeBooking[],
   };
 
   let bookingSeq = 0;
 
   const db = {
-    $transaction: async <T>(callback: (tx: any) => Promise<T>) => callback(db),
+    $transaction: async <T>(callback: (tx: typeof db) => Promise<T>) => callback(db),
     availabilitySlot: {
       findMany: async () => [state.slot],
       findUnique: async ({ where }: { where: { id: string } }) => (state.slot.id === where.id ? { ...state.slot, booking: null } : null),
@@ -65,7 +79,7 @@ function makeWorld() {
   const service = createBookingService({
     db,
     now: () => new Date(),
-    emailSender: { send: async () => undefined } as any,
+    emailSender: { send: async () => undefined } as unknown as Parameters<typeof createBookingService>[0]["emailSender"],
     adminNotificationEmail: "hello@secritou.com",
     repositoryFactory: (client) => ({
       findOpenSlots: async () => [state.slot],
@@ -91,7 +105,7 @@ describe("booking.service", () => {
     const { service } = makeWorld();
     await assert.rejects(
       () => service.bookSlot("missing-slot", { slotId: "missing-slot", name: "Jane Doe", email: "jane@example.com" }),
-      (error: any) => error?.statusCode === 404
+      (error: HttpError) => error?.statusCode === 404
     );
   });
 
@@ -100,7 +114,7 @@ describe("booking.service", () => {
     state.slot.isBooked = true;
     await assert.rejects(
       () => service.bookSlot("slot-1", { slotId: "slot-1", name: "Jane Doe", email: "jane@example.com" }),
-      (error: any) => error?.statusCode === 409
+      (error: HttpError) => error?.statusCode === 409
     );
   });
 

@@ -4,6 +4,10 @@
 import test, { describe } from "node:test";
 import assert from "node:assert/strict";
 
+// Guards throw `Object.assign(new Error(...), { code, statusCode })` — an Error carrying an
+// app error code, not an HttpError instance.
+type CodedError = Error & { code?: string; statusCode?: number };
+
 // Mirrors lead.service.deleteLead: a converted lead cannot be deleted.
 function assertLeadDeletable(lead: { convertedClientId: string | null }) {
   if (lead.convertedClientId) {
@@ -29,7 +33,7 @@ describe("lead.service.deleteLead guard (P1 #6)", () => {
   test("blocks deleting a converted lead", () => {
     assert.throws(
       () => assertLeadDeletable({ convertedClientId: "client-1" }),
-      (e: any) => e.code === "LEAD_ALREADY_CONVERTED" && e.statusCode === 409
+      (e: CodedError) => e.code === "LEAD_ALREADY_CONVERTED" && e.statusCode === 409
     );
   });
 });
@@ -42,14 +46,14 @@ describe("project.service.deleteProject guards (P1 #6)", () => {
   test("blocks deleting a project with issued invoices", () => {
     assert.throws(
       () => assertProjectDeletable({ nonDraftInvoices: 2, onboardings: 0 }),
-      (e: any) => e.code === "PROJECT_HAS_INVOICES"
+      (e: CodedError) => e.code === "PROJECT_HAS_INVOICES"
     );
   });
 
   test("blocks deleting a project with an onboarding record", () => {
     assert.throws(
       () => assertProjectDeletable({ nonDraftInvoices: 0, onboardings: 1 }),
-      (e: any) => e.code === "PROJECT_HAS_ONBOARDING"
+      (e: CodedError) => e.code === "PROJECT_HAS_ONBOARDING"
     );
   });
 });

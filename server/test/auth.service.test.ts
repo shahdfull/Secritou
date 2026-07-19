@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import bcrypt from "bcryptjs";
 import { createHash } from "node:crypto";
+import type { HttpError } from "../src/utils/httpError.js";
 
 // Set env before any service imports
 process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET ?? "a".repeat(32);
@@ -85,7 +86,7 @@ test("login() with valid credentials returns tokens and user", async () => {
   const db = makeDb();
   db._user = makeUser();
 
-  const svc = new AuthService(db as any);
+  const svc = new AuthService(db as unknown as ConstructorParameters<typeof AuthService>[0]);
   const result = await svc.login({ email: "admin@example.com", password: "correct-password" });
 
   assert.ok(result.tokens.accessToken, "should have accessToken");
@@ -100,11 +101,11 @@ test("login() with wrong password throws 401", async () => {
   const db = makeDb();
   db._user = makeUser();
 
-  const svc = new AuthService(db as any);
+  const svc = new AuthService(db as unknown as ConstructorParameters<typeof AuthService>[0]);
 
   await assert.rejects(
     () => svc.login({ email: "admin@example.com", password: "wrong-password" }),
-    (err: any) => {
+    (err: HttpError) => {
       assert.equal(err.statusCode, 401);
       assert.equal(err.message, "Invalid email or password");
       return true;
@@ -117,11 +118,11 @@ test("login() with unknown email throws 401 (no info leak)", async () => {
   const db = makeDb();
   db._user = null;
 
-  const svc = new AuthService(db as any);
+  const svc = new AuthService(db as unknown as ConstructorParameters<typeof AuthService>[0]);
 
   await assert.rejects(
     () => svc.login({ email: "nobody@example.com", password: "irrelevant" }),
-    (err: any) => {
+    (err: HttpError) => {
       assert.equal(err.statusCode, 401);
       assert.equal(err.message, "Invalid email or password");
       return true;
@@ -134,7 +135,7 @@ test("refresh() with revoked token throws 401 and revokes family", async () => {
   const db = makeDb();
   db._user = makeUser();
 
-  const svc = new AuthService(db as any);
+  const svc = new AuthService(db as unknown as ConstructorParameters<typeof AuthService>[0]);
   const { tokens } = await svc.login({ email: "admin@example.com", password: "correct-password" });
 
   db._rt = {
@@ -150,14 +151,14 @@ test("refresh() with revoked token throws 401 and revokes family", async () => {
 
   await assert.rejects(
     () => svc.refresh(tokens.refreshToken),
-    (err: any) => {
+    (err: HttpError) => {
       assert.equal(err.statusCode, 401);
       return true;
     },
   );
 
   assert.ok(
-    db._updateManyArgs.some((a: any) => a?.where?.familyId === "family-1"),
+    db._updateManyArgs.some((a) => (a as { where?: { familyId?: string } })?.where?.familyId === "family-1"),
     "should revoke the token family",
   );
 });
@@ -167,7 +168,7 @@ test("refresh() with expired token throws 401 and revokes family", async () => {
   const db = makeDb();
   db._user = makeUser();
 
-  const svc = new AuthService(db as any);
+  const svc = new AuthService(db as unknown as ConstructorParameters<typeof AuthService>[0]);
   const { tokens } = await svc.login({ email: "admin@example.com", password: "correct-password" });
 
   db._rt = {
@@ -183,14 +184,14 @@ test("refresh() with expired token throws 401 and revokes family", async () => {
 
   await assert.rejects(
     () => svc.refresh(tokens.refreshToken),
-    (err: any) => {
+    (err: HttpError) => {
       assert.equal(err.statusCode, 401);
       return true;
     },
   );
 
   assert.ok(
-    db._updateManyArgs.some((a: any) => a?.where?.familyId === "family-2"),
+    db._updateManyArgs.some((a) => (a as { where?: { familyId?: string } })?.where?.familyId === "family-2"),
     "should revoke the expired token family",
   );
 });
@@ -200,7 +201,7 @@ test("refresh() token reuse (not in DB) throws 401", async () => {
   const db = makeDb();
   db._user = makeUser();
 
-  const svc = new AuthService(db as any);
+  const svc = new AuthService(db as unknown as ConstructorParameters<typeof AuthService>[0]);
   const { tokens } = await svc.login({ email: "admin@example.com", password: "correct-password" });
 
   // Token consumed (not found in DB) = reuse attempt
@@ -208,7 +209,7 @@ test("refresh() token reuse (not in DB) throws 401", async () => {
 
   await assert.rejects(
     () => svc.refresh(tokens.refreshToken),
-    (err: any) => {
+    (err: HttpError) => {
       assert.equal(err.statusCode, 401);
       return true;
     },
@@ -220,7 +221,7 @@ test("requestPasswordReset() with unknown email does not throw (no info leak)", 
   const db = makeDb();
   db._user = null;
 
-  const svc = new AuthService(db as any);
+  const svc = new AuthService(db as unknown as ConstructorParameters<typeof AuthService>[0]);
 
   await assert.doesNotReject(() => svc.requestPasswordReset("ghost@example.com"));
 });

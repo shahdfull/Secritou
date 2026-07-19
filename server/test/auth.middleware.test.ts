@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import jwt from "jsonwebtoken";
+import type { Request, Response } from "express";
+import type { HttpError } from "../src/utils/httpError.js";
 
 process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET ?? "a".repeat(32);
 process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET ?? "b".repeat(32);
@@ -39,13 +41,13 @@ test("authenticate accepts access tokens only", async () => {
 
   const req = makeReq(token);
   let called = false;
-  await authenticate(req as any, {} as any, (err?: unknown) => {
+  await authenticate(req as unknown as Request, {} as Response, (err?: unknown) => {
     assert.equal(err, undefined);
     called = true;
   });
 
   assert.equal(called, true);
-  assert.equal((req as any).user.tokenType, "access");
+  assert.equal((req as unknown as Request).user!.tokenType, "access");
 });
 
 test("authenticate rejects refresh tokens", async () => {
@@ -63,9 +65,9 @@ test("authenticate rejects refresh tokens", async () => {
   );
 
   const req = makeReq(token);
-  let error: any;
-  await authenticate(req as any, {} as any, (err?: unknown) => {
-    error = err;
+  let error: HttpError | undefined;
+  await authenticate(req as unknown as Request, {} as Response, (err?: unknown) => {
+    error = err as HttpError | undefined;
   });
 
   assert.equal(error?.statusCode, 401);
@@ -73,9 +75,9 @@ test("authenticate rejects refresh tokens", async () => {
 
 test("authenticate rejects missing tokens", async () => {
   const req = makeReq();
-  let error: any;
-  await authenticate(req as any, {} as any, (err?: unknown) => {
-    error = err;
+  let error: HttpError | undefined;
+  await authenticate(req as unknown as Request, {} as Response, (err?: unknown) => {
+    error = err as HttpError | undefined;
   });
 
   assert.equal(error?.statusCode, 401);
@@ -83,9 +85,9 @@ test("authenticate rejects missing tokens", async () => {
 
 test("authenticate rejects malformed tokens", async () => {
   const req = makeReq("not-a-token");
-  let error: any;
-  await authenticate(req as any, {} as any, (err?: unknown) => {
-    error = err;
+  let error: HttpError | undefined;
+  await authenticate(req as unknown as Request, {} as Response, (err?: unknown) => {
+    error = err as HttpError | undefined;
   });
 
   assert.equal(error?.statusCode, 401);

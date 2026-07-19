@@ -2,9 +2,18 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import bookingRoutes from "../src/routes/booking.routes.js";
 
+// Express's Router keeps its middleware stack on an internal `.stack` not exposed by its public
+// types; describe just the shape this test reads.
+type RouterLayer = {
+  route?: { path?: string; methods?: Record<string, boolean>; stack?: { handle?: { name?: string } }[] };
+};
+type RouterWithStack = { stack: RouterLayer[] };
+
 function routeHandlers(method: string, path: string) {
-  const layer = (bookingRoutes as any).stack.find((entry: any) => entry.route?.path === path && entry.route.methods?.[method]);
-  return layer?.route?.stack?.map((entry: any) => entry.handle?.name ?? "") ?? [];
+  const layer = (bookingRoutes as unknown as RouterWithStack).stack.find(
+    (entry) => entry.route?.path === path && entry.route.methods?.[method]
+  );
+  return layer?.route?.stack?.map((entry) => entry.handle?.name ?? "") ?? [];
 }
 
 test("booking admin routes are protected by authenticate and an admin role guard", () => {
