@@ -872,7 +872,8 @@
     "leadReopened": "Lead reopened",
     "clientRestored": "Client restored",
     "projectRestored": "Project restored",
-    "projectArchived": "Project archived"
+    "projectArchived": "Project archived",
+    "projectUnarchived": "Project unarchived"
   },
   "aiAssistant": {
     "title": "AI Assistant",

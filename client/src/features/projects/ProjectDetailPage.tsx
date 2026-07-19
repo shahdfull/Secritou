@@ -14,8 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, ExternalLink, FileText, CheckSquare, Activity, ClipboardCheck, Upload, Users, Archive, Plus } from "lucide-react";
-import { useProject, useUpdateProject, useArchiveProject } from "@/hooks/useProjects";
+import { ArrowLeft, Loader2, ExternalLink, FileText, CheckSquare, Activity, ClipboardCheck, Upload, Users, Archive, ArchiveRestore, Plus } from "lucide-react";
+import { useProject, useUpdateProject, useArchiveProject, useUnarchiveProject } from "@/hooks/useProjects";
 import { useMe } from "@/hooks/useAuth";
 import { useMySplitForProject } from "@/hooks/useCommissions";
 import { TASK_STATUSES, PROJECT_STATUS_VALID_TRANSITIONS, PROJECT_STATUS_LABELS_FR } from "@secritou/shared";
@@ -52,9 +52,11 @@ export function ProjectDetailPage() {
   const { user } = useMe();
   const { mutate: updateProject, isPending: isUpdating } = useUpdateProject();
   const { mutate: archiveProject, isPending: isArchiving } = useArchiveProject();
+  const { mutate: unarchiveProject, isPending: isUnarchiving } = useUnarchiveProject();
 
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [unarchiveDialogOpen, setUnarchiveDialogOpen] = useState(false);
   const [targetStatus, setTargetStatus] = useState<string>("");
   const [deliverableName, setDeliverableName] = useState("");
   const uploadedDeliverable = useRef<UploadResult | null>(null);
@@ -101,9 +103,11 @@ export function ProjectDetailPage() {
   const canChangeStatus = isAdminOrManager && project.status !== "COMPLETED" && !project.archivedAt;
   // ProjectStatus has no CANCELLED value by design (schema.prisma) — an abandoned project is
   // represented via archivedAt instead. POST /:id/archive is authorize("ADMIN") only, matching
-  // canArchive here. No un-archive endpoint exists yet (unlike restore for deletedAt), so this
-  // is currently a one-way action — the confirmation dialog says so explicitly.
+  // canArchive here.
   const canArchive = isAdmin && !project.archivedAt;
+  // SEC-078: symmetric to canArchive — POST /:id/unarchive, ADMIN only, clears archivedAt and
+  // nothing else (status untouched by either direction).
+  const canUnarchive = isAdmin && !!project.archivedAt;
   const validTransitions = PROJECT_STATUS_VALID_TRANSITIONS[project.status] ?? [];
   const deadline = project.deadline ? formatDate(project.deadline) : "—";
 
@@ -133,6 +137,12 @@ export function ProjectDetailPage() {
         setArchiveDialogOpen(false);
         navigate("/app/projects");
       },
+    });
+  };
+
+  const handleUnarchive = () => {
+    unarchiveProject(project.id, {
+      onSuccess: () => setUnarchiveDialogOpen(false),
     });
   };
 
@@ -192,6 +202,17 @@ export function ProjectDetailPage() {
             >
               <Archive className="h-3.5 w-3.5" />
               Archiver
+            </Button>
+          )}
+          {canUnarchive && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs gap-1"
+              onClick={() => setUnarchiveDialogOpen(true)}
+            >
+              <ArchiveRestore className="h-3.5 w-3.5" />
+              Désarchiver
             </Button>
           )}
         </div>
@@ -530,10 +551,9 @@ export function ProjectDetailPage() {
             <DialogTitle>Archiver ce projet ?</DialogTitle>
             <DialogDescription>
               Le projet disparaîtra de toutes les listes (projets, tâches). Sa fiche détaillée
-              reste consultable par lien direct si vous connaissez son adresse. Aucune fonction
-              de désarchivage n'existe actuellement dans l'interface : cette action est donc
-              irréversible tant qu'elle n'est pas effectuée manuellement en base de données.
-              Confirmez-vous l'archivage de « {project.name} » ?
+              reste consultable par lien direct si vous connaissez son adresse. Un ADMIN peut le
+              désarchiver à tout moment depuis cette même fiche. Confirmez-vous l'archivage de
+              « {project.name} » ?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -542,6 +562,27 @@ export function ProjectDetailPage() {
               {isArchiving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               <Archive className="h-4 w-4 mr-2" />
               Archiver
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unarchive Confirmation Dialog — SEC-078 */}
+      <Dialog open={unarchiveDialogOpen} onOpenChange={setUnarchiveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Désarchiver ce projet ?</DialogTitle>
+            <DialogDescription>
+              Le projet réapparaîtra dans toutes les listes (projets, tâches), avec le même statut
+              qu'avant son archivage. Confirmez-vous le désarchivage de « {project.name} » ?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setUnarchiveDialogOpen(false)}>Annuler</Button>
+            <Button onClick={handleUnarchive} disabled={isUnarchiving}>
+              {isUnarchiving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <ArchiveRestore className="h-4 w-4 mr-2" />
+              Désarchiver
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -109,6 +109,15 @@ export const archiveProject: RequestHandler = async (req, res, next) => {
   }
 };
 
+export const unarchiveProject: RequestHandler = async (req, res, next) => {
+  try {
+    const project = await projectService.unarchiveProject(req.params.id as string, req.user?.sub, req.user?.role);
+    res.json({ data: project });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getMyProjects: RequestHandler = async (req, res, next) => {
   try {
     const clientId = req.user!.clientId!;

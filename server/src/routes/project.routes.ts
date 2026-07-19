@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, archiveProject, getDeletedProjects, restoreProject, getMyProjects, getTimelineStatus, getCompletedTasks, getBrief, submitBrief, clientApproveProject, receiveAiSpecs } from "../controllers/project.controller.js";
+import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, archiveProject, unarchiveProject, getDeletedProjects, restoreProject, getMyProjects, getTimelineStatus, getCompletedTasks, getBrief, submitBrief, clientApproveProject, receiveAiSpecs } from "../controllers/project.controller.js";
 import { getHealthBoard } from "../controllers/healthBoard.controller.js";
 import { createTimeEntry, listTimeEntries, getTimeSummary, getMyTimeSummary } from "../controllers/timeEntry.controller.js";
 import { listProjectMeetings, createProjectMeeting, updateProjectMeeting, deleteProjectMeeting, getMeetingSchedule, updateMeetingSchedule } from "../controllers/projectMeeting.controller.js";
@@ -220,6 +220,7 @@ router.put("/:id", validate(updateProjectSchema), authorize("ADMIN", "MANAGER"),
 // below rather than opened up to MANAGER.
 router.delete("/:id", authorize("ADMIN"), deleteProject);
 router.post("/:id/archive", authorize("ADMIN"), archiveProject);
+router.post("/:id/unarchive", authorize("ADMIN"), unarchiveProject);
 router.post("/:id/restore", authorize("ADMIN"), restoreProject);
 
 // Time tracking

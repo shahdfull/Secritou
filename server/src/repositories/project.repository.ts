@@ -164,6 +164,17 @@ export const projectRepository = {
     });
   },
 
+  // SEC-078: symmetric to archive() — status is never touched by either operation, so unarchiving
+  // simply clears archivedAt and the project reappears exactly as it was (same pattern as restore()
+  // just below, which does the equivalent for deletedAt).
+  async unarchive(id: string): Promise<Project> {
+    return prisma.project.update({
+      where: { id },
+      data: { archivedAt: null },
+      include: { client: { select: clientBriefSelect } },
+    });
+  },
+
   async restore(id: string): Promise<Project> {
     return prisma.project.update({
       where: { id },

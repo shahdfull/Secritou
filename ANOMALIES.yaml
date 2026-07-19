@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-077
+dernier_id: SEC-078
 
 anomalies:
   - id: SEC-001
@@ -3354,6 +3354,15 @@ anomalies:
       dans cet environnement — seule la vérification au niveau code
       (typecheck/lint/build) a été possible, pas d'interaction
       navigateur réelle sur le bouton/dialogue.
+
+      MISE À JOUR (2026-07-20) : l'affirmation ci-dessus (« l'archivage
+      reste une action à sens unique via l'interface ») n'est plus
+      exacte — le désarchivage a été construit sous SEC-078, sur
+      demande explicite du porteur, avec son propre critère de
+      résolution distinct. Le texte original de ce constat n'est pas
+      réécrit (conformément à l'interdiction de reformulation) ; ce
+      paragraphe documente seulement que le point est désormais couvert
+      ailleurs, sous un ID différent.
   - id: SEC-041
     titre: "assertProjectInScope duplique a l'identique entre task.service.ts et projectMeeting.service.ts — risque de 3e reecriture divergente pour un futur module ; aucun test n'appelait createProject/archiveProject/restoreProject directement"
     perimetre: "4.2 Gestion de projet — server/src/services/task.service.ts, server/src/services/projectMeeting.service.ts, server/src/utils/serviceScope.ts, server/test/"
@@ -5894,6 +5903,84 @@ anomalies:
       contention volontaire du nouveau test), `npm run lint` (serveur,
       0 warning). Aucun changement client (le comportement observable
       — 422 `CHECKLIST_LIMIT_REACHED` — est inchangé). Résolu SANS
+      confirmation CI : workflow GitHub Actions sur `origin/main` en
+      `workflow_dispatch` uniquement (déviation établie en session le
+      2026-07-17, citée à chaque clôture depuis).
+
+  - id: SEC-078
+    titre: "Archivage de projet toujours irreversible via l'interface — aucune route de desarchivage n'existait, contrairement a restore()/trash pour deletedAt"
+    perimetre: "4.2 Gestion de projet — server/src/repositories/project.repository.ts, server/src/services/project.service.ts, server/src/routes/project.routes.ts, client/src/features/projects/ProjectDetailPage.tsx"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand un ADMIN dispose, depuis `ProjectDetailPage.tsx`,
+      d'un bouton « Désarchiver » sur un projet archivé, appelant
+      réellement `POST /:id/unarchive`, qui efface `archivedAt` sans
+      toucher au `status` — le projet réapparaît dans toutes les
+      listes avec exactement le même statut qu'avant l'archivage.
+      Vérifié par un test réel qui archive puis désarchive un projet
+      et confirme sa réapparition dans `findAll`.
+    detecte_le: "2026-07-20"
+    source: manuel
+    confiance: certain
+    note: >
+      Point 1.8 du rapport externe traité précédemment sous SEC-076
+      (session du 2026-07-19) comme une reformulation non autorisée
+      d'une décision déjà actée sous SEC-040 (« Exposer l'archivage
+      côté UI, sans construire le désarchivage/la liste (Recommandé
+      minimal) », décision du porteur du 2026-07-18) — donc non traité
+      à ce moment-là. Le porteur demande maintenant explicitement de
+      construire le désarchivage (« on fait le desarchivage »),
+      rouvrant ce point précis avec un nouveau critère de résolution
+      (construire l'endpoint manquant) distinct de celui de SEC-040
+      (documenter l'irréversibilité) — nouvel ID conformément à la
+      règle « même classe de défaut, critère de résolution différent
+      → ID distinct ».
+
+      Clarifications actées par AskUserQuestion avant tout code :
+      1) l'état de retour est `archivedAt: null` seul — le `status` du
+      projet n'est jamais modifié par `archive()` lui-même (confirmé
+      par lecture directe de `projectRepository.archive`), donc
+      désarchiver ne fait que réouvrir la visibilité, sans deviner ni
+      recalculer un statut ; 2) ADMIN seul, symétrique à `archive()`
+      (`authorize("ADMIN")` déjà en place côté route) ; 3) portée
+      minimale — pas de nouvelle liste des projets archivés, seulement
+      l'endpoint + un bouton sur `ProjectDetailPage.tsx` (accessible
+      par lien direct), symétrique à la portée « minimale » déjà
+      choisie pour SEC-040.
+
+      Corrigé : `projectRepository.unarchive(id)` (efface
+      `archivedAt`, même forme que `restore()` pour `deletedAt`, juste
+      en dessous de `archive()` dans le fichier) ;
+      `projectService.unarchiveProject` (cherche un projet avec
+      `archivedAt: { not: null }` — symétrique à `restoreProject` qui
+      cherche `deletedAt: { not: null }` plutôt que `findByIdAdmin`,
+      qui filtre toujours `archivedAt: null` par construction — 404 si
+      le projet n'est pas archivé, jamais un no-op silencieux) ; route
+      `POST /:id/unarchive` (`authorize("ADMIN")`) ; côté client,
+      `projectsApi.unarchive`, `useUnarchiveProject`, bouton
+      « Désarchiver » sur `ProjectDetailPage.tsx` visible uniquement
+      si `isAdmin && project.archivedAt`, avec sa propre boîte de
+      dialogue de confirmation. Effet de bord corrigé au passage : le
+      texte du dialogue d'archivage existant affirmait que « aucune
+      fonction de désarchivage n'existe » — devenu faux, reformulé
+      pour mentionner que le désarchivage est désormais possible.
+      Preuve par test réel : `projectCreateArchiveRestore.test.ts`
+      (« SEC-078 », 4 cas serveur — désarchive réellement et vérifie
+      la réapparition dans `findAll` et l'invariance du `status` ; 404
+      sur un projet jamais archivé ; 404 sur un second désarchivage
+      (pas de no-op silencieux) ; 404 si le projet est seulement
+      supprimé, pas archivé, symétrique au test existant de
+      SEC-040 pour le cas inverse) ; `ProjectDetailPage.test.tsx`
+      (« SEC-078 », 3 cas client — bouton correct affiché selon
+      `archivedAt`, clic + confirmation appelle réellement la mutation
+      avec l'id du projet). `verifie: test`. Vérification complète :
+      `npx tsc --noEmit` (serveur+client, propres), `npx tsx --test
+      test/run-all.test.ts` (386/386), `npm run lint` (serveur 0
+      warning, client 12 warnings — SEC-049, stable), `npx vitest run`
+      (client, 76/76), `npm run build` (client, succès). Résolu SANS
       confirmation CI : workflow GitHub Actions sur `origin/main` en
       `workflow_dispatch` uniquement (déviation établie en session le
       2026-07-17, citée à chaque clôture depuis).

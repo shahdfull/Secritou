@@ -194,6 +194,21 @@ export const projectService = {
     return archived;
   },
 
+  // SEC-078: symmetric to archiveProject — findByIdAdmin always filters archivedAt: null (by
+  // design, it's the pre-write read used by every other mutation on an active project), so an
+  // already-archived project is looked up separately here, the same way restoreProject looks up a
+  // deletedAt: { not: null } project instead of findByIdAdmin.
+  async unarchiveProject(id: string, actorId?: string, actorRole?: string) {
+    const project = await prismaRead.project.findFirst({ where: { id, archivedAt: { not: null } }, select: { id: true, clientId: true, status: true } });
+    if (!project) throw new HttpError(404, "Project not found");
+    const unarchived = await projectRepository.unarchive(id);
+    const tagsToInvalidate = [cacheTags.company(), cacheTags.dashboard(), cacheTags.project(id)];
+    if (project.clientId) tagsToInvalidate.push(cacheTags.client(project.clientId));
+    await invalidateTags(tagsToInvalidate);
+    void auditLogService.record({ actorId, actorRole, action: "project.unarchive", entityType: "Project", entityId: id, before: { status: project.status } });
+    return unarchived;
+  },
+
   // SEC (session 2026-07-18): serviceId was previously never checked against the target
   // project — GET /:id/brief has no authorize() (CLIENT/MANAGER/ADMIN can all reach the
   // controller), and this method itself only scoped CLIENT/FREELANCER, never MANAGER. A

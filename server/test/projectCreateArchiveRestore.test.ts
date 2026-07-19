@@ -155,3 +155,58 @@ describe("projectService.archiveProject / restoreProject — SEC-040", () => {
     assert.equal(restored.deletedAt, null);
   });
 });
+
+describe("projectService.unarchiveProject — SEC-078", () => {
+  test("reverses a real archive (archivedAt) and the project reappears in findAll", { skip: !dbAvailable }, async () => {
+    const client = await makeClient("unarchive-target");
+    const project = await prisma.project.create({ data: { name: "to be unarchived", clientId: client.id, status: "IN_PROGRESS" } });
+    createdProjectIds.push(project.id);
+    await projectService.archiveProject(project.id);
+
+    const unarchived = await projectService.unarchiveProject(project.id);
+    assert.equal(unarchived.archivedAt, null);
+    assert.equal(unarchived.status, "IN_PROGRESS", "unarchiving must never touch status, only archivedAt");
+
+    const listed = await projectService.getAllProjects("admin-id", "ADMIN", { page: 1, pageSize: 50 });
+    assert.ok(listed.data.some((p) => p.id === project.id), "the project must reappear in findAll once unarchived");
+  });
+
+  test("unarchiveProject on a project that was never archived rejects with 404", { skip: !dbAvailable }, async () => {
+    const client = await makeClient("unarchive-never-archived");
+    const project = await prisma.project.create({ data: { name: "never archived", clientId: client.id } });
+    createdProjectIds.push(project.id);
+
+    await assert.rejects(
+      () => projectService.unarchiveProject(project.id),
+      (err: unknown) => err instanceof HttpError && err.statusCode === 404
+    );
+  });
+
+  test("unarchiveProject on an already-unarchived project rejects with 404 (not a silent no-op)", { skip: !dbAvailable }, async () => {
+    const client = await makeClient("unarchive-twice");
+    const project = await prisma.project.create({ data: { name: "double unarchive", clientId: client.id } });
+    createdProjectIds.push(project.id);
+    await projectService.archiveProject(project.id);
+    await projectService.unarchiveProject(project.id);
+
+    await assert.rejects(
+      () => projectService.unarchiveProject(project.id),
+      (err: unknown) => err instanceof HttpError && err.statusCode === 404
+    );
+  });
+
+  test("unarchiveProject only reverses archivedAt, not a real soft-delete (deletedAt)", { skip: !dbAvailable }, async () => {
+    const client = await makeClient("unarchive-vs-delete");
+    const project = await prisma.project.create({ data: { name: "deleted not archived", clientId: client.id } });
+    createdProjectIds.push(project.id);
+    await projectService.deleteProject(project.id);
+
+    // unarchiveProject's own query filters on archivedAt: { not: null } — a deleted-but-not-
+    // archived project was never archived, so this must reject with 404, symmetric to
+    // restoreProject rejecting an archived-but-not-deleted project above.
+    await assert.rejects(
+      () => projectService.unarchiveProject(project.id),
+      (err: unknown) => err instanceof HttpError && err.statusCode === 404
+    );
+  });
+});

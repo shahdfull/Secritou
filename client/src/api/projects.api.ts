@@ -57,11 +57,15 @@ export const projectsApi = {
     return response.data.data;
   },
 
-  // No un-archive endpoint exists server-side yet (unlike restore/trash for deletedAt) — an
-  // archived project currently disappears from every list/detail query for good. Confirmed
-  // with the project owner and tracked as a separate, distinct gap (not fixed here).
   archive: async (id: string): Promise<Project> => {
     const response = await apiClient.post<ApiResponse<Project>>(`/projects/${id}/archive`);
+    return response.data.data;
+  },
+
+  // SEC-078: symmetric to archive() — POST /:id/unarchive added server-side, closing the gap
+  // documented above (before this fix, only restore()/trash existed for deletedAt).
+  unarchive: async (id: string): Promise<Project> => {
+    const response = await apiClient.post<ApiResponse<Project>>(`/projects/${id}/unarchive`);
     return response.data.data;
   },
 

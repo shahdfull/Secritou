@@ -8,6 +8,7 @@
 // absent otherwise.
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, test, vi, beforeAll } from "vitest";
 import i18n from "@/i18n";
@@ -46,10 +47,13 @@ vi.mock("./TimeTrackingTab", () => ({
 
 let mockProject: Project | undefined;
 
+const unarchiveMock = vi.fn();
+
 vi.mock("@/hooks/useProjects", () => ({
   useProject: () => ({ data: mockProject, isLoading: false, isError: false }),
   useUpdateProject: () => ({ mutate: vi.fn(), isPending: false }),
   useArchiveProject: () => ({ mutate: vi.fn(), isPending: false }),
+  useUnarchiveProject: () => ({ mutate: unarchiveMock, isPending: false }),
 }));
 
 const { ProjectDetailPage } = await import("./ProjectDetailPage");
@@ -100,5 +104,32 @@ describe("ProjectDetailPage next-meeting badge — SEC-057 (U5)", () => {
     mockProject = makeProject();
     renderPage();
     expect(screen.queryByText(/Prochaine réunion/)).not.toBeInTheDocument();
+  });
+});
+
+describe("ProjectDetailPage archive/unarchive buttons — SEC-078", () => {
+  test("shows Archiver and not Désarchiver on a non-archived project (ADMIN)", () => {
+    mockProject = makeProject({ archivedAt: null });
+    renderPage();
+    expect(screen.getByRole("button", { name: /Archiver/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Désarchiver/ })).not.toBeInTheDocument();
+  });
+
+  test("shows Désarchiver and not Archiver on an archived project (ADMIN)", () => {
+    mockProject = makeProject({ archivedAt: "2026-07-19T00:00:00.000Z" });
+    renderPage();
+    expect(screen.getByRole("button", { name: /Désarchiver/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Archiver/ })).not.toBeInTheDocument();
+  });
+
+  test("clicking Désarchiver then confirming calls the real unarchive mutation with the project id", async () => {
+    const user = userEvent.setup();
+    mockProject = makeProject({ archivedAt: "2026-07-19T00:00:00.000Z" });
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: /Désarchiver/ }));
+    await user.click(screen.getByRole("button", { name: "Désarchiver" }));
+
+    expect(unarchiveMock).toHaveBeenCalledWith("project-1", expect.anything());
   });
 });
