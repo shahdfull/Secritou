@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-076
+dernier_id: SEC-077
 
 anomalies:
   - id: SEC-001
@@ -5832,3 +5832,68 @@ anomalies:
       `origin/main` en `workflow_dispatch` uniquement (déviation
       établie en session le 2026-07-17, citée à chaque clôture
       depuis).
+
+  - id: SEC-077
+    titre: "taskChecklistService.createItem verifiait le plafond de 100 items (SEC-075) via un countByTaskId separe, hors de la transaction Serializable qui calcule ensuite position dans taskChecklistRepository.create — deux comptages non atomiques entre eux, rouvrant sous forte concurrence pres de la limite exactement la fenetre de course que SEC-074 venait de fermer pour la position"
+    perimetre: "4.3 Gestion des tâches — server/src/services/taskChecklist.service.ts#createItem, server/src/repositories/taskChecklist.repository.ts#create"
+    regle_violee: null
+    classe: "checklist-position-concurrence"
+    gravite: faible
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand la vérification du plafond de 100 items et le
+      calcul de la position d'insertion lisent le même compte, dans
+      la même transaction Serializable — plusieurs créations
+      strictement concurrentes proches de la limite (ex. 5 appels
+      simultanés à 97 items déjà présents) ne doivent jamais faire
+      dépasser le total au-delà de 100, vérifié par un test réel qui
+      provoque cette concurrence.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport externe (revue de code sur les correctifs SEC-070 à
+      SEC-076), confirmé par lecture directe :
+      `taskChecklistService.createItem` appelait
+      `taskChecklistRepository.countByTaskId(taskId)` — une lecture
+      séparée, hors transaction — puis, si sous le plafond, déléguait
+      à `taskChecklistRepository.create`, qui recalcule lui-même un
+      compte (pour dériver `position`) à l'intérieur de sa propre
+      transaction `Serializable` (SEC-074). Ces deux comptages
+      n'étaient pas la même opération atomique : sous une rafale de
+      requêtes concurrentes proches de la limite, chacune pouvait lire
+      un compte encore inférieur à 100 avant qu'aucune n'ait inséré —
+      le plafond de 100 aurait pu être dépassé de quelques unités dans
+      ce scénario de forte concurrence, alors même que la fenêtre de
+      concurrence équivalente sur le calcul de `position` venait tout
+      juste d'être fermée par SEC-074 dans la passe précédente.
+
+      Corrigé (même session, immédiatement après vérification du
+      rapport) : la vérification du plafond est déplacée à
+      l'intérieur de la transaction `Serializable` de
+      `taskChecklistRepository.create`, sur le même `count()` que
+      celui qui dérive `position` — un seul comptage sert aux deux
+      fins, aucune fenêtre entre eux. Distinction de conception
+      assumée avec SEC-074 : un rejet pour plafond atteint
+      (`CHECKLIST_LIMIT_REACHED`) est une réponse finale, elle ne doit
+      jamais être retentée (contrairement à un conflit de
+      sérialisation Postgres P2034, qui l'est) — la boucle de retry
+      distingue explicitement les deux cas (`if (err instanceof
+      HttpError) throw err;` avant le test de `P2034`).
+      `taskChecklistService.createItem` simplifié en un simple relais
+      (la vérification n'a plus de sens dupliquée en amont, hors
+      transaction) ; `taskChecklistRepository.countByTaskId` devenu
+      mort, supprimé (aucun autre appelant, vérifié par grep). Preuve
+      par test réel : `taskChecklist.test.ts` (« SEC-077 ») — seed à
+      97 items, 5 créations réellement concurrentes visant les 3
+      dernières places, prouve que exactement 3 réussissent et 2 sont
+      rejetées `CHECKLIST_LIMIT_REACHED`, jamais un dépassement.
+      `verifie: test`. Vérification complète : `npx tsc --noEmit`
+      (serveur, propre), `npx tsx --test test/run-all.test.ts`
+      (382/382, stable sur 2 exécutions consécutives malgré la
+      contention volontaire du nouveau test), `npm run lint` (serveur,
+      0 warning). Aucun changement client (le comportement observable
+      — 422 `CHECKLIST_LIMIT_REACHED` — est inchangé). Résolu SANS
+      confirmation CI : workflow GitHub Actions sur `origin/main` en
+      `workflow_dispatch` uniquement (déviation établie en session le
+      2026-07-17, citée à chaque clôture depuis).

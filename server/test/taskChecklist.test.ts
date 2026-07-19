@@ -173,4 +173,40 @@ describe("taskChecklistService — SEC-060", () => {
     const finalCount = await prisma.taskChecklistItem.count({ where: { taskId: task.id } });
     assert.equal(finalCount, 100, "the rejected create must not have been inserted");
   });
+
+  test("SEC-077: several strictly concurrent creates near the cap never push the total past it", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const task = await makeTask();
+
+    // Seed at 97 — 5 concurrent creates racing for the last 3 available slots. Before SEC-077, the
+    // cap check (a separate count before the transaction) could let several of these through at
+    // once, since each read the same pre-transaction count. After SEC-077, the cap check runs
+    // inside the very same transaction that computes the insert position.
+    await prisma.taskChecklistItem.createMany({
+      data: Array.from({ length: 97 }, (_, i) => ({ taskId: task.id, title: `Seed ${i}`, position: i })),
+    });
+    const seeded = await prisma.taskChecklistItem.findMany({ where: { taskId: task.id }, select: { id: true } });
+    createdItemIds.push(...seeded.map((s) => s.id));
+
+    const results = await Promise.allSettled(
+      Array.from({ length: 5 }, (_, i) => taskChecklistService.createItem(task.id, `Racer ${i}`))
+    );
+    results.forEach((r) => {
+      if (r.status === "fulfilled") createdItemIds.push(r.value.id);
+    });
+
+    const fulfilled = results.filter((r) => r.status === "fulfilled");
+    const rejected = results.filter((r) => r.status === "rejected");
+    assert.equal(fulfilled.length, 3, "exactly the 3 remaining slots (97→100) must succeed");
+    assert.equal(rejected.length, 2, "the other 2 concurrent creates must be rejected, not silently exceed the cap");
+    rejected.forEach((r) => {
+      assert.ok(
+        r.status === "rejected" && r.reason instanceof HttpError && r.reason.code === "CHECKLIST_LIMIT_REACHED",
+        "a losing create must be rejected specifically for the cap, not an unrelated error"
+      );
+    });
+
+    const finalCount = await prisma.taskChecklistItem.count({ where: { taskId: task.id } });
+    assert.equal(finalCount, 100, "the cap must never be exceeded even under concurrent creates near the limit");
+  });
 });
