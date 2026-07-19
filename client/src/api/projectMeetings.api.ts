@@ -18,15 +18,37 @@ export interface MeetingSchedule {
   nextMeetingDate: string | null;
 }
 
+export interface ProjectMeetingsPage {
+  data: ProjectMeeting[];
+  total: number;
+}
+
 export const projectMeetingsApi = {
-  list: async (projectId: string): Promise<ProjectMeeting[]> => {
-    const res = await apiClient.get<{ data: ProjectMeeting[] }>(`/projects/${projectId}/meetings`);
-    return res.data.data;
+  // SEC-055 (F6): page/pageSize are optional — omitting both keeps the pre-existing unpaginated
+  // behavior (server returns every meeting, total equal to data.length).
+  list: async (projectId: string, page?: number, pageSize?: number): Promise<ProjectMeetingsPage> => {
+    const res = await apiClient.get<ProjectMeetingsPage>(`/projects/${projectId}/meetings`, {
+      params: page && pageSize ? { page, pageSize } : undefined,
+    });
+    return res.data;
   },
 
   create: async (projectId: string, data: { meetingDate: string; participants?: string; notes?: string }): Promise<ProjectMeeting> => {
     const res = await apiClient.post<{ data: ProjectMeeting }>(`/projects/${projectId}/meetings`, data);
     return res.data.data;
+  },
+
+  update: async (
+    projectId: string,
+    meetingId: string,
+    data: { meetingDate?: string; participants?: string; notes?: string }
+  ): Promise<ProjectMeeting> => {
+    const res = await apiClient.put<{ data: ProjectMeeting }>(`/projects/${projectId}/meetings/${meetingId}`, data);
+    return res.data.data;
+  },
+
+  delete: async (projectId: string, meetingId: string): Promise<void> => {
+    await apiClient.delete(`/projects/${projectId}/meetings/${meetingId}`);
   },
 
   getSchedule: async (projectId: string): Promise<MeetingSchedule> => {

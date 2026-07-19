@@ -117,16 +117,16 @@ function ProjectGrid({
                   {client && <p className="text-sm text-muted-foreground">{client.name}</p>}
                 </Link>
                 <div className="flex items-center gap-1 shrink-0">
-                  <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={t("common.view")} asChild>
                     <Link to={`/app/projects/${project.id}`}>
                       <Eye className="h-3.5 w-3.5" />
                     </Link>
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(project)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={t("common.edit")} onClick={() => onEdit(project)}>
                     <Edit className="h-3.5 w-3.5" />
                   </Button>
                   {canDelete && (
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => onDelete(project)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" aria-label={t("common.delete")} onClick={() => onDelete(project)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   )}
@@ -312,9 +312,16 @@ export function ProjectsPage() {
         <div>
           <h1 className="font-display text-2xl font-bold text-ink">{t("projectsPage.title")}</h1>
           <p className="text-muted-foreground">{t("projectsPage.subtitle")}</p>
+          {/* SEC-057 (U4): the "Nouveau projet" button was removed in SEC-039/046 (a project is
+              only ever created via a proposal's acceptance — see proposal.service.ts#acceptWithCascade),
+              but nothing here explained its absence to ADMIN/MANAGER, who might otherwise assume
+              it's a bug or a missing permission. */}
+          {!isFreelancer && (
+            <p className="text-xs text-muted-foreground mt-1">{t("projectsPage.noNewProjectButtonNotice")}</p>
+          )}
         </div>
       </div>
-      
+
       <Tabs defaultValue="projects">
         <TabsList className="bg-primary-soft/30 border border-primary/10">
           <TabsTrigger value="projects">{t("projectsPage.tabs.projects")}</TabsTrigger>

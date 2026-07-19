@@ -2,8 +2,8 @@ import { Router } from "express";
 import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, archiveProject, getDeletedProjects, restoreProject, getMyProjects, getTimelineStatus, getBrief, submitBrief, clientApproveProject, receiveAiSpecs } from "../controllers/project.controller.js";
 import { getHealthBoard } from "../controllers/healthBoard.controller.js";
 import { createTimeEntry, listTimeEntries, getTimeSummary, getMyTimeSummary } from "../controllers/timeEntry.controller.js";
-import { listProjectMeetings, createProjectMeeting, getMeetingSchedule, updateMeetingSchedule } from "../controllers/projectMeeting.controller.js";
-import { createProjectMeetingSchema, updateMeetingScheduleSchema } from "../validators/projectMeeting.validator.js";
+import { listProjectMeetings, createProjectMeeting, updateProjectMeeting, deleteProjectMeeting, getMeetingSchedule, updateMeetingSchedule } from "../controllers/projectMeeting.controller.js";
+import { createProjectMeetingSchema, updateProjectMeetingSchema, deleteProjectMeetingSchema, updateMeetingScheduleSchema } from "../validators/projectMeeting.validator.js";
 import { applyTemplateToProject } from "../controllers/projectTemplate.controller.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { createProjectSchema, updateProjectSchema } from "../validators/project.validator.js";
@@ -226,9 +226,14 @@ router.get("/:id/my-time-summary", authorize("ADMIN", "MANAGER", "FREELANCER"), 
 // Templates — apply the project's pole template as a one-shot bulk task creation
 router.post("/:id/apply-template", authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), applyTemplateToProject);
 
-// Meetings — lightweight log, ADMIN/MANAGER only (no client/freelancer visibility)
+// Meetings — lightweight log, ADMIN/MANAGER only (no client/freelancer visibility). Update/delete
+// (SEC-055/F6) additionally require, at the service layer, that the actor is the meeting's own
+// author or ADMIN — requirePermission("projects", "update") alone would let any MANAGER of the
+// project's pole edit a colleague's meeting note.
 router.get("/:id/meetings", authorize("ADMIN", "MANAGER"), requirePermission("projects", "read"), listProjectMeetings);
 router.post("/:id/meetings", authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(createProjectMeetingSchema), createProjectMeeting);
+router.put("/:id/meetings/:meetingId", authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(updateProjectMeetingSchema), updateProjectMeeting);
+router.delete("/:id/meetings/:meetingId", authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(deleteProjectMeetingSchema), deleteProjectMeeting);
 
 // Recurring meeting cadence — drives the daily reminder job (checkMeetingReminders)
 router.get("/:id/meeting-schedule", authorize("ADMIN", "MANAGER"), requirePermission("projects", "read"), getMeetingSchedule);

@@ -46,6 +46,7 @@ export function useTaskActions() {
     createDialogOpen,
     editDialogOpen,
     editingEntity: editingTask,
+    openCreateDialog,
     closeCreateDialog,
     openEditDialog,
     closeEditDialog,
@@ -127,6 +128,27 @@ export function useTaskActions() {
     [checkConflictsThen, runCreate]
   );
 
+  // SEC-055 (F5): the "Partir du template" button on ProjectDetailPage only appears once a
+  // project has zero tasks — once it has at least one, there was no contextualized way to add
+  // another from that page. This lets ProjectDetailPage open the create dialog directly, with
+  // projectId pre-filled, instead of sending the user to the global /app/tasks page to pick the
+  // project by hand from a selector already known to truncate past 100 (SEC-053).
+  const openCreateDialogForProject = useCallback(
+    (projectId: string) => {
+      createForm.reset({
+        title: "",
+        description: "",
+        status: "TODO",
+        priority: "NORMAL",
+        projectId,
+        startDate: "",
+        dueDate: "",
+      });
+      openCreateDialog();
+    },
+    [createForm, openCreateDialog]
+  );
+
   const handleEditTask = useCallback(
     (task: Task) => {
       openEditDialog(task);
@@ -205,6 +227,8 @@ export function useTaskActions() {
     // create
     createForm,
     createDialogOpen,
+    openCreateDialog,
+    openCreateDialogForProject,
     closeCreateDialog,
     isCreating,
     handleCreate,

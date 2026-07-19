@@ -697,6 +697,7 @@
     "confirm": "Confirmer",
     "delete": "Supprimer",
     "edit": "Modifier",
+    "view": "Voir",
     "back": "Retour",
     "search": "Rechercher",
     "new": "Nouveau",
@@ -1172,6 +1173,7 @@
   "projectsPage": {
     "title": "Projets",
     "subtitle": "Gérez vos projets clients",
+    "noNewProjectButtonNotice": "Un projet naît de l'acceptation d'une proposition — il n'y a pas de bouton de création directe ici.",
     "newProject": "Nouveau projet",
     "createProject": "Créer un projet",
     "createProjectDesc": "Ajoutez un nouveau projet à votre liste",

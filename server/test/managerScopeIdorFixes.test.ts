@@ -117,13 +117,16 @@ describe("SEC (session 2026-07-18): Manager pole scope enforced on meetings, tem
 
     const meeting = await projectMeetingService.create(project.id, { meetingDate: new Date() }, undefined, managerAScope());
     createdMeetingIds.push(meeting.id);
+    // SEC-055 (F6): listByProject now returns { data, total } (paginated shape) instead of a bare
+    // array — page/pageSize are optional, but the return shape changed unconditionally.
     const list = await projectMeetingService.listByProject(project.id, managerAScope());
-    assert.ok(list.some((m) => m.id === meeting.id));
+    assert.ok(list.data.some((m) => m.id === meeting.id));
 
     // ADMIN (no service scope) can reach a pole-B project too.
     const otherProject = await makeProjectInPoleB();
     const adminList = await projectMeetingService.listByProject(otherProject.id, { userRole: "ADMIN" });
-    assert.deepEqual(adminList, []);
+    assert.deepEqual(adminList.data, []);
+    assert.equal(adminList.total, 0);
   });
 
   test("projectTemplateService.applyToProject: a pole-A Manager cannot apply a template to a pole-B project", async () => {

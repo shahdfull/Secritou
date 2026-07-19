@@ -9,6 +9,19 @@ export const createProjectMeetingSchema = z.object({
   }),
 });
 
+export const updateProjectMeetingSchema = z.object({
+  params: z.object({ id: z.string().uuid(), meetingId: z.string().uuid() }),
+  body: z.object({
+    meetingDate: z.string().datetime({ offset: true }).optional(),
+    participants: z.string().max(2000).optional(),
+    notes: z.string().max(5000).optional(),
+  }),
+});
+
+export const deleteProjectMeetingSchema = z.object({
+  params: z.object({ id: z.string().uuid(), meetingId: z.string().uuid() }),
+});
+
 export const updateMeetingScheduleSchema = z.object({
   params: z.object({ id: z.string().uuid() }),
   body: z.object({

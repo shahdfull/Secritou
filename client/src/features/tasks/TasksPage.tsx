@@ -106,6 +106,23 @@ export function TasksPage() {
   const { tasks, total, projects, projectsTotal, users, comments, projectNameById, userById, isLoading } =
     useTasksPageData(listParams, actions.selectedTaskId, projectIdFilter, taskFilters);
 
+  // SEC-055 (F5): ProjectDetailPage's "+ Nouvelle tâche" button (contextualized, once a project
+  // already has tasks) navigates here with ?projectId=<id>&openCreate=true — open the create
+  // dialog on arrival, pre-filled, instead of leaving the user to find the project again in the
+  // create form's own selector. Consumed once via a query-param removal so it doesn't re-fire on
+  // every re-render or re-open after the dialog is closed.
+  const openCreateDialogForProject = actions.openCreateDialogForProject;
+  const shouldAutoOpenCreate = Boolean(projectIdFilter) && searchParams.get("openCreate") === "true";
+  useEffect(() => {
+    if (!shouldAutoOpenCreate || !projectIdFilter) return;
+    openCreateDialogForProject(projectIdFilter);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("openCreate");
+      return next;
+    });
+  }, [shouldAutoOpenCreate, projectIdFilter, openCreateDialogForProject, setSearchParams]);
+
   // The assignee selector must not offer a choice the server always refuses; `users` itself stays
   // unfiltered (userById still needs every role to label assignees already on a task).
   const assignableUsers = useMemo(() => filterAssignableUsers(users), [users]);

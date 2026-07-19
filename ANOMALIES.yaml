@@ -4237,11 +4237,11 @@ anomalies:
 
   - id: SEC-055
     titre: "Aucun bouton Ajouter une tache contextualise sur l'onglet Taches de la fiche projet des qu'il contient deja une tache (le bouton template n'apparait qu'a l'etat vide) ; ProjectMeetingsTab n'a ni edition ni suppression de reunion, et sa liste n'est pas paginee"
-    perimetre: "4.2 Gestion de projet — client/src/features/projects/ProjectDetailPage.tsx, client/src/features/projects/ProjectMeetingsTab.tsx, server/src/routes/project.routes.ts"
+    perimetre: "4.2 Gestion de projet — client/src/features/projects/ProjectDetailPage.tsx, client/src/features/projects/ProjectMeetingsTab.tsx, client/src/hooks/useTaskActions ts (openCreateDialogForProject), client/src/hooks/useProjectMeetings.ts, client/src/api/projectMeetings.api.ts, server/src/routes/project.routes.ts, server/src/controllers/projectMeeting.controller.ts, server/src/services/projectMeeting.service.ts, server/src/repositories/projectMeeting.repository.ts, server/src/validators/projectMeeting.validator.ts"
     regle_violee: null
     classe: null
     gravite: faible
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       F5 sera résolu par l'ajout d'un bouton « + Nouvelle tâche »
       contextualisé dans l'onglet Tâches (pré-remplissant `projectId`),
@@ -4278,8 +4278,71 @@ anomalies:
       projet pluriannuel à cadence hebdomadaire, la liste (non paginée)
       peut représenter des centaines d'entrées chargées d'un coup.
 
-      Non corrigés cette session (décision du porteur : « F1 seul,
-      urgent »).
+      Non corrigés lors du traitement de F1 (décision du porteur alors :
+      « F1 seul, urgent »). Repris ensuite sur décision explicite du
+      porteur (portée « F5 et F6 », choisie plutôt que F5 seul malgré
+      le coût plus élevé de F6 : nouvelle surface API serveur).
+
+      F5 — correctif : `ProjectDetailPage.tsx` affiche désormais un
+      bouton « Nouvelle tâche » (ADMIN/MANAGER, projet non archivé)
+      dans la branche `displayedTasks.length > 0`, qui navigue vers
+      `/app/tasks?projectId=<id>&openCreate=true`. `TasksPage.tsx` lit
+      `openCreate=true` et appelle la nouvelle fonction
+      `useTaskActions().openCreateDialogForProject(projectId)`
+      (pré-remplit `createForm` avec le `projectId` puis ouvre le
+      dialogue via `openCreateDialog`, déjà exposé par
+      `useCrudDialogState` mais jusqu'ici non destructuré par
+      `useTaskActions`), puis retire `openCreate` de l'URL pour ne pas
+      rouvrir le dialogue à chaque re-render. Test réel ajouté
+      (`useTaskActions.test.tsx`) : appelle la vraie fonction, vérifie
+      `createDialogOpen === true` et `createForm.getValues("projectId")`.
+
+      F6 — correctif serveur : nouvelles routes
+      `PUT`/`DELETE /:id/meetings/:meetingId`
+      (`project.routes.ts`), `projectMeetingService.update`/`.delete`
+      avec autorisation explicite auteur-ou-ADMIN (404 si la réunion
+      n'existe pas ou n'appartient pas au projet donné, 403
+      `MEETING_NOT_YOURS` si l'acteur n'est ni l'auteur ni ADMIN — un
+      MANAGER du même pôle qui n'a pas écrit la note ne peut pas la
+      modifier/supprimer, `requirePermission("projects","update")`
+      seul ne suffisait pas à cette distinction). `listByProject`
+      accepte désormais `page`/`pageSize` optionnels (comptage Prisma
+      réel, pas un slice en mémoire) ; omis, le comportement précédent
+      (liste complète) est inchangé pour tout appelant qui ne les
+      fournit pas. Côté client : `ProjectMeetingsTab.tsx` affiche
+      boutons Modifier/Supprimer (masqués si l'utilisateur courant
+      n'est ni l'auteur ni ADMIN — le serveur reste l'autorité réelle,
+      ceci évite seulement d'proposer une action prévisible de refus),
+      formulaire d'édition inline, `ConfirmDeleteDialog` réutilisé,
+      pagination via `DataTablePagination` (page de 10). Tests réels
+      ajoutés : `server/test/projectMeetingUpdateDelete.test.ts` (7 cas
+      — auteur peut éditer/supprimer, un autre MANAGER refusé en 403
+      MEETING_NOT_YOURS pour édition ET suppression avec vérification
+      que la réunion n'a pas été altérée, ADMIN peut tout éditer/
+      supprimer, 404 sur projectId non correspondant, pagination
+      correcte et repli non paginé) ; `ProjectMeetingsTab.test.tsx`
+      (3 cas — contrôles visibles pour l'auteur, masqués pour un tiers
+      non-admin, clic Supprimer + confirmation appelle réellement
+      `DELETE /projects/:id/meetings/:meetingId`).
+
+      Effet de bord découvert et traité dans la même passe : le
+      changement de forme de retour de `listByProject` (tableau brut →
+      `{ data, total }`) cassait un test préexistant
+      (`managerScopeIdorFixes.test.ts`, non écrit cette session) qui
+      appelait `list.some(...)` directement sur l'ancien tableau —
+      corrigé en `list.data.some(...)`/`adminList.data`/`adminList.total`,
+      changement mécanique de forme, aucune hypothèse métier du test
+      modifiée.
+
+      Vérification complète : serveur `npx tsc --noEmit` (clean),
+      `npm run lint` (0/0), `npx tsx --test test/run-all.test.ts`
+      (344/344, 7 nouveaux + 1 test préexistant adapté à la nouvelle
+      forme de retour) ; client `npx tsc --noEmit` (clean), `npm run
+      lint` (12 warnings — exception SEC-049, stable), `npx vitest run`
+      (43/43), `npm run build` (succès). Résolu SANS confirmation CI :
+      workflow GitHub Actions sur `origin/main` en `workflow_dispatch`
+      uniquement (déviation établie en session le 2026-07-17, citée à
+      chaque clôture depuis).
 
   - id: SEC-056
     titre: "TasksListView n'offre qu'un filtre statut + recherche texte (manquent projet/assigne/echeance en retard) et utilise une grille CSS a colonnes fixes en pixels sans variante empilee mobile, contrairement a la grille responsive de ProjectsPage"
@@ -4381,11 +4444,11 @@ anomalies:
 
   - id: SEC-057
     titre: "Boutons d'action a icone seule (title mais pas d'aria-label systematique) ; aucune aide contextuelle n'explique l'absence du bouton Nouveau projet ; la cadence/prochaine reunion n'est visible que dans l'onglet Reunions, absente de la vue d'ensemble de la fiche projet"
-    perimetre: "Transverse UI — boutons icone divers, client/src/features/projects/ProjectsPage.tsx, client/src/features/projects/ProjectDetailPage.tsx"
+    perimetre: "Transverse UI — boutons icone divers, client/src/features/projects/ProjectsPage.tsx, client/src/features/projects/ProjectDetailPage.tsx, client/src/types/project.ts"
     regle_violee: null
     classe: null
     gravite: faible
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       U3 sera résolu par l'ajout systématique d'un `aria-label`
       explicite sur chaque bouton icône (au-delà du seul `title`). U4
@@ -4410,8 +4473,53 @@ anomalies:
       dans `ProjectMeetingsTab.tsx`, absente de l'en-tête de
       `ProjectDetailPage.tsx`).
 
-      Non corrigés cette session (décision du porteur : « F1 seul,
-      urgent »).
+      Non corrigés lors du traitement de F1 (décision du porteur alors :
+      « F1 seul, urgent »). Repris ensuite sur décision explicite du
+      porteur (« Les trois (Recommandé) »).
+
+      U3 — corrigé pour son périmètre déclaré
+      (`ProjectsPage.tsx#ProjectGrid`, seul endroit confirmé par grep
+      avec des boutons `size="icon"` sans `aria-label` dans le
+      périmètre de cette anomalie — `ProjectDetailPage.tsx` n'a aucun
+      bouton icône-seule, tous ont un libellé texte visible) : les 3
+      boutons Voir/Modifier/Supprimer de chaque carte projet ont
+      désormais `aria-label={t("common.view"|"edit"|"delete")}`. Clé
+      `common.view` ajoutée (fr/en) — n'existait pas encore dans le
+      bloc `common`, contrairement à `common.edit`/`common.delete`
+      déjà présents. `TasksListView.tsx` (bouton "Voir" hardcodé sans
+      i18n, décision explicite de SEC-056) volontairement non retouché
+      ici — hors périmètre déclaré de SEC-057, changement de
+      convention à part entière s'il devait être fait.
+
+      U4 — corrigé : ligne d'aide sous le titre de `ProjectsPage.tsx`,
+      visible pour ADMIN/MANAGER uniquement (`!isFreelancer`), clé
+      `projectsPage.noNewProjectButtonNotice` (fr/en) expliquant que la
+      création passe par l'acceptation d'une proposition.
+
+      U5 — corrigé : pastille « Prochaine réunion : <date> » dans
+      l'en-tête de `ProjectDetailPage.tsx`, visible pour ADMIN/MANAGER
+      quand `meetingFrequency !== "NONE"` ET `nextMeetingDate` est
+      renseigné. Gap de typage découvert et corrigé en cours de route :
+      `client/src/types/project.ts#Project` ne déclarait ni
+      `meetingFrequency` ni `nextMeetingDate`, alors que le serveur les
+      renvoie déjà (`project.repository.ts#projectListSelect`) — même
+      classe de gap que `archivedAt` en SEC-040, ajoutés au type sans
+      changement serveur.
+
+      Tests réels ajoutés : `ProjectsPage.test.tsx` (2 cas — notice U4
+      visible, aria-labels U3 présents et corrects) ;
+      `ProjectDetailPage.test.tsx` (3 cas — pastille visible avec
+      cadence + date, absente si `NONE`, absente si le champ n'est pas
+      du tout renseigné). Les deux rendent les vrais composants,
+      mockant uniquement leurs hooks de données (pas leur logique de
+      rendu).
+
+      Vérification complète : client `npx tsc --noEmit` (clean), `npm
+      run lint` (12 warnings — exception SEC-049, stable), `npx vitest
+      run` (43/43), `npm run build` (succès). Résolu SANS confirmation
+      CI : workflow GitHub Actions sur `origin/main` en
+      `workflow_dispatch` uniquement (déviation établie en session le
+      2026-07-17, citée à chaque clôture depuis).
 
   - id: SEC-058
     titre: "Point positif signale par le rapport (aucune action requise) : l'archivage de projet (SEC-046) explique tres honnetement son irreversibilite cote UI — bonne pratique a generaliser a toute future action irreversible"

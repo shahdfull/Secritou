@@ -21,6 +21,11 @@ export interface Project {
   archivedAt?: string | null;
   budget?: string | null;
   deadline?: string | null;
+  // SEC-057 (U5): gap discovered while wiring the "next meeting" badge on ProjectDetailPage — the
+  // server already returns both (project.repository.ts#projectListSelect), the client type simply
+  // never declared them, mirroring the same class of gap SEC-040 found for archivedAt.
+  meetingFrequency?: "NONE" | "WEEKLY" | "BIWEEKLY" | "MONTHLY";
+  nextMeetingDate?: string | null;
   createdAt: string;
   updatedAt: string;
   client?: Client;

@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, ExternalLink, FileText, CheckSquare, Activity, ClipboardCheck, Upload, Users, Archive } from "lucide-react";
+import { ArrowLeft, Loader2, ExternalLink, FileText, CheckSquare, Activity, ClipboardCheck, Upload, Users, Archive, Plus } from "lucide-react";
 import { useProject, useUpdateProject, useArchiveProject } from "@/hooks/useProjects";
 import { useMe } from "@/hooks/useAuth";
 import { useMySplitForProject } from "@/hooks/useCommissions";
@@ -164,6 +164,15 @@ export function ProjectDetailPage() {
           <Badge className={getProjectStatusBadgeClass(project.status)}>
             {PROJECT_STATUS_LABELS_FR[project.status as keyof typeof PROJECT_STATUS_LABELS_FR] ?? project.status}
           </Badge>
+          {/* SEC-057 (U5): meeting cadence was only visible inside the "Réunions" tab
+              (ProjectMeetingsTab.tsx) — surfaced here too so ADMIN/MANAGER see it without an
+              extra click. Only shown once a cadence is actually set (meetingFrequency !== "NONE"). */}
+          {isAdminOrManager && project.meetingFrequency && project.meetingFrequency !== "NONE" && project.nextMeetingDate && (
+            <Badge variant="outline" className="text-xs gap-1">
+              <Users className="h-3 w-3" />
+              Prochaine réunion : {formatDate(project.nextMeetingDate)}
+            </Badge>
+          )}
           {isManager && mySplit && (
             <Badge variant="outline" className="text-xs">
               Votre part sur ce projet : {mySplit.ratePct}%
@@ -297,6 +306,17 @@ export function ProjectDetailPage() {
             <CardContent className="pt-4">
               {displayedTasks.length > 0 ? (
                 <>
+                  {isAdminOrManager && !project.archivedAt && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mb-3 gap-1 text-xs"
+                      onClick={() => navigate(`/app/tasks?projectId=${project.id}&openCreate=true`)}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Nouvelle tâche
+                    </Button>
+                  )}
                   <ul className="divide-y divide-border">
                     {displayedTasks.map((task) => (
                       <li key={task.id} className="flex items-center justify-between py-2.5">

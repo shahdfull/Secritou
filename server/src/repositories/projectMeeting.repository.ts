@@ -2,12 +2,21 @@ import type { MeetingFrequency } from "@prisma/client";
 import { prisma, prismaRead } from "../config/prisma.js";
 
 export const projectMeetingRepository = {
-  async listByProject(projectId: string) {
-    return prismaRead.projectMeeting.findMany({
-      where: { projectId },
-      include: { createdBy: { select: { id: true, name: true } } },
-      orderBy: { meetingDate: "desc" },
-    });
+  // SEC-055 (F6): a long-running weekly-cadence project can accumulate hundreds of meeting
+  // entries — page/pageSize are optional so existing callers (and the reminder-adjacent code
+  // reading the full list) keep working unpaginated; the controller is the only caller that now
+  // passes them, capped the same way parseListQuery caps other list endpoints (max 50).
+  async listByProject(projectId: string, page?: number, pageSize?: number) {
+    const [data, total] = await Promise.all([
+      prismaRead.projectMeeting.findMany({
+        where: { projectId },
+        include: { createdBy: { select: { id: true, name: true } } },
+        orderBy: { meetingDate: "desc" },
+        ...(page && pageSize ? { skip: (page - 1) * pageSize, take: pageSize } : {}),
+      }),
+      prismaRead.projectMeeting.count({ where: { projectId } }),
+    ]);
+    return { data, total };
   },
 
   async create(data: { projectId: string; meetingDate: Date; participants?: string; notes?: string; createdById?: string }) {
@@ -15,6 +24,22 @@ export const projectMeetingRepository = {
       data,
       include: { createdBy: { select: { id: true, name: true } } },
     });
+  },
+
+  async findById(id: string) {
+    return prismaRead.projectMeeting.findUnique({ where: { id } });
+  },
+
+  async update(id: string, data: { meetingDate?: Date; participants?: string; notes?: string }) {
+    return prisma.projectMeeting.update({
+      where: { id },
+      data,
+      include: { createdBy: { select: { id: true, name: true } } },
+    });
+  },
+
+  async delete(id: string) {
+    return prisma.projectMeeting.delete({ where: { id } });
   },
 
   async setSchedule(projectId: string, frequency: MeetingFrequency, nextMeetingDate: Date | null) {
