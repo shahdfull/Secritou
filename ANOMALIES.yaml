@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-051
+dernier_id: SEC-058
 
 anomalies:
   - id: SEC-001
@@ -4049,3 +4049,274 @@ anomalies:
       build client propres. `resolu` déclaré SANS confirmation CI : CI
       désactivée sur `origin/main` (workflow_dispatch seul, session du
       2026-07-17), dérogation "no make it resolu" déjà établie.
+  - id: SEC-052
+    titre: "Le lien « Voir toutes les taches » (fiche projet -> /app/tasks?projectId=...) atterrissait sur la liste COMPLETE non filtree : TasksPage.tsx ne lisait jamais ce parametre d'URL alors que useTasks/tasksApi.getAll/le serveur le supportent deja de bout en bout"
+    perimetre: "4.3 Gestion des taches — client/src/features/tasks/TasksPage.tsx, client/src/features/tasks/hooks/useTasksPageData.ts, client/src/hooks/useTasks.ts"
+    regle_violee: null
+    classe: null
+    gravite: eleve
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand naviguer depuis « Voir toutes les tâches »
+      (`/app/tasks?projectId=<id>`) affiche uniquement les tâches de ce
+      projet, avec un indicateur visuel du filtre actif et un moyen de le
+      retirer — vérifié par un test qui appelle réellement
+      `useTasksPageData` et confirme que `projectId` atteint la requête
+      HTTP réelle (`GET /tasks?...&projectId=...`), et est absent quand
+      non fourni (liste non filtrée inchangée).
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport du porteur du projet, casquette développeur full-stack
+      (constat F1, sévérité « élevée »), confirmé intégralement par
+      lecture directe de toute la chaîne avant action.
+
+      CONSTAT CONFIRMÉ PAR LECTURE DIRECTE, bout en bout :
+      `ProjectDetailPage.tsx` navigue vers
+      `/app/tasks?projectId=${project.id}` ; `useListParams.ts` ne lit
+      que `page/pageSize/orderBy/orderDir/search/status` (jamais
+      `projectId`) ; `TasksPage.tsx` n'appelait `useSearchParams()`
+      nulle part et transmettait `listParams` (dérivé de
+      `useListParams`) à `useTasksPageData(listParams,
+      selectedTaskId)` — un seul argument ; `useTasksPageData` appelait
+      `useTasks(listParams)` — toujours un seul argument. Or
+      `useTasks(params, projectId?)` (`useTasks.ts`) ET
+      `tasksApi.getAll(params, projectId?)` (`tasks.api.ts`) supportent
+      déjà un second paramètre `projectId`, transmis en query param
+      réel au serveur, et `task.repository.ts#buildWhere` l'honore déjà
+      côté serveur. L'infrastructure existait intégralement ; seul
+      `TasksPage.tsx` ne branchait jamais le paramètre d'URL dessus.
+      Un utilisateur cliquant le lien atterrissait donc sur la liste
+      complète et non filtrée de toutes les tâches de l'entreprise.
+
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-19) : « F1 seul, urgent (Recommandé) » — corriger F1
+      immédiatement, documenter F2/F3/F5/F6/U1-U6 sans coder cette
+      session.
+
+      CORRECTIF ÉCRIT : `TasksPage.tsx` lit désormais `projectId` via
+      `useSearchParams()`, le transmet à `useTasksPageData(listParams,
+      selectedTaskId, projectIdFilter)`, qui le transmet à
+      `useTasks(listParams, projectId)`. Un bandeau visuel affiche
+      « Filtré sur le projet : <nom> » avec un bouton « Voir toutes les
+      tâches » qui retire le paramètre d'URL (`clearProjectFilter`) —
+      au-delà du strict minimum demandé par F1, pour que l'utilisateur
+      sache qu'un filtre est actif plutôt que de le subir
+      silencieusement. Clés i18n FR/EN ajoutées
+      (`tasksPage.filteredByProject`, `tasksPage.clearProjectFilter`).
+
+      TEST AJOUTÉ :
+      `client/src/features/tasks/hooks/useTasksPageData.test.tsx`
+      (nouveau fichier), rend le hook réel via `renderHook` avec un
+      mock de `apiClient.get`, et vérifie sur 2 cas que `projectId`
+      atteint réellement la requête HTTP (`params.projectId`) quand
+      fourni, et en est absent quand omis. 26/26 tests client verts (2
+      nouveaux), typecheck et build propres, `check-i18n.mjs` vert.
+      `resolu` déclaré SANS confirmation CI : CI désactivée sur
+      `origin/main` (workflow_dispatch seul, session du 2026-07-17),
+      dérogation "no make it resolu" déjà établie.
+
+  - id: SEC-053
+    titre: "Le selecteur Projet du formulaire de creation de tache charge useProjects({page:1, pageSize:100}) sans recherche serveur : au-dela de 100 projets actifs, certains deviennent invisibles/inselectionnables sans aucun avertissement"
+    perimetre: "4.3 Gestion des taches — client/src/features/tasks/hooks/useTasksPageData.ts"
+    regle_violee: null
+    classe: null
+    gravite: moyen
+    statut: ouvert
+    critere_de_resolution: >
+      Ce constat sera résolu soit en remplaçant le sélecteur par un
+      combobox à recherche serveur (debounced), soit en ajoutant un
+      bandeau d'avertissement explicite au-delà du seuil (miroir du
+      comportement déjà existant sur le Kanban de tâches au-delà de 200
+      tâches). Reste `ouvert` tant qu'aucune des deux options n'est
+      choisie par le porteur.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport du porteur du projet, casquette développeur full-stack
+      (constat F2), confirmé par lecture directe :
+      `useTasksPageData.ts` appelle
+      `useProjects({ page: 1, pageSize: 100 })` sans recherche serveur
+      ni avertissement — contrairement au Kanban de tâches qui affiche
+      un bandeau explicite au-delà de 200 tâches
+      (`tasksPage.kanbanTruncatedNotice`, déjà en place). Non corrigé
+      cette session (décision du porteur : « F1 seul, urgent »).
+
+  - id: SEC-054
+    titre: "Le selecteur Assigne a du formulaire de creation de tache liste usersApi.getUsers() sans filtrer par role : un CLIENT peut y apparaitre alors que le serveur rejette l'assignation en 422 INVALID_ASSIGNEE_ROLE, decouvert seulement apres soumission"
+    perimetre: "4.3 Gestion des taches — client/src/features/tasks/components/TaskCreateDialog.tsx, server/src/services/task.service.ts"
+    regle_violee: null
+    classe: null
+    gravite: moyen
+    statut: ouvert
+    critere_de_resolution: >
+      Ce constat sera résolu quand le sélecteur « Assigné à » n'affiche
+      que les rôles réellement assignables (ADMIN/MANAGER/FREELANCER),
+      soit par un filtrage côté client sur la réponse de
+      `usersApi.getUsers()`, soit via un endpoint dédié
+      (`GET /users?assignable=true`) — décision à trancher avec le
+      porteur sur l'approche retenue.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport du porteur du projet, casquette développeur full-stack
+      (constat F3), confirmé par lecture directe :
+      `TaskCreateDialog.tsx` fait `users?.map((user) => ...)` sans
+      filtre de rôle ; `usersApi.getUsers()` (client) /
+      `getUsersByCompany` → `userRepository.findAll` (serveur) ne
+      filtrent aucun rôle non plus — un CLIENT apparaît donc bien dans
+      la liste. `task.service.ts` ligne 51 confirme le rejet serveur :
+      `throw new HttpError(422, "A task cannot be assigned to a
+      CLIENT", "INVALID_ASSIGNEE_ROLE")`. L'erreur n'est donc visible
+      qu'après soumission, jamais anticipée dans le formulaire. Non
+      corrigé cette session (décision du porteur : « F1 seul,
+      urgent »).
+
+  - id: SEC-055
+    titre: "Aucun bouton Ajouter une tache contextualise sur l'onglet Taches de la fiche projet des qu'il contient deja une tache (le bouton template n'apparait qu'a l'etat vide) ; ProjectMeetingsTab n'a ni edition ni suppression de reunion, et sa liste n'est pas paginee"
+    perimetre: "4.2 Gestion de projet — client/src/features/projects/ProjectDetailPage.tsx, client/src/features/projects/ProjectMeetingsTab.tsx, server/src/routes/project.routes.ts"
+    regle_violee: null
+    classe: null
+    gravite: faible
+    statut: ouvert
+    critere_de_resolution: >
+      F5 sera résolu par l'ajout d'un bouton « + Nouvelle tâche »
+      contextualisé dans l'onglet Tâches (pré-remplissant `projectId`),
+      visible que le projet ait déjà des tâches ou non. F6 sera résolu
+      par l'ajout d'une pagination/chargement progressif sur la liste
+      des réunions, et d'une route de suppression (réservée à l'auteur
+      ou à un ADMIN) — actuellement absente même côté serveur
+      (confirmé : seuls GET/POST existent sur `/meetings`, aucun
+      PUT/DELETE par réunion).
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport du porteur du projet, casquette développeur full-stack
+      (constats F5 et F6), regroupés ici car tous deux dans le
+      périmètre `ProjectDetailPage.tsx`/module Project et tous deux
+      des lacunes d'ergonomie/complétude fonctionnelle, pas des bugs.
+
+      F5 confirmé par lecture directe : le bouton « Partir du template
+      » n'apparaît que dans la branche `displayedTasks.length === 0`
+      de `ProjectDetailPage.tsx` — aucun bouton d'ajout de tâche
+      contextualisé une fois le projet doté d'au moins une tâche.
+      Pour ajouter une tâche à un projet précis dans cet état, il faut
+      passer par la page globale `/app/tasks` et choisir manuellement
+      le bon projet dans le sélecteur (lui-même limité à 100 projets,
+      voir SEC-053).
+
+      F6 confirmé par lecture directe : `ProjectMeetingsTab.tsx` ne
+      contient aucune fonction d'édition ni de suppression (recherche
+      exhaustive de "delete"/"update"/"edit" : zéro occurrence), et
+      `server/src/routes/project.routes.ts` ne déclare que
+      `GET /:id/meetings` et `POST /:id/meetings` — aucune route
+      `PUT`/`DELETE` par réunion n'existe même côté serveur. Sur un
+      projet pluriannuel à cadence hebdomadaire, la liste (non paginée)
+      peut représenter des centaines d'entrées chargées d'un coup.
+
+      Non corrigés cette session (décision du porteur : « F1 seul,
+      urgent »).
+
+  - id: SEC-056
+    titre: "TasksListView n'offre qu'un filtre statut + recherche texte (manquent projet/assigne/echeance en retard) et utilise une grille CSS a colonnes fixes en pixels sans variante empilee mobile, contrairement a la grille responsive de ProjectsPage"
+    perimetre: "4.3 Gestion des taches — client/src/features/tasks/TasksPage.tsx, client/src/features/tasks/components/TasksListView.tsx"
+    regle_violee: null
+    classe: null
+    gravite: moyen
+    statut: ouvert
+    critere_de_resolution: >
+      U1 sera résolu par l'ajout de filtres combinables (projet,
+      assigné, échéance en retard) persistés dans l'URL, sur le modèle
+      de ce que `useListParams` fait déjà pour status/search. U2 sera
+      résolu par une variante « carte » repliée sous un breakpoint
+      `sm`, sur le modèle de la grille déjà responsive de
+      `ProjectsPage.tsx` (`grid-cols-1 md:grid-cols-2`).
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport du porteur du projet, casquette designer UI/UX (constats
+      U1 et U2), regroupés ici (même fichier, même nature —
+      complétude/responsive de la vue liste des tâches).
+
+      U1 confirmé par lecture directe : `TasksPage.tsx` n'expose que
+      `statusFilter` (`useState`) et la recherche texte
+      (`useListParams`) — aucun filtre projet, assigné, ou échéance,
+      alors que ces trois dimensions existent déjà ailleurs dans l'app
+      (colonnes triables sur `orderBy`, badge rouge de retard déjà
+      utilisé dans `TasksListView`/`FreelancerDashboardPage`).
+
+      U2 confirmé par lecture directe :
+      `TasksListView.tsx` utilise
+      `grid grid-cols-[minmax(220px,2fr)_minmax(180px,1.2fr)_140px_...]`
+      (colonnes fixes en pixels, aucun breakpoint `sm:`/`md:`), alors
+      que `ProjectsPage.tsx` bascule proprement en `grid-cols-1
+      md:grid-cols-2` sur petit écran. Probablement inutilisable sans
+      défilement horizontal sur écran étroit.
+
+      Non corrigés cette session (décision du porteur : « F1 seul,
+      urgent »).
+
+  - id: SEC-057
+    titre: "Boutons d'action a icone seule (title mais pas d'aria-label systematique) ; aucune aide contextuelle n'explique l'absence du bouton Nouveau projet ; la cadence/prochaine reunion n'est visible que dans l'onglet Reunions, absente de la vue d'ensemble de la fiche projet"
+    perimetre: "Transverse UI — boutons icone divers, client/src/features/projects/ProjectsPage.tsx, client/src/features/projects/ProjectDetailPage.tsx"
+    regle_violee: null
+    classe: null
+    gravite: faible
+    statut: ouvert
+    critere_de_resolution: >
+      U3 sera résolu par l'ajout systématique d'un `aria-label`
+      explicite sur chaque bouton icône (au-delà du seul `title`). U4
+      sera résolu par une ligne d'aide contextuelle sous le titre de
+      `ProjectsPage.tsx` pour ADMIN/MANAGER, expliquant l'absence du
+      bouton « Nouveau projet » (règle métier : un projet naît de
+      l'acceptation d'une proposition — retiré en SEC-039/046). U5 sera
+      résolu par une pastille « Prochaine réunion : le <date> » dans
+      l'en-tête de `ProjectDetailPage.tsx`, à côté du badge de statut.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport du porteur du projet, casquette designer UI/UX (constats
+      U3, U4, U5), regroupés ici — trois lacunes d'ergonomie/
+      accessibilité mineures et indépendantes, non vérifiées
+      exhaustivement fichier par fichier (U3 est une observation
+      transverse, non un défaut localisé à corriger en un point unique)
+      mais cohérentes avec l'état du code observé pendant cette session
+      (bouton « Nouveau projet » retiré en SEC-039/046 sans notice
+      explicative ; cadence de réunion confirmée visible uniquement
+      dans `ProjectMeetingsTab.tsx`, absente de l'en-tête de
+      `ProjectDetailPage.tsx`).
+
+      Non corrigés cette session (décision du porteur : « F1 seul,
+      urgent »).
+
+  - id: SEC-058
+    titre: "Point positif signale par le rapport (aucune action requise) : l'archivage de projet (SEC-046) explique tres honnetement son irreversibilite cote UI — bonne pratique a generaliser a toute future action irreversible"
+    perimetre: "4.2 Gestion de projet — client/src/features/projects/ProjectDetailPage.tsx"
+    regle_violee: null
+    classe: null
+    gravite: info
+    statut: ouvert
+    critere_de_resolution: >
+      Pas de critère de résolution au sens strict : ceci est une
+      recommandation de convention à appliquer lors de la conception de
+      toute future action irréversible (dialogue de confirmation
+      explicitant clairement l'absence de retour arrière), pas un
+      défaut à corriger. Reste `ouvert` comme rappel de convention tant
+      qu'aucune nouvelle action irréversible n'est ajoutée à l'app.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport du porteur du projet, casquette designer UI/UX (constat
+      U6, niveau INFO) : salue le dialogue de confirmation d'archivage
+      ajouté en SEC-046 (« Archiver ce projet ? », texte prévenant
+      explicitement l'absence de désarchivage) comme un bon exemple de
+      transparence produit à généraliser. Aucune action requise ;
+      enregistré uniquement pour traçabilité et comme rappel de
+      convention pour les développements futurs.

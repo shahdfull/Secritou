@@ -1275,6 +1275,8 @@
     "subtitle": "Manage and track your project tasks",
     "freelancerScopeNotice": "You only see tasks assigned to you.",
     "kanbanTruncatedNotice": "Showing the first {{shown}} of {{total}} tasks — use the list view or a filter to see the rest.",
+    "filteredByProject": "Filtered by project:",
+    "clearProjectFilter": "View all tasks",
     "newTask": "New Task",
     "createTask": "Create Task",
     "createTaskDesc": "Add a new task to your project",

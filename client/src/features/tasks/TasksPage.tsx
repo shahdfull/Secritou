@@ -1,6 +1,8 @@
-import { Layout, KanbanSquare, Loader2 } from "lucide-react";
+import { Layout, KanbanSquare, Loader2, X } from "lucide-react";
 import { useEffect, useMemo, useState, useTransition, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useListParams } from "@/hooks/useListParams";
+import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import { TasksKanban } from "./TasksKanban";
 import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialog";
@@ -30,6 +32,20 @@ export function TasksPage() {
   const { page, pageSize, orderBy, orderDir, search, params, setPage, setSearch, setSort } = useListParams(10);
   const debouncedSearch = useDebouncedValue(searchInput, 300);
 
+  // SEC-052: the "Voir toutes les tâches" link from a project's detail page navigates to
+  // /app/tasks?projectId=<id>, but nothing here ever read that query param — the user landed on
+  // the full, unfiltered company-wide task list. useTasks()/tasksApi.getAll() already support a
+  // projectId argument end to end (server included); it just never reached this page.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const projectIdFilter = searchParams.get("projectId") ?? undefined;
+  const clearProjectFilter = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("projectId");
+      return next;
+    });
+  }, [setSearchParams]);
+
   useEffect(() => {
     setSearch(debouncedSearch);
   }, [debouncedSearch, setSearch]);
@@ -49,7 +65,7 @@ export function TasksPage() {
 
   const actions = useTaskActions();
   const { tasks, total, projects, users, comments, projectNameById, userById, isLoading } =
-    useTasksPageData(listParams, actions.selectedTaskId);
+    useTasksPageData(listParams, actions.selectedTaskId, projectIdFilter);
 
   const handleViewModeChange = useCallback((v: string) => {
     if (!v) return;
@@ -104,6 +120,19 @@ export function TasksPage() {
         <p className="rounded-xl border border-border bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground">
           {t("tasksPage.freelancerScopeNotice", "Vous voyez uniquement vos tâches assignées.")}
         </p>
+      )}
+
+      {projectIdFilter && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5 text-sm">
+          <span>
+            {t("tasksPage.filteredByProject")}{" "}
+            <strong>{projectNameById.get(projectIdFilter) ?? projectIdFilter}</strong>
+          </span>
+          <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={clearProjectFilter}>
+            <X className="h-3.5 w-3.5" />
+            {t("tasksPage.clearProjectFilter")}
+          </Button>
+        </div>
       )}
 
       {/* Kanban view is capped at 200 tasks (a single unpaginated request) — past that, tasks
