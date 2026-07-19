@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -75,7 +75,7 @@ export function BookingAdminPage() {
     },
   });
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [slotData, bookingData] = await Promise.all([getAdminBookingSlots(), getAdminBookings()]);
@@ -86,11 +86,11 @@ export function BookingAdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
     void loadData();
-  }, []);
+  }, [loadData]);
 
   const filteredSlots = useMemo(() => slots.filter((slot) => isSameDay(new Date(slot.startTime), selectedDate)), [slots, selectedDate]);
   const filteredBookings = useMemo(() => bookings.filter((booking) => isSameDay(new Date(booking.slot.startTime), selectedDate)), [bookings, selectedDate]);

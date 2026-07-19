@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from "date-fns";
 import { Calendar as CalendarIcon, CheckCircle2, Mail } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -62,6 +62,12 @@ export function BookingCalendar() {
 
   const range = useMemo(() => buildRange(view, anchorDate), [view, anchorDate]);
 
+  // Read via a ref rather than a dependency: this effect itself calls setSelectedDate below, and
+  // reacting to selectedDate would re-trigger the fetch it just finished (a feedback loop) instead
+  // of only refetching when the visible range or refreshNonce actually change.
+  const selectedDateRef = useRef(selectedDate);
+  selectedDateRef.current = selectedDate;
+
   useEffect(() => {
     let mounted = true;
     setLoading(true);
@@ -70,7 +76,7 @@ export function BookingCalendar() {
         if (!mounted) return;
         setSlots(data);
         if (data.length > 0) {
-          const selectedStillAvailable = data.some((slot) => isSameDay(parseSlotDate(slot), selectedDate));
+          const selectedStillAvailable = data.some((slot) => isSameDay(parseSlotDate(slot), selectedDateRef.current));
           if (!selectedStillAvailable) {
             setSelectedDate(parseSlotDate(data[0]));
           }
@@ -86,7 +92,7 @@ export function BookingCalendar() {
     return () => {
       mounted = false;
     };
-  }, [range.from, range.to, refreshNonce]);
+  }, [range.from, range.to, refreshNonce, t]);
 
   const slotsByDay = useMemo(() => {
     const grouped = new Map<string, BookingSlotRecord[]>();

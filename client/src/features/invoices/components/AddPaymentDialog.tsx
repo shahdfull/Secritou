@@ -73,7 +73,7 @@ export function AddPaymentDialog({ open, onOpenChange, invoice }: AddPaymentDial
         reference: "",
       });
     }
-  }, [open, invoice, unpaidBalance]);
+  }, [open, invoice, unpaidBalance, form]);
 
   const watchedAmount = form.watch("amount") || 0;
   const overpaidAmount = Math.max(watchedAmount - unpaidBalance, 0);

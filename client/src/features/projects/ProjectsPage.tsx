@@ -203,7 +203,7 @@ export function ProjectsPage() {
   const activeTotal = activeProjectsResult?.total ?? 0;
   const doneProjects = doneProjectsResult?.data ?? [];
   const doneTotal = doneProjectsResult?.total ?? 0;
-  const clients = clientsResult?.data ?? [];
+  const clients = useMemo(() => clientsResult?.data ?? [], [clientsResult?.data]);
   const { mutate: updateProject, isPending: isUpdating } = useUpdateProject();
   const { mutate: deleteProject, isPending: isDeleting } = useDeleteProject();
   const { mutate: restoreProject, isPending: isRestoring } = useRestoreProject();

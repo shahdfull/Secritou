@@ -84,7 +84,7 @@ export function ClientsPage() {
 
   const { page, pageSize, orderBy, orderDir, params, setPage, updateParams } = useListParams(12);
   const { data: clientsResult, isLoading: clientsLoading } = useClients({ ...params, includeArchived });
-  const clients = clientsResult?.data ?? [];
+  const clients = useMemo(() => clientsResult?.data ?? [], [clientsResult?.data]);
   const total = clientsResult?.total ?? 0;
   const { mutate: createClient, isPending: isCreating } = useCreateClient();
   const { mutate: updateClient, isPending: isUpdating } = useUpdateClient();
