@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import apiClient from "@/api/axios";
-import type { Approval as ApiApproval, ApprovalTimeline } from "@/api/approvals.api";
+import type { Approval as ApiApproval } from "@/api/approvals.api";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CheckCircle, XCircle, MessageSquare, ClipboardCheck, Clock, Loader2 } from "lucide-react";

@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/form";
 import { toast } from "sonner";
 import { Loader2, CheckCircle2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { useCreateFreelancerApplication } from "@/hooks/useFreelancerApplications";
 import { FileUploadField } from "@/components/common/FileUploadField";
 import { useRef, useState } from "react";
@@ -30,7 +29,6 @@ import { isValidTunisianPhone } from "@secritou/shared";
 
 export function JoinUsPage() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const createApplication = useCreateFreelancerApplication();
   const [isSuccess, setIsSuccess] = useState(false);
 

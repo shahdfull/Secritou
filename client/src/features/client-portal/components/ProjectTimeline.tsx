@@ -24,7 +24,6 @@ export function useProjectTimeline(projectId: string) {
 function TimelineStepItem({ step, isLast }: { step: TimelineStep; isLast: boolean }) {
   const isDone = step.status === "done";
   const isPending = step.status === "pending";
-  const isLocked = step.status === "locked";
 
   return (
     <div className="flex gap-4">

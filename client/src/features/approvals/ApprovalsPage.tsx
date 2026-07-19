@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { formatDate } from "@/utils/format";
 import { useTranslation } from "react-i18next";
-import type { Approval, ApprovalTimeline } from "@/api/approvals.api";
+import type { Approval } from "@/api/approvals.api";
 import {
   useApprovals,
   useDeleteApproval,

@@ -13,7 +13,7 @@ import {
   Trash2,
   Loader2,
 } from "lucide-react";
-import { memo, useCallback, useDeferredValue, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";

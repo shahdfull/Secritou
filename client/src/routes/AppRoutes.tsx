@@ -23,16 +23,13 @@ import {
   importClientDashboardPage,
   importClientDetailPage,
   importClientProfilePage,
-  importClientsPage,
   importCaseStudiesPage,
   importContactPage,
   importBookingAdminPage,
   importDashboardPage,
   importForgotPasswordPage,
-  importFreelancersPage,
   importFreelancerDetailPage,
   importHomePage,
-  importLeadsPage,
   importLoginPage,
   importNotFoundPage,
   importJoinUsPage,
@@ -43,12 +40,8 @@ import {
   importResetPasswordPage,
   importServiceRequestsClientPage,
   importSettingsPage,
-  importApplicationsPage,
   importChangePasswordPage,
   importClientOnboardingPage,
-  importAdminOnboardingPage,
-  importProposalsPage,
-  importApprovalsPage,
   importInvoicesPage,
   importCommissionsPage,
   importDocumentsPage,
@@ -79,10 +72,7 @@ const JoinUsPage = lazy(() => importJoinUsPage().then((m) => ({ default: m.JoinU
 const ForgotPasswordPage = lazy(() => importForgotPasswordPage().then((m) => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => importResetPasswordPage().then((m) => ({ default: m.ResetPasswordPage })));
 const DashboardPage = lazy(() => importDashboardPage().then((m) => ({ default: m.DashboardPage })));
-const LeadsPage = lazy(() => importLeadsPage().then((m) => ({ default: m.LeadsPage })));
-const ClientsPage = lazy(() => importClientsPage().then((m) => ({ default: m.ClientsPage })));
 const ClientDetailPage = lazy(() => importClientDetailPage().then((m) => ({ default: m.ClientDetailPage })));
-const FreelancersPage = lazy(() => importFreelancersPage().then((m) => ({ default: m.FreelancersPage })));
 const FreelancerDetailPage = lazy(() => importFreelancerDetailPage().then((m) => ({ default: m.FreelancerDetailPage })));
 const ProjectsPage = lazy(() => importProjectsPage().then((m) => ({ default: m.ProjectsPage })));
 const ProjectDetailPage = lazy(() => importProjectDetailPage().then((m) => ({ default: m.ProjectDetailPage })));
@@ -93,12 +83,8 @@ const ProjectsClientPage = lazy(() => importProjectsClientPage().then((m) => ({ 
 const ServiceRequestsClientPage = lazy(() => importServiceRequestsClientPage().then((m) => ({ default: m.ServiceRequestsClientPage })));
 const ClientProfilePage = lazy(() => importClientProfilePage().then((m) => ({ default: m.ClientProfilePage })));
 const ReportsPage = lazy(() => importReportsPage().then((m) => ({ default: m.ReportsPage })));
-const ApplicationsPage = lazy(() => importApplicationsPage().then((m) => ({ default: m.ApplicationsPage })));
 const ChangePasswordPage = lazy(() => importChangePasswordPage().then((m) => ({ default: m.ChangePasswordPage })));
 const ClientOnboardingPage = lazy(() => importClientOnboardingPage().then((m) => ({ default: m.ClientOnboardingPage })));
-const AdminOnboardingPage = lazy(() => importAdminOnboardingPage().then((m) => ({ default: m.AdminOnboardingPage })));
-const ProposalsPage = lazy(() => importProposalsPage().then((m) => ({ default: m.ProposalsPage })));
-const ApprovalsPage = lazy(() => importApprovalsPage().then((m) => ({ default: m.ApprovalsPage })));
 const InvoicesPage = lazy(() => importInvoicesPage().then((m) => ({ default: m.InvoicesPage })));
 const CommissionsPage = lazy(() => importCommissionsPage().then((m) => ({ default: m.CommissionsPage })));
 const DocumentsPage = lazy(() => importDocumentsPage().then((m) => ({ default: m.DocumentsPage })));

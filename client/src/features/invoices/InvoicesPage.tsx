@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { formatDate, formatNumber } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 import type { Invoice } from "@/api/invoices.api";
-import { useInvoices, useSendInvoice, useCancelInvoice, useDeleteInvoice, useRestoreInvoice, useSetReminderPaused } from "@/hooks/useInvoices";
+import { useInvoices, useSendInvoice, useCancelInvoice, useRestoreInvoice, useSetReminderPaused } from "@/hooks/useInvoices";
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/api/axios";
 import { format } from "date-fns";
@@ -33,7 +33,6 @@ import {
   Send,
   Plus,
   Ban,
-  Loader2,
   BellOff,
   Bell,
 } from "lucide-react";
@@ -46,7 +45,6 @@ const ALL_STATUSES_VALUE = "__all__";
 export function InvoicesPage() {
   const { t } = useTranslation();
   const { page, pageSize, search, status, updateParams } = useListParams(10);
-  const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
@@ -95,7 +93,6 @@ export function InvoicesPage() {
 
   const sendMutation = useSendInvoice();
   const cancelMutation = useCancelInvoice();
-  const deleteMutation = useDeleteInvoice();
   const restoreMutation = useRestoreInvoice();
   const reminderPausedMutation = useSetReminderPaused();
 

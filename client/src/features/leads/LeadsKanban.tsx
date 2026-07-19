@@ -138,7 +138,6 @@ interface KanbanColumnProps {
 
 function KanbanColumn({ status, leads, isDragging, onCreateProposal }: KanbanColumnProps) {
   const { t } = useTranslation();
-  const config = STATUS_CONFIG[status];
   const ids = useMemo(() => leads.map((lead) => lead.id), [leads]);
   const columnBg = status === "WON" ? "bg-green-50/50" : status === "LOST" ? "bg-red-50/50" : "bg-card";
   const parentRef = useRef<HTMLDivElement | null>(null);

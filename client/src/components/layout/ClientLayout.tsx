@@ -15,7 +15,6 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,7 +37,6 @@ import {
   HelpCircle,
   FolderOpen,
   Rocket,
-  Settings,
   TrendingUp,
 } from "lucide-react";
 import logoAsset from "@/assets/secritou-logo.png";

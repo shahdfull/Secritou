@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, ExternalLink, FileText, CheckSquare, Activity, ClipboardCheck, Upload, X, Users, Archive } from "lucide-react";
+import { ArrowLeft, Loader2, ExternalLink, FileText, CheckSquare, Activity, ClipboardCheck, Upload, Users, Archive } from "lucide-react";
 import { useProject, useUpdateProject, useArchiveProject } from "@/hooks/useProjects";
 import { useMe } from "@/hooks/useAuth";
 import { useMySplitForProject } from "@/hooks/useCommissions";

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { formatDate } from "@/utils/format";
-import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +16,6 @@ import {
 import { Loader2, Download, FileText, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { documentsApi, Document, DocumentType } from "@/api/documents.api";
-import { useAuthStore } from "@/store/auth.store";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -228,9 +226,6 @@ function DocumentRow({ doc }: { doc: Document }) {
 // ---------------------------------------------------------------------------
 
 export function DocumentsClientPage() {
-  const { t } = useTranslation();
-  const user = useAuthStore((s) => s.user);
-
   // The client sees docs scoped to their own clientId : backend enforces this.
   // No projectId filter here: show all docs across all their projects.
   const { data, isLoading, isError } = useClientDocuments();

@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, Edit, Trash2, Archive, Plus, Download, Star, ExternalLink, Mail, CheckCircle2 } from "lucide-react";
+import { Loader2, Trash2, Archive, Plus, Download, Star, ExternalLink, Mail, CheckCircle2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { documentsApi, type Document } from "@/api/documents.api";

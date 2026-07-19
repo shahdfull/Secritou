@@ -19,14 +19,9 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Loader2,
-  Palette,
-  Image as ImageIcon,
   Globe,
 } from "lucide-react";
 import i18n from "@/i18n";
@@ -60,7 +55,7 @@ export function SettingsPage() {
   const { mutate: inviteUser, isPending: invitingUser } = useInviteUser();
   const { mutate: updateUser, isPending: updatingUser } = useUpdateUser();
   const { mutate: deleteUser, isPending: deletingUser } = useDeleteUser();
-  const { data: permissions, isError: permissionsError } = usePermissions();
+  const { isError: permissionsError } = usePermissions();
 
   const handleSavePrimaryColor = useCallback((color: string) => {
     localStorage.setItem("companyColor", color);
@@ -143,10 +138,9 @@ export function SettingsPage() {
                   invitingUser={invitingUser}
                   updatingUser={updatingUser}
                   deletingUser={deletingUser}
-                  inviteUser={(input) => inviteUser(input as any)}
-                  updateUser={(input) => updateUser(input as any)}
+                  inviteUser={(input) => inviteUser(input)}
+                  updateUser={(input) => updateUser(input)}
                   deleteUser={(id) => deleteUser(id)}
-                  permissions={permissions as any}
                 />
               )}
             </Suspense>

@@ -85,14 +85,17 @@ const DOCUMENT_TYPES: DocumentType[] = [
   "OTHER",
 ];
 
-const createDocSchema = z.object({
+// Shape-only: docSchema below is the schema actually used for validation (it needs `t()` for
+// error messages, so it's built inside the component); this module-level twin exists solely to
+// derive the form's type via z.infer, since useForm<CreateDocForm> needs a type available here.
+const _createDocSchema = z.object({
   name: z.string().min(1, "common.nameRequired"),
   description: z.string().optional(),
   type: z.enum(["CONTRACT", "DELIVERABLE", "GUIDE", "REPORT", "INVOICE", "OTHER", "WELCOME_LETTER", "SPECS", "CLIENT_BRIEF", "QUOTE", "INVOICE_DEPOSIT", "INVOICE_BALANCE", "ROADMAP"]),
   accessLevel: z.enum(["ADMIN_ONLY", "ADMIN_FREELANCER", "CLIENT_ADMIN", "ALL"]),
   tags: z.string().optional(),
 });
-type CreateDocForm = z.infer<typeof createDocSchema>;
+type CreateDocForm = z.infer<typeof _createDocSchema>;
 
 export function DocumentsPage() {
   const { t } = useTranslation();

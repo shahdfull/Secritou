@@ -82,7 +82,7 @@ export function ContactPage() {
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      const response = await submitContactRequest(values);
+      await submitContactRequest(values);
       trackContactFormSubmitted({ company: values.company });
       setShowSuccess(true);
       reset();

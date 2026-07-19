@@ -6,12 +6,7 @@ import {
   useClientOnboarding,
   useUpdateOnboardingStep,
   useUpdateContract,
-  useUpdatePayment,
   useUpdateQuestionnaire,
-  useUpdateSpecifications,
-  useUpdateKickoff,
-  useUpdateProduction,
-  useUpdateDelivery,
 } from "@/hooks/useClientOnboarding";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +22,6 @@ import {
 import {
   CheckCircle2,
   Circle,
-  ArrowRight,
   FileText,
   CreditCard,
   FileQuestion,
@@ -140,12 +134,7 @@ export function ClientOnboardingPage() {
   );
   const updateStep = useUpdateOnboardingStep();
   const updateContract = useUpdateContract();
-  const updatePayment = useUpdatePayment();
   const updateQuestionnaire = useUpdateQuestionnaire();
-  const updateSpecifications = useUpdateSpecifications();
-  const updateKickoff = useUpdateKickoff();
-  const updateProduction = useUpdateProduction();
-  const updateDelivery = useUpdateDelivery();
 
   useEffect(() => {
     if (onboarding && onboarding.steps.length > 0) {
@@ -509,7 +498,7 @@ export function ClientOnboardingPage() {
           <h2 className="text-xl font-bold">{t("onboarding.timeline.title")}</h2>
           <div className="relative">
             <div className="absolute left-3 top-3 h-[calc(100%-24px)] w-px bg-gray-200" />
-            {onboarding.steps.map((step, index) => (
+            {onboarding.steps.map((step) => (
               <div
                 key={step.id}
                 className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${

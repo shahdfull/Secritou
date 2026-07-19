@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useTranslation } from "react-i18next";
-import { format, isSameDay, addDays, startOfMonth, endOfMonth } from "date-fns";
+import { format, isSameDay, addDays } from "date-fns";
 import { Plus, RefreshCw, Trash2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Calendar as UiCalendar } from "@/components/ui/calendar";
@@ -45,14 +45,6 @@ const recurringSchema = z.object({
 
 type SlotFormValues = z.infer<typeof slotSchema>;
 type RecurringFormValues = z.infer<typeof recurringSchema>;
-
-function slotDateKey(slot: BookingSlotRecord) {
-  return format(new Date(slot.startTime), "yyyy-MM-dd");
-}
-
-function statusBadgeColor(status: string) {
-  return status === "CONFIRMED" ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-700";
-}
 
 export function BookingAdminPage() {
   const { t } = useTranslation();
@@ -100,9 +92,6 @@ export function BookingAdminPage() {
     void loadData();
   }, []);
 
-  const monthStart = useMemo(() => startOfMonth(viewMonth), [viewMonth]);
-  const monthEnd = useMemo(() => endOfMonth(viewMonth), [viewMonth]);
-
   const filteredSlots = useMemo(() => slots.filter((slot) => isSameDay(new Date(slot.startTime), selectedDate)), [slots, selectedDate]);
   const filteredBookings = useMemo(() => bookings.filter((booking) => isSameDay(new Date(booking.slot.startTime), selectedDate)), [bookings, selectedDate]);
   const selectedDaySlots = filteredSlots;
@@ -118,13 +107,6 @@ export function BookingAdminPage() {
 
   const openSlotsCount = useMemo(() => slots.filter((slot) => !slot.isBooked).length, [slots]);
   const bookedCount = useMemo(() => slots.filter((slot) => slot.isBooked).length, [slots]);
-  const monthSlots = useMemo(
-    () => slots.filter((slot) => {
-      const start = new Date(slot.startTime);
-      return start >= monthStart && start <= monthEnd;
-    }),
-    [slots, monthStart, monthEnd]
-  );
 
   const slotDays = useMemo(() => slots.map((slot) => new Date(slot.startTime)), [slots]);
 

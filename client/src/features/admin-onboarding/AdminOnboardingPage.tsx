@@ -34,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Eye, Edit } from "lucide-react";
+import { Plus, Eye } from "lucide-react";
 import { useListParams } from "@/hooks/useListParams";
 
 export function AdminOnboardingPage() {

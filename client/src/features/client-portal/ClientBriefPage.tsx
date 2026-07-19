@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2, ArrowLeft, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { projectsApi, BriefQuestion } from "@/api/projects.api";
-import { useQueryClient as useQC } from "@tanstack/react-query";
 
 // ---------------------------------------------------------------------------
 // Helpers

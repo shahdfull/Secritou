@@ -31,7 +31,7 @@ type AppUser = {
   id: string;
   name: string;
   email: string;
-  role: string;
+  role: "ADMIN" | "MANAGER" | "CLIENT" | "FREELANCER";
   createdAt: string;
   mustChangePassword?: boolean;
   lastLoginAt?: string | null;
@@ -416,7 +416,6 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
   inviteUser,
   updateUser,
   deleteUser,
-  permissions,
 }: {
   currentUserId: string;
   users?: AppUser[];
@@ -425,13 +424,12 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
   updatingUser: boolean;
   deletingUser: boolean;
   inviteUser(input: { name: string; email: string; role: "ADMIN" | "MANAGER" | "CLIENT" | "FREELANCER" }): void;
-  updateUser(input: { id: string; data: { name: string; role: string } }): void;
+  updateUser(input: { id: string; data: { name: string; role: "ADMIN" | "MANAGER" | "CLIENT" | "FREELANCER" } }): void;
   deleteUser(id: string): void;
-  permissions?: Record<string, string[]>;
 }) {
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [inviteForm, setInviteForm] = useState({ name: "", email: "", role: "MANAGER" as const });
-  const [editingUser, setEditingUser] = useState<{ id: string; name: string; role: string } | null>(null);
+  const [editingUser, setEditingUser] = useState<{ id: string; name: string; role: "ADMIN" | "MANAGER" | "CLIENT" | "FREELANCER" } | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<string | null>(null);
   const [expandedPermissions, setExpandedPermissions] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -672,7 +670,7 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
                                     <Label htmlFor="edit-role">Rôle</Label>
                                     <Select
                                       value={editingUser.role}
-                                      onValueChange={(val) => setEditingUser((s) => s ? { ...s, role: val } : s)}
+                                      onValueChange={(val) => setEditingUser((s) => s ? { ...s, role: val as "ADMIN" | "MANAGER" } : s)}
                                     >
                                       <SelectTrigger><SelectValue /></SelectTrigger>
                                       <SelectContent>

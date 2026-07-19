@@ -1,7 +1,8 @@
-import axios, { AxiosInstance, InternalAxiosRequestConfig } from "axios";
+import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosError } from "axios";
 import { toast } from "sonner";
 import { useAuthStore } from "../store/auth.store";
 import i18n from "@/i18n";
+import type { ApiResponse, User } from "@/types/auth";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api/v1";
 
@@ -88,7 +89,7 @@ api.interceptors.response.use(
       error.message = error.response.data.error.message;
     }
 
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const originalRequest = error.config as RetryableAxiosRequestConfig;
 
     // Don't retry if:
     // 1. Not a 401
@@ -154,15 +155,17 @@ async function runRefresh(
   try {
     // Make refresh request with no retry to avoid recursion
     // Use api instance (not plain axios) to ensure withCredentials is true for HTTP-only cookies
-    let response;
+    type RefreshResponse = ApiResponse<{ accessToken: string; user: User }>;
+    let response: { data: RefreshResponse };
     try {
-      response = await api.post<any>("/auth/refresh", {}, { _retry: true } as any);
-    } catch (firstErr: any) {
+      response = await api.post<RefreshResponse>("/auth/refresh", {}, { _retry: true } as Partial<RetryableAxiosRequestConfig>);
+    } catch (firstErr) {
       // REFRESH_RACE = another tab rotated the token microseconds earlier;
       // its fresh cookie is already set, so a single immediate retry
       // succeeds. Only a second failure means the session is really gone.
-      if (firstErr?.response?.data?.error?.code === "REFRESH_RACE") {
-        response = await api.post<any>("/auth/refresh", {}, { _retry: true } as any);
+      const isRefreshRace = firstErr instanceof AxiosError && firstErr.response?.data?.error?.code === "REFRESH_RACE";
+      if (isRefreshRace) {
+        response = await api.post<RefreshResponse>("/auth/refresh", {}, { _retry: true } as Partial<RetryableAxiosRequestConfig>);
       } else {
         throw firstErr;
       }

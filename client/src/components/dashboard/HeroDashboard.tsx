@@ -1,7 +1,5 @@
 import { motion } from "motion/react";
-import { ArrowRight, Bot, BarChart3, Lightbulb, Users, TrendingUp, Zap } from "lucide-react";
-import { trackCtaClick } from "@/services/analytics.service";
-import { Link } from "react-router-dom";
+import { Bot, TrendingUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 export function HeroDashboard() {

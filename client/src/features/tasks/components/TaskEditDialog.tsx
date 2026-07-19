@@ -31,7 +31,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { UpdateTaskForm } from "@/schemas/task.schema";
-import type { Task } from "@/types/task";
 import type { Project } from "@/types/project";
 import type { User } from "@/types/auth";
 import { getInitials, getStatusLabel, STATUS_OPTIONS, PRIORITY_OPTIONS, PRIORITY_BADGE, ALLOWED_TASK_TRANSITIONS } from "../taskUtils";
