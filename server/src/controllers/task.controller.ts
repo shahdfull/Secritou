@@ -80,3 +80,23 @@ export const deleteTask: RequestHandler = async (req, res, next) => {
     next(error);
   }
 };
+
+export const bulkUpdateTaskStatus: RequestHandler = async (req, res, next) => {
+  try {
+    const { taskIds, status } = req.body as { taskIds: string[]; status: Parameters<typeof taskService.bulkUpdateStatus>[1] };
+    const results = await taskService.bulkUpdateStatus(taskIds, status, await buildServiceScope(req));
+    res.json({ data: results });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const bulkDeleteTasks: RequestHandler = async (req, res, next) => {
+  try {
+    const { taskIds } = req.body as { taskIds: string[] };
+    const results = await taskService.bulkDelete(taskIds, await buildServiceScope(req), req.user?.sub, req.user?.role);
+    res.json({ data: results });
+  } catch (error) {
+    next(error);
+  }
+};

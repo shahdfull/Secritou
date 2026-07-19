@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { format, isPast } from "date-fns";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -20,9 +20,12 @@ import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { SortableTableHead } from "@/components/common/SortableTableHead";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Search, Edit, Trash2, Eye } from "lucide-react";
-import type { Task } from "@/types/task";
+import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialog";
+import { Search, Edit, Trash2, Eye, X } from "lucide-react";
+import { toast } from "sonner";
+import type { Task, TaskStatus } from "@/types/task";
 import type { User } from "@/types/auth";
+import { useBulkUpdateTaskStatus, useBulkDeleteTasks } from "@/hooks/useTasks";
 import { getInitials, getStatusLabel, STATUS_OPTIONS, PRIORITY_BADGE } from "../taskUtils";
 
 const UNASSIGNED_FILTER_VALUE = "__all__";
@@ -110,6 +113,71 @@ export function TasksListView({
     overscan: 12,
   });
 
+  // SEC-060 (actions en masse) : réservées à ADMIN/MANAGER — mêmes routes serveur
+  // (authorize("ADMIN","MANAGER") sur /tasks/bulk/*) qu'un FREELANCER ne peut de toute façon pas
+  // atteindre ; la case à cocher de sélection n'est donc affichée que si `!isFreelancer`.
+  const canBulkAct = !isFreelancer;
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+  const bulkUpdateStatusMutation = useBulkUpdateTaskStatus();
+  const bulkDeleteMutation = useBulkDeleteTasks();
+
+  const toggleSelected = (taskId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  };
+
+  const allOnPageSelected = tasks.length > 0 && tasks.every((t) => selectedIds.has(t.id));
+  const toggleSelectAllOnPage = (checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const t of tasks) {
+        if (checked) next.add(t.id);
+        else next.delete(t.id);
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const reportBulkResult = (results: { id: string; success: boolean }[], successMessage: string) => {
+    const failures = results.filter((r) => !r.success);
+    if (failures.length === 0) {
+      toast.success(successMessage);
+    } else {
+      toast.error(`${results.length - failures.length}/${results.length} réussies — ${failures.length} échec(s).`);
+    }
+  };
+
+  const handleBulkStatusChange = (status: string) => {
+    const ids = Array.from(selectedIds);
+    bulkUpdateStatusMutation.mutate(
+      { taskIds: ids, status: status as TaskStatus },
+      {
+        onSuccess: (results) => {
+          reportBulkResult(results, "Statut mis à jour pour toutes les tâches sélectionnées.");
+          clearSelection();
+        },
+      }
+    );
+  };
+
+  const handleConfirmBulkDelete = () => {
+    const ids = Array.from(selectedIds);
+    bulkDeleteMutation.mutate(ids, {
+      onSuccess: (results) => {
+        reportBulkResult(results, "Tâches sélectionnées supprimées.");
+        clearSelection();
+        setBulkDeleteConfirmOpen(false);
+      },
+    });
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-col md:flex-row md:items-center gap-4">
@@ -167,6 +235,39 @@ export function TasksListView({
           </div>
         </div>
       </CardHeader>
+      {canBulkAct && selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2.5 border-t border-b bg-muted/40">
+          <span className="text-sm font-medium">{selectedIds.size} tâche(s) sélectionnée(s)</span>
+          <Select onValueChange={handleBulkStatusChange} disabled={bulkUpdateStatusMutation.isPending}>
+            <SelectTrigger className="w-[200px] h-8 text-xs">
+              <SelectValue placeholder="Changer le statut..." />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {getStatusLabel(status, t)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {canDelete && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs gap-1 text-red-500 hover:text-red-600 hover:bg-red-50"
+              onClick={() => setBulkDeleteConfirmOpen(true)}
+              disabled={bulkDeleteMutation.isPending}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Supprimer
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" className="h-8 text-xs gap-1 ml-auto" onClick={clearSelection}>
+            <X className="h-3.5 w-3.5" />
+            Annuler la sélection
+          </Button>
+        </div>
+      )}
       <CardContent className="p-0">
         {/* SEC-056 (U2): the table below uses a fixed-pixel-column grid with no stacked variant,
             unusable without horizontal scroll on a narrow screen — unlike ProjectsPage's
@@ -180,6 +281,15 @@ export function TasksListView({
           <Table>
             <TableHeader>
               <TableRow>
+                {canBulkAct && (
+                  <TableHead className="w-10">
+                    <Checkbox
+                      aria-label="Tout sélectionner sur cette page"
+                      checked={allOnPageSelected}
+                      onCheckedChange={(checked) => toggleSelectAllOnPage(checked === true)}
+                    />
+                  </TableHead>
+                )}
                 <SortableTableHead column="title" label={t("common.title")} sortBy={orderBy ?? "createdAt"} sortOrder={orderDir} onSort={onSort} />
                 <SortableTableHead column="project" label={t("common.project")} sortBy={orderBy ?? "createdAt"} sortOrder={orderDir} onSort={onSort} />
                 <SortableTableHead column="status" label={t("common.status")} sortBy={orderBy ?? "createdAt"} sortOrder={orderDir} onSort={onSort} />
@@ -223,7 +333,16 @@ export function TasksListView({
                     }}
                   >
                     <div className="border-b">
-                      <div className={(isFreelancer ? "grid grid-cols-[minmax(220px,2fr)_minmax(180px,1.2fr)_140px_120px_160px_90px]" : "grid grid-cols-[minmax(220px,2fr)_minmax(180px,1.2fr)_140px_220px_160px_120px_90px]") + " items-center gap-0 px-4 h-14"}>
+                      <div className={(isFreelancer ? "grid grid-cols-[minmax(220px,2fr)_minmax(180px,1.2fr)_140px_120px_160px_90px]" : "grid grid-cols-[40px_minmax(220px,2fr)_minmax(180px,1.2fr)_140px_220px_160px_120px_90px]") + " items-center gap-0 px-4 h-14"}>
+                        {canBulkAct && (
+                          <div>
+                            <Checkbox
+                              aria-label={`Sélectionner ${task.title}`}
+                              checked={selectedIds.has(task.id)}
+                              onCheckedChange={() => toggleSelected(task.id)}
+                            />
+                          </div>
+                        )}
                         <div className="font-medium truncate pr-4">{task.title}</div>
                         <div className="truncate pr-4">{projectName ?? "-"}</div>
                         <div>
@@ -345,6 +464,15 @@ export function TasksListView({
 
         <DataTablePagination page={page} pageSize={pageSize} total={total} onPageChange={onPageChange} />
       </CardContent>
+
+      <ConfirmDeleteDialog
+        open={bulkDeleteConfirmOpen}
+        onOpenChange={setBulkDeleteConfirmOpen}
+        onConfirm={handleConfirmBulkDelete}
+        title={`Supprimer ${selectedIds.size} tâche(s) ?`}
+        description="Cette action est irréversible. Les tâches sélectionnées seront définitivement supprimées."
+        isDeleting={bulkDeleteMutation.isPending}
+      />
     </Card>
   );
 }

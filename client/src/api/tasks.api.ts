@@ -1,7 +1,13 @@
 import apiClient from "./axios";
-import type { Task, CreateTaskInput, UpdateTaskInput, FreelancerConflict } from "../types/task";
+import type { Task, CreateTaskInput, UpdateTaskInput, FreelancerConflict, TaskStatus } from "../types/task";
 import type { ApiResponse } from "../types/auth";
 import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
+
+export interface BulkActionResult {
+  id: string;
+  success: boolean;
+  error?: string;
+}
 
 export interface TaskListFilters {
   assigneeId?: string;
@@ -55,5 +61,15 @@ export const tasksApi = {
       { params }
     );
     return response.data.data.conflicts;
+  },
+
+  bulkUpdateStatus: async (taskIds: string[], status: TaskStatus): Promise<BulkActionResult[]> => {
+    const response = await apiClient.post<ApiResponse<BulkActionResult[]>>("/tasks/bulk/status", { taskIds, status });
+    return response.data.data;
+  },
+
+  bulkDelete: async (taskIds: string[]): Promise<BulkActionResult[]> => {
+    const response = await apiClient.post<ApiResponse<BulkActionResult[]>>("/tasks/bulk/delete", { taskIds });
+    return response.data.data;
   },
 };

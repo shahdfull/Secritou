@@ -63,3 +63,19 @@ export const deleteTaskCommentSchema = z.object({
     commentId: z.string(),
   }),
 });
+
+// SEC-060 (actions en masse): capped at 100 per call — mirrors the Kanban's own 200-task load
+// cap (TasksKanban.tsx) as a sane upper bound, not an arbitrary number; a larger selection should
+// be split into multiple calls by the client rather than accepted here.
+export const bulkUpdateTaskStatusSchema = z.object({
+  body: z.object({
+    taskIds: z.array(z.string().uuid()).min(1).max(100),
+    status: z.nativeEnum(TaskStatus),
+  }),
+});
+
+export const bulkDeleteTasksSchema = z.object({
+  body: z.object({
+    taskIds: z.array(z.string().uuid()).min(1).max(100),
+  }),
+});

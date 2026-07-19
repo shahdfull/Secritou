@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { tasksApi, type TaskListFilters } from "../api/tasks.api";
-import type { Task, CreateTaskInput, UpdateTaskInput } from "../types/task";
+import { tasksApi, type TaskListFilters, type BulkActionResult } from "../api/tasks.api";
+import type { Task, CreateTaskInput, UpdateTaskInput, TaskStatus } from "../types/task";
 import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 import { toast } from "sonner";
 import i18n from "@/i18n";
@@ -64,6 +64,32 @@ export function useDeleteTask() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks() });
       toast.success(i18n.t("toasts.taskDeleted"));
+    },
+  });
+}
+
+// SEC-060 (actions en masse) : le résultat n'est pas un simple succès/échec global — chaque tâche
+// du lot est traitée individuellement côté serveur (task.service.ts#bulkUpdateStatus/.bulkDelete),
+// donc la mutation renvoie le détail par id ; l'appelant (TasksListView) décide comment présenter
+// un résultat partiel (ex. certaines tâches en échec de transition).
+export function useBulkUpdateTaskStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation<BulkActionResult[], Error, { taskIds: string[]; status: TaskStatus }>({
+    mutationFn: ({ taskIds, status }) => tasksApi.bulkUpdateStatus(taskIds, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks() });
+    },
+  });
+}
+
+export function useBulkDeleteTasks() {
+  const queryClient = useQueryClient();
+
+  return useMutation<BulkActionResult[], Error, string[]>({
+    mutationFn: (taskIds) => tasksApi.bulkDelete(taskIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks() });
     },
   });
 }

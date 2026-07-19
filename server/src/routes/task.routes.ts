@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { getAllTasks, getTaskById, createTask, updateTask, deleteTask, getFreelancerAvailability } from "../controllers/task.controller.js";
+import { getAllTasks, getTaskById, createTask, updateTask, deleteTask, getFreelancerAvailability, bulkUpdateTaskStatus, bulkDeleteTasks } from "../controllers/task.controller.js";
 import { getCommentsByTaskId, createComment, updateComment, deleteComment } from "../controllers/comment.controller.js";
 import { validate } from "../middlewares/validate.middleware.js";
-import { createTaskSchema, updateTaskSchema, getFreelancerAvailabilitySchema, addTaskCommentSchema, updateTaskCommentSchema, deleteTaskCommentSchema } from "../validators/task.validator.js";
+import { createTaskSchema, updateTaskSchema, getFreelancerAvailabilitySchema, addTaskCommentSchema, updateTaskCommentSchema, deleteTaskCommentSchema, bulkUpdateTaskStatusSchema, bulkDeleteTasksSchema } from "../validators/task.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
 const router = Router();
@@ -23,6 +23,12 @@ router.put("/:id", authorize("ADMIN", "MANAGER", "FREELANCER"), requirePermissio
 // pole-scoped, lower-impact than the project it belongs to, and already gated by
 // assertProjectInScope in task.service.ts.
 router.delete("/:id", authorize("ADMIN", "MANAGER"), requirePermission("tasks", "delete"), deleteTask);
+
+// SEC-060 (actions en masse) : chaque tâche du lot retraverse updateTask/deleteTask un par un
+// (task.service.ts#bulkUpdateStatus/.bulkDelete) — même chemin d'autorisation/validation qu'une
+// modification individuelle, résultat détaillé par id (pas de transaction tout-ou-rien).
+router.post("/bulk/status", authorize("ADMIN", "MANAGER"), requirePermission("tasks", "update"), validate(bulkUpdateTaskStatusSchema), bulkUpdateTaskStatus);
+router.post("/bulk/delete", authorize("ADMIN", "MANAGER"), requirePermission("tasks", "delete"), validate(bulkDeleteTasksSchema), bulkDeleteTasks);
 
 // Comment routes — comments are internal; same access as the task itself. Update/delete
 // (SEC-059) additionally require, at the service layer, that the actor is the comment's own

@@ -6,7 +6,9 @@
 // className string was added somewhere.
 
 import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, test, beforeAll } from "vitest";
+import type { ReactNode } from "react";
 import i18n from "@/i18n";
 import type { Task } from "@/types/task";
 import { TasksListView, type TasksFilters } from "./TasksListView";
@@ -42,6 +44,13 @@ function makeFilters(overrides: Partial<TasksFilters> = {}): TasksFilters {
   };
 }
 
+function makeWrapper() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
+
 function renderList(tasks: Task[]) {
   return render(
     <TasksListView
@@ -53,7 +62,8 @@ function renderList(tasks: Task[]) {
       pagination={{ page: 1, pageSize: 10, total: tasks.length, onPageChange: () => {} }}
       permissions={{ isFreelancer: false, currentUserId: "user-1", canDelete: true }}
       actions={{ onView: () => {}, onEdit: () => {}, onDelete: () => {} }}
-    />
+    />,
+    { wrapper: makeWrapper() }
   );
 }
 

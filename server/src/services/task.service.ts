@@ -298,4 +298,39 @@ export const taskService = {
 
     return deleted;
   },
+
+  // SEC-060 (actions en masse, item 3 du constat P1 rapport Product Owner) : plutôt que dupliquer
+  // ou raccourcir la logique métier d'updateTask/deleteTask (transitions de statut valides,
+  // vérification de conflit de disponibilité freelancer, notifications, invalidation de cache),
+  // le bulk appelle ces méthodes existantes une par une — chaque tâche traverse exactement le
+  // même chemin d'autorisation/validation qu'une modification individuelle, aucune règle métier
+  // n'est contournée par le bulk. Traitement "au mieux" (pas de transaction tout-ou-rien) : un
+  // échec sur une tâche (ex. transition de statut invalide) n'empêche pas les autres de réussir —
+  // le rapport détaillé par id permet à l'appelant de voir précisément ce qui a échoué et pourquoi,
+  // plutôt qu'un 207/500 opaque sur l'ensemble.
+  async bulkUpdateStatus(taskIds: string[], status: TaskStatus, scope?: ServiceScope) {
+    const results: { id: string; success: boolean; error?: string }[] = [];
+    for (const id of taskIds) {
+      try {
+        await this.updateTask(id, { status }, scope);
+        results.push({ id, success: true });
+      } catch (err) {
+        results.push({ id, success: false, error: err instanceof HttpError ? err.message : "Unknown error" });
+      }
+    }
+    return results;
+  },
+
+  async bulkDelete(taskIds: string[], scope?: ServiceScope, actorId?: string, actorRole?: string) {
+    const results: { id: string; success: boolean; error?: string }[] = [];
+    for (const id of taskIds) {
+      try {
+        await this.deleteTask(id, scope, actorId, actorRole);
+        results.push({ id, success: true });
+      } catch (err) {
+        results.push({ id, success: false, error: err instanceof HttpError ? err.message : "Unknown error" });
+      }
+    }
+    return results;
+  },
 };

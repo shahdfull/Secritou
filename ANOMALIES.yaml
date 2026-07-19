@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-065
+dernier_id: SEC-066
 
 anomalies:
   - id: SEC-001
@@ -4712,11 +4712,11 @@ anomalies:
       implémentation réelle testée, pas un simple arbitrage documenté),
       relié à SEC-060 par le champ `classe`, jamais fusionné : SEC-064
       (pièces jointes sur tâche, `resolu`, cette session), SEC-065
-      (mentions @ dans les commentaires, `resolu`, cette session). Les
-      items actions en masse/sous-tâches restants suivront le même
-      principe au fur et à mesure de leur traitement — cette anomalie
-      (SEC-060) reste `ouvert` tant que tous les items retenus n'ont
-      pas leur propre ID `resolu`.
+      (mentions @ dans les commentaires, `resolu`, cette session),
+      SEC-066 (actions en masse, `resolu`, cette session). L'item
+      sous-tâches restant suivra le même principe à son traitement —
+      cette anomalie (SEC-060) reste `ouvert` tant que tous les items
+      retenus n'ont pas leur propre ID `resolu`.
 
   - id: SEC-061
     titre: "Le CLIENT ne voit son projet qu'via une timeline synthetique en 7 etapes et un brief, jamais le detail des taches — friction de confiance potentielle sur des projets longs"
@@ -4995,6 +4995,104 @@ anomalies:
       8 nouveaux) ; client `npx tsc --noEmit` (clean), `npm run lint`
       (12 warnings — exception SEC-049, stable), `npx vitest run`
       (51/51, 3 nouveaux), `npm run build` (succès). Résolu SANS
+      confirmation CI : workflow GitHub Actions sur `origin/main` en
+      `workflow_dispatch` uniquement (déviation établie en session le
+      2026-07-17, citée à chaque clôture depuis).
+
+  - id: SEC-066
+    titre: "Aucune action en masse (selection multiple + changement de statut/suppression groupee) n'existe sur la liste des taches"
+    perimetre: "4.3 Gestion des tâches — server/src/services/task.service.ts, server/src/controllers/task.controller.ts, server/src/routes/task.routes.ts, server/src/validators/task.validator.ts, client/src/api/tasks.api.ts, client/src/hooks/useTasks.ts, client/src/features/tasks/components/TasksListView.tsx"
+    regle_violee: null
+    classe: "fonctionnalites-pm-standard-absentes"
+    gravite: moyen
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand un utilisateur autorisé (ADMIN/MANAGER) peut
+      sélectionner plusieurs tâches dans la vue liste, changer leur
+      statut ou les supprimer en un lot, et voir un rapport clair de ce
+      qui a réussi/échoué si le lot est partiellement rejeté — sans
+      qu'aucune règle métier individuelle (transition de statut
+      valide, scope de pôle MANAGER, restriction FREELANCER) ne soit
+      contournée par le traitement en masse.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Sous-ensemble de SEC-060 (item 3 du constat P1, rapport Product
+      Owner), relié par `classe` — jamais fusionné avec SEC-060, qui
+      reste `ouvert` pour l'item restant (sous-tâches). Troisième des 4
+      items retenus, traité après SEC-064 (pièces jointes) et SEC-065
+      (mentions), dans l'ordre confirmé par le porteur.
+
+      Décision de conception centrale : plutôt que dupliquer ou
+      raccourcir la logique métier déjà présente dans
+      `taskService.updateTask`/`.deleteTask` (transitions de statut
+      valides, vérification de conflit de disponibilité freelancer,
+      notifications, invalidation de cache, scope MANAGER par pôle,
+      restriction FREELANCER), les nouvelles méthodes
+      `bulkUpdateStatus`/`bulkDelete` appellent ces méthodes existantes
+      une par une, en boucle — chaque tâche du lot traverse exactement
+      le même chemin d'autorisation/validation qu'une modification
+      individuelle, aucune règle métier n'est contournée par le bulk.
+      Traitement « au mieux » (pas de transaction tout-ou-rien) : un
+      échec sur une tâche (transition de statut invalide, tâche hors
+      du pôle du MANAGER) n'empêche pas les autres de réussir — le
+      rapport détaillé par id (`{id, success, error?}`) permet à
+      l'appelant de voir précisément ce qui a échoué, plutôt qu'un
+      échec ou succès opaque sur l'ensemble du lot.
+
+      Invariant de sécurité testé explicitement à deux niveaux :
+      (1) une tâche hors du pôle d'un MANAGER échoue individuellement
+      dans le lot (403, `assertProjectInScope` déjà en place dans
+      `updateTask`/`deleteTask`) sans bloquer le traitement des tâches
+      qui sont dans son pôle — le bulk n'élargit jamais silencieusement
+      l'autorité d'un MANAGER ; (2) les routes `/tasks/bulk/status` et
+      `/tasks/bulk/delete` sont `authorize("ADMIN","MANAGER")` — un
+      FREELANCER n'y a structurellement pas accès, confirmé côté client
+      par le masquage de la case à cocher de sélection quand
+      `isFreelancer`.
+
+      Nouvelles routes : `POST /tasks/bulk/status` (`taskIds[]`,
+      `status`), `POST /tasks/bulk/delete` (`taskIds[]`), toutes deux
+      plafonnées à 100 ids par appel (même borne que le plafond
+      d'affichage Kanban à 200 tâches — ordre de grandeur raisonnable,
+      pas un plafond arbitraire ; un lot plus grand doit être scindé
+      côté client). Côté client : case à cocher par ligne + « tout
+      sélectionner sur la page » dans `TasksListView.tsx` (vue desktop
+      uniquement — l'action en masse est un usage typiquement desktop,
+      la vue carte mobile n'a pas été étendue), barre d'actions
+      conditionnelle (changement de statut via `Select`, suppression
+      via `ConfirmDeleteDialog` réutilisé), reportant un résumé
+      succès/échec via `toast` après exécution.
+
+      Tests réels ajoutés : `server/test/taskBulkActions.test.ts` (4
+      cas d'intégration réelle contre une base migrée — lot mixte
+      valide/invalide rapporté correctement par tâche, tâche hors pôle
+      MANAGER refusée sans bloquer les autres, suppression en lot
+      réussie, tâche hors pôle non supprimée) ;
+      `client/src/features/tasks/components/TasksListViewBulkActions.test.tsx`
+      (6 cas — case à cocher masquée pour FREELANCER, barre d'action
+      affichée à la sélection, changement de statut en masse appelle
+      la vraie requête HTTP, suppression exige confirmation avant
+      d'appeler la vraie requête, bouton supprimer masqué sans
+      permission, désélection masque la barre). Écart de fichier de
+      test évité : un premier jet ajoutait ces tests directement dans
+      `TasksListView.test.tsx` avec un mock global de
+      `@tanstack/react-virtual`, qui aurait fait doublonner le rendu
+      des tâches et cassé les 2 tests SEC-056 existants (lesquels
+      s'appuient sur le comportement inverse — zéro ligne rendue en
+      JSDOM sans ce mock) — corrigé en isolant les nouveaux tests dans
+      un fichier séparé (`TasksListViewBulkActions.test.tsx`) avec son
+      propre mock, sans toucher au fichier existant. Polyfills
+      `hasPointerCapture`/`setPointerCapture`/`scrollIntoView` ajoutés
+      localement à ce nouveau fichier (non implémentés par JSDOM,
+      requis par `@radix-ui/react-select` pour un clic réel).
+
+      Vérification complète : serveur `npx tsc --noEmit` (clean), `npm
+      run lint` (0/0), `npx tsx --test test/run-all.test.ts` (366/366,
+      4 nouveaux) ; client `npx tsc --noEmit` (clean), `npm run lint`
+      (12 warnings — exception SEC-049, stable), `npx vitest run`
+      (57/57, 6 nouveaux), `npm run build` (succès). Résolu SANS
       confirmation CI : workflow GitHub Actions sur `origin/main` en
       `workflow_dispatch` uniquement (déviation établie en session le
       2026-07-17, citée à chaque clôture depuis).
