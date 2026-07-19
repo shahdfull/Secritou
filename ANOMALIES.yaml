@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-058
+dernier_id: SEC-062
 
 anomalies:
   - id: SEC-001
@@ -4546,3 +4546,169 @@ anomalies:
       transparence produit à généraliser. Aucune action requise ;
       enregistré uniquement pour traçabilité et comme rappel de
       convention pour les développements futurs.
+
+  - id: SEC-059
+    titre: "Un commentaire de tache n'est jamais modifiable ni supprimable, ni par son auteur ni par un ADMIN — seules les routes GET/POST existent sur /tasks/:taskId/comments"
+    perimetre: "4.3 Gestion des tâches — server/src/routes/task.routes.ts, server/src/controllers/comment.controller.ts, server/src/services/comment.service.ts, server/src/repositories/comment.repository.ts"
+    regle_violee: null
+    classe: null
+    gravite: faible
+    statut: ouvert
+    critere_de_resolution: >
+      Sera résolu par l'ajout de routes `PUT`/`DELETE` sur
+      `/tasks/:taskId/comments/:commentId`, avec une autorisation
+      auteur-ou-ADMIN au niveau service (même famille de contrôle que
+      celle ajoutée pour les réunions en SEC-055/F6 —
+      `projectMeetingService.update`/`.delete`, 403 dédié si l'acteur
+      n'est ni l'auteur ni ADMIN), plus l'UI correspondante (boutons
+      Modifier/Supprimer sur chaque commentaire, probablement dans
+      `TaskDetailDrawer.tsx`) et un test réel appelant le service.
+      Décision produit à confirmer avant correctif : politique de
+      réversibilité voulue pour ce type de contenu (voir aussi P2 du
+      rapport Product Owner, qui regroupe ce point avec deux autres
+      déjà couverts par ailleurs — SEC-040 pour l'archivage sans
+      désarchivage, SEC-055/F6 pour l'édition de réunion, tous deux
+      déjà tranchés séparément et non rouverts ici).
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport du porteur du projet, casquette Product Owner, §7
+      constat P2 (« asymétrie des actions irréversibles »). Le constat
+      P2 original regroupait 3 points ; les deux autres ont été
+      vérifiés déjà couverts par un ID existant et NE SONT PAS
+      dupliqués ici, conformément à l'interdiction de reformulation :
+      (a) archivage de projet sans désarchivage = décision explicite
+      du porteur déjà actée en SEC-040 (« Exposer l'archivage côté UI,
+      sans construire le désarchivage »), pas un oubli à rouvrir ;
+      (b) réunion de projet non corrigeable = déjà résolu dans cette
+      même session par SEC-055/F6 (édition/suppression de réunion
+      ajoutées), donc déjà faux au moment de la lecture de ce rapport.
+
+      Seul (c), l'absence d'édition/suppression de commentaire de
+      tâche, est confirmé encore vrai et non couvert par un ID
+      existant — vérifié par lecture directe :
+      `server/src/routes/task.routes.ts` ne déclare que
+      `GET /:taskId/comments` et `POST /:taskId/comments` (aucune
+      route par `commentId`) ; `server/src/services/comment.service.ts`
+      (65 lignes, lu intégralement) n'expose que `createComment` et
+      `getCommentsByTaskId`, aucune méthode `update`/`delete`.
+
+      Non corrigé cette session (décision du porteur : « Nouvel ID sur
+      (c) seulement, documenter sans corriger cette session »).
+
+  - id: SEC-060
+    titre: "Absence de fonctionnalites de gestion de projet standard sur des outils comparables : sous-taches, dependances entre taches, vue calendrier/Gantt, actions en masse, pieces jointes sur tache, mentions @ dans les commentaires"
+    perimetre: "4.3 Gestion des tâches — server/prisma/schema.prisma (model Task), server/src/services/task.service.ts, server/src/services/comment.service.ts, client/src/types/task.ts, client/src/features/tasks/"
+    regle_violee: null
+    classe: null
+    gravite: moyen
+    statut: ouvert
+    critere_de_resolution: >
+      Pas de critère de résolution technique au sens strict : c'est un
+      arbitrage de positionnement produit (outil interne d'agence vs
+      concurrent PM généraliste type Asana/ClickUp/Monday), à trancher
+      fonctionnalité par fonctionnalité avec le porteur avant toute
+      implémentation — chacune constituerait un développement notable
+      (nouveau champ de modèle Prisma + migration pour les
+      sous-tâches/dépendances, nouvelle vue pour le Gantt, etc.),
+      jamais une simple réparation. Reste `ouvert` comme registre de
+      backlog produit jusqu'à décision explicite du porteur sur
+      laquelle prioriser, le cas échéant.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport du porteur du projet, casquette Product Owner, §7
+      constat P1. Les 6 absences confirmées par lecture directe (une
+      seule anomalie car même nature : fonctionnalités PM standard
+      absentes, même critère de résolution — arbitrage produit, pas
+      correctif) :
+      (1) sous-tâches : `model Task` (`schema.prisma`) n'a ni
+      `parentId` ni relation vers des `Task[]` enfants — le seul
+      `parentId` du schéma appartient à `model Document`
+      (versioning de document, sans rapport) ;
+      (2) dépendances entre tâches : recherche exhaustive de
+      `dependsOn`/`blockedBy`/`predecessor`, aucune occurrence dans
+      `schema.prisma` ni `task.service.ts` ;
+      (3) vue calendrier/Gantt : recherche exhaustive de "Gantt" dans
+      `client/src` (zéro occurrence) ; "Calendar" ne remonte que
+      `BookingCalendar.tsx` (prise de rendez-vous commerciale, hors
+      périmètre tâches) ;
+      (4) actions en masse : recherche exhaustive de "bulk" dans
+      `client/src/features/tasks/`, aucune occurrence ;
+      (5) pièces jointes sur tâche : `model Task` n'a aucun champ
+      `attachments`/`documents` ; `model Document` n'a pas de
+      `taskId` (seuls `Comment` et un autre modèle en réfèrent un) ;
+      (6) mentions @ : `comment.service.ts` (lu intégralement) et
+      `TaskDetailDrawer.tsx` ne contiennent aucune logique de parsing
+      de mention, seules des notifications systématiques
+      assignee+managers du pôle.
+
+      Non corrigé cette session (décision du porteur : « Documenter
+      seulement, sans coder — c'est un arbitrage de roadmap, pas un
+      défaut »).
+
+  - id: SEC-061
+    titre: "Le CLIENT ne voit son projet qu'via une timeline synthetique en 7 etapes et un brief, jamais le detail des taches — friction de confiance potentielle sur des projets longs"
+    perimetre: "4.2 Gestion de projet — client/src/features/client-portal/, server/src/controllers/project.controller.ts#getTimelineStatus"
+    regle_violee: null
+    classe: null
+    gravite: faible
+    statut: ouvert
+    critere_de_resolution: >
+      Pas de critère de résolution au sens strict tant que le besoin
+      n'est pas confirmé : le rapport présente ceci comme une piste
+      conditionnelle (« si le besoin de transparence se confirme »),
+      pas un défaut actuel — l'arbitrage confidentialité interne vs
+      transparence client est déjà un choix cohérent, documenté ailleurs
+      dans REFERENTIEL.md pour le périmètre CLIENT. Si le porteur
+      confirme un jour ce besoin, la résolution consisterait en une vue
+      client simplifiée listant les grandes étapes/livrables terminés
+      (pas le détail des tâches internes), à spécifier avec le porteur
+      avant implémentation.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport du porteur du projet, casquette Product Owner, §7
+      constat P3. Non vérifié par relecture exhaustive du code cette
+      session (le porteur a présenté ce point comme un arbitrage déjà
+      connu, pas une découverte à confirmer par lecture) — cohérent
+      avec l'architecture documentée du portail client (timeline 7
+      étapes + brief, périmètre confirmé ailleurs dans
+      REFERENTIEL.md). Non corrigé cette session (décision du porteur :
+      « Documenter seulement, sans coder — piste conditionnelle, pas
+      un défaut actuel »).
+
+  - id: SEC-062
+    titre: "Point positif signale par le rapport (aucune action requise) : la completion d'un projet (clientApprove) declenche automatiquement une demande d'evaluation des freelances aupres des managers — boucle de qualite deja bouclee"
+    perimetre: "4.2 Gestion de projet — server/src/services/project.service.ts#clientApprove, server/src/services/rating.service.ts"
+    regle_violee: null
+    classe: null
+    gravite: info
+    statut: ouvert
+    critere_de_resolution: >
+      Pas de critère de résolution : ceci est un point positif
+      confirmé, salué comme pattern à répliquer pour d'autres boucles
+      (ex. NPS client automatique à la clôture d'un projet) — pas un
+      défaut. Reste `ouvert` comme rappel de bonne pratique, pas
+      comme travail à faire.
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Rapport du porteur du projet, casquette Product Owner, §7
+      constat P4 (niveau INFO). Vérifié par lecture directe :
+      `server/src/services/project.service.ts` (fonction
+      `clientApprove`, qui positionne `status: "COMPLETED"`) interroge
+      les tâches du projet pour leurs assignees FREELANCER puis envoie
+      une notification `type: "RATING_REQUESTED"` (« Pensez à évaluer
+      <nom> ») à chaque manager/admin concerné — `rating.service.ts`
+      gère ensuite la note (1-5) avec alerte n8n sous un certain seuil.
+      Nuance par rapport à la formulation du rapport : le déclencheur
+      exact est `clientApprove` (l'approbation client qui fait passer
+      le projet à COMPLETED), pas un simple changement de statut
+      générique — le mécanisme décrit existe bien tel quel, seule la
+      description du déclencheur est précisée ici. Aucune action
+      requise cette session.
