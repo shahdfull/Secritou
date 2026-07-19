@@ -26,6 +26,7 @@ export const getDocuments = async (req: Request, res: Response) => {
     clientId: textQuery(req.query.clientId),
     type: textQuery(req.query.type) as DocumentType | undefined,
     projectId: textQuery(req.query.projectId),
+    taskId: textQuery(req.query.taskId),
     tags: typeof req.query.tags === "string" ? req.query.tags.split(",") : undefined,
     search: textQuery(req.query.search),
   };

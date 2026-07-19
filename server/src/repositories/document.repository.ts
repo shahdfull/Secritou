@@ -23,6 +23,7 @@ export const documentRepository = {
       clientId?: string;
       type?: DocumentType;
       projectId?: string;
+      taskId?: string;
       tags?: string[];
       search?: string;
       role?: Role;
@@ -34,6 +35,7 @@ export const documentRepository = {
     const where: Prisma.DocumentWhereInput = {};
     if (options.clientId) where.clientId = options.clientId;
     if (options.projectId) where.projectId = options.projectId;
+    if (options.taskId) where.taskId = options.taskId;
     if (options.role) {
       where.accessLevel = { in: visibleAccessLevels(options.role) };
       if (options.role === "CLIENT") {
@@ -41,10 +43,21 @@ export const documentRepository = {
       } else if (options.role === "MANAGER" && options.viewerServiceId !== undefined) {
         where.client = { projects: { some: { serviceId: options.viewerServiceId ?? "__none__" } } };
       } else if (options.role === "FREELANCER") {
-        // A FREELANCER only sees documents attached to a project they have a task on —
-        // previously unscoped, letting any freelancer list every ADMIN_FREELANCER/ALL
-        // document company-wide regardless of which project they're staffed on.
-        where.project = { tasks: { some: { assigneeId: options.viewerUserId ?? "__none__" } } };
+        // A FREELANCER only sees documents attached to a project they have a task on, OR a
+        // document attached directly to one of their own assigned tasks (SEC-060: task
+        // attachments can exist without a projectId) — previously unscoped by project alone,
+        // letting any freelancer list every ADMIN_FREELANCER/ALL document company-wide
+        // regardless of which project they're staffed on. Written as `AND` (not `where.OR`,
+        // which the text-search branch below also assigns and would silently overwrite this
+        // scope if both were active in the same request).
+        where.AND = [
+          {
+            OR: [
+              { project: { tasks: { some: { assigneeId: options.viewerUserId ?? "__none__" } } } },
+              { task: { assigneeId: options.viewerUserId ?? "__none__" } },
+            ],
+          },
+        ];
       }
     }
     if (options.type) where.type = options.type;
@@ -78,7 +91,13 @@ export const documentRepository = {
       where.accessLevel = { in: visibleAccessLevels(viewer.role) };
       if (viewer.role === "CLIENT") where.clientId = viewer.clientId ?? "__none__";
       if (viewer.role === "FREELANCER") {
-        where.project = { tasks: { some: { assigneeId: viewer.userId ?? "__none__" } } };
+        // SEC-060: a document attached directly to a task (no projectId) needs its own branch —
+        // where.project on a null relation never matches, so a task-only attachment would
+        // otherwise be invisible to the very freelancer it's meant for.
+        where.OR = [
+          { project: { tasks: { some: { assigneeId: viewer.userId ?? "__none__" } } } },
+          { task: { assigneeId: viewer.userId ?? "__none__" } },
+        ];
       }
     }
     return prisma.document.findFirst({
@@ -106,6 +125,7 @@ export const documentRepository = {
     accessLevel?: DocumentAccessLevel;
     clientId?: string;
     projectId?: string;
+    taskId?: string;
     invoiceId?: string;
     uploadedById?: string;
     signedAt?: Date;

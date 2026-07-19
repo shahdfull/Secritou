@@ -15,6 +15,7 @@ export function useDocuments(params?: {
   type?: DocumentType;
   clientId?: string;
   projectId?: string;
+  taskId?: string;
   tags?: string[];
 }) {
   return useQuery<PaginatedResponse<Document>>({

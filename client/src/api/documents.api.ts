@@ -34,6 +34,7 @@ export interface Document {
   accessLevel: "ADMIN_ONLY" | "ADMIN_FREELANCER" | "CLIENT_ADMIN" | "ALL";
   clientId?: string;
   projectId?: string;
+  taskId?: string;
   uploadedById: string;
   signedAt?: string;
   signedByClientId?: string;
@@ -69,6 +70,7 @@ export const documentsApi = {
     type?: DocumentType;
     clientId?: string;
     projectId?: string;
+    taskId?: string;
     tags?: string[];
   }) => {
     const response = await apiClient.get<{ data: PaginatedResponse<Document> }>(
@@ -98,6 +100,7 @@ export const documentsApi = {
     accessLevel?: string;
     clientId?: string;
     projectId?: string;
+    taskId?: string;
   }) => {
     const response = await apiClient.post<{ data: Document }>(
       "/documents",

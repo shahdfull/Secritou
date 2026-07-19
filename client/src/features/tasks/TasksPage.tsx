@@ -261,12 +261,14 @@ export function TasksPage() {
         onOpenChange={actions.setDetailSheetOpen}
         task={actions.selectedTask}
         projectName={actions.selectedTask ? projectNameById.get(actions.selectedTask.projectId) : undefined}
+        projectClientId={actions.selectedTask ? projects.find((p) => p.id === actions.selectedTask!.projectId)?.clientId : undefined}
         userById={userById}
         comments={comments ?? []}
         onAddComment={actions.handleAddComment}
         createCommentMutation={actions.createCommentMutation}
         currentUserId={currentUser?.id}
         isAdmin={currentUser?.role === "ADMIN"}
+        canManageAttachments={!isFreelancer}
         onUpdateComment={actions.handleUpdateComment}
         onDeleteComment={actions.handleDeleteComment}
         isUpdatingComment={actions.isUpdatingComment}

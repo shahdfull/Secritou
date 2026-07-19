@@ -26,6 +26,7 @@ import type { Task } from "@/types/task";
 import type { User } from "@/types/auth";
 import type { Comment } from "@/types/comment";
 import { getInitials, getStatusLabel } from "../taskUtils";
+import { TaskAttachments } from "./TaskAttachments";
 
 // SEC-059: a comment can now be edited/deleted, but only by its own author or an ADMIN — the
 // server is the real authority (403 COMMENT_NOT_YOURS), this is only to avoid showing controls
@@ -91,12 +92,14 @@ interface TaskDetailDrawerProps {
   onOpenChange: (open: boolean) => void;
   task: Task | null;
   projectName: string | undefined;
+  projectClientId: string | undefined;
   userById: Map<string, User>;
   comments: Comment[];
   onAddComment: (content: string) => void;
   createCommentMutation: { isPending: boolean };
   currentUserId: string | undefined;
   isAdmin: boolean;
+  canManageAttachments: boolean;
   onUpdateComment: (commentId: string, content: string) => void;
   onDeleteComment: (commentId: string) => void;
   isUpdatingComment: boolean;
@@ -108,12 +111,14 @@ export function TaskDetailDrawer({
   onOpenChange,
   task,
   projectName,
+  projectClientId,
   userById,
   comments,
   onAddComment,
   createCommentMutation,
   currentUserId,
   isAdmin,
+  canManageAttachments,
   onUpdateComment,
   onDeleteComment,
   isUpdatingComment,
@@ -203,6 +208,13 @@ export function TaskDetailDrawer({
               )}
             </div>
           </div>
+
+          <TaskAttachments
+            taskId={task.id}
+            projectId={task.projectId}
+            clientId={projectClientId}
+            canUpload={canManageAttachments}
+          />
 
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Commentaires</h3>

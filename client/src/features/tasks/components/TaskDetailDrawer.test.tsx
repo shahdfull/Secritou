@@ -6,7 +6,9 @@
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, test, vi, beforeAll } from "vitest";
+import type { ReactNode } from "react";
 import i18n from "@/i18n";
 import type { Task } from "@/types/task";
 import type { Comment } from "@/types/comment";
@@ -22,6 +24,13 @@ vi.mock("@tanstack/react-virtual", () => ({
     getVirtualItems: () =>
       Array.from({ length: count }, (_, index) => ({ index, start: index * 84, size: 84 })),
   }),
+}));
+
+// TaskDetailDrawer now also renders TaskAttachments (SEC-060), which calls useDocuments/apiClient —
+// mocked here since attachment behavior isn't what this test covers (comment edit/delete auth).
+const getMock = vi.fn().mockResolvedValue({ data: { data: [], total: 0, page: 1, pageSize: 50 } });
+vi.mock("@/api/axios", () => ({
+  default: { get: (...args: unknown[]) => getMock(...args), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 // @radix-ui/react-scroll-area needs ResizeObserver, absent from JSDOM.
@@ -66,6 +75,13 @@ function makeTask(): Task {
   };
 }
 
+function makeWrapper() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
+
 function renderDrawer(
   comments: Comment[],
   overrides: Partial<{ currentUserId: string | undefined; isAdmin: boolean }> = {}
@@ -78,17 +94,20 @@ function renderDrawer(
       onOpenChange={() => {}}
       task={makeTask()}
       projectName="Site vitrine"
+      projectClientId="client-1"
       userById={new Map()}
       comments={comments}
       onAddComment={() => {}}
       createCommentMutation={{ isPending: false }}
       currentUserId={overrides.currentUserId ?? "user-author"}
       isAdmin={overrides.isAdmin ?? false}
+      canManageAttachments={true}
       onUpdateComment={onUpdateComment}
       onDeleteComment={onDeleteComment}
       isUpdatingComment={false}
       isDeletingComment={false}
-    />
+    />,
+    { wrapper: makeWrapper() }
   );
   return { onUpdateComment, onDeleteComment };
 }

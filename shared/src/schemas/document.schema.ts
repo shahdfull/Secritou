@@ -33,6 +33,8 @@ export const documentBaseSchema = z.object({
   accessLevel: documentAccessLevel.default("CLIENT_ADMIN"),
   clientId: z.string().uuid().optional(),
   projectId: z.string().uuid().optional(),
+  // SEC-060: attachment on a specific task, distinct from the project-level projectId above.
+  taskId: z.string().uuid().optional(),
   parentId: z.string().uuid().optional(),
 });
 

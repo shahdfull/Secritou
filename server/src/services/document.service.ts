@@ -13,7 +13,7 @@ import { clientRepository } from "../repositories/client.repository.js";
 type Viewer = { role: Role; clientId?: string | null; serviceId?: string | null; userId?: string | null };
 
 export const documentService = {
-  async getAll(options: ListQueryOptions & { clientId?: string; type?: DocumentType; projectId?: string; tags?: string[]; search?: string }, viewer: Viewer) {
+  async getAll(options: ListQueryOptions & { clientId?: string; type?: DocumentType; projectId?: string; taskId?: string; tags?: string[]; search?: string }, viewer: Viewer) {
     return documentRepository.findAll({ ...options, role: viewer.role, viewerClientId: viewer.clientId, viewerServiceId: viewer.serviceId, viewerUserId: viewer.userId });
   },
 
@@ -21,7 +21,7 @@ export const documentService = {
     return documentRepository.findById(id, viewer);
   },
 
-  async create(data: { name: string; title: string; description?: string; type: DocumentType; url: string; fileUrl?: string; fileKey?: string; version?: number; parentId?: string; tags?: string[]; accessLevel?: DocumentAccessLevel; clientId?: string; projectId?: string; invoiceId?: string; uploadedById: string; signedAt?: Date; signedByClientId?: string }) {
+  async create(data: { name: string; title: string; description?: string; type: DocumentType; url: string; fileUrl?: string; fileKey?: string; version?: number; parentId?: string; tags?: string[]; accessLevel?: DocumentAccessLevel; clientId?: string; projectId?: string; taskId?: string; invoiceId?: string; uploadedById: string; signedAt?: Date; signedByClientId?: string }) {
     return documentRepository.create(data);
   },
 

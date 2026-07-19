@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-062
+dernier_id: SEC-064
 
 anomalies:
   - id: SEC-001
@@ -4654,7 +4654,7 @@ anomalies:
     titre: "Absence de fonctionnalites de gestion de projet standard sur des outils comparables : sous-taches, dependances entre taches, vue calendrier/Gantt, actions en masse, pieces jointes sur tache, mentions @ dans les commentaires"
     perimetre: "4.3 Gestion des tâches — server/prisma/schema.prisma (model Task), server/src/services/task.service.ts, server/src/services/comment.service.ts, client/src/types/task.ts, client/src/features/tasks/"
     regle_violee: null
-    classe: null
+    classe: "fonctionnalites-pm-standard-absentes"
     gravite: moyen
     statut: ouvert
     critere_de_resolution: >
@@ -4698,9 +4698,24 @@ anomalies:
       de mention, seules des notifications systématiques
       assignee+managers du pôle.
 
-      Non corrigé cette session (décision du porteur : « Documenter
-      seulement, sans coder — c'est un arbitrage de roadmap, pas un
-      défaut »).
+      Non corrigée lors de la première passe sur ce rapport (décision
+      du porteur alors : « Documenter seulement, sans coder — c'est un
+      arbitrage de roadmap »). Repris ensuite sur instruction explicite
+      du porteur (« corrige »), portée précisée via AskUserQuestion :
+      4 des 6 items retenus (pièces jointes, mentions @, actions en
+      masse, sous-tâches), ordre « pièces jointes → mentions @ → bulk →
+      sous-tâches ». Item (2) dépendances entre tâches non retenu, reste
+      `ouvert` ici sans correctif et sans décision de reprise.
+
+      Chaque item retenu reçoit son propre ID lors de son traitement
+      (critère de résolution différent de celui de SEC-060 —
+      implémentation réelle testée, pas un simple arbitrage documenté),
+      relié à SEC-060 par le champ `classe`, jamais fusionné : SEC-064
+      (pièces jointes sur tâche, `resolu`, cette session). Les items
+      mentions @/actions en masse/sous-tâches restants suivront le même
+      principe au fur et à mesure de leur traitement — cette anomalie
+      (SEC-060) reste `ouvert` tant que tous les items retenus n'ont
+      pas leur propre ID `resolu`.
 
   - id: SEC-061
     titre: "Le CLIENT ne voit son projet qu'via une timeline synthetique en 7 etapes et un brief, jamais le detail des taches — friction de confiance potentielle sur des projets longs"
@@ -4765,3 +4780,125 @@ anomalies:
       générique — le mécanisme décrit existe bien tel quel, seule la
       description du déclencheur est précisée ici. Aucune action
       requise cette session.
+
+  - id: SEC-063
+    titre: "L'onglet Mes livrables (FREELANCER) appelle POST /documents pour deposer un livrable, mais cette route est authorize(ADMIN, MANAGER) seul — un FREELANCER recoit systematiquement 403 avant meme le controle requirePermission, jamais atteignable via ce flux"
+    perimetre: "4.2 Gestion de projet — server/src/routes/document.routes.ts, client/src/features/projects/ProjectDetailPage.tsx"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      Sera résolu quand un FREELANCER peut effectivement déposer un
+      livrable depuis l'onglet « Mes livrables » de
+      `ProjectDetailPage.tsx` sans recevoir de 403 — soit en ajoutant
+      `FREELANCER` à `authorize(...)` sur `POST /documents` (en
+      s'assurant que `requirePermission("documents","create")` ou une
+      vérification service équivalente empêche alors un FREELANCER de
+      créer un document en dehors de ses propres tâches/projets
+      assignés), soit via une route dédiée plus restreinte. Décision
+      de conception à trancher avec le porteur avant correctif (portée
+      exacte de ce qu'un FREELANCER peut créer).
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert incidemment en travaillant sur SEC-060 (pièces jointes
+      sur tâche), en vérifiant qui peut légitimement attacher un
+      document — enregistré immédiatement conformément à la règle
+      CLAUDE.md « enregistrement immédiat de tout écart constaté hors
+      d'un audit formel ».
+
+      Confirmé par lecture directe : `client/src/features/projects/
+      ProjectDetailPage.tsx` (onglet « Mes livrables », visible
+      uniquement `isFreelancer`) appelle `useCreateDocument()` →
+      `documentsApi.createDocument` → `POST /documents`. Or
+      `server/src/routes/document.routes.ts` ligne 37-43 déclare cette
+      route `authorize("ADMIN", "MANAGER")` — `authorize` rejette en
+      403 avant même d'atteindre `requirePermission`, pour tout rôle
+      hors de cette liste (`rbac.middleware.ts#authorize`, lu
+      directement). Aucune autre route de création de document
+      n'existe pour FREELANCER dans ce fichier. Ce flux UI existant est
+      donc, tel quel, un bouton qui échoue systématiquement en
+      production — jamais vérifié par un test d'intégration réel
+      (recherche : aucun test n'appelle `POST /documents` avec un
+      acteur FREELANCER). Non corrigé cette session : hors du périmètre
+      demandé (SEC-060, pièces jointes sur tâche), et nécessite une
+      décision de conception sur la portée exacte de ce qu'un
+      FREELANCER peut créer, non déductible seul.
+
+  - id: SEC-064
+    titre: "Aucune piece jointe ne peut etre attachee directement a une tache — Document supporte deja un projectId optionnel mais aucun taskId"
+    perimetre: "4.3 Gestion des tâches — server/prisma/schema.prisma (model Document, model Task), server/src/repositories/document.repository.ts, server/src/services/document.service.ts, server/src/controllers/document.controller.ts, shared/src/schemas/document.schema.ts, client/src/api/documents.api.ts, client/src/hooks/useDocuments.ts, client/src/features/tasks/components/TaskAttachments.tsx, client/src/features/tasks/components/TaskDetailDrawer.tsx"
+    regle_violee: null
+    classe: "fonctionnalites-pm-standard-absentes"
+    gravite: moyen
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand un utilisateur autorisé (ADMIN/MANAGER — voir note
+      sur SEC-063, non résolu) peut joindre un fichier directement à
+      une tâche depuis `TaskDetailDrawer.tsx`, le voir listé, le
+      télécharger et le supprimer, et quand cette pièce jointe reste
+      invisible à un FREELANCER non assigné à cette tâche (même
+      invariant de sécurité que le scope FREELANCER déjà en place pour
+      les documents de projet).
+    detecte_le: "2026-07-19"
+    source: manuel
+    confiance: certain
+    note: >
+      Sous-ensemble de SEC-060 (item 5 du constat P1, rapport Product
+      Owner), relié par `classe` — jamais fusionné avec SEC-060, qui
+      reste `ouvert` pour les 2 items non repris (dépendances entre
+      tâches, non retenu par le porteur) et les items encore en cours
+      (mentions @, actions en masse, sous-tâches). Portée confirmée via
+      AskUserQuestion : « Pièces jointes sur tâche (Recommandé) »,
+      première des 4 retenues, traitée en premier car le plus petit
+      écart par rapport à l'infrastructure Document/FileUploadField
+      déjà en place.
+
+      Correctif : `Document.taskId` (optionnel, `onDelete: Cascade`
+      comme `projectId`), migration
+      `20260719190000_add_task_id_to_document` ; `Task.documents
+      Document[]` (relation inverse). `documentRepository.findAll`/
+      `.create` acceptent `taskId` au même titre que `projectId`.
+      Invariant de sécurité découvert et corrigé en cours de route : un
+      document attaché uniquement à une tâche (sans `projectId`)
+      échappait entièrement au scope FREELANCER existant
+      (`where.project = {tasks: {some: {assigneeId}}}` ne matche
+      jamais sur une relation `project` nulle) — corrigé en ajoutant
+      une branche `task.assigneeId` en plus de la branche `project`
+      existante, dans `findAll` ET `findById`. Second écart évité de
+      justesse : `findAll` assigne déjà `where.OR` pour la recherche
+      texte (`options.search`) plus bas dans la même fonction — un
+      premier jet utilisant aussi `where.OR` pour le scope FREELANCER
+      aurait fait écraser silencieusement le scope de sécurité par la
+      recherche texte si les deux étaient actifs ensemble ; corrigé en
+      utilisant `where.AND` pour le scope FREELANCER, laissant `where.OR`
+      libre pour la recherche. Testé explicitement (cas dédié combinant
+      scope FREELANCER + `search`).
+
+      Côté client : `TaskAttachments.tsx` (nouveau composant, extrait
+      de `TaskDetailDrawer.tsx` pour rester lisible) — upload via
+      `FileUploadField` existant, liste, téléchargement, suppression.
+      Upload/suppression réservés à `canManageAttachments`
+      (`!isFreelancer` dans `TasksPage.tsx`) : un FREELANCER peut
+      consulter/télécharger mais pas déposer, en attendant la
+      résolution de SEC-063 (`POST /documents` rejette actuellement
+      tout FREELANCER en 403 avant même d'atteindre la logique métier —
+      bug préexistant découvert incidemment pendant ce travail,
+      enregistré séparément, non corrigé ici : hors périmètre demandé).
+
+      Tests réels ajoutés : `server/test/taskAttachments.test.ts` (5
+      cas — filtre par taskId, document sans projectId retourné
+      correctement, FREELANCER assigné voit le document, FREELANCER non
+      assigné ne le voit pas (`findAll` ET `findById`), scope FREELANCER
+      + recherche texte combinés ne s'écrasent pas). Vérification
+      complète : serveur `npx tsc --noEmit` (clean), `npm run lint`
+      (0/0), `npx tsx --test test/run-all.test.ts` (354/354, 5
+      nouveaux) ; client `npx tsc --noEmit` (clean), `npm run lint` (12
+      warnings — exception SEC-049, stable), `npx vitest run` (48/48,
+      migration de `TaskDetailDrawer.test.tsx` pour mocker le nouveau
+      composant), `npm run build` (succès). Résolu SANS confirmation
+      CI : workflow GitHub Actions sur `origin/main` en
+      `workflow_dispatch` uniquement (déviation établie en session le
+      2026-07-17, citée à chaque clôture depuis).
