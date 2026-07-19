@@ -75,6 +75,13 @@ export const projectsApi = {
     return response.data.data;
   },
 
+  // SEC-061: CLIENT-only simplified view of completed tasks (title + date), distinct from the
+  // synthetic 7-step timeline above.
+  getCompletedTasks: async (id: string): Promise<CompletedTask[]> => {
+    const response = await apiClient.get<{ data: CompletedTask[] }>(`/projects/${id}/completed-tasks`);
+    return response.data.data;
+  },
+
   getBrief: async (id: string): Promise<{ project: BriefProject; questions: BriefQuestion[] }> => {
     const response = await apiClient.get<{ data: { project: BriefProject; questions: BriefQuestion[] } }>(`/projects/${id}/brief`);
     return response.data.data;
@@ -98,4 +105,10 @@ export interface TimelineStep {
   label: string;
   status: TimelineStepStatus;
   date: string | null;
+}
+
+export interface CompletedTask {
+  id: string;
+  title: string;
+  completedAt: string | null;
 }

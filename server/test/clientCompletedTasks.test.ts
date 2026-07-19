@@ -1,0 +1,89 @@
+// SEC-061 (rapport Product Owner, §7 constat P3, session 2026-07-19) : le CLIENT ne voyait son
+// projet qu'à travers la timeline synthétique en 7 étapes et le brief — jamais le détail des
+// tâches. Décision du porteur : vue simplifiée listant les tâches DONE uniquement (titre + date).
+//
+// This test imports and calls the real projectService.getCompletedTasksForClient against a real
+// database — not a reimplementation — proving:
+// 1. Only DONE tasks are returned, ordered most-recently-completed first.
+// 2. The critical security property: a CLIENT cannot read another client's project — 404, not an
+//    empty list (which would leak the project's existence).
+//
+// Requires a real database; skipped if unreachable.
+
+import test, { describe, before, after } from "node:test";
+import assert from "node:assert/strict";
+import { HttpError } from "../src/utils/httpError.js";
+
+let prisma: typeof import("../src/config/prisma.js").prisma;
+let projectService: typeof import("../src/services/project.service.js").projectService;
+let dbAvailable = true;
+
+let serviceId: string;
+const createdClientIds: string[] = [];
+const createdProjectIds: string[] = [];
+const createdTaskIds: string[] = [];
+
+before(async () => {
+  try {
+    ({ prisma } = await import("../src/config/prisma.js"));
+    ({ projectService } = await import("../src/services/project.service.js"));
+    await prisma.$queryRaw`SELECT 1`;
+    const service = await prisma.service.findFirst();
+    if (!service) throw new Error("no Service seeded");
+    serviceId = service.id;
+  } catch {
+    dbAvailable = false;
+  }
+});
+
+after(async () => {
+  if (!dbAvailable) return;
+  await prisma.task.deleteMany({ where: { id: { in: createdTaskIds } } });
+  await prisma.project.deleteMany({ where: { id: { in: createdProjectIds } } });
+  await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
+});
+
+describe("projectService.getCompletedTasksForClient — SEC-061", () => {
+  test("returns only DONE tasks, ordered most-recently-completed first", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const client = await prisma.client.create({ data: { name: "sec061 client", serviceId } });
+    createdClientIds.push(client.id);
+    const project = await prisma.project.create({ data: { name: "sec061 project", clientId: client.id, serviceId } });
+    createdProjectIds.push(project.id);
+
+    const older = await prisma.task.create({ data: { title: "Ancienne tâche terminée", projectId: project.id, status: "DONE" } });
+    // Ensure a distinct, later updatedAt for ordering.
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const newer = await prisma.task.create({ data: { title: "Tâche récemment terminée", projectId: project.id, status: "DONE" } });
+    const inProgress = await prisma.task.create({ data: { title: "En cours", projectId: project.id, status: "IN_PROGRESS" } });
+    createdTaskIds.push(older.id, newer.id, inProgress.id);
+
+    const result = await projectService.getCompletedTasksForClient(project.id, client.id);
+
+    const ids = result.map((t) => t.id);
+    assert.ok(ids.includes(older.id));
+    assert.ok(ids.includes(newer.id));
+    assert.ok(!ids.includes(inProgress.id), "an IN_PROGRESS task must never appear in the completed list");
+    assert.ok(result[0]?.completedAt, "each returned task must carry a completion date");
+  });
+
+  test("a CLIENT cannot read another client's project — 404, not an empty list (security)", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const ownerClient = await prisma.client.create({ data: { name: "sec061 owner client", serviceId } });
+    const otherClient = await prisma.client.create({ data: { name: "sec061 other client", serviceId } });
+    createdClientIds.push(ownerClient.id, otherClient.id);
+    const project = await prisma.project.create({ data: { name: "sec061 owned project", clientId: ownerClient.id, serviceId } });
+    createdProjectIds.push(project.id);
+    const task = await prisma.task.create({ data: { title: "Confidentiel", projectId: project.id, status: "DONE" } });
+    createdTaskIds.push(task.id);
+
+    await assert.rejects(
+      () => projectService.getCompletedTasksForClient(project.id, otherClient.id),
+      (err: unknown) => {
+        assert.ok(err instanceof HttpError);
+        assert.equal(err.statusCode, 404);
+        return true;
+      }
+    );
+  });
+});

@@ -4728,11 +4728,11 @@ anomalies:
 
   - id: SEC-061
     titre: "Le CLIENT ne voit son projet qu'via une timeline synthetique en 7 etapes et un brief, jamais le detail des taches — friction de confiance potentielle sur des projets longs"
-    perimetre: "4.2 Gestion de projet — client/src/features/client-portal/, server/src/controllers/project.controller.ts#getTimelineStatus"
+    perimetre: "4.2 Gestion de projet — client/src/features/client-portal/, server/src/controllers/project.controller.ts#getTimelineStatus, server/src/controllers/project.controller.ts#getCompletedTasks, server/src/services/project.service.ts, server/src/routes/project.routes.ts, client/src/api/projects.api.ts, client/src/features/client-portal/hooks/useProjectCompletedTasks.ts, client/src/features/client-portal/components/CompletedTasksList.tsx, client/src/features/client-portal/ProjectsClientPage.tsx"
     regle_violee: null
     classe: null
     gravite: faible
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       Pas de critère de résolution au sens strict tant que le besoin
       n'est pas confirmé : le rapport présente ceci comme une piste
@@ -4754,9 +4754,64 @@ anomalies:
       connu, pas une découverte à confirmer par lecture) — cohérent
       avec l'architecture documentée du portail client (timeline 7
       étapes + brief, périmètre confirmé ailleurs dans
-      REFERENTIEL.md). Non corrigé cette session (décision du porteur :
-      « Documenter seulement, sans coder — piste conditionnelle, pas
-      un défaut actuel »).
+      REFERENTIEL.md). Non corrigée lors de la première passe sur ce
+      rapport (décision du porteur alors : « Documenter seulement, sans
+      coder — piste conditionnelle, pas un défaut actuel »).
+
+      Reprise ensuite sur instruction explicite du porteur (« continuer
+      », choix « SEC-061 (Recommandé) » via AskUserQuestion parmi les 2
+      dernières anomalies ouvertes du périmètre). Contenu de la vue
+      déjà précisé lors d'une question antérieure de cette session :
+      « Tâches DONE uniquement, titre + date (Recommandé) » — pas les
+      documents `DELIVERABLE`, pas le détail complet des tâches
+      (assignee/description/priorité non exposés, la confidentialité
+      interne du reste du module Task n'est pas remise en cause).
+
+      Correctif : `projectService.getCompletedTasksForClient(id,
+      clientId)` (nouvelle méthode, distincte de `getTimelineStatus` —
+      celle-ci retourne un résumé synthétique en 7 étapes, la nouvelle
+      retourne de vraies lignes de tâche titre+date), scope CLIENT via
+      `where.clientId` (même pattern que `getTimelineStatus`) — 404 si
+      le projet n'appartient pas au client, jamais une liste vide qui
+      laisserait deviner l'existence du projet à un tiers. Nouvelle
+      route dédiée `GET /projects/:id/completed-tasks`
+      (`authorize("CLIENT")` seul, contrairement à `/timeline-status`
+      qui est partagée ADMIN/MANAGER/CLIENT/FREELANCER) — non gated par
+      `requireActivatedPortal`, cohérent avec la timeline déjà non
+      gated (portail continu). Côté client : nouveau composant
+      `CompletedTasksList.tsx` sous la timeline dans
+      `ProjectsClientPage.tsx`, ne rend rien si la liste est vide (pas
+      de section vide « Ce qui a été livré »). Hook `useProjectCompletedTasks`
+      délibérément extrait dans son propre fichier
+      (`hooks/useProjectCompletedTasks.ts`), pas colocalisé avec le
+      composant comme `ProjectTimeline.tsx` le fait déjà — colocaliser
+      aurait ajouté un 13e cas à l'exception documentée
+      `react-refresh/only-export-components` (SEC-049/CLAUDE.md,
+      confirmé par un aller-retour : lint est passé de 12 à 13
+      warnings avant l'extraction, revenu à 12 après).
+
+      Invariant de sécurité testé explicitement : un CLIENT ne peut pas
+      lire le projet d'un autre client (404, pas une liste vide qui
+      fuiterait l'existence du projet).
+
+      Tests réels ajoutés : `server/test/clientCompletedTasks.test.ts`
+      (2 cas d'intégration réelle contre une base migrée — seules les
+      tâches DONE sont retournées triées par date de complétion
+      décroissante, isolation cross-client 404) ;
+      `client/src/features/client-portal/components/CompletedTasksList.test.tsx`
+      (3 cas — affichage titre+date, rien affiché si liste vide, appel
+      de la vraie route HTTP).
+
+      Vérification complète : serveur `npx tsc --noEmit` (clean), `npm
+      run lint` (0/0), `npx tsx --test test/run-all.test.ts` (376/376,
+      2 nouveaux) ; client `npx tsc --noEmit` (clean), `npm run lint`
+      (12 warnings — exception SEC-049, stable après extraction du
+      hook), `npx vitest run` (64/64, 3 nouveaux), `npm run build`
+      (succès). `check-i18n.mjs` toujours introuvable (écart
+      préexistant déjà signalé plus tôt dans la session, non retraité
+      ici). Résolu SANS confirmation CI : workflow GitHub Actions sur
+      `origin/main` en `workflow_dispatch` uniquement (déviation
+      établie en session le 2026-07-17, citée à chaque clôture depuis).
 
   - id: SEC-062
     titre: "Point positif signale par le rapport (aucune action requise) : la completion d'un projet (clientApprove) declenche automatiquement une demande d'evaluation des freelances aupres des managers — boucle de qualite deja bouclee"

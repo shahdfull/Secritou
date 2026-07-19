@@ -213,3 +213,16 @@ export const getTimelineStatus: RequestHandler = async (req, res, next) => {
     next(error);
   }
 };
+
+// SEC-061: CLIENT-only, mirrors getTimelineStatus's own CLIENT branch (clientId scoping) — a
+// dedicated route rather than folding into getTimelineStatus, since this returns real task rows
+// (title + completion date) rather than the timeline's synthetic 7-step summary.
+export const getCompletedTasks: RequestHandler = async (req, res, next) => {
+  try {
+    const clientId = req.user?.clientId as string | undefined;
+    const tasks = await projectService.getCompletedTasksForClient(req.params.id as string, clientId);
+    res.json({ data: tasks });
+  } catch (error) {
+    next(error);
+  }
+};

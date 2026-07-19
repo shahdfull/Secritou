@@ -508,4 +508,26 @@ export const projectService = {
       return { key, label, status, date: done ? fmt(date) : null };
     });
   },
+
+  // SEC-061 (rapport Product Owner, §7 constat P3, session 2026-07-19) : le CLIENT ne voyait son
+  // projet qu'à travers la timeline synthétique en 7 étapes ci-dessus et le brief — jamais le
+  // détail des tâches, point de friction potentiel sur la confiance client pour des projets longs.
+  // Décision du porteur : vue simplifiée listant les tâches DONE uniquement (titre + date), pas le
+  // détail complet des tâches internes (assignee, description, priorité restent non exposés — la
+  // confidentialité interne du reste du module Task, elle, n'est pas remise en cause).
+  async getCompletedTasksForClient(id: string, clientId?: string): Promise<{ id: string; title: string; completedAt: string | null }[]> {
+    const project = await prismaRead.project.findFirst({
+      where: { id, clientId: clientId ?? "__none__" },
+      select: { id: true },
+    });
+    if (!project) throw new HttpError(404, "Project not found");
+
+    const tasks = await prismaRead.task.findMany({
+      where: { projectId: id, status: "DONE" },
+      select: { id: true, title: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+    });
+
+    return tasks.map((t) => ({ id: t.id, title: t.title, completedAt: t.updatedAt.toISOString() }));
+  },
 };

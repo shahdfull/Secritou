@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, archiveProject, getDeletedProjects, restoreProject, getMyProjects, getTimelineStatus, getBrief, submitBrief, clientApproveProject, receiveAiSpecs } from "../controllers/project.controller.js";
+import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, archiveProject, getDeletedProjects, restoreProject, getMyProjects, getTimelineStatus, getCompletedTasks, getBrief, submitBrief, clientApproveProject, receiveAiSpecs } from "../controllers/project.controller.js";
 import { getHealthBoard } from "../controllers/healthBoard.controller.js";
 import { createTimeEntry, listTimeEntries, getTimeSummary, getMyTimeSummary } from "../controllers/timeEntry.controller.js";
 import { listProjectMeetings, createProjectMeeting, updateProjectMeeting, deleteProjectMeeting, getMeetingSchedule, updateMeetingSchedule } from "../controllers/projectMeeting.controller.js";
@@ -24,6 +24,11 @@ router.get("/trash", authenticate, authorize("ADMIN", "MANAGER"), requirePermiss
 // added explicitly (SEC, session 2026-07-18) as a router-level safety net, not the sole guard —
 // a future added role or a service scoping mistake would otherwise fall through silently.
 router.get("/:id/timeline-status", authenticate, authorize("ADMIN", "MANAGER", "CLIENT", "FREELANCER"), getTimelineStatus);
+
+// SEC-061 : vue CLIENT simplifiée (titre + date) des tâches terminées, distincte de la timeline
+// synthétique ci-dessus — CLIENT seul, mêmes conditions de visibilité que "/my" (portail continu,
+// pas gated par requireActivatedPortal, cohérent avec la timeline déjà non gated).
+router.get("/:id/completed-tasks", authenticate, authorize("CLIENT"), getCompletedTasks);
 
 // Brief questionnaire : CLIENT submits, MANAGER (own pole)/ADMIN/FREELANCER (own task, redacted)
 // read. Submitting the brief is the cadrage's "2e réunion de cadrage" step, which happens after

@@ -77,3 +77,4 @@ import "./taskCommentMentions.test.ts";
 import "./taskBulkActions.test.ts";
 import "./taskChecklist.test.ts";
 import "./documentCreateHttp.test.ts";
+import "./clientCompletedTasks.test.ts";
