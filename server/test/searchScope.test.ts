@@ -107,6 +107,54 @@ describe("searchRepository.search — real code, pole scope and role restriction
     await prisma.user.delete({ where: { id: freelancer.id } });
   });
 
+  test("a MANAGER only finds projects/invoices/serviceRequests/approvals from their own pole", async () => {
+    const client = await prisma.client.create({ data: { name: `SEC132-full-client-${uniq}` } });
+    createdClientIds.push(client.id);
+    const otherClient = await prisma.client.create({ data: { name: `SEC132-full-client-other-${uniq}` } });
+    createdClientIds.push(otherClient.id);
+
+    const project = await prisma.project.create({ data: { name: `SEC132-full-project-${uniq}`, clientId: client.id, serviceId: serviceA } });
+    createdProjectIds.push(project.id);
+    const otherPoleProject = await prisma.project.create({ data: { name: `SEC132-full-project-${uniq}`, clientId: otherClient.id, serviceId: serviceB } });
+    createdProjectIds.push(otherPoleProject.id);
+
+    const invoice = await prisma.invoice.create({ data: { number: `SEC132-INV-${uniq}`, title: `SEC132-full-invoice-${uniq}`, amount: 100, clientId: client.id, projectId: project.id } });
+    const otherPoleInvoice = await prisma.invoice.create({ data: { number: `SEC132-INV-OTHER-${uniq}`, title: `SEC132-full-invoice-${uniq}`, amount: 100, clientId: otherClient.id, projectId: otherPoleProject.id } });
+
+    const serviceRequest = await prisma.serviceRequest.create({ data: { title: `SEC132-full-sr-${uniq}`, description: "x", type: "SUPPORT", clientId: client.id } });
+    const otherPoleServiceRequest = await prisma.serviceRequest.create({ data: { title: `SEC132-full-sr-${uniq}`, description: "x", type: "SUPPORT", clientId: otherClient.id } });
+
+    const approval = await prisma.approval.create({ data: { title: `SEC132-full-approval-${uniq}`, clientId: client.id } });
+    const otherPoleApproval = await prisma.approval.create({ data: { title: `SEC132-full-approval-${uniq}`, clientId: otherClient.id } });
+
+    // Both clients need at least one project in the relevant pole for serviceRequest/approval's
+    // client-projects.some.serviceId scoping (search.repository.ts:85-86) to actually discriminate.
+    await prisma.project.create({ data: { name: `SEC132-full-anchor-${uniq}`, clientId: otherClient.id, serviceId: serviceB } });
+    createdProjectIds.push((await prisma.project.findFirst({ where: { name: `SEC132-full-anchor-${uniq}` } }))!.id);
+
+    const managerA = { role: "MANAGER" as const, clientId: null, userId: "mgr-a", serviceId: serviceA };
+
+    const projectResults = await searchRepository.search(managerA, `SEC132-full-project-${uniq}`);
+    assert.ok(projectResults.projects.some((p) => (p as { id: string }).id === project.id), "own-pole project must be found");
+    assert.ok(!projectResults.projects.some((p) => (p as { id: string }).id === otherPoleProject.id), "cross-pole project must not be found");
+
+    const invoiceResults = await searchRepository.search(managerA, `SEC132-full-invoice-${uniq}`);
+    assert.ok(invoiceResults.invoices.some((i) => (i as { id: string }).id === invoice.id), "own-pole invoice must be found");
+    assert.ok(!invoiceResults.invoices.some((i) => (i as { id: string }).id === otherPoleInvoice.id), "cross-pole invoice must not be found");
+
+    const srResults = await searchRepository.search(managerA, `SEC132-full-sr-${uniq}`);
+    assert.ok(srResults.serviceRequests.some((s) => (s as { id: string }).id === serviceRequest.id), "own-pole service request must be found");
+    assert.ok(!srResults.serviceRequests.some((s) => (s as { id: string }).id === otherPoleServiceRequest.id), "cross-pole service request must not be found");
+
+    const approvalResults = await searchRepository.search(managerA, `SEC132-full-approval-${uniq}`);
+    assert.ok(approvalResults.approvals.some((a) => (a as { id: string }).id === approval.id), "own-pole approval must be found");
+    assert.ok(!approvalResults.approvals.some((a) => (a as { id: string }).id === otherPoleApproval.id), "cross-pole approval must not be found");
+
+    await prisma.invoice.deleteMany({ where: { id: { in: [invoice.id, otherPoleInvoice.id] } } });
+    await prisma.serviceRequest.deleteMany({ where: { id: { in: [serviceRequest.id, otherPoleServiceRequest.id] } } });
+    await prisma.approval.deleteMany({ where: { id: { in: [approval.id, otherPoleApproval.id] } } });
+  });
+
   test("a CLIENT only finds their own proposals, never another client's", async () => {
     const client = await prisma.client.create({ data: { name: `SEC132-clientscope-${uniq}` } });
     createdClientIds.push(client.id);

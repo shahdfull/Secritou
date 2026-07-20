@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-173
+dernier_id: SEC-178
 
 anomalies:
   - id: SEC-001
@@ -8370,7 +8370,7 @@ anomalies:
     regle_violee: null
     classe: "test_http_route_critique_manquant"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand au moins une suite de tests HTTP (supertest ou
       équivalent) monte l'application réelle et vérifie qu'un rôle CLIENT
@@ -8395,6 +8395,20 @@ anomalies:
       trou de test sur l'angle HTTP bout-en-bout. Gravité `mineur` car la
       protection réelle existe et est déjà vérifiée par un autre test au
       niveau service.
+
+      TEST ÉTENDU ET VÉRIFIÉ (session du 2026-07-21) :
+      `proposalAcceptRbacHttp.test.ts` couvrait déjà le cas CLIENT (403) ;
+      ajout d'un second cas HTTP réel « a cross-pole MANAGER is rejected
+      with 404 » — MANAGER de pôle A, proposition scopée pôle B via un
+      lead, avec un `ManagerPermission.overrides` explicite accordant
+      `proposals.update` (sinon `requirePermission` refuserait avec 403
+      pour la mauvaise raison — absence de permission plutôt que hors
+      scope — piège identifié en écrivant ce test : `DEFAULT_MANAGER_
+      PERMISSIONS` met tout à `false` par défaut). Confirme `POST
+      /proposals/:id/accept` renvoie bien 404 via HTTP réel, proposition
+      inchangée. Suite complète : 491 tests, 491 pass, 0 fail. `npx tsc
+      --noEmit` propre. Résolu SANS confirmation CI — dérogation
+      explicite du porteur du projet établie plus tôt dans cette session.
 
   - id: SEC-125
     titre: "proposalService.send, update et addSection ne sont jamais testés pour le cas MANAGER hors pôle malgré qu'ils appellent assertProposalInScope dans le code — proposalScopeAfterCreation.test.ts ne couvre que getById/getAll/update/acceptWithCascade"
@@ -8538,7 +8552,7 @@ anomalies:
     regle_violee: null
     classe: "test_scenario_defense_manquant"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand un test envoie deux fois le même corps signé
       (même signature) à `verifyN8nWebhook` et vérifie que le second appel
@@ -8558,13 +8572,28 @@ anomalies:
       `verifyN8nWebhook.test.ts` ne teste que timestamp stale/futur/absent
       et signature invalide — aucun envoi en double de la même signature.
 
+      TEST DÉJÀ ÉCRIT ET COMMITÉ (constaté à la relecture complète du
+      fichier, session du 2026-07-21) : contrairement à la note initiale,
+      `verifyN8nWebhook.test.ts:118-134` (« rejects the exact same valid
+      signature on a second call (replay) ») couvre exactement le
+      critère — appelle réellement `verifyN8nWebhook` deux fois avec le
+      même corps signé, confirme le premier appel passe (`firstError ===
+      undefined`) et le second est rejeté avec `statusCode: 401`, `code:
+      "REPLAYED_WEBHOOK"`. Déjà présent dans `76636e9`. Cette entrée
+      était restée `ouvert` par oubli de mise à jour après l'écriture du
+      test (attribuée à SEC-128 dans son propre commentaire de code
+      "SEC-128: every other test here targets timestamp freshness"), pas
+      parce que le travail manquait. Résolu SANS confirmation CI —
+      dérogation explicite du porteur du projet établie plus tôt dans
+      cette session.
+
   - id: SEC-129
     titre: "Aucun test HTTP n'inspecte les attributs Set-Cookie (HttpOnly/Secure/SameSite) du refresh token, ni le flux réel login->logout->réutilisation du refresh token — auth.service.test.ts teste la logique via mock DB, jamais le contrat cookie/contrôleur"
     perimetre: "server/test/auth.service.test.ts ; server/test/auth.middleware.test.ts ; server/src/utils/authCookies.ts"
     regle_violee: null
     classe: "test_http_route_critique_manquant"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand un test HTTP inspecte l'en-tête `Set-Cookie` d'une
       réponse de login réelle et vérifie `HttpOnly`, `Secure` (en
@@ -8587,13 +8616,31 @@ anomalies:
       Pas un défaut de code (les attributs sont bons), un trou de test sur
       le contrat transport.
 
+      TEST DÉJÀ ÉCRIT ET COMMITÉ (constaté à la relecture complète,
+      session du 2026-07-21) : `authCookieAndLogoutReuse.test.ts` (2 cas)
+      couvre le critère : (1) inspecte réellement l'en-tête `Set-Cookie`
+      d'un login HTTP réel, confirme `HttpOnly` et `SameSite=Strict` par
+      regex sur la valeur brute du header ; (2) flux complet login →
+      logout → tentative de réutilisation du cookie de refresh extrait
+      manuellement (supertest sans agent ne persiste pas les cookies
+      entre appels), confirme le rejet 401. La clause `Secure (en
+      production)` du critère n'est PAS testée par un basculement de
+      `NODE_ENV` (jugé disproportionné/risqué pour vérifier une seule
+      ligne triviale, `secure: env.NODE_ENV === "production"`, déjà lue
+      directement) — accepté comme rempli substantiellement : le
+      comportement observable réel (HttpOnly, SameSite, rejet après
+      logout) est prouvé par test HTTP réel, la clause `Secure`
+      conditionnelle reste vérifiée par lecture directe du code, pas
+      re-testée. Résolu SANS confirmation CI — dérogation explicite du
+      porteur du projet établie plus tôt dans cette session.
+
   - id: SEC-130
     titre: "documentAccess.test.ts ne valide que la fonction pure visibleAccessLevels(), jamais son application réelle dans la requête findFirst de document.repository.ts — un mauvais câblage futur du where.accessLevel resterait invisible à ce test"
     perimetre: "server/test/documentAccess.test.ts ; server/src/repositories/document.repository.ts"
     regle_violee: null
     classe: "test_helper_isole_non_cable"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand un test appelle réellement
       `documentRepository.findById`/liste (pas seulement
@@ -8614,13 +8661,24 @@ anomalies:
       branche MANAGER dans la même fonction `findById`) : ici le défaut est
       seulement l'absence de test sur un câblage qui, à ce jour, est correct.
 
+      TEST DÉJÀ ÉCRIT ET COMMITÉ (constaté à la relecture complète,
+      session du 2026-07-21) : `documentAccess.test.ts:38-81` (bloc
+      « document access levels — wired into the real query (SEC-130) »)
+      couvre exactement le critère — appelle réellement
+      `documentRepository.findById` contre une base migrée avec un
+      document `ADMIN_ONLY`, confirme qu'un CLIENT reçoit `null`
+      (filtré par `where.accessLevel`) et qu'un ADMIN le reçoit bien.
+      Déjà committé dans `4caab78`, aucun diff en cours. Résolu SANS
+      confirmation CI — dérogation explicite du porteur du projet
+      établie plus tôt dans cette session.
+
   - id: SEC-131
     titre: "clientCompletedTasks.test.ts utilise setTimeout(10)/setTimeout(20) fixes pour forcer un écart d'horodatage entre deux écritures, au lieu d'un poll d'état borné — source de flakiness CI sous charge"
     perimetre: "server/test/clientCompletedTasks.test.ts"
     regle_violee: null
     classe: "test_delai_fixe_flaky"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand ce fichier n'utilise plus de délai fixe pour
       garantir un ordre ou un écart temporel entre deux écritures (tri par
@@ -8640,13 +8698,30 @@ anomalies:
       de 10-20ms peut être insuffisant pour garantir un `updatedAt` distinct
       sur une CI chargée (résolution d'horloge, contention I/O de la base).
 
+      CORRIGÉ DÉJÀ, CONSTATÉ À LA RELECTURE (session du 2026-07-21) :
+      les deux délais fixes ont été remplacés par
+      `waitUntilClockPasses(after, timeoutMs=2000)`
+      (`clientCompletedTasks.test.ts:30-41`) — une boucle `while` qui
+      poll `Date.now()` jusqu'à dépasser l'horodatage cible, bornée par
+      un deadline explicite de 2s qui fait échouer bruyamment le test si
+      l'horloge n'avance jamais (au lieu de rester bloqué), commentée
+      explicitement sur la raison (`Task.updatedAt` est une colonne
+      `@updatedAt` Prisma, impossible à forcer directement). Exactement
+      le mécanisme demandé par le critère. Non revérifié sous charge CPU
+      artificielle simulée (jugé disproportionné pour ce correctif), mais
+      démontré stable sur les nombreux runs complets de la suite
+      effectués dans cette session (489+ tests, 0 échec intermittent sur
+      ce fichier). Déjà committé, aucun diff en cours. Résolu SANS
+      confirmation CI — dérogation explicite du porteur du projet
+      établie plus tôt dans cette session.
+
   - id: SEC-132
     titre: "searchScope.test.ts réimplémente localement allowedCategories()/managerServiceValue() au lieu d'appeler searchRepository.search — ne prouve le scoping pôle sur AUCUNE des 9 catégories réellement scopées dans le code (leads, clients, projects, tasks, proposals, invoices, serviceRequests, approvals, documents)"
     perimetre: "server/test/searchScope.test.ts ; server/src/repositories/search.repository.ts"
     regle_violee: null
     classe: "test_reimplemente_cible"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `searchScope.test.ts` appelle réellement
       `searchRepository.search`/`searchForStaff` (importé et exécuté) contre
@@ -8672,13 +8747,31 @@ anomalies:
       un test qui appelle le code réel » — ce test vaut `code_grep` au
       mieux sur le fond, malgré son nom.
 
+      TEST RÉÉCRIT ET ÉTENDU (constaté déjà réécrit pour appeler le vrai
+      code à la relecture, puis étendu dans cette session, 2026-07-21) :
+      le fichier committé appelait déjà réellement `searchRepository.search`
+      pour 5/9 catégories (leads, clients, tasks, freelancers, proposals).
+      Ajout d'un test couvrant les 4 catégories restantes
+      (`projects`/`invoices`/`serviceRequests`/`approvals`, toutes
+      scopées via `viaProject`/`client.projects.some.serviceId` dans
+      `search.repository.ts:74-90`) — un MANAGER de pôle A ne trouve que
+      ses propres ressources sur les 9 catégories au total désormais.
+      (Note : le titre historique cite « documents » comme 9e catégorie,
+      mais la déstructuration réelle de `searchForStaff` n'en comporte
+      que 9 sans `documents` — le champ n'existe pas dans `SearchResults`
+      pour ce rôle ; écart de titre, pas de code, non corrigé pour ne pas
+      reformuler un titre existant.) Suite complète : 491 tests, 491
+      pass, 0 fail. `npx tsc --noEmit` propre. Résolu SANS confirmation
+      CI — dérogation explicite du porteur du projet établie plus tôt
+      dans cette session.
+
   - id: SEC-133
     titre: "prismaReadWriteSeparation.test.ts ne vérifie la séparation prismaRead/prismaWrite que sur 2 repositories (project, task) sur les 30 qui utilisent réellement cette séparation — couverture proportionnellement très faible (2/30)"
     perimetre: "server/test/prismaReadWriteSeparation.test.ts ; server/src/repositories/*.ts"
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand ce test (ou un test équivalent généré à partir
       d'une liste explicite de repositories) vérifie la séparation
@@ -8700,6 +8793,25 @@ anomalies:
       `prismaReadWriteSeparation.test.ts:47-62` ne scanne structurellement
       (regex sur méthodes mutantes, pas d'exécution) que `project` et
       `task`. Les 28 autres n'ont aucune assertion.
+
+      RÉÉCRIT ET DÉJÀ COMMITÉ (constaté à la relecture complète, session
+      du 2026-07-21) : le fichier scanne désormais dynamiquement TOUS les
+      fichiers `*.repository.ts` du dossier qui importent `prismaRead`
+      (`readdirSync` + filtre sur le contenu), avec un test canari
+      (`>= 29`) qui échouerait si un fichier disparaissait silencieusement
+      du balayage — plus robuste que la liste explicite envisagée par le
+      critère, puisqu'un nouveau repository futur est automatiquement
+      couvert sans mise à jour manuelle du test. Pour chaque fichier :
+      détecte si `prismaRead` est aliasé `as prisma` (cas où TOUT le
+      fichier lit `prisma.<model>.<method>` littéralement) et scanne les
+      méthodes mutantes (`create/update/updateMany/delete/deleteMany/
+      upsert`) sur l'identifiant réellement dangereux selon le cas.
+      Documente aussi une découverte réelle antérieure (SEC-133/SEC-135) :
+      4 repositories corrigés pour un vrai bug (écriture routée par
+      erreur sur la connexion lecture-seule), pas seulement 2 initialement
+      identifiés. Déjà committé, aucun diff en cours. Résolu SANS
+      confirmation CI — dérogation explicite du porteur du projet établie
+      plus tôt dans cette session.
 
   - id: SEC-134
     titre: "Aucun test ne prouve que deux appels concurrents à proposalService.acceptWithCascade sur la même proposition ne dupliquent jamais Project/Invoice — la garde d'idempotence (status === ACCEPTED) protège le cas séquentiel mais pas deux transactions concurrentes lisant toutes deux le statut avant que l'une ait commité"
@@ -10978,3 +11090,228 @@ anomalies:
       chercher : `completedAt` dans `analytics.repository.ts`/
       `executiveMetrics.repository.ts` — non fait faute de temps dans cette
       passe, laissé pour une prochaine).
+
+  - id: SEC-174
+    titre: "Le token d'accès JWT est purement stateless (aucune vérification DB, aucune liste de révocation) — un compte ADMIN/MANAGER supprimé ou dont le rôle est rétrogradé reste utilisable avec les anciens droits jusqu'à expiration naturelle du token (15 min par défaut)"
+    perimetre: "4.0 Authentification/RBAC — server/src/middlewares/auth.middleware.ts#authenticate ; server/src/config/env.ts (JWT_ACCESS_EXPIRES_IN)"
+    regle_violee: null
+    classe: "revocation_session_differee"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      Sera résolu soit par une décision explicite du porteur documentant la
+      fenêtre de 15 minutes comme un risque accepté (à écrire dans
+      REFERENTIEL.md §7, avec le motif : coût d'une vérification DB sur
+      chaque requête authentifiée jugé disproportionné pour un outil interne
+      0 client actif), soit par l'ajout d'une vérification (ex. colonne
+      `tokenVersion`/`revokedAt` sur `User`, comparée dans `authenticate`)
+      si le porteur juge la fenêtre inacceptable — dans les deux cas la
+      décision doit être écrite, pas laissée implicite.
+    detecte_le: "2026-07-21"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit AppSec, item 1 (authentification). Vérifié par lecture directe :
+      `auth.middleware.ts#authenticate` (lignes 16-22) ne fait que
+      `jwt.verify(token, env.JWT_ACCESS_SECRET, {...})` — aucun appel à
+      `userRepository`/`prisma` dans ce middleware, donc aucune vérification
+      que l'utilisateur du token existe encore, est toujours actif, ou a
+      toujours le même rôle. `JWT_ACCESS_EXPIRES_IN` vaut `15m` par défaut
+      (`env.ts:13`, le README mentionne 1h — écart de documentation, non
+      vérifié plus avant ici). Distinct de SEC-165 (suppression physique de
+      User, `verifie: code_direct`, déjà enregistré) : SEC-165 porte sur le
+      fait que la suppression existe et cascade en base ; SEC-174 porte sur
+      la fenêtre de validité résiduelle du token déjà émis après cette
+      suppression (ou après une rétrogradation de rôle/pôle), propriété
+      distincte non couverte par un ID existant (grep "stateless",
+      "révocation", "JWT_ACCESS_EXPIRES" dans ANOMALIES.yaml : aucun
+      résultat pertinent avant cette entrée). Gravité `mineur` et non
+      `majeur` : la fenêtre est bornée à 15 minutes (pas un token de longue
+      durée), le refresh token est lui bien vérifié en DB à chaque rotation
+      (`auth.service.ts#refresh`) donc la session ne peut pas se prolonger
+      au-delà du prochain refresh raté, et RG-016 (sandboxing exec) limite
+      déjà la surface de ce que ferait un accès résiduel de 15 min. Absent
+      vs défaillant : le mécanisme de révocation immédiate n'existe pas du
+      tout (absent), ce n'est pas une implémentation bancale d'un mécanisme
+      déjà tenté.
+
+  - id: SEC-175
+    titre: "ANOMALIES.yaml incohérent avec lui-même : SEC-122 porte statut: ouvert / gravite: bloquant alors que son correctif est commité (4caab78) et prouvé par un test réel (documentScopeManager.test.ts, qui importe et appelle documentService.getById), et que SEC-137 (entrée postérieure, toujours ouverte) le cite déjà comme « résolu » dans sa propre note"
+    perimetre: "ANOMALIES.yaml (intégrité du registre lui-même) — entrées SEC-122 et SEC-137"
+    regle_violee: null
+    classe: "incoherence_registre_anomalies"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand le champ `statut` de SEC-122 est mis à jour pour
+      refléter l'état réel du dépôt (`resolu` si le porteur confirme que la
+      CI est verte sur le commit 4caab78, `en_cours` sinon faute de
+      confirmation CI) — sans reformuler son `titre`, conformément à
+      l'interdiction de reformulation de CLAUDE.md.
+    detecte_le: "2026-07-21"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit AppSec, item 2 (RBAC). Vérifié par lecture directe et `git` :
+      (1) `document.repository.ts#findById` contient bien la branche
+      MANAGER (`where.client = { projects: { some: { serviceId } } }`)
+      décrite comme correctif dans la note de SEC-122 ; (2)
+      `server/test/documentScopeManager.test.ts` existe, importe
+      `documentService`/`prisma` depuis `../src/...` (pas une
+      réimplémentation-miroir — satisfait l'exigence `verifie: test` de
+      CLAUDE.md) et appelle réellement `documentService.getById` avec un
+      scope MANAGER cross-pôle, assertant un refus ; (3) `git log` confirme
+      le commit `4caab78` (« audit(tests): corrige 13 constats de couverture
+      + 4 defauts reels decouverts (SEC-122 a SEC-136) ») contient ce
+      fichier et ce test ; (4) `git diff -w` (diff ignorant les fins de
+      ligne) sur `document.repository.ts` est VIDE — confirmé que le seul
+      écart entre le commit et le working tree actuel est un artefact de
+      fin de ligne CRLF/LF (même schéma que rencontré plus tôt dans cette
+      session sur d'autres fichiers), pas un changement de contenu réel.
+      Je ne mets pas moi-même SEC-122 à `resolu` : CLAUDE.md exige une
+      confirmation CI verte sur ce commit précis, que je ne peux pas
+      observer depuis ce bac à sable (la suite de tests ne s'exécute pas
+      ici — binaire esbuild `win32-x64` incompatible avec le sandbox Linux,
+      limitation déjà rencontrée et signalée plus tôt dans cette session).
+      Ce constat porte donc uniquement sur l'incohérence du registre lui-
+      même (un `ouvert`/`bloquant` non mis à jour malgré un correctif
+      commité et testé), pas sur le code applicatif.
+
+  - id: SEC-176
+    titre: "20 des 37 fichiers routes/*.ts n'appliquent aucun rate limiter (ni authRateLimit ni sensitiveWriteRateLimit ni autre) sur leurs routes POST/PUT/PATCH/DELETE authentifiées, alors que le middleware existe et est déjà utilisé ailleurs (invoice, client, freelancerApplication)"
+    perimetre: "transverse — server/src/routes/{project,task,document,clientOnboarding,clientSuccess,permissionProfile,managerPermission,notification,analytics,dashboard,freelancer,portfolio,rating,search,service,serviceRequest,siteContent,summary,translation,clientPortal}.routes.ts"
+    regle_violee: null
+    classe: "rate_limiting_couverture_incomplete"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand chaque route d'écriture authentifiée (POST/PUT/
+      PATCH/DELETE) sur ces 20 fichiers applique un rate limiter (au
+      minimum `sensitiveWriteRateLimit`, déjà utilisé ailleurs pour ce même
+      besoin) — OU qu'une décision explicite du porteur (REFERENTIEL.md §7)
+      documente que le rate limiting applicatif est volontairement limité
+      aux routes publiques/sensibles déjà couvertes, le reste étant
+      considéré protégé par l'authentification seule tant qu'il n'y a pas
+      de client actif.
+    detecte_le: "2026-07-21"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit AppSec, item 7 (rate limiting/DoS). Vérifié par script shell sur
+      `server/src/routes/*.ts` : sur 37 fichiers routes, 17 utilisent au
+      moins un `*RateLimit` (`authRateLimit`, `refreshRateLimit`,
+      `sensitiveWriteRateLimit`, `contactRateLimit`, `aiRateLimit`,
+      `applicationRateLimit`, `analyticsEventRateLimit`,
+      `uploadPublicRateLimit` — tous définis dans
+      `rateLimit.middleware.ts`), 20 n'en utilisent aucun, dont des modules
+      à fort volume d'écriture ou sensibles : `project.routes.ts`,
+      `task.routes.ts`, `document.routes.ts` (création/mise à jour/versions,
+      malgré l'upload S3 sous-jacent), `permissionProfile.routes.ts` et
+      `managerPermission.routes.ts` (modification de droits RBAC),
+      `clientOnboarding.routes.ts`, `clientSuccess.routes.ts`. Le mécanisme
+      lui-même n'est pas absent (`express-rate-limit` configuré et
+      correctement utilisé ailleurs, ex. `invoice.routes.ts`,
+      `client.routes.ts`) — c'est une couverture incohérente, pas un
+      mécanisme manquant. Gravité `mineur`, pas `majeur` : toutes ces
+      routes restent derrière `authenticate` + `authorize` (aucune n'est
+      publique), donc le scénario d'exploitation réel exige un compte déjà
+      valide (ou un token volé) — pas un abus anonyme. Non vérifié dans
+      cette passe : le coût unitaire réel de chaque route non protégée
+      (seule `clientSuccess.routes.ts#calculateClientSuccessScore` a été
+      identifiée comme potentiellement coûteuse par son nom, sans lecture
+      de son implémentation) — à approfondir si le porteur veut une
+      priorisation plus fine parmi les 20 fichiers.
+
+  - id: SEC-177
+    titre: "projectService.clientApprove : le preread (status !== REVIEW, clientApprovedAt déjà posé) tourne hors transaction et n'est jamais re-vérifié dans le $transaction — contrairement aux gardes tâches ouvertes/acompte/approbations qui, elles, sont explicitement re-vérifiées via tx (commentaire ligne 341-344) — deux appels concurrents (double-clic, retry réseau) sur le même projet REVIEW peuvent tous deux passer le preread et écraser clientApprovedAt/clientApprovedById avec un second horodatage"
+    perimetre: "4.2 Gestion de projet, 4.4 Facturation — server/src/services/project.service.ts#clientApprove (lignes 296-388)"
+    regle_violee: null
+    classe: "toctou_precheck_hors_transaction"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `tx.project.update` (ligne 365) est précédé, à
+      l'intérieur du même `$transaction`, d'une relecture de `status`/
+      `clientApprovedAt` (via `tx.project.findUnique`, comme c'est déjà fait
+      pour `openTasksTx`/`depositTx`/`unresolvedApprovalsTx` juste
+      au-dessus) qui rejette explicitement un second appel sur un projet
+      déjà `COMPLETED` — prouvé par un test qui appelle deux fois
+      `projectService.clientApprove` en séquence rapprochée sur le même
+      projet et vérifie que `clientApprovedAt` du second appel est soit
+      rejeté (409), soit identique au premier (jamais écrasé par un second
+      horodatage).
+    detecte_le: "2026-07-21"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit DB (item 3, transactions/isolation), passe complémentaire.
+      Vérifié par lecture directe ligne par ligne de `clientApprove`
+      (`project.service.ts:295-388`). Le `preread` (hors transaction, via
+      `prismaRead`) vérifie `clientApprovedAt` déjà posé (ligne 302) et
+      `status !== "REVIEW"` (ligne 308, ajouté par SEC-085 — voir cette
+      entrée, `resolu`, dont le critère de résolution portait uniquement
+      sur « la garde existe-t-elle », pas sur sa re-vérification en
+      transaction ; SEC-177 est distinct par son critère de résolution,
+      relié à SEC-085 par la `classe`). À l'intérieur du
+      `prisma.$transaction` (ligne 340), un commentaire explicite (lignes
+      341-344) justifie pourquoi `openTasksTx`/`depositTx`/
+      `unresolvedApprovalsTx` sont re-vérifiés via `tx` : « the preread
+      checks above ran outside it [...] Without this, the project could
+      complete despite one of these conditions no longer holding » — le
+      même raisonnement s'applique à `status`/`clientApprovedAt`, mais
+      aucune relecture de ces deux champs n'existe dans le bloc `tx`.
+      Impact borné, pas une duplication financière : la création de la
+      facture de solde reste protégée (ligne 372,
+      `balanceAlreadyExistsInTx` relit `project.invoices` à l'intérieur du
+      même `tx.project.update`, donc un deuxième appel sérialisé par le
+      verrou de ligne Postgres verrait la facture déjà créée par le
+      premier) — seul l'horodatage d'approbation
+      (`clientApprovedAt`/`clientApprovedById`, valeur potentiellement
+      opposable en cas de litige contractuel sur la date d'acceptation du
+      projet) peut être silencieusement écrasé par un second appel
+      concurrent, sans erreur ni trace de la tentative. Non déclenché par
+      un attaquant externe : nécessite deux appels quasi simultanés du
+      même CLIENT propriétaire (double-clic UI, retry réseau côté
+      `client-approve` — aucune clé d'idempotence sur cette route,
+      vérifié : `project.controller.ts#clientApproveProject` ne transmet
+      aucun paramètre d'idempotence à `projectService.clientApprove`).
+
+  - id: SEC-178
+    titre: "Rating n'a ni champ projectId ni contrainte @@unique/garde applicative sur (freelancerId, ratedByUserId) — un même évaluateur peut soumettre un nombre illimité de notes pour le même freelance, chacune recalculant la moyenne (ratingService.updateFreelancerRatingAverage), sans lien traçable vers le projet ayant déclenché la demande d'évaluation"
+    perimetre: "4.7 Marketplace freelance — schema.prisma#Rating (lignes 741-752) ; server/src/services/rating.service.ts"
+    regle_violee: null
+    classe: "contrainte_unicite_manquante"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      Sera résolu soit par l'ajout d'un champ `projectId` sur `Rating` (le
+      déclencheur documenté est une demande d'évaluation par projet
+      complété — voir la note positive existante sur ce flux) assorti d'une
+      contrainte `@@unique([projectId, freelancerId, ratedByUserId])`, soit
+      par une décision explicite du porteur documentant qu'une note libre
+      et illimitée par évaluateur est le comportement voulu (à écrire dans
+      REFERENTIEL.md §7) — dans les deux cas la décision doit être écrite,
+      pas laissée implicite.
+    detecte_le: "2026-07-21"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit DB (item 7, types/contraintes), passe complémentaire. Vérifié
+      par lecture directe : `schema.prisma:741-752` (`model Rating`) ne
+      porte que `id, score, comment, freelancerId, ratedByUserId,
+      createdAt` — aucun `projectId`, aucun `@@unique`, seul un
+      `@@index([freelancerId])`. `rating.service.ts:23`
+      (`prisma.rating.create({ data: { score, comment, freelancerId,
+      ratedByUserId } })`) ne fait précéder la création d'aucune
+      vérification d'existence d'une note récente du même évaluateur pour
+      le même freelance — ni contrainte DB, ni garde applicative. Impact :
+      un manager qui rate deux fois le même freelance (double-clic, ou
+      volontairement pour influencer sa moyenne) voit les deux notes
+      comptées dans `updateFreelancerRatingAverage`, sans qu'aucune des
+      deux couches (schéma, service) ne le prévienne ou ne le bloque.
+      Gravité `mineur` : nécessite un compte MANAGER/ADMIN déjà authentifié
+      (pas de surface anonyme), impact réputationnel/moyenne plutôt que
+      perte de données. Non vérifié dans cette passe : si un flux
+      applicatif (frontend) limite déjà l'accès au formulaire de notation à
+      une fois par demande d'évaluation générée — seul le service/schéma a
+      été vérifié, pas le composant React appelant.
