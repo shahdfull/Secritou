@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-098
+dernier_id: SEC-100
 
 anomalies:
   - id: SEC-001
@@ -7027,3 +7027,142 @@ anomalies:
       workflow GitHub Actions sur `origin/main` en `workflow_dispatch`
       uniquement (déviation établie en session le 2026-07-17, citée à
       chaque clôture depuis).
+
+  - id: SEC-099
+    titre: "assertProposalInScope et proposalService.getAll scopent le MANAGER sur Proposal.projectId (relation avant, quasi toujours nulle) au lieu de linkedProject (le projet créé DEPUIS la proposition) — un MANAGER ne peut ni lister, ni lire, ni modifier, envoyer, accepter ou gérer les sections de ses propres propositions"
+    perimetre: "4.1 CRM & Pipeline commercial — server/src/services/proposal.service.ts, server/src/repositories/proposal.repository.ts"
+    regle_violee: RG-002
+    classe: "scoping_pole_manquant_ou_incorrect"
+    gravite: majeur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand un MANAGER, après avoir créé (chemin déjà autorisé
+      par SEC-028) une proposition pour un lead/client de son propre pôle,
+      peut ensuite la retrouver dans GET /proposals, l'ouvrir via
+      GET /proposals/:id, la modifier, l'envoyer (POST /:id/send),
+      l'accepter (POST /:id/accept) et gérer ses sections — le tout scopé au
+      pôle réel de la proposition (dérivé du projet lié par la relation
+      linkedProject, ou du lead/client d'origine), tandis qu'un MANAGER d'un
+      autre pôle reçoit toujours 404 sur ces mêmes propositions. Prouvé par
+      un test qui appelle réellement proposalService.getAll/getById/send sur
+      une base migrée : une proposition DRAFT et une proposition ACCEPTED
+      créées pour le pôle du MANAGER sont bien visibles/actionnables par
+      lui, celles d'un autre pôle non.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Lu directement en session : proposal.service.ts (intégral),
+      proposal.repository.ts (intégral), schema.prisma#Proposal. Le modèle
+      Proposal porte DEUX relations distinctes vers Project :
+      `project`/`projectId` (relation "ProjectProposals", relation avant) et
+      `linkedProject` (back-relation "ProjectProposal", le Project dont le
+      champ `proposalId` pointe vers cette proposition). À la création,
+      `projectId` est presque toujours nul (le projet n'existe pas encore).
+      À l'acceptation, `acceptWithCascade` crée un Project avec
+      `proposalId: proposal.id` (donc alimente `linkedProject`, la
+      back-relation) — il n'écrit JAMAIS `proposal.projectId`. Résultat :
+      `proposal.projectId` reste nul pour l'immense majorité des
+      propositions, même ACCEPTED (sauf le cas rare où la proposition a été
+      créée en pointant un projet préexistant).
+      Or `assertProposalInScope` (proposal.service.ts:25-35) rejette
+      explicitement tout MANAGER dès que `!proposal.projectId` (ligne 28 :
+      `if (!proposal.projectId) throw new HttpError(404, ...)`), et
+      `getAll` (proposal.service.ts:197-200 → proposal.repository.ts:18-20)
+      filtre le MANAGER sur `where.project = { is: { serviceId } }` (même
+      relation avant). Les deux chemins évaluent donc à nul/vide pour un
+      MANAGER sur pratiquement toutes les propositions. Conséquence vérifiée
+      par lecture de bout en bout (routes → controller → service →
+      repository) : un MANAGER voit une liste de propositions vide et
+      obtient 404 sur getById/update/send/accept/addSection/updateSection —
+      le rôle MANAGER est en pratique exclu de tout le cycle de vie
+      post-création des propositions, alors que RG-002 pose qu'il gère son
+      pôle et que SEC-028 l'autorise explicitement à en CRÉER. Asymétrie :
+      SEC-028 a corrigé le scope de création (sur Lead.serviceId / projets
+      du client), mais le scope de LECTURE/écriture est resté branché sur la
+      mauvaise relation, dans le sens trop restrictif. La correction n'est
+      PAS un simple ajout de capacité : le pôle d'une proposition doit être
+      dérivé de `linkedProject.serviceId` (ou du lead/client, comme le fait
+      déjà assertProposalCreationInScope) au lieu de `projectId`. Signalé,
+      non corrigé (audit lecture seule).
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-20 : tous les appelants
+      de `assertProposalInScope` vérifiés un par un (getById, update, send,
+      addSection, updateSection, deleteSection ; accept/reject passent par
+      un appel préalable à getById en guard, confirmé dans
+      proposal.controller.ts). `assertProposalInScope` réécrite pour dériver
+      le scope de `linkedProject.serviceId` en priorité (autoritaire si
+      présent), sinon du `leadId.serviceId`, sinon des projets existants du
+      client — même logique que `assertProposalCreationInScope`, désormais
+      partagée en esprit entre les deux fonctions. `findById`
+      (proposal.repository.ts) étend le `select` de `linkedProject` pour
+      inclure `serviceId`. `findProposalBySectionId` étend son `select` pour
+      inclure `leadId` et `linkedProject.serviceId` (utilisé par
+      updateSection/deleteSection). `proposalRepository.findAll` (liste)
+      corrigée en miroir exact de la même règle, exprimée en clause Prisma
+      `OR`/`AND` plutôt qu'en post-check, puisqu'un filtre de liste ne peut
+      pas être un throw. Routes ADMIN-only (`DELETE /:id`,
+      `DELETE /:id/sections/:sectionId`) vérifiées non concernées (Admin
+      non scopé par pôle). Preuve : nouveau fichier
+      `server/test/proposalScopeAfterCreation.test.ts` (4 cas, appelle le
+      vrai proposalService contre une base migrée) — un MANAGER retrouve et
+      lit sa propre proposition via lead avant tout projet, un MANAGER d'un
+      autre pôle reçoit 404 et ne la voit pas dans sa liste, un MANAGER
+      retrouve sa proposition après qu'acceptWithCascade ait créé son
+      linkedProject, et un MANAGER est rejeté sur une proposition liée
+      exclusivement (via client) à un projet d'un autre pôle sans lead.
+      Vérification complète serveur : `npx tsc --noEmit` (propre), `npm run
+      lint` (0/0), `npx tsx --test test/run-all.test.ts` (399/399, stable
+      sur 2 exécutions consécutives). Résolu SANS confirmation CI (workflow
+      GitHub Actions sur `origin/main` en `workflow_dispatch` uniquement,
+      déviation documentée depuis la session du 2026-07-17).
+
+  - id: SEC-100
+    titre: "Tests CRM en réimplémentation locale sur un companyId fictif (lead.repository.test.ts, leadService.test.ts, proposal.service.test.ts) — vert trompeur, ne prouvent rien sur le vrai scoping/IDOR des leads et propositions"
+    perimetre: "4.1 CRM & Pipeline commercial — server/test/lead.repository.test.ts, server/test/leadService.test.ts, server/test/proposal.service.test.ts"
+    regle_violee: null
+    classe: "test_reimplemente_companyid_fictif"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand ces trois fichiers de test appellent réellement le
+      code de production CRM (leadRepository.findById/update/delete et son
+      buildWhere, leadService, proposalService) — importé et exécuté, pas
+      des fonctions locales réimplémentées — de sorte qu'ils deviennent
+      rouges si le vrai scoping MANAGER (serviceId + assignedManagerId) ou la
+      vraie logique de reject/send/update dérive. En particulier, la preuve
+      d'isolation doit porter sur `serviceId` (le vrai mécanisme mono-tenant),
+      jamais sur un `companyId` qui n'existe nulle part dans le dépôt.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Lu directement en session : server/test/lead.repository.test.ts,
+      server/test/leadService.test.ts, server/test/proposal.service.test.ts,
+      comparés au code réel (lead.repository.ts, lead.service.ts,
+      proposal.service.ts). Les trois fichiers déclarent en tête « mirror of
+      … »/« mirrors the real service logic » et testent des fonctions
+      LOCALES au fichier, jamais le code importé :
+      (1) lead.repository.test.ts définit repositoryUpdate/repositoryDelete/
+      repositoryFindById avec un `where: { id, companyId }` et asserte que
+      `companyId` DOIT figurer dans la clause WHERE — or le vrai
+      lead.repository.ts n'a aucun `companyId` (dépôt mono-tenant, CLAUDE.md/
+      SEC-004/SEC-005 : aucune notion de companyId/tenantId), il scope sur
+      `serviceId`/`assignedManagerId`. Ce test resterait vert même si le vrai
+      buildWhere perdait tout scoping de pôle.
+      (2) leadService.test.ts réimplémente un `serviceFilter` PLUS SIMPLE que
+      le vrai buildWhere : sa version mock ne teste que `{ serviceId }`, alors
+      que le vrai buildWhere applique un `OR` [serviceId, assignedManagerId]
+      — le test ne couvre donc même pas la branche assignedManagerId du vrai
+      code.
+      (3) proposal.service.test.ts réimplémente reject/send/update
+      (« mirrors proposalService.… ») avec un objet portant encore
+      `companyId` et une signature `findById(id, companyId)` absente du vrai
+      repository, et n'importe jamais proposalService.
+      Même famille que SEC-087 (taskScope.test.ts/idor.test.ts, même défaut
+      companyId fictif), mais critère de résolution distinct (trois fichiers
+      du module 4.1, code cible différent : CRM leads/propositions) — relié
+      par la classe, non fusionné, conformément à « un ID = un critère de
+      résolution ». Signalé, non corrigé (audit lecture seule ; par ailleurs
+      « un test rouge est une hypothèse sur le code » — ne pas réaligner sans
+      instruction).

@@ -20,18 +20,40 @@ import { roundMoney } from "../utils/vat.js";
 import { notifyN8n } from "../utils/webhook.js";
 import { managerPermissionService } from "./managerPermission.service.js";
 
-// A MANAGER may only see/act on a proposal whose project is in their service. A proposal with
-// no project is ADMIN-only. Throws 404 (not 403) to avoid revealing existence of out-of-scope proposals.
-async function assertProposalInScope(proposal: { projectId: string | null } | null, scope?: ServiceScope) {
+// SEC-099: this used to key off proposal.projectId — the project a proposal is optionally
+// created FROM (relation "ProjectProposals"), which is almost always null — instead of
+// linkedProject, the project created FROM the proposal once accepted (relation
+// "ProjectProposal"). That rejected a MANAGER on every proposal they were themselves allowed to
+// create (SEC-028), across the entire post-creation lifecycle (list, read, update, send, accept,
+// sections). Derivation now mirrors assertProposalCreationInScope: linkedProject.serviceId is
+// authoritative when present (unambiguous — the proposal produced that exact project); otherwise
+// fall back to the lead's serviceId, then to the client's existing projects, same "neutral if no
+// project, allowed if any project is in-pole, rejected only if EXCLUSIVELY out-of-pole" rule.
+async function assertProposalInScope(
+  proposal: { clientId: string; leadId: string | null; linkedProject: { serviceId: string | null } | null } | null,
+  scope?: ServiceScope
+) {
   if (!proposal) throw new HttpError(404, "Proposal not found");
   if (!scope || scope.userRole !== "MANAGER") return;
-  if (!proposal.projectId) throw new HttpError(404, "Proposal not found");
+  if (proposal.linkedProject) {
+    if (proposal.linkedProject.serviceId !== scope.userServiceId) throw new HttpError(404, "Proposal not found");
+    return;
+  }
   const { prismaRead: prisma } = await import("../config/prisma.js");
-  const project = await prisma.project.findFirst({
-    where: { id: proposal.projectId, serviceId: scope.userServiceId ?? "__none__" },
-    select: { id: true },
+  if (proposal.leadId) {
+    const lead = await prisma.lead.findUnique({ where: { id: proposal.leadId }, select: { serviceId: true } });
+    if (lead?.serviceId && lead.serviceId !== scope.userServiceId) {
+      throw new HttpError(404, "Proposal not found");
+    }
+  }
+  const clientServiceIds = await prisma.project.findMany({
+    where: { clientId: proposal.clientId },
+    select: { serviceId: true },
+    distinct: ["serviceId"],
   });
-  if (!project) throw new HttpError(404, "Proposal not found");
+  const hasAnyProject = clientServiceIds.length > 0;
+  const hasProjectInOwnPole = clientServiceIds.some((p) => p.serviceId === scope.userServiceId);
+  if (hasAnyProject && !hasProjectInOwnPole) throw new HttpError(404, "Proposal not found");
 }
 
 // RG-002 (REFERENTIEL.md §5) / SEC-028: at creation, a proposal has no projectId yet (the

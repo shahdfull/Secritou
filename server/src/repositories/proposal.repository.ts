@@ -15,15 +15,35 @@ export const proposalRepository = {
     const where: Prisma.ProposalWhereInput = {};
     if (options.clientId) where.clientId = options.clientId;
     if (options.status) where.status = options.status;
+    const andClauses: Prisma.ProposalWhereInput[] = [];
     if (options.serviceId !== undefined) {
-      where.project = { is: { serviceId: options.serviceId ?? "__none__" } };
+      // SEC-099: mirrors assertProposalInScope — linkedProject.serviceId (the project created
+      // FROM this proposal) is authoritative when present; a proposal with no linkedProject yet
+      // is scoped by its lead's serviceId (when the lead has one) AND by whether the client
+      // already has a project in the manager's pole (neutral if the client has none at all).
+      // Previously filtered on `project` (the almost-always-null relation a proposal is
+      // optionally created FROM), which hid a MANAGER's own proposals from their own list.
+      const serviceId = options.serviceId ?? "__none__";
+      andClauses.push({
+        OR: [
+          { linkedProject: { is: { serviceId } } },
+          {
+            linkedProject: null,
+            OR: [{ leadId: null }, { lead: { is: { serviceId: null } } }, { lead: { is: { serviceId } } }],
+            client: { is: { OR: [{ projects: { none: {} } }, { projects: { some: { serviceId } } }] } },
+          },
+        ],
+      });
     }
     if (options.search) {
-      where.OR = [
-        { title: { contains: options.search, mode: "insensitive" } },
-        { description: { contains: options.search, mode: "insensitive" } },
-      ];
+      andClauses.push({
+        OR: [
+          { title: { contains: options.search, mode: "insensitive" } },
+          { description: { contains: options.search, mode: "insensitive" } },
+        ],
+      });
     }
+    if (andClauses.length > 0) where.AND = andClauses;
 
     const skip = (options.page - 1) * options.pageSize;
     const [data, total] = await Promise.all([
@@ -85,7 +105,7 @@ export const proposalRepository = {
         sections: { orderBy: { orderIndex: "asc" } },
         history: { include: { user: true }, orderBy: { createdAt: "desc" } },
         invoice: { select: { id: true } },
-        linkedProject: { select: { id: true } },
+        linkedProject: { select: { id: true, serviceId: true } },
       },
     });
   },
@@ -117,7 +137,16 @@ export const proposalRepository = {
       where: { id: sectionId },
       select: {
         proposal: {
-          select: { id: true, status: true, version: true, projectId: true, title: true, clientId: true },
+          select: {
+            id: true,
+            status: true,
+            version: true,
+            projectId: true,
+            title: true,
+            clientId: true,
+            leadId: true,
+            linkedProject: { select: { serviceId: true } },
+          },
         },
       },
     });

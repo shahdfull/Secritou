@@ -54,6 +54,7 @@ import "./documentSignContract.test.ts";
 import "./executiveMetricsProjectRisks.test.ts";
 import "./commissionCreationExclusivity.test.ts";
 import "./proposalCreationScope.test.ts";
+import "./proposalScopeAfterCreation.test.ts";
 import "./aiExecutionAccessClient.test.ts";
 import "./projectClientApproveBalanceInvoice.test.ts";
 import "./invoiceNumberingGapless.test.ts";
