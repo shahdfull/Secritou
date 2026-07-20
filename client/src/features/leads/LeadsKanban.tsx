@@ -432,13 +432,13 @@ export const LeadsKanban = memo(function LeadsKanban({ filteredLeads }: { filter
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Marquer comme perdu</DialogTitle>
+            <DialogTitle>{t("leadsPage.markAsLostTitle")}</DialogTitle>
             <DialogDescription>
-              Indiquez la raison pour laquelle ce lead est perdu (optionnel).
+              {t("leadsPage.markAsLostDesc")}
             </DialogDescription>
           </DialogHeader>
           <Textarea
-            placeholder="Ex : budget insuffisant, projet annulé, concurrent choisi..."
+            placeholder={t("leadsPage.markAsLostPlaceholder")}
             value={lostReason}
             onChange={(e) => setLostReason(e.target.value)}
             rows={3}
@@ -457,7 +457,7 @@ export const LeadsKanban = memo(function LeadsKanban({ filteredLeads }: { filter
                 setLostDialogOpen(false);
               }}
             >
-              Annuler
+              {t("common.cancel")}
             </Button>
             <Button
               className="bg-red-600 hover:bg-red-700 text-white"
@@ -469,7 +469,7 @@ export const LeadsKanban = memo(function LeadsKanban({ filteredLeads }: { filter
                 applyStatusChange(leadId, "LOST", lostReason || undefined, snapshots);
               }}
             >
-              Confirmer
+              {t("common.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

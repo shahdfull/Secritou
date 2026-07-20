@@ -1271,7 +1271,10 @@
     "reopenDesc": "The lead will return to active status and be visible again in the pipeline.",
     "reopenConfirm": "Reopen",
     "reopenLead": "Reopen lead",
-    "showArchived": "Show archived"
+    "showArchived": "Show archived",
+    "markAsLostTitle": "Mark as lost",
+    "markAsLostDesc": "Indicate why this lead is lost (optional).",
+    "markAsLostPlaceholder": "E.g.: insufficient budget, project cancelled, chose a competitor..."
   },
   "tasksPage": {
     "title": "Tasks",

@@ -63,9 +63,11 @@ import { toast } from "sonner";
 import { useListParams } from "@/hooks/useListParams";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { useCrudDialogState } from "@/hooks/shared/useCrudDialogState";
+import { usePermission } from "@/hooks/usePermission";
 
 export function ClientsPage() {
   const { t } = useTranslation();
+  const canCreate = usePermission("clients", "create");
   const [searchQuery, setSearchQuery] = useState("");
   const [includeArchived, setIncludeArchived] = useState(false);
   const [showTrash, setShowTrash] = useState(false);
@@ -187,12 +189,14 @@ export function ClientsPage() {
           <p className="text-muted-foreground">{t("clientsPage.subtitle")}</p>
         </div>
         <Dialog open={createDialogOpen} onOpenChange={(open) => (open ? openCreateDialog() : closeCreateDialog())}>
-          <DialogTrigger asChild>
-            <Button onClick={openCreateDialog}>
-              <Plus className="h-4 w-4 mr-2" />
-              {t("clientsPage.addClient")}
-            </Button>
-          </DialogTrigger>
+          {canCreate && (
+            <DialogTrigger asChild>
+              <Button onClick={openCreateDialog}>
+                <Plus className="h-4 w-4 mr-2" />
+                {t("clientsPage.addClient")}
+              </Button>
+            </DialogTrigger>
+          )}
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{t("clientsPage.createClient")}</DialogTitle>

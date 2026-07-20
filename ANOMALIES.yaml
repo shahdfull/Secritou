@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-105
+dernier_id: SEC-108
 
 anomalies:
   - id: SEC-001
@@ -7433,3 +7433,133 @@ anomalies:
       /leads/:id existants). Résolu SANS confirmation CI (workflow GitHub
       Actions sur `origin/main` en `workflow_dispatch` uniquement,
       déviation documentée depuis la session du 2026-07-17).
+
+  - id: SEC-106
+    titre: "ClientsPage.tsx affiche toujours le bouton « Ajouter un client », même pour un utilisateur sans droit d'écriture — incohérent avec LeadsPage.tsx qui masque son équivalent via usePermission"
+    perimetre: "4.1 CRM & Pipeline commercial — client/src/features/clients/ClientsPage.tsx"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand le bouton « Ajouter un client » de ClientsPage.tsx
+      n'est rendu que si `usePermission("clients", "create")` est vrai,
+      identique au traitement déjà appliqué à LeadsPage.tsx (`canCreate &&`
+      autour du bouton équivalent).
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Lu directement en session : client/src/features/leads/LeadsPage.tsx:96
+      (`const canCreate = usePermission("leads", "create")`) et ligne 329
+      (`{canCreate && (` autour du bouton), comparé à
+      client/src/features/clients/ClientsPage.tsx:189-195 — le bouton
+      « Ajouter un client » (`clientsPage.addClient`) est rendu
+      inconditionnellement, aucune occurrence de `usePermission` dans tout
+      le fichier. Un utilisateur sans le droit `clients.create` verra donc
+      le bouton, cliquera, remplira le formulaire, et essuiera un 403
+      après-coup au lieu de ne jamais voir l'action proposée.
+
+      PRÉCISION SUR LE RAPPORT SOURCE : le rapport mentionnait aussi
+      `ProposalsPage.tsx` comme touché par la même incohérence — vérifié
+      par lecture directe et INFIRMÉ : ce fichier n'a aucun bouton
+      « Ajouter une proposition » (les propositions se créent uniquement
+      depuis les vues Lead — `CreateProposalFromLeadDialog`, déclenché par
+      `LeadsKanban.tsx`/`LeadDetailDialog.tsx`, cf. SEC-101). Il n'y a donc
+      rien à garder sur cette page pour ce constat précis ; ce fichier est
+      exclu du périmètre de SEC-106.
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-20 : import de
+      `usePermission`, `const canCreate = usePermission("clients",
+      "create")`, et `{canCreate && (` autour du `DialogTrigger` du bouton
+      « Ajouter un client », identique au pattern de LeadsPage.tsx. Vérifié
+      côté serveur que `POST /clients` (`client.routes.ts:123`) est
+      `authorize("ADMIN")` uniquement (pas MANAGER) — un Manager n'a donc
+      jamais accès à cette action de toute façon, `usePermission` renvoie
+      `false` pour tout Manager sans permission explicite additionnelle, ce
+      correctif ne bloque donc aucun usage légitime. Preuve : nouveau
+      fichier `client/src/features/clients/ClientsPage.test.tsx` (2 cas,
+      rendu réel du composant, mock uniquement des hooks de données et de
+      `usePermission`) — le bouton apparaît quand la permission est vraie,
+      disparaît quand elle est fausse. Vérification complète client : `npx
+      tsc --noEmit` (clean), `npm run lint` (12 warnings — exception
+      SEC-049, stable), `npx vitest run` (96/96, stable sur 2 exécutions),
+      `npm run build` (succès), `node scripts/check-i18n.mjs` (vert).
+      Résolu SANS confirmation CI (workflow GitHub Actions sur
+      `origin/main` en `workflow_dispatch` uniquement, déviation documentée
+      depuis la session du 2026-07-17).
+
+  - id: SEC-107
+    titre: "La modale « Marquer comme perdu » de LeadsKanban.tsx a son titre, sa description, son placeholder et ses 2 boutons en français codé en dur — seul texte du fichier non traduit via react-i18next"
+    perimetre: "4.1 CRM & Pipeline commercial — client/src/features/leads/LeadsKanban.tsx"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand `DialogTitle`, `DialogDescription`, le
+      `placeholder` du `Textarea`, et les libellés des boutons « Annuler »/
+      « Confirmer » de cette modale passent par `t(...)` avec des clés
+      FR/EN ajoutées aux deux fichiers de traduction, comme le reste du
+      composant (`useTranslation` déjà importé et utilisé partout ailleurs
+      dans ce même fichier).
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Lu directement en session : client/src/features/leads/LeadsKanban.tsx:435
+      (`<DialogTitle>Marquer comme perdu</DialogTitle>`), 436-438
+      (`<DialogDescription>Indiquez la raison pour laquelle ce lead est
+      perdu (optionnel).</DialogDescription>`), 441 (`placeholder="Ex :
+      budget insuffisant, projet annulé, concurrent choisi..."`), 461
+      (`Annuler`), 472 (`Confirmer`) — 5 chaînes en dur, dans un fichier qui
+      importe déjà `useTranslation` et appelle `t(...)` pour tout le reste
+      (labels de statut, bouton de création de proposition). Invisible si
+      le SaaS bascule en anglais, seule zone non traduite du composant.
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-20 : 3 nouvelles clés
+      ajoutées à `leadsPage` (FR/EN) — `markAsLostTitle`, `markAsLostDesc`,
+      `markAsLostPlaceholder` — câblées via `t(...)` sur `DialogTitle`/
+      `DialogDescription`/`placeholder`. Les boutons « Annuler »/
+      « Confirmer » routés sur les clés génériques déjà existantes
+      `common.cancel`/`common.confirm` (déjà utilisées ailleurs dans le
+      dépôt pour exactement ce couple de libellés), pas de nouvelle clé
+      dupliquée. Preuve : nouveau fichier
+      `client/src/features/leads/leadsKanbanI18n.test.tsx` (2 cas) — les
+      clés résolvent correctement et distinctement en FR et EN via
+      l'instance i18n réelle du projet, et un grep direct sur le code
+      source confirme l'absence des 3 chaînes françaises en dur (un test de
+      rendu complet aurait nécessité de simuler un vrai drag-and-drop
+      dnd-kit pour ouvrir la modale — jugé disproportionné, la preuve par
+      résolution i18n + absence de texte source est suffisante et fiable).
+      Vérification complète client : `npx tsc --noEmit` (clean), `npm run
+      lint` (12 warnings — exception SEC-049, stable), `npx vitest run`
+      (96/96, stable sur 2 exécutions), `npm run build` (succès), `node
+      scripts/check-i18n.mjs` (vert). Résolu SANS confirmation CI (workflow
+      GitHub Actions sur `origin/main` en `workflow_dispatch` uniquement,
+      déviation documentée depuis la session du 2026-07-17).
+
+  - id: SEC-108
+    titre: "Colonnes du Kanban Leads à largeur fixe (min-w-[280px] max-w-[320px]) avec défilement horizontal uniquement — non pensé mobile-first"
+    perimetre: "4.1 CRM & Pipeline commercial — client/src/features/leads/LeadsKanban.tsx"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      Non applicable en l'état — ce constat est une question ouverte sur un
+      usage réel (les Managers pilotent-ils leur pipeline depuis un
+      téléphone ?), pas un défaut confirmé contre une exigence du
+      référentiel. Nécessite d'abord une décision produit du porteur avant
+      qu'un critère de résolution puisse être formulé.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Lu directement en session : client/src/features/leads/LeadsKanban.tsx:175
+      (`<div className="flex-1 min-w-[280px] max-w-[320px]">`), 372
+      (`<div className="overflow-x-auto pb-4">`) — confirmé conforme à la
+      description du rapport source. Laissé `ouvert` sans correctif sur
+      décision explicite du porteur (aucune exigence mobile documentée dans
+      REFERENTIEL.md pour ce module ; un changement de layout ici serait une
+      décision produit, pas une correction de bug).
