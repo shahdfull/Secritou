@@ -83,3 +83,4 @@ import "./taskBulkActions.test.ts";
 import "./taskChecklist.test.ts";
 import "./documentCreateHttp.test.ts";
 import "./clientCompletedTasks.test.ts";
+import "./verifyN8nWebhook.test.ts";

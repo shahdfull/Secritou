@@ -1,16 +1,18 @@
 import type { RequestHandler } from "express";
 import { env } from "../config/env.js";
-import { verifyN8nSignature } from "../utils/webhook.js";
+import { verifyN8nSignature, verifyN8nTimestamp } from "../utils/webhook.js";
 import { HttpError } from "../utils/httpError.js";
 import { getRedisClient } from "../cache/redis.js";
 import logger from "../utils/logger.js";
 
-// A signature is a deterministic function of the exact request bytes, so "this signature was
-// already accepted recently" is equivalent to "this exact request was already processed" —
-// used as a replay guard since the callback body has no timestamp/nonce field we control (it's
-// produced by the n8n workflow, not by notifyN8n's own outbound envelope). Fails open (allows
-// the request) if Redis is unreachable/disabled: this is a defense-in-depth replay guard, not
-// the primary auth control (HMAC signature verification still applies unconditionally below).
+// SEC-110: a signature is a deterministic function of the exact request bytes, so "this
+// signature was already accepted recently" is equivalent to "this exact request was already
+// processed" — used as a SECOND replay guard, in addition to (not instead of) the timestamp
+// freshness check below. Fails open (allows the request) if Redis is unreachable/disabled: on
+// its own this used to be the ONLY anti-replay barrier, which SEC-110 found let a captured,
+// validly-signed body be replayed indefinitely whenever Redis was down. verifyN8nTimestamp now
+// enforces freshness independently of Redis, so this fail-open no longer means "no anti-replay
+// protection at all" — only "one fewer barrier."
 const REPLAY_WINDOW_SECONDS = 5 * 60;
 
 async function markSignatureSeen(signature: string): Promise<boolean> {
@@ -43,6 +45,11 @@ export const verifyN8nWebhook: RequestHandler = async (req, _res, next) => {
 
   if (!rawBody || !signature || !verifyN8nSignature(rawBody, signature)) {
     next(new HttpError(401, "Invalid or missing signature"));
+    return;
+  }
+
+  if (!verifyN8nTimestamp(rawBody)) {
+    next(new HttpError(401, "Missing, malformed, or stale timestamp", "STALE_WEBHOOK"));
     return;
   }
 

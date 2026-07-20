@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-109
+dernier_id: SEC-115
 
 anomalies:
   - id: SEC-001
@@ -7688,3 +7688,251 @@ anomalies:
       seulement un test vert trompeur en plus qui ne serait jamais rouge si
       la vraie cascade dérivait. Signalé, non corrigé (repéré hors du
       périmètre de la tâche en cours).
+
+  - id: SEC-110
+    titre: "Protection anti-rejeu des callbacks n8n partielle : la signature HMAC est vérifiée mais n'embarque ni timestamp ni nonce contrôlé, et le garde Redis est fail-open si Redis est indisponible — une signature capturée reste rejouable"
+    perimetre: "transverse — server/src/utils/webhook.ts, server/src/middlewares/verifyN8nWebhook.middleware.ts, endpoints PATCH /freelancer-applications/:id/ai-summary et PATCH /projects/:id/ai-specs"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand un callback n8n entrant (signature HMAC valide)
+      dont le `timestamp` embarqué dans le corps signé dépasse une fenêtre
+      de fraîcheur raisonnable (quelques minutes) est rejeté même si Redis
+      est indisponible ou si la fenêtre de rejeu Redis n'a pas encore
+      expiré — prouvé par un test qui appelle réellement
+      `verifyN8nWebhook`/`verifyN8nSignature` avec un corps signé portant
+      un timestamp périmé et vérifie le rejet, puis avec un timestamp
+      récent et vérifie l'acceptation, sans dépendre de Redis pour ce
+      verdict précis.
+    detecte_le: "2026-07-20"
+    source: manuel
+    confiance: certain
+    note: >
+      Constat transmis directement par le porteur (liens de fichier/ligne),
+      vérifié par lecture directe : `server/src/utils/webhook.ts:21`
+      (`notifyN8n` inclut bien `sentAt` dans le corps SORTANT qu'il signe,
+      mais ce champ n'est jamais relu/vérifié nulle part — il ne protège
+      que les événements que Secritou émet, pas les callbacks qu'il reçoit
+      en retour) ; `verifyN8nSignature` (ligne 53-60) ne vérifie que la
+      signature, jamais une fraîcheur temporelle. `verifyN8nWebhook.middleware.ts`
+      lignes 8-14 (commentaire du code lui-même, déjà honnête sur la
+      limite : « the callback body has no timestamp/nonce field we control
+      » et « Fails open … if Redis is unreachable/disabled: this is a
+      defense-in-depth replay guard, not the primary auth control ») ;
+      lignes 16-27 (`markSignatureSeen` retourne `true`— c'est-à-dire
+      "signature jamais vue, autoriser" — si Redis est injoignable, ligne
+      23-26 catch explicite) ; ligne 49 (le contrôle Redis est la SEULE
+      barrière anti-rejeu, après la vérification HMAC qui elle-même
+      n'exclut pas un rejeu d'une requête déjà traitée). Impact réel
+      vérifié, PAS hypothétique : les deux endpoints protégés par ce
+      middleware (`PATCH /freelancer-applications/:id/ai-summary` →
+      `freelancerApplicationService.setAiSummary`, `PATCH
+      /projects/:id/ai-specs` → `regenerateSpecsWithAiContent`/
+      `regenerateRoadmapWithAiContent`) ne sont PAS idempotents pour le
+      second : `projectSpecs.service.ts:27-44` crée un NOUVEAU document
+      versionné à chaque appel (`version: previous.version + 1,
+      parentId: previous.id`) — un rejeu produit une pollution cumulative
+      réelle de versions de documents, pas un no-op. `docs/n8n-events.md`
+      confirme que le `callbackUrl` sortant (`freelancerApplication.service.ts:91`,
+      `project.service.ts:281`) ne porte aujourd'hui aucun identifiant de
+      corrélation/nonce que n8n devrait relayer — le contrat actuel entre
+      Secritou et le workflow n8n ne prévoit rien de ce côté, un changement
+      de contrat (n8n doit ajouter un `timestamp` à son payload de retour
+      avant de signer) est nécessaire, pas seulement un changement de code
+      serveur. Signalé, non corrigé au moment de l'enregistrement (correctif
+      demandé dans la même session, voir mise à jour ci-dessous si résolu).
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-20 : nouvelle fonction
+      `verifyN8nTimestamp(rawBody, windowMs)` (`webhook.ts`) — parse le
+      corps JSON, exige un champ `timestamp` numérique (epoch ms) dans la
+      fenêtre `N8N_CALLBACK_FRESHNESS_WINDOW_MS` (5 minutes, symétrique :
+      rejette aussi un timestamp dans le futur, contre une horloge n8n
+      décalée ou un timestamp forgé) ; `verifyN8nWebhook.middleware.ts`
+      appelle cette vérification juste après la signature HMAC et avant le
+      contrôle Redis (401 `STALE_WEBHOOK` si absent/malformé/périmé) — donc
+      un rejeu échoue même si Redis est totalement indisponible, sans
+      changer le comportement fail-open de Redis lui-même (toujours une
+      seconde barrière, pas la seule). Changement de CONTRAT documenté dans
+      `docs/n8n-events.md` : tout workflow n8n rappelant un `callbackUrl`
+      doit désormais inclure `timestamp` (epoch ms) dans le corps qu'il
+      signe — un changement de contrat entre systèmes, pas seulement de
+      code serveur, comme relevé dans la note initiale. Preuve : nouveau
+      fichier `server/test/verifyN8nWebhook.test.ts` (5 cas, appelle le
+      vrai `verifyN8nWebhook` avec une vraie signature HMAC calculée avec
+      le secret réel de l'environnement) — un timestamp périmé (10 min)
+      est rejeté malgré une signature valide (scénario de rejeu exact
+      décrit par le constat), un timestamp absent est rejeté, un timestamp
+      dans le futur est rejeté, un timestamp frais passe avec succès, une
+      signature invalide reste rejetée indépendamment de la fraîcheur.
+      Vérification complète serveur : `npx tsc --noEmit` (clean), `npm run
+      lint` (0/0), `npx tsx --test test/run-all.test.ts` (399/399, stable
+      sur 2 exécutions consécutives). Résolu SANS confirmation CI (workflow
+      GitHub Actions sur `origin/main` en `workflow_dispatch` uniquement,
+      déviation documentée depuis la session du 2026-07-17).
+
+  - id: SEC-111
+    titre: "ServiceRequest.priority et ServiceRequest.type sans index alors que les deux sont utilisés comme filtre WHERE (et priority comme tri) dans serviceRequest.repository.ts"
+    perimetre: "schema.prisma — model ServiceRequest ; server/src/repositories/serviceRequest.repository.ts"
+    regle_violee: null
+    classe: "index_manquant_colonne_filtree"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `schema.prisma#ServiceRequest` porte `@@index([priority])`
+      et `@@index([type])` (ou un index composite couvrant les deux avec
+      `status`/`createdAt` selon le plan de requête réel), qu'une migration
+      Prisma correspondante est commitée, et qu'un `EXPLAIN` sur la requête de
+      `serviceRequest.repository.ts` filtrée par `priority` et/ou `type` ne
+      montre plus de `Seq Scan` sur une base de taille représentative.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : `schema.prisma:450-473` — `ServiceRequest`
+      a des index sur `clientId`, `status`, `createdAt`, `status+createdAt`,
+      `assignedToId`, mais aucun sur `priority` ni `type`.
+      `server/src/repositories/serviceRequest.repository.ts:8` liste
+      `priority` dans `SORTABLE_FIELDS` ; lignes 106-107, `priority` et `type`
+      sont tous deux appliqués comme filtre `where` conditionnel
+      (`...(options.priority ? { priority: options.priority } : {})`,
+      `...(options.type ? { type: options.type } : {})`) — donc les deux
+      colonnes sont bien exercées par du code réel, pas un risque théorique.
+      Gravité `mineur` : 0 client actif à ce jour, aucune requête lente
+      constatée — reflète l'absence d'impact prouvé aujourd'hui, pas une
+      minimisation du risque à l'échelle (le volume de `ServiceRequest`
+      croît avec l'activité commerciale, contrairement à SEC-113).
+
+  - id: SEC-112
+    titre: "Document sans index composite (projectId, type) alors que documentRepository.findLatestByProjectAndType filtre exactement sur ce couple"
+    perimetre: "schema.prisma — model Document ; server/src/repositories/document.repository.ts"
+    regle_violee: null
+    classe: "index_manquant_colonne_filtree"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `schema.prisma#Document` porte
+      `@@index([projectId, type])`, qu'une migration correspondante est
+      commitée, et qu'un `EXPLAIN` sur la requête de
+      `findLatestByProjectAndType` ne montre plus de `Seq Scan`/jointure de
+      deux index séparés sur une base de taille représentative.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : `schema.prisma:844-850` — `Document` a des
+      index séparés sur `clientId`, `projectId`, `taskId`, `invoiceId`,
+      `type`, `tags`, `createdAt`, mais aucun index composite
+      `(projectId, type)`. `server/src/repositories/document.repository.ts:147-149`
+      — `findLatestByProjectAndType(projectId, type)` fait
+      `where: { projectId, type }` : la requête réelle filtre sur le couple,
+      pas sur chaque colonne isolément. Gravité `mineur` : 0 client actif à
+      ce jour, aucune requête lente constatée — reflète l'absence d'impact
+      prouvé aujourd'hui, pas une minimisation du risque à l'échelle (le
+      volume de `Document` croît avec l'activité, contrairement à SEC-113).
+
+  - id: SEC-113
+    titre: "ManagerPermission.profileId sans index alors que managerPermissionRepository.findUserIdsByProfileId filtre dessus (appelé à chaque update/delete de PermissionProfile)"
+    perimetre: "schema.prisma — model ManagerPermission ; server/src/repositories/managerPermission.repository.ts"
+    regle_violee: null
+    classe: "index_manquant_colonne_filtree"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `schema.prisma#ManagerPermission` porte
+      `@@index([profileId])`, qu'une migration correspondante est commitée,
+      et qu'un `EXPLAIN` sur `findUserIdsByProfileId` ne montre plus de
+      `Seq Scan` sur une base de taille représentative.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : `schema.prisma:1587-1596` —
+      `ManagerPermission` a `userId String @unique` (donc déjà indexé) mais
+      `profileId String?` sans `@@index`.
+      `server/src/repositories/managerPermission.repository.ts:13-17` —
+      `findUserIdsByProfileId(profileId)` fait `where: { profileId }` ; cette
+      méthode est appelée par `managerPermissionService.update` ET
+      `managerPermissionService.delete` (managerPermission.service.ts:110,116)
+      à chaque modification/suppression d'un `PermissionProfile`, pour
+      invalider le cache Redis de chaque manager concerné — donc exercée en
+      pratique, pas seulement en théorie. Gravité `mineur` : 0 client actif à
+      ce jour, aucune requête lente constatée — reflète l'absence d'impact
+      prouvé aujourd'hui, pas une minimisation du risque (contrairement à
+      SEC-111/SEC-112, `ManagerPermission` est borné par le nombre de
+      managers internes, jamais par un volume d'activité commerciale : le
+      risque n'augmente pas avec la croissance de l'agence).
+
+  - id: SEC-114
+    titre: "PermissionProfile.delete ne vérifie pas si des ManagerPermission y sont encore rattachées : la suppression passe (ON DELETE SET NULL en base), mais les managers concernés perdent silencieusement toutes les permissions venant du profil, sans avertissement ni trace"
+    perimetre: "server/src/services/managerPermission.service.ts ; schema.prisma — relation ManagerPermission.profile"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand la suppression d'un `PermissionProfile` encore
+      rattaché à au moins un `ManagerPermission` est soit bloquée (erreur
+      explicite listant les managers impactés), soit exige une confirmation
+      explicite côté appelant qui liste ces managers — prouvé par un test qui
+      appelle réellement `managerPermissionService.delete` sur un profil
+      rattaché à un manager et vérifie que la permission de ce manager n'est
+      pas silencieusement vidée (ou que l'appel est refusé), par opposition
+      au comportement actuel où `resolvePermissions` retombe sur
+      `base = {}` sans signal.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Contrairement à un premier constat brut évoquant un risque de crash au
+      runtime : vérifié par lecture directe que ce n'est PAS le cas.
+      `server/prisma/migrations/20260625150326_init/migration.sql:1493` — la
+      contrainte FK réelle est
+      `ON DELETE SET NULL ON UPDATE CASCADE` (pas `RESTRICT`), donc
+      `permissionProfileRepository.delete(id)` (appelé depuis
+      `managerPermission.service.ts:117`, sans aucune vérification préalable
+      d'usages) ne lève pas d'erreur SQL : `profileId` passe simplement à
+      `NULL`. `managerPermission.service.ts:56-76`
+      (`resolvePermissions`) gère bien ce cas sans crash — `if (mp.profileId)`
+      ligne 68 est faux, donc `base = {}` ligne 67, seuls les `overrides`
+      individuels du manager s'appliquent. Le vrai défaut n'est donc pas une
+      panne technique mais une dégradation silencieuse d'autorisation :
+      un manager qui avait un accès en lecture/écriture sur plusieurs modules
+      via son profil se retrouve, à la prochaine invalidation de cache après
+      la suppression du profil (déjà déclenchée ligne 118 pour cet
+      utilisateur précis), avec un référentiel de permissions vide sauf
+      overrides — sans notification à l'admin qui a supprimé le profil, ni
+      au manager concerné.
+
+  - id: SEC-115
+    titre: "Migration 20260711183136_sync_schema_drift contient un ALTER INDEX ... RENAME TO ..., donc n'est pas strictement additive-only"
+    perimetre: "server/prisma/migrations/20260711183136_sync_schema_drift/migration.sql"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand aucun nom d'index généré par Prisma dans
+      `schema.prisma` ne dépasse la limite PostgreSQL de 63 caractères avant
+      troncature — prouvé en régénérant les migrations (`prisma migrate dev`)
+      sur l'état actuel du schéma et en vérifiant qu'aucune nouvelle
+      migration ne contient d'`ALTER INDEX ... RENAME TO ...` correctif comme
+      celui de `20260711183136_sync_schema_drift:39`. Jusque-là, toute
+      collision de nom future (champ renommé/ajouté sur un modèle à clé
+      composite longue, ex. `MetricSnapshot`) redéclenchera le même
+      correctif.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe :
+      `server/prisma/migrations/20260711183136_sync_schema_drift/migration.sql:39`
+      — `ALTER INDEX "MetricSnapshot_clientId_source_metric_dimension_periodStar_key"
+      RENAME TO "MetricSnapshot_clientId_source_metric_dimension_periodStart_key"`.
+      Non destructif (aucune perte de données, la contrainte sous-jacente est
+      identique avant/après), mais ce n'est pas un ajout pur de colonne/index/
+      contrainte : la migration renomme un objet existant, ce qui sort du
+      registre "additive-only" au sens strict si c'est un invariant attendu
+      des migrations de ce dépôt. Gravité mineure faute d'impact fonctionnel
+      constaté.

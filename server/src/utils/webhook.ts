@@ -58,3 +58,30 @@ export function verifyN8nSignature(body: string, signatureHeader: string | undef
   const b = Buffer.from(signatureHeader, "hex");
   return a.length === b.length && timingSafeEqual(a, b);
 }
+
+// SEC-110: a captured, validly-signed callback body was replayable if Redis was down or the
+// 5-minute Redis replay window hadn't yet expired — that Redis check was the ONLY anti-replay
+// barrier, since the inbound body previously carried no timestamp/nonce we controlled. n8n
+// workflows must now include a `timestamp` (epoch ms) in the body they sign before calling back
+// (docs/n8n-events.md documents this as part of the callback contract) — this is checked
+// independently of Redis, so a stale replay is rejected even with Redis fully unreachable.
+export const N8N_CALLBACK_FRESHNESS_WINDOW_MS = 5 * 60 * 1000;
+
+/**
+ * Verifies the inbound callback body carries a `timestamp` (epoch ms, part of the signed
+ * payload) within the freshness window. Returns false on a missing/malformed/non-numeric
+ * timestamp, or one outside the window in either direction (a signature can't be replayed
+ * forward and a clock-skewed n8n workflow shouldn't silently pass either).
+ */
+export function verifyN8nTimestamp(rawBody: string, windowMs: number = N8N_CALLBACK_FRESHNESS_WINDOW_MS): boolean {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawBody);
+  } catch {
+    return false;
+  }
+  if (typeof parsed !== "object" || parsed === null || !("timestamp" in parsed)) return false;
+  const timestamp = (parsed as { timestamp: unknown }).timestamp;
+  if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) return false;
+  return Math.abs(Date.now() - timestamp) <= windowMs;
+}

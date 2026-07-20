@@ -10,6 +10,15 @@ l'événement concerne l'agence, un `adminUrl` vers l'écran back-office pertine
 nécessaires pour que le workflow n8n récupère plus de contexte si besoin via un callback
 signé (voir `verifyN8nWebhook` middleware pour le sens inverse).
 
+**Contrat du callback entrant (SEC-110)** : tout workflow n8n qui rappelle un `callbackUrl`
+(`PATCH /freelancer-applications/:id/ai-summary`, `PATCH /projects/:id/ai-specs`) DOIT inclure
+un champ `timestamp` (epoch millisecondes, `Date.now()` équivalent) dans le corps JSON avant de
+le signer avec le secret partagé — `verifyN8nWebhook` rejette désormais (401
+`STALE_WEBHOOK`) tout callback dont le `timestamp` est absent, malformé, ou en dehors d'une
+fenêtre de fraîcheur de 5 minutes autour de l'heure serveur, indépendamment du garde-fou Redis
+(qui reste une seconde barrière, fail-open si Redis est indisponible). Exemple de corps signé
+attendu : `{ "aiSummary": "...", "timestamp": 1737360000000 }`.
+
 ---
 
 ## Événements déjà en place (avant ce lot de 12 hooks)
