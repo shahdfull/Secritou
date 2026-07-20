@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-136
+dernier_id: SEC-137
 
 anomalies:
   - id: SEC-001
@@ -8781,3 +8781,49 @@ anomalies:
       (4/4), `portalActivationOnPayment.test.ts` (3/3) — tous verts après
       le correctif. `npx tsc --noEmit` propre sur `server/` après la
       restructuration du fichier.
+
+  - id: SEC-137
+    titre: "documentScopeManager.test.ts (SEC-122) prouve le scope MANAGER cross-pôle sur Document mais pas sur Invoice, alors que assertInvoiceInScope existe et est appliqué uniformément dans invoice.service.ts — aucun test n'appelle le vrai service pour le prouver"
+    perimetre: "server/src/services/invoice.service.ts ; server/test/documentScopeManager.test.ts"
+    regle_violee: null
+    classe: "test_scope_methode_non_couverte"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand un test appelle réellement une méthode
+      d'`invoiceService` (ex. `getById`) avec un scope MANAGER hors pôle sur
+      une facture rattachée à un projet d'un autre pôle, sur une base
+      migrée, et vérifie le refus — comme `documentScopeManager.test.ts` le
+      fait déjà pour `Document`.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Repéré en vérifiant un rapport d'audit tiers demandant « manager
+      cannot read cross-pole project documents OR invoices » — la partie
+      documents est déjà couverte par `documentScopeManager.test.ts`
+      (SEC-122, résolu), pas la partie invoices. Vérifié par lecture
+      directe : `invoice.service.ts:31` (`assertInvoiceInScope`), appelée
+      par `getById`, `update`, `send`, `addPayment`, `addReminder`,
+      `addItem`/`updateItem`/`deleteItem`,
+      `addItemsFromTimeEntries` (lignes 118, 133, 149, 182, 211, 340, 360,
+      375, 391, 408) — couverture uniforme dans le code, comme pour
+      Document. `grep -rln "invoice" server/test/*.test.ts` croisé avec un
+      cas cross-pole MANAGER (`serviceB`/`OUT_OF_SCOPE`) : aucun résultat
+      pertinent. Pas un défaut de code, un trou de test.
+
+      Le reste du rapport source (`proposalAcceptCascade.test.ts` rollback,
+      `project.clientApprove` rollback facture solde, `rbac.test.ts` HTTP,
+      `managerScopeIdorFixes.test.ts` étendu, `clientCompletedTasks.test.ts`
+      setTimeout) est un faux positif au moment de sa rédaction : SEC-134/
+      SEC-136 couvrent déjà la cascade proposition (via contrainte unique +
+      retry, pas via rollback intra-transaction — propriété différente mais
+      équivalente en résultat), `clientApprove`/facture de solde sont déjà
+      dans le même bloc `$transaction` (project.service.ts:340-369,
+      rollback natif), SEC-124/SEC-125/SEC-127 couvrent déjà respectivement
+      le test HTTP `/proposals/:id/accept`, le scope proposition étendu, et
+      `projectMeetingService.update/delete` cross-pôle, et
+      `clientCompletedTasks.test.ts:39` (`setTimeout(resolve, 2)`) est le
+      pas de polling BORNÉ de SEC-131, pas le délai fixe d'origine qu'il a
+      remplacé. Playwright/e2e est déjà tracé (voir note ANOMALIES.yaml
+      lignes 85-87), pas un nouveau constat.
