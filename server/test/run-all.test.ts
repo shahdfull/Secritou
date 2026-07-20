@@ -94,3 +94,8 @@ import "./taskUpdateScope.test.ts";
 import "./authCookieAndLogoutReuse.test.ts";
 import "./proposalAcceptCascadeConcurrency.test.ts";
 import "./invoiceScopeManager.test.ts";
+import "./errorEnvelope.http.test.ts";
+import "./creditNoteNumberConcurrency.test.ts";
+import "./invoiceAuditLog.test.ts";
+import "./clientInviteResend.test.ts";
+import "./leadDuplicateEmail.test.ts";

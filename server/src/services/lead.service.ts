@@ -12,6 +12,7 @@ import { enqueueNotifications } from "../jobs/queues.js";
 import { env } from "../config/env.js";
 import { clientService } from "./client.service.js";
 import { notifyN8n } from "../utils/webhook.js";
+import { Prisma } from "@prisma/client";
 
 async function invalidateCompanyCache() {
   await invalidateTags([cacheTags.company(), cacheTags.dashboard()]);
@@ -71,17 +72,34 @@ export const leadService = {
     // prospect's email produced two silent rows, inflating pipeline volume/conversion metrics.
     // Reject rather than merge: the caller typed specific data for a reason, and silently
     // folding it into someone else's existing lead could overwrite or lose what they entered.
-    if (data.email) {
-      const existing = await leadRepository.findFirstByEmail(data.email);
-      if (existing) {
-        throw new HttpError(409, `A lead with this email already exists (${existing.name})`, "LEAD_EMAIL_ALREADY_EXISTS", { leadId: existing.id });
-      }
-    }
+    // The pre-transaction check + a P2002 fallback inside the transaction together close the
+    // race a single pre-check alone would leave open (two concurrent creates both reading "no
+    // duplicate yet" before either commits) — the DB-level unique constraint is the real guard,
+    // the pre-check is only there to give a clean 409 in the common (non-concurrent) case.
     const ownPoleDefaults =
       scope?.userRole === "MANAGER"
         ? { serviceId: scope.userServiceId ?? undefined, assignedManagerId: scope.userId }
         : {};
-    const lead = await leadRepository.create({ ...data, ...ownPoleDefaults });
+    const lead = await prisma.$transaction(async (tx) => {
+      if (data.email) {
+        const existing = await tx.lead.findFirst({
+          where: { email: data.email, archivedAt: null },
+          select: { id: true, name: true },
+        });
+        if (existing) {
+          throw new HttpError(409, `A lead with this email already exists (${existing.name})`, "LEAD_EMAIL_ALREADY_EXISTS", { leadId: existing.id });
+        }
+      }
+
+      try {
+        return await tx.lead.create({ data: { ...data, ...ownPoleDefaults } });
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+          throw new HttpError(409, "A lead with this email already exists", "LEAD_EMAIL_ALREADY_EXISTS");
+        }
+        throw err;
+      }
+    });
     await invalidateCompanyCache();
     
     // Notify admins of new lead creation

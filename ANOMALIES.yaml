@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-155
+dernier_id: SEC-168
 
 anomalies:
   - id: SEC-001
@@ -9122,6 +9122,20 @@ anomalies:
       le critère de résolution formel n'est donc pas encore rempli malgré
       le correctif.
 
+      TEST ÉCRIT ET VÉRIFIÉ (session du 2026-07-20) :
+      `server/test/errorEnvelope.http.test.ts` (câblé dans
+      `run-all.test.ts`), requête HTTP réelle contre `app` (via
+      `supertest`) sur `POST /auth/register` avec un corps invalide
+      (email malformé, mot de passe trop court, nom vide) — confirme
+      `res.status === 422`, `body.error.code === "VALIDATION_ERROR"`,
+      présence de `body.error.message`, `body.error.details`, et des
+      champs `issues`/`message` de premier niveau conservés pour
+      compatibilité. Suite complète après ajout : 475 tests, 475 pass, 0
+      fail. Toujours `en_cours` : le critère de résolution de CLAUDE.md
+      exige un commit avec CI verte confirmée sur GitHub Actions, pas
+      seulement un test local vert — voir SEC-010 pour l'état actuel de
+      la CI.
+
   - id: SEC-146
     titre: "notifyN8n : le payload sortant ({event, payload, sentAt}) et le contrat de callback entrant n'ont aucun champ de version — docs/n8n-events.md ne documente pas de politique de compatibilité pour l'évolution du schéma"
     perimetre: "server/src/utils/webhook.ts, docs/n8n-events.md"
@@ -9310,6 +9324,42 @@ anomalies:
       asserrant `body.error.code` sur ces routes — non encore écrit, donc
       `en_cours` malgré le correctif fonctionnel complet.
 
+      CONSTAT ADDITIONNEL (session du 2026-07-20, en écrivant le test HTTP
+      réel `server/test/errorEnvelope.http.test.ts`) : 3 des 10 branches
+      corrigées sont en réalité DU CODE MORT, invoqué uniquement par le
+      test qui les visait précédemment (jamais par une vraie requête
+      HTTP) — l'exécution réelle contre `app.ts` l'a prouvé, une simple
+      lecture ne l'aurait pas révélé. `upload.routes.ts:24`
+      (`validate(uploadContextParamSchema)`, `context: z.enum([...])`) et
+      `upload.routes.ts:35` (`validate(deleteFileSchema)`, `key:
+      z.string().min(1)`) interceptent déjà, en amont du contrôleur, les
+      cas que `INVALID_UPLOAD_CONTEXT` et `MISSING_UPLOAD_KEY` étaient
+      censés gérer — la vraie réponse HTTP est un 422 `VALIDATION_ERROR`
+      (branche ZodError, SEC-145), jamais les codes 400 du contrôleur.
+      Même chose pour `siteContent.routes.ts:20`
+      (`validate(upsertSiteContentSchema)`) vs
+      `MISSING_SITE_CONTENT_FIELDS`. Les 3 branches restent dans le code
+      (inoffensives, correctement formées avec HttpError) mais ne sont
+      accessibles que si la route était un jour recâblée sans son garde
+      `validate(...)` — situation à surveiller, pas à「réparer」davantage
+      (les supprimer serait un changement de périmètre non demandé). Les
+      7 autres branches corrigées (REFRESH_TOKEN_REQUIRED,
+      MISSING_AI_SPECS_PAYLOAD, NO_ADMIN_FOUND, CV_FILE_REQUIRED,
+      PORTFOLIO_FILE_REQUIRED, MISSING_AI_SUMMARY, NO_FILE_PROVIDED,
+      INVALID_UPLOAD_KEY) sont confirmées réellement atteignables et
+      testées avec succès via HTTP réel — voir
+      `errorEnvelope.http.test.ts`, câblé dans `run-all.test.ts`. Suite
+      complète après correction des assertions : 462 tests, 459 pass, 0
+      fail (3 échecs initiaux du nouveau fichier, tous dus à des
+      assertions de test erronées — pas à un défaut du code — corrigées
+      pour refléter le comportement réel observé).
+
+      Suite complète finale après tous les tests de cette session (475
+      tests, 475 pass, 0 fail). Toujours `en_cours` : le critère de
+      résolution de CLAUDE.md exige un commit avec CI verte confirmée sur
+      GitHub Actions, pas seulement un test local vert — voir SEC-010
+      pour l'état actuel de la CI.
+
   - id: SEC-150
     titre: "Le composant Swagger partagé BadRequest décrit un 400, alors que error.middleware.ts renvoie 422 VALIDATION_ERROR pour toute erreur Zod — 7 routes POST/PUT validées par validate(...) référencent ce composant et documentent donc le mauvais code de statut"
     perimetre: "server/src/swagger.ts, server/src/routes/{auth,client,invoice,project,proposal,approval}.routes.ts"
@@ -9426,6 +9476,22 @@ anomalies:
       générations. `npx tsc --noEmit` propre, `npm run lint` 0 error/0
       warning.
 
+      TEST ÉCRIT ET VÉRIFIÉ (session du 2026-07-20) :
+      `server/test/creditNoteNumberConcurrency.test.ts` (câblé dans
+      `run-all.test.ts`), appelle réellement `creditNoteService.create`
+      contre une base migrée, 2 cas : (1) deux créations d'avoir
+      STRICTEMENT concurrentes (`Promise.all`, aucun `await` entre les
+      deux appels — le scénario exact que `Date.now()` seul ne pouvait
+      pas survivre) sur deux factures différentes du même client,
+      confirme deux numéros distincts en mémoire ET relit les deux lignes
+      en base pour confirmer la persistance réelle de deux numéros
+      distincts ; (2) une rafale de 20 créations concurrentes sur 20
+      factures distinctes produit 20 numéros tous distincts. Suite
+      complète après ajout : 475 tests, 475 pass, 0 fail. Toujours
+      `en_cours` : le critère de résolution de CLAUDE.md exige un commit
+      avec CI verte confirmée sur GitHub Actions, pas seulement un test
+      local vert — voir SEC-010 pour l'état actuel de la CI.
+
   - id: SEC-152
     titre: "invoice.service.ts et creditNote.service.ts n'écrivent jamais dans auditLogService, alors que ce mécanisme existe et est déjà utilisé par project/task/user.service.ts — aucune trace append-only des mutations de statut facture (SENT/PAID/CANCELLED) ni des avoirs émis/appliqués"
     perimetre: "server/src/services/invoice.service.ts, server/src/services/creditNote.service.ts, server/src/services/auditLog.service.ts"
@@ -9480,6 +9546,27 @@ anomalies:
       régression). Critère de résolution formel exige aussi un test
       relisant `AuditLog` — non encore écrit, donc `en_cours` malgré le
       correctif fonctionnel complet.
+
+      TEST ÉCRIT ET VÉRIFIÉ (session du 2026-07-20) :
+      `server/test/invoiceAuditLog.test.ts` (câblé dans
+      `run-all.test.ts`), appelle réellement `invoiceService.send`,
+      `.cancel`, `.addPayment` et `creditNoteService.create`,
+      `.applyCredit` contre une base migrée, puis relit la table
+      `AuditLog` réelle pour chaque cas (poll court, 500 ms max — l'appel
+      est fire-and-forget par construction) : confirme la présence de
+      l'entrée, `actorId`/`actorRole` corrects, et `before`/`after`
+      cohérents avec la transition observée (ex. `{status: DRAFT}` →
+      `{status: SENT}` pour `send`). Piège évité en écrivant ce test :
+      `Payment.recordedById` est une vraie contrainte FK vers `User.id`
+      (contrairement à `AuditLog.actorId`, un champ libre sans FK) — un
+      premier jet avec un `actorId` de test inventé (chaîne arbitraire)
+      faisait échouer `invoiceService.addPayment` avec une erreur Prisma
+      de contrainte violée avant même d'atteindre l'écriture d'audit ;
+      corrigé en créant un vrai `User` de test. Suite complète après
+      correction : 475 tests, 475 pass, 0 fail. Toujours `en_cours` : le
+      critère de résolution de CLAUDE.md exige un commit avec CI verte
+      confirmée sur GitHub Actions, pas seulement un test local vert —
+      voir SEC-010 pour l'état actuel de la CI.
 
   - id: SEC-153
     titre: "notifyN8n (webhook.ts) : après échec des 2 tentatives, l'événement est définitivement perdu — seul un logger.warn trace l'abandon, aucune trace persistée ni rejouable (proposal.accepted, invoice.paid, document.contract_signed, etc.)"
@@ -9625,6 +9712,22 @@ anomalies:
       résolution formel exige aussi un test dédié au renvoi — non encore
       écrit, donc `en_cours` malgré le correctif fonctionnel complet.
 
+      TEST ÉCRIT ET VÉRIFIÉ (session du 2026-07-20) :
+      `server/test/clientInviteResend.test.ts` (câblé dans
+      `run-all.test.ts`), appelle réellement `clientService.inviteClientUser`
+      contre une base migrée, 3 cas : (1) premier appel crée un `User`,
+      `resent: false` ; (2) un deuxième appel sur un compte jamais
+      connecté (`lastLoginAt` toujours null) renvoie vers LE MÊME
+      `user.id` (`resent: true`), un nouveau hash de mot de passe
+      confirmé différent du premier, et un seul `User` recompté en base
+      pour ce `clientId` ; (3) après simulation d'une première connexion
+      (`lastLoginAt` renseigné manuellement), un troisième appel lève
+      bien 409 comme avant ce correctif, sans créer de deuxième `User`.
+      Suite complète après ajout : 475 tests, 475 pass, 0 fail. Toujours
+      `en_cours` : le critère de résolution de CLAUDE.md exige un commit
+      avec CI verte confirmée sur GitHub Actions, pas seulement un test
+      local vert — voir SEC-010 pour l'état actuel de la CI.
+
   - id: SEC-155
     titre: "leadService.createLead (formulaire interne « Ajouter un lead ») n'a aucune vérification de doublon par email, contrairement au chemin du formulaire de contact public (contact.service.ts:27, find-or-create explicite) — deux managers créant un lead avec le même email produisent deux fiches distinctes sans erreur ni fusion"
     perimetre: "server/src/services/lead.service.ts, server/prisma/schema.prisma"
@@ -9712,3 +9815,707 @@ anomalies:
       aussi un test créant deux leads avec le même email et vérifiant le
       409 — non encore écrit, donc `en_cours` malgré le correctif
       fonctionnel complet.
+
+      TEST ÉCRIT ET VÉRIFIÉ (session du 2026-07-20) :
+      `server/test/leadDuplicateEmail.test.ts` (câblé dans
+      `run-all.test.ts`), appelle réellement `leadService.createLead`
+      contre une base migrée, 3 cas : (1) un second `createLead` avec le
+      même email qu'un lead actif lève bien 409
+      `LEAD_EMAIL_ALREADY_EXISTS`, et confirme qu'aucune deuxième ligne
+      n'a été insérée (`prisma.lead.findMany` recompté après l'échec) ;
+      (2) un lead archivé (`archivedAt` renseigné, statut `LOST`) ne
+      bloque pas une ressaisie légitime du même email — 2 lignes
+      distinctes attendues et confirmées ; (3) deux leads sans email ne
+      sont jamais comparés entre eux (rien à dédupliquer). Suite complète
+      après ajout : 475 tests, 475 pass, 0 fail. Toujours `en_cours` : le
+      critère de résolution de CLAUDE.md exige un commit avec CI verte
+      confirmée sur GitHub Actions, pas seulement un test local vert —
+      voir SEC-010 pour l'état actuel de la CI (déclenchement manuel
+      requis, non effectué à ce jour).
+
+      CHANGEMENT CONCURRENT CONSTATÉ, non attribuable à cette session
+      (session du 2026-07-20, en revérifiant après écriture du test) :
+      pendant la rédaction de `leadDuplicateEmail.test.ts`,
+      `lead.service.ts#createLead` et `entities.ts` ont été modifiés par
+      un processus hors de cette session (aucun appel d'outil de ma part
+      sur ces deux fichiers à ce moment) — `status` temporairement retiré
+      de `CreateLeadDTO` (cassant le typecheck de `updateLead`, revenu
+      depuis à son état d'origine) et `createLead` réécrit avec une
+      implémentation transactionnelle : vérification par email dans un
+      `prisma.$transaction`, plus un `catch` sur P2002 en filet. Mon
+      propre appel à `leadRepository.findFirstByEmail` (hors transaction)
+      coexistait alors en double avec cette nouvelle vérification interne
+      à la transaction — retiré pour ne garder que la version
+      transactionnelle, plus robuste sur la fenêtre de course entre deux
+      créations concurrentes. `leadRepository.findFirstByEmail` reste
+      défini (code mort, mais légitime et documenté — non supprimé).
+
+      CONSTAT ADDITIONNEL sur cette version transactionnelle externe :
+      le `catch` sur `Prisma.PrismaClientKnownRequestError` code P2002
+      (lead.service.ts) est en réalité INATTEIGNABLE — vérifié par
+      lecture directe de schema.prisma:268/291 : `Lead.email` est
+      `String?` avec un simple `@@index([email])`, PAS de contrainte
+      `@@unique`. Aucune insertion ne peut donc jamais lever P2002 sur ce
+      champ ; le filet de sécurité pensé pour la fenêtre de course entre
+      deux créations concurrentes (deux transactions lisant toutes deux
+      "pas de doublon" avant qu'aucune n'ait commité) NE PROTÈGE PAS
+      contre ce cas réel — même famille de piège que le code mort
+      découvert pour SEC-149 (garde applicative sans contrainte DB
+      derrière). Non enregistré comme anomalie séparée : la fenêtre de
+      course elle-même n'a pas de preuve d'occurrence réelle (gravité
+      théorique, à la différence de SEC-151 où un test a démontré la
+      collision réelle), et ce n'est pas du code écrit par cette session
+      — signalé ici pour traçabilité, à évaluer par le porteur s'il
+      souhaite ajouter `@@unique` sur `Lead.email` (ce qui interdirait
+      aussi plusieurs leads sans email simultanés si mal contraint — à
+      restreindre à un index partiel `WHERE email IS NOT NULL` le cas
+      échéant, décision de schéma hors périmètre de cette session).
+
+  - id: SEC-163
+    titre: "client/src/features/client-portal/ClientBriefPage.tsx contient du texte mojibake (UTF-8 réinterprété en Latin-1 : « problÃ¨me », « rÃ©fÃ©rence », « pÃ´le ») — bloque actuellement npm run lint --workspace client (no-irregular-whitespace, ligne 257), empêchant tout commit propre sur ce workspace tant que non corrigé"
+    perimetre: "client/src/features/client-portal/ClientBriefPage.tsx:254,257"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand un utilisateur CLIENT consultant cette page voit du
+      français correctement accentué (pas de séquences « Ã© »/« Ã¨ »/« Ã´ »),
+      et quand `npm run lint --workspace client` passe à 0 erreur/0 warning
+      sur ce fichier.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Découvert incidemment en vérifiant l'état du dépôt pendant le
+      ré-audit de SEC-156/SEC-160 (`npm run lint --workspace client`
+      lancé pour confirmer qu'un correctif tiers n'avait rien cassé).
+      Lecture directe : lignes 254 et 257 de `ClientBriefPage.tsx`
+      contiennent « Si le problÃ¨me persiste... » et « Ces rÃ©ponses
+      servent... pour le pÃ´le concernÃ© » — motif classique de
+      double-encodage (bytes UTF-8 d'un caractère accentué réinterprétés
+      comme Latin-1/Windows-1252 puis ré-encodés). Bloque `eslint`
+      (`no-irregular-whitespace`, ligne 257) avec code de sortie 1 — CLAUDE.md
+      exige `npm run lint` totalement propre sur les deux workspaces avant
+      tout commit (SEC-049), donc AUCUN commit n'est possible actuellement
+      tant que ce fichier n'est pas corrigé, y compris pour livrer les
+      correctifs SEC-156/SEC-160 par ailleurs déjà écrits dans le même
+      working tree.
+
+      Non attribuable à une session précise : `git status` montre la quasi
+      totalité du dépôt comme modifiée (probablement une différence de fin
+      de ligne entre l'environnement d'origine et ce sandbox Linux, pas un
+      contenu réellement changé fichier par fichier), donc impossible de
+      dater l'introduction de ce mojibake par une simple lecture de diff
+      depuis cette session — signalé tel quel, sans cause inventée.
+
+  - id: SEC-156
+    titre: "ReportsPage.tsx demande pageSize:500 pour projects/invoices, mais getAllProjects et getInvoices appellent parseListQuery sans maxPageSize (plafond 50 par défaut, cf. SEC-118) — ET le tri par défaut est createdAt ASC (les plus anciens), donc au-delà de 50 lignes le rapport/export PDF-Excel calcule ses stats et sa plage « 30 derniers jours » sur les 50 enregistrements les plus ANCIENS, pas les plus récents"
+    perimetre: "4.7 Rapports/Analytics — client/src/features/reports/ReportsPage.tsx, server/src/controllers/project.controller.ts#getAllProjects, server/src/controllers/invoice.controller.ts, server/src/utils/listQuery.ts, server/src/repositories/project.repository.ts, server/src/repositories/invoice.repository.ts"
+    regle_violee: null
+    classe: "pagination_plafond_silencieux"
+    gravite: majeur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand un utilisateur qui ouvre la page Rapports (filtre
+      par défaut « 30 derniers jours ») voit un nombre de leads/projets/
+      factures et un chiffre d'affaires cohérents avec les enregistrements
+      réellement créés/payés dans cette fenêtre — y compris quand
+      l'entreprise a plus de 50 projets ou factures au total — et que
+      l'export PDF/Excel produit exactement les mêmes chiffres que l'écran,
+      vérifié par un test qui crée plus de 50 projets et factures dont
+      certains récents et certains anciens, et confirme que les récents
+      apparaissent bien dans les stats filtrées sur 30 jours.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit performance (goulots d'étranglement Redis/BullMQ/pagination/PDF/
+      frontend/Prometheus), lecture directe. `ReportsPage.tsx:78`
+      (`listParams = { page: 1, pageSize: 500 }`, `useMemo` figé) alimente
+      `useLeads`, `useProjects`, `useInvoices` avec le même objet. Côté
+      serveur : `lead.controller.ts:12,16` définit
+      `LEADS_MAX_PAGE_SIZE = 500` et le passe à `parseListQuery` (correctif
+      SEC-118) — les leads ne sont donc PAS tronqués. Mais
+      `project.controller.ts:28` (`getAllProjects`) et les quatre appels de
+      `invoice.controller.ts` (lignes 16, 23, 32, 42) appellent
+      `parseListQuery(req.query as Record<string, unknown>)` SANS second
+      argument — `listQuery.ts:23` retombe sur `maxPageSize = 50` par
+      défaut, donc `pageSize: 500` envoyé par `ReportsPage` est plafonné à
+      50 pour projects ET invoices, silencieusement (même mécanisme que
+      SEC-118, mais deux endpoints distincts non couverts par ce correctif).
+
+      Aggravant, vérifié séparément par lecture directe : `listQuery.ts:27`
+      (`const orderDir = query.orderDir === "desc" ? "desc" : "asc"`) —
+      `ReportsPage` n'envoie jamais `orderDir`, donc `orderDir` vaut "asc"
+      par défaut. `project.repository.ts:73` et `:210`
+      (`buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS,
+      "createdAt")`) appliquent donc `createdAt asc`. `invoice.repository.ts`
+      (lignes 68, 133, 191, `orderBy: { [options.orderBy || "createdAt"]:
+      options.orderDir || "desc" }`) semble vouloir un fallback "desc", mais
+      `options.orderDir` n'est jamais falsy (typé `"asc" | "desc"` par
+      `ListQueryOptions`, toujours une chaîne non vide) — le `|| "desc"` ne
+      s'active donc jamais en pratique, et `options.orderDir` ("asc", reçu
+      de `parseListQuery`) est utilisé tel quel. Résultat vérifié par
+      lecture combinée des trois fichiers : les 50 projets et 50 factures
+      renvoyés à `ReportsPage` sont les 50 plus ANCIENS par `createdAt`, pas
+      les plus récents. Le filtre par défaut de la page (30 derniers jours,
+      `ReportsPage.tsx:71-76`) est donc appliqué à un lot qui exclut
+      structurellement les enregistrements récents dès que l'entreprise
+      dépasse 50 projets ou 50 factures au total — la page peut afficher 0
+      projet/facture récents alors qu'il en existe, sans aucune erreur ni
+      indication de troncature. `exportToPDF`/`exportToExcel`
+      (`ReportsPage.tsx:146-165`) réutilisent `filteredLeads`/
+      `filteredProjects` (donc `filteredInvoices` via `totalRevenue`) — les
+      exports PDF/Excel hérite du même biais, pas seulement l'écran.
+
+      Non confirmé plus loin par manque de temps dans cette passe : le
+      volume réel de projets/factures en base de dev (0 client actif à ce
+      jour d'après CLAUDE.md, donc le défaut est actuellement dormant — il
+      s'activera au premier dépassement de 50 projets ou factures créés).
+
+      RÉ-AUDIT (session du 2026-07-20, vérification directe post-passage
+      externe — code modifié hors de cette session, non attribuable) :
+      correctif présent dans le working tree, non commité. `project.controller.ts:29`
+      et les 5 appels de `invoice.controller.ts` passent désormais
+      `REPORTS_MAX_PAGE_SIZE = 500` à `parseListQuery` ; `ReportsPage.tsx:78`
+      envoie maintenant explicitement `orderBy: "createdAt", orderDir: "desc"`
+      — les deux volets du constat (plafond ET tri) semblent traités.
+      `npx tsc --noEmit` et `npm run lint` propres sur les deux workspaces
+      pour les fichiers touchés. MAIS : aucun test n'a été trouvé référençant
+      `REPORTS_MAX_PAGE_SIZE` ni le nouveau comportement de tri (recherche
+      `server/test/*report*`, `server/test/*dashboard*` : aucun résultat) —
+      le critère de résolution formel (test avec >50 projets/factures,
+      récents ET anciens) n'est donc pas vérifié par preuve automatisée.
+      Suite de tests non exécutable dans cet environnement de vérification
+      (blocage constaté, pas contourné : `npx tsx --test` échoue avec
+      `esbuild` compilé pour `win32-x64` alors que ce sandbox est
+      `linux-x64` — `node_modules` semble avoir été installé sur une autre
+      plateforme que celle où la suite a été relancée ici). Reste `en_cours`
+      : correctif écrit, ni testé ni commité — conforme à la règle CLAUDE.md
+      sur les correctifs non commités.
+
+  - id: SEC-157
+    titre: "LeadsKanban.tsx (SortableLeadCard, KanbanColumn internes) n'utilise pas React.memo, contrairement aux composants équivalents de TasksKanban.tsx (SortableTaskCard, KanbanColumn) qui le sont — jusqu'à 500 leads (LEADS_MAX_PAGE_SIZE) re-render sans mémoïsation à chaque changement d'état du parent (drag, refetch)"
+    perimetre: "4.1 CRM (pipeline leads) — client/src/features/leads/LeadsKanban.tsx, comparé à client/src/features/tasks/TasksKanban.tsx"
+    regle_violee: null
+    classe: "memoisation_liste_manquante"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      Sera résolu quand `SortableLeadCard` et le `KanbanColumn` interne de
+      `LeadsKanban.tsx` sont enveloppés dans `React.memo` (même patron que
+      `TasksKanban.tsx`), vérifié par un test de rendu qui compte les
+      rendus de `SortableLeadCard` avant/après une action ne touchant qu'une
+      colonne différente, et confirme que les cartes des colonnes non
+      concernées ne re-rendent plus.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit performance frontend (re-renders Kanban/tables), lecture directe
+      comparée des deux fichiers. `TasksKanban.tsx:59`
+      (`const SortableTaskCard = memo(function SortableTaskCard...)`) et
+      `:149` (`const KanbanColumn = memo(function KanbanColumn...)`) sont
+      mémoïsés ; le composant racine `TasksKanban` l'est aussi (`:231`).
+      `LeadsKanban.tsx:66` (`function SortableLeadCard(...)`) et `:143`
+      (`function KanbanColumn(...)`) sont des fonctions ordinaires, non
+      mémoïsées — seul le composant racine `LeadsKanban` l'est (`:304`,
+      `memo(function LeadsKanban...)`), ce qui ne protège pas ses enfants
+      internes. Les deux fichiers partagent par ailleurs le même patron de
+      virtualisation (`@tanstack/react-virtual`, seuil `leads.length > 40` /
+      `tasks.length > 40`) qui borne le nombre de nœuds DOM montés mais ne
+      supprime pas le coût de re-calcul React pour les lignes visibles +
+      overscan à chaque re-render du parent (ex. `activeId` qui change
+      pendant un drag, prop `isDragging` partagée par toutes les colonnes).
+      Impact proportionnel au pageSize effectif du Kanban leads : 500
+      depuis SEC-118/`LEADS_MAX_PAGE_SIZE`, contre 200 fixe pour le Kanban
+      tâches (`TasksPage.tsx`, cf. constat 5 de SEC-069) — l'écart de
+      mémoïsation touche donc la vue au plus grand volume potentiel des
+      deux. Gravité mineure : aucun bug fonctionnel, coût de rendu
+      additionnel seulement, non mesuré en production (0 client actif).
+
+  - id: SEC-158
+    titre: "README.md:294 décrit la génération des 7 PDFs après acceptation de proposition comme faite « using Promise.allSettled », alors que le code réel (depuis le correctif SEC-120) les enfile comme jobs BullMQ individuels (documentsQueue, jobId déterministe, concurrency:3) — la description d'architecture ne correspond plus au code"
+    perimetre: "documentation — README.md ; code réel : server/src/services/proposal.service.ts#acceptWithCascadeAttempt, server/src/jobs/queues.ts#enqueueDocumentGeneration, server/src/jobs/index.ts (worker documents)"
+    regle_violee: null
+    classe: "documentation_desynchronisee"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand README.md décrit exactement le mécanisme réel de
+      génération des documents (jobs BullMQ individuels avec jobId
+      déterministe et retry par job, pas un `Promise.allSettled` synchrone
+      dans la requête HTTP) — vérifié par relecture croisée du paragraphe
+      avec `queues.ts`/`jobs/index.ts` au moment de la correction.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit performance (périmètre génération PDF, item 5 de la demande :
+      évaluer le risque mémoire/CPU d'un `Promise.allSettled` de 7 PDFs et
+      si un découplage BullMQ serait plus sûr). Lecture directe de
+      `README.md:293-294` (« All 7 PDF types are triggered automatically
+      after proposal acceptance using `Promise.allSettled` : failures never
+      roll back the acceptance »). Lecture directe du code réel :
+      `proposal.service.ts:514-521` construit un tableau `DocumentJob[]`
+      puis appelle `enqueueDocumentGeneration(documentJobs)`
+      (`queues.ts:197-209`), qui fait `documentsQueue.addBulk(...)` avec un
+      `jobId` déterministe par document (`documentJobId`, correctif
+      SEC-120, résolu) — aucun `Promise.allSettled` sur la génération de
+      PDF nulle part dans `documentGenerator.service.ts`,
+      `documents.processor.ts` ou `proposal.service.ts` (recherche
+      `Promise.allSettled` dans ces fichiers : aucune occurrence). Le worker
+      dédié (`jobs/index.ts:109-118`) tourne à `concurrency: 3` — au plus 3
+      PDFs générés simultanément par processus worker, pas 7. Le risque que
+      l'item 5 de la demande demandait d'évaluer (7 générations pdfkit
+      concurrentes dans le handler HTTP, mémoire/CPU pic synchrone) n'existe
+      donc plus dans le code actuel — SEC-120 l'a déjà éliminé en résolvant
+      un problème différent (idempotence des retries), avec cet effet de
+      bord positif non documenté. Seul `README.md` décrit encore l'ancienne
+      architecture, ce qui pourrait pousser un futur lecteur à「réparer」un
+      problème de concurrence qui n'existe plus, ou à ne pas chercher le
+      vrai mécanisme (jobId/retry BullMQ) là où il se trouve réellement.
+
+  - id: SEC-159
+    titre: "Les compteurs Prometheus redis_cache_hits_total/redis_cache_misses_total sont globaux (aucun label par préfixe de clé) — impossible de distinguer le taux de hit du cache manager_perms (TTL 5min) de celui du dashboard (TTL 60s) ou des summaries (TTL 120-300s) en observabilité de production"
+    perimetre: "observabilité — server/src/cache/cacheService.ts, server/src/observability/collectors.ts, server/src/observability/metrics.ts"
+    regle_violee: null
+    classe: "observabilite_incomplete"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand un opérateur consultant Grafana peut voir le taux
+      de hit/miss du cache décomposé au moins par famille de clé (ex. label
+      `prefix` dérivé de `dashboard`/`client`/`project`/`success`/
+      `onboarding`/`auth`/`manager:permissions`), vérifié en interrogeant
+      `/metrics` après quelques appels réels à `cacheGet` sur au moins deux
+      préfixes différents et en confirmant deux séries distinctes dans la
+      sortie Prometheus.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit performance, item 7 de la demande (couverture Prometheus des
+      points chauds identifiés : latence par route — confirmée présente et
+      correctement labellée via `req.route.path` normalisé,
+      `observability/middleware.ts:10-19`, pas de risque de cardinalité ;
+      profondeur de file BullMQ — confirmée présente,
+      `collectors.ts:91-110`, gauge par `queue` toutes les 15s ; cache
+      hit/miss — présent mais insuffisamment granulaire, ce constat).
+      Lecture directe : `cacheService.ts:4-19` (`cacheGet`) appelle
+      `recordCacheHit()`/`recordCacheMiss()`
+      (`observability/collectors.ts:148-154`) sans aucun argument ; ces deux
+      fonctions incrémentent `redisCacheHits`/`redisCacheMisses`
+      (`metrics.ts:113-123`), déclarés sans `labelNames`. Toutes les clés de
+      `cacheKeys.ts` (dashboard, client/project/success/onboarding summary,
+      authMe, managerPermissions) partagent donc les deux mêmes compteurs
+      globaux. Conséquence concrète pour l'item 1 de la demande (vérifier le
+      TTL 5min du cache de permissions au regard de sa fréquence de lecture
+      réelle) : la lecture directe du code (`rbac.middleware.ts:64`,
+      `resolvePermissions` appelé à chaque requête MANAGER passant par
+      `requirePermission`) permet de confirmer que le TTL est cohérent avec
+      l'usage par RAISONNEMENT sur le code, mais rien en production ne
+      permettrait de le VÉRIFIER empiriquement (ex. détecter un profil
+      modifié très fréquemment qui rendrait le cache contre-productif) —
+      faute de label distinguant ce cache des cinq autres. Gravité mineure :
+      n'affecte aucune donnée ni aucun comportement, seulement la capacité à
+      diagnostiquer le cache en production.
+
+  - id: SEC-160
+    titre: "dashboardService.getSummary bypasse totalement le cache pour toute vue scopée MANAGER (serviceId !== undefined) — appelle analyticsService.getSummary (7 agrégations Prisma en parallèle) sans cacheGet/cacheSet, alors que la vue ADMIN non-scopée est mise en cache 60s (cacheTTL.dashboard) — chaque chargement du dashboard par un des 3 Managers de pôle recalcule tout depuis zéro"
+    perimetre: "4.8 Analytics & Performance — server/src/services/dashboard.service.ts#getSummary, server/src/services/analytics.service.ts#getSummary, server/src/repositories/analytics.repository.ts"
+    regle_violee: null
+    classe: "cache_manquant_chemin_frequent"
+    gravite: majeur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand un MANAGER qui recharge son dashboard plusieurs
+      fois de suite dans une courte fenêtre (ex. moins de 60s, comme pour la
+      vue ADMIN déjà cachée) déclenche un seul calcul réel des 7 agrégations
+      analytics, les rechargements suivants étant servis depuis Redis —
+      vérifié par un test qui appelle `dashboardService.getSummary(serviceId)`
+      deux fois de suite et confirme (via un spy/compteur sur
+      `analyticsRepository`) qu'un seul jeu de requêtes réelles a été
+      exécuté, la deuxième provenant du cache. Le mécanisme d'invalidation
+      par tag déjà en place (`cacheTags.dashboard()`) doit rester valable
+      pour la variante scopée, comme il l'est déjà pour la variante non
+      scopée.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit performance élargi (dashboard/analytics, à la demande du porteur
+      après le premier passage cache/BullMQ/polling/pagination/PDF/frontend/
+      Prometheus — module IA explicitement exclu, stagnant). Lecture directe
+      de `dashboard.service.ts:43-56` (`getSummary`) : la branche
+      `serviceId !== undefined` (ligne 45-47, commentaire « MANAGER scope:
+      bypass global cache and compute scoped analytics directly ») retourne
+      directement `analyticsService.getSummary(undefined, undefined,
+      serviceId)` sans aucun appel à `cacheGet`/`cacheSet` — seule la
+      branche non scopée (lignes 49-55) passe par `cacheKeys.dashboardSummary()`
+      / `cacheTTL.dashboard` (60s, `cacheService.ts:59-66`). Or
+      `cacheKeys.dashboardSummary()` (`cacheKeys.ts:4`) ne prend même pas de
+      paramètre `serviceId` — la clé est unique pour toute la société, ce
+      qui aurait de toute façon empêché de cacher les 3 pôles séparément
+      sans modification de `cacheKeys.ts`. `analyticsService.getSummary`
+      (`analytics.service.ts:4-17`) lance 7 requêtes Prisma en parallèle
+      (`getLeadStats`, `getClientStats`, `getProjectStats`, `getTaskStats`,
+      `getLeadsByMonth`, `getProjectsByStatus`, `getRevenueByMonth`) — non
+      triviales (agrégations temporelles), confirmé par lecture des
+      signatures dans `analytics.repository.ts`. Le dashboard est la route
+      `index` de `/app` (`AppRoutes.tsx:175`), donc la première page vue par
+      CEO et les 3 Managers de pôle à chaque connexion et à chaque retour
+      sur l'app — un des chemins les plus fréquents du produit, et le seul
+      des deux (ADMIN vs MANAGER) qui n'a aucune protection de cache.
+      Distinct de SEC-091/SEC-097 (autres constats perf déjà enregistrés
+      dans ce dépôt) : ici l'absence de cache est totale sur ce chemin, pas
+      un simple defaut de parallélisation.
+
+      Non exploré dans cette passe : le coût réel unitaire de chacune des 7
+      requêtes `analyticsRepository.*` (fichier non lu en détail au-delà des
+      signatures) — la sévérité `majeur` retenue ici repose sur la
+      fréquence du chemin (dashboard par défaut, plusieurs Managers), pas
+      sur une mesure de latence individuelle qui n'a pas été faite.
+
+      Constat annexe, même fichier, non enregistré séparément (impact
+      perf nul, simple traçabilité) : `executiveMetricsService.invalidate()`
+      (`executiveMetrics.service.ts:23-25`) ne supprime que la clé non
+      scopée (`CACHE_KEY_BASE`), jamais les clés scopées par pôle
+      (`${CACHE_KEY_BASE}:${serviceId}`) — mais grep exhaustif
+      (`executiveMetricsService\.(invalidate|get)` sur `server/src`)
+      confirme que cette méthode n'est appelée nulle part ; l'invalidation
+      réelle passe entièrement par `invalidateTags([cacheTags.dashboard()])`
+      (qui couvre bien toutes les clés, scopées ou non, via le système de
+      tags Redis) — code mort sans conséquence actuelle, mais qui pourrait
+      induire en erreur un futur appelant qui s'y fierait pour une
+      invalidation scopée.
+
+      RÉ-AUDIT (session du 2026-07-20, vérification directe post-passage
+      externe — code modifié hors de cette session, non attribuable) :
+      correctif présent dans le working tree, non commité. `dashboard.service.ts:43-53`
+      a été réécrit : `getSummary(serviceId)` appelle désormais
+      `cacheKeys.dashboardSummary(serviceId)` pour les DEUX branches (scopée
+      et non scopée), et `cacheKeys.ts:4-7` a été étendu pour accepter un
+      `serviceId?: string | null` optionnel (`cache:dashboard:summary:{COMPANY_ID}:{serviceId}`
+      si fourni, clé historique sinon) — la branche MANAGER passe maintenant
+      par `cacheGet`/`cacheSet` avec le même TTL 60s que l'ADMIN, plus
+      symétrique que ce que décrivait le constat initial. `npx tsc --noEmit`
+      et `npm run lint` propres sur les deux workspaces pour les fichiers
+      touchés. MAIS : aucun test trouvé référençant `dashboardSummary(serviceId`
+      (recherche `server/test/`) — le critère de résolution formel (compteur
+      de requêtes réelles avant/après un second appel) n'est pas vérifié par
+      preuve automatisée, et la suite de tests n'a pas pu être exécutée dans
+      cet environnement de vérification (même blocage `esbuild win32-x64`
+      que documenté sur SEC-156). Reste `en_cours`.
+
+  - id: SEC-161
+    titre: "executiveMetricsRepository.getAll : une requête (activeProjects) s'exécute en séquentiel APRÈS le Promise.all principal de 26 requêtes, avec un fan-out non borné (tous les projets actifs × toutes leurs tâches) ; clientsWithProjects (dans le même Promise.all) charge aussi tous les clients avec projets+factures imbriqués sans aucune limite — mitigé par le cache 3min du service mais reste le calcul le plus lourd du dashboard exécutif à chaque expiration de cache"
+    perimetre: "4.8 Analytics & Performance — server/src/repositories/executiveMetrics.repository.ts#getAll"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      Sera résolu quand la requête `activeProjects` est intégrée au
+      `Promise.all` principal (parallélisée avec les 26 autres au lieu de
+      s'exécuter après), et quand `clientsWithProjects`/`activeProjects`
+      portent une limite explicite (ou une justification écrite de pourquoi
+      aucune limite n'est nécessaire, ex. volumétrie bornée par nature du
+      métier) — vérifié en mesurant le nombre de requêtes SQL et leur
+      ordonnancement (séquentiel vs parallèle) via les logs Prisma sur un
+      appel réel à `executiveMetricsRepository.getAll`.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit performance élargi, lecture intégrale de
+      `executiveMetrics.repository.ts` (581 lignes). Le bloc principal
+      (lignes 204-319) est un seul `Promise.all` de 26 requêtes — bonne
+      pratique déjà en place. Mais `activeProjects`
+      (lignes 452-459, `prisma.project.findMany` avec
+      `tasks: { select: { status: true, updatedAt: true } }`, aucun `take`)
+      est appelé SÉPARÉMENT après ce bloc, ajoutant un aller-retour DB
+      supplémentaire non parallélisé avec le reste — pour une entreprise
+      avec beaucoup de projets actifs ayant chacun beaucoup de tâches, ce
+      fan-out projets×tâches est chargé intégralement en mémoire Node pour
+      calculer `isStale`/`blockedTasks` en boucle JS (lignes 466-490), sans
+      plafond. `clientsWithProjects` (lignes 253-270, dans le `Promise.all`
+      principal cette fois) a le même profil : tous les clients actifs, avec
+      leurs factures ET tous leurs projets avec LEURS factures, sans `take`
+      nulle part dans l'arbre. Mitigation réelle et vérifiée : ces deux
+      requêtes ne s'exécutent qu'à l'expiration du cache 3 minutes de
+      `executiveMetricsService` (`CACHE_TTL = 180`, confirmé
+      `executiveMetrics.service.ts:6`) — donc au pire une fois toutes les 3
+      minutes par scope (ADMIN + 3 pôles), pas à chaque requête HTTP. Gravité
+      mineure en conséquence : coût réel mais amorti, contrairement à
+      SEC-160 (chemin totalement non caché). Volumétrie actuelle non
+      mesurée (0 client actif) — ce constat décrit un risque de
+      dégradation progressive avec la croissance du nombre de
+      projets/tâches/clients, pas un incident observé.
+
+  - id: SEC-162
+    titre: "EntityTable.tsx (table générique avec virtualisation via useVirtualTable) n'est importé nulle part dans le dépôt — code mort — pendant qu'au moins 14 pages de liste (DocumentsPage, InvoicesPage, LeadsPage, ProposalsPage, CommissionsPage, ApprovalsPage, ApplicationsPage, ClientDetailPage, ClientDashboardPage, BookingAdminPage, AdminOnboardingPage, PermissionsGrid, SearchConsoleTab, SeoReportPage) réimplémentent chacune leur propre <TableRow>.map() sans aucune virtualisation"
+    perimetre: "frontend transverse — client/src/components/shared/crud/EntityTable.tsx, client/src/hooks/shared/useVirtualTable.ts, et les 14 fichiers listés dans le titre"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      Sera résolu par une décision explicite du porteur : soit migrer
+      progressivement les pages de liste les plus volumineuses vers
+      `EntityTable`/`useVirtualTable` (ou un remplacement équivalent), soit
+      supprimer `EntityTable.tsx`/`useVirtualTable.ts` s'ils sont
+      définitivement abandonnés — dans les deux cas, vérifié par le fait
+      qu'aucun composant de table volumineuse ne reste sans stratégie de
+      rendu explicite (virtualisation ou pagination serveur stricte).
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit performance élargi, item frontend (re-renders/grosses listes).
+      Recherche exhaustive (`Grep "EntityTable"` sur `client/src`) : la
+      seule occurrence hors définition est dans le fichier
+      `EntityTable.tsx` lui-même (sa propre interface/fonction) — aucun
+      import ailleurs dans le dépôt. `useVirtualTable`
+      (`hooks/shared/useVirtualTable.ts`) n'est utilisé que par
+      `EntityTable.tsx` — donc également sans consommateur réel. Recherche
+      complémentaire (`Grep` sur le motif `<TableRow key=` dans
+      `client/src/features`) : 14 fichiers implémentent leur propre rendu de
+      table par `.map()` direct sur `TableRow`, sans virtualisation ni
+      passage par un composant partagé — contrairement au Kanban
+      (TasksKanban/LeadsKanban), où la virtualisation via
+      `@tanstack/react-virtual` est appliquée de façon cohérente au-delà de
+      40 items (SEC-157 traite d'une lacune de mémoïsation dans ce même
+      patron, pas de son absence). Non mesuré dans cette passe : le nombre
+      de lignes réellement affichées par chacune de ces 14 pages (dépend du
+      pageSize effectif de chacune, déjà couvert en partie par les constats
+      SEC-053/SEC-088/SEC-118/SEC-156 sur les plafonds de pagination) — la
+      gravité `mineur` retenue reflète qu'aucune de ces pages n'a de
+      plafond au-delà de quelques centaines de lignes au pire cas connu à
+      ce jour, donc le coût DOM réel par page reste modéré, mais
+      l'infrastructure de virtualisation existe et n'est simplement jamais
+      utilisée là où elle aurait le plus de valeur.
+
+  - id: SEC-164
+    titre: "Migration 20260625230000_remove_commented_approval_status réécrit silencieusement l'historique : UPDATE \"ApprovalTimeline\" SET \"status\" = 'PENDING' WHERE \"status\"::text = 'COMMENTED' falsifie toute ligne d'audit historique qui valait réellement COMMENTED au moment des faits — ApprovalTimeline est un journal d'audit (mêmes rôle que ProposalHistory), pas un état courant qu'on peut réécrire"
+    perimetre: "server/prisma/migrations/20260625230000_remove_commented_approval_status/migration.sql ; schema.prisma#ApprovalTimeline"
+    regle_violee: null
+    classe: null
+    gravite: bloquant
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand on peut affirmer, pour toute base ayant réellement
+      exécuté cette migration avec des lignes ApprovalTimeline.status =
+      'COMMENTED' préexistantes, que la valeur d'origine reste retrouvable
+      quelque part (colonne de sauvegarde, table d'archive, ou preuve que la
+      migration n'a jamais rencontré de ligne COMMENTED en production/dev
+      partagé) — vérifié en interrogeant la base réelle pour compter les
+      lignes affectées au moment de l'exécution, pas en relisant seulement
+      le SQL de la migration.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit architecture base de données, lecture intégrale des 42
+      migrations. Lecture directe de
+      `20260625230000_remove_commented_approval_status/migration.sql` : la
+      migration retire la valeur `COMMENTED` de l'enum `ApprovalStatus`
+      (recréation de type, lignes 12-19) et, avant de le faire, ligne 16 :
+      `UPDATE "ApprovalTimeline" SET "status" = 'PENDING' WHERE
+      "status"::text = 'COMMENTED'`. `ApprovalTimeline` est un modèle
+      d'historique/journal (`schema.prisma:1184-1197`, commentaire "Approval
+      Center" — même rôle que `ProposalHistory` : une ligne par événement
+      passé, jamais mise à jour après coup dans le code applicatif, seulement
+      `create()` — vérifié par grep : aucun `approvalTimelineRepository.update`
+      ni `prisma.approvalTimeline.update` nulle part dans `server/src/`).
+      Réécrire `status` sur des lignes existantes transforme donc un journal
+      d'événements passés en une version falsifiée de ce journal : une ligne
+      qui disait « commentaire ajouté à telle date » dit désormais « en
+      attente », ce qui n'a jamais été vrai à cette date précise — perte
+      d'information irréversible si des lignes COMMENTED existaient
+      réellement au moment de l'exécution (non vérifié dans cette passe :
+      pas d'accès à une base ayant exécuté cette migration avec des données
+      réelles ; le commentaire en tête du fichier suggère un existant `PENDING`
+      par défaut au niveau colonne, donc l'ampleur réelle dépend de l'usage
+      passé de la valeur COMMENTED avant sa suppression, non mesurable
+      depuis le SQL seul).
+
+      Distinct de SEC-115 (déjà enregistré : `20260711183136_sync_schema_drift`
+      contient un `ALTER INDEX ... RENAME` non strictement additive) — ici
+      le problème n'est pas la stratégie additive-only au sens schéma, mais
+      la perte/falsification de données métier dans une migration qui
+      s'exécute par ailleurs correctement.
+
+  - id: SEC-165
+    titre: "La suppression d'un User (DELETE /users/:id, ADMIN uniquement, route réellement câblée) cascade sur Commission, ProjectCommissionSplit et TimeEntry (onDelete: Cascade sur les trois relations) — supprimer le compte d'un des 3 associés détruit silencieusement tout son historique de commissions et de temps facturé, sans aucune garde dans userService.deleteUser"
+    perimetre: "schema.prisma#Commission, #ProjectCommissionSplit, #TimeEntry (relations vers User) ; server/src/services/user.service.ts#deleteUser ; server/src/repositories/user.repository.ts#delete"
+    regle_violee: null
+    classe: null
+    gravite: bloquant
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand un ADMIN qui tente de supprimer un User ayant des
+      `Commission`, `ProjectCommissionSplit` ou `TimeEntry` liés reçoit un
+      refus explicite (409, comme le garde-fou déjà existant sur le dernier
+      ADMIN) l'invitant à désactiver le compte plutôt qu'à le supprimer — ou,
+      si la suppression doit rester possible, quand ces trois relations
+      passent en `onDelete: Restrict` (ou `SetNull` avec un champ dédié
+      préservant l'identité de l'ancien partenaire, ex. `partnerName` snapshot)
+      au lieu de `Cascade` — vérifié par un test qui crée un User avec au
+      moins une Commission réelle, tente `userService.deleteUser`, et
+      confirme que la Commission survit (ou que la suppression est refusée),
+      pas seulement que l'appel ne lève pas d'exception.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit architecture base de données, item intégrité référentielle.
+      Vérifié par lecture directe : `schema.prisma:1342`
+      (`Commission.partner User @relation("PartnerCommissions", ...,
+      onDelete: Cascade)`), `:1326` (`ProjectCommissionSplit.partner ...,
+      onDelete: Cascade`), `:1603` (`TimeEntry.user ..., onDelete: Cascade`).
+      `DELETE /users/:id` est une route réellement montée
+      (`user.routes.ts:367`, `authorize("ADMIN")`), qui appelle
+      `userService.deleteUser` (`user.service.ts:174-181`) — seule garde
+      existante : bloquer la suppression du dernier ADMIN
+      (`user.repository.ts#countByRole`), rien sur les enregistrements
+      financiers liés. `userRepository.delete` (`user.repository.ts:155-162`)
+      supprime explicitement les `RefreshToken` en amont puis appelle
+      `prisma.user.delete(...)` — un vrai DELETE, pas un soft-delete
+      (contrairement à `Client`/`Project`/`Invoice` qui ont tous un champ
+      `deletedAt`, `User` n'en a aucun). `Commission` représente l'argent dû
+      à un associé pour un paiement reçu (`server/src/repositories/commission.repository.ts`,
+      confirmé par la doc du modèle dans schema.prisma:1336-1338) —
+      REFERENTIEL.md §4.5 "Rémunération des associés" documente ce module
+      comme le calcul de répartition entre les 3 associés + CEO. Supprimer
+      le compte d'un associé (départ de l'agence, erreur de saisie, compte
+      dupliqué) efface donc silencieusement, sans confirmation ni
+      possibilité de récupération, tout l'historique de ce qui lui était dû
+      — y compris des commissions déjà `PAID` dont la trace comptable
+      disparaît. `TimeEntry` (temps facturé, certains `billed: true`) subit
+      le même sort. Gravité `bloquant` (catégorie perte de données) : aucun
+      volume actuel ne change ce constat, le risque est structurel et se
+      déclenche au premier usage réel de "supprimer un utilisateur" sur un
+      compte ayant déjà généré de l'activité financière — à distinguer d'un
+      simple defaut mineur "0 client actif" comme SEC-111/112/113 : ici
+      l'impact est catastrophique dès la première occurrence, pas graduel.
+
+      Non exploré dans cette passe : si `deleteUser` est réellement utilisé
+      en pratique aujourd'hui (0 client actif, probablement jamais exercé
+      sur un compte avec activité) — n'change pas la gravité du défaut de
+      conception, seulement la probabilité qu'il se soit déjà produit.
+
+  - id: SEC-166
+    titre: "TimeEntry.billedInvoiceId (String?) n'est pas une vraie relation Prisma (pas de @relation vers Invoice) — aucune intégrité référentielle, aucun onDelete, aucun index dédié : un invoice.id copié à la main sans garantie qu'il existe ni qu'il reste cohérent"
+    perimetre: "schema.prisma#TimeEntry ; server/src/services/invoice.service.ts:452 (seul point d'écriture)"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `TimeEntry.billedInvoiceId` est déclaré comme une
+      vraie relation Prisma vers `Invoice` (`@relation(fields:
+      [billedInvoiceId], references: [id], onDelete: ...)`, avec un
+      `onDelete` explicite cohérent avec le fait qu'une facture n'est
+      jamais hard-deletée) — vérifié par une migration Prisma qui ajoute la
+      contrainte FK réelle sans erreur sur les données existantes (aucune
+      valeur orpheline dans `billedInvoiceId` à ce jour, à confirmer par
+      requête avant la migration).
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit architecture base de données, item intégrité référentielle +
+      indexation. Vérifié par lecture directe : `schema.prisma:1598-1617`
+      (`TimeEntry`) déclare `billedInvoiceId String?` en toute fin de
+      modèle, sans `@relation` — contrairement à `taskId String? / task
+      Task? @relation(...)` juste au-dessus dans le même modèle, qui suit le
+      patron correct. Recherche exhaustive (`grep -rn "billedInvoiceId"
+      server/src`) : un seul point d'écriture
+      (`invoice.service.ts:452`, `data: { billed: true, billedInvoiceId:
+      invoiceId }`), aucun point de lecture/filtre nulle part dans le
+      dépôt — le champ n'est donc pas activement source de requêtes lentes
+      aujourd'hui, mais reste un identifiant d'entité stocké sans la
+      moindre garantie d'intégrité (une facture peut être supprimée en base
+      hors du chemin applicatif standard, ou l'id peut être mal copié, sans
+      qu'aucune contrainte ne le détecte). `@@index([projectId, billed])`
+      existe déjà sur `TimeEntry` mais ne couvre pas une recherche par
+      `billedInvoiceId` si un jour un écran "temps facturés sur cette
+      facture" est construit.
+
+  - id: SEC-167
+    titre: "Trois colonnes portent à la fois une contrainte @unique/@@unique ET un @@index séparé sur exactement les mêmes colonnes (User.email, FreelancerApplication.email, Payment.idempotencyKey) — un index redondant qui n'apporte aucun bénéfice de requête (la contrainte unique crée déjà son propre index) mais double le coût d'écriture (INSERT/UPDATE) et l'espace disque sur ces colonnes"
+    perimetre: "schema.prisma#User (lignes 200+203), #FreelancerApplication (lignes 891-892), #Payment (ligne 966+978)"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `@@index([email])` est retiré de `User` et de
+      `FreelancerApplication`, et `@@index([idempotencyKey])` retiré de
+      `Payment` (la contrainte `@unique`/`@@unique` sur ces mêmes colonnes
+      couvre déjà toute recherche par égalité) — vérifié par
+      `\d "User"`/`\d "Payment"` sur la base après migration, confirmant
+      un seul index par colonne concernée au lieu de deux.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit architecture base de données, item types et contraintes.
+      Vérifié par lecture directe et exhaustive de tout `schema.prisma`
+      (1683 lignes) : `User` (lignes 200-203) déclare `@@unique([email])`
+      PUIS `@@index([email])` juste en dessous sous le commentaire
+      "// Indexes for faster queries" ; `FreelancerApplication` (lignes
+      891-892) même patron exact : `@@unique([email])` suivi de
+      `@@index([email])` ; `Payment.idempotencyKey` (ligne 966) porte
+      `@unique` au niveau champ, ET `@@index([idempotencyKey])` est
+      redéclaré ligne 978 dans le bloc d'index du modèle. PostgreSQL crée
+      automatiquement un index B-tree unique pour toute contrainte
+      `UNIQUE`/`@@unique` — un second `@@index` sur les mêmes colonnes est
+      un doublon fonctionnel : aucune requête n'en bénéficie (le planificateur
+      utilise l'index unique, jamais les deux), mais chaque `INSERT`/`UPDATE`
+      touchant ces colonnes doit maintenir deux structures d'index au lieu
+      d'une. Confirmé qu'aucun autre modèle du schéma ne répète ce patron
+      (`Client.email`, `Service.name`, `Skill.name` — tous `@unique`/`@@unique`
+      sans `@@index` redondant associé). Gravité mineure : coût réel mais
+      faible en écriture, aucun risque d'incohérence de données.
+
+  - id: SEC-168
+    titre: "project.service.ts#clientApprove construit une URL de portail client avec des antislashs au lieu de slashs (`${env.FRONTEND_URL}\\client\\invoices`) dans l'email envoyé au client après approbation finale — lien cassé/inutilisable selon le navigateur"
+    perimetre: "server/src/services/project.service.ts#clientApprove (ligne ~441)"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand le lien envoyé dans l'email de fin de projet pointe
+      vers `${FRONTEND_URL}/client/invoices` (slashs), vérifié par un test
+      qui appelle `clientApprove` et inspecte le contenu HTML de l'email
+      généré (pas seulement qu'un email a été envoyé).
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Trouvé incidemment en lisant `project.service.ts#clientApprove` pour
+      vérifier la transaction de la cascade approbation-client → COMPLETED
+      + facture de solde (item 3 de l'audit base de données demandé) —
+      enregistré immédiatement conformément à CLAUDE.md plutôt que laissé
+      de côté. Ligne ~441 : `` const portalUrl = env.FRONTEND_URL ?
+      `${env.FRONTEND_URL}\client\invoices` : ... `` — antislashs Windows au
+      lieu de slashs URL. Certains navigateurs/clients mail normalisent les
+      antislashs en slashs dans un contexte URL, d'autres non : lien
+      potentiellement cassé pour le client au moment précis où il doit
+      accéder à sa facture de solde. Hors périmètre strict de l'audit base
+      de données mais trouvé par lecture directe du même fichier, dans la
+      même passe.
+
+      Point positif vérifié dans le même fichier (pas de défaut) : la
+      cascade `clientApprove` (COMPLETED + facture de solde) est bien
+      enveloppée dans un seul `prisma.$transaction`
+      (`project.service.ts:~365-388`), avec re-vérification de l'existence
+      d'une facture BALANCE À L'INTÉRIEUR de la transaction pour éviter une
+      double création en cas d'appels concurrents — répond correctement à
+      l'item 3 de la demande sur ce chemin précis. `acceptWithCascadeAttempt`
+      (proposal.service.ts, déjà vérifié dans une session antérieure)
+      suit le même patron pour l'autre cascade nommée dans la demande.
