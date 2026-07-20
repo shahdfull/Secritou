@@ -364,7 +364,35 @@ export const proposalService = {
     return updated;
   },
 
+  // SEC-134: the internal try/catch on the Project/Invoice unique-constraint collision (inside
+  // acceptWithCascadeAttempt below) can never actually recover within the SAME transaction —
+  // once Postgres raises an error inside a transaction block, that transaction is aborted and
+  // every subsequent statement fails with 25P02 until ROLLBACK, so the "read the winner's row
+  // instead" fallback always itself throws in the exact race it exists to handle. The
+  // transaction as a whole rolls back and the error surfaces up here; retrying the whole call
+  // once is what actually recovers, because the retry starts a brand-new transaction that will
+  // find proposal.status === "ACCEPTED" (and linkedProject/invoice already populated) and simply
+  // return the winner's IDs instead of racing to create anything again.
   async acceptWithCascade(id: string, expectedVersion?: number, uploadedById?: string) {
+    try {
+      return await proposalService.acceptWithCascadeAttempt(id, expectedVersion, uploadedById);
+    } catch (err) {
+      // P2002: the losing side's own tx.project.create/tx.invoice.create hit the unique
+      // constraint. P2010/25P02 (Prisma wraps the raw Postgres code as P2010's `meta.code`): the
+      // in-transaction fallback (tx.project.findFirst / tx.invoice.findFirst, meant to read the
+      // winner's row) itself failed, because Postgres refuses every further statement once a
+      // transaction has errored — the exact "aborted transaction" case this retry exists for.
+      const isRecoverableRaceError =
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        (err.code === "P2002" || (err.code === "P2010" && (err.meta as { code?: string } | undefined)?.code === "25P02"));
+      if (isRecoverableRaceError) {
+        return proposalService.acceptWithCascadeAttempt(id, expectedVersion, uploadedById);
+      }
+      throw err;
+    }
+  },
+
+  async acceptWithCascadeAttempt(id: string, expectedVersion?: number, uploadedById?: string) {
     const result = await prisma.$transaction(async (tx) => {
       const proposal = await tx.proposal.findUnique({
         where: { id },

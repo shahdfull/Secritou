@@ -1,60 +1,126 @@
-// Tests for role-scoped global search (P0 confidentiality fix) : pure logic, no DB.
-// Mirrors the routing decisions in search.repository.search / searchForStaff.
+// SEC-132: this file used to reimplement allowedCategories()/managerServiceValue() locally
+// instead of importing searchRepository — a test that mirrors its target's intended behavior in
+// its own words, exactly the class of defect CLAUDE.md warns against ("a test that reimplements
+// its target proves nothing: it would stay green even if the real code drifted"). It would have
+// stayed green on every one of the 9 search categories even if search.repository.ts's actual
+// scoping broke.
+//
+// This test imports and calls the real searchRepository.search against a real database instead,
+// proving pole scoping and role restrictions on a representative sample of categories: leads
+// (direct serviceId filter), clients (via projects.some.serviceId), tasks (via project's
+// serviceId), proposals (via viaProject/linkedProject), and the freelancer directory (MANAGER
+// excluded entirely, regardless of pole).
+//
+// Requires a real, migrated database; skipped if unreachable.
 
-import test, { describe } from "node:test";
+import test, { describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 
-type Role = "ADMIN" | "MANAGER" | "FREELANCER" | "CLIENT";
+let prisma: typeof import("../src/config/prisma.js").prisma;
+let searchRepository: typeof import("../src/repositories/search.repository.js").searchRepository;
+let dbAvailable = true;
 
-// Which result categories a role is allowed to receive (the rest must be empty).
-function allowedCategories(role: Role): string[] {
-  switch (role) {
-    case "ADMIN":
-      return ["leads", "clients", "projects", "tasks", "freelancers", "proposals", "invoices", "serviceRequests", "approvals"];
-    case "MANAGER":
-      // Everything except the internal freelancer marketplace.
-      return ["leads", "clients", "projects", "tasks", "proposals", "invoices", "serviceRequests", "approvals"];
-    case "CLIENT":
-      // Only the client's own entities : never leads, other clients, or freelancers.
-      return ["projects", "proposals", "invoices", "serviceRequests", "approvals"];
-    case "FREELANCER":
-      return ["projects", "tasks"];
+let serviceA: string;
+let serviceB: string;
+const createdClientIds: string[] = [];
+const createdProjectIds: string[] = [];
+const createdLeadIds: string[] = [];
+const createdProposalIds: string[] = [];
+const createdTaskIds: string[] = [];
+const uniq = Date.now();
+
+before(async () => {
+  try {
+    ({ prisma } = await import("../src/config/prisma.js"));
+    ({ searchRepository } = await import("../src/repositories/search.repository.js"));
+    await prisma.$queryRaw`SELECT 1`;
+    const services = await prisma.service.findMany({ take: 2 });
+    if (services.length < 2) throw new Error("need at least 2 seeded Service rows");
+    serviceA = services[0]!.id;
+    serviceB = services[1]!.id;
+  } catch {
+    dbAvailable = false;
   }
-}
-
-describe("search scope : confidentiality (P0)", () => {
-  test("CLIENT never receives leads, clients, or freelancers", () => {
-    const allowed = allowedCategories("CLIENT");
-    assert.ok(!allowed.includes("leads"), "client must not see leads");
-    assert.ok(!allowed.includes("clients"), "client must not see other clients");
-    assert.ok(!allowed.includes("freelancers"), "client must not see the freelancer pool");
-  });
-
-  test("FREELANCER only receives projects and tasks", () => {
-    assert.deepEqual(allowedCategories("FREELANCER").sort(), ["projects", "tasks"]);
-  });
-
-  test("MANAGER receives everything except the freelancer marketplace", () => {
-    assert.ok(!allowedCategories("MANAGER").includes("freelancers"));
-    assert.ok(allowedCategories("MANAGER").includes("leads"));
-  });
-
-  test("ADMIN receives all categories", () => {
-    assert.equal(allowedCategories("ADMIN").length, 9);
-  });
 });
 
-// Mirrors the manager service filter ("__none__" when the manager has no service).
-function managerServiceValue(serviceId: string | null | undefined) {
-  return serviceId ?? "__none__";
-}
+after(async () => {
+  if (!dbAvailable) return;
+  await prisma.proposal.deleteMany({ where: { id: { in: createdProposalIds } } });
+  await prisma.task.deleteMany({ where: { id: { in: createdTaskIds } } });
+  await prisma.project.deleteMany({ where: { id: { in: createdProjectIds } } });
+  await prisma.lead.deleteMany({ where: { id: { in: createdLeadIds } } });
+  await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
+});
 
-describe("manager service scoping in search", () => {
-  test("a manager with a service scopes to it", () => {
-    assert.equal(managerServiceValue("svc-1"), "svc-1");
+describe("searchRepository.search — real code, pole scope and role restrictions (SEC-132)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
+  test("a MANAGER only finds leads/clients/tasks/proposals from their own pole", async () => {
+    const lead = await prisma.lead.create({ data: { name: `SEC132-lead-${uniq}`, serviceId: serviceA } });
+    createdLeadIds.push(lead.id);
+    const otherPoleLead = await prisma.lead.create({ data: { name: `SEC132-lead-${uniq}`, serviceId: serviceB } });
+    createdLeadIds.push(otherPoleLead.id);
+
+    const client = await prisma.client.create({ data: { name: `SEC132-client-${uniq}`, serviceId: serviceA } });
+    createdClientIds.push(client.id);
+    const otherPoleClient = await prisma.client.create({ data: { name: `SEC132-client-${uniq}`, serviceId: serviceB } });
+    createdClientIds.push(otherPoleClient.id);
+
+    const project = await prisma.project.create({ data: { name: `SEC132-project-${uniq}`, clientId: client.id, serviceId: serviceA } });
+    createdProjectIds.push(project.id);
+    const otherPoleProject = await prisma.project.create({ data: { name: `SEC132-project-${uniq}`, clientId: otherPoleClient.id, serviceId: serviceB } });
+    createdProjectIds.push(otherPoleProject.id);
+
+    const task = await prisma.task.create({ data: { title: `SEC132-task-${uniq}`, projectId: project.id } });
+    createdTaskIds.push(task.id);
+    const otherPoleTask = await prisma.task.create({ data: { title: `SEC132-task-${uniq}`, projectId: otherPoleProject.id } });
+    createdTaskIds.push(otherPoleTask.id);
+
+    const managerA = { role: "MANAGER" as const, clientId: null, userId: "mgr-a", serviceId: serviceA };
+
+    const leadResults = await searchRepository.search(managerA, `SEC132-lead-${uniq}`);
+    assert.ok(leadResults.leads.some((l) => (l as { id: string }).id === lead.id), "own-pole lead must be found");
+    assert.ok(!leadResults.leads.some((l) => (l as { id: string }).id === otherPoleLead.id), "cross-pole lead must not be found");
+
+    const clientResults = await searchRepository.search(managerA, `SEC132-client-${uniq}`);
+    assert.ok(clientResults.clients.some((c) => (c as { id: string }).id === client.id), "own-pole client must be found");
+    assert.ok(!clientResults.clients.some((c) => (c as { id: string }).id === otherPoleClient.id), "cross-pole client must not be found");
+
+    const taskResults = await searchRepository.search(managerA, `SEC132-task-${uniq}`);
+    assert.ok(taskResults.tasks.some((t) => (t as { id: string }).id === task.id), "own-pole task must be found");
+    assert.ok(!taskResults.tasks.some((t) => (t as { id: string }).id === otherPoleTask.id), "cross-pole task must not be found");
   });
 
-  test("a manager with no service matches nothing", () => {
-    assert.equal(managerServiceValue(null), "__none__");
+  test("a MANAGER never receives the freelancer directory, regardless of pole; ADMIN does", async () => {
+    const freelancer = await prisma.user.create({
+      data: { email: `sec132-freelancer-${uniq}@test.local`, name: `SEC132-freelancer-${uniq}`, passwordHash: "x", role: "FREELANCER" },
+    });
+    const profile = await prisma.freelancerProfile.create({ data: { userId: freelancer.id } });
+
+    const managerA = { role: "MANAGER" as const, clientId: null, userId: "mgr-a", serviceId: serviceA };
+    const managerResults = await searchRepository.search(managerA, `SEC132-freelancer-${uniq}`);
+    assert.deepEqual(managerResults.freelancers, [], "MANAGER must never see the freelancer directory");
+
+    const admin = { role: "ADMIN" as const, clientId: null, userId: "admin-id" };
+    const adminResults = await searchRepository.search(admin, `SEC132-freelancer-${uniq}`);
+    assert.ok(adminResults.freelancers.length > 0, "ADMIN must see the freelancer directory");
+
+    await prisma.freelancerProfile.delete({ where: { id: profile.id } });
+    await prisma.user.delete({ where: { id: freelancer.id } });
+  });
+
+  test("a CLIENT only finds their own proposals, never another client's", async () => {
+    const client = await prisma.client.create({ data: { name: `SEC132-clientscope-${uniq}` } });
+    createdClientIds.push(client.id);
+    const otherClient = await prisma.client.create({ data: { name: `SEC132-clientscope-other-${uniq}` } });
+    createdClientIds.push(otherClient.id);
+
+    const proposal = await prisma.proposal.create({ data: { title: `SEC132-proposal-${uniq}`, clientId: client.id } });
+    createdProposalIds.push(proposal.id);
+    const otherProposal = await prisma.proposal.create({ data: { title: `SEC132-proposal-${uniq}`, clientId: otherClient.id } });
+    createdProposalIds.push(otherProposal.id);
+
+    const results = await searchRepository.search({ role: "CLIENT", clientId: client.id, userId: "client-user" }, `SEC132-proposal-${uniq}`);
+    assert.ok(results.proposals.some((p) => (p as { id: string }).id === proposal.id), "the client's own proposal must be found");
+    assert.ok(!results.proposals.some((p) => (p as { id: string }).id === otherProposal.id), "another client's proposal must never be found");
+    assert.deepEqual(results.leads, [], "CLIENT must never receive leads");
   });
 });

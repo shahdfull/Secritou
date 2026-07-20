@@ -6,6 +6,7 @@ import { enqueueEmail } from "../jobs/queues.js";
 import type { ContactRequestInput } from "../validators/contact.validator.js";
 import type { ContactStatus } from "@prisma/client";
 import { notifyN8n } from "../utils/webhook.js";
+import type { LeadScope } from "../repositories/lead.repository.js";
 
 export class ContactService {
   async sendContactMessage(input: ContactRequestInput) {
@@ -82,11 +83,22 @@ export class ContactService {
     return prisma.contactRequest.update({ where: { id }, data: { status } });
   }
 
-  async convertToLead(contactRequestId: string, assignedManagerId?: string, department?: string) {
+  // SEC-123: assignedManagerId/department were previously accepted as free-form input from the
+  // caller's request body with no check against their own pole — a MANAGER could convert a
+  // contact into a Lead assigned to another pole entirely. `scope` mirrors the
+  // createLead/leadRepository.buildWhere precedent (SEC-102): a MANAGER's own serviceId always
+  // wins over whatever `department`/`serviceId` the caller passed; ADMIN (unscoped) stays free
+  // to assign either.
+  async convertToLead(contactRequestId: string, assignedManagerId?: string, department?: string, scope?: LeadScope) {
     return prisma.$transaction(async (tx) => {
       const contactRequest = await tx.contactRequest.findUnique({ where: { id: contactRequestId } });
       if (!contactRequest) throw new Error("Contact request not found");
       if (contactRequest.convertedAt) throw new Error("Contact request already converted");
+
+      const ownPoleDefaults =
+        scope?.userRole === "MANAGER"
+          ? { serviceId: scope.userServiceId ?? undefined, assignedManagerId: scope.userId, department: undefined }
+          : { serviceId: undefined };
 
       const lead = await tx.lead.create({
         data: {
@@ -99,6 +111,7 @@ export class ContactService {
           sourceContactId: contactRequestId,
           assignedManagerId,
           department,
+          ...ownPoleDefaults,
         },
       });
 

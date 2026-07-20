@@ -284,7 +284,10 @@ export const AdminLayout = memo(function AdminLayout() {
           <SidebarFooter className="border-t border-border px-3 py-3 bg-surface-warm">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-3 w-full rounded-lg px-2 py-2 hover:bg-muted transition-colors text-left">
+                <button
+                  className="flex items-center gap-3 w-full rounded-lg px-2 py-2 hover:bg-muted transition-colors text-left"
+                  aria-label={t("userMenu.myAccount")}
+                >
                   <Avatar className="h-8 w-8 shrink-0">
                     <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
                       {initials}
@@ -327,7 +330,19 @@ export const AdminLayout = memo(function AdminLayout() {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <NotificationBell />
-              <Avatar className="h-8 w-8 cursor-pointer" onClick={() => navigate("/app/settings")}>
+              <Avatar
+                className="h-8 w-8 cursor-pointer"
+                role="button"
+                tabIndex={0}
+                aria-label={t("userMenu.settings")}
+                onClick={() => navigate("/app/settings")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    navigate("/app/settings");
+                  }
+                }}
+              >
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
                   {initials}
                 </AvatarFallback>

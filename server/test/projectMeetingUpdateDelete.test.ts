@@ -172,6 +172,48 @@ describe("projectMeetingService.update/delete authorization — SEC-055 (F6)", (
       }
     );
   });
+
+  // SEC-127: update/delete were the only 2 of projectMeetingService's 6 public methods never
+  // exercised for a cross-pole MANAGER — listByProject/create/getSchedule/setSchedule already
+  // are, in managerScopeIdorFixes.test.ts. The scope guard itself
+  // (assertProjectInScope, called by all 6) was already correct; this closes that specific gap.
+  test("a pole-B MANAGER is rejected with 403 PROJECT_OUT_OF_SCOPE on update/delete, distinct from MEETING_NOT_YOURS", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const services = await prisma.service.findMany({ take: 2 });
+    if (services.length < 2) return t.skip("need at least 2 seeded Service rows");
+    const serviceB = services.find((s) => s.id !== serviceA)?.id;
+    if (!serviceB) return t.skip("need a second distinct Service row");
+
+    const project = await makeProject();
+    const author = await makeManager("author-sec127");
+    const meeting = await makeMeeting(project.id, author.id);
+    const outsider = await prisma.user.create({
+      data: { email: `mgr-sec127-outsider@test.local`, name: "M-outsider", passwordHash: "x", role: "MANAGER", serviceId: serviceB },
+    });
+    createdUserIds.push(outsider.id);
+
+    await assert.rejects(
+      () => projectMeetingService.update(project.id, meeting.id, { notes: "hacked" }, outsider.id, "MANAGER", { userRole: "MANAGER", userServiceId: serviceB }),
+      (err: unknown) => {
+        assert.ok(err instanceof HttpError);
+        assert.equal(err.statusCode, 403);
+        assert.equal(err.code, "PROJECT_OUT_OF_SCOPE");
+        return true;
+      }
+    );
+    await assert.rejects(
+      () => projectMeetingService.delete(project.id, meeting.id, outsider.id, "MANAGER", { userRole: "MANAGER", userServiceId: serviceB }),
+      (err: unknown) => {
+        assert.ok(err instanceof HttpError);
+        assert.equal(err.statusCode, 403);
+        assert.equal(err.code, "PROJECT_OUT_OF_SCOPE");
+        return true;
+      }
+    );
+
+    const stillThere = await prisma.projectMeeting.findUnique({ where: { id: meeting.id } });
+    assert.equal(stillThere?.notes, "note initiale");
+  });
 });
 
 describe("projectMeetingService.listByProject pagination — SEC-055 (F6)", () => {

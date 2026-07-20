@@ -1,5 +1,5 @@
 // Client Repository - Data access layer
-import { prismaRead as prisma } from "../config/prisma.js";
+import { prisma, prismaRead } from "../config/prisma.js";
 import type { Client, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildOrderBy } from "../utils/listQuery.js";
@@ -64,8 +64,8 @@ export const clientRepository = {
     const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
 
     const [data, total] = await Promise.all([
-      prisma.client.findMany({ where, select: clientListSelect, orderBy, skip, take: options.pageSize }),
-      prisma.client.count({ where }),
+      prismaRead.client.findMany({ where, select: clientListSelect, orderBy, skip, take: options.pageSize }),
+      prismaRead.client.count({ where }),
     ]);
 
     return { data, total, page: options.page, pageSize: options.pageSize };
@@ -77,7 +77,7 @@ export const clientRepository = {
     if (serviceId !== undefined) {
       where.projects = { some: { serviceId: serviceId ?? "__none__" } };
     }
-    return prisma.client.findFirst({ where, select: clientDetailSelect });
+    return prismaRead.client.findFirst({ where, select: clientDetailSelect });
   },
 
   async create(data: {
@@ -93,7 +93,7 @@ export const clientRepository = {
   },
 
   async countInvoices(id: string): Promise<number> {
-    return prisma.invoice.count({ where: { clientId: id } });
+    return prismaRead.invoice.count({ where: { clientId: id } });
   },
 
   async archive(id: string): Promise<Client> {
@@ -121,15 +121,15 @@ export const clientRepository = {
     const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
 
     const [data, total] = await Promise.all([
-      prisma.client.findMany({ where, select: clientListSelect, orderBy, skip, take: options.pageSize }),
-      prisma.client.count({ where }),
+      prismaRead.client.findMany({ where, select: clientListSelect, orderBy, skip, take: options.pageSize }),
+      prismaRead.client.count({ where }),
     ]);
 
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
   async getPortalActivatedAt(clientId: string): Promise<Date | null> {
-    const client = await prisma.client.findUnique({ where: { id: clientId }, select: { portalActivatedAt: true } });
+    const client = await prismaRead.client.findUnique({ where: { id: clientId }, select: { portalActivatedAt: true } });
     return client?.portalActivatedAt ?? null;
   },
 };

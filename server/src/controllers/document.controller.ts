@@ -42,9 +42,11 @@ export const getDocuments = async (req: Request, res: Response) => {
 
 export const getDocumentById = async (req: Request, res: Response) => {
   const id = req.params.id as string;
+  const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
   const document = await documentService.getById(id, {
     role: req.user!.role,
     clientId: req.user!.clientId,
+    serviceId: scope?.userServiceId,
     userId: req.user!.sub,
   });
   // Don't log a VIEW (or leak existence) for a document the viewer isn't allowed to see.
@@ -101,9 +103,10 @@ export const signDocument = async (req: Request, res: Response) => {
 };
 
 export const downloadDocument = async (req: Request, res: Response) => {
+  const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
   const result = await documentService.getDownloadUrl(
     req.params.id as string,
-    { role: req.user!.role, clientId: req.user!.clientId, userId: req.user!.sub }
+    { role: req.user!.role, clientId: req.user!.clientId, serviceId: scope?.userServiceId, userId: req.user!.sub }
   );
   res.json({ data: result });
 };

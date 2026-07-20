@@ -37,13 +37,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -53,8 +46,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -877,20 +868,20 @@ export function ServiceRequestsAdminPage() {
         </div>
 
         {/* Detail side panel */}
-        <Sheet open={!!selectedId} onOpenChange={(open) => !open && setSelectedId(null)}>
-          <SheetContent side="right" className="w-full sm:w-[480px] md:w-[520px] sm:max-w-[520px] p-0 flex flex-col">
-            <SheetHeader className="sr-only">
-              <SheetTitle>Détail de la demande</SheetTitle>
-              <SheetDescription>Gérer la demande de service</SheetDescription>
-            </SheetHeader>
+        <Dialog open={!!selectedId} onOpenChange={(open) => !open && setSelectedId(null)}>
+          <DialogContent className="max-w-5xl w-[95vw] p-0 overflow-hidden">
+            <DialogHeader className="sr-only">
+              <DialogTitle>Détail de la demande</DialogTitle>
+              <DialogDescription>Gérer la demande de service</DialogDescription>
+            </DialogHeader>
             {selectedId && (
               <ServiceRequestDetail
                 id={selectedId}
                 onClose={() => setSelectedId(null)}
               />
             )}
-          </SheetContent>
-        </Sheet>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Delete confirmation dialog */}

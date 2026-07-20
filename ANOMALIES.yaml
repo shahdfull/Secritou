@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-134
+dernier_id: SEC-136
 
 anomalies:
   - id: SEC-001
@@ -8638,7 +8638,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand un test appelle réellement `acceptWithCascade` deux
       fois en concurrence (`Promise.allSettled`, pattern déjà utilisé par
@@ -8663,3 +8663,121 @@ anomalies:
       deux `Project`/`Invoice` liés à la même proposition). `grep -rn
       "acceptWithCascade" server/test/` : aucun test n'utilise
       `Promise.allSettled` sur cette fonction.
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, même session : test ajouté
+      (`server/test/proposalAcceptCascadeConcurrency.test.ts`, appelle
+      réellement `acceptWithCascade` deux fois via `Promise.allSettled`).
+      Sa première exécution a révélé un second défaut, plus profond que
+      celui décrit ici — voir SEC-136 (le fallback de collision P2002 ne
+      pouvait jamais réussir dans la même transaction Postgres, donc le
+      « pas de verrou explicite » ci-dessus était pire en pratique qu'en
+      théorie : la contrainte `@unique` sur `Project.proposalId` empêchait
+      bien la duplication en base, mais l'appel perdant de la course
+      recevait une erreur `25P02` opaque au lieu d'une réponse cohérente).
+      SEC-136 corrige ce second défaut avec un retry ; ce test-ci vérifie
+      désormais les deux propriétés ensemble (pas de duplication + réponse
+      cohérente pour le perdant) sur une base réelle.
+
+  - id: SEC-135
+    titre: "4 repositories (client, lead, user, comment#create) aliasent prismaRead sous le nom prisma et l'utilisent pour des écritures — même défaut racine déjà trouvé et corrigé sur project.repository.ts, jamais étendu à ces 4 fichiers : si DATABASE_READ_URL pointe un jour vers une vraie réplique en lecture seule, toute écriture sur Client/Lead/User/Comment échouerait"
+    perimetre: "server/src/repositories/client.repository.ts ; lead.repository.ts ; user.repository.ts ; comment.repository.ts#create"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `client.repository.ts`, `lead.repository.ts` et
+      `user.repository.ts` importent `prisma` et `prismaRead` séparément
+      (comme `project.repository.ts` après son propre correctif) et que
+      chaque méthode d'écriture (`create`/`update`/`updateMany`/`delete`/
+      `deleteMany`/`upsert`) appelle `prisma.<model>.<méthode>`, jamais
+      `prismaRead.<model>.<méthode>` ; et quand `comment.repository.ts#create`
+      utilise `writePrisma` (déjà importé et déjà utilisé par `update`/
+      `delete` dans ce même fichier) au lieu de l'alias `prisma` actuel —
+      prouvé par une extension de
+      `prismaReadWriteSeparation.test.ts` (voir SEC-133) qui scanne ces 4
+      fichiers et confirme zéro écriture routée via `prismaRead`.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Découvert incidemment en préparant la correction de SEC-133 (étendre
+      `prismaReadWriteSeparation.test.ts` aux 29 repositories qui utilisent
+      `prismaRead`) — enregistré dans la même session conformément à la
+      règle CLAUDE.md sur l'enregistrement immédiat des écarts constatés
+      hors audit formel. Vérifié par lecture directe :
+      `grep -n "prismaRead as prisma" src/repositories/*.ts` liste 8
+      fichiers avec cet alias (`analytics`, `client`, `comment`,
+      `executiveMetrics`, `lead`, `search`, `summary`, `user`), mais
+      `analytics`/`executiveMetrics`/`search`/`summary` ne contiennent
+      aucun appel `create`/`update`/`updateMany`/`delete`/`deleteMany`/
+      `upsert` (confirmé par grep ciblé) — lecture seule légitime, pas
+      concernés. Les 4 restants le sont : `client.repository.ts:88-112`
+      (`create`/`update`×3 sur l'alias `prisma`=`prismaRead`),
+      `lead.repository.ts:94-109` (`create`/`update`×2/`delete` idem),
+      `user.repository.ts:98-148` (`create`/`update`×4 idem),
+      `comment.repository.ts:2` (importe À LA FOIS `writePrisma` ET
+      `prismaRead as prisma` — `update`/`delete` (lignes 45, 53) utilisent
+      correctement `writePrisma`, mais `create` (ligne 24) est resté sur
+      l'alias de lecture, incohérence à l'intérieur même de ce fichier).
+      Même classe de défaut que le bug déjà trouvé et corrigé sur
+      `project.repository.ts` (voir commentaire d'en-tête de
+      `prismaReadWriteSeparation.test.ts`), silencieux aujourd'hui
+      uniquement parce que `DATABASE_READ_URL` n'est pas configuré dans cet
+      environnement (`prismaRead === prisma`, même client sous-jacent) —
+      donc aucun symptôme observable tant que ça reste vrai, ce qui est
+      exactement pourquoi ce type de bug survit jusqu'au jour où une
+      réplique est effectivement câblée.
+
+  - id: SEC-136
+    titre: "proposalService.acceptWithCascade : le fallback try/catch sur la collision P2002 (Project.proposalId / Invoice.proposalId uniques) ne peut jamais réussir dans la même transaction — Postgres bloque toute commande suivante (25P02) une fois la transaction en échec, donc le tx.project.findFirst/tx.invoice.findFirst de secours échoue systématiquement dans le cas réel qu'il est censé gérer"
+    perimetre: "server/src/services/proposal.service.ts#acceptWithCascade"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand deux appels strictement concurrents à
+      `acceptWithCascade` sur la même proposition ne laissent jamais plus
+      d'un `Project`/`Invoice` de dépôt en base ET que l'appel perdant de la
+      course reçoit une réponse cohérente (les IDs du gagnant), pas une
+      erreur `25P02` opaque — prouvé par un test qui appelle réellement
+      `acceptWithCascade` deux fois en concurrence
+      (`Promise.allSettled`) sur une base migrée et vérifie l'état final.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Découvert en écrivant le test de concurrence pour SEC-134 : la
+      première exécution du test a révélé en pratique
+      (`prisma:error ... ConnectorError ... code: "25P02", message:
+      "current transaction is aborted, commands ignored until end of
+      transaction block"`) que `tx.project.findFirst`/`tx.invoice.findFirst`
+      (proposal.service.ts, catch des lignes ~447/472 avant correctif)
+      échouent toujours en cas de collision réelle — la transaction
+      Postgres reste "aborted" après l'erreur `P2002` du `create`, donc
+      toute requête suivante dans le même `tx` échoue immédiatement, avant
+      même d'atteindre le `ROLLBACK` implicite de Prisma. Le code avait
+      pourtant l'intention correcte (capturer P2002, relire le gagnant) —
+      seule l'hypothèse que la transaction reste utilisable après une
+      erreur catchée était fausse.
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, même session : `acceptWithCascade` est
+      désormais une fine méthode avec retry qui délègue à
+      `acceptWithCascadeAttempt` (renommage de l'ancien corps) ; si le
+      premier essai lève `P2002` ou `P2010`/`meta.code === "25P02"` (la
+      transaction entière ayant déjà été rollback par Prisma à ce stade,
+      hors de tout état "aborted"), un second essai est tenté — il démarre
+      une TOUTE NOUVELLE transaction qui trouve `proposal.status ===
+      "ACCEPTED"` (et `linkedProject`/`invoice` déjà peuplés par le
+      gagnant) et retourne simplement ses IDs sans retenter aucune
+      création. Preuve : `server/test/proposalAcceptCascadeConcurrency.test.ts`
+      (nouveau, appelle réellement `proposalService.acceptWithCascade` deux
+      fois via `Promise.allSettled` sur la même proposition, contre une
+      vraie base) — vérifié qu'au plus un `Project` existe en base au final
+      et que si les deux appels rapportent un succès, ils pointent vers le
+      MÊME projet. Non-régression confirmée par exécution complète de
+      `proposalAcceptCascade.test.ts` (10/10), `proposalScopeAfterCreation.test.ts`
+      (4/4), `portalActivationOnPayment.test.ts` (3/3) — tous verts après
+      le correctif. `npx tsc --noEmit` propre sur `server/` après la
+      restructuration du fichier.

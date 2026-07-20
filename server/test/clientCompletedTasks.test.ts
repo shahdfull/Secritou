@@ -27,6 +27,19 @@ const createdClientIds: string[] = [];
 const createdProjectIds: string[] = [];
 const createdTaskIds: string[] = [];
 
+// SEC-131: Task.updatedAt is a Prisma @updatedAt column — it can't be forced to an explicit
+// value via a normal create/update call, so the only way to guarantee the NEXT write lands on a
+// strictly later timestamp is to actually wait until the wall clock has moved past `after` before
+// issuing it — not guess a fixed delay long enough to outrun clock/timestamp resolution on a
+// loaded CI runner. Bounded so a genuinely stalled clock still fails loudly instead of hanging.
+async function waitUntilClockPasses(after: Date, timeoutMs = 2000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() <= after.getTime()) {
+    if (Date.now() > deadline) throw new Error(`Wall clock never advanced past ${after.toISOString()} within ${timeoutMs}ms`);
+    await new Promise((resolve) => setTimeout(resolve, 2));
+  }
+}
+
 before(async () => {
   try {
     ({ prisma } = await import("../src/config/prisma.js"));
@@ -57,8 +70,8 @@ describe("projectService.getCompletedTasksForClient — SEC-061", () => {
     createdProjectIds.push(project.id);
 
     const older = await prisma.task.create({ data: { title: "Ancienne tâche terminée", projectId: project.id, status: "DONE" } });
-    // Ensure a distinct, later updatedAt for ordering.
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    // Ensure a distinct, later updatedAt for ordering — wait for the clock, not a guessed delay.
+    await waitUntilClockPasses(older.updatedAt);
     const newer = await prisma.task.create({ data: { title: "Tâche récemment terminée", projectId: project.id, status: "DONE" } });
     const inProgress = await prisma.task.create({ data: { title: "En cours", projectId: project.id, status: "IN_PROGRESS" } });
     createdTaskIds.push(older.id, newer.id, inProgress.id);
@@ -81,12 +94,13 @@ describe("projectService.getCompletedTasksForClient — SEC-061", () => {
     const task = await prisma.task.create({ data: { title: "À terminer", projectId: project.id, status: "REVIEW" } });
     createdTaskIds.push(task.id);
 
-    await taskService.updateTask(task.id, { status: "DONE" }, { userRole: "ADMIN" });
+    const doneTask = await taskService.updateTask(task.id, { status: "DONE" }, { userRole: "ADMIN" });
     const afterCompletion = await projectService.getCompletedTasksForClient(project.id, client.id);
     const completedAtAfterDone = afterCompletion.find((x) => x.id === task.id)?.completedAt;
     assert.ok(completedAtAfterDone, "completedAt must be set once the task reaches DONE");
 
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    // Ensure the unrelated edit below lands on a strictly later updatedAt — wait for the clock, not a guessed delay.
+    await waitUntilClockPasses(doneTask.updatedAt);
     await taskService.updateTask(task.id, { title: "Titre corrigé après coup" }, { userRole: "ADMIN" });
     const afterUnrelatedEdit = await projectService.getCompletedTasksForClient(project.id, client.id);
     const completedAtAfterEdit = afterUnrelatedEdit.find((x) => x.id === task.id)?.completedAt;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatDate } from "@/utils/format";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,11 +17,16 @@ import { projectsApi, BriefQuestion } from "@/api/projects.api";
 // ---------------------------------------------------------------------------
 
 const SECTION_SIZE = 3; // questions per "step page"
+const BRIEF_DRAFT_PREFIX = "client-brief-draft";
 
 function chunk<T>(arr: T[], size: number): T[][] {
   const result: T[][] = [];
   for (let i = 0; i < arr.length; i += size) result.push(arr.slice(i, i + size));
   return result;
+}
+
+function getDraftStorageKey(projectId: string) {
+  return `${BRIEF_DRAFT_PREFIX}:${projectId}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -166,6 +171,7 @@ export function ClientBriefPage() {
   const { projectId = "" } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const draftKey = useMemo(() => getDraftStorageKey(projectId), [projectId]);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["client-brief", projectId],
@@ -177,6 +183,7 @@ export function ClientBriefPage() {
     mutationFn: (briefData: Record<string, unknown>) =>
       projectsApi.submitBrief(projectId, briefData),
     onSuccess: () => {
+      window.localStorage.removeItem(draftKey);
       qc.invalidateQueries({ queryKey: ["client-brief", projectId] });
       qc.invalidateQueries({ queryKey: ["project-timeline", projectId] });
       toast.success("Votre brief a été envoyé. Merci !");
@@ -188,6 +195,45 @@ export function ClientBriefPage() {
 
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [step, setStep] = useState(0);
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  useEffect(() => {
+    if (!projectId || !data || data.project.briefCompleted || draftRestored) return;
+
+    try {
+      const raw = window.localStorage.getItem(draftKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { answers?: Record<string, unknown>; step?: number };
+      if (parsed.answers && typeof parsed.answers === "object") {
+        setAnswers(parsed.answers);
+      }
+      if (typeof parsed.step === "number" && parsed.step >= 0) {
+        setStep(parsed.step);
+      }
+      setDraftRestored(true);
+      toast.info("Votre brouillon du brief a été restauré.");
+    } catch {
+      window.localStorage.removeItem(draftKey);
+    }
+  }, [data, draftKey, draftRestored, projectId]);
+
+  useEffect(() => {
+    if (!projectId || !data || data.project.briefCompleted) return;
+    if (Object.keys(answers).length === 0 && step === 0) return;
+
+    try {
+      window.localStorage.setItem(
+        draftKey,
+        JSON.stringify({
+          answers,
+          step,
+          savedAt: new Date().toISOString(),
+        })
+      );
+    } catch {
+      // Best effort only.
+    }
+  }, [answers, data, draftKey, projectId, step]);
 
   if (isLoading) {
     return (
@@ -215,7 +261,6 @@ export function ClientBriefPage() {
   const currentSection = sections[step] ?? [];
   const isLastStep = step === totalSteps - 1;
 
-  // Required check for current section
   const currentSectionValid = currentSection.every((q) => {
     if (!q.required) return true;
     const val = displayAnswers[q.key];
@@ -232,12 +277,11 @@ export function ClientBriefPage() {
     submitMutation.mutate({ ...answers });
   };
 
-  // ---- Read-only view after submission ----
   if (readOnly) {
     return (
       <section className="max-w-2xl mx-auto space-y-6">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/client/projects")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/client/projects")} aria-label="Retour aux projets">
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
@@ -282,11 +326,10 @@ export function ClientBriefPage() {
     );
   }
 
-  // ---- Multi-step form ----
   return (
     <section className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/client/projects")}>
+        <Button variant="ghost" size="icon" onClick={() => navigate("/client/projects")} aria-label="Retour aux projets">
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
@@ -295,7 +338,12 @@ export function ClientBriefPage() {
         </div>
       </div>
 
-      {/* Progress bar */}
+      {!readOnly && (Object.keys(answers).length > 0 || draftRestored) && (
+        <p className="text-xs text-muted-foreground">
+          Brouillon enregistré automatiquement sur cet appareil.
+        </p>
+      )}
+
       <div className="space-y-1">
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>Étape {step + 1} sur {totalSteps}</span>
@@ -334,7 +382,6 @@ export function ClientBriefPage() {
         </CardContent>
       </Card>
 
-      {/* Navigation */}
       <div className="flex justify-between">
         <Button
           variant="outline"

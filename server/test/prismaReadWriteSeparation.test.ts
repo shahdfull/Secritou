@@ -19,44 +19,62 @@
 // prismaRead, findByIdAdmin kept on prisma for the same pre-write reason ; projectProgress.ts's
 // raw aggregate query moved to prismaRead.
 //
+// SEC-133/SEC-135 (session ultérieure) : le premier passage n'avait vérifié que 2 des 29
+// repositories qui utilisent prismaRead. Étendre à tous a trouvé le même défaut racine
+// (prismaRead aliasé `as prisma`, utilisé pour des écritures) sur 4 fichiers supplémentaires —
+// client.repository.ts, lead.repository.ts, user.repository.ts, et comment.repository.ts#create
+// (qui importait pourtant DÉJÀ prisma sous le nom writePrisma, mais create() était resté sur
+// l'alias de lecture par une incohérence interne au fichier). Les 4 corrigés de la même manière
+// que project.repository.ts.
+//
 // Since DATABASE_READ_URL is not configured in this environment, prismaRead and prisma are
 // literally the same client — a behavioral test can't distinguish them here. This test instead
-// verifies the fix structurally: every write method in project.repository.ts and
-// task.repository.ts calls `prisma.<model>.<mutatingMethod>`, never `prismaRead.<model>
-// .<mutatingMethod>`, by scanning the real source files — not a description of intent, a direct
-// check of what the code actually calls.
+// verifies the fix structurally, across every repository that imports prismaRead: every write
+// method calls `prisma.<model>.<mutatingMethod>`, never `prismaRead.<model>.<mutatingMethod>`,
+// and prismaRead is never aliased as `prisma` — by scanning the real source files, not a
+// description of intent.
 
 import test, { describe } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const MUTATING_METHODS = ["create", "update", "updateMany", "delete", "deleteMany", "upsert"];
+const REPO_DIR = join(process.cwd(), "src/repositories");
 
-function findPrismaReadMutations(filePath: string): string[] {
-  const content = readFileSync(filePath, "utf-8");
+function findMutations(content: string, prismaIdentifier: string): string[] {
   const offenders: string[] = [];
   for (const method of MUTATING_METHODS) {
-    const re = new RegExp(`prismaRead\\.\\w+\\.${method}\\(`, "g");
+    const re = new RegExp(`${prismaIdentifier}\\.\\w+\\.${method}\\(`, "g");
     const matches = content.match(re);
     if (matches) offenders.push(...matches);
   }
   return offenders;
 }
 
-describe("prismaRead is never used for a write (project.repository.ts, task.repository.ts)", () => {
-  test("project.repository.ts: no mutating call goes through prismaRead", () => {
-    const offenders = findPrismaReadMutations(join(process.cwd(), "src/repositories/project.repository.ts"));
-    assert.deepEqual(offenders, [], `found write(s) routed through prismaRead: ${offenders.join(", ")}`);
+// Every repository file that imports prismaRead at all — the ones with nothing to separate
+// (pure-read repositories) are harmless by construction and simply produce zero offenders below;
+// this still catches them if a write is ever added without prismaRead being dropped.
+const repositoriesUsingPrismaRead = readdirSync(REPO_DIR)
+  .filter((f) => f.endsWith(".repository.ts"))
+  .filter((f) => readFileSync(join(REPO_DIR, f), "utf-8").includes("prismaRead"));
+
+describe("prismaRead is never used for a write, across every repository that imports it (SEC-133)", () => {
+  test("at least the known 29 repositories using prismaRead are actually being scanned (canary against a silent drop)", () => {
+    assert.ok(repositoriesUsingPrismaRead.length >= 29, `expected >= 29 repositories importing prismaRead, found ${repositoriesUsingPrismaRead.length}`);
   });
 
-  test("task.repository.ts: no mutating call goes through prismaRead", () => {
-    const offenders = findPrismaReadMutations(join(process.cwd(), "src/repositories/task.repository.ts"));
-    assert.deepEqual(offenders, [], `found write(s) routed through prismaRead: ${offenders.join(", ")}`);
-  });
-
-  test("project.repository.ts no longer aliases prismaRead as prisma (the root cause of the original bug)", () => {
-    const content = readFileSync(join(process.cwd(), "src/repositories/project.repository.ts"), "utf-8");
-    assert.ok(!/prismaRead as prisma/.test(content), "prismaRead must never be aliased as `prisma` — that alias previously routed every write through the read replica");
-  });
+  for (const file of repositoriesUsingPrismaRead) {
+    test(`${file}: no mutating call ever goes through the read connection, aliased or not`, () => {
+      const content = readFileSync(join(REPO_DIR, file), "utf-8");
+      const isAliased = /prismaRead as prisma/.test(content);
+      // Unaliased: `prismaRead.<model>.<mutatingMethod>(` is always a bug. Aliased (`prismaRead as
+      // prisma`): every call reads `prisma.<model>.<method>(` in the source regardless of which
+      // connection it actually hits, so THAT is the pattern to scan for a write on — the alias
+      // itself is only a problem if a write is routed through it, not merely by existing (see
+      // analytics/executiveMetrics/search/summary: aliased, but genuinely read-only).
+      const offenders = isAliased ? findMutations(content, "prisma") : findMutations(content, "prismaRead");
+      assert.deepEqual(offenders, [], `found write(s) routed through the read connection: ${offenders.join(", ")}`);
+    });
+  }
 });

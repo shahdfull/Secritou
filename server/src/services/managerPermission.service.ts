@@ -106,10 +106,16 @@ export const permissionProfileService = {
   },
 
   async update(id: string, data: Prisma.PermissionProfileUncheckedUpdateInput) {
-    return permissionProfileRepository.update(id, data);
+    const updated = await permissionProfileRepository.update(id, data);
+    const userIds = await managerPermissionRepository.findUserIdsByProfileId(id);
+    await Promise.all(userIds.map((userId) => cacheDel(cacheKeys.managerPermissions(userId))));
+    return updated;
   },
 
   async delete(id: string) {
-    return permissionProfileRepository.delete(id);
+    const userIds = await managerPermissionRepository.findUserIdsByProfileId(id);
+    const deleted = await permissionProfileRepository.delete(id);
+    await Promise.all(userIds.map((userId) => cacheDel(cacheKeys.managerPermissions(userId))));
+    return deleted;
   },
 };

@@ -4,12 +4,12 @@ import { Bot, Maximize2, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { AIAssistantPage } from "@/features/ai-assistant/AIAssistantPage";
 import { type ChatMessage } from "@/api/ai.api";
 
@@ -55,21 +55,16 @@ export function AIAssistantFloat({
         <Bot className="h-6 w-6" />
       </button>
 
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent
-          side="right"
-          className="flex w-full flex-col p-0 sm:w-[420px] sm:max-w-[420px] [&>button]:hidden"
-          // suppress the default dark overlay
-          style={{ boxShadow: "-4px 0 24px rgba(0,0,0,0.08)" }}
-        >
-          <SheetHeader className="flex flex-row items-center justify-between border-b px-4 py-3">
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden h-[85vh] flex flex-col [&>button]:hidden">
+          <DialogHeader className="flex flex-row items-center justify-between border-b px-4 py-3">
             <div className="flex items-center gap-2">
               <Bot className="h-5 w-5 text-primary" />
               <div>
-                <SheetTitle className="text-base">{t("aiAssistant.float.header")}</SheetTitle>
-                <SheetDescription className="text-xs">
+                <DialogTitle className="text-base">{t("aiAssistant.float.header")}</DialogTitle>
+                <DialogDescription className="text-xs">
                   {t("aiAssistant.float.subtitle")}
-                </SheetDescription>
+                </DialogDescription>
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -98,10 +93,10 @@ export function AIAssistantFloat({
                 onClick={() => onOpenChange(false)}
                 title={t("aiAssistant.float.close")}
               >
-                ✕
+                âœ•
               </Button>
             </div>
-          </SheetHeader>
+          </DialogHeader>
 
           <div className="flex flex-1 flex-col overflow-hidden">
             <AIAssistantPage
@@ -110,8 +105,8 @@ export function AIAssistantFloat({
               onMessagesChange={onMessagesChange}
             />
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

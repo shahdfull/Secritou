@@ -1,8 +1,11 @@
 // Mobile-responsive: updated 2026-06-29
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Clock, Lock } from "lucide-react";
+import { formatDistanceToNowStrict } from "date-fns";
 import { projectsApi, TimelineStep } from "@/api/projects.api";
 import { formatDate } from "@/utils/format";
+import { announce } from "@/lib/a11yAnnounce";
 
 // ---------------------------------------------------------------------------
 // Hook
@@ -27,7 +30,6 @@ function TimelineStepItem({ step, isLast }: { step: TimelineStep; isLast: boolea
 
   return (
     <div className="flex gap-4">
-      {/* Icon + connector */}
       <div className="flex flex-col items-center">
         <div
           className={[
@@ -57,7 +59,6 @@ function TimelineStepItem({ step, isLast }: { step: TimelineStep; isLast: boolea
         )}
       </div>
 
-      {/* Content */}
       <div
         className={[
           "pb-6 pt-1 flex-1 min-w-0",
@@ -90,7 +91,21 @@ function TimelineStepItem({ step, isLast }: { step: TimelineStep; isLast: boolea
 // ---------------------------------------------------------------------------
 
 export function ProjectTimeline({ projectId }: { projectId: string }) {
-  const { data: steps, isLoading, isError } = useProjectTimeline(projectId);
+  const { data: steps, isLoading, isError, dataUpdatedAt } = useProjectTimeline(projectId);
+  const previousSignatureRef = useRef<string | null>(null);
+
+  const freshnessLabel = dataUpdatedAt
+    ? formatDistanceToNowStrict(dataUpdatedAt, { addSuffix: true })
+    : null;
+  const signature = steps?.map((s) => `${s.key}:${s.status}:${s.date ?? ""}`).join("|") ?? null;
+
+  useEffect(() => {
+    if (!signature) return;
+    if (previousSignatureRef.current && previousSignatureRef.current !== signature) {
+      announce("La timeline du projet a été mise à jour.");
+    }
+    previousSignatureRef.current = signature;
+  }, [signature]);
 
   if (isLoading) {
     return (
@@ -120,16 +135,15 @@ export function ProjectTimeline({ projectId }: { projectId: string }) {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
           Avancement du projet
         </h3>
-        <span className="text-xs font-medium text-muted-foreground">
-          {doneCount}/{steps.length} étapes
-        </span>
+        <div className="text-xs font-medium text-muted-foreground text-right">
+          <div>{doneCount}/{steps.length} étapes</div>
+          {freshnessLabel && <div>Mis à jour {freshnessLabel}</div>}
+        </div>
       </div>
-      {/* overflow-x-auto guards against horizontal overflow on narrow phones
-          (long step labels / dates) without breaking the surrounding layout. */}
       <div className="overflow-x-auto">
         {steps.map((step, i) => (
           <TimelineStepItem key={step.key} step={step} isLast={i === steps.length - 1} />

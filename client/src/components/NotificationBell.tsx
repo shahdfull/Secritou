@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/store/auth.store";
+import { announce } from "@/lib/a11yAnnounce";
 
 function getNotificationIcon(type: NotificationType) {
   switch (type) {
@@ -103,6 +104,7 @@ export function NotificationBell() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       toast.success(t("toasts.notificationsMarkedRead"));
+      announce(t("toasts.notificationsMarkedRead"));
     },
   });
 
@@ -145,7 +147,13 @@ export function NotificationBell() {
         <div className="mb-4 flex items-center justify-between">
           <h3 className="font-semibold">{t("notifications.title")}</h3>
           {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" className="text-xs" onClick={() => markAllAsReadMutation.mutate()}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs"
+              onClick={() => markAllAsReadMutation.mutate()}
+              aria-label={t("notifications.markAllRead")}
+            >
               <Check className="mr-1 h-3 w-3" />
               {t("notifications.markAllRead")}
             </Button>
@@ -165,9 +173,18 @@ export function NotificationBell() {
                     ? "bg-red-50 border-red-200"
                     : !notification.read
                     ? "bg-primary/5"
-                    : ""
+                  : ""
                 }`}
                 onClick={() => handleNotificationClick(notification)}
+                role="button"
+                tabIndex={0}
+                aria-label={`${notification.title}. ${notification.message}`}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleNotificationClick(notification);
+                  }
+                }}
               >
                 <div className="flex items-start gap-2">
                   {getNotificationIcon(notification.type)}

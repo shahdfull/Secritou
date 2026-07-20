@@ -1,5 +1,5 @@
 // User Repository - Data access layer
-import { prismaRead as prisma } from "../config/prisma.js";
+import { prisma, prismaRead } from "../config/prisma.js";
 import type { User, Role, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 
@@ -20,11 +20,11 @@ type PublicUser = Pick<User, keyof typeof userPublicFields>;
 
 export const userRepository = {
   async findByEmail(email: string): Promise<User | null> {
-    return prisma.user.findFirst({ where: { email } });
+    return prismaRead.user.findFirst({ where: { email } });
   },
 
   async findById(id: string): Promise<PublicUser | null> {
-    return prisma.user.findFirst({
+    return prismaRead.user.findFirst({
       where: { id },
       select: userPublicFields,
     });
@@ -32,37 +32,37 @@ export const userRepository = {
 
   // Lightweight lookup of a user's service (pole) for request scoping, without inflating PublicUser.
   async findServiceId(id: string): Promise<string | null> {
-    const user = await prisma.user.findUnique({ where: { id }, select: { serviceId: true } });
+    const user = await prismaRead.user.findUnique({ where: { id }, select: { serviceId: true } });
     return user?.serviceId ?? null;
   },
 
   async countByRole(role: Role): Promise<number> {
-    return prisma.user.count({ where: { role } });
+    return prismaRead.user.count({ where: { role } });
   },
 
   async findAll(options: ListQueryOptions): Promise<PaginatedResult<PublicUser>> {
     const skip = (options.page - 1) * options.pageSize;
     const [data, total] = await Promise.all([
-      prisma.user.findMany({
+      prismaRead.user.findMany({
         select: userPublicFields,
         orderBy: { createdAt: "desc" },
         skip,
         take: options.pageSize,
       }),
-      prisma.user.count(),
+      prismaRead.user.count(),
     ]);
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
   async findByClientId(clientId: string): Promise<PublicUser[]> {
-    return prisma.user.findMany({
+    return prismaRead.user.findMany({
       where: { clientId },
       select: userPublicFields,
     });
   },
 
   async findAdmins(): Promise<PublicUser[]> {
-    return prisma.user.findMany({
+    return prismaRead.user.findMany({
       where: { role: { in: ["ADMIN", "MANAGER"] } },
       select: userPublicFields,
     });
@@ -72,7 +72,7 @@ export const userRepository = {
   // findAdmins(), which returns every manager regardless of pole. Used for alerts that should
   // reach the pole owner without also spamming every other associate's inbox.
   async findAdminsAndPoleManagers(serviceId: string | null): Promise<PublicUser[]> {
-    return prisma.user.findMany({
+    return prismaRead.user.findMany({
       where: {
         OR: [
           { role: "ADMIN" },
@@ -84,7 +84,7 @@ export const userRepository = {
   },
 
   async findByRole(role: Role): Promise<PublicUser[]> {
-    return prisma.user.findMany({ where: { role }, select: userPublicFields });
+    return prismaRead.user.findMany({ where: { role }, select: userPublicFields });
   },
 
   async create(data: {
@@ -124,7 +124,7 @@ export const userRepository = {
   },
 
   async findByEmailExcluding(email: string, excludeId: string): Promise<{ id: string } | null> {
-    return prisma.user.findFirst({
+    return prismaRead.user.findFirst({
       where: { email, NOT: { id: excludeId } },
       select: { id: true },
     });
@@ -138,7 +138,7 @@ export const userRepository = {
   },
 
   async findByEmailChangeTokenHash(tokenHash: string): Promise<{ id: string; pendingEmail: string | null } | null> {
-    return prisma.user.findFirst({
+    return prismaRead.user.findFirst({
       where: { emailChangeTokenHash: tokenHash, emailChangeTokenExpiry: { gt: new Date() } },
       select: { id: true, pendingEmail: true },
     });

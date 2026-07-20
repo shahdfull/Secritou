@@ -1,10 +1,10 @@
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { ReactNode } from "react";
@@ -19,21 +19,21 @@ interface DetailDrawerProps {
 
 export function DetailDrawer({ open, onOpenChange, title, description, children }: DetailDrawerProps) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-lg">
-        <SheetHeader>
-          <div className="flex items-center justify-between">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <SheetTitle>{title}</SheetTitle>
-              {description && <SheetDescription>{description}</SheetDescription>}
+              <DialogTitle>{title}</DialogTitle>
+              {description && <DialogDescription>{description}</DialogDescription>}
             </div>
-            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
+            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} aria-label="Fermer">
               <X className="h-4 w-4" />
             </Button>
           </div>
-        </SheetHeader>
+        </DialogHeader>
         <div className="mt-6">{children}</div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

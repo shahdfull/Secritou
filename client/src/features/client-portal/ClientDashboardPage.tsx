@@ -145,8 +145,26 @@ export function ClientDashboardPage() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {stats.map((stat) => {
           const Icon = stat.icon;
+          const interactive = !!stat.onClick;
           return (
-            <Card key={stat.title} className="rounded-3xl border border-border shadow-soft hover:shadow-md transition-shadow cursor-pointer" onClick={stat.onClick}>
+            <Card
+              key={stat.title}
+              className={[
+                "rounded-3xl border border-border shadow-soft transition-shadow",
+                interactive ? "hover:shadow-md cursor-pointer focus-within:ring-2 focus-within:ring-primary/30" : "",
+              ].join(" ")}
+              role={interactive ? "button" : undefined}
+              tabIndex={interactive ? 0 : undefined}
+              aria-label={interactive ? `${stat.title} - ouvrir la section` : stat.title}
+              onClick={stat.onClick}
+              onKeyDown={(e) => {
+                if (!interactive) return;
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  stat.onClick?.();
+                }
+              }}
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
                 <div className={`p-2 rounded-full ${stat.color}`}>

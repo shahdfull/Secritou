@@ -85,11 +85,14 @@ export const documentRepository = {
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(id: string, viewer?: { role: Role; clientId?: string | null; userId?: string | null }) {
+  async findById(id: string, viewer?: { role: Role; clientId?: string | null; serviceId?: string | null; userId?: string | null }) {
     const where: Prisma.DocumentWhereInput = { id };
     if (viewer) {
       where.accessLevel = { in: visibleAccessLevels(viewer.role) };
       if (viewer.role === "CLIENT") where.clientId = viewer.clientId ?? "__none__";
+      if (viewer.role === "MANAGER" && viewer.serviceId !== undefined) {
+        where.client = { projects: { some: { serviceId: viewer.serviceId ?? "__none__" } } };
+      }
       if (viewer.role === "FREELANCER") {
         // SEC-060: a document attached directly to a task (no projectId) needs its own branch —
         // where.project on a null relation never matches, so a task-only attachment would

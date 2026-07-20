@@ -2,6 +2,7 @@ import type { RequestHandler } from "express";
 import { ContactService } from "../services/contact.service.js";
 import type { ContactStatus } from "@prisma/client";
 import logger from "../utils/logger.js";
+import { buildServiceScope } from "../utils/serviceScope.js";
 
 const contactService = new ContactService();
 
@@ -60,7 +61,8 @@ export const convertToLead: RequestHandler = async (req, res, next) => {
     const lead = await contactService.convertToLead(
       contactRequestId,
       assignedManagerId,
-      department
+      department,
+      await buildServiceScope(req)
     );
     res.status(201).json({ data: lead });
   } catch (error) {

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { formatDate } from "@/utils/format";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,13 +14,10 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2, Download, FileText, CheckCircle2 } from "lucide-react";
+import { Loader2, Download, FileText, CheckCircle2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { documentsApi, Document, DocumentType } from "@/api/documents.api";
-
-// ---------------------------------------------------------------------------
-// Config
-// ---------------------------------------------------------------------------
+import { announce } from "@/lib/a11yAnnounce";
 
 const DOC_TYPE_LABELS: Record<DocumentType, string> = {
   WELCOME_LETTER: "Lettre de bienvenue",
@@ -53,15 +51,10 @@ const DOC_TYPE_ORDER: DocumentType[] = [
   "OTHER",
 ];
 
-// ---------------------------------------------------------------------------
-// Hooks
-// ---------------------------------------------------------------------------
-
 function useClientDocuments(projectId?: string) {
   return useQuery({
     queryKey: ["client-documents", projectId],
-    queryFn: () =>
-      documentsApi.getDocuments({ projectId, pageSize: 100 }),
+    queryFn: () => documentsApi.getDocuments({ projectId, pageSize: 100 }),
     staleTime: 30_000,
   });
 }
@@ -75,10 +68,6 @@ function useSignDocument() {
     },
   });
 }
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
 
 function DownloadButton({ doc }: { doc: Document }) {
   const [loading, setLoading] = useState(false);
@@ -124,10 +113,12 @@ function SignContractDialog({
     signMutation.mutate(doc.id, {
       onSuccess: () => {
         toast.success("Contrat signé avec succès.");
+        announce("Contrat signé avec succès.");
         onClose();
       },
       onError: () => {
         toast.error("La signature a échoué. Veuillez réessayer.");
+        announce("La signature du contrat a échoué.");
       },
     });
   };
@@ -170,6 +161,7 @@ function SignContractDialog({
           <Button
             onClick={handleSign}
             disabled={!checked || signMutation.isPending}
+            aria-label="Signer électroniquement le contrat"
           >
             {signMutation.isPending ? (
               <><Loader2 className="h-4 w-4 animate-spin mr-2" />Signature en cours…</>
@@ -210,7 +202,7 @@ function DocumentRow({ doc }: { doc: Document }) {
         <DownloadButton doc={doc} />
         {isContract && !isSigned && (
           <>
-            <Button size="sm" onClick={() => setSignOpen(true)}>
+            <Button size="sm" onClick={() => setSignOpen(true)} aria-label={`Signer le contrat ${doc.title}`}>
               Signer
             </Button>
             <SignContractDialog doc={doc} open={signOpen} onClose={() => setSignOpen(false)} />
@@ -221,13 +213,8 @@ function DocumentRow({ doc }: { doc: Document }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
-
 export function DocumentsClientPage() {
-  // The client sees docs scoped to their own clientId : backend enforces this.
-  // No projectId filter here: show all docs across all their projects.
+  const navigate = useNavigate();
   const { data, isLoading, isError } = useClientDocuments();
 
   if (isLoading) {
@@ -247,8 +234,6 @@ export function DocumentsClientPage() {
   }
 
   const docs = data?.data ?? [];
-
-  // Group by DocumentType, preserving the canonical order
   const grouped = new Map<DocumentType, Document[]>();
   for (const type of DOC_TYPE_ORDER) {
     const items = docs.filter((d) => d.type === type);
@@ -256,8 +241,8 @@ export function DocumentsClientPage() {
   }
 
   const total = docs.length;
-  // "Completed" = downloaded (has a fileKey) and, for CONTRACT, signed
   const completed = docs.filter((d) => d.fileKey && (d.type !== "CONTRACT" || !!d.signedAt)).length;
+  const hasContract = docs.some((d) => d.type === "CONTRACT");
 
   return (
     <section className="space-y-6 max-w-3xl mx-auto">
@@ -272,8 +257,23 @@ export function DocumentsClientPage() {
 
       {grouped.size === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            Aucun document disponible pour le moment.
+          <CardContent className="py-12 text-center text-muted-foreground space-y-4">
+            <FileText className="h-10 w-10 mx-auto opacity-30" />
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">Aucun document disponible pour le moment.</p>
+              <p className="text-sm max-w-md mx-auto">
+                Les documents apparaissent au fil du projet, après la proposition, la préparation du contrat et les étapes de validation.
+              </p>
+            </div>
+            {!hasContract && (
+              <p className="text-xs">
+                Si vous venez d'accepter une proposition, le contrat peut encore être en cours de génération.
+              </p>
+            )}
+            <Button variant="outline" onClick={() => navigate("/client/projects")}>
+              Voir mes projets
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
           </CardContent>
         </Card>
       ) : (

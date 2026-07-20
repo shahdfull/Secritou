@@ -1,5 +1,5 @@
 // Lead Repository - Data access layer
-import { prismaRead as prisma } from "../config/prisma.js";
+import { prisma, prismaRead } from "../config/prisma.js";
 import type { Lead, LeadStatus, Role, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildOrderBy, buildTextSearchFilter } from "../utils/listQuery.js";
@@ -33,8 +33,8 @@ export const leadRepository = {
     const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
 
     const [data, total] = await Promise.all([
-      prisma.lead.findMany({ where, orderBy, skip, take: options.pageSize }),
-      prisma.lead.count({ where }),
+      prismaRead.lead.findMany({ where, orderBy, skip, take: options.pageSize }),
+      prismaRead.lead.count({ where }),
     ]);
 
     return { data, total, page: options.page, pageSize: options.pageSize };
@@ -50,12 +50,12 @@ export const leadRepository = {
             ],
           }
         : {};
-    return prisma.lead.findFirst({ 
-      where: { 
-        id, 
-        ...(!includeArchived ? { archivedAt: null } : {}), 
-        ...serviceFilter 
-      } 
+    return prismaRead.lead.findFirst({
+      where: {
+        id,
+        ...(!includeArchived ? { archivedAt: null } : {}),
+        ...serviceFilter
+      }
     });
   },
 
@@ -69,11 +69,11 @@ export const leadRepository = {
             ],
           }
         : {};
-    return prisma.lead.findFirst({
-      where: { 
-        id, 
-        ...(!includeArchived ? { archivedAt: null } : {}), 
-        ...serviceFilter 
+    return prismaRead.lead.findFirst({
+      where: {
+        id,
+        ...(!includeArchived ? { archivedAt: null } : {}),
+        ...serviceFilter
       },
       include: {
         convertedClient: { select: { id: true, name: true, email: true } },

@@ -10,6 +10,14 @@ export const managerPermissionRepository = {
     });
   },
 
+  async findUserIdsByProfileId(profileId: string): Promise<string[]> {
+    const rows = await prisma.managerPermission.findMany({
+      where: { profileId },
+      select: { userId: true },
+    });
+    return rows.map((row) => row.userId);
+  },
+
   async create(data: {
     userId: string;
     profileId?: string;
