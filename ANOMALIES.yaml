@@ -7597,13 +7597,18 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
-      Non applicable en l'état — ce constat est une question ouverte sur un
-      usage réel (les Managers pilotent-ils leur pipeline depuis un
-      téléphone ?), pas un défaut confirmé contre une exigence du
-      référentiel. Nécessite d'abord une décision produit du porteur avant
-      qu'un critère de résolution puisse être formulé.
+      DÉCISION PRODUIT PRISE EN SESSION (2026-07-20, via AskUserQuestion :
+      « Oui, ajouter une vue mobile ») : le critère initial (« non
+      applicable en l'état ») est remplacé. C'est résolu quand un MANAGER
+      sur un écran étroit (< sm) voit ses leads regroupés par statut dans
+      une vue empilée (une section par statut non vide, en-tête + compteur,
+      cartes verticales), sans défilement horizontal requis, et peut
+      changer le statut d'un lead vers une transition valide sans geste de
+      glisser-déposer — prouvé par un test qui rend le vrai composant et
+      vérifie la présence des deux conteneurs (desktop Kanban `hidden
+      sm:block`, vue mobile `sm:hidden`) et du sélecteur de statut.
     detecte_le: "2026-07-20"
     source: audit_llm
     confiance: certain
@@ -7615,6 +7620,40 @@ anomalies:
       décision explicite du porteur (aucune exigence mobile documentée dans
       REFERENTIEL.md pour ce module ; un changement de layout ici serait une
       décision produit, pas une correction de bug).
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-20 (même pattern que
+      SEC-056/U2 sur TasksListView.tsx) : le Kanban desktop existant
+      encapsulé tel quel dans `hidden sm:block` (aucun changement de
+      comportement) ; nouvelle vue mobile `sm:hidden` — sections empilées
+      une par statut non vide (en-tête + compteur, réutilisant
+      `getStatusLabel`/`STATUS_CONFIG` déjà en place), chaque lead rendu
+      par un nouveau composant `MobileLeadCard` (mêmes infos que
+      `SortableLeadCard` : nom/email/téléphone/statut/bouton « Créer une
+      proposition »). Différence délibérée du pattern SEC-056 : la liste de
+      tâches était déjà linéaire (facile à empiler telle quelle), le Kanban
+      Leads est structuré par colonnes de statut — la vue mobile groupe
+      donc par statut plutôt que d'aplatir tous les leads ensemble, pour ne
+      pas perdre cette distinction. Le drag-and-drop dnd-kit (pointeur,
+      pas fiable au toucher) est remplacé sur mobile par un `Select`
+      n'offrant que `NEXT_STATUSES[lead.status]` (les mêmes transitions
+      valides déjà appliquées côté drag desktop) — aucune nouvelle règle
+      métier introduite, juste un second moyen d'invoquer la même mutation
+      (`handleSelectStatus`, qui réutilise `applyStatusChange` et la même
+      confirmation obligatoire pour une transition vers LOST que le drag
+      desktop, `pendingLostRef`/modale partagée). Nouvelle clé i18n FR/EN
+      `leadsPage.changeStatus`. Preuve : `LeadsKanban.test.tsx` étendu de 2
+      cas (rendu réel, présence scoppée des deux conteneurs, sélecteur de
+      statut présent sur un lead non terminal) ; les 2 cas SEC-101
+      existants corrigés pour scoper leurs assertions au conteneur desktop
+      uniquement (les deux vues sont simultanément montées dans le DOM en
+      JSDOM, qui ne simule aucune media query — sans ce scoping les tests
+      auraient compté le bouton en double). Vérification complète client :
+      `npx tsc --noEmit` (clean), `npm run lint` (12 warnings — exception
+      SEC-049, stable), `npx vitest run` (98/98, stable sur 2 exécutions),
+      `npm run build` (succès), `node scripts/check-i18n.mjs` (vert).
+      Résolu SANS confirmation CI (workflow GitHub Actions sur
+      `origin/main` en `workflow_dispatch` uniquement, déviation documentée
+      depuis la session du 2026-07-17).
 
   - id: SEC-109
     titre: "proposalAcceptCascade.test.ts réimplémente acceptWithCascade localement avec un companyId fictif — même défaut que SEC-100, fichier hors de son périmètre déclaré"

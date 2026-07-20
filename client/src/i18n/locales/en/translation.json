@@ -1274,7 +1274,8 @@
     "showArchived": "Show archived",
     "markAsLostTitle": "Mark as lost",
     "markAsLostDesc": "Indicate why this lead is lost (optional).",
-    "markAsLostPlaceholder": "E.g.: insufficient budget, project cancelled, chose a competitor..."
+    "markAsLostPlaceholder": "E.g.: insufficient budget, project cancelled, chose a competitor...",
+    "changeStatus": "Change status"
   },
   "tasksPage": {
     "title": "Tasks",

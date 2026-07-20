@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileText } from "lucide-react";
 import { useUpdateLeadStatus } from "@/hooks/useLeads";
 import type { Lead } from "@/types/lead";
@@ -220,6 +221,86 @@ function KanbanColumn({ status, leads, isDragging, onCreateProposal }: KanbanCol
   );
 }
 
+// SEC-108: the desktop Kanban's drag-and-drop is unusable on a narrow screen without horizontal
+// scroll across up to 6 fixed-width columns, and dnd-kit's pointer-based drag doesn't translate
+// to a reliable touch gesture either. Rather than reworking the drag surface for touch, the same
+// pattern as SEC-056/U2 (TasksListView.tsx) applies: the desktop Kanban stays untouched
+// (hidden below sm), and a stacked, non-draggable mobile view takes over — status changes here go
+// through an explicit Select of the same NEXT_STATUSES transitions the desktop drag already
+// enforces, not a gesture.
+interface MobileLeadCardProps {
+  lead: Lead;
+  onCreateProposal: (lead: Lead) => void;
+  onSelectStatus: (leadId: string, nextStatus: Lead["status"]) => void;
+}
+
+function MobileLeadCard({ lead, onCreateProposal, onSelectStatus }: MobileLeadCardProps) {
+  const { t } = useTranslation();
+  const canCreateProposal = CAN_CREATE_PROPOSAL.includes(lead.status);
+  const nextStatuses = NEXT_STATUSES[lead.status];
+
+  const getStatusLabel = (status: Lead["status"]) => {
+    switch (status) {
+      case "NEW":
+        return t("leadsPage.status.new");
+      case "CONTACTED":
+        return t("leadsPage.status.contacted");
+      case "QUALIFIED":
+        return t("leadsPage.status.qualified");
+      case "PROPOSAL":
+        return t("leadsPage.status.proposal");
+      case "WON":
+        return t("leadsPage.status.won");
+      case "LOST":
+        return t("leadsPage.status.lost");
+      default:
+        return status;
+    }
+  };
+
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-2">
+        <div className="font-medium text-ink">{lead.name}</div>
+        {lead.email && (
+          <div className="text-sm text-muted-foreground truncate">{lead.email}</div>
+        )}
+        {lead.phone && (
+          <div className="text-sm text-muted-foreground">{lead.phone}</div>
+        )}
+        <div className="flex items-center justify-between gap-2">
+          <Badge className={STATUS_CONFIG[lead.status].bgColor}>{getStatusLabel(lead.status)}</Badge>
+          {nextStatuses.length > 0 && (
+            <Select value="" onValueChange={(value) => onSelectStatus(lead.id, value as Lead["status"])}>
+              <SelectTrigger className="w-auto h-8 text-xs gap-1">
+                <SelectValue placeholder={t("leadsPage.changeStatus")} />
+              </SelectTrigger>
+              <SelectContent>
+                {nextStatuses.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {getStatusLabel(status)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+        {canCreateProposal && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full mt-2 gap-1"
+            onClick={() => onCreateProposal(lead)}
+          >
+            <FileText className="h-3.5 w-3.5" />
+            {t("proposals.fromLead.create")}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export const LeadsKanban = memo(function LeadsKanban({ filteredLeads }: { filteredLeads: Lead[] }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -363,49 +444,120 @@ export const LeadsKanban = memo(function LeadsKanban({ filteredLeads }: { filter
     setActiveId(null);
   }, [leadIdToStatus, queryClient, applyStatusChange, getStatusLabel, t]);
 
+  // Mobile view's status Select only ever offers NEXT_STATUSES[currentStatus] as options, so
+  // (unlike handleDragEnd, which can be dropped on any column) there is no invalid-transition
+  // case to guard against here — only the same LOST-needs-a-reason confirmation.
+  const handleSelectStatus = useCallback((leadId: string, nextStatus: Lead["status"]) => {
+    const snapshots = queryClient.getQueriesData({ queryKey: ["leads"], exact: false });
+    queryClient.setQueriesData(
+      { queryKey: ["leads"], exact: false },
+      (old: unknown) => {
+        if (!old) return old;
+        if (Array.isArray(old)) {
+          return old.map((lead) => (lead?.id === leadId ? { ...lead, status: nextStatus } : lead));
+        }
+        if (typeof old === "object" && old !== null && "data" in old) {
+          const o = old as { data?: unknown };
+          if (Array.isArray(o.data)) {
+            return {
+              ...(old as object),
+              data: o.data.map((lead) => {
+                if (typeof lead === "object" && lead !== null && "id" in lead && (lead as { id?: unknown }).id === leadId) {
+                  return { ...(lead as object), status: nextStatus };
+                }
+                return lead;
+              }),
+            };
+          }
+        }
+        return old;
+      }
+    );
+
+    if (nextStatus === "LOST") {
+      pendingLostRef.current = { leadId, snapshots };
+      setLostReason("");
+      setLostDialogOpen(true);
+    } else {
+      applyStatusChange(leadId, nextStatus, undefined, snapshots);
+    }
+  }, [queryClient, applyStatusChange]);
+
   const activeLead = useMemo(
     () => (activeId ? filteredLeads.find((lead) => lead.id === activeId) ?? null : null),
     [activeId, filteredLeads]
   );
 
   return (
-    <div className="overflow-x-auto pb-4">
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="flex gap-4 min-w-max">
-          {COLUMN_STATUSES.map((status) => (
-            <KanbanColumn
-              key={status}
-              status={status}
-              leads={groupedLeads[status]}
-              isDragging={!!activeId}
-              onCreateProposal={handleCreateProposal}
-            />
-          ))}
-        </div>
-        <DragOverlay>
-          {activeLead ? (
-            <Card className="shadow-xl opacity-80">
-              <CardContent className="p-4 space-y-2">
-                <div className="font-medium text-ink">{activeLead.name}</div>
-                {activeLead.email && (
-                  <div className="text-sm text-muted-foreground truncate">{activeLead.email}</div>
-                )}
-                {activeLead.phone && (
-                  <div className="text-sm text-muted-foreground">{activeLead.phone}</div>
-                )}
-                <Badge className={STATUS_CONFIG[activeLead.status].bgColor}>
-                  {getStatusLabel(activeLead.status)}
-                </Badge>
-              </CardContent>
-            </Card>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+    <div>
+      {/* SEC-108: desktop drag-and-drop Kanban, unchanged, hidden on narrow screens. */}
+      <div className="hidden sm:block overflow-x-auto pb-4">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="flex gap-4 min-w-max">
+            {COLUMN_STATUSES.map((status) => (
+              <KanbanColumn
+                key={status}
+                status={status}
+                leads={groupedLeads[status]}
+                isDragging={!!activeId}
+                onCreateProposal={handleCreateProposal}
+              />
+            ))}
+          </div>
+          <DragOverlay>
+            {activeLead ? (
+              <Card className="shadow-xl opacity-80">
+                <CardContent className="p-4 space-y-2">
+                  <div className="font-medium text-ink">{activeLead.name}</div>
+                  {activeLead.email && (
+                    <div className="text-sm text-muted-foreground truncate">{activeLead.email}</div>
+                  )}
+                  {activeLead.phone && (
+                    <div className="text-sm text-muted-foreground">{activeLead.phone}</div>
+                  )}
+                  <Badge className={STATUS_CONFIG[activeLead.status].bgColor}>
+                    {getStatusLabel(activeLead.status)}
+                  </Badge>
+                </CardContent>
+              </Card>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      </div>
+
+      {/* SEC-108: stacked, non-draggable mobile view — one section per status, status changes
+          go through MobileLeadCard's Select instead of a touch drag gesture. */}
+      <div className="sm:hidden space-y-4">
+        {COLUMN_STATUSES.map((status) => {
+          const leads = groupedLeads[status];
+          if (leads.length === 0) return null;
+          return (
+            <div key={status}>
+              <div className="flex items-center justify-between px-1 pb-2">
+                <h3 className="font-semibold text-ink">{getStatusLabel(status)}</h3>
+                <span className="text-sm text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                  {leads.length}
+                </span>
+              </div>
+              <div className="space-y-2">
+                {leads.map((lead) => (
+                  <MobileLeadCard
+                    key={lead.id}
+                    lead={lead}
+                    onCreateProposal={handleCreateProposal}
+                    onSelectStatus={handleSelectStatus}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       <CreateProposalFromLeadDialog
         lead={proposalLead}

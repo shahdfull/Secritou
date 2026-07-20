@@ -1274,7 +1274,8 @@
     "showArchived": "Afficher les archivés",
     "markAsLostTitle": "Marquer comme perdu",
     "markAsLostDesc": "Indiquez la raison pour laquelle ce lead est perdu (optionnel).",
-    "markAsLostPlaceholder": "Ex : budget insuffisant, projet annulé, concurrent choisi..."
+    "markAsLostPlaceholder": "Ex : budget insuffisant, projet annulé, concurrent choisi...",
+    "changeStatus": "Changer le statut"
   },
   "tasksPage": {
     "title": "Tâches",
