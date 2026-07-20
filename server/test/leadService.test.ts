@@ -1,7 +1,9 @@
-// Tests for the Lead↔Service bridge and MANAGER scoping : pure logic, no DB.
-// Mirrors constants/serviceMapping.ts and the scope filter in lead.repository.buildWhere.
+// Tests for the Lead↔Service bridge (pure logic, no DB) and the real leadService pole scoping
+// against a real database (SEC-100 — the pole-isolation half of this file used to reimplement a
+// `serviceFilter` locally that only checked `{ serviceId }`, missing the real buildWhere's
+// `assignedManagerId` OR branch entirely — it would stay green even if that branch broke).
 
-import test, { describe } from "node:test";
+import test, { describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { serviceNameForType } from "../src/constants/serviceMapping.js";
 
@@ -22,27 +24,76 @@ describe("serviceMapping.serviceNameForType", () => {
   });
 });
 
-// Mirrors the MANAGER service filter in lead.repository.buildWhere.
-function serviceFilter(scope: { userRole: string; userServiceId?: string | null }) {
-  return scope.userRole === "MANAGER"
-    ? { serviceId: scope.userServiceId ?? "__none__" }
-    : {};
-}
+let prisma: typeof import("../src/config/prisma.js").prisma;
+let leadService: typeof import("../src/services/lead.service.js").leadService;
+let dbAvailable = true;
 
-describe("lead scope filter (MANAGER pole isolation)", () => {
-  test("ADMIN is unscoped (sees all leads)", () => {
-    assert.deepEqual(serviceFilter({ userRole: "ADMIN" }), {});
-  });
+let serviceA: string;
+let serviceB: string;
+const createdLeadIds: string[] = [];
+const createdUserIds: string[] = [];
 
-  test("MANAGER with a service is scoped to that service", () => {
-    assert.deepEqual(serviceFilter({ userRole: "MANAGER", userServiceId: "svc-1" }), {
-      serviceId: "svc-1",
-    });
-  });
-
-  test("MANAGER with no service matches nothing (not the whole company)", () => {
-    assert.deepEqual(serviceFilter({ userRole: "MANAGER", userServiceId: null }), {
-      serviceId: "__none__",
-    });
-  });
+before(async () => {
+  try {
+    ({ prisma } = await import("../src/config/prisma.js"));
+    ({ leadService } = await import("../src/services/lead.service.js"));
+    await prisma.$queryRaw`SELECT 1`;
+    const services = await prisma.service.findMany({ take: 2 });
+    if (services.length < 2) throw new Error("need at least 2 seeded Service rows");
+    serviceA = services[0]!.id;
+    serviceB = services[1]!.id;
+  } catch {
+    dbAvailable = false;
+  }
 });
+
+after(async () => {
+  if (!dbAvailable) return;
+  await prisma.lead.deleteMany({ where: { id: { in: createdLeadIds } } });
+  await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
+});
+
+describe(
+  "leadService.getLeads — real MANAGER pole isolation (SEC-100)",
+  { skip: !dbAvailable ? "no reachable database" : false },
+  () => {
+    test("an ADMIN sees leads across every pole", async () => {
+      const leadA = await prisma.lead.create({ data: { name: "sec100-svc admin sees A", serviceId: serviceA } });
+      const leadB = await prisma.lead.create({ data: { name: "sec100-svc admin sees B", serviceId: serviceB } });
+      createdLeadIds.push(leadA.id, leadB.id);
+
+      const result = await leadService.getLeads({ page: 1, pageSize: 50 }, { userRole: "ADMIN" });
+      assert.ok(result.data.some((l) => l.id === leadA.id) && result.data.some((l) => l.id === leadB.id));
+    });
+
+    test("a MANAGER with a pole only sees leads in that pole", async () => {
+      const ownLead = await prisma.lead.create({ data: { name: "sec100-svc own pole", serviceId: serviceA } });
+      const otherLead = await prisma.lead.create({ data: { name: "sec100-svc other pole", serviceId: serviceB } });
+      createdLeadIds.push(ownLead.id, otherLead.id);
+
+      const result = await leadService.getLeads({ page: 1, pageSize: 50 }, { userRole: "MANAGER", userServiceId: serviceA });
+      assert.ok(result.data.some((l) => l.id === ownLead.id));
+      assert.ok(!result.data.some((l) => l.id === otherLead.id));
+    });
+
+    test("a MANAGER also sees a lead assigned directly to them, even outside their own pole", async () => {
+      const managerUser = await prisma.user.create({
+        data: { email: `sec100-svc-mgr-${Date.now()}@test.local`, name: "Manager B2", passwordHash: "x", role: "MANAGER", serviceId: serviceB },
+      });
+      createdUserIds.push(managerUser.id);
+      const assignedLead = await prisma.lead.create({ data: { name: "sec100-svc assigned cross-pole", serviceId: serviceA, assignedManagerId: managerUser.id } });
+      createdLeadIds.push(assignedLead.id);
+
+      const result = await leadService.getLeads({ page: 1, pageSize: 50 }, { userRole: "MANAGER", userServiceId: serviceB, userId: managerUser.id });
+      assert.ok(result.data.some((l) => l.id === assignedLead.id), "assignedManagerId must grant visibility regardless of serviceId");
+    });
+
+    test("a MANAGER with no service (userServiceId: null) matches nothing by serviceId, not the whole company", async () => {
+      const lead = await prisma.lead.create({ data: { name: "sec100-svc no-service manager", serviceId: serviceA } });
+      createdLeadIds.push(lead.id);
+
+      const result = await leadService.getLeads({ page: 1, pageSize: 50 }, { userRole: "MANAGER", userServiceId: null });
+      assert.ok(!result.data.some((l) => l.id === lead.id), "a MANAGER with no pole must not fall back to seeing every lead");
+    });
+  }
+);

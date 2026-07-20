@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-108
+dernier_id: SEC-109
 
 anomalies:
   - id: SEC-001
@@ -7123,7 +7123,7 @@ anomalies:
     regle_violee: null
     classe: "test_reimplemente_companyid_fictif"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand ces trois fichiers de test appellent réellement le
       code de production CRM (leadRepository.findById/update/delete et son
@@ -7166,6 +7166,58 @@ anomalies:
       résolution ». Signalé, non corrigé (audit lecture seule ; par ailleurs
       « un test rouge est une hypothèse sur le code » — ne pas réaligner sans
       instruction).
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-20 : les trois fichiers
+      réécrits pour appeler le vrai code contre une base migrée, plus de
+      `companyId` fictif nulle part.
+      `lead.repository.test.ts` — appelle `leadRepository.findById`/
+      `findAll` réels : un MANAGER hors pôle reçoit `null`, un MANAGER dans
+      son pôle lit la ressource, un MANAGER lit une ressource assignée
+      directement à lui (`assignedManagerId`) même hors de son pôle
+      (branche du vrai `OR` que l'ancienne version ne couvrait jamais), un
+      ADMIN lit sans restriction, `findById` exclut un lead archivé par
+      défaut et l'inclut sur demande explicite, `findAll` filtre
+      correctement une liste MANAGER (6 cas).
+      `leadService.test.ts` — le bloc `serviceMapping.serviceNameForType`
+      (déjà réel) conservé tel quel ; le bloc `serviceFilter` fictif
+      remplacé par des appels réels à `leadService.getLeads` : ADMIN voit
+      tous pôles, MANAGER ne voit que son pôle, MANAGER voit aussi une
+      ressource assignée directement hors pôle (couvre enfin la branche
+      `assignedManagerId` que l'ancien mock ne testait jamais), MANAGER
+      sans pôle (`userServiceId: null`) ne voit rien par défaut plutôt que
+      tout (4 cas).
+      `proposal.service.test.ts` — entièrement réécrit, appelle
+      `proposalService.reject`/`send`/`update`/`acceptWithCascade` réels :
+      reject transitionne un SENT vers REJECTED et refuse un DRAFT
+      (`INVALID_PROPOSAL_TRANSITION`), send transitionne un DRAFT vers
+      SENT, update reverte un SENT/VIEWED vers DRAFT sur un vrai changement
+      de contenu (avec entrée d'historique réelle) mais pas sur un no-op ni
+      un champ non-contenu (pdfUrl), acceptWithCascade rejette une version
+      périmée (`PROPOSAL_VERSION_MISMATCH`, après un vrai bump de version)
+      et réussit avec création de projet quand la version correspond
+      (8 cas). Note : `acceptWithCascade` lui-même est déjà couvert par du
+      code réel ailleurs (`portalActivationOnPayment.test.ts`,
+      `projectCreateArchiveRestore.test.ts`,
+      `proposalScopeAfterCreation.test.ts`), ce fichier ne duplique que le
+      guard de version, jamais couvert par du vrai code avant cette
+      session.
+
+      DÉFAUT ANALOGUE REPÉRÉ HORS PÉRIMÈTRE, NON TRAITÉ ICI :
+      `server/test/proposalAcceptCascade.test.ts` a exactement le même
+      défaut (réimplémentation locale avec `companyId` fictif de
+      `acceptWithCascade`) — hors du périmètre déclaré de SEC-100 (qui ne
+      listait que 3 fichiers), non corrigé dans cette passe. À signaler
+      séparément si une session future traite ce fichier.
+
+      Vérification complète serveur : `npx tsc --noEmit` (clean), `npm run
+      lint` (0/0), `npx tsx --test test/run-all.test.ts` (394/394, stable
+      sur 2 exécutions consécutives — le nombre total de tests baisse
+      légèrement par rapport à avant cette passe car les tests fictifs
+      unitaires très nombreux sont remplacés par moins de tests réels
+      contre une vraie base, chacun prouvant davantage). Résolu SANS
+      confirmation CI (workflow GitHub Actions sur `origin/main` en
+      `workflow_dispatch` uniquement, déviation documentée depuis la
+      session du 2026-07-17).
 
   - id: SEC-101
     titre: "Bouton « Créer une proposition » sur un lead : les 3 couches (Kanban, dialogue détail, serveur) se contredisent sur les statuts autorisés — échoue à 100% depuis le Kanban"
@@ -7563,3 +7615,37 @@ anomalies:
       décision explicite du porteur (aucune exigence mobile documentée dans
       REFERENTIEL.md pour ce module ; un changement de layout ici serait une
       décision produit, pas une correction de bug).
+
+  - id: SEC-109
+    titre: "proposalAcceptCascade.test.ts réimplémente acceptWithCascade localement avec un companyId fictif — même défaut que SEC-100, fichier hors de son périmètre déclaré"
+    perimetre: "4.1 CRM & Pipeline commercial — server/test/proposalAcceptCascade.test.ts"
+    regle_violee: null
+    classe: "test_reimplemente_companyid_fictif"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand ce fichier appelle réellement
+      `proposalService.acceptWithCascade` (importé et exécuté) contre une
+      base migrée, comme le fait déjà
+      `server/test/proposalScopeAfterCreation.test.ts` pour d'autres
+      aspects de la même fonction — pas une réimplémentation locale portant
+      un `companyId` qui n'existe nulle part dans ce dépôt mono-tenant.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Repéré en vérifiant SEC-100 (même classe de défaut, fichier
+      supplémentaire non listé dans son périmètre initial) : lu directement
+      `server/test/proposalAcceptCascade.test.ts` lignes 1-40 — `type
+      Proposal` porte un champ `companyId`, le fichier reproduit
+      manuellement toute la logique de cascade de `acceptWithCascade` au
+      lieu d'importer le vrai service. `acceptWithCascade` lui-même est
+      déjà couvert par du code réel ailleurs
+      (`portalActivationOnPayment.test.ts`,
+      `projectCreateArchiveRestore.test.ts`,
+      `proposalScopeAfterCreation.test.ts`, et désormais le guard de
+      version dans `proposal.service.test.ts` réécrit sous SEC-100) — donc
+      pas de trou de couverture réel sur le comportement de production,
+      seulement un test vert trompeur en plus qui ne serait jamais rouge si
+      la vraie cascade dérivait. Signalé, non corrigé (repéré hors du
+      périmètre de la tâche en cours).
