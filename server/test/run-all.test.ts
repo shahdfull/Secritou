@@ -99,3 +99,4 @@ import "./creditNoteNumberConcurrency.test.ts";
 import "./invoiceAuditLog.test.ts";
 import "./clientInviteResend.test.ts";
 import "./leadDuplicateEmail.test.ts";
+import "./reportsPageSortOrder.test.ts";

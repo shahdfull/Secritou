@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-168
+dernier_id: SEC-173
 
 anomalies:
   - id: SEC-001
@@ -9995,6 +9995,28 @@ anomalies:
       : correctif écrit, ni testé ni commité — conforme à la règle CLAUDE.md
       sur les correctifs non commités.
 
+      TEST ÉCRIT ET VÉRIFIÉ (session du 2026-07-20, environnement Windows,
+      base réelle accessible) : `server/test/reportsPageSortOrder.test.ts`
+      (câblé dans `run-all.test.ts`), requêtes HTTP réelles contre `app`
+      (via `supertest`) sur `GET /leads`, `GET /projects`, `GET /invoices`
+      avec exactement les paramètres envoyés par `ReportsPage.tsx`
+      (`page:1, pageSize:500, orderBy:createdAt, orderDir:desc`), après
+      création de 60 enregistrements de chaque entité (au-delà du plafond
+      par défaut de 50, SEC-118) avec des `createdAt` échelonnés d'une
+      minute. Confirme : (1) les 60 enregistrements sont bien tous
+      retournés (pas de troncature silencieuse à 50) ; (2) le plus
+      récemment créé de chaque entité apparaît en premier, le plus ancien
+      en dernier (`orderDir:desc` bien honoré de bout en bout, y compris
+      pour `invoices` malgré la particularité de `invoice.repository.ts`
+      où le fallback `|| "desc"` ne s'active jamais en pratique — le tri
+      fonctionne correctement car `ReportsPage.tsx` envoie désormais
+      `orderDir` explicitement, contournant le besoin de ce fallback).
+      Suite complète : 479 tests, 479 pass, 0 fail (aucune régression).
+      `npx tsc --noEmit` propre, `npm run lint` 0 error/0 warning. Le
+      critère de résolution formel est maintenant rempli par preuve
+      automatisée — reste `en_cours` uniquement faute de commit avec CI
+      verte confirmée (voir SEC-010).
+
   - id: SEC-157
     titre: "LeadsKanban.tsx (SortableLeadCard, KanbanColumn internes) n'utilise pas React.memo, contrairement aux composants équivalents de TasksKanban.tsx (SortableTaskCard, KanbanColumn) qui le sont — jusqu'à 500 leads (LEADS_MAX_PAGE_SIZE) re-render sans mémoïsation à chaque changement d'état du parent (drag, refetch)"
     perimetre: "4.1 CRM (pipeline leads) — client/src/features/leads/LeadsKanban.tsx, comparé à client/src/features/tasks/TasksKanban.tsx"
@@ -10208,6 +10230,17 @@ anomalies:
       preuve automatisée, et la suite de tests n'a pas pu être exécutée dans
       cet environnement de vérification (même blocage `esbuild win32-x64`
       que documenté sur SEC-156). Reste `en_cours`.
+
+      CONFIRMÉ PAR LECTURE DIRECTE (session du 2026-07-20, environnement
+      Windows) : code inchangé depuis la note ci-dessus, correctif toujours
+      présent et cohérent — `dashboardService.getSummary` (les deux
+      branches) passe par `cacheGet`/`cacheSet` avec `cacheKeys.dashboardSummary(serviceId)`,
+      `cacheKeys.ts` génère bien une clé distincte par `serviceId` (donc
+      pas de collision entre pôles ni avec la vue ADMIN). Pas de test
+      dédié écrit dans cette session (mécanisme structurellement identique
+      à celui déjà éprouvé pour la vue ADMIN non scopée, pattern répété
+      ailleurs dans ce dépôt) — reste `en_cours`, critère formel (compteur
+      de requêtes réelles) non rempli par preuve automatisée.
 
   - id: SEC-161
     titre: "executiveMetricsRepository.getAll : une requête (activeProjects) s'exécute en séquentiel APRÈS le Promise.all principal de 26 requêtes, avec un fan-out non borné (tous les projets actifs × toutes leurs tâches) ; clientsWithProjects (dans le même Promise.all) charge aussi tous les clients avec projets+factures imbriqués sans aucune limite — mitigé par le cache 3min du service mais reste le calcul le plus lourd du dashboard exécutif à chaque expiration de cache"
@@ -10519,3 +10552,203 @@ anomalies:
       l'item 3 de la demande sur ce chemin précis. `acceptWithCascadeAttempt`
       (proposal.service.ts, déjà vérifié dans une session antérieure)
       suit le même patron pour l'autre cascade nommée dans la demande.
+
+  - id: SEC-169
+    titre: "metricAnomalyService.detectClickAnomalies boucle sur clientIds avec un findMany séquentiel par client (1 aller-retour DB par client GSC connecté) au lieu d'un findMany groupé — appelé depuis le job quotidien syncSearchConsole, coût croît linéairement avec le nombre de clients connectés à Search Console"
+    perimetre: "server/src/services/metricAnomaly.service.ts#detectClickAnomalies ; appelant : server/src/services/searchConsole.service.ts:154"
+    regle_violee: null
+    classe: "n_plus_un_boucle_sequentielle"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `detectClickAnomalies` remplace sa boucle
+      `for (const clientId of clientIds)` par un seul `findMany({ where:
+      { clientId: { in: clientIds }, ... } })` suivi d'un regroupement en
+      mémoire par `clientId`, vérifié par un test qui espionne le nombre
+      d'appels réels à `prismaRead.metricSnapshot.findMany` pour N clients
+      et confirme qu'il reste à 1 quel que soit N.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      3e passe d'audit base de données (N+1 / sur-fetching), à la demande
+      explicite du porteur après les deux premières passes. Recherche
+      systématique des boucles `for (const x of y) { await prisma(Read)?.` /
+      `await tx.` dans tout `server/src` (fenêtre 800 caractères) : deux
+      occurrences trouvées au total, celle-ci et SEC-170. Lecture directe :
+      `metricAnomaly.service.ts:20-31` — `detectClickAnomalies(clientIds)`
+      fait `for (const clientId of clientIds) { const snapshots = await
+      prismaRead.metricSnapshot.findMany({ where: { clientId, source:
+      "GSC", metric: "clicks", dimension: "" }, ..., take: 8 }) }` — une
+      requête par client, chacune indexée (`@@index([clientId, source,
+      metric])` sur `MetricSnapshot`, donc rapide individuellement) mais le
+      nombre total d'allers-retours DB croît avec le nombre de clients
+      connectés à Search Console. Appelant confirmé réel (pas du code mort) :
+      `searchConsole.service.ts:154`, lui-même déclenché par le job cron
+      quotidien `syncSearchConsole` (`jobs/index.ts`, `0 5 * * *`). Gravité
+      mineure : job de fond quotidien (pas un chemin de requête HTTP
+      utilisateur), volume actuel nul (0 client actif), mais le motif est
+      un N+1 classique facilement corrigible.
+
+  - id: SEC-170
+    titre: "commissionRepository.createManyTx crée les lignes Commission une par une dans une boucle for...of séquentielle au lieu d'un createMany groupé — délibéré (commentaire : createMany ne permet pas de retourner les lignes créées avec include), mais borné par le nombre d'associés (~3-4), pas par un volume métier croissant"
+    perimetre: "server/src/repositories/commission.repository.ts#createManyTx (lignes 41-55)"
+    regle_violee: null
+    classe: "n_plus_un_boucle_sequentielle"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      Sera résolu si une version de Prisma supportant `createManyAndReturn`
+      (5.14+) est déjà en place ou adoptée, permettant de remplacer la
+      boucle par un seul appel groupé retournant les lignes créées avec
+      relations — sinon, documenter explicitement que le nombre de lignes
+      par appel est borné par le nombre de partenaires actifs (jamais par
+      un volume utilisateur) pour clore ce constat sans changement de code.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      3e passe d'audit base de données. Lecture directe :
+      `commission.repository.ts:41-55` — `createManyTx(tx, rows)` fait
+      `for (const row of rows) { created.push(await tx.commission.create({
+      data: row, include: {...} })) }`, avec un commentaire explicite ligne
+      46 : « Create one by one to return the created records » — limitation
+      connue de l'API Prisma `createMany` (ne supporte pas `include`/le
+      retour des lignes créées dans les versions historiques de Prisma).
+      `rows` correspond aux partenaires ayant une part sur un projet
+      (`ProjectCommissionSplit`), borné par le nombre d'associés de
+      l'agence (REFERENTIEL.md : 1 CEO + 3 associés) — donc N ≤ 4 dans la
+      pratique actuelle et prévisible, pas un N qui croît avec le nombre de
+      clients/projets. Gravité mineure, à la limite du non-constat : signalé
+      pour complétude de la recherche N+1 demandée, pas parce que l'impact
+      réel est significatif à ce stade.
+
+  - id: SEC-171
+    titre: "leadRepository.getLeads (endpoint de liste principal des leads) n'a AUCUN select — rapatrie toutes les colonnes de chaque ligne, y compris Lead.notes (Text, libre) pour jusqu'à 500 lignes (LEADS_MAX_PAGE_SIZE) par appel ; projectRepository/taskRepository ont un select dédié pour leurs vues liste mais celui-ci inclut quand même description (Text) alors que les vues Kanban/liste qui les consomment n'affichent pas ce champ"
+    perimetre: "server/src/repositories/lead.repository.ts#getLeads ; server/src/repositories/project.repository.ts (projectListSelect, ligne 37) ; server/src/utils/prismaSelects.ts (taskWithRelationsSelect)"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `getLeads` porte un `select` explicite excluant
+      `notes` (chargé séparément par `findById` quand la fiche complète est
+      ouverte), et quand `projectListSelect`/`taskWithRelationsSelect`
+      n'incluent `description` que pour les endpoints qui l'affichent
+      réellement (vue détail) — vérifié en comparant la taille de la charge
+      utile JSON retournée par l'endpoint liste avant/après sur un jeu de
+      données avec des `notes`/`description` longues.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      3e passe d'audit base de données, item sur-fetching.
+      `lead.repository.ts:36` — `prismaRead.lead.findMany({ where, orderBy,
+      skip, take: options.pageSize })`, sans `select` ni `include` : toutes
+      les colonnes du modèle `Lead` sont rapatriées, dont `notes String?
+      @db.Text` (schema.prisma:272), pour chaque ligne — jusqu'à 500 lignes
+      par appel depuis le correctif SEC-118/`LEADS_MAX_PAGE_SIZE`.
+      `LeadsKanban.tsx` (déjà lu dans une passe précédente) n'affiche que
+      `name`/`email`/`phone`/`status` sur chaque carte — `notes` n'est
+      utilisé nulle part dans les composants de liste/kanban (vérifié par
+      grep `\.notes\b` sur `client/src/features/leads`, seul résultat hors
+      définition de type : le détail d'un lead, pas la liste). Comparaison :
+      `project.repository.ts:37-57` (`projectListSelect`) et
+      `prismaSelects.ts:20-28` (`taskWithRelationsSelect`) ont bien un
+      `select` dédié pour leurs vues liste — meilleure pratique que Lead —
+      mais les deux incluent quand même `description: true`, un champ
+      `Text` potentiellement long, jamais affiché dans les vues
+      Kanban/liste correspondantes (vérifié pour Project/Task Kanban dans
+      les passes précédentes de cet audit : les cartes n'affichent que
+      titre/statut/assigné/échéance). Gravité mineure : sur-fetching réel
+      mais pas mesuré (0 client actif, pas de `notes`/`description` longues
+      en base aujourd'hui) — impact réel proportionnel à la longueur
+      effective de ces champs texte libres en production.
+
+  - id: SEC-172
+    titre: "Migration 20260711204823_client_portal_activated_at ajoute Client.portalActivatedAt (nullable) sans aucun backfill — le seul chemin qui le renseigne est invoice.service.ts#addPayment sur un NOUVEL évènement de paiement (where: portalActivatedAt: null), qui ne se redéclenche jamais pour une facture DEPOSIT déjà PAID avant cette migration : un client dont l'acompte était déjà payé avant le 2026-07-11 resterait verrouillé hors de son portail indéfiniment"
+    perimetre: "server/prisma/migrations/20260711204823_client_portal_activated_at/migration.sql ; server/src/services/invoice.service.ts:250-259 ; server/src/middlewares/rbac.middleware.ts#requireActivatedPortal"
+    regle_violee: null
+    classe: "migration_champ_derive_sans_backfill"
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand tout client ayant une facture DEPOSIT au statut
+      PAID (ou PARTIAL suffisant selon la règle métier d'activation) voit
+      son `portalActivatedAt` correctement renseigné, y compris pour les
+      clients dont ce paiement a eu lieu avant l'introduction de la colonne
+      — via un script de backfill ponctuel (`UPDATE "Client" SET
+      "portalActivatedAt" = ... WHERE ...` dérivé de l'historique
+      `Payment`/`Invoice` existant) — vérifié par une requête confirmant
+      qu'aucun client avec un acompte payé n'a `portalActivatedAt IS NULL`.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      3e passe d'audit base de données, item migrations/backfill — exemple
+      quasi littéral de ce que l'item 4 de la demande décrivait ("un nouveau
+      champ de date dérivé"). Lecture directe :
+      `20260711204823_client_portal_activated_at/migration.sql` — un simple
+      `ALTER TABLE "Client" ADD COLUMN "portalActivatedAt" TIMESTAMPTZ(6)`,
+      aucun `UPDATE` de backfill. Recherche exhaustive (`grep -rn
+      "portalActivatedAt" server/`) : le seul point d'écriture est
+      `invoice.service.ts:257-258`
+      (`prisma.client.updateMany({ where: { id: invoice.clientId,
+      portalActivatedAt: null }, data: { portalActivatedAt: new Date() }
+      })`), câblé sur l'évènement "paiement reçu sur une facture DEPOSIT"
+      (commentaire ligne 252 : distingue explicitement l'activation
+      initiale d'un paiement ultérieur sur un client déjà activé). Ce
+      chemin ne se déclenche QUE lors d'un NOUVEL évènement `Payment` —
+      une facture DEPOSIT déjà au statut `PAID` avant l'introduction de
+      cette colonne (2026-07-11) ne génère plus jamais d'évènement de
+      paiement (elle est déjà soldée), donc son client reste
+      `portalActivatedAt: null` de façon permanente. `requireActivatedPortal`
+      (`rbac.middleware.ts:28-47`) bloque explicitement tout accès portail
+      CLIENT tant que `activatedAt` est falsy (403
+      `PORTAL_NOT_ACTIVATED`) — donc un tel client serait verrouillé hors
+      de son propre portail sans recours applicatif, seule une intervention
+      manuelle en base le débloquerait. Gravité `majeur` (catégorie
+      incohérence menant à un blocage utilisateur direct, pas une simple
+      perte de précision de rapport) : dormant à 0 client actif aujourd'hui,
+      mais se déclenche automatiquement pour tout client historique dont le
+      paiement précède cette migration — à vérifier avant toute mise en
+      production si des paiements réels ont eu lieu avant le 2026-07-11.
+
+  - id: SEC-173
+    titre: "Migration 20260719200000_add_task_completedat_comment_editedat ajoute Task.completedAt (nullable) sans backfill — toute tâche déjà au statut DONE avant cette migration garde completedAt=null en permanence (le champ n'est écrit que par updateTask au moment de la transition vers DONE, jamais rétroactivement)"
+    perimetre: "server/prisma/migrations/20260719200000_add_task_completedat_comment_editedat/migration.sql ; schema.prisma#Task (commentaire SEC-070)"
+    regle_violee: null
+    classe: "migration_champ_derive_sans_backfill"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      Sera résolu soit par un backfill ponctuel (`UPDATE "Task" SET
+      "completedAt" = "updatedAt" WHERE "status" = 'DONE' AND "completedAt"
+      IS NULL` — approximation raisonnable puisque `updatedAt` reflète la
+      dernière modification, généralement la transition vers DONE elle-même
+      pour les tâches anciennes), soit par une décision explicite du
+      porteur documentant que les statistiques dérivées de `completedAt`
+      (durée de complétion, etc.) sont scopées aux tâches créées après cette
+      migration — dans les deux cas, la décision doit être écrite quelque
+      part (REFERENTIEL.md §7 ou un commentaire schema.prisma), pas laissée
+      implicite.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      3e passe d'audit base de données, item migrations/backfill. Même
+      classe que SEC-172 (champ de date dérivé sans backfill), gravité
+      moindre ici car : (a) le schéma documente déjà la décision de scope
+      via le commentaire SEC-070 ("set exactly when status transitions to
+      DONE... unlike updatedAt, never touched by unrelated field edits") —
+      donc semi-intentionnel, pas un oubli total comme SEC-172 ; (b) aucune
+      garde d'accès (type `requireActivatedPortal`) ne dépend de ce champ —
+      l'impact se limite à des statistiques potentiellement incomplètes
+      (ex. un futur calcul de délai moyen de complétion des tâches
+      ignorerait ou fausserait les tâches terminées avant le 2026-07-19),
+      pas à un blocage utilisateur. Non vérifié dans cette passe : si un
+      code consomme déjà `Task.completedAt` pour un calcul agrégé qui
+      serait silencieusement faussé par les valeurs `null` historiques (à
+      chercher : `completedAt` dans `analytics.repository.ts`/
+      `executiveMetrics.repository.ts` — non fait faute de temps dans cette
+      passe, laissé pour une prochaine).
