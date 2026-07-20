@@ -169,13 +169,11 @@ export const receiveAiSpecs: RequestHandler = async (req, res, next) => {
   try {
     const { sections, roadmap } = req.body ?? {};
     if (!sections && !roadmap) {
-      res.status(400).json({ error: "sections and/or roadmap is required" });
-      return;
+      throw new HttpError(400, "sections and/or roadmap is required", "MISSING_AI_SPECS_PAYLOAD");
     }
     const [admin] = await userRepository.findAdmins();
     if (!admin) {
-      res.status(409).json({ error: "No ADMIN user found to attribute the generated document to" });
-      return;
+      throw new HttpError(409, "No ADMIN user found to attribute the generated document to", "NO_ADMIN_FOUND");
     }
 
     const projectId = req.params.id as string;

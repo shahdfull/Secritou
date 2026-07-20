@@ -88,8 +88,14 @@ router.get("/me", getMe);
  *             properties:
  *               name:
  *                 type: string
+ *               phone:
+ *                 type: string
+ *                 nullable: true
+ *                 maxLength: 50
+ *                 description: Send null (not omitted) to clear a previously saved phone number.
  *           example:
  *             name: Jane Doe
+ *             phone: "+21612345678"
  *     responses:
  *       200:
  *         description: User updated
@@ -180,9 +186,25 @@ router.post("/me/heartbeat", heartbeat);
  *                 data:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/User'
- *                 meta:
- *                   $ref: '#/components/schemas/PaginationMeta'
+ *                     allOf:
+ *                       - $ref: '#/components/schemas/User'
+ *                       - type: object
+ *                         properties:
+ *                           connectedTimeAverages:
+ *                             type: object
+ *                             properties:
+ *                               today:
+ *                                 type: number
+ *                               weekly:
+ *                                 type: number
+ *                               monthly:
+ *                                 type: number
+ *                 total:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
+ *                 pageSize:
+ *                   type: integer
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
@@ -192,22 +214,45 @@ router.get("/", authorize("ADMIN", "MANAGER"), getUsers);
  * @swagger
  * /users/permissions:
  *   get:
- *     summary: Get current user permissions
+ *     summary: Get the permission matrix for all roles
+ *     description: >
+ *       Returns the full static permission matrix (all 4 roles), not just the permissions of
+ *       the calling user — the caller is expected to look up its own role's entry client-side.
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: User permissions
+ *         description: Permission matrix, keyed by role
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
  *                 data:
- *                   type: array
- *                   items:
- *                     type: string
+ *                   type: object
+ *                   properties:
+ *                     ADMIN:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                     MANAGER:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                     FREELANCER:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                     CLIENT:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                   example:
+ *                     ADMIN: [manage_users, manage_companies, manage_clients, manage_leads, manage_projects, manage_tasks, view_analytics, view_documents, view_settings]
+ *                     MANAGER: [manage_projects, manage_tasks, view_clients, view_leads, view_analytics, view_documents]
+ *                     FREELANCER: [view_projects, update_my_tasks, manage_my_profile]
+ *                     CLIENT: [view_my_projects, view_my_service_requests, view_my_documents]
  */
 router.get("/permissions", getPermissions);
 

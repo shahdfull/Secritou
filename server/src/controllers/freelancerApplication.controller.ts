@@ -82,12 +82,10 @@ export const createApplication: RequestHandler[] = [
       const portfolioFile = files?.portfolioFile?.[0];
 
       if (!cvFile) {
-        res.status(400).json({ error: "CV file is required" });
-        return;
+        throw new HttpError(400, "CV file is required", "CV_FILE_REQUIRED");
       }
       if (!portfolioFile) {
-        res.status(400).json({ error: "Portfolio file is required" });
-        return;
+        throw new HttpError(400, "Portfolio file is required", "PORTFOLIO_FILE_REQUIRED");
       }
       assertFileSizeLimits(cvFile, portfolioFile);
 
@@ -163,8 +161,7 @@ export const setAiSummary: RequestHandler = async (req, res, next) => {
   try {
     const summary = typeof req.body?.aiSummary === "string" ? req.body.aiSummary.trim() : "";
     if (!summary) {
-      res.status(400).json({ error: "aiSummary is required" });
-      return;
+      throw new HttpError(400, "aiSummary is required", "MISSING_AI_SUMMARY");
     }
     const application = await freelancerApplicationService.setAiSummary(req.params.id as string, summary);
     res.json({ data: application });

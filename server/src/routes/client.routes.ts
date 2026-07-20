@@ -44,6 +44,12 @@ router.use(authenticate);
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/Client'
+ *                 total:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
+ *                 pageSize:
+ *                   type: integer
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
@@ -113,8 +119,8 @@ router.get("/:id/credit-notes", authorize("ADMIN", "MANAGER"), requirePermission
  *               properties:
  *                 data:
  *                   $ref: '#/components/schemas/Client'
- *       400:
- *         $ref: '#/components/responses/BadRequest'
+ *       422:
+ *         $ref: '#/components/responses/ValidationError'
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
@@ -151,8 +157,8 @@ router.post("/", sensitiveWriteRateLimit, authorize("ADMIN"), validate(createCli
  *               properties:
  *                 data:
  *                   $ref: '#/components/schemas/Client'
- *       400:
- *         $ref: '#/components/responses/BadRequest'
+ *       422:
+ *         $ref: '#/components/responses/ValidationError'
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:

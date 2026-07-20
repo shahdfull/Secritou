@@ -6,7 +6,7 @@ const options = {
     info: {
       title: "Secritou Platform API",
       version: "1.0.0",
-      description: "Multi-tenant project management platform",
+      description: "Mono-tenant project management platform for a single digital agency",
       contact: {
         name: "Secritou Team",
         url: "https://secritou.com",
@@ -35,15 +35,20 @@ const options = {
         },
       },
       responses: {
-        BadRequest: {
-          description: "Bad request - validation error",
+        ValidationError: {
+          description: "Request body failed Zod validation",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/Error" },
+              schema: { $ref: "#/components/schemas/ValidationErrorBody" },
               example: {
-                statusCode: 400,
+                error: {
+                  code: "VALIDATION_ERROR",
+                  message: "Validation failed",
+                  details: { fieldErrors: { email: ["Invalid email format"] } },
+                },
                 message: "Validation failed",
-                details: { field: "email", issue: "Invalid email format" },
+                issues: { fieldErrors: { email: ["Invalid email format"] } },
+                details: { fieldErrors: { email: ["Invalid email format"] } },
               },
             },
           },
@@ -104,6 +109,25 @@ const options = {
           },
           required: ["statusCode", "message"],
         },
+        ValidationErrorBody: {
+          type: "object",
+          description: "Actual shape returned for a 422 Zod validation failure (error.middleware.ts).",
+          properties: {
+            error: {
+              type: "object",
+              properties: {
+                code: { type: "string", example: "VALIDATION_ERROR" },
+                message: { type: "string", example: "Validation failed" },
+                details: { type: "object" },
+              },
+              required: ["code", "message"],
+            },
+            message: { type: "string", example: "Validation failed" },
+            issues: { type: "object", description: "Zod's error.flatten() output." },
+            details: { type: "object" },
+          },
+          required: ["error", "message"],
+        },
         PaginationMeta: {
           type: "object",
           properties: {
@@ -144,6 +168,11 @@ const options = {
               enum: ["ADMIN", "MANAGER", "CLIENT", "FREELANCER"],
               example: "CLIENT",
             },
+            phone: {
+              type: "string",
+              nullable: true,
+              example: "+21612345678",
+            },
             clientId: {
               type: "string",
               format: "uuid",
@@ -166,12 +195,12 @@ const options = {
         },
         AuthTokens: {
           type: "object",
+          description:
+            "Only accessToken is returned in the JSON body. The refresh token is never present " +
+            "here — it is set as an HTTP-only Secure cookie (see the Set-Cookie response header) " +
+            "and is not readable from JavaScript or from this schema.",
           properties: {
             accessToken: {
-              type: "string",
-              example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-            },
-            refreshToken: {
               type: "string",
               example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
             },
@@ -408,7 +437,9 @@ const options = {
       { name: "Projects", description: "Project management" },
       { name: "Tasks", description: "Task management" },
       { name: "Freelancers", description: "Freelancer profiles" },
+      { name: "Proposals", description: "Proposal management" },
       { name: "Invoices", description: "Invoice management" },
+      { name: "Approvals", description: "Client approval requests" },
       { name: "Service Requests", description: "Service request management" },
       { name: "Notifications", description: "Notification management" },
       { name: "Health", description: "Health check endpoints" },

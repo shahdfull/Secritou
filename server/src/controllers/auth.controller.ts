@@ -7,6 +7,7 @@ import {
 } from "../utils/authCookies.js";
 import { cacheDel } from "../cache/cacheService.js";
 import { cacheKeys } from "../cache/cacheKeys.js";
+import { HttpError } from "../utils/httpError.js";
 
 const authService = new AuthService();
 
@@ -46,8 +47,7 @@ export const refresh: RequestHandler = async (req, res, next) => {
   try {
     const refreshToken = getRefreshTokenFromRequest(req);
     if (!refreshToken) {
-      res.status(401).json({ message: "Refresh token required" });
-      return;
+      throw new HttpError(401, "Refresh token required", "REFRESH_TOKEN_REQUIRED");
     }
     const data = await authService.refresh(refreshToken);
     sendAuthResponse(res, data);

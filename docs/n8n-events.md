@@ -19,6 +19,19 @@ fenêtre de fraîcheur de 5 minutes autour de l'heure serveur, indépendamment d
 (qui reste une seconde barrière, fail-open si Redis est indisponible). Exemple de corps signé
 attendu : `{ "aiSummary": "...", "timestamp": 1737360000000 }`.
 
+**Politique de compatibilité des payloads (SEC-146)** : aucun champ de version n'est présent
+dans le payload (`{ event, payload, sentAt }`, `webhook.ts`) — la compatibilité repose sur une
+règle d'additivité stricte, jamais sur un numéro de schéma. Un champ existant d'un événement
+donné ne doit **jamais** être renommé, retiré, ni changer de type une fois ce document livré ;
+seule l'addition d'un nouveau champ optionnel est permise sans le traiter comme un événement
+distinct. Historique vérifié : sur les 25 événements listés ci-dessous, tous les correctifs
+constatés (`task.overdue`, `project.deadline_soon`, `checkStaleProjects`) ont ajouté ou corrigé
+le calcul d'un champ, jamais renommé/retiré un champ déjà documenté — cette règle formalise
+une pratique déjà respectée, elle ne change aucun payload existant. Si un besoin de rupture
+apparaît un jour (champ à retirer, type à changer), le contrat impose de créer un nouvel
+`event` (ex. `proposal.accepted.v2`) plutôt que de modifier silencieusement un événement déjà
+documenté ici.
+
 ---
 
 ## Événements déjà en place (avant ce lot de 12 hooks)

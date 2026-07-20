@@ -73,9 +73,16 @@ export const errorMiddleware: ErrorRequestHandler = (error, req, res, _next) => 
 
   if (error instanceof ZodError) {
     appErrorsTotal.inc({ type: "validation", source: "zod" });
+    const details = error.flatten();
     res.status(422).json({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Validation failed",
+        details,
+      },
       message: "Validation failed",
-      issues: error.flatten(),
+      issues: details,
+      details,
     });
     return;
   }

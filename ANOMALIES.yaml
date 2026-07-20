@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-137
+dernier_id: SEC-150
 
 anomalies:
   - id: SEC-001
@@ -8827,3 +8827,523 @@ anomalies:
       pas de polling BORNÉ de SEC-131, pas le délai fixe d'origine qu'il a
       remplacé. Playwright/e2e est déjà tracé (voir note ANOMALIES.yaml
       lignes 85-87), pas un nouveau constat.
+
+  - id: SEC-138
+    titre: "server/src/swagger.ts décrit la plateforme comme « Multi-tenant » — même défaut que SEC-004 (README.md), non corrigé dans ce fichier"
+    perimetre: "documentation projet — server/src/swagger.ts"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand server/src/swagger.ts:9 (`info.description`) ne
+      contient plus le mot « Multi-tenant » et décrit la plateforme comme
+      mono-tenant, cohérent avec REFERENTIEL.md §1/§7 et avec le README.md
+      déjà corrigé sous SEC-004.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : SEC-004 a corrigé README.md:3 (« [...]
+      all in one mono-tenant workspace », confirmé toujours présent) mais
+      son périmètre ne couvrait pas server/src/swagger.ts. Ce fichier,
+      distinct, porte encore ligne 9 : `description: "Multi-tenant project
+      management platform"` — la même affirmation architecturale fausse que
+      SEC-004, mais dans le document consommé par les intégrateurs API
+      (Swagger UI / OpenAPI JSON), pas par les lecteurs du README. Même
+      classe de défaut que SEC-004 (doc affirmant multi-tenant sur un
+      système mono-tenant), mais fichier et critère de résolution distincts
+      → ID séparé, relié à SEC-004 par la classe plutôt que fusionné.
+
+      CORRECTIF ÉCRIT (pas résolu — non commité), session du 2026-07-20 :
+      server/src/swagger.ts:9 remplacé par `"Mono-tenant project management
+      platform for a single digital agency"`. `npx tsc --noEmit` propre sur
+      server/ après le changement.
+
+  - id: SEC-139
+    titre: "README.md documente l'URL du JSON OpenAPI comme /api-docs/json, alors que server/src/app.ts le sert sur /openapi.json"
+    perimetre: "documentation projet — README.md, server/src/app.ts"
+    regle_violee: null
+    classe: "doc_openapi_desynchronisee_du_code_reel"
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand README.md:283 documente l'URL réellement servie
+      (`/openapi.json`), ou que server/src/app.ts expose additionnellement
+      `/api-docs/json` — au choix du porteur — et que les deux fichiers
+      s'accordent sur une seule URL vérifiable par une requête HTTP réelle.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : README.md:283 affirme "The OpenAPI 3.1
+      spec is served at `http://localhost:5000/api-docs/json`" ;
+      server/src/app.ts:107 définit la route sur `/openapi.json`. Aucune
+      route `/api-docs/json` trouvée dans app.ts. Un intégrateur suivant le
+      README obtient un 404.
+
+      CORRECTIF ÉCRIT (pas résolu — non commité), session du 2026-07-20 :
+      README.md:283 corrigé pour citer `/openapi.json` (URL réellement
+      servie), au lieu de créer une route additionnelle côté serveur.
+
+  - id: SEC-140
+    titre: "Swagger de POST /auth/logout documente une réponse 200, le contrôleur renvoie 204 No Content"
+    perimetre: "server/src/routes/auth.routes.ts, server/src/controllers/auth.controller.ts"
+    regle_violee: null
+    classe: "doc_openapi_desynchronisee_du_code_reel"
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand le bloc `@swagger` de `POST /auth/logout`
+      (auth.routes.ts:149-160) documente `204: description: Logout
+      successful (no content)` au lieu de `200`.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : auth.routes.ts:156-157 documente `200:
+      description: Logout successful` ; auth.controller.ts:85
+      (`res.status(204).send()`) ne renvoie jamais de corps ni de 200. Un
+      client strict sur le code de statut documenté échouerait sur chaque
+      appel réel.
+
+      CORRECTIF ÉCRIT (pas résolu — non commité), session du 2026-07-20 :
+      bloc Swagger corrigé en `204: description: Logout successful (no
+      content). Clears the refreshToken cookie.`
+
+  - id: SEC-141
+    titre: "Swagger de POST /auth/login, /auth/register et /auth/refresh ne documente ni le cookie HTTP-only refreshToken ni le fait que le corps JSON ne renvoie que accessToken"
+    perimetre: "server/src/routes/auth.routes.ts"
+    regle_violee: null
+    classe: "doc_openapi_desynchronisee_du_code_reel"
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand les blocs `@swagger` de `/auth/login`,
+      `/auth/register` et `/auth/refresh` documentent explicitement : (a)
+      que `refreshToken` est posé en cookie HTTP-only (`setRefreshTokenCookie`),
+      jamais dans le corps JSON de la réponse ; (b) pour `/auth/refresh`,
+      que `refreshSchema` accepte un `refreshToken` optionnel en corps en
+      plus du cookie.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : auth.controller.ts émet le
+      `refreshToken` uniquement via `setRefreshTokenCookie` (cookie
+      HTTP-only), le corps JSON de login/register/refresh ne porte que
+      `accessToken` (et `user` pour login/register). Le schéma OpenAPI
+      actuel ne distingue pas cookie vs corps, laissant croire à un
+      contrat `AuthTokens` entièrement en JSON.
+
+      CORRECTIF ÉCRIT (pas résolu — non commité), session du 2026-07-20 :
+      description ajoutée aux trois blocs Swagger précisant le cookie
+      HTTP-only ; `requestBody` optionnel de `refreshToken` ajouté au bloc
+      `/auth/refresh` ; schéma `AuthTokens` (swagger.ts) modifié pour
+      retirer le champ `refreshToken` (jamais présent en JSON réel) et
+      porter une `description` explicite du mécanisme cookie.
+
+  - id: SEC-142
+    titre: "Swagger de GET /users, GET /users/permissions et GET /clients ne documente pas la forme réelle de la réponse (permissionsMatrix, pagination {data,total,page,pageSize}, connectedTimeAverages)"
+    perimetre: "server/src/routes/user.routes.ts, server/src/routes/client.routes.ts, server/src/controllers/user.controller.ts, server/src/controllers/client.controller.ts"
+    regle_violee: null
+    classe: "doc_openapi_desynchronisee_du_code_reel"
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand : (a) le bloc `@swagger` de `GET /users/permissions`
+      documente un schéma d'objet indexé par rôle (reflet de
+      `permissionsMatrix`, user.controller.ts:99), pas un tableau de
+      strings générique ; (b) le bloc de `GET /users` documente le format
+      réel `{ data, total, page, pageSize }` (+ `connectedTimeAverages`
+      par ligne) ; (c) le bloc de `GET /clients` documente le même
+      quadruplet de pagination au lieu d'un `data: Client[]` nu.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : user.controller.ts:99 renvoie
+      `{ data: permissionsMatrix }` (objet par rôle, pas un tableau) ; le
+      bloc Swagger de `/users/permissions` (user.routes.ts:192-201) ne
+      porte qu'une `description` texte, aucun schéma structuré — sous-
+      spécifié plutôt que factuellement faux, mais insuffisant pour qu'un
+      intégrateur devine la forme réelle. client.controller.ts:16
+      (`res.json(result)`, résultat paginé) contre le schéma Swagger de
+      `GET /clients` (client.routes.ts:22-45) qui déclare un objet simple
+      sans les champs `total`/`page`/`pageSize` du quadruplet de
+      pagination utilisé ailleurs (ex. `statusIn`/pagination de
+      `GET /projects`, SEC-118).
+
+      CORRECTIF ÉCRIT (pas résolu — non commité), session du 2026-07-20 :
+      (a) `/users/permissions` documente désormais un objet par rôle
+      (ADMIN/MANAGER/FREELANCER/CLIENT), avec exemple reflétant
+      `permissionsMatrix` réel ; (b) `/users` documente `{ data, total,
+      page, pageSize }` avec `connectedTimeAverages` par entrée ; (c)
+      `/clients` documente `total`/`page`/`pageSize` en plus de `data`.
+
+  - id: SEC-143
+    titre: "Aucun bloc @swagger dans proposal.routes.ts, invoice.routes.ts et approval.routes.ts malgré ~48 routes actives, dont le flux commercial central (accept/reject/create-invoice) et les paiements/relances de facturation"
+    perimetre: "server/src/routes/proposal.routes.ts, server/src/routes/invoice.routes.ts, server/src/routes/approval.routes.ts"
+    regle_violee: null
+    classe: "doc_openapi_desynchronisee_du_code_reel"
+    gravite: majeur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand chacune des routes de ces trois fichiers porte un
+      bloc `@swagger` décrivant au minimum : méthode, paramètres, corps de
+      requête (référence au schéma Zod correspondant), et les codes de
+      réponse réels (200/201/204/4xx) — vérifié par présence effective
+      dans le JSON généré par `/openapi.json`, pas seulement par lecture
+      du JSDoc source.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe et comptage : `grep -c "@swagger"` sur
+      les trois fichiers renvoie 0 dans chacun. Nombre de handlers de
+      route réels comptés par `grep -cE "^router\.(get|post|patch|put|delete)"` :
+      proposal.routes.ts 14 (dont `/my`, `/:id/respond`, `/:id/accept`,
+      `/:id/reject`, `/:id/create-invoice`), invoice.routes.ts 22 (dont
+      `/my`, `/my-service`, `/:id/payments`, `/:id/apply-credit`,
+      `/:id/reminders`, `/:id/items/from-time-entries`), approval.routes.ts
+      12 (dont `/my`, `/:id/respond`, `/:id/approve`, `/:id/reject`,
+      `/:id/comment`, attachments). Ces trois fichiers concentrent le
+      cycle de vente→facturation→approbation client — le plus gros trou de
+      couverture Swagger du dépôt, aucune trace de documentation partielle
+      antérieure.
+
+      CORRECTIF ÉCRIT (pas résolu — non commité), session du 2026-07-20 :
+      bloc `@swagger` ajouté sur les 14 routes de proposal.routes.ts et les
+      18 routes documentables d'invoice.routes.ts (`createInvoiceFromProposal`
+      est en réalité montée sous `/proposals/:id/create-invoice`, déjà
+      couverte côté proposal.routes.ts — pas une route invoice distincte)
+      et les 12 routes d'approval.routes.ts, avec schémas `Proposal`/
+      `ProposalSection`/`InvoiceItem`/`Payment`/`CreditNote`/`Approval`/
+      `ApprovalAttachment` ajoutés à swagger.ts (composants), tags
+      `Proposals`/`Approvals` ajoutés à la liste de tags globale (manquants
+      jusqu'ici). Vérifié par exécution réelle : script `tsx` important
+      `swaggerSpec` directement — 63 chemins générés au total, présence
+      confirmée de `/proposals/my`, `/proposals/{id}/respond`,
+      `/proposals`, `/proposals/{id}`, `/proposals/{id}/accept`,
+      `/invoices/my`, `/invoices/{id}/payments` (pas seulement lecture du
+      JSDoc source). `npx tsc --noEmit` propre, `npm run lint` 0
+      error/0 warning, suite `test:unit` complète 453/453 verts après le
+      changement (aucune régression).
+
+  - id: SEC-144
+    titre: "Aucun bloc @swagger dans notification.routes.ts (GET /notifications, PATCH /:id/read, PATCH /read-all)"
+    perimetre: "server/src/routes/notification.routes.ts"
+    regle_violee: null
+    classe: "doc_openapi_desynchronisee_du_code_reel"
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand les 3 routes de notification.routes.ts portent un
+      bloc `@swagger` décrivant méthode, paramètres et codes de réponse
+      réels.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : `grep -c "@swagger"` renvoie 0,
+      `grep -cE "^router\.(get|post|patch|put|delete)"` renvoie 3. ID
+      distinct de SEC-143 (fichier isolé, gravité mineure — pas le flux
+      commercial critique) mais même classe de défaut.
+
+      CORRECTIF ÉCRIT (pas résolu — non commité), session du 2026-07-20 :
+      bloc `@swagger` ajouté sur les 3 routes, schéma `Notification` ajouté
+      en composant local du fichier. Vérifié par le même script `tsx`
+      d'import direct de `swaggerSpec` : `/notifications`,
+      `/notifications/{id}/read`, `/notifications/read-all` tous présents
+      dans les 63 chemins générés.
+
+  - id: SEC-145
+    titre: "error.middleware.ts : ZodError sort sans l'enveloppe {error:{code,message}} que portent toutes les autres branches (P2002, Multer, HttpError, 500 générique), rendant le format d'erreur non uniforme pour un client API"
+    perimetre: "server/src/middlewares/error.middleware.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand la branche ZodError (error.middleware.ts:74-81)
+      renvoie la même enveloppe `{ error: { code, message, details },
+      message, details }` que les autres branches (avec `code:
+      "VALIDATION_ERROR"` et `details` portant `error.flatten()`), ET
+      qu'un test appelant une route réelle avec un payload invalide vérifie
+      la présence de `body.error.code` sur la réponse 422 — pas seulement
+      `body.message`/`body.issues` comme aujourd'hui.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe, error.middleware.ts : la branche P2002
+      (l.14-20), Multer (l.42-48), le générique `statusCode` (l.64-70),
+      HttpError (l.85-93) et le 500 générique (l.100-106) renvoient toutes
+      `{ error: { code, message, ... }, message, ... }`. Seule la branche
+      ZodError (l.76-79) déroge : `{ message: "Validation failed", issues:
+      error.flatten() }` — pas de clé `error.code`, pas de clé `details`.
+      Un client qui parse uniformément `body.error.code` sur toute réponse
+      d'erreur (au lieu de brancher sur la présence/absence de la clé)
+      obtient `undefined` spécifiquement sur les 422 de validation, le cas
+      d'erreur le plus fréquent en pratique (saisie utilisateur invalide).
+
+      CORRECTIF ÉCRIT (pas résolu — non commité, pas encore de test
+      dédié), session du 2026-07-20 : branche ZodError modifiée pour
+      renvoyer `{ error: { code: "VALIDATION_ERROR", message, details },
+      message, issues, details }` — `issues` conservé pour compatibilité
+      avec d'éventuels consommateurs existants (aucun trouvé côté
+      client/src par grep), `details` et `issues` portent la même valeur
+      (`error.flatten()`). Suite `test:unit` complète 453/453 verte après
+      le changement (aucune régression), mais aucun nouveau test n'assère
+      spécifiquement `body.error.code === "VALIDATION_ERROR"` sur un 422 —
+      le critère de résolution formel n'est donc pas encore rempli malgré
+      le correctif.
+
+  - id: SEC-146
+    titre: "notifyN8n : le payload sortant ({event, payload, sentAt}) et le contrat de callback entrant n'ont aucun champ de version — docs/n8n-events.md ne documente pas de politique de compatibilité pour l'évolution du schéma"
+    perimetre: "server/src/utils/webhook.ts, docs/n8n-events.md"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand docs/n8n-events.md documente explicitement une
+      politique de versionnement du payload (ex. un champ `schemaVersion`
+      dans le payload sortant de `notifyN8n`, ou une règle explicite
+      d'additivité-seule des champs) — vérifiable par une recherche du mot
+      "version" dans docs/n8n-events.md aboutissant à une règle concrète,
+      pas seulement l'absence actuelle de toute mention.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : webhook.ts:21
+      (`JSON.stringify({ event, payload, sentAt: ... })`) ne porte aucun
+      champ de version ; `verifyN8nTimestamp` (l.76-87) valide uniquement
+      la fraîcheur (`timestamp`), pas une version de schéma. Un ajout ou
+      renommage de champ dans `payload` (spécifique à chaque `event`) peut
+      casser un workflow n8n existant sans qu'aucun mécanisme ne le
+      signale côté émetteur ou récepteur. Gravité mineure : aucun
+      incident constaté, 0 client actif, risque latent plutôt qu'actif.
+
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-20) : documenter une politique d'additivité seule plutôt que
+      d'ajouter un champ `schemaVersion` en code — aucun consommateur n8n
+      réel n'existe encore (0 client actif) pour justifier le coût du
+      changement de payload.
+
+      CORRECTIF ÉCRIT (pas résolu — non commité), session du 2026-07-20 :
+      section « Politique de compatibilité des payloads (SEC-146) » ajoutée
+      à docs/n8n-events.md, formalisant la règle d'additivité stricte déjà
+      respectée par l'historique des 25 événements (aucun renommage/retrait
+      de champ constaté), et imposant un nouvel `event` (jamais une
+      modification silencieuse) en cas de rupture future. Aucun changement
+      de code.
+
+  - id: SEC-147
+    titre: "Swagger de PATCH /users/me ne documente pas le champ phone, alors que updateMeSchema l'accepte et que updateMe l'applique — écart documentaire distinct du défaut fonctionnel SEC-006 (déjà résolu)"
+    perimetre: "server/src/routes/user.routes.ts, server/src/validators/user.validator.ts"
+    regle_violee: null
+    classe: "doc_openapi_desynchronisee_du_code_reel"
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand le bloc `@swagger` de `PATCH /users/me`
+      (user.routes.ts:74-106) documente `phone` (`type: string, nullable:
+      true`) en plus de `name`, reflet exact de `updateMeSchema`
+      (user.validator.ts:5-10).
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : user.validator.ts:8 accepte
+      `phone: z.string().max(50).optional().nullable()` ; user.routes.ts
+      requestBody du PATCH /users/me (l.86-92) ne déclare que `name`. Ce
+      même écart documentaire était déjà noté comme non corrigé dans la
+      note de SEC-006 (« (d) le swagger de user.routes.ts:87-92 reste sans
+      phone — documentation seule, laissée pour ne pas dévier du périmètre
+      fonctionnel de cette correction »), mais SEC-006 est `resolu` avec un
+      critère de résolution différent (lecture/pré-remplissage/effacement
+      réel côté frontend, prouvé par test) — rouvrir SEC-006 pour un défaut
+      purement documentaire violerait la règle "un ID = un critère de
+      résolution". ID distinct, classe partagée avec les autres écarts
+      Swagger de cette session (SEC-138 à SEC-146).
+
+      CORRECTIF ÉCRIT (pas résolu — non commité), session du 2026-07-20 :
+      `phone` ajouté au requestBody Swagger de `PATCH /users/me`
+      (nullable, maxLength 50, exemple + note sur `null` explicite pour
+      effacer). `phone` ajouté également au schéma `User` (swagger.ts),
+      absent jusqu'ici alors que le champ est réellement retourné par
+      l'API depuis le correctif SEC-006. `npx tsc --noEmit` propre,
+      `npm run lint` 0 error/0 warning.
+
+  - id: SEC-148
+    titre: "server/src/routes/project.routes.ts : 20 des 25 routes réelles n'ont aucun bloc @swagger (seules /, /:id, POST /, PUT /:id, DELETE /:id sont documentées) — le plus gros trou de couverture OpenAPI du dépôt, plus large que SEC-143"
+    perimetre: "server/src/routes/project.routes.ts"
+    regle_violee: null
+    classe: "doc_openapi_desynchronisee_du_code_reel"
+    gravite: majeur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand chacune des 25 routes de project.routes.ts porte
+      un bloc `@swagger` décrivant méthode, paramètres, corps de requête et
+      codes de réponse réels — en priorité les routes métier non-CRUD
+      (`/:id/client-approve`, `/:id/ai-specs`, `/:id/brief`,
+      `/:id/brief/submit`, `/:id/timeline-status`) qui portent la logique
+      la plus sensible et sont actuellement totalement absentes de la doc.
+      Vérifié par présence effective dans le JSON généré par
+      `/openapi.json`, pas seulement par lecture du JSDoc source.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe et comptage : `grep -c "@swagger"` sur
+      project.routes.ts renvoie 5 ; `grep -cE
+      "^router\.(get|post|patch|put|delete)"` renvoie 25. Routes non
+      documentées confirmées par grep de noms de route dans le fichier :
+      `/health-board`, `/my`, `/trash`, `/:id/timeline-status`,
+      `/:id/completed-tasks`, `/:id/brief`, `/:id/brief/submit`,
+      `/:id/ai-specs` (webhook n8n entrant, `verifyN8nWebhook` — pas
+      `authenticate`), `/:id/client-approve` (déclenche la cascade
+      COMPLETED + facture de solde, project.controller.ts:195),
+      `/:id/archive`, `/:id/unarchive`, `/:id/restore`,
+      `/:id/time-entries` (GET+POST), `/:id/time-summary`,
+      `/:id/my-time-summary`, `/:id/apply-template`, `/:id/meetings`
+      (GET+POST), `/:id/meetings/:meetingId` (PUT+DELETE),
+      `/:id/meeting-schedule` (GET+PUT). Contrairement à SEC-143
+      (proposals/invoices/approvals, également 0 couverture avant
+      correctif), ce fichier a un ratio de couverture pire (5/25 = 20% vs
+      0% mais sur un total de routes plus grand) et concentre des routes à
+      contrat non trivial : `/:id/ai-specs` n'a pas `authenticate` du tout
+      (auth par signature HMAC via `verifyN8nWebhook`), ce qui n'est
+      documentable qu'en le disant explicitement — un client REST normal
+      ne peut pas l'appeler avec un Bearer token.
+
+      CORRECTIF ÉCRIT (pas résolu — non commité), session du 2026-07-20 :
+      bloc `@swagger` ajouté sur les 20 routes manquantes (25/25 au
+      total), avec description explicite du mécanisme HMAC pour
+      `/:id/ai-specs` et de la cascade COMPLETED + facture de solde pour
+      `/:id/client-approve`. Vérifié par exécution réelle : script `tsx`
+      important `swaggerSpec` directement — 82 chemins générés au total
+      (63 avant ce lot + 19 nouveaux), présence confirmée des 19 nouveaux
+      chemins de project.routes.ts (pas seulement lecture du JSDoc
+      source). `npx tsc --noEmit` propre, `npm run lint` 0 error/0
+      warning, suite `test:unit` complète 453/453 verte après le
+      changement (aucune régression).
+
+  - id: SEC-149
+    titre: "Au moins 9 réponses d'erreur écrites à la main dans 5 contrôleurs (auth, project, upload, siteContent, freelancerApplication) contournent l'enveloppe centralisée de error.middleware.ts, avec deux formes distinctes ({message:...} et {error:\"string brute\"}) — distinct de SEC-145 qui ne couvre que la branche ZodError du middleware"
+    perimetre: "server/src/controllers/auth.controller.ts, server/src/controllers/project.controller.ts, server/src/controllers/upload.controller.ts, server/src/controllers/siteContent.controller.ts, server/src/controllers/freelancerApplication.controller.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand ces 9 appels `res.status(4xx).json(...)` manuels
+      sont remplacés par un `throw new HttpError(...)` laissant
+      error.middleware.ts produire l'enveloppe standard
+      `{ error: { code, message }, message }`, OU documentés comme
+      exception explicite si un cas précis justifie une sortie différente
+      (aucun cas de ce type identifié à ce jour).
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe, deux formes distinctes trouvées par
+      grep sur `server/src/controllers` : (1) `{ message: "..." }` —
+      auth.controller.ts:49 (`refresh`, 401 "Refresh token required") ;
+      (2) `{ error: "chaîne brute" }` (pas même l'objet `{error:{code,
+      message}}` du middleware — une simple string) —
+      siteContent.controller.ts:29, freelancerApplication.controller.ts:85,
+      :89, :166, project.controller.ts:172, :177 (`receiveAiSpecs`, webhook
+      n8n entrant — 400/409), upload.controller.ts:34, :63, :68. Distinct
+      de SEC-145 : SEC-145 corrige uniquement la branche ZodError du
+      middleware central (déjà en correctif cette session) ; ce constat
+      couvre des `res.json` manuels qui ne passent jamais par le
+      middleware du tout, donc que SEC-145 ne peut pas atteindre. Même
+      classe de problème (absence d'enveloppe d'erreur uniforme), critère
+      de résolution différent (remplacer des appels manuels vs corriger
+      une branche du middleware) → ID distinct.
+
+      CORRECTIF ÉCRIT (pas résolu — non commité), session du 2026-07-20 :
+      un 10e site trouvé pendant la correction, non compté à la détection
+      (upload.controller.ts, garde de contexte d'upload invalide dans le
+      middleware multer dynamique, avant le bloc try/catch de la route) —
+      même défaut, même classe, corrigé dans la même passe. Les 9 sites
+      identifiés + ce 10e sont remplacés par `throw new HttpError(...)`
+      avec un `code` explicite par cas (ex. `REFRESH_TOKEN_REQUIRED`,
+      `MISSING_AI_SPECS_PAYLOAD`, `NO_ADMIN_FOUND`,
+      `MISSING_SITE_CONTENT_FIELDS`, `CV_FILE_REQUIRED`,
+      `PORTFOLIO_FILE_REQUIRED`, `MISSING_AI_SUMMARY`,
+      `INVALID_UPLOAD_CONTEXT`, `NO_FILE_PROVIDED`,
+      `MISSING_UPLOAD_KEY`/`INVALID_UPLOAD_KEY`), tous passés par
+      `error.middleware.ts` (soit `throw` dans un bloc try/catch existant,
+      soit `next(new HttpError(...))` pour le seul site synchrone hors
+      try/catch, le middleware multer dynamique d'upload.controller.ts).
+      `npx tsc --noEmit` propre, `npm run lint` 0 error/0 warning, suite
+      `test:unit` complète 453/453 verte après le changement (aucune
+      régression, aucun test n'assérait le format d'erreur exact sur ces
+      chemins). Le critère de résolution formel exige aussi un test
+      asserrant `body.error.code` sur ces routes — non encore écrit, donc
+      `en_cours` malgré le correctif fonctionnel complet.
+
+  - id: SEC-150
+    titre: "Le composant Swagger partagé BadRequest décrit un 400, alors que error.middleware.ts renvoie 422 VALIDATION_ERROR pour toute erreur Zod — 7 routes POST/PUT validées par validate(...) référencent ce composant et documentent donc le mauvais code de statut"
+    perimetre: "server/src/swagger.ts, server/src/routes/{auth,client,invoice,project,proposal,approval}.routes.ts"
+    regle_violee: null
+    classe: "doc_openapi_desynchronisee_du_code_reel"
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand le composant partagé `BadRequest` (swagger.ts)
+      est renommé/recréé en `ValidationError` documentant `422` avec
+      l'enveloppe réelle (`error.code: VALIDATION_ERROR`, `details`,
+      `issues`), et que les 7 blocs `@swagger` qui y font `$ref` sur une
+      route gardée par `validate(...)` pointent vers ce nouveau composant
+      au lieu de `BadRequest`. Vérifié par présence effective du code 422
+      dans le JSON généré par `/openapi.json` pour ces routes, pas
+      seulement par lecture du JSDoc source.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : error.middleware.ts:74-88 (branche
+      ZodError) renvoie `res.status(422).json(...)` avec l'enveloppe
+      `{ error: { code: "VALIDATION_ERROR", message, details }, message,
+      issues, details }` — jamais 400. Le composant partagé
+      `BadRequest` (swagger.ts:38-50) documente pourtant `description:
+      "Bad request - validation error"` avec un exemple `statusCode: 400`
+      et un schéma `Error` générique ne reflétant ni `VALIDATION_ERROR`
+      ni `issues`. `grep -c "responses/BadRequest"` sur
+      server/src/routes confirme 8 références dans 6 fichiers
+      (auth×1, client×2, invoice×1, project×2, proposal×1, approval×1) ;
+      les 7 dont le contexte a été vérifié directement sont toutes
+      positionnées sur une route `POST`/`PUT` gardée par
+      `validate(<schema>)` (Zod), donc effectivement sujettes à un 422
+      réel malgré le 400 documenté. Un client strict sur le code de
+      statut (ou générant des types depuis le schéma `Error` référencé)
+      échoue à parser la réponse réelle. Même classe que les autres
+      écarts Swagger de cette session (SEC-138 à SEC-149), critère de
+      résolution distinct (renommer/corriger un composant partagé,
+      référencé par plusieurs fichiers, plutôt qu'un bloc de route
+      isolé).
+
+      CORRECTIF ÉCRIT (pas résolu — non commité), session du 2026-07-20 :
+      composant `BadRequest` remplacé par `ValidationError` (swagger.ts),
+      pointant vers un nouveau schéma `ValidationErrorBody` reflétant
+      l'enveloppe réelle (`error.code`, `message`, `issues`, `details`).
+      Les 8 références corrigées : auth.routes.ts (`/auth/register`),
+      client.routes.ts (`POST /clients`, `PUT /clients/:id`),
+      invoice.routes.ts (`POST /invoices`), proposal.routes.ts (`POST
+      /proposals`), approval.routes.ts (`POST /approvals`) passées de
+      `400: $ref BadRequest` à `422: $ref ValidationError` ; les 2 de
+      project.routes.ts (`POST /projects`, `PUT /projects/:id`) idem, avec
+      fusion du `422` de `POST /projects` qui documentait déjà
+      `PROPOSAL_NOT_ACCEPTED` sous la même clé (un seul code HTTP ne peut
+      porter deux entrées dans le YAML Swagger — description combinée
+      citant les deux causes possibles). Vérifié par exécution réelle :
+      script `tsx` important `swaggerSpec` — 0 référence `BadRequest`
+      résiduelle dans le JSON généré, composants `ValidationError`/
+      `ValidationErrorBody` présents, et 422 confirmé sur les 8 chemins
+      (dont la description combinée de `POST /projects`). `npx tsc
+      --noEmit` propre, `npm run lint` 0 error/0 warning.

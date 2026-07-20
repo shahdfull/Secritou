@@ -17,9 +17,7 @@ export const uploadFile: RequestHandler[] = [
   (req, res, next) => {
     const ctx = req.params.context as UploadContext;
     if (!VALID_CONTEXTS.includes(ctx)) {
-      res
-        .status(400)
-        .json({ error: `Invalid upload context "${ctx}". Valid: ${VALID_CONTEXTS.join(", ")}` });
+      next(new HttpError(400, `Invalid upload context "${ctx}". Valid: ${VALID_CONTEXTS.join(", ")}`, "INVALID_UPLOAD_CONTEXT"));
       return;
     }
     const middleware = createUploadMiddleware(ctx, "file");
@@ -31,8 +29,7 @@ export const uploadFile: RequestHandler[] = [
       const ctx = req.params.context as UploadContext;
 
       if (!req.file) {
-        res.status(400).json({ error: "No file provided" });
-        return;
+        throw new HttpError(400, "No file provided", "NO_FILE_PROVIDED");
       }
 
       const result = await uploadService.upload(
@@ -60,13 +57,11 @@ export const deleteFile: RequestHandler = async (req, res, next) => {
   try {
     const { key } = req.body as { key?: string };
     if (!key || typeof key !== "string") {
-      res.status(400).json({ error: "key is required" });
-      return;
+      throw new HttpError(400, "key is required", "MISSING_UPLOAD_KEY");
     }
     // Basic path-traversal guard
     if (key.includes("..") || key.startsWith("/")) {
-      res.status(400).json({ error: "Invalid key" });
-      return;
+      throw new HttpError(400, "Invalid key", "INVALID_UPLOAD_KEY");
     }
 
     const userId = req.user?.sub;

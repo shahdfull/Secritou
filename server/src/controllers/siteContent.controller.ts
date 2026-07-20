@@ -1,5 +1,6 @@
 import type { RequestHandler } from "express";
 import { siteContentService } from "../services/siteContent.service.js";
+import { HttpError } from "../utils/httpError.js";
 
 /** GET /api/v1/site-content?locale=fr|en — public */
 export const getPublicSiteContent: RequestHandler = async (req, res, next) => {
@@ -26,8 +27,7 @@ export const upsertSiteContent: RequestHandler = async (req, res, next) => {
   try {
     const { key, locale, value } = req.body as { key: string; locale: string; value: string };
     if (!key || !locale || value === undefined) {
-      res.status(400).json({ error: "key, locale and value are required" });
-      return;
+      throw new HttpError(400, "key, locale and value are required", "MISSING_SITE_CONTENT_FIELDS");
     }
     const updated = await siteContentService.upsertOne(key, locale, value);
     res.json({ data: updated });

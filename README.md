@@ -280,7 +280,7 @@ See `RUNBOOK.md` for incident procedures and `server/.env.example` for required 
 ### API documentation
 
 Interactive Swagger UI is available at **`http://localhost:5000/api-docs`** when the server is running.
-The OpenAPI 3.1 spec is served at `http://localhost:5000/api-docs/json`.
+The OpenAPI 3.1 spec is served at `http://localhost:5000/openapi.json`.
 
 ---
 

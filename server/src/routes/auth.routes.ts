@@ -52,8 +52,11 @@ export const authRoutes = Router();
  *             name: John Doe
  *     responses:
  *       201:
- *         description: User registered successfully. The role is always CLIENT — this is a
+ *         description: >
+ *           User registered successfully. The role is always CLIENT — this is a
  *           public self-service endpoint, other roles are created via POST /users (ADMIN only).
+ *           Sets a `refreshToken` HTTP-only Secure cookie (Set-Cookie header) — the response
+ *           body never carries the refresh token, only the access token.
  *         content:
  *           application/json:
  *             schema:
@@ -66,8 +69,8 @@ export const authRoutes = Router();
  *                       $ref: '#/components/schemas/User'
  *                     tokens:
  *                       $ref: '#/components/schemas/AuthTokens'
- *       400:
- *         $ref: '#/components/responses/BadRequest'
+ *       422:
+ *         $ref: '#/components/responses/ValidationError'
  *       429:
  *         description: Too many requests
  */
@@ -97,7 +100,9 @@ authRoutes.post("/register", authRateLimit, validate(registerSchema), register);
  *             password: SecurePass123!
  *     responses:
  *       200:
- *         description: Login successful
+ *         description: >
+ *           Login successful. Sets a `refreshToken` HTTP-only Secure cookie (Set-Cookie
+ *           header) — the response body never carries the refresh token, only the access token.
  *         content:
  *           application/json:
  *             schema:
@@ -121,7 +126,23 @@ authRoutes.post("/login", authRateLimit, validate(loginSchema), login);
  *   post:
  *     summary: Refresh access token
  *     tags: [Auth]
- *     description: Use HTTP-only cookie to get new access token
+ *     description: >
+ *       Reads the refresh token from the HTTP-only `refreshToken` cookie by default. As a
+ *       fallback (e.g. non-browser clients that cannot rely on cookies), the same token can
+ *       instead be supplied in the request body. If both are present the cookie is used.
+ *       Sets a new `refreshToken` cookie on success — the response body never carries the
+ *       refresh token, only the new access token.
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *                 minLength: 20
+ *                 description: Optional fallback when the HTTP-only cookie is not available.
  *     responses:
  *       200:
  *         description: Token refreshed successfully
@@ -153,8 +174,8 @@ authRoutes.post("/refresh", refreshRateLimit, validate(refreshSchema), refresh);
  *     security:
  *       - bearerAuth: []
  *     responses:
- *       200:
- *         description: Logout successful
+ *       204:
+ *         description: Logout successful (no content). Clears the `refreshToken` cookie.
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
