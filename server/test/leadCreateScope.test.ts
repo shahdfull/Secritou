@@ -21,6 +21,7 @@ let dbAvailable = true;
 let serviceA: string;
 let serviceB: string;
 const createdLeadIds: string[] = [];
+const createdUserIds: string[] = [];
 
 before(async () => {
   try {
@@ -38,7 +39,10 @@ before(async () => {
 
 after(async () => {
   if (!dbAvailable) return;
+  // Deletes even if an assertion above threw mid-test — the manager user isn't left orphaned
+  // in that case, unlike relying on an in-test delete that only runs on the success path.
   await prisma.lead.deleteMany({ where: { id: { in: createdLeadIds } } });
+  await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
 });
 
 describe(
@@ -55,6 +59,7 @@ describe(
           serviceId: serviceA,
         },
       });
+      createdUserIds.push(managerUser.id);
 
       const lead = await leadService.createLead(
         { name: "SEC-102 manual lead" },
@@ -76,8 +81,6 @@ describe(
         { userRole: "MANAGER", userServiceId: serviceB, userId: "some-other-manager" }
       );
       assert.ok(!otherPoleList.data.some((l) => l.id === lead.id), "a manager from another pole must not see it");
-
-      await prisma.user.delete({ where: { id: managerUser.id } });
     });
 
     test("a lead created by an ADMIN keeps no service/manager assignment (matches prior behavior)", async () => {
