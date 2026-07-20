@@ -184,6 +184,18 @@ fonction locale équivalente ne prouve rien : il resterait vert si le code
 réel dérivait. Un tel test vaut `code_grep` au mieux — le code doit être
 importé et appelé, pas simulé à côté.
 
+Signal de détection concret, trouvé à répétition dans ce dépôt (SEC-087,
+SEC-100, SEC-109) : un fichier de test qui définit ses propres fonctions
+« mirror of… » / « mirrors the real service logic » au lieu d'un
+`import { … } from "../src/…"` du module ciblé. Un test sur un champ qui
+n'existe nulle part dans le vrai code (ex. un `companyId` dans un dépôt
+mono-tenant, cf. l'interdiction en tête de ce fichier) est le symptôme le
+plus visible — si l'assertion porte sur un champ qu'un `grep` sur `src/`
+ne retrouve pas, le test ne teste rien de réel. Avant d'accepter un
+nouveau fichier de test comme preuve `verifie: test`, vérifier qu'au
+moins un `import` provient bien de `src/` (pas seulement de `node:test`/
+`assert`), pas seulement que la suite est verte.
+
 ## Réparer n'est pas développer
 
 Une correction de typecheck qui AJOUTE une capacité (fonction, méthode,
@@ -275,6 +287,45 @@ jamais au seul frontend :
 Une route qui ne peut répondre « oui » ou « sans objet justifié » aux trois
 n'est pas prête. Réutiliser `assertProjectInScope` (`utils/serviceScope.ts`)
 plutôt que réécrire le contrôle.
+
+## Checklist de revue — jobs BullMQ (SEC-119/SEC-120)
+
+Un job enfilé sans `jobId` déterministe est rejouable silencieusement : un
+appelant retenté (ex. requête HTTP cliente relancée après un crash serveur
+avant que la réponse originale ne revienne) enfile un second job
+indiscernable du premier, dupliquant l'effet métier (email envoyé deux fois,
+document régénéré, notification en double) — surtout coûteux quand l'effet
+n'est pas idempotent (SEC-110 : `regenerateSpecsWithAiContent` crée un
+nouveau document versionné à chaque appel, jamais un no-op). Toute route ou
+service qui appelle `queue.add`/`addBulk` (`communicationQueue`,
+`documentsQueue`, `maintenanceQueue`) doit, avant merge, répondre à :
+
+1. Cet enfilement peut-il être déclenché deux fois pour le **même**
+   événement métier (retry client, double-clic, webhook rejoué) ? Si oui,
+   un `jobId` déterministe dérivé de l'identité métier (type + entité +
+   destinataire, jamais le contenu du message) est requis — voir
+   `notificationJobId`/`documentJobId` (`jobs/queues.ts`) pour le pattern.
+2. Le `jobId` construit contient-il `:` ? BullMQ le rejette (« Custom Id
+   cannot contain : ») — utiliser `|` comme séparateur.
+3. L'effet du processor est-il réellement idempotent (un second passage ne
+   change rien) ? Si non (ex. génère une nouvelle version, incrémente un
+   compteur), le `jobId` déterministe n'est pas optionnel : c'est la seule
+   barrière contre un double-enfilement côté appelant (BullMQ déduplique
+   déjà ses propres tentatives de retry via le même `jobId` interne — le
+   risque ici est un second `add()` distinct, pas un retry).
+
+## Pagination : un plafond serveur qui tronque silencieusement est un bug (SEC-118)
+
+`parseListQuery` plafonne `pageSize` (défaut 50) sans avertir l'appelant si
+la valeur demandée le dépasse — un endpoint qui a légitimement besoin de
+charger plus (ex. un Kanban qui répartit tout le pipeline en colonnes
+côté client, non re-paginable par colonne) doit passer explicitement le
+paramètre `maxPageSize` de `parseListQuery`, pas supposer que la valeur
+envoyée sera honorée. Avant d'ajouter un appel avec un `pageSize` élevé
+côté client, vérifier côté serveur que le plafond appliqué correspond
+réellement à ce qui est demandé — un écart entre les deux est invisible
+tant que le volume réel ne dépasse pas l'ancien plafond, exactement ce qui
+s'est produit ici (0 client actif au moment de l'introduction du défaut).
 
 ## Contraintes de sécurité
 
