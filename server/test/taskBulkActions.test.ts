@@ -158,3 +158,37 @@ describe("taskService.bulkDelete — SEC-060", () => {
     assert.ok(stillThere, "a MANAGER must never be able to delete a task outside their pole via the batch");
   });
 });
+
+describe("taskService.bulkUpdateStatus concurrency — SEC-097", () => {
+  test("processes tasks concurrently, not sequentially — total time stays close to a single task's time, not N times it", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const project = await makeProject(serviceA);
+    const manager = await makeManager("bulk-concurrency", serviceA);
+    const tasks = await Promise.all(
+      Array.from({ length: 10 }, (_, i) => prisma.task.create({ data: { title: `concurrency-${i}`, projectId: project.id, status: "TODO" } }))
+    );
+    const taskIds = tasks.map((task) => task.id);
+    createdTaskIds.push(...taskIds);
+
+    const singleStart = Date.now();
+    await taskService.updateTask(taskIds[0]!, { title: "warm-up" }, { userRole: "MANAGER", userServiceId: serviceA, userId: manager.id });
+    const singleDuration = Date.now() - singleStart;
+
+    const batchStart = Date.now();
+    const results = await taskService.bulkUpdateStatus(
+      taskIds,
+      "IN_PROGRESS",
+      { userRole: "MANAGER", userServiceId: serviceA, userId: manager.id }
+    );
+    const batchDuration = Date.now() - batchStart;
+
+    assert.ok(results.every((r) => r.success));
+    // A sequential implementation would take roughly 10x singleDuration; a concurrent one stays
+    // in the same ballpark as a single call. Generous margin (4x) to absorb connection-pool
+    // contention under test load without making this test flaky.
+    assert.ok(
+      batchDuration < singleDuration * 4,
+      `expected concurrent batch (${batchDuration}ms) to stay well under 10x a single call (${singleDuration}ms), got ratio ${(batchDuration / singleDuration).toFixed(1)}x`
+    );
+  });
+});

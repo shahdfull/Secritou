@@ -296,29 +296,30 @@ export const taskService = {
   // échec sur une tâche (ex. transition de statut invalide) n'empêche pas les autres de réussir —
   // le rapport détaillé par id permet à l'appelant de voir précisément ce qui a échoué et pourquoi,
   // plutôt qu'un 207/500 opaque sur l'ensemble.
+  //
+  // SEC-097: each iteration used to be awaited sequentially — with up to 100 ids (the validator's
+  // cap) and ~5-8 queries per updateTask/deleteTask call, that serialized up to ~800 round-trips
+  // in a single HTTP handler. Promise.allSettled runs every task's full path concurrently instead;
+  // each task is still fully independent (its own scope/transition/availability checks), so
+  // running them concurrently changes nothing about which succeed or fail, only how long the
+  // batch takes to finish.
   async bulkUpdateStatus(taskIds: string[], status: TaskStatus, scope?: ServiceScope) {
-    const results: { id: string; success: boolean; error?: string }[] = [];
-    for (const id of taskIds) {
-      try {
-        await this.updateTask(id, { status }, scope);
-        results.push({ id, success: true });
-      } catch (err) {
-        results.push({ id, success: false, error: err instanceof HttpError ? err.message : "Unknown error" });
-      }
-    }
-    return results;
+    const outcomes = await Promise.allSettled(taskIds.map((id) => this.updateTask(id, { status }, scope)));
+    return outcomes.map((outcome, i) => {
+      const id = taskIds[i]!;
+      if (outcome.status === "fulfilled") return { id, success: true };
+      const err = outcome.reason;
+      return { id, success: false, error: err instanceof HttpError ? err.message : "Unknown error" };
+    });
   },
 
   async bulkDelete(taskIds: string[], scope?: ServiceScope, actorId?: string, actorRole?: string) {
-    const results: { id: string; success: boolean; error?: string }[] = [];
-    for (const id of taskIds) {
-      try {
-        await this.deleteTask(id, scope, actorId, actorRole);
-        results.push({ id, success: true });
-      } catch (err) {
-        results.push({ id, success: false, error: err instanceof HttpError ? err.message : "Unknown error" });
-      }
-    }
-    return results;
+    const outcomes = await Promise.allSettled(taskIds.map((id) => this.deleteTask(id, scope, actorId, actorRole)));
+    return outcomes.map((outcome, i) => {
+      const id = taskIds[i]!;
+      if (outcome.status === "fulfilled") return { id, success: true };
+      const err = outcome.reason;
+      return { id, success: false, error: err instanceof HttpError ? err.message : "Unknown error" };
+    });
   },
 };

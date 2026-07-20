@@ -72,6 +72,7 @@ import "./taskAssigneeAndOverdueFilters.test.ts";
 import "./projectMeetingUpdateDelete.test.ts";
 import "./projectMeetingDueReminderExclusions.test.ts";
 import "./taskCommentUpdateDelete.test.ts";
+import "./projectModuleCacheInvalidation.test.ts";
 import "./taskAttachments.test.ts";
 import "./mentions.test.ts";
 import "./taskCommentMentions.test.ts";

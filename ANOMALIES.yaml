@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-096
+dernier_id: SEC-098
 
 anomalies:
   - id: SEC-001
@@ -6875,3 +6875,155 @@ anomalies:
       Actions sur `origin/main` en `workflow_dispatch` uniquement
       (déviation établie en session le 2026-07-17, citée à chaque
       clôture depuis).
+
+  - id: SEC-097
+    titre: "Actions en masse sur les taches (bulkUpdateStatus/bulkDelete) executees strictement en serie, une tache a la fois, chacune retraversant tout le chemin updateTask/deleteTask (5-8 requetes + invalidations de cache) — jusqu'a 100 iterations sequentielles par requete HTTP"
+    perimetre: "4.2 Gestion de projet — server/src/services/task.service.ts#bulkUpdateStatus/#bulkDelete, client/src/features/tasks/components/TasksListView.tsx (selection jusqu'a la page entiere)"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      Sera résolu quand un ADMIN/MANAGER qui sélectionne N tâches et
+      déclenche un changement de statut ou une suppression groupée voit
+      la réponse revenir sans que le serveur ait exécuté N boucles
+      strictement séquentielles de 5 à 8 requêtes chacune : soit en
+      parallélisant les itérations (Promise.all borné), soit en groupant
+      les lectures/écritures communes (une seule invalidation de cache
+      par pôle/client au lieu d'une par tâche), tout en conservant le
+      rapport détaillé par id et le passage par la même validation métier.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit performance/scalabilité du module Gestion de Projets, lecture
+      directe. `bulkUpdateStatus`/`bulkDelete` (task.service.ts, lignes
+      299-323) itèrent `for (const id of taskIds)` en `await` séquentiel,
+      appelant `this.updateTask`/`this.deleteTask` une fois par tâche. Ce
+      choix est délibéré et documenté (commentaire lignes 290-298 : réutiliser
+      la logique métier plutôt que la dupliquer, traitement « au mieux » avec
+      rapport par id) — l'angle métier n'est PAS rouvert. L'angle
+      performance ne l'était pas : chaque `updateTask` déclenche
+      `findByIdAdmin` (1) + `assertProjectInScope`/`assertProjectIsOpenForTaskChanges`
+      (1-2) + éventuellement `checkFreelancerAvailability` + `taskRepository.update`
+      (updateMany + findFirst = 2) + `project.findUnique` (1) + notifications +
+      `invalidateTags` (round-trips Redis), soit ~5-8 requêtes par tâche. Le
+      plafond de sélection est la page entière du tableau (pageSize max 50 côté
+      liste) ; côté route/validateur bulk, à vérifier si un plafond de 100 ids
+      s'applique (mentionné dans les commentaires SEC-075 mais non relu ici). À
+      50-100 tâches, c'est 250 à 800 requêtes SQL sérialisées dans un seul
+      handler HTTP, chacune attendant la précédente — latence cumulée et
+      connexion DB monopolisée pendant toute la durée. Impact réel faible à ce
+      stade (0 client actif, volumes nuls) ; gravité mineure, mais réel motif
+      d'amplification non couvert par un ID existant (SEC-060 couvre la
+      fonctionnalité bulk et son autorisation, pas son coût séquentiel).
+      Distinct de SEC-091 (N+1 côté client sur le portail) : ici l'amplification
+      est intra-requête côté serveur.
+
+      APPROFONDISSEMENT AVANT CORRECTIF : plafond confirmé par lecture
+      directe (`server/src/validators/task.validator.ts:72,79`,
+      `taskIds: z.array(z.string().uuid()).min(1).max(100)`) — exactement
+      100, pas 50-100 comme formulé prudemment ci-dessus. Jusqu'à ~800
+      requêtes SQL sérialisées confirmé, pas une estimation.
+
+      Corrigé : `bulkUpdateStatus`/`bulkDelete` remplacent la boucle
+      `for...of` séquentielle par `Promise.allSettled(taskIds.map(...))`
+      — chaque tâche traverse toujours exactement le même chemin complet
+      `updateTask`/`deleteTask` (aucune règle métier contournée, le
+      traitement reste « au mieux », le rapport détaillé par id est
+      inchangé), mais les N appels s'exécutent désormais en parallèle au
+      lieu d'en série. Aucun risque de course entre tâches : chaque
+      itération porte sur un `id` de tâche distinct, jamais la même
+      ligne, donc aucune requête Prisma concurrente ne peut se chevaucher
+      sur les mêmes verrous. Preuve par test réel :
+      `taskBulkActions.test.ts` (« SEC-097 », 1 cas) — crée 10 tâches
+      réelles, mesure le temps d'un `bulkUpdateStatus` sur les 10 contre
+      le temps d'un seul `updateTask` isolé, confirme que le lot reste
+      dans le même ordre de grandeur qu'un seul appel (marge ×4, pas
+      ×10) — preuve empirique de la parallélisation, pas seulement une
+      relecture du code. Vérification complète : `npx tsc --noEmit`
+      (serveur, propre), `npx tsx --test test/run-all.test.ts` (395/395,
+      stable sur 2 exécutions consécutives), `npm run lint` (serveur, 0
+      warning). Résolu SANS confirmation CI : workflow GitHub Actions sur
+      `origin/main` en `workflow_dispatch` uniquement (déviation établie
+      en session le 2026-07-17, citée à chaque clôture depuis).
+
+  - id: SEC-098
+    titre: "Les mutations de commentaire, d'item de checklist et de reunion (create/update/delete) n'invalident aucun tag de cache Redis, alors que getProjectSummary/getClientSummary ecrivent sous tag:project/tag:client — incoherent avec le reste du module qui invalide systematiquement (impact utilisateur reel non confirme, voir correction du constat ci-dessous)"
+    perimetre: "4.2 Gestion de projet — server/src/services/comment.service.ts, server/src/services/taskChecklist.service.ts, server/src/services/projectMeeting.service.ts ; consommateur cache : server/src/services/summary.service.ts + summary.repository.ts#getProjectSummary/#getClientSummary"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      Sera résolu quand `comment.service.ts`/`taskChecklist.service.ts`/
+      `projectMeeting.service.ts` invalident `cacheTags.project(projectId)`/
+      `cacheTags.client(clientId)` sur leurs mutations, par cohérence avec
+      le reste du module (project.service.ts/task.service.ts le font déjà
+      systématiquement) — pas parce qu'un symptôme utilisateur réel a été
+      observé (voir correction du constat ci-dessous), mais pour éliminer
+      l'incohérence et préparer un futur consommateur de lecture de ce
+      cache sans piège latent.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit performance/cache du module Gestion de Projets, lecture directe.
+      `summary.repository.ts#getProjectSummary` (lignes 90-100) renvoie
+      `commentCount` et `getClientSummary` renvoie `taskCount` ;
+      `summary.service.ts` (lignes 20-31) les écrit en cache Redis TTL 120s
+      (projectSummary) / 300s (clientSummary) sous les tags
+      `cacheTags.project(projectId)` / `cacheTags.client(clientId)` +
+      `cacheTags.company()`. `comment.service.ts`/`taskChecklist.service.ts`/
+      `projectMeeting.service.ts` n'appellent effectivement JAMAIS
+      `invalidateTags` (vérifié : aucun import de cacheService/cacheKeys
+      dans ces trois fichiers) — confirmé, incohérent avec le reste du
+      module.
+
+      CORRECTION DU CONSTAT AVANT TOUTE ACTION (vérification demandée
+      explicitement, session 2026-07-20) : le rapport d'origine affirmait
+      qu'un « compteur affiche une valeur périmée jusqu'à l'expiration du
+      TTL » — FAUX tel qu'énoncé. Vérifié par lecture directe et grep
+      exhaustif (`grep -rn "cacheKeys.projectSummary\|cacheKeys.clientSummary"
+      server/src/`) : `summary.service.ts#getProjectSummary`/
+      `#getClientSummary` appellent `cacheSet(...)` (écriture) mais
+      n'appellent JAMAIS `cacheGet(...)` pour ce même `cacheKey` — ni dans
+      ce fichier, ni ailleurs dans le dépôt (seul
+      `getEnhancedDashboardSummary`, méthode distincte, fait un vrai cycle
+      lecture-avant-calcul/écriture). Le endpoint `GET /summary/projects/
+      :projectId` recalcule donc TOUJOURS `commentCount` frais depuis la
+      base à chaque appel — le cache écrit n'est jamais consulté pour
+      servir une réponse. Conséquence réelle : PAS de donnée périmée
+      visible aujourd'hui, contrairement à l'affirmation initiale ;
+      l'absence d'invalidation est une incohérence de style/dette
+      (le cache s'accumule dans Redis sans jamais être lu, ou attend un
+      consommateur futur non encore écrit), pas un bug utilisateur actif.
+      Gravité maintenue à `mineur` sur cette base corrigée — cohérence de
+      code, pas correction de symptôme.
+
+      Corrigé (par cohérence, sur décision explicite du porteur — « Traiter
+      les deux tels quels ») : `comment.service.ts` (createComment/
+      updateComment/deleteComment), `taskChecklist.service.ts` (createItem/
+      updateItem/deleteItem) et `projectMeeting.service.ts` (create/update/
+      delete) invalident désormais `cacheTags.company()`,
+      `cacheTags.project(projectId)` et `cacheTags.client(clientId)` (si le
+      projet a un client), sur le même modèle que `task.service.ts`/
+      `project.service.ts`. `setSchedule` (projectMeeting.service.ts)
+      volontairement NON touché : `meetingFrequency`/`nextMeetingDate` ne
+      font partie d'aucun champ mis en cache par `getProjectSummary`/
+      `getClientSummary` (`commentCount`/`taskCount` seulement) — hors du
+      périmètre strict de ce constat. Preuve par test réel : nouveau
+      fichier `projectModuleCacheInvalidation.test.ts` (3 cas) — écrit une
+      vraie entrée de cache taguée via `cacheSet` (même primitive que
+      `summary.service.ts`), appelle réellement `commentService
+      .createComment`/`taskChecklistService.createItem`/
+      `projectMeetingService.create` contre une base migrée, confirme que
+      l'entrée taguée a disparu après la mutation (`cacheGet` → `null`) —
+      preuve que `invalidateTags` est réellement atteint, pas seulement
+      importé. Vérification complète : `npx tsc --noEmit` (serveur,
+      propre), `npx tsx --test test/run-all.test.ts` (395/395, stable sur
+      2 exécutions consécutives, aucun handle Redis resté ouvert), `npm
+      run lint` (serveur, 0 warning). Résolu SANS confirmation CI :
+      workflow GitHub Actions sur `origin/main` en `workflow_dispatch`
+      uniquement (déviation établie en session le 2026-07-17, citée à
+      chaque clôture depuis).
