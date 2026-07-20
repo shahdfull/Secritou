@@ -77,12 +77,30 @@ export const clientService = {
     return archived;
   },
 
+  // SEC-154: a client whose invitation email never arrived (SMTP down at invite time) was
+  // permanently stuck — this always 409'd once the User row existed, with no ADMIN-facing way
+  // to get them a fresh invite short of the client guessing they should try forgot-password.
+  // `lastLoginAt: null` means the account has never actually been used — the original temp
+  // password was never consumed, so it's safe to reissue rather than a real re-invite of an
+  // active account.
   async inviteClientUser(clientId: string, email: string, name: string) {
     const client = await clientRepository.findById(clientId);
     if (!client) throw new HttpError(404, "Client not found");
 
     const existing = await userRepository.findByClientId(clientId);
-    if (existing.length > 0) throw new HttpError(409, "Client already has a portal account");
+    if (existing.length > 0) {
+      const neverLoggedIn = existing.find((u) => u.lastLoginAt === null);
+      if (!neverLoggedIn) throw new HttpError(409, "Client already has a portal account");
+
+      const tempPassword = crypto.randomBytes(16).toString("base64url").slice(0, 16);
+      const passwordHash = await bcrypt.hash(tempPassword, 12);
+      const user = await userRepository.update(neverLoggedIn.id, { passwordHash, mustChangePassword: true });
+
+      const { subject, html } = clientInvitationTemplate({ name: user.name, email: user.email, tempPassword, loginUrl: `${env.FRONTEND_URL}/login`, companyName: client.name });
+      void enqueueEmail({ to: user.email, subject, html });
+
+      return { user, resent: true };
+    }
 
     const tempPassword = crypto.randomBytes(16).toString("base64url").slice(0, 16);
     const passwordHash = await bcrypt.hash(tempPassword, 12);
@@ -92,6 +110,6 @@ export const clientService = {
     const { subject, html } = clientInvitationTemplate({ name, email, tempPassword, loginUrl: `${env.FRONTEND_URL}/login`, companyName: client.name });
     void enqueueEmail({ to: email, subject, html });
 
-    return { user };
+    return { user, resent: false };
   },
 };

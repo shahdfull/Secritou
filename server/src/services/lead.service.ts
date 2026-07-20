@@ -66,6 +66,17 @@ export const leadService = {
   // their own pole and to themself by default; an ADMIN creates with neither (matches today's
   // ADMIN-visible-to-all behavior, since ADMIN has no pole of their own).
   async createLead(data: CreateLeadDTO, scope?: LeadScope) {
+    // SEC-155: unlike the public contact form (contact.service.ts, find-or-update by email),
+    // manual creation here had no duplicate check — two managers entering a lead for the same
+    // prospect's email produced two silent rows, inflating pipeline volume/conversion metrics.
+    // Reject rather than merge: the caller typed specific data for a reason, and silently
+    // folding it into someone else's existing lead could overwrite or lose what they entered.
+    if (data.email) {
+      const existing = await leadRepository.findFirstByEmail(data.email);
+      if (existing) {
+        throw new HttpError(409, `A lead with this email already exists (${existing.name})`, "LEAD_EMAIL_ALREADY_EXISTS", { leadId: existing.id });
+      }
+    }
     const ownPoleDefaults =
       scope?.userRole === "MANAGER"
         ? { serviceId: scope.userServiceId ?? undefined, assignedManagerId: scope.userId }

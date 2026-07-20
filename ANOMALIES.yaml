@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-153
+dernier_id: SEC-155
 
 anomalies:
   - id: SEC-001
@@ -9532,3 +9532,160 @@ anomalies:
       0 error/0 warning, suite `test:unit` complète 453/453 verte après
       le changement (aucune régression, aucun test n'exerçait ce chemin
       de code).
+
+  - id: SEC-154
+    titre: "clientService.inviteClientUser refuse inconditionnellement (409) dès qu'un User existe pour le clientId, sans distinguer un compte déjà confirmé d'un compte créé mais dont l'email d'invitation a échoué (SMTP down) — aucune action ADMIN de renvoi, seul un forgot-password self-service du client (qui doit déjà savoir qu'un compte existe) reste possible"
+    perimetre: "server/src/services/client.service.ts, server/src/services/invoice.service.ts (addPayment)"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand un ADMIN dispose d'une action explicite (endpoint
+      ou bouton) pour renvoyer l'email d'invitation à un client dont le
+      portail a déjà été activé (User existant, clientId), sans recréer
+      l'utilisateur ni exiger que le client déclenche lui-même
+      `forgot-password` en devinant qu'un compte existe. Vérifié par un
+      test qui appelle cette action contre une base réelle et confirme
+      qu'un email est ré-enfilé sans erreur 409 ni second User créé.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : client.service.ts:80-96
+      (`inviteClientUser`) — `existing.length > 0` déclenche
+      inconditionnellement `throw new HttpError(409, "Client already has a
+      portal account")`, avant toute tentative de renvoi. Le seul appelant
+      (`invoice.service.ts:287-293`, dans `addPayment`, déclenché quand
+      l'acompte passe PAID) catch ce 409 et l'avale silencieusement — donc
+      un échec SMTP au moment de l'invitation initiale (le seul point
+      d'appel) laisse un `User` en base sans que le client n'ait jamais vu
+      l'email, et plus aucun signal ni action ne permet à un ADMIN de le
+      renvoyer. Un chemin de contournement existe : `POST
+      /auth/forgot-password` (auth.routes.ts:232) est public et ne révèle
+      pas si un compte existe (`"If an account exists, a reset email has
+      been sent"`), donc un client qui SAIT qu'il devrait avoir un compte
+      peut le débloquer lui-même — mais rien ne l'informe qu'un compte a
+      été créé s'il n'a jamais reçu l'email initial, et aucune action
+      ADMIN équivalente n'existe côté back-office pour le faire à sa
+      place. Gravité mineure : mitigé par l'existence du contournement
+      self-service, mais l'absence d'action ADMIN reste un vrai manque
+      opérationnel signalé lors d'un rapport tiers, à distinguer d'un
+      constat écarté du même rapport (voir SEC-155 et la note "écarté" en
+      fin de fichier) qui, lui, n'a rien trouvé de réel.
+
+      CORRECTIF ÉCRIT (pas résolu — non commité, pas de test dédié
+      concurrence/renvoi), session du 2026-07-20 : plutôt qu'un nouvel
+      endpoint, réutilisation de la route déjà existante et déjà
+      autorisée `POST /clients/:id/invite` (ADMIN, ou MANAGER scope-checké
+      — inchangée) et de `inviteClientUser` elle-même. Nouveau
+      comportement : si un `User` existe déjà pour le `clientId`,
+      distinction sur `lastLoginAt` (`userPublicFields`, jamais utilisé
+      pour cette distinction avant) — `null` signifie que le compte n'a
+      jamais servi (mot de passe temporaire jamais consommé), auquel cas
+      un nouveau mot de passe temporaire est généré et réémis vers LE
+      MÊME compte (`userRepository.update`, pas de recréation) au lieu de
+      409 ; un compte avec `lastLoginAt` non-null (déjà utilisé au moins
+      une fois) continue de 409 comme avant — comportement inchangé pour
+      le cas réel de compte actif. `invoice.service.ts#addPayment`
+      (seul autre appelant) n'utilise pas la valeur de retour, donc
+      inchangé par le nouveau champ `resent` du résultat. Bloc `@swagger`
+      ajouté à `POST /clients/{id}/invite` (absent jusqu'ici), documentant
+      explicitement les deux cas. Vérifié : `npx tsc --noEmit` propre,
+      `npm run lint` 0 error/0 warning, `swaggerSpec` chargé directement
+      confirme le chemin présent (83 chemins au total, +1) avec les codes
+      201/401/403/404/409, suite `test:unit` complète 453/453 verte
+      (aucune régression — le test existant sur la non-duplication de
+      compte lors d'un second paiement reste vrai dans les deux branches
+      du nouveau code, puisque `justActivatedPortal` est déjà faux sur ce
+      chemin et `inviteClientUser` n'y est jamais réappelé). Critère de
+      résolution formel exige aussi un test dédié au renvoi — non encore
+      écrit, donc `en_cours` malgré le correctif fonctionnel complet.
+
+  - id: SEC-155
+    titre: "leadService.createLead (formulaire interne « Ajouter un lead ») n'a aucune vérification de doublon par email, contrairement au chemin du formulaire de contact public (contact.service.ts:27, find-or-create explicite) — deux managers créant un lead avec le même email produisent deux fiches distinctes sans erreur ni fusion"
+    perimetre: "server/src/services/lead.service.ts, server/prisma/schema.prisma"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand `leadService.createLead` vérifie l'existence d'un
+      lead actif (non archivé) avec le même email avant insertion — soit en
+      renvoyant une erreur 409 explicite au lieu de créer un doublon
+      silencieux, soit en fusionnant/mettant à jour l'existant comme le
+      fait déjà `contact.service.ts:27-37` pour le chemin public — au choix
+      du porteur (comportement de fusion vs rejet explicite étant une
+      décision produit). Vérifié par un test qui crée deux leads avec le
+      même email via `leadService.createLead` contre une base réelle et
+      confirme le comportement choisi (rejet ou fusion, jamais deux lignes
+      distinctes silencieuses).
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : schema.prisma:268 (`Lead.email
+      String?`, indexé ligne 291 mais pas `@unique`) ; `createLead`
+      (lead.service.ts:68-73) transmet `data` à `leadRepository.create`
+      sans aucune recherche préalable par email — contrairement à
+      `contact.service.ts:24-37` (chemin du formulaire de contact public),
+      qui fait explicitement `tx.lead.findFirst({ where: { email:
+      input.email } })` et met à jour l'existant plutôt que d'en créer un
+      second, avec le commentaire « Lead.email is not a unique column, so
+      upsert-by-email is not available. Emulate find-or-create ». La même
+      protection n'a jamais été portée sur le chemin de création manuelle
+      (back-office « Ajouter un lead »). Deux managers de pôles différents
+      créant chacun un lead pour la même adresse email (prospect qui
+      contacte l'agence par deux canaux distincts, ou double saisie)
+      produisent deux fiches, gonflant artificiellement le volume
+      d'opportunités et le nombre de leads comptés dans les métriques de
+      pipeline (analytics.repository.ts, déjà vérifiées saines par
+      ailleurs — recalculées depuis les données sources, donc ce défaut
+      fausse la DONNÉE source, pas le calcul qui la lit).
+
+      Écarté après vérification (rapport tiers, non enregistré comme
+      anomalie séparée) : (a) `LEAD_NEXT_STATUSES`
+      (lead.service.ts:27-34) autorise délibérément les sauts vers l'avant
+      (`NEW → PROPOSAL/WON` directement) — le commentaire du code
+      l'explicite déjà : « a lead can only move to an adjacent/forward
+      stage or be marked LOST, never jump backward » — ce n'est pas un
+      défaut de rigueur mais la règle métier documentée, reflet du Kanban
+      (LeadsKanban.tsx). Le rapport tiers présentait cette règle comme un
+      manque de rigueur alors qu'elle est intentionnelle et déjà
+      documentée en commentaire. (b) la conversion ContactRequest→Lead ne
+      "perd" aucun historique riche : `ContactRequest`
+      (schema.prisma:665-684) est un modèle plat sans relation vers des
+      activités, commentaires ou pièces jointes — il n'existe donc rien de
+      plus à recopier que ce que `sourceContactId` (déjà `@unique` sur
+      `Lead`, ligne 278) référence déjà intégralement. Prémisse du rapport
+      tiers factuellement fausse pour ce dépôt. (c) le scoping MANAGER par
+      `OR: [serviceId, assignedManagerId]` (lead.repository.ts:11-20)
+      n'est pas une ambiguïté de règle — SEC-102 (résolu) a déjà changé ce
+      comportement en règle testée et intentionnelle (un lead créé par un
+      MANAGER hérite des deux champs par défaut) ; le rapport tiers
+      demandait une clarification UI/produit sur une règle déjà correcte
+      et déjà testée, pas un défaut de code — pas enregistré comme
+      anomalie technique, suggestion UX à évaluer séparément si le porteur
+      le souhaite.
+
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-20) : rejet explicite (409) plutôt que fusion — un manager
+      qui saisit un lead manuellement a tapé une information spécifique ;
+      la fusionner silencieusement dans le lead existant d'un autre
+      pourrait écraser ou perdre ce qu'il a saisi.
+
+      CORRECTIF ÉCRIT (pas résolu — non commité, pas de test dédié),
+      session du 2026-07-20 : `leadRepository.findFirstByEmail(email)`
+      ajouté (lead.repository.ts) — cherche un lead actif
+      (`archivedAt: null`) avec le même email, un lead archivé (perdu/gagné)
+      ne bloque pas une ressaisie légitime. `leadService.createLead` appelle
+      cette recherche avant insertion quand `data.email` est fourni (un
+      lead sans email n'est jamais vérifié — rien à dédupliquer) et lève
+      `HttpError(409, ..., "LEAD_EMAIL_ALREADY_EXISTS", {leadId})` si un
+      doublon actif existe, citant le nom du lead existant dans le
+      message. `npx tsc --noEmit` propre, `npm run lint` 0 error/0
+      warning, suite `test:unit` complète 453/453 verte après le
+      changement (aucune régression). Critère de résolution formel exige
+      aussi un test créant deux leads avec le même email et vérifiant le
+      409 — non encore écrit, donc `en_cours` malgré le correctif
+      fonctionnel complet.

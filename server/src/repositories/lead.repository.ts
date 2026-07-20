@@ -81,6 +81,16 @@ export const leadRepository = {
     });
   },
 
+  // SEC-155: used to reject a duplicate manual lead creation before it happens — only
+  // active (non-archived) leads count as a conflict, so a prospect who was previously lost/won
+  // and archived can be re-entered as a fresh lead.
+  async findFirstByEmail(email: string): Promise<Pick<Lead, "id" | "name"> | null> {
+    return prismaRead.lead.findFirst({
+      where: { email, archivedAt: null },
+      select: { id: true, name: true },
+    });
+  },
+
   async create(data: {
     name: string;
     email?: string;

@@ -213,6 +213,61 @@ router.post("/:id/restore", sensitiveWriteRateLimit, authorize("ADMIN"), validat
  */
 router.post("/:id/archive", sensitiveWriteRateLimit, authorize("ADMIN"), validate(archiveClientSchema), clientController.archiveClient);
 
+/**
+ * @swagger
+ * /clients/{id}/invite:
+ *   post:
+ *     summary: Invite (or re-invite) a client portal user
+ *     tags: [Clients]
+ *     security:
+ *       - bearerAuth: []
+ *     description: >
+ *       ADMIN, or MANAGER scoped to a client with a project in their pôle. If no portal user
+ *       exists for this client, creates one and emails a temp password. If a portal user
+ *       already exists but has never logged in (SEC-154 — e.g. the original invitation email
+ *       was lost to an SMTP failure), reissues a fresh temp password and resends the invite to
+ *       the SAME account instead of failing — the response's `resent` flag distinguishes the
+ *       two cases. If the existing account has already logged in at least once, 409.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, name]
+ *             properties:
+ *               email: { type: string, format: email }
+ *               name: { type: string }
+ *     responses:
+ *       201:
+ *         description: Invitation sent (new account or resend)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *                     resent:
+ *                       type: boolean
+ *                       description: true if this reused an existing never-logged-in account instead of creating one.
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       409:
+ *         description: Client already has an active portal account (has logged in at least once)
+ */
 router.post("/:id/invite", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("clients", "update"), validate(inviteClientUserSchema), clientController.inviteClientUser);
 
 export default router;
