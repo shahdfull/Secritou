@@ -1312,7 +1312,10 @@
     "updateStatusDesc": "Vous pouvez uniquement modifier le statut des tâches qui vous sont assignées.",
     "assignedTo": "Assigné à",
     "selectPriority": "Sélectionner la priorité",
-    "kanbanDragHint": "Seules vos tâches assignées peuvent être déplacées. Les autres sont en lecture seule."
+    "kanbanDragHint": "Seules vos tâches assignées peuvent être déplacées. Les autres sont en lecture seule.",
+    "kanbanAnnounceDragStart": "Déplacement de la tâche {{title}}. Utilisez les flèches pour la déplacer, Espace pour la déposer, Échap pour annuler.",
+    "kanbanAnnounceDragEnd": "Tâche {{title}} déplacée.",
+    "kanbanAnnounceDragCancel": "Déplacement de la tâche {{title}} annulé."
   },
   "clientsPage": {
     "title": "Clients",
@@ -2153,7 +2156,10 @@
     "updated": "Document mis à jour avec succès",
     "deleted": "Document supprimé avec succès",
     "versionCreated": "Nouvelle version téléchargée avec succès",
-    "downloadError": "Impossible de récupérer le fichier"
+    "downloadError": "Impossible de récupérer le fichier",
+    "createError": "Erreur lors de la création du document",
+    "updateError": "Erreur lors de la mise à jour du document",
+    "deleteError": "Erreur lors de la suppression du document"
   },
   "exec": {
     "dataUpdatedAt": "Données actualisées à {{time}}",

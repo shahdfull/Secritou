@@ -30,18 +30,7 @@ import { useTranslation } from "react-i18next";
 import { format, isPast } from "date-fns";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Lock } from "lucide-react";
-
-interface StatusConfig {
-  label: string;
-  bgColor: string;
-}
-
-const STATUS_CONFIG: Record<Task["status"], StatusConfig> = {
-  TODO: { label: "À faire", bgColor: "bg-gray-100 text-gray-800" },
-  IN_PROGRESS: { label: "En cours", bgColor: "bg-blue-100 text-blue-800" },
-  REVIEW: { label: "En révision", bgColor: "bg-yellow-100 text-yellow-800" },
-  DONE: { label: "Terminé", bgColor: "bg-green-100 text-green-800" },
-};
+import { getStatusLabel } from "./taskUtils";
 
 const COLUMN_STATUSES: Task["status"][] = [...TASK_STATUSES];
 
@@ -82,6 +71,19 @@ const SortableTaskCard = memo(function SortableTaskCard({ task, onClick, draggab
 
   const dueDateColor = task.dueDate && isPast(new Date(task.dueDate)) ? "text-red-600" : "text-muted-foreground";
 
+  // SEC-093: dnd-kit's KeyboardSensor claims Space/arrow keys for pickup/movement (attributes
+  // above already wires those) — Enter is left free, so it's the only key that can safely open
+  // the task detail without ever conflicting with a keyboard-initiated drag. A non-draggable card
+  // (FREELANCER viewing someone else's task) still gets attributes/tabIndex from useSortable but
+  // has no drag affordance at all, so Enter is its only way to open the detail — hence
+  // unconditional, not gated behind `draggable`.
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && onClick) {
+      e.preventDefault();
+      onClick();
+    }
+  };
+
   return (
     <Card
       ref={setNodeRef}
@@ -89,6 +91,7 @@ const SortableTaskCard = memo(function SortableTaskCard({ task, onClick, draggab
       {...attributes}
       {...(draggable ? listeners : {})}
       onClick={onClick}
+      onKeyDown={handleKeyDown}
       className={draggable
         ? "cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow"
         : "cursor-default shadow-sm opacity-75 border-dashed"
@@ -144,7 +147,7 @@ interface KanbanColumnProps {
 }
 
 const KanbanColumn = memo(function KanbanColumn({ status, tasks, onTaskClick, isDragging, currentUserId }: KanbanColumnProps) {
-  const config = STATUS_CONFIG[status];
+  const { t } = useTranslation();
   const ids = useMemo(() => tasks.map((task) => task.id), [tasks]);
   const columnBg = status === "DONE" ? "bg-green-50/50" : "bg-card";
   const parentRef = useRef<HTMLDivElement | null>(null);
@@ -159,7 +162,7 @@ const KanbanColumn = memo(function KanbanColumn({ status, tasks, onTaskClick, is
   return (
     <div className="flex-1 min-w-[280px] max-w-[320px]">
       <div className={`p-3 rounded-t-lg border border-b-0 flex items-center justify-between ${columnBg}`}>
-        <h3 className="font-semibold text-ink">{config.label}</h3>
+        <h3 className="font-semibold text-ink">{getStatusLabel(status, t)}</h3>
         <span className="text-sm text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
           {tasks.length}
         </span>
@@ -333,6 +336,29 @@ export const TasksKanban = memo(function TasksKanban({ filteredTasks, onTaskClic
     [activeId, filteredTasks]
   );
 
+  // SEC-093: dnd-kit's default announcements are English-only and don't name the task — a
+  // keyboard/screen-reader user moving a card heard nothing useful (or nothing in French) about
+  // what just happened. onDragOver is intentionally left to dnd-kit's default: reliably mapping
+  // a drop target id to a column status here would be guesswork worth getting wrong.
+  const taskTitleById = useCallback(
+    (id: string) => filteredTasks.find((task) => task.id === id)?.title ?? id,
+    [filteredTasks]
+  );
+  const announcements = useMemo(
+    () => ({
+      onDragStart: ({ active }: { active: { id: string | number } }) =>
+        t("tasksPage.kanbanAnnounceDragStart", { title: taskTitleById(String(active.id)) }),
+      onDragOver: () => undefined,
+      onDragEnd: ({ active, over }: { active: { id: string | number }; over: { id: string | number } | null }) =>
+        over
+          ? t("tasksPage.kanbanAnnounceDragEnd", { title: taskTitleById(String(active.id)) })
+          : t("tasksPage.kanbanAnnounceDragCancel", { title: taskTitleById(String(active.id)) }),
+      onDragCancel: ({ active }: { active: { id: string | number } }) =>
+        t("tasksPage.kanbanAnnounceDragCancel", { title: taskTitleById(String(active.id)) }),
+    }),
+    [t, taskTitleById]
+  );
+
   return (
     <div className="overflow-x-auto pb-4">
       {restrictDragToUserId && (
@@ -346,6 +372,7 @@ export const TasksKanban = memo(function TasksKanban({ filteredTasks, onTaskClic
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        accessibility={{ announcements }}
       >
         <div className="flex gap-4 min-w-max">
           {COLUMN_STATUSES.map((status) => (

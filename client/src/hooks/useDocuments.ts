@@ -7,6 +7,7 @@ import {
 } from "../api/documents.api";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { getServerErrorMessage } from "@/utils/apiError";
 
 export function useDocuments(params?: {
   page?: number;
@@ -35,6 +36,16 @@ export function useDocument(id: string) {
   });
 }
 
+// SEC-095: none of the three mutations below had an onError at all — a rejection (e.g. 403
+// FREELANCER_DELIVERABLE_ONLY, or 409 on a task whose project is archived) failed completely
+// silently, with nothing shown to the user across all 3 consumers of this hook (DocumentsPage,
+// ProjectDetailPage, TaskAttachments).
+function showDocumentError(fallback: string) {
+  return (err: unknown) => {
+    toast.error(getServerErrorMessage(err) || fallback);
+  };
+}
+
 export function useCreateDocument() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
@@ -45,6 +56,7 @@ export function useCreateDocument() {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
       toast.success(t("documents.created"));
     },
+    onError: showDocumentError(t("documents.createError")),
   });
 }
 
@@ -58,6 +70,7 @@ export function useUpdateDocument() {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
       toast.success(t("documents.updated"));
     },
+    onError: showDocumentError(t("documents.updateError")),
   });
 }
 
@@ -71,6 +84,7 @@ export function useDeleteDocument() {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
       toast.success(t("documents.deleted"));
     },
+    onError: showDocumentError(t("documents.deleteError")),
   });
 }
 

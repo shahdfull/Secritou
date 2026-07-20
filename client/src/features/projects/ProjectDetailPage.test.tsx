@@ -133,3 +133,23 @@ describe("ProjectDetailPage archive/unarchive buttons — SEC-078", () => {
     expect(unarchiveMock).toHaveBeenCalledWith("project-1", expect.anything());
   });
 });
+
+describe("ProjectDetailPage task status badges use the centralized i18n label — SEC-096", () => {
+  test("a REVIEW task shows the shared label \"En revue\" (i18n), not the old hardcoded \"Révision\"", () => {
+    mockProject = makeProject({
+      tasks: [{
+        id: "task-1",
+        title: "Tâche en revue",
+        status: "REVIEW",
+        priority: "NORMAL",
+        projectId: "project-1",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }],
+    });
+    renderPage();
+
+    expect(screen.getAllByText("En revue").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Révision")).not.toBeInTheDocument();
+  });
+});

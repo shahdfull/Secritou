@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { timeEntryApi, type CreateTimeEntryInput } from "@/api/timeEntry.api";
 import { queryKeys } from "@/lib/query-keys";
 import { toast } from "sonner";
+import { getServerErrorMessage } from "@/utils/apiError";
 
 export function useTimeEntries(projectId: string, page = 1) {
   return useQuery({
@@ -40,8 +41,10 @@ export function useCreateTimeEntry(projectId: string) {
       queryClient.invalidateQueries({ queryKey: ["myTimeSummary", projectId] });
       toast.success("Temps enregistré");
     },
-    onError: (err: Error) => {
-      toast.error(err.message || "Erreur lors de l'enregistrement");
+    // SEC-095: prefer the server's actual message (e.g. 409 PROJECT_ARCHIVED) over err.message,
+    // an opaque Axios status line ("Request failed with status code 409").
+    onError: (err) => {
+      toast.error(getServerErrorMessage(err) || "Erreur lors de l'enregistrement");
     },
   });
 }

@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-092
+dernier_id: SEC-096
 
 anomalies:
   - id: SEC-001
@@ -6619,3 +6619,259 @@ anomalies:
       GitHub Actions sur `origin/main` en `workflow_dispatch`
       uniquement (déviation établie en session le 2026-07-17, citée à
       chaque clôture depuis).
+
+  - id: SEC-093
+    titre: "Kanban des tâches (TasksKanban.tsx) : ouvrir le détail d'une carte est souris-seule (onClick sur un div sans role/tabIndex/onKeyDown) ; le déplacement clavier dnd-kit reste par ailleurs sans annonce lecteur d'écran"
+    perimetre: "4.3 Gestion des tâches — client/src/features/tasks/TasksKanban.tsx#SortableTaskCard"
+    regle_violee: null
+    classe: "a11y_clavier_lecteur_ecran"
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      Sera résolu quand un utilisateur au clavier seul peut, depuis une
+      carte du Kanban, ouvrir le détail de la tâche (Enter/Espace
+      déclenchant la même action que le clic) — vérifié par un test qui
+      rend `TasksKanban`, met le focus sur une carte et confirme que la
+      touche Enter appelle `onTaskClick`. Point distinct de SEC-057 (qui
+      ne portait que sur les `aria-label` des boutons icône de
+      ProjectsPage) et de SEC-056 (vue carte mobile de la liste).
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit a11y/UX LECTURE SEULE du module Gestion de Projets (client),
+      lecture directe intégrale. `SortableTaskCard` (TasksKanban.tsx:85-135)
+      est un `<Card>` (div) qui porte `onClick={onClick}` pour ouvrir le
+      `TaskDetailDrawer`, sans `role="button"`, `tabIndex` ni `onKeyDown`
+      propres. Pour une carte DÉPLAÇABLE, dnd-kit injecte via `attributes`
+      un `role="button"` et `tabIndex=0` qui la rendent focusable — mais
+      la touche Enter/Espace n'y déclenche PAS `onClick` (elle sert au
+      ramassage dnd-kit), donc ouvrir le détail au clavier reste
+      impossible. Pour une carte NON déplaçable (FREELANCER, tâche non
+      assignée : `draggable=false`, listeners omis mais `attributes`
+      toujours étalés), elle reçoit quand même `role="button"`+`tabIndex=0`
+      de dnd-kit tout en n'ayant aucune action clavier du tout — focusable
+      mais inerte. Par ailleurs `DndContext` n'a pas d'`accessibility`/
+      `announcements` configuré : un déplacement clavier réussi n'émet
+      aucune annonce ARIA traduite FR (dnd-kit fournit des annonces par
+      défaut en anglais). Impact concret : un utilisateur clavier/lecteur
+      d'écran ne peut pas consulter une tâche depuis la vue Kanban — il
+      doit basculer en vue Liste (qui, elle, expose un bouton « Voir »).
+      Contournement existant (vue Liste accessible) → gravité mineure,
+      mais réel.
+
+      Corrigé (même session, choix du porteur : « Tout traiter (4
+      items) ») : `onKeyDown` ajouté à `SortableTaskCard` — la touche
+      Enter (jamais réclamée par le `KeyboardSensor` de dnd-kit, qui
+      utilise Espace/flèches pour le ramassage/déplacement) déclenche
+      désormais `onClick`, sur les cartes déplaçables ET non
+      déplaçables. `accessibility.announcements` traduites (FR/EN)
+      ajoutées sur `DndContext` (`onDragStart`/`onDragEnd`/
+      `onDragCancel`, citant le titre de la tâche) — `onDragOver`
+      délibérément laissé au comportement par défaut de dnd-kit
+      (mapper fiablement un id de cible de dépôt vers un statut de
+      colonne ici aurait été une supposition risquée). Preuve par test
+      réel : nouveau fichier `TasksKanban.test.tsx` — rend le
+      composant réel, met le focus sur une carte, presse Enter,
+      confirme l'appel réel à `onTaskClick`. Vérification complète :
+      `npx tsc --noEmit` (client, propre), `npx vitest run` (client,
+      90/90), `npm run lint` (client, 12 warnings — SEC-049, stable),
+      `npm run build` (succès), `node scripts/check-i18n.mjs` (vert).
+      Résolu SANS confirmation CI : workflow GitHub Actions sur
+      `origin/main` en `workflow_dispatch` uniquement (déviation
+      établie en session le 2026-07-17, citée à chaque clôture
+      depuis).
+
+  - id: SEC-094
+    titre: "Boutons icône-seule de la table desktop TasksListView.tsx (Voir/Modifier/Supprimer) n'exposent qu'un `title`, pas d'`aria-label` — nom accessible absent pour lecteur d'écran, exactement la zone non vérifiée par SEC-057"
+    perimetre: "4.3 Gestion des tâches — client/src/features/tasks/components/TasksListView.tsx (branche `hidden sm:block`, lignes ~385-395)"
+    regle_violee: null
+    classe: "a11y_label_accessible_bouton_icone"
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      Sera résolu quand chacun des trois boutons icône-seule de la ligne
+      de table desktop (Eye/Edit/Trash2) porte un `aria-label` (pas
+      seulement un `title`), vérifié par un test qui rend `TasksListView`
+      en mode desktop et récupère les boutons par leur nom accessible
+      (`getByRole("button", { name: ... })`). Distinct de SEC-057 dont le
+      périmètre déclaré se limitait à `ProjectsPage.tsx#ProjectGrid`.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit a11y/UX LECTURE SEULE, lecture directe. Dans la vue table
+      desktop (`hidden sm:block`), les trois boutons d'action de fin de
+      ligne utilisent `title="Voir"` / `title={t("common.edit")}` /
+      `title={t("common.delete")}` (TasksListView.tsx:385, 389, 394) mais
+      pas `aria-label`. `title` produit une infobulle survol souris et
+      n'est un repli de nom accessible que de façon incohérente selon les
+      lecteurs d'écran ; la convention du dépôt (établie par SEC-057 pour
+      ProjectsPage, et déjà appliquée à la vue carte MOBILE de ce même
+      fichier — lignes 445/449/454 qui, elles, ont bien `aria-label`) est
+      l'`aria-label` explicite. Incohérence interne au fichier : la
+      variante mobile est correcte, la variante desktop ne l'est pas.
+      SEC-057 avait explicitement laissé ce fichier hors de son périmètre.
+      Impact : un utilisateur de lecteur d'écran en vue table entend
+      « bouton » sans libellé fiable.
+
+      Corrigé (même session, choix du porteur : « Tout traiter (4
+      items) ») : `aria-label` ajouté aux 3 boutons de la branche
+      desktop de `TasksListView.tsx`, en plus du `title` déjà présent
+      (les deux coexistent, alignés sur la même valeur). Preuve par
+      test réel : nouveau fichier `TasksListViewDesktopA11y.test.tsx`
+      (mock `@tanstack/react-virtual`, isolé du fichier principal pour
+      ne pas casser ses 2 tests existants qui reposent sur l'absence de
+      rendu virtualisé) — rend le composant réel et récupère les 3
+      boutons par leur nom accessible. Vérification complète : `npx
+      tsc --noEmit` (client, propre), `npx vitest run` (client, 90/90),
+      `npm run lint` (client, 12 warnings — SEC-049, stable), `npm run
+      build` (succès). Résolu SANS confirmation CI : workflow GitHub
+      Actions sur `origin/main` en `workflow_dispatch` uniquement
+      (déviation établie en session le 2026-07-17, citée à chaque
+      clôture depuis).
+
+  - id: SEC-095
+    titre: "onError absent ou générique sur plusieurs mutations du module (TimeTrackingTab, ProjectMeetingsTab, TaskChecklist, TaskAttachments) — les codes métier serveur (PROJECT_ARCHIVED, etc.) ne remontent aucun message lisible à l'utilisateur du formulaire"
+    perimetre: "4.2/4.3 — client/src/features/projects/TimeTrackingTab.tsx, client/src/features/projects/ProjectMeetingsTab.tsx, client/src/features/tasks/components/TaskChecklist.tsx, client/src/features/tasks/components/TaskAttachments.tsx"
+    regle_violee: null
+    classe: "ux_erreur_serveur_non_remontee"
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      Sera résolu quand, sur ces mutations, une erreur serveur porteuse
+      d'un code métier connu (ex. `PROJECT_ARCHIVED`,
+      `CHECKLIST_LIMIT_REACHED`, transition invalide) déclenche un toast
+      au message spécifique et actionnable, vérifié par un test qui
+      simule le rejet et confirme le message affiché — au lieu d'un échec
+      silencieux (mutation sans `onError`) ou d'un « Erreur » générique.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit a11y/UX LECTURE SEULE, lecture directe. Contraste avec le bon
+      motif déjà en place ailleurs dans le module :
+      `ProjectsPage.tsx#handleUpdate/handleConfirmDelete` décodent
+      `error.response.data.error.code` et mappent chaque code métier
+      (COMPLETION_REQUIRES_CLIENT_APPROVAL, INVALID_STATUS_TRANSITION,
+      PROJECT_HAS_INVOICES, PROJECT_HAS_ONBOARDING) sur un message i18n
+      dédié ; `TasksKanban.tsx#handleDragEnd` surface `error.response.data
+      .error.message` du serveur. À l'inverse : `TimeTrackingTab.tsx`
+      (createEntry), `ProjectMeetingsTab.tsx` (createMeeting/updateMeeting/
+      deleteMeeting), `TaskChecklist.tsx` (createItem/updateItem/
+      deleteItem), `TaskAttachments.tsx` (deleteDocument) appellent leurs
+      mutations SANS `onError` local — l'échec est donc soit silencieux,
+      soit réduit au toast générique éventuel du hook. Or SEC-089 vient de
+      faire en sorte que checklist/commentaires soient rejetés
+      `409 PROJECT_ARCHIVED` sur un projet archivé/COMPLETED : ce rejet
+      n'a aujourd'hui aucun rendu utilisateur lisible sur ces formulaires
+      (l'ajout de sous-tâche/pièce jointe « ne fait rien » sans
+      explication). Impact : action qui échoue en silence. Le rendu par
+      défaut des hooks n'a pas été audité exhaustivement ici (périmètre =
+      composants du module) — d'où gravité mineure.
+
+      APPROFONDISSEMENT AVANT CORRECTIF : `useDeleteChecklistItem`/
+      `useUpdateChecklistItem`/`useCreateChecklistItem`
+      (`useTaskChecklist.ts`) n'avaient en réalité AUCUN `onError`, pas
+      même générique — plus grave que le rapport initial (qui parlait
+      d'un « toast générique éventuel du hook ») : pour la checklist
+      précisément, l'échec était RÉELLEMENT silencieux, zéro toast.
+      Même constat pour `useCreateDocument`/`useUpdateDocument`/
+      `useDeleteDocument` (`useDocuments.ts`, consommé par
+      `TaskAttachments.tsx` mais aussi `DocumentsPage.tsx` et
+      `ProjectDetailPage.tsx`).
+
+      Corrigé (même session, choix du porteur : « Tout traiter (4
+      items) ») : nouvel utilitaire partagé
+      `client/src/utils/apiError.ts#getServerErrorMessage` (extrait
+      `error.response.data.error.message`, même pattern déjà établi
+      par `TasksKanban.tsx#handleDragEnd`). Câblé dans les `onError`
+      de `useCreateTimeEntry` (`useTimeEntries.ts`),
+      `useCreateProjectMeeting`/`useUpdateProjectMeeting`/
+      `useDeleteProjectMeeting`/`useSetMeetingSchedule`
+      (`useProjectMeetings.ts`),
+      `useCreateChecklistItem`/`useUpdateChecklistItem`/
+      `useDeleteChecklistItem` (`useTaskChecklist.ts`, qui n'avaient
+      aucun `onError` — désormais avec message serveur en priorité et
+      un repli spécifique par action), et
+      `useCreateDocument`/`useUpdateDocument`/`useDeleteDocument`
+      (`useDocuments.ts`, bénéficie aux 3 consommateurs, pas seulement
+      `TaskAttachments.tsx`). Corrigé au niveau des HOOKS plutôt qu'en
+      ajoutant un second `onError` par composant appelant, pour éviter
+      un double toast (React Query appelle à la fois le `onError` du
+      `useMutation` et celui passé à `mutate()`, vérifié par lecture du
+      code source `@tanstack/query-core`). Clés i18n
+      `documents.createError`/`updateError`/`deleteError` ajoutées
+      (FR/EN, absentes jusqu'ici).
+
+      Preuve par test réel : nouveau fichier
+      `useTaskChecklist.test.tsx` (2 cas) — appelle réellement
+      `useCreateChecklistItem` contre un rejet Axios simulé porteur
+      d'un code `PROJECT_ARCHIVED`, confirme le message serveur exact
+      affiché (pas de double toast) ; second cas, absence de réponse
+      structurée → repli spécifique. Vérification complète : `npx tsc
+      --noEmit` (client, propre), `npx vitest run` (client, 90/90),
+      `npm run lint` (client, 12 warnings — SEC-049, stable), `npm run
+      build` (succès), `node scripts/check-i18n.mjs` (vert). Résolu
+      SANS confirmation CI : workflow GitHub Actions sur `origin/main`
+      en `workflow_dispatch` uniquement (déviation établie en session
+      le 2026-07-17, citée à chaque clôture depuis).
+
+  - id: SEC-096
+    titre: "Couleurs et libellés de statut de tâche codés en dur dans ProjectDetailPage (TASK_STATUS_COLOR/TASK_STATUS_LABELS) et 3e jeu dans TasksKanban (STATUS_CONFIG) au lieu des helpers centralisés — un même statut change de couleur selon l'écran, libellés FR hors i18n"
+    perimetre: "4.2/4.3 — client/src/features/projects/ProjectDetailPage.tsx (TASK_STATUS_COLOR, TASK_STATUS_LABELS), client/src/features/tasks/TasksKanban.tsx (STATUS_CONFIG)"
+    regle_violee: null
+    classe: "coherence_ui_couleurs_i18n"
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      Sera résolu quand ProjectDetailPage et TasksKanban rendent les
+      badges de statut de tâche via `getTaskStatusBadgeClass`
+      (utils/statusColors.ts) et les libellés via `getStatusLabel(status,
+      t)` (taskUtils) au lieu de leurs tables locales codées en dur en
+      français, vérifié par relecture — de sorte qu'un même statut ait
+      partout la même couleur et un libellé traduisible.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit a11y/UX LECTURE SEULE, lecture directe. `ProjectDetailPage.tsx`
+      (lignes 33-45) redéfinit localement `TASK_STATUS_COLOR` (ex.
+      `IN_PROGRESS: bg-yellow-100 text-yellow-700`,
+      `REVIEW: bg-purple-100 text-purple-700`) et `TASK_STATUS_LABELS`
+      (« À faire »/« En cours »/… en dur), alors que le reste du module
+      passe par `getTaskStatusBadgeClass` (bg-primary-soft/accent-soft) et
+      `getStatusLabel(…, t)`. `TasksKanban.tsx#STATUS_CONFIG` (lignes
+      39-44) constitue un 3e jeu encore différent (bg-blue-100/bg-yellow-100)
+      avec libellés FR en dur. Conséquences : (a) un même statut n'a pas
+      la même couleur selon l'écran (détail projet vs liste vs kanban),
+      source de confusion produit ; (b) les libellés FR codés en dur
+      échappent à l'i18n FR/EN (`fallbackLng: "fr"`) — un passage EN
+      laisserait « À faire » non traduit. Ce ne sont pas des contrastes
+      sous le seuil AA en soi (les paires -100/-700 tiennent), mais des
+      jeux divergents non centralisés qui rendent toute correction de
+      contraste future partielle. Gravité mineure (cosmétique/cohérence).
+
+      Corrigé (même session, choix du porteur : « Tout traiter (4
+      items) ») : `TASK_STATUS_COLOR`/`TASK_STATUS_LABELS`
+      (`ProjectDetailPage.tsx`) supprimés, ses 2 sites d'appel routés
+      sur `getTaskStatusBadgeClass(status)` (utils/statusColors.ts) et
+      `getTaskStatusLabel(status, t)` (alias importé de
+      `taskUtils.ts#getStatusLabel`). `STATUS_CONFIG`/`StatusConfig`
+      (`TasksKanban.tsx`) supprimés — `bgColor` n'était de toute façon
+      jamais consommé dans le rendu (vérifié par grep avant
+      suppression), seul `label` l'était pour l'en-tête de colonne,
+      remplacé par `getStatusLabel(status, t)`. Effet visible : REVIEW
+      affiche désormais partout « En revue » (clé i18n
+      `tasksPage.statuses.review`), plus « Révision »
+      (ProjectDetailPage) ni « En révision » (TasksKanban) — les 3
+      libellés distincts convergent vers un seul texte traduisible.
+      Preuve par test réel : `ProjectDetailPage.test.tsx` (1 cas —
+      une tâche REVIEW affiche « En revue », jamais l'ancien
+      « Révision » codé en dur). Vérification complète : `npx tsc
+      --noEmit` (client, propre), `npx vitest run` (client, 90/90),
+      `npm run lint` (client, 12 warnings — SEC-049, stable), `npm run
+      build` (succès). Résolu SANS confirmation CI : workflow GitHub
+      Actions sur `origin/main` en `workflow_dispatch` uniquement
+      (déviation établie en session le 2026-07-17, citée à chaque
+      clôture depuis).

@@ -382,16 +382,16 @@ export function TasksListView({
                         )}
                         <div className="flex justify-end">
                           <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Voir" onClick={() => onView(task)}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Voir" aria-label="Voir" onClick={() => onView(task)}>
                               <Eye className="h-3.5 w-3.5" />
                             </Button>
                             {(!isFreelancer || task.assigneeId === currentUserId) && (
-                              <Button variant="ghost" size="icon" className="h-7 w-7" title={t("common.edit")} onClick={() => onEdit(task)}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" title={t("common.edit")} aria-label={t("common.edit")} onClick={() => onEdit(task)}>
                                 <Edit className="h-3.5 w-3.5" />
                               </Button>
                             )}
                             {canDelete && (
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("common.delete")} onClick={() => onDelete(task)}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("common.delete")} aria-label={t("common.delete")} onClick={() => onDelete(task)}>
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             )}

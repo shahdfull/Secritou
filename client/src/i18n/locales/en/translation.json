@@ -1312,7 +1312,10 @@
     "updateStatusDesc": "You can only update the status of tasks assigned to you.",
     "assignedTo": "Assigned to",
     "selectPriority": "Select priority",
-    "kanbanDragHint": "Only your assigned tasks can be dragged. Other tasks are read-only."
+    "kanbanDragHint": "Only your assigned tasks can be dragged. Other tasks are read-only.",
+    "kanbanAnnounceDragStart": "Picked up task {{title}}. Use arrow keys to move, Space to drop, Escape to cancel.",
+    "kanbanAnnounceDragEnd": "Task {{title}} moved.",
+    "kanbanAnnounceDragCancel": "Moving task {{title}} was cancelled."
   },
   "clientsPage": {
     "title": "Clients",
@@ -2153,7 +2156,10 @@
     "updated": "Document updated successfully",
     "deleted": "Document deleted successfully",
     "versionCreated": "New version uploaded successfully",
-    "downloadError": "Could not retrieve the file"
+    "downloadError": "Could not retrieve the file",
+    "createError": "Error creating the document",
+    "updateError": "Error updating the document",
+    "deleteError": "Error deleting the document"
   },
   "exec": {
     "dataUpdatedAt": "Data refreshed at {{time}}",

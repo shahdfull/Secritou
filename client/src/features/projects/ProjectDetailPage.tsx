@@ -19,7 +19,8 @@ import { useProject, useUpdateProject, useArchiveProject, useUnarchiveProject } 
 import { useMe } from "@/hooks/useAuth";
 import { useMySplitForProject } from "@/hooks/useCommissions";
 import { TASK_STATUSES, PROJECT_STATUS_VALID_TRANSITIONS, PROJECT_STATUS_LABELS_FR } from "@secritou/shared";
-import { getProjectStatusBadgeClass } from "@/utils/statusColors";
+import { getProjectStatusBadgeClass, getTaskStatusBadgeClass } from "@/utils/statusColors";
+import { getStatusLabel as getTaskStatusLabel } from "@/features/tasks/taskUtils";
 import { TimeTrackingTab } from "./TimeTrackingTab";
 import { ProjectMeetingsTab } from "./ProjectMeetingsTab";
 import { useProjectTemplateForService, useApplyProjectTemplate } from "@/hooks/useProjectTemplates";
@@ -29,20 +30,6 @@ import { toast } from "sonner";
 import { FileUploadField } from "@/components/common/FileUploadField";
 import { useCreateDocument, useDocuments, useDownloadDocument } from "@/hooks/useDocuments";
 import type { UploadResult } from "@/api/upload.api";
-
-const TASK_STATUS_COLOR: Record<string, string> = {
-  TODO: "bg-gray-100 text-gray-600",
-  IN_PROGRESS: "bg-yellow-100 text-yellow-700",
-  REVIEW: "bg-purple-100 text-purple-700",
-  DONE: "bg-green-100 text-green-700",
-};
-
-const TASK_STATUS_LABELS: Record<string, string> = {
-  TODO: "À faire",
-  IN_PROGRESS: "En cours",
-  REVIEW: "Révision",
-  DONE: "Terminé",
-};
 
 export function ProjectDetailPage() {
   const { t } = useTranslation();
@@ -263,8 +250,8 @@ export function ProjectDetailPage() {
           {TASK_STATUSES.map((s) => (
             <div key={s} className="text-center rounded-xl border border-border py-3 px-2">
               <p className="text-xl font-bold text-ink">{taskCountByStatus[s] ?? 0}</p>
-              <Badge className={`${TASK_STATUS_COLOR[s]} text-[10px] mt-1`}>
-                {TASK_STATUS_LABELS[s]}
+              <Badge className={`${getTaskStatusBadgeClass(s)} text-[10px] mt-1`}>
+                {getTaskStatusLabel(s, t)}
               </Badge>
             </div>
           ))}
@@ -342,8 +329,8 @@ export function ProjectDetailPage() {
                     {displayedTasks.map((task) => (
                       <li key={task.id} className="flex items-center justify-between py-2.5">
                         <span className="text-sm text-ink">{task.title}</span>
-                        <Badge className={`${TASK_STATUS_COLOR[task.status]} text-xs`} variant="secondary">
-                          {TASK_STATUS_LABELS[task.status] ?? task.status}
+                        <Badge className={`${getTaskStatusBadgeClass(task.status)} text-xs`} variant="secondary">
+                          {getTaskStatusLabel(task.status, t)}
                         </Badge>
                       </li>
                     ))}
