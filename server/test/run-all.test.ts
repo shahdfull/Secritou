@@ -102,3 +102,5 @@ import "./leadDuplicateEmail.test.ts";
 import "./reportsPageSortOrder.test.ts";
 import "./taskUpdateScopeRefusal.test.ts";
 import "./proposalWriteScopeRefusal.test.ts";
+import "./userDeleteFinancialHistory.test.ts";
+import "./clientPortalActivationBackfill.test.ts";

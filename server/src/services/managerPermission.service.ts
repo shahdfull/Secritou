@@ -4,6 +4,7 @@ import { managerPermissionRepository } from "../repositories/managerPermission.r
 import { permissionProfileRepository } from "../repositories/permissionProfile.repository.js";
 import { cacheGet, cacheSet, cacheDel } from "../cache/cacheService.js";
 import { cacheKeys } from "../cache/cacheKeys.js";
+import { HttpError } from "../utils/httpError.js";
 
 // The permission matrix stored as JSON: per-module CRUD flags. Kept structurally typed (a plain
 // record) rather than a Prisma type because it is serialized to/from a Json column.
@@ -113,9 +114,18 @@ export const permissionProfileService = {
   },
 
   async delete(id: string) {
-    const userIds = await managerPermissionRepository.findUserIdsByProfileId(id);
-    const deleted = await permissionProfileRepository.delete(id);
-    await Promise.all(userIds.map((userId) => cacheDel(cacheKeys.managerPermissions(userId))));
-    return deleted;
+    // SEC-114: the FK is ON DELETE SET NULL, so the delete itself never fails — but a Manager
+    // still attached to this profile would silently lose every permission the profile granted
+    // (resolvePermissions falls back to base = {}) the next time their cache entry expires or is
+    // invalidated. Block instead, naming the affected managers, rather than degrade them silently.
+    const names = await managerPermissionRepository.findUserNamesByProfileId(id);
+    if (names.length > 0) {
+      throw new HttpError(
+        409,
+        `Cannot delete a permission profile still assigned to ${names.length} manager(s): ${names.join(", ")}`,
+        "PERMISSION_PROFILE_IN_USE"
+      );
+    }
+    return permissionProfileRepository.delete(id);
   },
 };

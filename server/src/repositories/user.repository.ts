@@ -40,6 +40,18 @@ export const userRepository = {
     return prismaRead.user.count({ where: { role } });
   },
 
+  // SEC-165: Commission, ProjectCommissionSplit and TimeEntry all cascade-delete on their
+  // partner/user relation — deleting a User who already has financial history would silently
+  // destroy it. Checked before delete so the caller gets an explicit refusal instead.
+  async hasFinancialHistory(id: string): Promise<boolean> {
+    const [commissions, splits, timeEntries] = await Promise.all([
+      prismaRead.commission.count({ where: { partnerId: id } }),
+      prismaRead.projectCommissionSplit.count({ where: { partnerId: id } }),
+      prismaRead.timeEntry.count({ where: { userId: id } }),
+    ]);
+    return commissions > 0 || splits > 0 || timeEntries > 0;
+  },
+
   async findAll(options: ListQueryOptions): Promise<PaginatedResult<PublicUser>> {
     const skip = (options.page - 1) * options.pageSize;
     const [data, total] = await Promise.all([

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { formatDate } from "@/utils/format";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2, ArrowLeft, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { projectsApi, BriefQuestion } from "@/api/projects.api";
+import { getServerErrorMessage, getServerRequestId } from "@/utils/apiError";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -188,8 +189,10 @@ export function ClientBriefPage() {
       qc.invalidateQueries({ queryKey: ["project-timeline", projectId] });
       toast.success("Votre brief a été envoyé. Merci !");
     },
-    onError: () => {
-      toast.error("La soumission a échoué. Veuillez réessayer.");
+    onError: (error) => {
+      const message = getServerErrorMessage(error) ?? "La soumission a échoué. Veuillez réessayer.";
+      const requestId = getServerRequestId(error);
+      toast.error(requestId ? `${message} (réf. ${requestId})` : message);
     },
   });
 
@@ -245,9 +248,15 @@ export function ClientBriefPage() {
 
   if (isError || !data) {
     return (
-      <p className="text-muted-foreground text-center py-20">
-        Impossible de charger le questionnaire.
-      </p>
+      <div className="max-w-2xl mx-auto py-20 text-center space-y-3">
+        <p className="text-muted-foreground">Impossible de charger le questionnaire.</p>
+        <p className="text-xs text-muted-foreground">
+          Si le problème persiste, contactez le support avec la référence affichée dans le message d'erreur.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Ces réponses servent uniquement à préparer le cadrage du projet et les livrables associés pour le pôle concerné.
+        </p>
+      </div>
     );
   }
 
@@ -335,6 +344,9 @@ export function ClientBriefPage() {
         <div>
           <h1 className="text-2xl font-bold">Brief client</h1>
           <p className="text-sm text-muted-foreground">{project.name}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Ces informations sont collectées pour produire le brief, cadrer la mission et préparer les documents du projet.
+          </p>
         </div>
       </div>
 
@@ -416,3 +428,7 @@ export function ClientBriefPage() {
     </section>
   );
 }
+
+
+
+

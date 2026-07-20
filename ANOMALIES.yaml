@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-178
+dernier_id: SEC-182
 
 anomalies:
   - id: SEC-001
@@ -7710,6 +7710,33 @@ anomalies:
       pas de trou de couverture réel sur le comportement de production,
       seulement un test vert trompeur en plus qui ne serait jamais rouge si
       la vraie cascade dérivait. Signalé, non corrigé (repéré hors du
+
+      CORRECTIF DE NOTE (audit QA, session du 2026-07-21, statut/titre
+      inchangés) : l'affirmation ci-dessus (« pas de trou de couverture
+      réel ») est INEXACTE sur 7 des 10 branches que le mock couvre —
+      vérifiée en lisant réellement les 4 fichiers cités : ils appellent
+      bien `acceptWithCascade` avec du vrai code, mais chacun sur un axe
+      disjoint des branches du mock (`portalActivationOnPayment.test.ts` =
+      timing de l'invite portail post-paiement ;
+      `proposalScopeAfterCreation.test.ts` = scope MANAGER avant/après
+      création du `linkedProject` ; `proposal.service.test.ts` = version
+      mismatch + un seul cas nominal). AUCUN des 4 fichiers réels ne couvre :
+      (1) re-acceptation idempotente d'une proposition déjà ACCEPTED sans
+      dupliquer projet/facture, (2) réconciliation (ACCEPTED mais facture
+      manquante → backfill facture seule), (3) lead déjà converti vers un
+      AUTRE client → non-écrasement, (4) invite déjà existante (409) →
+      absorbée, acceptation quand même réussie, (5) proposition sans
+      montant → aucune facture créée, (6) proposition sans leadId → mise à
+      jour du lead ignorée, (7) proposition expirée → rejet. Ces 7 branches
+      ne sont vérifiées QUE par le mock — si l'implémentation réelle de
+      l'une d'elles dérive, aucun test ne vire rouge, contrairement à ce
+      que la formulation initiale de cette note laissait penser. `statut`
+      reste `ouvert` (déjà correct), `gravite` inchangée à `mineur` par
+      cohérence avec la classe SEC-100/SEC-087 (défaut de méthode de test,
+      pas de bug de production observé), mais le critère de résolution
+      existant (appeler le vrai service) doit explicitement couvrir ces 7
+      branches, pas seulement « appeler acceptWithCascade » en général.
+      Signalé, non corrigé (repéré hors du
       périmètre de la tâche en cours).
 
   - id: SEC-110
@@ -8289,7 +8316,7 @@ anomalies:
     regle_violee: null
     classe: "scoping_pole_manquant_ou_incorrect"
     gravite: bloquant
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand un MANAGER qui appelle `GET /documents/:id` (lecture
       détail) ou la route de téléchargement sur un document rattaché à un
@@ -8326,13 +8353,30 @@ anomalies:
       dépendre d'une faille UI — IDOR classique sur une entité pouvant
       contenir des contrats, pièces jointes clients confidentielles.
 
+      RÉSOLU (déjà, avant cette passe) : lecture directe confirme que
+      `document.repository.ts:93-95` porte désormais une branche `MANAGER`
+      identique en logique à `findAll`
+      (`where.client.projects.some.serviceId`), et que
+      `document.controller.ts:45,106` transmet bien `scope?.userServiceId`
+      pour `getDocumentById`/`downloadDocument`. Preuve par test réel :
+      `server/test/documentScopeManager.test.ts` (déjà importé dans
+      `run-all.test.ts:88`) appelle `documentService.getById` (code réel,
+      pas une réimplémentation) et vérifie qu'un Manager du pôle A reçoit
+      `null` sur un document du pôle B, qu'un Manager même pôle le lit, et
+      qu'un ADMIN non scopé le lit aussi. Commit `4caab78` (session
+      antérieure — ni le fix ni le test n'ont été produits par mes propres
+      appels d'outils dans cette session, attribution non revendiquée).
+      Dérogation CI déjà accordée par l'utilisateur pour cette session
+      ("Le ci n est pas important pour le moment make them resolus") :
+      `resolu` malgré l'absence de run CI vert sur ce commit précis.
+
   - id: SEC-123
     titre: "contactService.convertToLead accepte assignedManagerId et department en paramètres libres transmis tels quels par le controller, sans dériver ni vérifier le pôle de l'appelant — un manager peut convertir un ContactRequest en Lead assigné à un autre pôle"
     perimetre: "4.1 CRM & Pipeline commercial — server/src/services/contact.service.ts#convertToLead ; server/src/controllers/contact.controller.ts#convertToLead"
     regle_violee: RG-002
     classe: "scoping_pole_manquant_ou_incorrect"
     gravite: majeur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `POST /contact-requests/:id/convert-to-lead` appelé
       par un MANAGER du pôle A avec un `department`/`assignedManagerId`
@@ -8363,6 +8407,28 @@ anomalies:
       pas une reformulation du même critère de résolution, classe partagée
       (`scoping_pole_manquant_ou_incorrect`) mais ID distinct. Aucun test
       n'existe (`grep -rn "convertToLead" server/test/` : zéro résultat).
+
+      RÉSOLU (déjà, avant cette passe) : lecture directe de
+      `contact.service.ts:92-114` confirme qu'un objet `ownPoleDefaults` est
+      désormais calculé pour tout appelant `MANAGER`
+      (`{ serviceId: scope.userServiceId, assignedManagerId: scope.userId,
+      department: undefined }`) et étalé (`...ownPoleDefaults`) APRÈS
+      `assignedManagerId`/`department` dans `tx.lead.create` (ligne 114) —
+      il écrase donc systématiquement toute valeur fournie par l'appelant
+      pour un MANAGER, quelle qu'elle soit ; seul un ADMIN reste libre
+      d'assigner un pôle arbitraire. C'est l'option "forcer le département
+      au pôle de l'appelant" du critère de résolution, cohérente avec le
+      précédent SEC-102 cité dans la note d'origine. Preuve par test réel :
+      `server/test/contactConvertToLeadScope.test.ts` (déjà importé dans
+      `run-all.test.ts`) appelle `contactService.convertToLead` (code réel)
+      avec un `assignedManagerId`/`department` d'un autre pôle sous un scope
+      MANAGER et vérifie que le Lead résultant porte bien le pôle de
+      l'appelant, pas celui demandé ; un second cas confirme qu'un ADMIN
+      reste libre. Commit `4caab78` (session antérieure — ni le fix ni le
+      test n'ont été produits par mes propres appels d'outils dans cette
+      session). Dérogation CI déjà accordée par l'utilisateur pour cette
+      session : `resolu` malgré l'absence de run CI vert sur ce commit
+      précis.
 
   - id: SEC-124
     titre: "Aucun test HTTP n'exerce les routes RBAC/scope critiques (POST /proposals/:id/accept, DELETE /proposals/:id) avec un rôle refusé — rbac.test.ts ne teste que authorize() en isolation avec un req mocké, jamais une route réelle montée"
@@ -8865,7 +8931,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: majeur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `client.repository.ts`, `lead.repository.ts` et
       `user.repository.ts` importent `prisma` et `prismaRead` séparément
@@ -8909,6 +8975,26 @@ anomalies:
       donc aucun symptôme observable tant que ça reste vrai, ce qui est
       exactement pourquoi ce type de bug survit jusqu'au jour où une
       réplique est effectivement câblée.
+
+      RÉSOLU (déjà, avant cette passe) : lecture directe confirme que les 4
+      fichiers importent désormais `{ prisma, prismaRead }` séparément
+      (`client.repository.ts:2`, `lead.repository.ts:2`,
+      `user.repository.ts:2`, `comment.repository.ts:2`), sans aucun alias
+      `prismaRead as prisma`, et que `comment.repository.ts#create`
+      (ligne 24) appelle bien `prisma.comment.create`. Preuve par test réel
+      structurel : `prismaReadWriteSeparation.test.ts` (déjà importé dans
+      `run-all.test.ts:68`, voir aussi SEC-133) scanne dynamiquement TOUS
+      les fichiers `*.repository.ts` du dossier réel qui importent
+      `prismaRead` (≥29, vérifié par un test canari dédié) et vérifie pour
+      chacun qu'aucun appel mutateur (`create`/`update`/`updateMany`/
+      `delete`/`deleteMany`/`upsert`) ne transite par la connexion lecture,
+      alias ou non — les 4 fichiers de ce constat sont donc couverts sans
+      extension manuelle nécessaire, le test étant déjà générique sur
+      l'ensemble du dossier plutôt que sur une liste figée. Commit `4caab78`
+      (session antérieure — ni le fix ni le test n'ont été produits par mes
+      propres appels d'outils dans cette session). Dérogation CI déjà
+      accordée par l'utilisateur pour cette session : `resolu` malgré
+      l'absence de run CI vert sur ce commit précis.
 
   - id: SEC-136
     titre: "proposalService.acceptWithCascade : le fallback try/catch sur la collision P2002 (Project.proposalId / Invoice.proposalId uniques) ne peut jamais réussir dans la même transaction — Postgres bloque toute commande suivante (25P02) une fois la transaction en échec, donc le tx.project.findFirst/tx.invoice.findFirst de secours échoue systématiquement dans le cas réel qu'il est censé gérer"
@@ -10197,7 +10283,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: majeur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand un utilisateur CLIENT consultant cette page voit du
       français correctement accentué (pas de séquences « Ã© »/« Ã¨ »/« Ã´ »),
@@ -10228,6 +10314,26 @@ anomalies:
       contenu réellement changé fichier par fichier), donc impossible de
       dater l'introduction de ce mojibake par une simple lecture de diff
       depuis cette session — signalé tel quel, sans cause inventée.
+
+      RÉSOLU (session en cours) : lecture des octets bruts du fichier
+      (`xxd`) a révélé que le mojibake n'était pas uniforme — certaines
+      occurrences (ligne 257 notamment) étaient un DOUBLE ré-encodage
+      (`c3 83 c2 a9` au lieu de `c3 a9` pour un é), pas le simple
+      ré-encodage Latin-1 décrit dans le titre d'origine ; un remplacement
+      texte naïf sur ces lignes ne matchait pas byte-à-byte. Corrigé les 9
+      occurrences (lignes 141, 160, 190, 193, 195, 217, 254, 257, 318, 348,
+      355, 361, 375, 404, 413) par réécriture directe de chaque ligne en
+      UTF-8 correct (accents français propres, tirets/points de suspension
+      typographiques). Vérifié par grep final sur tout le fichier (`Ã`/
+      `â€`/`Â`) : zéro résultat restant. Vérifié par
+      `npx eslint src/features/client-portal/ClientBriefPage.tsx` depuis
+      `client/` : sortie vide, code de sortie 0 — 0 erreur/0 warning sur ce
+      fichier précis, satisfaisant le second volet du critère de résolution.
+      Fix produit par mes propres appels d'outils dans cette session.
+      Dérogation CI déjà accordée par l'utilisateur pour cette session :
+      `resolu` malgré l'absence de run CI vert sur ce commit précis — le
+      lint local ciblé est vert, `npm run lint --workspace client` complet
+      sera revérifié dans le lot de vérification final de cette passe.
 
   - id: SEC-156
     titre: "ReportsPage.tsx demande pageSize:500 pour projects/invoices, mais getAllProjects et getInvoices appellent parseListQuery sans maxPageSize (plafond 50 par défaut, cf. SEC-118) — ET le tri par défaut est createdAt ASC (les plus anciens), donc au-delà de 50 lignes le rapport/export PDF-Excel calcule ses stats et sa plage « 30 derniers jours » sur les 50 enregistrements les plus ANCIENS, pas les plus récents"
@@ -10674,7 +10780,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: bloquant
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand on peut affirmer, pour toute base ayant réellement
       exécuté cette migration avec des lignes ApprovalTimeline.status =
@@ -10718,13 +10824,45 @@ anomalies:
       la perte/falsification de données métier dans une migration qui
       s'exécute par ailleurs correctement.
 
+      RÉSOLU : requête directe sur la base de dev réelle (migrée) —
+      `SELECT status, count(*) FROM "ApprovalTimeline" GROUP BY status`
+      renvoie exactement `{PENDING: 5, APPROVED: 1}`, zéro ligne
+      `COMMENTED`, et correspond exactement aux 6 lignes du seed
+      (`server/prisma/seed.ts:852-859`). Plus important : grep exhaustif de
+      `server/src` confirme qu'il n'existe qu'un seul point d'écriture vers
+      `ApprovalTimeline.status`, `approval.service.ts:189` —
+      `approvalRepository.addTimeline(id, { action: "COMMENTED", comment,
+      status: approval.status, userId })` — qui écrit toujours le statut
+      COURANT de l'Approval (`PENDING`/`APPROVED`/`REJECTED`) dans la
+      colonne `status`, et la chaîne littérale `"COMMENTED"` dans la colonne
+      `action` (distincte). Le seed applique le même patron ligne 856/858 :
+      `action: 'COMMENTED', status: 'PENDING'`, jamais `status: 'COMMENTED'`.
+      Autrement dit, malgré la présence de `COMMENTED` dans l'enum
+      `ApprovalStatus` depuis la toute première migration
+      (`20260625150326_init/migration.sql:50`), aucun chemin de code
+      applicatif n'a jamais écrit cette valeur dans la colonne `status` de
+      `ApprovalTimeline` — seulement dans `action`, une colonne `VARCHAR`
+      libre non affectée par le changement d'enum. Le `UPDATE ... WHERE
+      status = 'COMMENTED'` de la migration incriminée était donc, dans les
+      faits, une opération sur zéro ligne dans toute base peuplée
+      exclusivement via le code applicatif ou le seed — le risque décrit
+      (falsification d'un historique COMMENTED réel) n'a jamais pu se
+      matérialiser, faute d'écrivain produisant cette valeur. Le critère de
+      résolution ("interroger la base réelle pour compter les lignes
+      affectées") est donc satisfait par une valeur de zéro constatée, pas
+      supposée. Aucun changement de code nécessaire. Dérogation CI déjà
+      accordée par l'utilisateur pour cette session : `resolu` malgré
+      l'absence de run CI vert sur ce commit précis (ici, la vérification
+      elle-même n'a modifié aucun fichier de code — seule ANOMALIES.yaml
+      change).
+
   - id: SEC-165
     titre: "La suppression d'un User (DELETE /users/:id, ADMIN uniquement, route réellement câblée) cascade sur Commission, ProjectCommissionSplit et TimeEntry (onDelete: Cascade sur les trois relations) — supprimer le compte d'un des 3 associés détruit silencieusement tout son historique de commissions et de temps facturé, sans aucune garde dans userService.deleteUser"
     perimetre: "schema.prisma#Commission, #ProjectCommissionSplit, #TimeEntry (relations vers User) ; server/src/services/user.service.ts#deleteUser ; server/src/repositories/user.repository.ts#delete"
     regle_violee: null
     classe: null
     gravite: bloquant
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand un ADMIN qui tente de supprimer un User ayant des
       `Commission`, `ProjectCommissionSplit` ou `TimeEntry` liés reçoit un
@@ -10776,6 +10914,38 @@ anomalies:
       en pratique aujourd'hui (0 client actif, probablement jamais exercé
       sur un compte avec activité) — n'change pas la gravité du défaut de
       conception, seulement la probabilité qu'il se soit déjà produit.
+
+      RÉSOLU (session en cours) : ajout de
+      `userRepository.hasFinancialHistory(id)` (`user.repository.ts`) qui
+      compte `Commission`/`ProjectCommissionSplit`/`TimeEntry` liés au
+      `partnerId`/`userId` cible, appelé dans `userService.deleteUser`
+      avant `userRepository.delete` — refus explicite 409
+      `USER_HAS_FINANCIAL_HISTORY` si l'un des trois compteurs est non nul,
+      exactement le même patron que le garde-fou déjà existant sur le
+      dernier ADMIN (`LAST_ADMIN`, même fichier). Option retenue : le refus
+      explicite (premier volet du critère de résolution), pas le
+      `onDelete: Restrict`/`SetNull` schéma (second volet) — un changement
+      de contrainte FK est une migration de schéma plus large, hors
+      proportion pour fermer ce constat alors qu'un refus applicatif suffit
+      au critère. Le message d'erreur ne mentionne PAS de "désactivation"
+      de compte : aucun champ `isActive`/`deactivated` n'existe sur `User`
+      dans schema.prisma (vérifié par lecture directe du modèle complet,
+      `schema.prisma:146-176`) — inventer cette mention aurait décrit une
+      fonctionnalité inexistante ("réparer n'est pas développer").
+      Preuve par test réel : `server/test/userDeleteFinancialHistory.test.ts`
+      (nouveau fichier, importé dans `run-all.test.ts`) crée un vrai
+      `TimeEntry` puis un vrai `ProjectCommissionSplit` sur un vrai User,
+      appelle `userService.deleteUser` (code réel), vérifie le rejet 409
+      `USER_HAS_FINANCIAL_HISTORY` dans les deux cas et que
+      l'enregistrement financier ET le User survivent ; un 3e cas confirme
+      qu'un User sans historique reste supprimable normalement. Suite
+      complète (496 tests) verte : `node --test --import tsx
+      test/run-all.test.ts`. `npx tsc --noEmit` et
+      `npm run lint --workspace=server` verts (0 erreur/0 warning). Fix et
+      test produits par mes propres appels d'outils dans cette session.
+      Dérogation CI déjà accordée par l'utilisateur pour cette session
+      ("Le ci n est pas important pour le moment make them resolus") :
+      `resolu` malgré l'absence de run CI vert sur ce commit précis.
 
   - id: SEC-166
     titre: "TimeEntry.billedInvoiceId (String?) n'est pas une vraie relation Prisma (pas de @relation vers Invoice) — aucune intégrité référentielle, aucun onDelete, aucun index dédié : un invoice.id copié à la main sans garantie qu'il existe ni qu'il reste cohérent"
@@ -11009,7 +11179,7 @@ anomalies:
     regle_violee: null
     classe: "migration_champ_derive_sans_backfill"
     gravite: majeur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand tout client ayant une facture DEPOSIT au statut
       PAID (ou PARTIAL suffisant selon la règle métier d'activation) voit
@@ -11051,6 +11221,64 @@ anomalies:
       mais se déclenche automatiquement pour tout client historique dont le
       paiement précède cette migration — à vérifier avant toute mise en
       production si des paiements réels ont eu lieu avant le 2026-07-11.
+
+      RÉSOLU (session en cours), en deux volets :
+
+      1) Backfill ponctuel : nouvelle migration
+      `20260721000000_backfill_client_portal_activated_at` (`UPDATE
+      "Client" ... FROM (SELECT clientId, MIN(COALESCE(paidAt, updatedAt))
+      FROM "Invoice" WHERE invoiceType='DEPOSIT' AND status='PAID' GROUP
+      BY clientId) ... WHERE portalActivatedAt IS NULL`), appliquée
+      directement sur la base de dev réelle (le SQL exécuté via
+      `prisma.$executeRawUnsafe`, puis la migration marquée appliquée avec
+      `npx prisma migrate resolve --applied` — PAS `migrate dev`/`deploy`,
+      pour ne jamais toucher à la migration externe non commitée déjà en
+      attente, `20260720000000_lead_email_unique_active`, hors périmètre de
+      cette session). Requête de contrôle immédiate après application :
+      zéro client restant avec un acompte `PAID` et `portalActivatedAt
+      NULL` (5 clients affectés avant, dont Carrefour/Géant/Monoprix
+      Tunisia du seed — 0 après).
+
+      2) CONSTAT SUPPLÉMENTAIRE en écrivant le test de vérification : le
+      backfill ponctuel ne corrige que les lignes existantes au moment où
+      il tourne — en relançant la suite complète, `server/test/
+      projectClientApproveBalanceInvoice.test.ts` (fichier préexistant,
+      non modifié) crée une facture DEPOSIT directement au statut `PAID`
+      via `prisma.invoice.create`, contournant totalement
+      `invoiceService.addPayment` — reproduisant EN DIRECT le même défaut
+      pour tout futur chemin d'écriture (import, fixture, action admin
+      future) qui poserait un statut PAID sans passer par ce service.
+      Une migration ponctuelle ne peut structurellement pas empêcher cette
+      récidive. Question posée explicitely au porteur malgré la consigne
+      "ne pas interrompre" (jugée nécessaire : un choix d'architecture,
+      pas un simple constat) — réponse reçue : "Derive at read-time
+      (recommended)". Implémenté dans
+      `clientRepository.getPortalActivatedAt` (`client.repository.ts`) :
+      si la colonne cache est `null`, une requête de secours cherche une
+      facture DEPOSIT/PAID réelle liée au client ; si trouvée, la colonne
+      est auto-réparée (`updateMany` sur `portalActivatedAt: null`) et
+      l'horodatage réel (`paidAt` sinon `updatedAt` de la facture) est
+      retourné — `requireActivatedPortal` (qui appelle cette fonction) ne
+      peut donc plus jamais désynchroniser du fait réel "acompte payé",
+      quel que soit le chemin d'écriture qui a produit ce fait.
+
+      Preuve par test réel : `server/test/clientPortalActivationBackfill.test.ts`
+      (nouveau fichier, importé dans `run-all.test.ts`) — un cas crée un
+      Client + une facture DEPOSIT/PAID par écriture DIRECTE (contournant
+      `addPayment`, reproduisant le scénario du constat supplémentaire),
+      appelle `clientRepository.getPortalActivatedAt` (code réel, la
+      fonction dont dépend `requireActivatedPortal`) et vérifie qu'elle
+      trouve l'acompte via le repli et auto-répare la colonne ; un second
+      cas confirme que le chemin normal (`invoiceService.addPayment` réel)
+      active toujours le portail. Suite complète (496 tests) verte :
+      `node --test --import tsx test/run-all.test.ts`. `npx tsc --noEmit`
+      et `npm run lint --workspace=server` verts. Fix et tests produits
+      par mes propres appels d'outils dans cette session ; la migration
+      externe `20260720000000_lead_email_unique_active` reste non touchée,
+      toujours en attente, comme confirmé par `npx prisma migrate status`
+      après ces opérations. Dérogation CI déjà accordée par l'utilisateur
+      pour cette session : `resolu` malgré l'absence de run CI vert sur ce
+      commit précis.
 
   - id: SEC-173
     titre: "Migration 20260719200000_add_task_completedat_comment_editedat ajoute Task.completedAt (nullable) sans backfill — toute tâche déjà au statut DONE avant cette migration garde completedAt=null en permanence (le champ n'est écrit que par updateTask au moment de la transition vers DONE, jamais rétroactivement)"
@@ -11315,3 +11543,176 @@ anomalies:
       applicatif (frontend) limite déjà l'accès au formulaire de notation à
       une fois par demande d'évaluation générée — seul le service/schéma a
       été vérifié, pas le composant React appelant.
+
+  - id: SEC-179
+    titre: "server/test/idor.test.ts (14 tests, invoice.repository + proposal.repository) réimplémente localement invoiceUpdate/invoiceDelete/invoiceFindById/proposalUpdate/proposalDelete/proposalFindById sur un where: { id, companyId } fictif — companyId n'existe nulle part dans ce dépôt mono-tenant ; le fichier n'importe jamais les vrais repositories et ne prouve rien sur leur scoping réel"
+    perimetre: "4.4 Facturation, 4.1 CRM & Pipeline commercial — server/test/idor.test.ts ; server/src/repositories/invoice.repository.ts ; server/src/repositories/proposal.repository.ts"
+    regle_violee: null
+    classe: "test_reimplemente_companyid_fictif"
+    gravite: moyen
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `idor.test.ts` appelle réellement
+      `invoiceRepository`/`proposalRepository` (ou les services qui les
+      enveloppent, ex. `assertInvoiceInScope` déjà vérifié réel sous
+      SEC-137) contre une base migrée, avec un scope CLIENT/MANAGER
+      cross-pôle ou cross-client réel, et vérifie le refus — sur le même
+      modèle que `documentScopeManager.test.ts`/`invoiceScopeManager.test.ts`
+      déjà réécrits sous SEC-122/SEC-137 — pas une réimplémentation locale
+      portant un `companyId` absent du schéma réel.
+    detecte_le: "2026-07-21"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit QA (item 1, puis item 2 en creusant les tests de scoping),
+      passe complémentaire. `idor.test.ts` est mentionné en aparté dans
+      SEC-087 (« idor.test.ts présente le même défaut [...] hors périmètre
+      de correction immédiate de cette entrée [...] signalé pour
+      traçabilité ») et de nouveau dans SEC-100 (« Même famille que SEC-087
+      (taskScope.test.ts/idor.test.ts, même défaut companyId fictif) »).
+      Dans les deux cas le fichier est explicitement laissé hors du
+      périmètre corrigé (SEC-087 n'a réécrit que `taskScope.test.ts`,
+      SEC-100 n'a réécrit que `lead.repository.test.ts`/
+      `leadService.test.ts`/`proposal.service.test.ts`) — `idor.test.ts`
+      lui-même n'a jamais reçu de correctif ni de critère de résolution qui
+      lui soit propre, seulement des mentions de passage dans les notes
+      d'autres entrées. Reconfirmé par lecture directe aujourd'hui (le
+      fichier est inchangé : en-tête « Pattern: stub prisma by injection »,
+      zéro `import` depuis `../src/`, fonctions locales
+      `invoiceUpdate/invoiceDelete/invoiceFindById/proposalUpdate/
+      proposalDelete/proposalFindById` prenant un paramètre `companyId`
+      explicite, `where: { id, companyId }` — le nom même du fichier
+      (« idor.test.ts ») laisse croire à une couverture IDOR réelle sur
+      Facturation/Propositions alors qu'aucun des 14 tests n'appelle le
+      code de production. Gravité `moyen` (alignée sur SEC-087, même
+      classe) : ce n'est pas un bug de production observé, mais un test
+      vert trompeur sur exactement la zone (accès direct par ID à une
+      facture/proposition d'un autre client/pôle) où une régression
+      réelle serait la plus coûteuse à ne pas détecter avant mise en
+      production.
+
+  - id: SEC-180
+    titre: "Le fallback 404 générique (app.ts, route inexistante) répond { message: \"Route not found\" } au lieu de l'enveloppe d'erreur uniforme { error: { code, message }, message, requestId } produite par error.middleware.ts pour absolument tous les autres cas (HttpError, ZodError, Prisma P2002, Multer) — seul point de sortie HTTP de l'API qui ne porte ni error.code ni requestId"
+    perimetre: "transverse — server/src/app.ts (lignes 134-136) ; server/src/middlewares/error.middleware.ts"
+    regle_violee: null
+    classe: "enveloppe_erreur_non_uniforme"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand une requête vers une route inexistante (404)
+      reçoit la même enveloppe que toute autre erreur — `{ error: { code:
+      "ROUTE_NOT_FOUND", message }, message, requestId }` — soit en
+      remplaçant le handler générique par `next(new HttpError(404, ...))`
+      pour qu'il traverse `error.middleware.ts` comme tout le reste, soit
+      par une décision explicite documentée si le porteur juge ce cas
+      volontairement hors du contrat d'enveloppe — prouvé par un test HTTP
+      réel (même style que `errorEnvelope.http.test.ts`, SEC-145/SEC-149)
+      qui appelle une route inexistante et vérifie la présence de
+      `error.code`/`requestId`.
+    detecte_le: "2026-07-21"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit architecture API (item 2, cohérence des codes d'erreur).
+      Vérifié par lecture directe : `app.ts:134-136` —
+      `app.use((_req, res) => { res.status(404).json({ message: "Route not
+      found" }); })` — enregistré APRÈS `app.use("/api/v1", apiRoutes)`
+      mais avant `app.use(errorMiddleware)`, donc ce handler répond
+      directement sans jamais passer par `errorMiddleware` (pas de
+      `next()`). `errorEnvelope.http.test.ts` (SEC-145/SEC-149), qui
+      teste déjà l'enveloppe uniforme sur 8 scénarios HTTP réels
+      (ZodError, HttpError x6, Multer implicite), ne couvre pas ce cas —
+      grep sur son contenu confirmé : aucune requête vers une route
+      inexistante. Impact concret pour un intégrateur tiers : une erreur
+      de frappe dans l'URL de base (le cas le plus probable en phase
+      d'intégration) est le seul chemin d'erreur de toute l'API où
+      `response.data.error.code` est `undefined` au lieu d'une chaîne
+      exploitable — cassant tout parsing générique d'erreur écrit contre
+      le contrat par ailleurs cohérent (confirmé sur les 6 autres branches
+      de `error.middleware.ts`, toutes unifiées sous `HttpError` depuis
+      SEC-149).
+
+  - id: SEC-181
+    titre: "La convention de pagination (page/pageSize/orderBy/orderDir via parseListQuery) n'est pas uniforme : contact.controller.ts et customQuestion.controller.ts utilisent un paramètre `limit` au lieu de `pageSize`, tandis qu'aiConversation.controller.ts/projectMeeting.controller.ts/timeEntry.controller.ts réimplémentent leur propre parsing page/pageSize avec des plafonds et comportements de repli divergents (50, 100, ou aucun plafond visible) au lieu d'appeler parseListQuery"
+    perimetre: "transverse — server/src/controllers/{contact,customQuestion,aiConversation,projectMeeting,timeEntry}.controller.ts ; server/src/utils/listQuery.ts#parseListQuery"
+    regle_violee: null
+    classe: "convention_api_non_uniforme"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand ces 5 controllers appellent `parseListQuery`
+      (comme la majorité des autres endpoints de liste) au lieu de
+      parser `req.query` à la main, avec un paramètre `pageSize` partout
+      (pas `limit`) — ou qu'une décision explicite documente pourquoi ces
+      5 endpoints ont volontairement une convention différente (ex.
+      contraintes historiques d'un client déjà intégré sur `limit`).
+    detecte_le: "2026-07-21"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit architecture API (item 5, pagination). Vérifié par grep direct
+      sur `server/src/controllers/*.ts` : `contact.controller.ts:36-37` et
+      `customQuestion.controller.ts:18-19,45-46` lisent
+      `req.query.limit` (pas `pageSize` — nom de paramètre différent de
+      la convention dominante) ; `aiConversation.controller.ts:7-8` plafonne
+      à 50 en dur ; `timeEntry.controller.ts:21-22` plafonne à 100 (pas 50,
+      le défaut de `parseListQuery`) ; `projectMeeting.controller.ts:11-12`
+      fait `Number(req.query.page)`/`Number(req.query.pageSize)` sans
+      valeur de repli visible en cas de paramètre absent (`NaN` possible).
+      Aucun des 5 ne semble exposer `orderBy`/`orderDir` (non vérifié en
+      profondeur, seul `page`/`limit`/`pageSize` grepé dans cette passe).
+      Impact : un client frontend générique construit autour de la
+      convention `pageSize` (le hook de pagination partagé, déjà vu dans
+      les passes précédentes de cet audit sur `ReportsPage`/`LeadsPage`)
+      enverrait silencieusement un paramètre ignoré sur ces 5 endpoints,
+      retombant sur leurs valeurs par défaut respectives sans erreur ni
+      avertissement.
+
+  - id: SEC-182
+    titre: "Les blocs @swagger des mutations métier critiques ne documentent que les codes structurels (401/403/404/422) et omettent systématiquement les codes 409 propres à la règle métier — POST /projects/{id}/client-approve promet 200/401/403/404 alors que le service expose au moins 6 codes distincts (PROJECT_ALREADY_APPROVED, PROJECT_ALREADY_COMPLETED, PROJECT_NOT_IN_REVIEW, DEPOSIT_UNPAID, PENDING_APPROVALS_REMAINING, OPEN_TASKS_REMAINING) qu'aucun client généré depuis le spec OpenAPI ne peut anticiper"
+    perimetre: "transverse (fidélité documentation) — server/src/routes/project.routes.ts (client-approve, lignes 344-380) ; server/src/services/project.service.ts#clientApprove ; échantillon également relevé sur invoice.routes.ts (POST /:id/payments)"
+    regle_violee: null
+    classe: "swagger_codes_erreur_incomplets"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand le bloc `@swagger` de `POST
+      /projects/{id}/client-approve` liste explicitement au moins les
+      codes 409 réels (`PROJECT_ALREADY_APPROVED`,
+      `PROJECT_ALREADY_COMPLETED`, `PROJECT_NOT_IN_REVIEW`,
+      `DEPOSIT_UNPAID`, `PENDING_APPROVALS_REMAINING`) avec leur `code`
+      métier respectif dans la description — vérifié en comparant le JSON
+      servi sur `/api-docs` au corps de `clientApprove` — puis, si le
+      porteur le souhaite, étendu aux autres mutations identifiées comme
+      touchées par le même défaut (`POST /invoices/{id}/payments` a le
+      même écart, non traité dans cette entrée par manque d'échantillon
+      exhaustif).
+    detecte_le: "2026-07-21"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit architecture API (item 1, fidélité de la documentation),
+      passe de comblement des zones non explorées. Vérifié par lecture
+      directe : le bloc `@swagger` de `client-approve`
+      (`project.routes.ts:344-377`) déclare `responses: 200, 401, 403,
+      404` — aucune entrée `409`. Le corps réel de `clientApprove`
+      (`project.service.ts:295-388`, déjà lu intégralement lors de l'audit
+      base de données de cette même conversation) lève `HttpError(409,
+      ...)` sur au moins 5 conditions distinctes avant même d'atteindre la
+      transaction, plus un `HttpError(400, ...,
+      "OPEN_TASKS_REMAINING")`. La `description` en prose mentionne
+      vaguement « necessarily happens after the deposit invoice is
+      already paid » mais ne liste aucun code exploitable
+      programmatiquement. Un des scénarios (`PROJECT_ALREADY_COMPLETED`)
+      est trivialement atteignable en usage normal (double-clic sur le
+      bouton d'approbation, ou retry réseau — le même scénario que SEC-177
+      dans cette conversation) : un intégrateur tiers générant un client
+      HTTP depuis le spec OpenAPI n'aurait aucun type/branche pour ce cas
+      pourtant courant. Échantillon élargi à `POST /invoices/{id}/payments`
+      (`invoice.routes.ts:610-668`) : même schéma, `responses` ne liste que
+      201/401/403/404 alors qu'`addPayment` a probablement des gardes de
+      statut (non re-vérifié en détail ici, cité comme second indice d'un
+      défaut systémique plutôt que confirmé exhaustivement). Gravité
+      `mineur` : n'affecte aucun client interne (le frontend React n'utilise
+      pas le spec OpenAPI généré, seulement les vrais endpoints), l'impact
+      se limite à un futur consommateur API tiers.

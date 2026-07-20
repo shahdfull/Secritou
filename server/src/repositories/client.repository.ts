@@ -128,8 +128,26 @@ export const clientRepository = {
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
+  // SEC-172: portalActivatedAt is normally set as a side effect of invoiceService.addPayment,
+  // but any write path that lands an Invoice directly in DEPOSIT/PAID without going through that
+  // service (a backfill, an import, a test fixture, a future admin action) would otherwise leave
+  // the client permanently locked out of their own portal despite the deposit being paid. Falling
+  // back to a live check here — instead of trusting the cached column alone — means the gate can
+  // never desync from the actual paid-deposit fact, regardless of how that fact was written.
   async getPortalActivatedAt(clientId: string): Promise<Date | null> {
     const client = await prismaRead.client.findUnique({ where: { id: clientId }, select: { portalActivatedAt: true } });
-    return client?.portalActivatedAt ?? null;
+    if (client?.portalActivatedAt) return client.portalActivatedAt;
+
+    const paidDeposit = await prismaRead.invoice.findFirst({
+      where: { clientId, invoiceType: "DEPOSIT", status: "PAID" },
+      orderBy: { paidAt: "asc" },
+      select: { paidAt: true, updatedAt: true },
+    });
+    if (!paidDeposit) return null;
+
+    const activatedAt = paidDeposit.paidAt ?? paidDeposit.updatedAt;
+    // Self-heal the cached column so subsequent requests take the fast path above.
+    await prisma.client.updateMany({ where: { id: clientId, portalActivatedAt: null }, data: { portalActivatedAt: activatedAt } });
+    return activatedAt;
   },
 };

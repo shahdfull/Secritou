@@ -178,6 +178,13 @@ export const userService = {
       const adminCount = await userRepository.countByRole("ADMIN");
       if (adminCount <= 1) throw new HttpError(409, "Cannot delete the last remaining admin", "LAST_ADMIN");
     }
+    if (await userRepository.hasFinancialHistory(id)) {
+      throw new HttpError(
+        409,
+        "Cannot delete a user with existing commission or time-tracking history",
+        "USER_HAS_FINANCIAL_HISTORY"
+      );
+    }
     const deleted = await userRepository.delete(id);
 
     // Best-effort: remove waiting notification jobs addressed to this user so they
