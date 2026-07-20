@@ -798,6 +798,29 @@ anomalies:
       périmètre — le critère se lit littéralement, pas par intention
       reconstruite.
 
+      VÉRIFIÉ DE NOUVEAU (session du 2026-07-20, après push de
+      edbe2dc..804767c contenant les correctifs SEC-138 à SEC-155) : `gh`
+      CLI toujours indisponible, même méthode API REST non authentifiée.
+      `GET /repos/.../commits/804767c/check-runs` → `total_count: 0` —
+      AUCUN check-run sur ce HEAD. Cause confirmée par lecture directe de
+      `.github/workflows/ci.yml` : le déclencheur est désormais
+      `workflow_dispatch` SEUL (`pull_request`/`push` commentés, avec le
+      commentaire explicite « Disabled while in dev (not prod) »), donc
+      un push seul ne lance plus rien. `GET
+      /repos/.../actions/workflows/ci.yml/runs?per_page=100` confirme :
+      37 runs historiques au total, 0 avec `conclusion: success`, le plus
+      récent daté du 2026-07-17T19:51:54Z (`event: push`, donc antérieur
+      à la désactivation du trigger) — aucun run, réussi ou non, n'existe
+      pour un commit de la session du 2026-07-20. SEC-010 reste
+      structurellement bloqué : son critère ne peut être rempli par
+      aucun push tant que le trigger automatique reste désactivé — un
+      déclenchement manuel (`workflow_dispatch`) est nécessaire, ce que
+      cette session n'a pas les permissions d'effectuer (API non
+      authentifiée) et n'a pas reçu instruction de faire. DÉCISION DU
+      PORTEUR DU PROJET (AskUserQuestion, session du 2026-07-20) : ne pas
+      réactiver le trigger automatique ni déclencher manuellement pour
+      l'instant — SEC-010 reste `en_cours` en l'état.
+
   - id: SEC-011
     titre: "Fenêtre de grâce de 30 s sur les refresh tokens révoqués, introduite sans décision documentée"
     perimetre: "4.14 Authentification & Compte utilisateur — server/src/services/auth.service.ts"
