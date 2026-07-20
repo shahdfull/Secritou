@@ -65,7 +65,7 @@ export const setInvoiceReminderPaused = async (req: Request, res: Response) => {
 };
 
 export const sendInvoice = async (req: Request, res: Response) => {
-  const invoice = await invoiceService.send(req.params.id as string, await buildServiceScope(req));
+  const invoice = await invoiceService.send(req.params.id as string, await buildServiceScope(req), req.user?.sub, req.user?.role);
   res.json({ data: invoice });
 };
 
@@ -95,17 +95,17 @@ export const deleteInvoiceItem = async (req: Request, res: Response) => {
 };
 
 export const cancelInvoice = async (req: Request, res: Response) => {
-  const invoice = await invoiceService.cancel(req.params.id as string);
+  const invoice = await invoiceService.cancel(req.params.id as string, req.user?.sub, req.user?.role);
   res.json({ data: invoice });
 };
 
 export const deleteInvoice = async (req: Request, res: Response) => {
-  const invoice = await invoiceService.delete(req.params.id as string);
+  const invoice = await invoiceService.delete(req.params.id as string, req.user?.sub, req.user?.role);
   res.json({ data: invoice });
 };
 
 export const restoreInvoice = async (req: Request, res: Response) => {
-  const invoice = await invoiceService.restore(req.params.id as string);
+  const invoice = await invoiceService.restore(req.params.id as string, req.user?.sub, req.user?.role);
   res.json({ data: invoice });
 };
 
@@ -115,7 +115,7 @@ export const createInvoiceFromProposal = async (req: Request, res: Response) => 
 };
 
 export const createCreditNote = async (req: Request, res: Response) => {
-  const creditNote = await creditNoteService.create(req.params.id as string, { amount: req.body.amount, reason: req.body.reason });
+  const creditNote = await creditNoteService.create(req.params.id as string, { amount: req.body.amount, reason: req.body.reason }, req.user?.sub, req.user?.role);
   res.status(201).json({ data: creditNote });
 };
 
@@ -125,7 +125,7 @@ export const getInvoiceCreditNotes = async (req: Request, res: Response) => {
 };
 
 export const applyCreditToInvoice = async (req: Request, res: Response) => {
-  const result = await creditNoteService.applyCredit(req.body.creditNoteId as string, req.params.id as string);
+  const result = await creditNoteService.applyCredit(req.body.creditNoteId as string, req.params.id as string, req.user?.sub, req.user?.role);
   res.json({
     data: {
       creditNote: result.creditNote,

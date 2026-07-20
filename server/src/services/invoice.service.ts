@@ -16,6 +16,7 @@ import { computeVat, roundMoney } from "../utils/vat.js";
 import { commissionService } from "./commission.service.js";
 import { notifyN8n } from "../utils/webhook.js";
 import { clientService } from "./client.service.js";
+import { auditLogService } from "./auditLog.service.js";
 
 // Invoice mutations change dashboard / executive KPIs (overdue, cash, forecast).
 async function invalidateFinanceCaches() {
@@ -154,34 +155,38 @@ export const invoiceService = {
 
   // Invoices are never hard-deleted: numbering must stay gapless (Tunisian tax
   // requirement). A wrongly created DRAFT invoice should be cancelled instead.
-  async cancel(id: string) {
+  async cancel(id: string, actorId?: string, actorRole?: string) {
     const invoice = await invoiceRepository.findById(id);
     if (!invoice) throw new HttpError(404, "Invoice not found");
     if (invoice.status === "PAID" || invoice.status === "CANCELLED") throw new HttpError(409, `Cannot cancel a ${invoice.status} invoice`, "INVOICE_NOT_CANCELLABLE");
     const cancelled = await invoiceRepository.update(id, { status: "CANCELLED" });
     await invalidateFinanceCaches();
+    void auditLogService.record({ actorId, actorRole, action: "invoice.cancel", entityType: "Invoice", entityId: id, before: { status: invoice.status }, after: { status: "CANCELLED" } });
     return cancelled;
   },
 
-  async delete(id: string) {
+  async delete(id: string, actorId?: string, actorRole?: string) {
     const invoice = await invoiceRepository.findById(id);
     if (!invoice) throw new HttpError(404, "Invoice not found");
     const deleted = await invoiceRepository.delete(id);
     await invalidateFinanceCaches();
+    void auditLogService.record({ actorId, actorRole, action: "invoice.delete", entityType: "Invoice", entityId: id, before: { status: invoice.status } });
     return deleted;
   },
 
-  async restore(id: string) {
+  async restore(id: string, actorId?: string, actorRole?: string) {
     const restored = await invoiceRepository.restore(id);
     await invalidateFinanceCaches();
+    void auditLogService.record({ actorId, actorRole, action: "invoice.restore", entityType: "Invoice", entityId: id });
     return restored;
   },
 
-  async send(id: string, scope?: ServiceScope) {
+  async send(id: string, scope?: ServiceScope, actorId?: string, actorRole?: string) {
     const invoice = await invoiceRepository.findById(id);
     await assertInvoiceInScope(invoice, scope);
     const updated = await invoiceRepository.update(id, { status: "SENT", sentAt: new Date() });
     await invalidateFinanceCaches();
+    void auditLogService.record({ actorId, actorRole, action: "invoice.send", entityType: "Invoice", entityId: id, before: { status: invoice?.status }, after: { status: "SENT" } });
 
     if (invoice) {
       const clientUsers = await userRepository.findByClientId(invoice.clientId);
@@ -276,6 +281,14 @@ export const invoiceService = {
     if (result.deduplicated) return result;
 
     await invalidateFinanceCaches();
+
+    void auditLogService.record({
+      actorId: recordedById,
+      action: "invoice.payment.add",
+      entityType: "Invoice",
+      entityId: id,
+      after: { amount: data.amount, method: data.method, paymentId: result.payment.id, overpaidBy: result.overpaidBy || undefined },
+    });
 
     const invoiceMeta = await invoiceRepository.findById(id);
     if (invoiceMeta) {

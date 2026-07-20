@@ -1,6 +1,8 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import * as Sentry from "@sentry/node";
 import { env } from "../config/env.js";
 import logger from "./logger.js";
+import { n8nWebhookDeliveryFailures } from "../observability/metrics.js";
 
 const TIMEOUT_MS = 5000;
 const MAX_ATTEMPTS = 2;
@@ -44,6 +46,10 @@ export async function notifyN8n(event: string, payload: Record<string, unknown>)
     } catch (error) {
       if (attempt === MAX_ATTEMPTS) {
         logger.warn({ err: error, event }, "[n8n] Webhook delivery failed, giving up");
+        n8nWebhookDeliveryFailures.inc({ event });
+        if (env.SENTRY_DSN) {
+          Sentry.captureException(error, { tags: { n8nEvent: event }, extra: { payload } });
+        }
         return;
       }
     }

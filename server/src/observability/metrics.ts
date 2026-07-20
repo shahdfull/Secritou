@@ -202,3 +202,10 @@ export const gscSyncErrors = new Counter({
   labelNames: ["clientId"] as const,
   registers: [registry],
 });
+
+export const n8nWebhookDeliveryFailures = new Counter({
+  name: "n8n_webhook_delivery_failures_total",
+  help: "Événements notifyN8n abandonnés après épuisement des tentatives (perdus, aucune persistance)",
+  labelNames: ["event"] as const,
+  registers: [registry],
+});

@@ -9,12 +9,23 @@ import { Prisma } from "@prisma/client";
 import type { InvoiceStatus } from "@prisma/client";
 import { notifyN8n } from "../utils/webhook.js";
 import { env } from "../config/env.js";
+import { auditLogService } from "./auditLog.service.js";
 
 // Transaction client type (matches the tx passed by prisma.$transaction on the extended client).
 type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
+// A bare `Date.now()` collides under concurrent creation within the same millisecond (two
+// simultaneous overpayments, or a double-click on the explicit endpoint), producing an
+// unhandled Prisma P2002 on CreditNote.number's @unique constraint. This module-level counter
+// is never reset or wrapped, so it can never repeat within the process's lifetime regardless of
+// call rate — cheaper and more robust than catching P2002 and retrying, since createCreditNoteTx
+// runs inside callers' own transactions (invoice.service.ts#addPayment) where a mid-transaction
+// retry would need to restart the whole enclosing transaction, not just this step.
+let creditNoteSequence = 0;
+
 function generateCreditNoteNumber() {
-  return `CN-${Date.now()}`;
+  creditNoteSequence += 1;
+  return `CN-${Date.now()}-${creditNoteSequence}`;
 }
 
 /**
@@ -34,7 +45,7 @@ async function createCreditNoteTx(tx: TxClient, params: { invoiceId: string; cli
 export const creditNoteService = {
   createCreditNoteTx,
 
-  async create(invoiceId: string, data: { amount: number; reason: string }) {
+  async create(invoiceId: string, data: { amount: number; reason: string }, actorId?: string, actorRole?: string) {
     if (data.amount <= 0) throw new HttpError(400, "Credit note amount must be positive", "INVALID_CREDIT_AMOUNT");
 
     const creditNote = await prisma.$transaction(async (tx) => {
@@ -48,6 +59,8 @@ export const creditNoteService = {
 
       return createCreditNoteTx(tx, { invoiceId: invoice.id, clientId: invoice.clientId, amount: data.amount, reason: data.reason });
     });
+
+    void auditLogService.record({ actorId, actorRole, action: "creditNote.create", entityType: "CreditNote", entityId: creditNote.id, after: { number: creditNote.number, amount: data.amount, invoiceId, reason: data.reason } });
 
     const admins = await userRepository.findAdmins();
     await enqueueNotifications(admins.map((admin) => ({ userId: admin.id, title: "Avoir émis", message: `Un avoir de ${data.amount.toFixed(2)} a été émis (${creditNote.number}).` })));
@@ -101,7 +114,7 @@ export const creditNoteService = {
    *  5. Decrements client.creditBalance.
    *  6. Stamps creditNote.appliedAt + creditNote.appliedToInvoiceId.
    */
-  async applyCredit(creditNoteId: string, targetInvoiceId: string) {
+  async applyCredit(creditNoteId: string, targetInvoiceId: string, actorId?: string, actorRole?: string) {
     const result = await prisma.$transaction(async (tx) => {
       // 1. Load and validate the target invoice
       const invoice = await tx.invoice.findUnique({
@@ -165,6 +178,15 @@ export const creditNoteService = {
       await tx.client.update({ where: { id: cn.clientId }, data: { creditBalance: { decrement: applicable } } });
 
       return { creditNote: cn, appliedAmount: applicable, invoiceStatus: newStatus, currency: invoice.currency };
+    });
+
+    void auditLogService.record({
+      actorId,
+      actorRole,
+      action: "creditNote.apply",
+      entityType: "CreditNote",
+      entityId: result.creditNote.id,
+      after: { appliedToInvoiceId: targetInvoiceId, appliedAmount: result.appliedAmount, invoiceStatus: result.invoiceStatus },
     });
 
     // Notify admins

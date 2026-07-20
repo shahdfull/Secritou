@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-150
+dernier_id: SEC-153
 
 anomalies:
   - id: SEC-001
@@ -9347,3 +9347,188 @@ anomalies:
       `ValidationErrorBody` présents, et 422 confirmé sur les 8 chemins
       (dont la description combinée de `POST /projects`). `npx tsc
       --noEmit` propre, `npm run lint` 0 error/0 warning.
+
+  - id: SEC-151
+    titre: "generateCreditNoteNumber (creditNote.service.ts) utilise CN-${Date.now()} sans retry sur collision — deux avoirs créés dans la même milliseconde violent la contrainte @unique de CreditNote.number et l'appelant reçoit une erreur Prisma brute (500) au lieu d'un numéro régénéré"
+    perimetre: "server/src/services/creditNote.service.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand `generateCreditNoteNumber`/`createCreditNoteTx`
+      retente avec un nouveau numéro en cas de P2002 sur `CreditNote.number`
+      (même pattern que la gestion P2002 déjà présente ailleurs dans ce
+      service pour `applyCredit`, lignes 131-136), au lieu de laisser
+      l'erreur Prisma remonter brute. Vérifié par un test qui force deux
+      créations d'avoir dans la même milliseconde (numéro généré mocké ou
+      appels strictement concurrents) et confirme que les deux réussissent
+      avec des numéros distincts.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : creditNote.service.ts:16-18
+      (`generateCreditNoteNumber`) renvoie `CN-${Date.now()}`, résolution
+      milliseconde. schema.prisma:1370 (`CreditNote.number String @unique`)
+      confirme la contrainte DB. `createCreditNoteTx` (l.24-32), appelée à
+      la fois par le endpoint explicite `POST /invoices/:id/credit-note`
+      et par le chemin de sur-paiement automatique dans `addPayment`, ne
+      catch aucun P2002 autour de `tx.creditNote.create` — contrairement à
+      `applyCredit` un peu plus bas dans le même fichier (l.121-136), qui
+      catch explicitement P2025 sur une collision similaire. Deux appels
+      concurrents dans la même milliseconde (ex. deux sur-paiements
+      simultanés sur des factures différentes du même client, ou un
+      double-clic sur `POST /invoices/:id/credit-note`) produisent un
+      P2002 non catché, remontant comme 500 générique plutôt qu'un numéro
+      régénéré ou un message d'erreur métier clair.
+
+      CORRECTIF ÉCRIT (pas résolu — non commité, pas de test dédié
+      concurrence), session du 2026-07-20 : approche différente de celle
+      envisagée dans le critère (retry sur P2002) — `createCreditNoteTx`
+      s'exécute dans la transaction de l'appelant (`addPayment`
+      notamment), où un retry local ne peut pas fonctionner (Postgres
+      "aborted" après l'échec d'une commande dans une transaction,
+      pattern déjà documenté ailleurs dans ce dépôt pour un cas
+      similaire). Choix retenu : rendre le numéro non-collisionnable
+      plutôt que de retenter — `generateCreditNoteNumber` combine
+      `Date.now()` à un compteur en mémoire de process, incrémenté sans
+      jamais être remis à zéro ni borné (`CN-<timestamp>-<compteur
+      monotone>`), garantissant l'unicité quel que soit le débit d'appels
+      pendant la durée de vie du process. ATTENTION méthode : une première
+      version avec compteur modulo 1000 a été écrite puis rejetée après
+      test réel — `node` en boucle serrée dépasse 1000 générations/ms et
+      provoque des collisions (1042 sur 5000 générations mesurées) ; la
+      version sans modulo, revérifiée, produit 0 collision sur 50 000
+      générations. `npx tsc --noEmit` propre, `npm run lint` 0 error/0
+      warning.
+
+  - id: SEC-152
+    titre: "invoice.service.ts et creditNote.service.ts n'écrivent jamais dans auditLogService, alors que ce mécanisme existe et est déjà utilisé par project/task/user.service.ts — aucune trace append-only des mutations de statut facture (SENT/PAID/CANCELLED) ni des avoirs émis/appliqués"
+    perimetre: "server/src/services/invoice.service.ts, server/src/services/creditNote.service.ts, server/src/services/auditLog.service.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand chaque mutation de statut facture (send, cancel,
+      addPayment amenant à PAID/PARTIAL, delete/restore) et chaque
+      émission/application d'avoir appelle `auditLogService.record(...)`
+      avec `entityType: "Invoice"` ou `"CreditNote"`, `action`, `actorId`,
+      et un `before`/`after` a minima sur le champ `status`/`amountPaid`.
+      Vérifié par un test qui déclenche une de ces mutations contre une
+      base réelle et relit `AuditLog` pour confirmer l'entrée créée.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe et grep : `grep -rl
+      "auditLogService.record" server/src/services` ne renvoie que
+      `project.service.ts`, `task.service.ts`, `user.service.ts` — ni
+      `invoice.service.ts` ni `creditNote.service.ts`. Le service
+      `auditLogService` (auditLog.service.ts) est conçu explicitement pour
+      ce cas (`AuditLogEntry { actorId, action, entityType, entityId,
+      before, after }`, append-only, échec de log non bloquant) mais
+      n'est jamais invoqué sur le chemin le plus sensible à l'argent : un
+      changement de statut de facture, l'émission ou l'application d'un
+      avoir ne laissent aucune trace hors la valeur courante en base
+      (pas de before/after horodaté par acteur). Reconstituer « qui a
+      annulé cette facture et quand » nécessite aujourd'hui de croiser
+      les logs applicatifs génériques, pas un journal dédié.
+
+      CORRECTIF ÉCRIT (pas résolu — non commité, pas de test dédié
+      relisant `AuditLog`), session du 2026-07-20 :
+      `void auditLogService.record(...)` ajouté à `invoice.service.ts`
+      (`send`, `cancel`, `delete`, `restore`, `addPayment` — actions
+      `invoice.send`/`invoice.cancel`/`invoice.delete`/`invoice.restore`/
+      `invoice.payment.add`) et `creditNote.service.ts` (`create`,
+      `applyCredit` — actions `creditNote.create`/`creditNote.apply`),
+      chacun avec `entityType`/`entityId`/`before`/`after` pertinents
+      (ex. `{status: invoice.status}` avant/après pour les transitions).
+      `actorId`/`actorRole` propagés depuis `req.user?.sub`/`req.user?.role`
+      dans invoice.controller.ts pour les 6 endpoints concernés
+      (`sendInvoice`, `cancelInvoice`, `deleteInvoice`, `restoreInvoice`,
+      `createCreditNote`, `applyCreditToInvoice`) — signatures de service
+      étendues avec des paramètres `actorId?`/`actorRole?` optionnels,
+      cohérent avec le pattern déjà utilisé par
+      `projectService.deleteProject(id, actorId, actorRole)`. `npx tsc
+      --noEmit` propre, `npm run lint` 0 error/0 warning, suite
+      `test:unit` complète 453/453 verte après le changement (aucune
+      régression). Critère de résolution formel exige aussi un test
+      relisant `AuditLog` — non encore écrit, donc `en_cours` malgré le
+      correctif fonctionnel complet.
+
+  - id: SEC-153
+    titre: "notifyN8n (webhook.ts) : après échec des 2 tentatives, l'événement est définitivement perdu — seul un logger.warn trace l'abandon, aucune trace persistée ni rejouable (proposal.accepted, invoice.paid, document.contract_signed, etc.)"
+    perimetre: "server/src/utils/webhook.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand un échec définitif de `notifyN8n` (après les 2
+      tentatives) persiste une trace exploitable (ex. une ligne dans une
+      table dédiée, ou au minimum un `Sentry.captureException`/compteur
+      Prometheus au lieu du seul `logger.warn`), permettant de détecter et
+      rejouer manuellement un événement métier externe silencieusement
+      perdu (ex. l'agence ne reçoit jamais l'email « proposition acceptée »
+      sans qu'aucun signal ne le révèle).
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : webhook.ts:44-49 — après le 2e essai
+      raté, `logger.warn({ err, event }, "[n8n] Webhook delivery failed,
+      giving up")` puis `return` silencieux, aucune autre action. Appelé
+      en fire-and-forget (`void notifyN8n(...)`, sans await, ex.
+      proposal.service.ts:546) par la quasi-totalité des 25+ événements
+      catalogués dans docs/n8n-events.md — un n8n indisponible pendant la
+      fenêtre des 2 tentatives (10s max, `TIMEOUT_MS * MAX_ATTEMPTS`)
+      perd l'événement sans qu'aucun humain ni système de monitoring ne
+      soit informé, contrairement à `enqueueDocumentGeneration`
+      (jobs/queues.ts:197-209) qui logue ET capture Sentry ET reste dans
+      la queue BullMQ pour un retry piloté par le worker en cas d'échec
+      d'ENFILEMENT — mais même ce dernier mécanisme ne couvre pas
+      `notifyN8n`, qui n'est pas enfilé du tout, juste appelé
+      directement. Distinct d'un constat vérifié et écarté cette session :
+      la génération de documents (SEC absent car aucun défaut trouvé)
+      dispose déjà d'un retry durable via BullMQ + jobId déterministe
+      (SEC-119/120) — ce n'est PAS le cas de `notifyN8n`, dont le
+      fire-and-forget n'a aucun filet.
+
+      Écarté après vérification (rapport tiers, non enregistré comme
+      anomalie séparée) : (a) la formule de facture de solde
+      (`project.service.ts:335-337`, complément à 100% de l'acompte réel)
+      n'est PAS dupliquée de façon dangereuse — SEC-030 (résolu) a déjà
+      confirmé par test réel que `balanceAmount` lit
+      `depositInvoice.amountHT` (le montant réellement facturé), jamais
+      une reconstruction indépendante à 70% ; `proposal.service.ts:466`
+      ne calcule les 30% qu'une seule fois, à la création de l'acompte —
+      il n'y a pas de second calcul de 30% ailleurs qui pourrait diverger.
+      (b) l'absence de contrainte DB sur le plafond d'un avoir
+      (`amount <= amountPaid`) est une garantie applicative documentée,
+      pas un défaut caché — même famille de choix que les autres gardes
+      service-only déjà actées dans ce dépôt (idempotence, cf. discussion
+      SEC-149/session précédente) ; pas enregistré comme anomalie, à
+      trancher par le porteur s'il souhaite une contrainte DB en plus.
+      (c) l'absence de hash/IP/user-agent sur la signature de document
+      (`document.service.ts#signDocument`) est réelle mais relève d'une
+      décision produit (niveau de preuve juridique visé), pas d'un bug
+      factuel — signalée ici pour arbitrage plutôt qu'enregistrée comme
+      anomalie à corriger silencieusement.
+
+      CORRECTIF ÉCRIT (pas résolu — non commité, pas de mécanisme de rejeu
+      manuel), session du 2026-07-20 : ajout du minimum documenté dans le
+      critère — compteur Prometheus dédié
+      `n8nWebhookDeliveryFailures` (`observability/metrics.ts`, labellé
+      par `event`) incrémenté à l'abandon définitif, ET
+      `Sentry.captureException(error, { tags: { n8nEvent: event }, extra:
+      { payload } })` sous le même garde `env.SENTRY_DSN` que le reste du
+      dépôt (error.middleware.ts, jobs/queues.ts). Pas de table dédiée ni
+      de rejeu automatique — ce correctif rend l'échec détectable
+      (alerte Sentry, métrique consultable) mais ne construit pas de
+      mécanisme de rejeu manuel, qui resterait à faire si le porteur le
+      juge nécessaire à l'usage. `npx tsc --noEmit` propre, `npm run lint`
+      0 error/0 warning, suite `test:unit` complète 453/453 verte après
+      le changement (aucune régression, aucun test n'exerçait ce chemin
+      de code).
