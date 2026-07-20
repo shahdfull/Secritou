@@ -16,8 +16,11 @@ import { useTranslation } from "react-i18next";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { CreateProposalFromLeadDialog } from "./CreateProposalFromLeadDialog";
 
-// A Proposal can only be created from a lead that has been WON and converted to a client.
-const CAN_CREATE_PROPOSAL: Lead["status"][] = ["WON"];
+// SEC-101: a proposal precedes WON, it doesn't follow it — proposalService.create rejects WON
+// leads outright (LEAD_ALREADY_WON), and creating a proposal for a lead sets its status to
+// PROPOSAL (proposal.service.ts#create). Mirrors LeadDetailDialog.tsx's CAN_CREATE_PROPOSAL:
+// only CONTACTED/QUALIFIED, before any proposal exists for this lead.
+const CAN_CREATE_PROPOSAL: Lead["status"][] = ["CONTACTED", "QUALIFIED"];
 
 // Allowed pipeline transitions, mirrored server-side (lead.service.ts) as the
 // source of truth — this copy only lets the Kanban reject a bad drag

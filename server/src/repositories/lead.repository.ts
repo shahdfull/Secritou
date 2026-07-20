@@ -88,6 +88,8 @@ export const leadRepository = {
     source?: string;
     status?: LeadStatus;
     notes?: string;
+    serviceId?: string;
+    assignedManagerId?: string;
   }): Promise<Lead> {
     return prisma.lead.create({ data });
   },

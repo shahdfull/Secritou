@@ -26,13 +26,14 @@ export const updateOnboardingPayloadSchema = z.object({
 export const updateStepPayloadSchema = z.object({
   status: z.enum(ONBOARDING_STEP_STATUSES).optional(),
   title: z.string().min(1).max(255).optional(),
-  description: z.string().optional(),
+  description: z.string().max(5000).optional(),
   deadline: z.string().optional(),
   completedAt: z.string().optional().nullable(),
 });
 
+// contractUrl mirrors schema.prisma#Contract.contractUrl (@db.VarChar(500)) — SEC-104.
 export const contractPayloadSchema = z.object({
-  contractUrl: z.string().optional(),
+  contractUrl: z.string().max(500).optional(),
   status: z.enum(CONTRACT_STATUSES).optional(),
 });
 
@@ -49,20 +50,22 @@ export const questionnairePayloadSchema = z.object({
   isDraft: z.boolean().optional(),
 });
 
+// All @db.Text in schema.prisma#Specifications (unbounded in Postgres) — capped here per SEC-104.
 export const specificationsPayloadSchema = z.object({
-  requirements: z.string().optional(),
-  objectives: z.string().optional(),
-  features: z.string().optional(),
-  deliverables: z.string().optional(),
-  timeline: z.string().optional(),
+  requirements: z.string().max(5000).optional(),
+  objectives: z.string().max(5000).optional(),
+  features: z.string().max(5000).optional(),
+  deliverables: z.string().max(5000).optional(),
+  timeline: z.string().max(5000).optional(),
   approvalStatus: z.enum(SPEC_APPROVAL_STATUSES).optional(),
-  feedback: z.string().optional(),
+  feedback: z.string().max(5000).optional(),
 });
 
+// participants is @db.Text, meetingLink is @db.VarChar(500) (schema.prisma#KickoffMeeting) — SEC-104.
 export const kickoffPayloadSchema = z.object({
   meetingDate: z.string().optional(),
-  participants: z.string().optional(),
-  meetingLink: z.string().optional(),
+  participants: z.string().max(5000).optional(),
+  meetingLink: z.string().max(500).optional(),
 });
 
 export const productionPayloadSchema = z.object({
@@ -73,11 +76,13 @@ export const productionPayloadSchema = z.object({
   deployment: z.number().int().min(0).max(100).optional(),
 });
 
+// Bounds mirror schema.prisma#Delivery's actual column widths (SEC-104): deliverables/
+// accessDetails are @db.Text, documentation/userGuides are @db.VarChar(500) (URLs).
 export const deliveryPayloadSchema = z.object({
-  deliverables: z.string().optional(),
-  documentation: z.string().optional(),
-  accessDetails: z.string().optional(),
-  userGuides: z.string().optional(),
+  deliverables: z.string().max(5000).optional(),
+  documentation: z.string().max(500).optional(),
+  accessDetails: z.string().max(5000).optional(),
+  userGuides: z.string().max(500).optional(),
 });
 
 // Inferred payload types ──────────────────────────────────────────────────────

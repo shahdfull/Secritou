@@ -14,7 +14,7 @@ export const createLeadSchema = z.object({
 export const updateLeadSchema = z.object({
   body: leadBaseSchema.partial(),
   params: z.object({
-    id: z.string(),
+    id: z.string().uuid(),
   }),
 });
 

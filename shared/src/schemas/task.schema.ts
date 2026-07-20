@@ -21,9 +21,12 @@ export const ALLOWED_TASK_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   DONE: ["REVIEW"],
 };
 
+// title/description bounds mirror schema.prisma#Task's actual column widths (SEC-104);
+// commentFormSchema's max(2000) mirrors the bound already enforced server-side
+// (task.validator.ts), which this shared form-only schema had never matched.
 export const taskBaseSchema = z.object({
-  title: z.string().min(1),
-  description: z.string().optional(),
+  title: z.string().min(1).max(255),
+  description: z.string().max(5000).optional(),
   status: TaskStatusEnum,
   priority: z.enum(TASK_PRIORITIES).optional(),
   projectId: z.string().min(1),
@@ -35,7 +38,7 @@ export const taskBaseSchema = z.object({
 export const createTaskSchema = taskBaseSchema;
 export const updateTaskSchema = createTaskSchema.partial();
 export const commentFormSchema = z.object({
-  content: z.string().min(1),
+  content: z.string().min(1).max(2000),
 });
 
 export type CreateTaskForm = z.input<typeof createTaskSchema>;

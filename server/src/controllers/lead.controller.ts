@@ -27,7 +27,7 @@ export const getLead: RequestHandler = async (req, res, next) => {
 
 export const createLead: RequestHandler = async (req, res, next) => {
   try {
-    const lead = await leadService.createLead(req.body);
+    const lead = await leadService.createLead(req.body, await buildScope(req));
     res.status(201).json({ data: lead });
   } catch (error) {
     next(error);

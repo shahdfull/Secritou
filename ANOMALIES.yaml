@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-100
+dernier_id: SEC-105
 
 anomalies:
   - id: SEC-001
@@ -7166,3 +7166,270 @@ anomalies:
       résolution ». Signalé, non corrigé (audit lecture seule ; par ailleurs
       « un test rouge est une hypothèse sur le code » — ne pas réaligner sans
       instruction).
+
+  - id: SEC-101
+    titre: "Bouton « Créer une proposition » sur un lead : les 3 couches (Kanban, dialogue détail, serveur) se contredisent sur les statuts autorisés — échoue à 100% depuis le Kanban"
+    perimetre: "4.1 CRM & Pipeline commercial — client/src/features/leads/LeadsKanban.tsx, client/src/features/leads/LeadDetailDialog.tsx, server/src/services/proposal.service.ts"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand le bouton « Créer une proposition », affiché dans
+      LeadsKanban.tsx ET LeadDetailDialog.tsx, n'apparaît que sur les statuts
+      de lead que le serveur accepte réellement (proposal.service.ts#create
+      rejette explicitement WON via LEAD_ALREADY_WON), et que cliquer dessus
+      depuis n'importe laquelle des deux vues aboutit à une proposition
+      créée avec succès — pas à une erreur 422 systématique.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Lu directement en session : LeadsKanban.tsx:19-20
+      (`CAN_CREATE_PROPOSAL: Lead["status"][] = ["WON"]`),
+      LeadDetailDialog.tsx:35 (`CAN_CREATE_PROPOSAL: Lead["status"][] =
+      ["CONTACTED", "QUALIFIED"]`), proposal.service.ts:250 (`if
+      (lead.status === "WON") throw new HttpError(422, "Lead is already
+      won", "LEAD_ALREADY_WON")`). Les trois couches divergent deux à deux :
+      le Kanban n'affiche le bouton QUE sur WON, exactement le statut que le
+      serveur refuse explicitement ; le dialogue de détail l'affiche sur
+      CONTACTED/QUALIFIED, que le serveur accepte. Donc 100% des clics sur
+      le bouton du Kanban échouent en 422, tandis que le dialogue de détail
+      est la seule des deux vues cohérente avec le serveur.
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-20 : `LeadsKanban.tsx`
+      corrigée pour utiliser `CAN_CREATE_PROPOSAL = ["CONTACTED",
+      "QUALIFIED"]`, identique à `LeadDetailDialog.tsx` (déjà correcte) et
+      cohérente avec le serveur (un lead passe en statut PROPOSAL dès
+      qu'une proposition liée est créée — `proposal.service.ts:258` —
+      donc CONTACTED/QUALIFIED est bien la fenêtre avant toute proposition
+      existante). Preuve : nouveau fichier
+      `client/src/features/leads/LeadsKanban.test.tsx` (2 cas, rendu réel
+      du composant) — le bouton apparaît sur CONTACTED/QUALIFIED, absent
+      sur WON/NEW/LOST. Vérification complète client : `npx tsc --noEmit`
+      (clean), `npm run lint` (12 warnings — exception SEC-049, stable),
+      `npx vitest run` (92/92), `npm run build` (succès), `node
+      scripts/check-i18n.mjs` (vert). Résolu SANS confirmation CI (workflow
+      GitHub Actions sur `origin/main` en `workflow_dispatch` uniquement,
+      déviation documentée depuis la session du 2026-07-17).
+
+  - id: SEC-102
+    titre: "Un lead créé manuellement (formulaire « Ajouter un lead ») n'a jamais serviceId ni assignedManagerId renseignés — invisible pour tout MANAGER, visible seulement par un ADMIN"
+    perimetre: "4.1 CRM & Pipeline commercial — shared/src/schemas/lead.schema.ts, client/src/features/leads/LeadsPage.tsx, server/src/services/lead.service.ts, server/src/repositories/lead.repository.ts"
+    regle_violee: RG-002
+    classe: "scoping_pole_manquant_ou_incorrect"
+    gravite: majeur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand un lead créé via « Ajouter un lead » par un MANAGER
+      reçoit un `serviceId` (celui du MANAGER créateur, au minimum) et
+      apparaît ensuite dans sa propre liste de leads (`GET /leads`) — prouvé
+      par un test qui appelle réellement leadService.createLead avec un
+      scope MANAGER puis leadRepository.findAll avec ce même scope, sur une
+      base migrée, et vérifie que le lead créé y figure. Un lead créé par un
+      ADMIN reste visible par tous comme aujourd'hui.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Lu directement en session : shared/src/schemas/lead.schema.ts
+      (`leadBaseSchema` n'expose ni `serviceId` ni `assignedManagerId`),
+      client/src/features/leads/LeadsPage.tsx (aucune occurrence de
+      `serviceId`/`assignedManagerId` dans le formulaire), contrôlé contre
+      server/src/services/contact.service.ts:21,30,34 (le chemin PUBLIC —
+      formulaire de contact du site — calcule bien `serviceId` via
+      `serviceService.resolveServiceIdForType` avant de créer le Lead),
+      server/src/services/lead.service.ts:61-63 (`createLead` transmet
+      `data` tel quel à `leadRepository.create`, sans dérivation de pôle par
+      défaut), server/src/repositories/lead.repository.ts:11-20
+      (`buildWhere` restreint un MANAGER via `OR: [{serviceId:
+      scope.userServiceId}, {assignedManagerId: scope.userId}]` — un lead
+      sans aucun des deux valorisés ne matche ni l'un ni l'autre). Asymétrie
+      confirmée entre les deux chemins de création de Lead du dépôt : celui
+      issu du formulaire de contact public scope correctement, celui du
+      formulaire interne « Ajouter un lead » ne scope jamais. Un ADMIN
+      continue de voir tous les leads (scope non appliqué à son rôle), donc
+      le lead n'est pas perdu — seulement invisible à tout Manager, y
+      compris celui qui l'a saisi.
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-20 :
+      `lead.controller.ts#createLead` appelle désormais `buildScope(req)`
+      (absent auparavant, seul point d'entrée de création qui ne le
+      faisait pas) ; `leadService.createLead(data, scope?)` dérive
+      `serviceId`/`assignedManagerId` du scope MANAGER par défaut
+      (`ownPoleDefaults`), sans effet pour un ADMIN (comportement inchangé,
+      toujours visible par tous) ; `leadRepository.create` étend son type
+      d'entrée pour accepter ces deux champs (déjà acceptés par
+      `buildWhere`, jamais par `create`). Preuve : nouveau fichier
+      `server/test/leadCreateScope.test.ts` (2 cas, appelle le vrai
+      leadService/leadRepository contre une base migrée) — un lead créé par
+      un MANAGER hérite du pôle et de l'assignation du créateur et apparaît
+      dans sa propre liste (absent de celle d'un autre pôle), un lead créé
+      par un ADMIN garde `serviceId`/`assignedManagerId` nuls (comportement
+      antérieur préservé). Vérification complète serveur : `npx tsc
+      --noEmit` (clean), `npm run lint` (0/0), `npx tsx --test
+      test/run-all.test.ts` (403/403, stable sur 2 exécutions consécutives).
+      Résolu SANS confirmation CI (workflow GitHub Actions sur
+      `origin/main` en `workflow_dispatch` uniquement, déviation documentée
+      depuis la session du 2026-07-17).
+
+  - id: SEC-103
+    titre: "proposalRepository.findAll interpole options.orderBy directement dans la clause Prisma sans passer par la whitelist buildOrderBy/SORTABLE_FIELDS déjà utilisée par leadRepository — un nom de champ de tri invalide fait planter Prisma en 500 au lieu d'être ignoré"
+    perimetre: "4.1 CRM & Pipeline commercial — server/src/repositories/proposal.repository.ts, server/src/utils/listQuery.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand `GET /proposals?orderBy=<valeur arbitraire>` ne
+      provoque jamais d'erreur 500 : `proposalRepository.findAll` utilise
+      `buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS,
+      "createdAt")` (même utilitaire que leadRepository) au lieu
+      d'interpoler `options.orderBy` directement, et retombe silencieusement
+      sur le tri par défaut si le champ demandé n'est pas dans la
+      whitelist — prouvé par un test qui appelle
+      proposalRepository.findAll avec un `orderBy` invalide et vérifie
+      qu'il ne lève pas d'exception Prisma.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Lu directement en session : server/src/repositories/proposal.repository.ts
+      (`orderBy: { [options.orderBy || "createdAt"]: options.orderDir ||
+      "desc" }`, aucune whitelist), server/src/utils/listQuery.ts
+      (`buildOrderBy` compare `orderBy` à `allowedFields` et retombe sur
+      `defaultField` sinon ; `parseListQuery` ne fait que vérifier
+      `typeof query.orderBy === "string"`, sans validation Zod du contenu),
+      server/src/repositories/lead.repository.ts:7,33 (utilise déjà
+      `buildOrderBy` avec `SORTABLE_FIELDS = ["name", "email", "status",
+      "source", "createdAt"]`), server/src/controllers/proposal.controller.ts
+      (options passées telles quelles depuis `req.query.orderBy`, une
+      chaîne arbitraire côté client). Pas une faille de données (aucun accès
+      hors scope), un défaut de robustesse : un tri invalide dégrade en 500
+      au lieu d'un tri par défaut silencieux.
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-20 :
+      `proposalRepository.findAll` utilise désormais
+      `buildOrderBy(options.orderBy, options.orderDir || "desc",
+      SORTABLE_FIELDS, "createdAt")` (`SORTABLE_FIELDS = ["title", "status",
+      "amount", "expiresAt", "createdAt"]`), même utilitaire que
+      leadRepository. Preuve : nouveau fichier
+      `server/test/proposalListOrderBy.test.ts` (2 cas, appelle le vrai
+      proposalRepository.findAll contre une base migrée) — un `orderBy`
+      inconnu (y compris une tentative d'injection SQL grossière dans la
+      valeur) ne lève plus d'exception et retombe sur le tri par défaut, un
+      `orderBy` whitelisté (`title`) trie effectivement. Vérification
+      complète serveur : `npx tsc --noEmit` (clean), `npm run lint` (0/0),
+      `npx tsx --test test/run-all.test.ts` (403/403, stable sur 2
+      exécutions consécutives). Résolu SANS confirmation CI (workflow
+      GitHub Actions sur `origin/main` en `workflow_dispatch` uniquement,
+      déviation documentée depuis la session du 2026-07-17).
+
+  - id: SEC-104
+    titre: "Plusieurs schémas de base partagés (lead, client, et d'autres) laissent des champs texte libres sans borne de longueur — motif systémique, pas isolé au module Lead"
+    perimetre: "transverse — shared/src/schemas/lead.schema.ts, shared/src/schemas/client.schema.ts (et au moins clientOnboarding.schema.ts, freelancer.schema.ts, project.schema.ts, task.schema.ts pour des champs analogues)"
+    regle_violee: null
+    classe: "schema_sans_borne_de_longueur"
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand tous les champs `z.string()`/`z.string().optional()`
+      de contenu libre (hors identifiants, enums, emails, URLs déjà bornés)
+      dans `shared/src/schemas/*.ts` portent un `.max(n)` cohérent avec les
+      bornes déjà en place ailleurs dans le dépôt (ex. `document.schema.ts`,
+      `invoice.schema.ts`, `proposal.schema.ts`) — vérifié champ par champ,
+      fichier par fichier, pas seulement sur `lead.schema.ts`.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      CONSTAT REFORMULÉ AVANT ENREGISTREMENT (vérification demandée
+      explicitement par la procédure d'audit, session 2026-07-20) : le
+      rapport source affirmait que `leadBaseSchema` était « incohérent avec
+      le reste du dépôt » sur ce point précis — vérifié par lecture directe
+      de `shared/src/schemas/client.schema.ts` (`name`/`email`/`phone` sans
+      aucune borne, exactement le même défaut que Lead) et par grep sur les
+      10 fichiers de `shared/src/schemas/` : le même motif (`z.string()`
+      libre sans `.max()`) apparaît aussi dans `clientOnboarding.schema.ts`,
+      `freelancer.schema.ts`, `project.schema.ts`, `task.schema.ts`. Le
+      motif n'est donc PAS isolé au module Lead — c'est un défaut partagé
+      par plusieurs schémas de base du dépôt, pas une incohérence locale.
+      Gravité laissée `mineur` (aucun de ces champs texte libre ne cause de
+      dépassement de colonne Postgres observé — Prisma/PG tronquerait ou
+      rejetterait selon le type de colonne réel, non vérifié ici) ; portée
+      corrigée pour refléter l'ampleur réelle avant toute correction.
+
+      PÉRIMÈTRE ÉTENDU EN SESSION (décision explicite du porteur, 2026-07-20) :
+      en vérifiant ce constat, `server/src/validators/clientOnboarding.validator.ts`
+      (module 4.3, jamais audité en profondeur) s'est révélé porter le même
+      défaut sur ~12 champs texte libre server-side (pas seulement le
+      schéma partagé côté formulaire) : `requirements`, `objectives`,
+      `features`, `deliverables`, `timeline`, `feedback`
+      (specificationsBody), `participants` (kickoffBody), `documentation`,
+      `accessDetails`, `userGuides` (deliveryBody), `description`
+      (updateStepValidator), `contractUrl` (contractBody). Étendu à la
+      correction sur décision du porteur (« Étendre SEC-104 à ce validator
+      aussi »).
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-20 : bornes `.max(n)`
+      ajoutées, dérivées des largeurs de colonnes réelles
+      (`schema.prisma`) : `lead.schema.ts` (name 255, phone 50, source 100,
+      notes 5000) ; `client.schema.ts` (name 255, phone 50) ;
+      `freelancer.schema.ts` (bio 5000, skills 1000 — champ CSV formulaire,
+      pas la relation Skill[] réelle) ; `project.schema.ts` (name 255,
+      description 5000) ; `task.schema.ts` (title 255, description 5000,
+      `commentFormSchema.content` 2000 — aligné sur la borne déjà en place
+      côté serveur dans `task.validator.ts`, jamais reprise côté schéma
+      partagé) ; `clientOnboarding.schema.ts` ET
+      `clientOnboarding.validator.ts` (les deux, cohérence client/serveur) :
+      description 5000, contractUrl 500 (VarChar), participants 5000,
+      meetingLink 500 (VarChar), requirements/objectives/features/
+      deliverables/timeline/feedback 5000 chacun, deliverables/accessDetails
+      5000, documentation/userGuides 500 (VarChar). Vérification complète :
+      serveur `npx tsc --noEmit` (clean), `npm run lint` (0/0), `npx tsx
+      --test test/run-all.test.ts` (403/403, stable sur 2 exécutions) ;
+      client `npx tsc --noEmit` (clean), `npm run lint` (12 warnings —
+      exception SEC-049, stable), `npx vitest run` (92/92), `npm run build`
+      (succès), `node scripts/check-i18n.mjs` (vert). Résolu SANS
+      confirmation CI (workflow GitHub Actions sur `origin/main` en
+      `workflow_dispatch` uniquement, déviation documentée depuis la
+      session du 2026-07-17).
+
+  - id: SEC-105
+    titre: "updateLeadSchema valide params.id avec z.string() simple, alors que delete/convert/reopen (idParamSchema partagé) exigent z.string().uuid() — incohérence de rigueur sur le même paramètre"
+    perimetre: "4.1 CRM & Pipeline commercial — server/src/validators/lead.validator.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand `updateLeadSchema.params.id` valide avec
+      `z.string().uuid()`, comme `idParamSchema` (partagé par
+      deleteLeadSchema/convertLeadSchema/reopenLeadSchema) — même route
+      paramétrée par `:id`, même exigence de format.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Lu directement en session : server/src/validators/lead.validator.ts —
+      `updateLeadSchema` (ligne 14-19) déclare `params: z.object({ id:
+      z.string() })`, tandis que `idParamSchema` (ligne 22-24, réutilisé par
+      `deleteLeadSchema`/`convertLeadSchema`/`reopenLeadSchema`) déclare
+      `params: z.object({ id: z.string().uuid() }).strict()`. Impact réel
+      faible : un `id` malformé fait simplement échouer la requête Prisma
+      proprement (404 ou erreur de cast), pas une faille de sécurité —
+      incohérence de rigueur entre schémas voisins du même fichier, pas un
+      bug fonctionnel observable.
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-20 :
+      `updateLeadSchema.params.id` valide désormais avec `z.string().uuid()`,
+      identique à `idParamSchema`. Pas de test dédié ajouté (changement de
+      validation Zod pur, déjà couvert par la vérification `verifie:
+      code_direct` de ce constat — aucune règle négative/d'exclusivité au
+      sens de CLAUDE.md ne justifie un test séparé ici). Vérification
+      complète serveur : `npx tsc --noEmit` (clean), `npm run lint` (0/0),
+      `npx tsx --test test/run-all.test.ts` (403/403, stable sur 2
+      exécutions consécutives — aucune régression sur les appels PUT
+      /leads/:id existants). Résolu SANS confirmation CI (workflow GitHub
+      Actions sur `origin/main` en `workflow_dispatch` uniquement,
+      déviation documentée depuis la session du 2026-07-17).

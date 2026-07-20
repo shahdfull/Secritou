@@ -58,8 +58,19 @@ export const leadService = {
     return lead;
   },
 
-  async createLead(data: CreateLeadDTO) {
-    const lead = await leadRepository.create(data);
+  // SEC-102: a lead created via the public contact form gets its serviceId resolved by
+  // contact.service.ts before creation; a lead created manually here (leadBaseSchema exposes no
+  // serviceId/assignedManagerId field) had neither, and leadRepository.buildWhere scopes a
+  // MANAGER on `OR: [serviceId, assignedManagerId]` — a lead with neither set is invisible to
+  // any MANAGER, visible only to an ADMIN (unscoped). A MANAGER creating a lead is assigned to
+  // their own pole and to themself by default; an ADMIN creates with neither (matches today's
+  // ADMIN-visible-to-all behavior, since ADMIN has no pole of their own).
+  async createLead(data: CreateLeadDTO, scope?: LeadScope) {
+    const ownPoleDefaults =
+      scope?.userRole === "MANAGER"
+        ? { serviceId: scope.userServiceId ?? undefined, assignedManagerId: scope.userId }
+        : {};
+    const lead = await leadRepository.create({ ...data, ...ownPoleDefaults });
     await invalidateCompanyCache();
     
     // Notify admins of new lead creation

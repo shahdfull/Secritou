@@ -41,7 +41,7 @@ export const updateStepValidator = z.object({
     .object({
       status: z.enum(["PENDING", "IN_PROGRESS", "COMPLETED", "REJECTED"]).optional(),
       title: z.string().min(1).max(255).optional(),
-      description: z.string().optional(),
+      description: z.string().max(5000).optional(),
       deadline: z.string().optional(),
       completedAt: z.string().optional().nullable(),
     })
@@ -49,9 +49,10 @@ export const updateStepValidator = z.object({
 });
 
 // Contract ───────────────────────────────────────────────────────────────────
+// contractUrl mirrors schema.prisma#Contract.contractUrl (@db.VarChar(500)) — SEC-104.
 const contractBody = z
   .object({
-    contractUrl: z.string().optional(),
+    contractUrl: z.string().max(500).optional(),
     status: z.enum(["PENDING", "SIGNED"]).optional(),
   })
   .strict();
@@ -107,15 +108,17 @@ export const updateQuestionnaireValidator = z.object({
 });
 
 // Specifications ─────────────────────────────────────────────────────────────
+// All @db.Text in schema.prisma#Specifications (unbounded in Postgres) — capped here for the
+// same reason every other free-text field in the repo is (SEC-104).
 const specificationsBody = z
   .object({
-    requirements: z.string().optional(),
-    objectives: z.string().optional(),
-    features: z.string().optional(),
-    deliverables: z.string().optional(),
-    timeline: z.string().optional(),
+    requirements: z.string().max(5000).optional(),
+    objectives: z.string().max(5000).optional(),
+    features: z.string().max(5000).optional(),
+    deliverables: z.string().max(5000).optional(),
+    timeline: z.string().max(5000).optional(),
     approvalStatus: z.enum(["PENDING", "APPROVED", "REJECTED"]).optional(),
-    feedback: z.string().optional(),
+    feedback: z.string().max(5000).optional(),
   })
   .strict();
 
@@ -130,11 +133,13 @@ export const updateSpecificationsValidator = z.object({
 });
 
 // Kickoff ────────────────────────────────────────────────────────────────────
+// participants is @db.Text (schema.prisma#KickoffMeeting) — capped for the same reason as
+// Specifications above (SEC-104).
 const kickoffBody = z
   .object({
     meetingDate: z.string().optional(),
-    participants: z.string().optional(),
-    meetingLink: z.string().optional(),
+    participants: z.string().max(5000).optional(),
+    meetingLink: z.string().max(500).optional(),
   })
   .strict();
 
@@ -170,12 +175,14 @@ export const updateProductionValidator = z.object({
 });
 
 // Delivery ────────────────────────────────────────────────────────────────────
+// Bounds mirror schema.prisma#Delivery's actual column widths (SEC-104): deliverables/
+// accessDetails are @db.Text, documentation/userGuides are @db.VarChar(500) (URLs).
 const deliveryBody = z
   .object({
-    deliverables: z.string().optional(),
-    documentation: z.string().optional(),
-    accessDetails: z.string().optional(),
-    userGuides: z.string().optional(),
+    deliverables: z.string().max(5000).optional(),
+    documentation: z.string().max(500).optional(),
+    accessDetails: z.string().max(5000).optional(),
+    userGuides: z.string().max(500).optional(),
   })
   .strict();
 

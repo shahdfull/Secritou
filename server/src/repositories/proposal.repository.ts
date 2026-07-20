@@ -2,6 +2,13 @@ import { prisma, prismaRead } from "../config/prisma.js";
 import { Prisma } from "@prisma/client";
 import type { Proposal, ProposalStatus } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
+import { buildOrderBy } from "../utils/listQuery.js";
+
+// SEC-103: options.orderBy comes straight from req.query.orderBy (an arbitrary client-supplied
+// string, only type-checked, never validated against real column names) — interpolating it
+// directly into Prisma's `orderBy` used to turn an unknown field into a 500 instead of falling
+// back to the default sort, unlike leadRepository which already whitelists via buildOrderBy.
+const SORTABLE_FIELDS = ["title", "status", "amount", "expiresAt", "createdAt"];
 
 export const proposalRepository = {
   async findAll(
@@ -51,7 +58,7 @@ export const proposalRepository = {
         where,
         skip,
         take: options.pageSize,
-        orderBy: { [options.orderBy || "createdAt"]: options.orderDir || "desc" },
+        orderBy: buildOrderBy(options.orderBy, options.orderDir || "desc", SORTABLE_FIELDS, "createdAt"),
         include: {
           client: { select: { name: true } },
           invoice: { select: { id: true } },
