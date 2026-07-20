@@ -154,6 +154,26 @@ describe("projectService.archiveProject / restoreProject — SEC-040", () => {
     const restored = await projectService.restoreProject(project.id);
     assert.equal(restored.deletedAt, null);
   });
+
+  test("SEC-086: getProjectById 404s on a soft-deleted project for every role, and returns it again once restored", { skip: !dbAvailable }, async () => {
+    const client = await makeClient("findbyid-deleted");
+    const project = await prisma.project.create({ data: { name: "findById deleted target", clientId: client.id } });
+    createdProjectIds.push(project.id);
+    await projectService.deleteProject(project.id);
+
+    await assert.rejects(
+      () => projectService.getProjectById(project.id, "admin-id", "ADMIN"),
+      (err: unknown) => err instanceof HttpError && err.statusCode === 404
+    );
+    await assert.rejects(
+      () => projectService.getProjectById(project.id, client.id, "CLIENT", client.id),
+      (err: unknown) => err instanceof HttpError && err.statusCode === 404
+    );
+
+    await projectService.restoreProject(project.id);
+    const found = await projectService.getProjectById(project.id, "admin-id", "ADMIN");
+    assert.equal(found.id, project.id);
+  });
 });
 
 describe("projectService.unarchiveProject — SEC-078", () => {
@@ -207,6 +227,42 @@ describe("projectService.unarchiveProject — SEC-078", () => {
     await assert.rejects(
       () => projectService.unarchiveProject(project.id),
       (err: unknown) => err instanceof HttpError && err.statusCode === 404
+    );
+  });
+});
+
+describe("projectService.updateProject on a COMPLETED project — SEC-081", () => {
+  test("a no-op status (COMPLETED -> COMPLETED) does not trigger COMPLETION_REQUIRES_CLIENT_APPROVAL", { skip: !dbAvailable }, async () => {
+    const client = await makeClient("update-completed-noop");
+    const project = await prisma.project.create({ data: { name: "already completed", clientId: client.id, status: "COMPLETED" } });
+    createdProjectIds.push(project.id);
+
+    const updated = await projectService.updateProject(project.id, { name: "renamed after completion", status: "COMPLETED" });
+    assert.equal(updated.name, "renamed after completion");
+    assert.equal(updated.status, "COMPLETED");
+  });
+
+  test("a real transition INTO COMPLETED via this path is still rejected", { skip: !dbAvailable }, async () => {
+    const client = await makeClient("update-completed-real-transition");
+    const project = await prisma.project.create({ data: { name: "in review", clientId: client.id, status: "REVIEW" } });
+    createdProjectIds.push(project.id);
+
+    await assert.rejects(
+      () => projectService.updateProject(project.id, { status: "COMPLETED" }),
+      (err: unknown) => err instanceof HttpError && err.statusCode === 422 && err.code === "COMPLETION_REQUIRES_CLIENT_APPROVAL"
+    );
+  });
+});
+
+describe("projectService.clientApprove requires REVIEW — SEC-085", () => {
+  test("rejects 409 PROJECT_NOT_IN_REVIEW on a project that never reached REVIEW, even with zero tasks", { skip: !dbAvailable }, async () => {
+    const client = await makeClient("approve-not-review");
+    const project = await prisma.project.create({ data: { name: "still planning", clientId: client.id, status: "PLANNING" } });
+    createdProjectIds.push(project.id);
+
+    await assert.rejects(
+      () => projectService.clientApprove(project.id, client.id, "user-id"),
+      (err: unknown) => err instanceof HttpError && err.statusCode === 409 && err.code === "PROJECT_NOT_IN_REVIEW"
     );
   });
 });

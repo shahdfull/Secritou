@@ -92,7 +92,12 @@ export function TaskEditDialog({
               })}
             </div>
             <DialogFooter>
-              <Button onClick={() => form.handleSubmit(onSubmit)()} disabled={isUpdating}>
+              {/* SEC-080: a FREELANCER's onSubmit call must carry ONLY `status` — form.handleSubmit
+                  would submit every value reset() populated (title/description/priority/dates/...),
+                  which task.service.ts#updateTask rejects wholesale for this role
+                  (403 DISALLOWED_FIELD_UPDATE), even though this branch renders nothing but the
+                  status picker. */}
+              <Button onClick={() => onSubmit({ status: form.getValues("status") })} disabled={isUpdating}>
                 {isUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 {t("common.save")}
               </Button>

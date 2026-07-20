@@ -59,12 +59,16 @@ export const projectMeetingRepository = {
 
   // Projects whose recurring meeting is due within [now, now + windowMs] and hasn't
   // been pushed forward yet — used by the reminder job.
+  // SEC-092: deletedAt and a COMPLETED status weren't filtered — a soft-deleted or finished
+  // project with a lingering meetingFrequency would keep generating reminders indefinitely.
   async findDueForReminder(now: Date, windowEnd: Date) {
     return prismaRead.project.findMany({
       where: {
         meetingFrequency: { not: "NONE" },
         nextMeetingDate: { not: null, gte: now, lte: windowEnd },
         archivedAt: null,
+        deletedAt: null,
+        status: { not: "COMPLETED" },
       },
       select: { id: true, name: true, clientId: true, serviceId: true, nextMeetingDate: true, client: { select: { name: true } } },
     });

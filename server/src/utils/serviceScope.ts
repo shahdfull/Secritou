@@ -29,3 +29,25 @@ export async function assertProjectInScope(projectId: string, scope?: ServiceSco
   });
   if (!project) throw new HttpError(403, "This project is not in your service", "PROJECT_OUT_OF_SCOPE");
 }
+
+// A COMPLETED or archived project is done: no new tasks and no changes to its existing tasks
+// (or their checklist items/comments — SEC-089) should be possible afterwards (COMPLETED is
+// reached only via clientApprove, which already requires every task to be DONE — see
+// project.service.ts#clientApprove). Extracted from task.service.ts (session 2026-07-20,
+// SEC-089) so taskChecklist.service.ts/comment.service.ts can share it instead of leaving the
+// guard task-field-only, which let checklist items and comments keep changing on a project the
+// task fields themselves already refuse to touch.
+export async function assertProjectIsOpenForTaskChanges(projectId: string): Promise<void> {
+  const { prismaRead: prisma } = await import("../config/prisma.js");
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { status: true, archivedAt: true, deletedAt: true },
+  });
+  if (!project) throw new HttpError(404, "Project not found");
+  if (project.archivedAt || project.deletedAt) {
+    throw new HttpError(409, "This project is archived and no longer accepts task changes", "PROJECT_ARCHIVED");
+  }
+  if (project.status === "COMPLETED") {
+    throw new HttpError(409, "This project is completed and no longer accepts task changes", "PROJECT_COMPLETED");
+  }
+}

@@ -123,7 +123,10 @@ export const taskRepository = {
     return count > 0;
   },
 
-  async create(data: { title: string; description?: string; status?: TaskStatus; startDate?: Date; dueDate?: Date; projectId: string; assigneeId?: string }): Promise<TaskWithRelations> {
+  // SEC-090: was a hand-written literal without `priority` — TypeScript never checked it for
+  // excess properties (data was a variable at the call site, not a fresh literal), so `priority`
+  // (present in the real validated body) silently reached Prisma without any type documenting it.
+  async create(data: Prisma.TaskUncheckedCreateInput): Promise<TaskWithRelations> {
     return prisma.task.create({ data, select: taskWithRelationsSelect });
   },
 

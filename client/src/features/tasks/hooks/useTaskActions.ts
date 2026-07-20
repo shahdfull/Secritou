@@ -71,9 +71,20 @@ export function useTaskActions() {
     resolver: zodResolver(updateTaskSchema),
   });
 
+  // SEC-079: the date inputs default to "" (never omitted), but the server schema only treats
+  // startDate/dueDate as optional when the key is truly absent — an empty string fails its
+  // `refine(isValidDateString)` with "Invalid date". Strip empty date strings here, at the single
+  // point both create and update funnel through, rather than in the server schema (which would
+  // also have to special-case "" for every other optional string field it might grow later).
+  const stripEmptyDates = <T extends { startDate?: string; dueDate?: string }>(data: T): T => ({
+    ...data,
+    startDate: data.startDate || undefined,
+    dueDate: data.dueDate || undefined,
+  });
+
   const runCreate = useCallback(
     (data: CreateTaskForm) => {
-      createTask(data, {
+      createTask(stripEmptyDates(data), {
         onSuccess: () => {
           closeCreateDialog();
           createForm.reset();
@@ -87,7 +98,7 @@ export function useTaskActions() {
     (data: UpdateTaskForm) => {
       if (!editingTask) return;
       updateTask(
-        { id: editingTask.id, data },
+        { id: editingTask.id, data: stripEmptyDates(data) },
         {
           onSuccess: () => {
             closeEditDialog();

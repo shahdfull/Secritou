@@ -103,17 +103,22 @@ export const projectRepository = {
     };
     let project: (Project & { client?: ProjectWithProgress["client"]; tasks?: { id: string; title: string; status: string }[] }) | null;
 
+    // SEC-086: a soft-deleted project (deletedAt) was reachable by direct URL for every role —
+    // only findByIdAdmin (the write-path pre-read) filtered it. Restoring it is a distinct,
+    // explicit action (restoreProject / GET /projects/trash), so the normal detail page must 404
+    // instead of quietly rendering a project that's in the trash. archivedAt is deliberately left
+    // unfiltered here (SEC-042: an archived project's detail page stays reachable by design).
     if (userRole === "ADMIN") {
-      project = await prismaRead.project.findUnique({ where: { id }, select: baseSelect });
+      project = await prismaRead.project.findFirst({ where: { id, deletedAt: null }, select: baseSelect });
     } else if (userRole === "MANAGER") {
-      project = await prismaRead.project.findFirst({ where: { id, serviceId: serviceId ?? undefined }, select: baseSelect });
+      project = await prismaRead.project.findFirst({ where: { id, deletedAt: null, serviceId: serviceId ?? undefined }, select: baseSelect });
     } else if (userRole === "FREELANCER") {
       project = await prismaRead.project.findFirst({
-        where: { id, tasks: { some: { assigneeId: userId } } },
+        where: { id, deletedAt: null, tasks: { some: { assigneeId: userId } } },
         select: baseSelect,
       });
     } else {
-      project = await prismaRead.project.findUnique({ where: { id, clientId }, select: baseSelect });
+      project = await prismaRead.project.findFirst({ where: { id, deletedAt: null, clientId }, select: baseSelect });
     }
 
     if (!project) return null;

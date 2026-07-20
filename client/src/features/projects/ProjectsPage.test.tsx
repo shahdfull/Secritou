@@ -9,6 +9,7 @@
 // action button has a real accessible name.
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, test, vi, beforeAll } from "vitest";
 import i18n from "@/i18n";
@@ -47,8 +48,9 @@ vi.mock("@/hooks/useProjects", () => ({
   useRestoreProject: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
+let mockRole = "ADMIN";
 vi.mock("@/store/auth.store", () => ({
-  useAuthStore: (selector: (s: { user: { role: string } }) => unknown) => selector({ user: { role: "ADMIN" } }),
+  useAuthStore: (selector: (s: { user: { role: string } }) => unknown) => selector({ user: { role: mockRole } }),
 }));
 
 const { ProjectsPage } = await import("./ProjectsPage");
@@ -67,6 +69,7 @@ function renderPage() {
 
 describe("ProjectsPage — SEC-057 (U3 icon-button labels, U4 contextual notice)", () => {
   test("shows the contextual notice explaining the absence of a 'Nouveau projet' button for ADMIN/MANAGER", () => {
+    mockRole = "ADMIN";
     renderPage();
     expect(
       screen.getByText("Un projet naît de l'acceptation d'une proposition — il n'y a pas de bouton de création directe ici.")
@@ -74,9 +77,44 @@ describe("ProjectsPage — SEC-057 (U3 icon-button labels, U4 contextual notice)
   });
 
   test("each icon-only project action button has a real accessible name", () => {
+    mockRole = "ADMIN";
     renderPage();
     expect(screen.getByLabelText("Voir")).toBeInTheDocument();
     expect(screen.getByLabelText("Modifier")).toBeInTheDocument();
     expect(screen.getByLabelText("Supprimer")).toBeInTheDocument();
+  });
+});
+
+describe("ProjectsPage edit button hidden for FREELANCER — SEC-083", () => {
+  test("a FREELANCER never sees the Edit button (PUT /projects/:id always 403s for this role)", () => {
+    mockRole = "FREELANCER";
+    renderPage();
+    expect(screen.queryByLabelText("Modifier")).not.toBeInTheDocument();
+  });
+
+  test("an ADMIN still sees the Edit button", () => {
+    mockRole = "ADMIN";
+    renderPage();
+    expect(screen.getByLabelText("Modifier")).toBeInTheDocument();
+  });
+});
+
+describe("ProjectsPage client selector disabled for MANAGER — SEC-084", () => {
+  test("a MANAGER sees the client selector disabled in the edit dialog (updateProject silently drops clientId for this role)", async () => {
+    mockRole = "MANAGER";
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByLabelText("Modifier"));
+    expect(screen.getByRole("combobox", { name: "Client" })).toBeDisabled();
+  });
+
+  test("an ADMIN still sees the client selector enabled", async () => {
+    mockRole = "ADMIN";
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByLabelText("Modifier"));
+    expect(screen.getByRole("combobox", { name: "Client" })).not.toBeDisabled();
   });
 });

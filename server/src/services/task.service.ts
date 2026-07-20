@@ -8,7 +8,7 @@ import type { Role, TaskStatus } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
-import { assertProjectInScope, type ServiceScope } from "../utils/serviceScope.js";
+import { assertProjectInScope, assertProjectIsOpenForTaskChanges, type ServiceScope } from "../utils/serviceScope.js";
 import { notifyN8n } from "../utils/webhook.js";
 import { env } from "../config/env.js";
 import { ALLOWED_TASK_TRANSITIONS } from "@secritou/shared";
@@ -18,24 +18,6 @@ function assertValidTaskTransition(from: TaskStatus, to: TaskStatus): void {
   const allowed = ALLOWED_TASK_TRANSITIONS[from] ?? [];
   if (!allowed.includes(to)) {
     throw new HttpError(422, `Cannot transition from ${from} to ${to}. Allowed: ${allowed.join(", ") || "none"}`, "INVALID_TASK_TRANSITION");
-  }
-}
-
-// A COMPLETED or archived project is done: no new tasks and no changes to its existing tasks
-// should be possible afterwards (COMPLETED is reached only via clientApprove, which already
-// requires every task to be DONE — see project.service.ts#clientApprove).
-async function assertProjectIsOpenForTaskChanges(projectId: string) {
-  const { prismaRead: prisma } = await import("../config/prisma.js");
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { status: true, archivedAt: true, deletedAt: true },
-  });
-  if (!project) throw new HttpError(404, "Project not found");
-  if (project.archivedAt || project.deletedAt) {
-    throw new HttpError(409, "This project is archived and no longer accepts task changes", "PROJECT_ARCHIVED");
-  }
-  if (project.status === "COMPLETED") {
-    throw new HttpError(409, "This project is completed and no longer accepts task changes", "PROJECT_COMPLETED");
   }
 }
 

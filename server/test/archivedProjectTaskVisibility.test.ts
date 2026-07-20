@@ -14,11 +14,16 @@
 //    fiche projet reste consultable par lien direct après archivage, contredisant le texte du
 //    dialogue de confirmation ("disparaîtra de toutes les listes et vues").
 //
+// SEC-086 (session 2026-07-20) : findById filtre désormais deletedAt (un projet supprimé n'est
+// plus consultable via GET /projects/:id, quel que soit le rôle) — archivedAt reste
+// délibérément NON filtré ici (comportement voulu, la fiche d'un projet archivé reste
+// consultable par lien direct).
+//
 // This test imports and calls the real taskService/projectService against a real database —
 // not a reimplementation — to prove: an archived project's tasks are excluded from
 // taskService.getAllTasks/getTaskById for every role, while projectService.getProjectById
-// still returns the archived project itself (documenting the current, intentional-per-this-fix
-// asymmetry: findById is unfiltered by design, only the write path and task visibility changed).
+// still returns the archived project itself (documenting the current, intentional
+// asymmetry: findById filters deletedAt but not archivedAt by design).
 //
 // Requires a real database; skipped if unreachable.
 

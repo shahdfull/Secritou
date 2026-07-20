@@ -95,13 +95,16 @@ export const projectService = {
 
     // Validate status changes
     if (safeData.status) {
-      // Block COMPLETED via regular update (must use clientApprove)
-      if (safeData.status === "COMPLETED") {
-        throw new HttpError(422, "Project can only be completed via client approval", "COMPLETION_REQUIRES_CLIENT_APPROVAL");
-      }
-
       const currentStatus = project.status;
       const newStatus = safeData.status;
+
+      // SEC-081: only block a REAL transition into COMPLETED (must use clientApprove) — the edit
+      // form always resubmits the project's current status alongside any other field, so an
+      // already-COMPLETED project could never have its name/description edited if this guard
+      // fired on `status === "COMPLETED"` alone instead of on an actual transition.
+      if (newStatus === "COMPLETED" && currentStatus !== "COMPLETED") {
+        throw new HttpError(422, "Project can only be completed via client approval", "COMPLETION_REQUIRES_CLIENT_APPROVAL");
+      }
 
       if (currentStatus !== newStatus && !PROJECT_STATUS_VALID_TRANSITIONS[currentStatus]?.includes(newStatus)) {
         throw new HttpError(422, `Invalid status transition from ${currentStatus} to ${newStatus}`, "INVALID_STATUS_TRANSITION");
@@ -298,6 +301,11 @@ export const projectService = {
     if (preread.clientId !== clientId) throw new HttpError(403, "Forbidden");
     if (preread.clientApprovedAt) throw new HttpError(409, "Project already approved", "PROJECT_ALREADY_APPROVED");
     if (preread.status === "COMPLETED") throw new HttpError(409, "Project is already completed", "PROJECT_ALREADY_COMPLETED");
+    // SEC-085: the client portal only ever shows the approve button once the project reaches
+    // REVIEW (ProjectsClientPage.tsx) — enforce the same condition here so a direct API call
+    // can't approve (and complete) a project that was never actually reviewed, even if every
+    // other guard below happens to pass (e.g. a PLANNING project with zero tasks yet).
+    if (preread.status !== "REVIEW") throw new HttpError(409, "Project is not ready for client approval", "PROJECT_NOT_IN_REVIEW");
 
     const openTasks = await prismaRead.task.findMany({ where: { projectId, status: { not: "DONE" } }, select: { id: true, title: true, status: true } });
     if (openTasks.length > 0) {

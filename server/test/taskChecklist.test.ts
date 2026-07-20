@@ -210,3 +210,29 @@ describe("taskChecklistService — SEC-060", () => {
     assert.equal(finalCount, 100, "the cap must never be exceeded even under concurrent creates near the limit");
   });
 });
+
+describe("taskChecklistService frozen on an archived/COMPLETED project — SEC-089", () => {
+  test("createItem/updateItem/deleteItem are all rejected 409 PROJECT_ARCHIVED on an archived project's task", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const task = await makeTask();
+    const preExisting = await taskChecklistService.createItem(task.id, "Avant archivage");
+    createdItemIds.push(preExisting.id);
+    await prisma.project.update({ where: { id: task.projectId }, data: { archivedAt: new Date() } });
+
+    await assert.rejects(
+      () => taskChecklistService.createItem(task.id, "Après archivage"),
+      (err: unknown) => err instanceof HttpError && err.statusCode === 409 && err.code === "PROJECT_ARCHIVED"
+    );
+    await assert.rejects(
+      () => taskChecklistService.updateItem(task.id, preExisting.id, { done: true }),
+      (err: unknown) => err instanceof HttpError && err.statusCode === 409 && err.code === "PROJECT_ARCHIVED"
+    );
+    await assert.rejects(
+      () => taskChecklistService.deleteItem(task.id, preExisting.id),
+      (err: unknown) => err instanceof HttpError && err.statusCode === 409 && err.code === "PROJECT_ARCHIVED"
+    );
+
+    const stillThere = await prisma.taskChecklistItem.findUnique({ where: { id: preExisting.id } });
+    assert.ok(stillThere, "the rejected update/delete must never have touched the item");
+  });
+});

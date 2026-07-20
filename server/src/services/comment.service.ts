@@ -2,13 +2,24 @@
 import { commentRepository } from "../repositories/comment.repository.js";
 import { prismaRead } from "../config/prisma.js";
 import { userRepository } from "../repositories/user.repository.js";
+import { taskRepository } from "../repositories/task.repository.js";
 import { enqueueNotifications } from "../jobs/queues.js";
 import { notifyN8n } from "../utils/webhook.js";
 import { env } from "../config/env.js";
 import { HttpError } from "../utils/httpError.js";
 import { extractMentionedUserIds } from "../utils/mentions.js";
+import { assertProjectIsOpenForTaskChanges } from "../utils/serviceScope.js";
 
 const EXCERPT_LENGTH = 150;
+
+// SEC-089: mirrors task.service.ts's own frozen-project guard — a comment is content on the
+// task, same as a checklist item, so it must be frozen the same way once the project is
+// archived/COMPLETED.
+async function assertTaskIsOpenForCommentChanges(taskId: string): Promise<void> {
+  const task = await taskRepository.findByIdAdmin(taskId);
+  if (!task) throw new HttpError(404, "Task not found");
+  await assertProjectIsOpenForTaskChanges(task.projectId);
+}
 
 export const commentService = {
   async createComment(data: {
@@ -16,6 +27,7 @@ export const commentService = {
     taskId: string;
     authorId: string;
   }) {
+    await assertTaskIsOpenForCommentChanges(data.taskId);
     const comment = await commentRepository.create(data);
 
     // Resolve who's concerned by this task's comment thread — same "assignee + pole staff"
@@ -89,6 +101,7 @@ export const commentService = {
     if (actorRole !== "ADMIN" && comment.authorId !== actorId) {
       throw new HttpError(403, "You can only edit your own comments", "COMMENT_NOT_YOURS");
     }
+    await assertTaskIsOpenForCommentChanges(taskId);
     return commentRepository.update(commentId, content);
   },
 
@@ -98,6 +111,7 @@ export const commentService = {
     if (actorRole !== "ADMIN" && comment.authorId !== actorId) {
       throw new HttpError(403, "You can only delete your own comments", "COMMENT_NOT_YOURS");
     }
+    await assertTaskIsOpenForCommentChanges(taskId);
     return commentRepository.delete(commentId);
   },
 };

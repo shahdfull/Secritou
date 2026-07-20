@@ -179,3 +179,29 @@ describe("commentService.updateComment/deleteComment authorization — SEC-059",
     );
   });
 });
+
+describe("commentService frozen on an archived/COMPLETED project — SEC-089", () => {
+  test("createComment/updateComment/deleteComment are all rejected 409 PROJECT_ARCHIVED on an archived project's task", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const task = await makeTask();
+    const author = await makeUser("author-frozen");
+    const preExisting = await makeComment(task.id, author.id, "avant archivage");
+    await prisma.project.update({ where: { id: task.projectId }, data: { archivedAt: new Date() } });
+
+    await assert.rejects(
+      () => commentService.createComment({ content: "après archivage", taskId: task.id, authorId: author.id }),
+      (err: unknown) => err instanceof HttpError && err.statusCode === 409 && err.code === "PROJECT_ARCHIVED"
+    );
+    await assert.rejects(
+      () => commentService.updateComment(task.id, preExisting.id, "modifié après archivage", author.id, "MANAGER"),
+      (err: unknown) => err instanceof HttpError && err.statusCode === 409 && err.code === "PROJECT_ARCHIVED"
+    );
+    await assert.rejects(
+      () => commentService.deleteComment(task.id, preExisting.id, author.id, "MANAGER"),
+      (err: unknown) => err instanceof HttpError && err.statusCode === 409 && err.code === "PROJECT_ARCHIVED"
+    );
+
+    const stillThere = await prisma.comment.findUnique({ where: { id: preExisting.id } });
+    assert.equal(stillThere?.content, "avant archivage", "the rejected update/delete must never have touched the comment");
+  });
+});

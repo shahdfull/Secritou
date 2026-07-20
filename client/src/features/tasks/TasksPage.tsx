@@ -210,9 +210,11 @@ export function TasksPage() {
         </p>
       )}
 
-      {/* SEC-053: the project selector in the create/edit task forms loads a single unpaginated
-          page of 100 projects — past that, some active projects silently become unselectable,
-          with no indication (mirrors the Kanban notice above for the same class of cap). */}
+      {/* SEC-053/SEC-088: the same single unpaginated page of 100 projects backs both the
+          create/edit project selector (some active projects become unselectable past 100) and
+          projectNameById (a task on the 101st+ project shows "-" instead of its project's name,
+          in both the list and Kanban views) — one banner, one root cause, one honest wording
+          covering both consumers. */}
       {projectsTotal > 100 && (
         <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
           {t("tasksPage.projectSelectorTruncatedNotice", { shown: 100, total: projectsTotal })}

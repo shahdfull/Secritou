@@ -1,4 +1,4 @@
-import { Role, ProjectStatus, TaskStatus, LeadStatus } from "@prisma/client";
+import { Role, ProjectStatus, TaskStatus, LeadStatus, Priority } from "@prisma/client";
 
 // Base interface for all entities
 export interface BaseEntity {
@@ -93,6 +93,7 @@ export interface CreateTaskDTO {
   title: string;
   description?: string;
   status?: TaskStatus;
+  priority?: Priority;
   startDate?: Date;
   dueDate?: Date;
   projectId: string;

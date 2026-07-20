@@ -84,6 +84,7 @@ function ProjectGrid({
   getStatusBadgeClass,
   getStatusLabel,
   t,
+  canEdit,
   canDelete,
   onEdit,
   onDelete,
@@ -93,6 +94,7 @@ function ProjectGrid({
   getStatusBadgeClass: (status: string) => string;
   getStatusLabel: (status: string) => string;
   t: TFunction;
+  canEdit: boolean;
   canDelete: boolean;
   onEdit: (p: Project) => void;
   onDelete: (p: Project) => void;
@@ -122,9 +124,11 @@ function ProjectGrid({
                       <Eye className="h-3.5 w-3.5" />
                     </Link>
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={t("common.edit")} onClick={() => onEdit(project)}>
-                    <Edit className="h-3.5 w-3.5" />
-                  </Button>
+                  {canEdit && (
+                    <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={t("common.edit")} onClick={() => onEdit(project)}>
+                      <Edit className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                   {canDelete && (
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" aria-label={t("common.delete")} onClick={() => onDelete(project)}>
                       <Trash2 className="h-3.5 w-3.5" />
@@ -159,6 +163,10 @@ export function ProjectsPage() {
   const { t } = useTranslation();
   const currentUser = useAuthStore((s) => s.user);
   const isFreelancer = currentUser?.role === "FREELANCER";
+  // SEC-084: project.service.ts#updateProject silently deletes clientId from a MANAGER's payload
+  // before writing — the client selector below is hidden for this role instead of offering an
+  // action that always no-ops without any error.
+  const isManager = currentUser?.role === "MANAGER";
   const canDelete = usePermission("projects", "delete");
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
 
@@ -388,7 +396,7 @@ export function ProjectsPage() {
                   <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
                 ) : (
                   <>
-                    <ProjectGrid projects={activeProjects} clientById={clientById} getStatusBadgeClass={getStatusBadgeClass} getStatusLabel={getStatusLabel} t={t} canDelete={canDelete} onEdit={handleEdit} onDelete={handleDelete} />
+                    <ProjectGrid projects={activeProjects} clientById={clientById} getStatusBadgeClass={getStatusBadgeClass} getStatusLabel={getStatusLabel} t={t} canEdit={!isFreelancer} canDelete={canDelete} onEdit={handleEdit} onDelete={handleDelete} />
                     <DataTablePagination page={activePage} pageSize={FREELANCER_SUBTAB_PAGE_SIZE} total={activeTotal} onPageChange={setActivePage} />
                   </>
                 )}
@@ -398,7 +406,7 @@ export function ProjectsPage() {
                   <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
                 ) : (
                   <>
-                    <ProjectGrid projects={doneProjects} clientById={clientById} getStatusBadgeClass={getStatusBadgeClass} getStatusLabel={getStatusLabel} t={t} canDelete={canDelete} onEdit={handleEdit} onDelete={handleDelete} />
+                    <ProjectGrid projects={doneProjects} clientById={clientById} getStatusBadgeClass={getStatusBadgeClass} getStatusLabel={getStatusLabel} t={t} canEdit={!isFreelancer} canDelete={canDelete} onEdit={handleEdit} onDelete={handleDelete} />
                     <DataTablePagination page={donePage} pageSize={FREELANCER_SUBTAB_PAGE_SIZE} total={doneTotal} onPageChange={setDonePage} />
                   </>
                 )}
@@ -406,7 +414,7 @@ export function ProjectsPage() {
             </Tabs>
           ) : (
             /* Admin/Manager: flat list */
-            <ProjectGrid projects={filteredProjects} clientById={clientById} getStatusBadgeClass={getStatusBadgeClass} getStatusLabel={getStatusLabel} t={t} canDelete={canDelete} onEdit={handleEdit} onDelete={handleDelete} />
+            <ProjectGrid projects={filteredProjects} clientById={clientById} getStatusBadgeClass={getStatusBadgeClass} getStatusLabel={getStatusLabel} t={t} canEdit={!isFreelancer} canDelete={canDelete} onEdit={handleEdit} onDelete={handleDelete} />
           )}
 
           {!isFreelancer && (
@@ -515,7 +523,7 @@ export function ProjectsPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>{t("common.client")}</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <Select onValueChange={field.onChange} value={field.value || ""} disabled={isManager}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder={t("projectsPage.selectClient")} />

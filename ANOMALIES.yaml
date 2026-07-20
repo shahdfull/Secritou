@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-078
+dernier_id: SEC-092
 
 anomalies:
   - id: SEC-001
@@ -5984,3 +5984,638 @@ anomalies:
       confirmation CI : workflow GitHub Actions sur `origin/main` en
       `workflow_dispatch` uniquement (déviation établie en session le
       2026-07-17, citée à chaque clôture depuis).
+
+  - id: SEC-079
+    titre: "Creer ou editer une tache sans renseigner startDate/dueDate echoue systematiquement en 422 Invalid date — le client envoie des chaines vides, le validateur Zod ne les tolere pas"
+    perimetre: "4.3 Gestion des tâches — client/src/features/tasks/hooks/useTaskActions.ts, client/src/hooks/useTasks.ts, server/src/validators/task.validator.ts"
+    regle_violee: null
+    classe: null
+    gravite: bloquant
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand un utilisateur peut créer une tâche sans renseigner
+      ni `startDate` ni `dueDate` (les deux formulaires, création ET
+      édition), vérifié par un test qui appelle réellement la mutation
+      réelle (pas une réimplémentation) avec des dates vides et confirme
+      un succès, pas un 422.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit exhaustif du module Gestion de Projets (agent dédié,
+      lecture seule), confirmé par lecture directe et exécution réelle
+      du schéma Zod. `createTaskSchema`/`updateTaskSchema`
+      (`task.validator.ts`) déclarent `startDate`/`dueDate` en
+      `z.string().refine(isValidDateString).transform(...).optional()`
+      — `.optional()` n'accepte que `undefined`, jamais une chaîne
+      vide : `""` échoue au `refine` avec le message « Invalid date ».
+      Vérifié par exécution directe du schéma réel :
+      `{startDate:"",dueDate:""}` → `success:false` (2 issues
+      « Invalid date ») ; `{}` (champs omis) → `success:true`. Or
+      `useTaskActions.ts` initialise `createForm`
+      (`defaultValues.startDate:""`, `dueDate:""`) et
+      `openCreateDialogForProject` (même défaut), et
+      `handleEditTask` fait `editForm.reset({...task, startDate:
+      task.startDate ? ... : "", dueDate: ... ? ... : ""})` — une
+      tâche sans date affiche donc `""` au montage du formulaire
+      d'édition aussi. Aucun nettoyage n'existe entre le formulaire et
+      l'appel réseau (`useTasks.ts#useCreateTask/useUpdateTask`
+      transmettent `data` tel quel, `tasks.api.ts#create/update` ne
+      transforment rien). Confirmé qu'aucun test n'existe pour
+      `TaskCreateDialog.tsx`/`TaskEditDialog.tsx` couvrant ce chemin —
+      c'est ce qui a laissé passer ce défaut malgré les nombreuses
+      sessions d'audit précédentes sur ce module.
+
+      Corrigé (même session, choix du porteur : « Tout traiter (14
+      items) ») : `useTaskActions.ts` — nouvelle fonction
+      `stripEmptyDates` appliquée dans `runCreate`/`runUpdate` (seul
+      point de convergence des deux formulaires avant l'appel réseau),
+      convertit `""` en `undefined` pour `startDate`/`dueDate`.
+      Preuve par test réel : `useTaskActions.test.tsx` (2 cas — appelle
+      réellement `handleCreate`/`handleUpdate` avec les valeurs par
+      défaut du formulaire et confirme que le payload HTTP intercepté
+      ne porte ni `startDate` ni `dueDate`). Vérification complète :
+      `npx tsc --noEmit` (client, propre), `npx vitest run` (client,
+      85/85, dont ces 2 nouveaux). Résolu SANS confirmation CI :
+      workflow GitHub Actions sur `origin/main` en `workflow_dispatch`
+      uniquement (déviation établie en session le 2026-07-17, citée à
+      chaque clôture depuis).
+
+  - id: SEC-080
+    titre: "Un FREELANCER ne peut pas changer le statut de sa tache via le dialogue d'edition — editForm.reset({...task}) fait re-soumettre l'objet complet, rejete 403 DISALLOWED_FIELD_UPDATE par task.service.ts"
+    perimetre: "4.3 Gestion des tâches — client/src/features/tasks/hooks/useTaskActions.ts, client/src/features/tasks/components/TaskEditDialog.tsx, server/src/services/task.service.ts"
+    regle_violee: null
+    classe: null
+    gravite: bloquant
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand un FREELANCER peut changer le statut de sa tâche via
+      le bouton du dialogue d'édition (pas seulement via le drag Kanban),
+      vérifié par un test qui appelle réellement le chemin de soumission
+      du dialogue et confirme que seul `status` est transmis au serveur,
+      succès confirmé.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit exhaustif du module Gestion de Projets, confirmé par
+      lecture directe. `handleEditTask` (`useTaskActions.ts`) fait
+      `editForm.reset({...task, startDate:..., dueDate:...})` — TOUTES
+      les clés de la tâche (title/description/priority/projectId/
+      assigneeId/dates) entrent dans les valeurs du formulaire, y
+      compris pour un FREELANCER. `TaskEditDialog.tsx` (branche
+      `isFreelancer`, lignes ~76-99) n'affiche qu'un sélecteur de
+      statut, mais son bouton appelle `form.handleSubmit(onSubmit)()`
+      — react-hook-form renvoie l'INTÉGRALITÉ des valeurs du formulaire
+      au submit, indépendamment des champs réellement rendus. Le
+      service (`task.service.ts#updateTask`, garde FREELANCER) rejette
+      dès qu'une clé autre que `status` est présente dans le payload
+      (403 `DISALLOWED_FIELD_UPDATE`) — donc CE bouton échoue toujours
+      pour ce rôle. SEC-045 a bien prouvé que `updateTask(id,
+      {status}, FREELANCER)` fonctionne isolément, mais aucun test
+      n'appelle le chemin UI réel (`TaskEditDialog`/`useTaskActions`)
+      pour ce rôle — c'est ce qui a laissé ce défaut invisible malgré
+      SEC-045. Seul chemin fonctionnel actuellement pour un
+      FREELANCER : le drag-and-drop Kanban.
+
+      Corrigé (même session) : le bouton de la branche `isFreelancer`
+      de `TaskEditDialog.tsx` appelle désormais directement
+      `onSubmit({ status: form.getValues("status") })`, au lieu de
+      `form.handleSubmit(onSubmit)()` qui soumettait tout le
+      formulaire. Preuve par test réel :
+      `TaskEditDialog.test.tsx` (nouveau fichier, 1 cas) — rend le
+      composant réel en mode freelance et confirme que `onSubmit` est
+      appelé avec `{ status: "TODO" }` exactement, jamais `title`.
+      Vérification complète : `npx tsc --noEmit` (client, propre),
+      `npx vitest run` (client, 85/85). Résolu SANS confirmation CI :
+      workflow GitHub Actions sur `origin/main` en `workflow_dispatch`
+      uniquement (déviation établie en session le 2026-07-17, citée à
+      chaque clôture depuis).
+
+  - id: SEC-081
+    titre: "Editer un champ (nom/description) d'un projet deja COMPLETED echoue toujours — updateProject bloque tout update dont status=COMPLETED sans distinguer une vraie transition d'un statu quo"
+    perimetre: "4.2 Gestion de projet — server/src/services/project.service.ts#updateProject, client/src/features/projects/ProjectsPage.tsx"
+    regle_violee: null
+    classe: null
+    gravite: eleve
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand un ADMIN/MANAGER peut modifier le nom/description
+      d'un projet déjà COMPLETED sans recevoir
+      `COMPLETION_REQUIRES_CLIENT_APPROVAL`, vérifié par un test qui
+      appelle réellement `projectService.updateProject` sur un projet
+      COMPLETED avec `status: "COMPLETED"` inchangé et confirme un
+      succès, tout en continuant de rejeter une vraie tentative de
+      transition VERS COMPLETED par ce chemin.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit exhaustif du module Gestion de Projets, confirmé par
+      lecture directe. `project.service.ts#updateProject` (ligne ~99)
+      lève `422 COMPLETION_REQUIRES_CLIENT_APPROVAL` dès que
+      `safeData.status === "COMPLETED"`, SANS comparer d'abord à
+      `project.status` (le statut courant) — la garde se déclenche même
+      quand `status` n'a pas changé. Or `ProjectsPage.tsx#handleEdit`
+      fait `editForm.reset({...project})`, donc `status` vaut toujours
+      le statut courant du projet au montage, et le `Select` de statut
+      (rendu inconditionnellement, `availableStatuses` incluant
+      toujours `editingProject.status`) le retransmet tel quel à
+      chaque soumission — y compris pour éditer seulement le nom.
+      Conséquence : un projet déjà COMPLETED ne peut plus jamais être
+      renommé/redécrit via ce formulaire.
+
+      Corrigé (même session) : la garde de `updateProject` teste
+      désormais `newStatus === "COMPLETED" && currentStatus !==
+      "COMPLETED"` (une vraie transition), au lieu de
+      `newStatus === "COMPLETED"` seul. Preuve par test réel :
+      `projectCreateArchiveRestore.test.ts` (2 cas — un projet déjà
+      COMPLETED peut être renommé sans erreur ; une vraie transition
+      REVIEW→COMPLETED via ce chemin reste rejetée). Vérifié sans
+      régression sur les 2 tests existants de
+      `projectUpdateBlocksCompletion.test.ts` (les deux testent une
+      vraie transition, jamais un no-op — non affectés). Vérification
+      complète : `npx tsc --noEmit` (serveur, propre), `npx tsx --test
+      test/run-all.test.ts` (391/391), `npm run lint` (serveur, 0
+      warning). Résolu SANS confirmation CI : workflow GitHub Actions
+      sur `origin/main` en `workflow_dispatch` uniquement (déviation
+      établie en session le 2026-07-17, citée à chaque clôture
+      depuis).
+
+  - id: SEC-082
+    titre: "Les mentions @ dans les commentaires de tache s'affichent en markup brut @[Nom](uuid) au lieu d'un rendu lisible — l'UUID interne de l'utilisateur mentionne fuit dans le texte visible"
+    perimetre: "4.3 Gestion des tâches — client/src/features/tasks/components/TaskDetailDrawer.tsx, client/src/features/tasks/components/MentionTextarea.tsx"
+    regle_violee: null
+    classe: null
+    gravite: eleve
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand un commentaire contenant une mention `@[Nom](id)`
+      s'affiche dans le fil de commentaires sous la forme « @Nom »
+      (jamais l'id brut), vérifié par un test qui rend le composant
+      réel avec un commentaire contenant une mention et confirme
+      l'absence du token brut/UUID à l'écran.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit exhaustif du module Gestion de Projets, confirmé par
+      lecture directe. `MentionTextarea.tsx` insère
+      `@[${user.name}](${user.id})` dans le contenu du commentaire
+      (comportement voulu, SEC-065, pour que le serveur résolve la
+      mention sur l'id, jamais le nom affiché). Mais
+      `TaskDetailDrawer.tsx` (ligne ~308) affiche
+      `{comment.content}` tel quel, sans aucune transformation — un
+      lecteur voit donc littéralement
+      `@[Sarah Ben Ali](3fa85f64-5717-4562-b3fc-2c963f66afa6)` dans le
+      fil de commentaires. La fonctionnalité de mention (SEC-065)
+      fonctionne côté notification mais est visuellement cassée à
+      l'affichage, avec fuite de l'UUID interne de l'utilisateur.
+      Aucun test n'existe sur le rendu du contenu d'un commentaire
+      contenant une mention (seul `MentionTextarea.test.tsx` couvre
+      l'insertion du token en saisie, pas son affichage en lecture).
+
+      Corrigé (même session) : nouveau composant `MentionText.tsx`
+      (parse `@[Nom](id)` et rend une puce « @Nom », n'affiche jamais
+      l'id), câblé dans `TaskDetailDrawer.tsx` à la place du rendu brut
+      de `comment.content`. Preuve par test réel :
+      `TaskDetailDrawer.test.tsx` (2 cas — un commentaire avec mention
+      affiche « @Alice Martin », jamais l'UUID ni le token brut ; un
+      commentaire sans mention reste inchangé). Vérification complète :
+      `npx tsc --noEmit` (client, propre), `npx vitest run` (client,
+      85/85), `npm run lint` (client, 12 warnings — SEC-049, stable,
+      le nouveau fichier n'exporte qu'un composant). Résolu SANS
+      confirmation CI : workflow GitHub Actions sur `origin/main` en
+      `workflow_dispatch` uniquement (déviation établie en session le
+      2026-07-17, citée à chaque clôture depuis).
+
+  - id: SEC-083
+    titre: "Le bouton Editer d'un projet est affiche pour le role FREELANCER dans ProjectsPage.tsx, alors que PUT /projects/:id refuse ce role (403 systematique)"
+    perimetre: "4.2 Gestion de projet — client/src/features/projects/ProjectsPage.tsx, server/src/routes/project.routes.ts"
+    regle_violee: null
+    classe: null
+    gravite: eleve
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand un FREELANCER ouvrant ses projets (sous-onglets
+      Actif/Terminé) ne voit plus de bouton « Éditer » sur les cartes
+      projet, vérifié par lecture directe du composant `ProjectGrid`
+      et par un test qui rend le composant réel avec un utilisateur
+      FREELANCER et confirme l'absence du bouton.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit exhaustif du module Gestion de Projets, confirmé par
+      lecture directe. `ProjectGrid` (`ProjectsPage.tsx`) rend
+      toujours le bouton icône « Éditer » (`onEdit={handleEdit}` sans
+      condition de rôle), y compris dans les deux appels utilisés pour
+      les sous-onglets Actif/Terminé du FREELANCER (lignes ~391/401).
+      Seul le bouton Supprimer est déjà conditionné (`canDelete`,
+      `usePermission("projects","delete")`). `PUT /projects/:id`
+      (`project.routes.ts:192`) est gardée
+      `authorize("ADMIN","MANAGER")` — un FREELANCER cliquant Éditer
+      reçoit systématiquement 403 après avoir rempli le formulaire.
+
+      Corrigé (même session) : `ProjectGrid` reçoit désormais un prop
+      `canEdit`, câblé à `!isFreelancer` sur les 3 appels du
+      composant ; le bouton Éditer est enveloppé dans `{canEdit &&
+      (...)}`, sur le même modèle déjà en place pour `canDelete`.
+      Preuve par test réel : `ProjectsPage.test.tsx` (2 cas — un
+      FREELANCER ne voit jamais le bouton Modifier, un ADMIN le voit
+      toujours). Vérification complète : `npx tsc --noEmit` (client,
+      propre), `npx vitest run` (client, 85/85). Résolu SANS
+      confirmation CI : workflow GitHub Actions sur `origin/main` en
+      `workflow_dispatch` uniquement (déviation établie en session le
+      2026-07-17, citée à chaque clôture depuis).
+
+  - id: SEC-084
+    titre: "Le selecteur Client du formulaire d'edition de projet est affiche pour le role MANAGER, mais updateProject supprime silencieusement clientId de son payload — la modification n'a jamais d'effet, sans message"
+    perimetre: "4.2 Gestion de projet — client/src/features/projects/ProjectsPage.tsx, server/src/services/project.service.ts#updateProject"
+    regle_violee: null
+    classe: null
+    gravite: moyen
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand un MANAGER éditant un projet ne voit plus de
+      sélecteur Client modifiable (champ masqué ou désactivé, valeur
+      affichée en lecture seule), vérifié par un test qui rend le
+      composant réel avec un utilisateur MANAGER et confirme l'absence
+      (ou la désactivation) du champ.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit exhaustif du module Gestion de Projets, confirmé par
+      lecture directe. `project.service.ts#updateProject` (ligne ~93)
+      supprime `safeData.clientId` pour tout MANAGER
+      (`delete safeData.clientId`), avant toute écriture — un choix
+      délibéré (empêcher un Manager de réaffecter un projet à un autre
+      client hors de son contrôle), mais le formulaire
+      (`ProjectsPage.tsx`, champ `clientId`, ligne ~512) est rendu sans
+      aucune condition de rôle : un MANAGER peut sélectionner un autre
+      client, soumettre, recevoir un 200, et voir le projet revenir
+      inchangé — sans message expliquant pourquoi.
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-20) : « Masquer/désactiver le sélecteur pour MANAGER
+      (Recommandé) ».
+
+      Corrigé (même session) : nouveau flag `isManager`
+      (`currentUser?.role === "MANAGER"`), le `Select` du champ
+      `clientId` reçoit `disabled={isManager}`. Preuve par test réel :
+      `ProjectsPage.test.tsx` (2 cas — un MANAGER voit le sélecteur
+      client désactivé après avoir cliqué Modifier, un ADMIN le voit
+      activé). Vérification complète : `npx tsc --noEmit` (client,
+      propre), `npx vitest run` (client, 85/85). Résolu SANS
+      confirmation CI : workflow GitHub Actions sur `origin/main` en
+      `workflow_dispatch` uniquement (déviation établie en session le
+      2026-07-17, citée à chaque clôture depuis).
+
+  - id: SEC-085
+    titre: "projectService.clientApprove n'exige pas que le projet soit en statut REVIEW — l'UI conditionne le bouton d'approbation a ce statut mais le serveur accepterait un appel API direct depuis n'importe quel statut si les autres conditions sont reunies"
+    perimetre: "4.2 Gestion de projet, 4.6 Portail client — server/src/services/project.service.ts#clientApprove, client/src/features/client-portal/ProjectsClientPage.tsx"
+    regle_violee: null
+    classe: null
+    gravite: moyen
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand `clientApprove` rejette explicitement (409
+      `PROJECT_NOT_IN_REVIEW`) un projet dont le statut n'est pas
+      `REVIEW`, vérifié par un test qui appelle réellement le service
+      sur un projet en `PLANNING` (sans tâche, donc qui passerait
+      toutes les autres gardes) et confirme le rejet, ainsi qu'un cas
+      nominal en `REVIEW` qui continue de réussir.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit exhaustif du module Gestion de Projets, confirmé par
+      lecture directe. `clientApprove` (`project.service.ts`, lignes
+      292-325) vérifie l'ownership, `clientApprovedAt` déjà posé,
+      `status === "COMPLETED"`, l'absence de tâches ouvertes, l'acompte
+      payé, et l'absence d'approbations en attente — mais jamais
+      `status === "REVIEW"`. Un projet en `PLANNING` sans aucune tâche
+      créée passerait donc toutes ces gardes. Côté client,
+      `ProjectsClientPage.tsx` (ligne 159) conditionne le bouton
+      d'approbation à `project.status === "REVIEW"` — la divergence
+      n'est atteignable que par un appel API direct (le CLIENT ne peut
+      agir que sur son propre projet), mais reste une vraie divergence
+      de machine à états entre ce que l'UI suppose et ce que le
+      service autorise réellement.
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-20) : « Oui, ajouter la garde 409 (Recommandé) ».
+
+      Corrigé (même session) : `clientApprove` rejette désormais `409
+      PROJECT_NOT_IN_REVIEW` dès que `preread.status !== "REVIEW"`,
+      avant les autres gardes. Preuve par test réel :
+      `projectCreateArchiveRestore.test.ts` (1 cas — un projet en
+      PLANNING sans aucune tâche, qui passerait toutes les autres
+      gardes, est bien rejeté). Vérifié sans régression sur les tests
+      `clientApprove` existants (tous créent déjà des projets en
+      REVIEW). Vérification complète : `npx tsc --noEmit` (serveur,
+      propre), `npx tsx --test test/run-all.test.ts` (391/391), `npm
+      run lint` (serveur, 0 warning). Résolu SANS confirmation CI :
+      workflow GitHub Actions sur `origin/main` en `workflow_dispatch`
+      uniquement (déviation établie en session le 2026-07-17, citée à
+      chaque clôture depuis).
+
+  - id: SEC-086
+    titre: "projectRepository.findById ne filtre pas deletedAt sur aucune des 4 branches de role — la fiche d'un projet supprime (corbeille) reste accessible par URL directe, avec un bouton Archiver qui echoue en 404 silencieux (canArchive ne teste que archivedAt)"
+    perimetre: "4.2 Gestion de projet — server/src/repositories/project.repository.ts#findById, client/src/features/projects/ProjectDetailPage.tsx"
+    regle_violee: null
+    classe: "scope_manager_manquant"
+    gravite: moyen
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand un projet soft-supprimé (`deletedAt` non-null)
+      n'est plus consultable via `GET /projects/:id` pour aucun rôle,
+      OU quand `ProjectDetailPage.tsx` reflète correctement cet état
+      (bouton Archiver masqué, action Restaurer proposée à la place),
+      vérifié par un test qui appelle réellement
+      `projectService.getProjectById` sur un projet supprimé.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit exhaustif du module Gestion de Projets, confirmé par
+      lecture directe. Même classe de défaut que SEC-041/SEC-042 (déjà
+      corrigés pour l'axe `archivedAt`), mais ici sur l'axe
+      `deletedAt`, jamais traité : `project.repository.ts#findById`
+      (les 4 branches ADMIN/MANAGER/FREELANCER/CLIENT) ne filtre
+      `deletedAt` nulle part — seul `findByIdAdmin` (chemin
+      d'écriture) le fait. `ProjectDetailPage.tsx#canArchive` (ligne
+      ~107) ne teste que `!project.archivedAt`, jamais `deletedAt` — un
+      projet en corbeille affiche donc un bouton « Archiver » actif,
+      dont le clic échoue en 404 silencieux
+      (`archiveProject`→`findByIdAdmin`, qui filtre `deletedAt: null`).
+      Critère de résolution distinct de SEC-041/042 (axe `deletedAt`
+      au lieu de `archivedAt`) → nouvel ID, relié par `classe`.
+
+      Corrigé (même session) : les 4 branches de
+      `project.repository.ts#findById` filtrent désormais `deletedAt:
+      null` (via `findFirst` au lieu de `findUnique`, `archivedAt`
+      volontairement laissé non filtré — comportement voulu depuis
+      SEC-042). Un projet supprimé 404 donc désormais sur `GET
+      /projects/:id` pour tout rôle, avant même d'atteindre le bouton
+      Archiver incohérent. Commentaire mis à jour dans
+      `archivedProjectTaskVisibility.test.ts` (affirmait à tort que
+      `findById` restait totalement non filtré). Preuve par test réel :
+      `projectCreateArchiveRestore.test.ts` (1 cas — 404 pour ADMIN et
+      CLIENT sur un projet supprimé, succès après restauration).
+      Vérification complète : `npx tsc --noEmit` (serveur, propre),
+      `npx tsx --test test/run-all.test.ts` (391/391), `npm run lint`
+      (serveur, 0 warning). Résolu SANS confirmation CI : workflow
+      GitHub Actions sur `origin/main` en `workflow_dispatch`
+      uniquement (déviation établie en session le 2026-07-17, citée à
+      chaque clôture depuis).
+
+  - id: SEC-087
+    titre: "server/test/taskScope.test.ts (et idor.test.ts) testent une reimplementation locale a base de companyId inexistant dans le code reel — vert trompeur, ne prouve rien sur le vrai scoping MANAGER des taches"
+    perimetre: "4.3 Gestion des tâches — server/test/taskScope.test.ts, server/test/idor.test.ts"
+    regle_violee: null
+    classe: null
+    gravite: moyen
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand `taskScope.test.ts` appelle réellement
+      `task.repository.ts#buildWhere`/`serviceScope.ts
+      #assertProjectInScope` (le vrai code), pas des fonctions locales
+      réimplémentées sur un concept `companyId` absent du dépôt — pas
+      seulement un renommage cosmétique, une preuve réelle du
+      comportement du code de production.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit exhaustif du module Gestion de Projets, confirmé par
+      lecture directe. `taskScope.test.ts` définit et teste
+      `projectFilter(companyId, role, serviceId)` et
+      `isProjectInScope(project, scope)` — deux fonctions LOCALES au
+      fichier de test, sur un concept `companyId` qui n'existe nulle
+      part dans ce dépôt mono-tenant (CLAUDE.md : aucune notion de
+      `companyId`/`tenantId`, arbitrage tranché). Ce test resterait
+      vert même si `buildWhere`/`assertProjectInScope` (le vrai code)
+      dérivaient de leur comportement documenté — CLAUDE.md : « un
+      test qui réimplémente sa cible... vaudrait `code_grep` au
+      mieux ». `idor.test.ts` présente le même défaut sur
+      `invoiceFindById`/`invoiceDelete`, même `companyId` fictif —
+      même classe, hors périmètre de correction immédiate de cette
+      entrée (fichier distinct, module Facturation) mais signalé pour
+      traçabilité.
+
+      Corrigé (même session, pour `taskScope.test.ts` uniquement —
+      `idor.test.ts` hors périmètre déclaré) : fichier entièrement
+      réécrit pour appeler réellement `taskService.getAllTasks`/
+      `getTaskById` contre une base migrée, 3 cas — ADMIN voit les
+      tâches de tous les pôles, un MANAGER ne voit que les tâches de
+      son propre pôle, un MANAGER d'un autre pôle 404 sur
+      `getTaskById`. Vérification complète : `npx tsc --noEmit`
+      (serveur, propre), `npx tsx --test test/run-all.test.ts`
+      (391/391). Résolu SANS confirmation CI : workflow GitHub Actions
+      sur `origin/main` en `workflow_dispatch` uniquement (déviation
+      établie en session le 2026-07-17, citée à chaque clôture
+      depuis).
+
+  - id: SEC-088
+    titre: "Le nom de projet affiche dans les vues Liste/Kanban de taches vient d'un useProjects({pageSize:100}) — au-dela de 100 projets, le nom devient un tiret sans aucun avertissement (SEC-053 couvre le selecteur de creation, pas cet affichage)"
+    perimetre: "4.3 Gestion des tâches — client/src/features/tasks/hooks/useTasksPageData.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      Résolu par l'ajout d'un indicateur (même bandeau que
+      SEC-053/037) signalant quand `projectNameById` est tronqué au-delà
+      de la première page de projets — cohérence avec les autres
+      garde-fous déjà en place dans ce module.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit exhaustif du module Gestion de Projets, confirmé par
+      lecture directe. `useTasksPageData.ts` construit
+      `projectNameById` à partir d'une unique page de 100 projets
+      (même source que SEC-053). `TasksListView.tsx`/`TasksKanban.tsx`
+      résolvent le nom du projet d'une tâche via cette map — une
+      tâche appartenant au 101e projet ou au-delà affiche « - ».
+      SEC-053 a déjà couvert la troncature du SÉLECTEUR de création
+      (bandeau d'avertissement), mais pas ce consommateur distinct
+      (affichage du nom en liste/Kanban), qui partage la même source
+      de données tronquée. Cosmétique tant qu'il y a moins de 100
+      projets actifs.
+
+      Corrigé (même session) : le texte de `tasksPage
+      .projectSelectorTruncatedNotice` (FR/EN) reformulé pour
+      mentionner honnêtement les deux effets (sélecteur ET nom
+      manquant sur les tâches), au lieu de ne citer que le sélecteur —
+      même bandeau déjà affiché inconditionnellement sur la page, pas
+      de nouveau composant nécessaire. Vérification complète : `npx
+      tsc --noEmit` (client, propre), `node scripts/check-i18n.mjs`
+      (vert, FR/EN synchronisés). Résolu SANS confirmation CI :
+      workflow GitHub Actions sur `origin/main` en `workflow_dispatch`
+      uniquement (déviation établie en session le 2026-07-17, citée à
+      chaque clôture depuis).
+
+  - id: SEC-089
+    titre: "Checklist et commentaires d'une tache restent modifiables/ajoutables sur un projet archive ou COMPLETED, alors que les champs de la tache elle-meme sont geles dans ce cas (assertProjectIsOpenForTaskChanges)"
+    perimetre: "4.3 Gestion des tâches — server/src/services/taskChecklist.service.ts, server/src/services/comment.service.ts, server/src/services/task.service.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand créer/modifier/supprimer un item de checklist ou un
+      commentaire sur une tâche d'un projet archivé ou COMPLETED est
+      rejeté avec le même code `409 PROJECT_ARCHIVED`/`PROJECT_COMPLETED`
+      que les autres champs de tâche, vérifié par un test qui appelle
+      réellement `taskChecklistService.createItem`/`commentService
+      .createComment` sur une tâche d'un projet archivé et confirme le
+      rejet.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit exhaustif du module Gestion de Projets, confirmé par
+      lecture directe. `task.service.ts#assertProjectIsOpenForTaskChanges`
+      bloque déjà toute modification de champ de tâche sur un projet
+      archivé/COMPLETED — mais `taskChecklistService.createItem`/
+      `updateItem`/`deleteItem` (`taskChecklist.service.ts`) et
+      `commentService.createComment`/`updateComment`/`deleteComment`
+      (`comment.service.ts`) n'appellent jamais cette garde.
+      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du
+      2026-07-20) : « Geler aussi checklist/commentaires (cohérence
+      stricte) » — plutôt que documenter comme voulu.
+
+      Corrigé : `assertProjectIsOpenForTaskChanges` déplacée de
+      `task.service.ts` vers `server/src/utils/serviceScope.ts` (même
+      précédent que SEC-041 pour `assertProjectInScope`), réutilisée
+      via de nouvelles fonctions locales `assertTaskIsOpenForChecklistChanges`/
+      `assertTaskIsOpenForCommentChanges` (résolvent `projectId` depuis
+      `taskRepository.findByIdAdmin`). Appelée dans
+      `createItem`/`updateItem`/`deleteItem` et
+      `createComment`/`updateComment`/`deleteComment`. Preuve par test
+      réel : `taskChecklist.test.ts` (1 cas, 3 assertions — create/
+      update/delete tous rejetés 409 PROJECT_ARCHIVED sur un projet
+      archivé) ; `taskCommentUpdateDelete.test.ts` (1 cas, 3
+      assertions — même garantie pour les commentaires). Vérification
+      complète : `npx tsc --noEmit` (serveur, propre), `npx tsx --test
+      test/run-all.test.ts` (391/391), `npm run lint` (serveur, 0
+      warning). Résolu SANS confirmation CI : workflow GitHub Actions
+      sur `origin/main` en `workflow_dispatch` uniquement (déviation
+      établie en session le 2026-07-17, citée à chaque clôture
+      depuis).
+
+  - id: SEC-090
+    titre: "taskRepository.create utilise un littéral maison sans priority (au lieu du type Prisma genere) — priority transite silencieusement à l'execution sans jamais etre verifie par TypeScript, meme classe de defaut que SEC-012 non couverte par sa conversion"
+    perimetre: "4.3 Gestion des tâches — server/src/repositories/task.repository.ts#create, server/src/types/entities.ts#CreateTaskDTO"
+    regle_violee: null
+    classe: "type_maison_substitue_au_type_prisma"
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand `taskRepository.create` accepte
+      `Prisma.TaskUncheckedCreateInput` (ou un type dérivé) au lieu
+      d'un littéral maison recopié à la main, et que `CreateTaskDTO`
+      déclare explicitement `priority` — cohérent avec le critère déjà
+      posé par SEC-012 sur l'ensemble des repositories/services.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit exhaustif du module Gestion de Projets, confirmé par
+      lecture directe. `CreateTaskDTO` (`server/src/types/entities.ts`)
+      ne déclare pas `priority`. `taskRepository.create`
+      (`task.repository.ts:126`) prend un littéral maison `{ title,
+      description?, status?, startDate?, dueDate?, projectId,
+      assigneeId? }`, sans `priority`, transmis à
+      `prisma.task.create({ data })` — `data` étant une variable
+      (jamais un littéral frais à cet appel), TypeScript ne vérifie
+      pas les propriétés en excès : `priority` (bien présent dans
+      `req.body` validé par le schéma Zod partagé) transite donc
+      silencieusement jusqu'à la base sans qu'aucun type ne le
+      documente. C'est la même classe de défaut que SEC-012 (types
+      maison substitués aux types Prisma générés), mais spécifiquement
+      sur `taskRepository.create` — non couvert par la conversion
+      antérieure de SEC-012, qui portait sur `update` (déjà
+      `Prisma.TaskUpdateManyMutationInput`), pas `create`. Aucun bug
+      fonctionnel actuel (le champ est bien persisté), seulement un
+      typage mensonger qui masque la réalité — signalé par exigence de
+      cohérence avec SEC-012, pas par symptôme observé.
+
+      Corrigé (même session) : `taskRepository.create` accepte
+      désormais `Prisma.TaskUncheckedCreateInput` au lieu du littéral
+      maison ; `CreateTaskDTO` (`server/src/types/entities.ts`)
+      déclare désormais `priority?: Priority`. Aucun changement de
+      comportement (le champ était déjà persisté) — uniquement un
+      correctif de typage, conforme à SEC-012. Vérification complète :
+      `npx tsc --noEmit` (serveur, propre), `npx tsx --test
+      test/run-all.test.ts` (391/391). Résolu SANS confirmation CI :
+      workflow GitHub Actions sur `origin/main` en `workflow_dispatch`
+      uniquement (déviation établie en session le 2026-07-17, citée à
+      chaque clôture depuis).
+
+  - id: SEC-091
+    titre: "Portail client : chaque carte projet declenche 2 requetes independantes (timeline avec polling 30s + taches terminees), motif N+1 qui s'aggrave avec le nombre de projets d'un client"
+    perimetre: "4.2 Gestion de projet, 4.6 Portail client — client/src/features/client-portal/ProjectsClientPage.tsx, client/src/features/client-portal/components/ProjectTimeline.tsx, client/src/features/client-portal/components/CompletedTasksList.tsx"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      Sera résolu par la consolidation des requêtes par carte (batch
+      côté serveur ou désactivation du polling au-delà d'un certain
+      nombre de projets affichés), si le volume de projets par client
+      le justifie un jour.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit exhaustif du module Gestion de Projets, confirmé par
+      lecture directe. `ProjectsClientPage.tsx` rend une
+      `ProjectTimeline` (polling `refetchInterval: 30_000`) et une
+      `CompletedTasksList` par carte projet — N projets = 2×N requêtes
+      actives, dont N qui repollent en continu. En pratique un client
+      a peu de projets actifs simultanés, donc impact réel faible à ce
+      stade ; non corrigé cette passe (décision du porteur : gravité
+      mineure, effort moyen, pas de symptôme réel observé — reste
+      `ouvert` pour suivi si le volume de projets par client augmente).
+
+  - id: SEC-092
+    titre: "projectMeetingRepository.findDueForReminder ne filtre ni deletedAt ni status COMPLETED — un projet supprime ou termine avec une cadence de reunion active continuerait de generer des rappels"
+    perimetre: "4.2 Gestion de projet — server/src/repositories/projectMeeting.repository.ts#findDueForReminder"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand `findDueForReminder` exclut aussi les projets
+      `deletedAt` non-null et `status: "COMPLETED"` de sa sélection,
+      vérifié par un test qui appelle réellement la méthode contre une
+      base migrée avec un projet supprimé/terminé ayant une cadence de
+      réunion active, et confirme son absence du résultat.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit exhaustif du module Gestion de Projets, confirmé par
+      lecture directe. `findDueForReminder`
+      (`projectMeeting.repository.ts:62-71`) filtre `archivedAt: null`
+      mais ni `deletedAt` ni `status`. Un projet soft-supprimé, ou
+      passé `COMPLETED`, avec `meetingFrequency !== "NONE"` continuerait
+      de générer des rappels de réunion (job `checkMeetingReminders`).
+      Impact réel faible (rappels parasites rares), mais incohérent
+      avec le traitement déjà appliqué à `archivedAt` dans la même
+      méthode.
+
+      Corrigé (même session) : `findDueForReminder` filtre désormais
+      aussi `deletedAt: null` et `status: { not: "COMPLETED" }`.
+      Preuve par test réel : nouveau fichier
+      `projectMeetingDueReminderExclusions.test.ts` (câblé dans
+      `test/run-all.test.ts`), 3 cas — un projet soft-supprimé exclu,
+      un projet COMPLETED exclu, un projet ouvert toujours trouvé.
+      Vérification complète : `npx tsc --noEmit` (serveur, propre),
+      `npx tsx --test test/run-all.test.ts` (391/391), `npm run lint`
+      (serveur, 0 warning). Résolu SANS confirmation CI : workflow
+      GitHub Actions sur `origin/main` en `workflow_dispatch`
+      uniquement (déviation établie en session le 2026-07-17, citée à
+      chaque clôture depuis).

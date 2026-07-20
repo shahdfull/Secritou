@@ -28,6 +28,7 @@ import type { Comment } from "@/types/comment";
 import { getInitials, getStatusLabel } from "../taskUtils";
 import { TaskAttachments } from "./TaskAttachments";
 import { MentionTextarea } from "./MentionTextarea";
+import { MentionText } from "./MentionText";
 import { TaskChecklist } from "./TaskChecklist";
 
 // SEC-059: a comment can now be edited/deleted, but only by its own author or an ADMIN — the
@@ -305,7 +306,7 @@ export function TaskDetailDrawer({
                                   </div>
                                 </div>
                               ) : (
-                                <p className="text-sm text-muted-foreground mt-1">{comment.content}</p>
+                                <p className="text-sm text-muted-foreground mt-1"><MentionText content={comment.content} /></p>
                               )}
                             </div>
                           </div>

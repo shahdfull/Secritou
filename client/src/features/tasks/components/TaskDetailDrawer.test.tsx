@@ -167,3 +167,17 @@ describe("TaskDetailDrawer comment edited indicator — SEC-071", () => {
     expect(screen.queryByText("(modifié)")).not.toBeInTheDocument();
   });
 });
+
+describe("TaskDetailDrawer mention rendering — SEC-082", () => {
+  test("renders a @[Name](id) mention token as a readable @Name chip, never the raw token or the id", () => {
+    renderDrawer([makeComment({ content: "Salut @[Alice Martin](3fa85f64-5717-4562-b3fc-2c963f66afa6), regarde ça" })]);
+    expect(screen.getByText("@Alice Martin")).toBeInTheDocument();
+    expect(screen.queryByText(/3fa85f64-5717-4562-b3fc-2c963f66afa6/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/@\[/)).not.toBeInTheDocument();
+  });
+
+  test("renders plain content with no mention unchanged", () => {
+    renderDrawer([makeComment({ content: "Aucune mention ici" })]);
+    expect(screen.getByText("Aucune mention ici")).toBeInTheDocument();
+  });
+});
