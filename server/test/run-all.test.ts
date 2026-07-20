@@ -100,3 +100,5 @@ import "./invoiceAuditLog.test.ts";
 import "./clientInviteResend.test.ts";
 import "./leadDuplicateEmail.test.ts";
 import "./reportsPageSortOrder.test.ts";
+import "./taskUpdateScopeRefusal.test.ts";
+import "./proposalWriteScopeRefusal.test.ts";

@@ -8402,7 +8402,7 @@ anomalies:
     regle_violee: null
     classe: "test_scope_methode_non_couverte"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `proposalScopeAfterCreation.test.ts` (ou un fichier
       équivalent) appelle réellement `proposalService.send`,
@@ -8425,13 +8425,25 @@ anomalies:
       Le code protège donc déjà `send`/`update`/`addSection` ; seul le test
       manque pour le prouver sur ces trois méthodes précises.
 
+      TEST ÉCRIT ET VÉRIFIÉ (session du 2026-07-21) :
+      `server/test/proposalWriteScopeRefusal.test.ts` (câblé dans
+      `run-all.test.ts`, pattern repris de
+      `proposalScopeAfterCreation.test.ts`), appelle réellement `send`,
+      `update` et `addSection` contre une base migrée, 6 cas (un refus
+      404 + une réussite same-pole pour chacune des trois méthodes) —
+      chaque refus est aussi vérifié en relecture directe (statut/titre/
+      absence de section créée inchangés après l'appel refusé). Suite
+      complète : 489 tests, 489 pass, 0 fail. `npx tsc --noEmit` propre.
+      Résolu SANS confirmation CI — dérogation explicite du porteur du
+      projet établie plus tôt dans cette session.
+
   - id: SEC-126
     titre: "taskService.updateTask n'est jamais testé pour le cas MANAGER hors pôle ni FREELANCER étranger, malgré que le contrôle existe dans le code — taskScope.test.ts ne couvre que getAllTasks/getTaskById (lecture), jamais l'écriture"
     perimetre: "server/test/taskScope.test.ts ; server/src/services/task.service.ts#updateTask"
     regle_violee: null
     classe: "test_scope_methode_non_couverte"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand un test appelle réellement `taskService.updateTask`
       avec un scope MANAGER hors pôle, puis avec un FREELANCER qui n'est pas
@@ -8450,13 +8462,32 @@ anomalies:
       `getTaskById`. `grep -rn "updateTask" server/test/` pour un cas
       cross-pole : absent. Pas un défaut de code, un trou de test.
 
+      TEST ÉCRIT ET VÉRIFIÉ (session du 2026-07-20) :
+      `server/test/taskUpdateScopeRefusal.test.ts` (câblé dans
+      `run-all.test.ts`), appelle réellement `taskService.updateTask`
+      contre une base migrée, 4 cas : (1) un MANAGER hors pôle est refusé
+      avec `PROJECT_OUT_OF_SCOPE` (403), et l'update n'a pas été appliqué
+      (relecture directe du titre inchangé) ; (2) un MANAGER du même pôle
+      réussit ; (3) un FREELANCER qui n'est pas l'assigné est refusé avec
+      `TASK_NOT_ASSIGNED_TO_YOU` (403) ; (4) le véritable assigné
+      FREELANCER réussit à changer le statut. En corrigeant au passage
+      SEC-131-adjacent (non enregistré séparément) : ce fichier a aussi
+      révélé la fragilité de `projectCreateArchiveRestore.test.ts`
+      (dépendance à `pageSize:50` + tri par défaut, cassait sous le
+      volume croissant de la suite) — corrigé en isolant par nom unique +
+      `search` plutôt que par position de page. Suite complète : 483
+      tests, 483 pass, 0 fail. `npx tsc --noEmit` propre. Résolu SANS
+      confirmation CI — dérogation explicite du porteur du projet
+      établie plus tôt dans cette session (« Le ci n est pas important
+      pour le moment make them resolus »).
+
   - id: SEC-127
     titre: "projectMeetingService.update/delete ne sont jamais testées pour le cas MANAGER hors pôle, contrairement à listByProject/create/getSchedule/setSchedule déjà couvertes — projectMeetingUpdateDelete.test.ts ne teste que l'autorisation auteur/non-auteur sur ces deux méthodes, jamais le scope de pôle"
     perimetre: "server/test/projectMeetingUpdateDelete.test.ts ; server/src/services/projectMeeting.service.ts"
     regle_violee: null
     classe: "test_scope_methode_non_couverte"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand un test appelle réellement `projectMeetingService.update`
       et `projectMeetingService.delete` avec un scope MANAGER hors pôle sur
@@ -8485,6 +8516,21 @@ anomalies:
       `projectMeetingUpdateDelete.test.ts` (lu en entier) ne vérifie que la
       distinction auteur/non-auteur (`MEETING_NOT_YOURS`) sur ces deux
       méthodes, jamais un scope de pôle différent.
+
+      TEST DÉJÀ ÉCRIT ET COMMITÉ (constaté à la relecture, session du
+      2026-07-21) : `projectMeetingUpdateDelete.test.ts:180-216` (« a
+      pole-B MANAGER is rejected with 403 PROJECT_OUT_OF_SCOPE on
+      update/delete, distinct from MEETING_NOT_YOURS ») couvre exactement
+      le critère de résolution — appelle réellement `update`/`delete`
+      avec un `outsider` MANAGER de `serviceB`, vérifie le refus 403
+      `PROJECT_OUT_OF_SCOPE` (distinct de `MEETING_NOT_YOURS`, le refus
+      auteur/non-auteur déjà couvert) sur les deux méthodes, et confirme
+      que la réunion n'a pas été modifiée par les appels refusés. Déjà
+      committé dans `4caab78` (« corrige 13 constats de couverture + 4
+      défauts réels découverts, SEC-122 à SEC-136 ») — cette entrée était
+      restée `ouvert` par oubli de mise à jour, pas parce que le travail
+      manquait. Résolu SANS confirmation CI — dérogation explicite du
+      porteur du projet établie plus tôt dans cette session.
 
   - id: SEC-128
     titre: "Aucun test n'exerce le mécanisme anti-rejeu Redis de verifyN8nWebhook en situation dégradée ni le rejet d'une signature déjà vue — verifyN8nWebhook.test.ts ne teste que la fraîcheur temporelle (timestamp), jamais le rejeu effectif"

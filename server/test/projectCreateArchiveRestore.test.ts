@@ -179,7 +179,13 @@ describe("projectService.archiveProject / restoreProject — SEC-040", () => {
 describe("projectService.unarchiveProject — SEC-078", () => {
   test("reverses a real archive (archivedAt) and the project reappears in findAll", { skip: !dbAvailable }, async () => {
     const client = await makeClient("unarchive-target");
-    const project = await prisma.project.create({ data: { name: "to be unarchived", clientId: client.id, status: "IN_PROGRESS" } });
+    // Unique name + `search` isolates this exact project regardless of how many other projects
+    // the rest of the suite creates concurrently — findAll's default createdAt-desc order with a
+    // fixed pageSize:50 previously made this assertion flaky under a large/growing test suite
+    // (a project could legitimately fall past page 1 without ever being invisible to a real
+    // paginated or filtered query, which is what actually matters here).
+    const uniqueName = `to be unarchived ${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const project = await prisma.project.create({ data: { name: uniqueName, clientId: client.id, status: "IN_PROGRESS" } });
     createdProjectIds.push(project.id);
     await projectService.archiveProject(project.id);
 
@@ -187,7 +193,7 @@ describe("projectService.unarchiveProject — SEC-078", () => {
     assert.equal(unarchived.archivedAt, null);
     assert.equal(unarchived.status, "IN_PROGRESS", "unarchiving must never touch status, only archivedAt");
 
-    const listed = await projectService.getAllProjects("admin-id", "ADMIN", { page: 1, pageSize: 50 });
+    const listed = await projectService.getAllProjects("admin-id", "ADMIN", { page: 1, pageSize: 50, search: uniqueName });
     assert.ok(listed.data.some((p) => p.id === project.id), "the project must reappear in findAll once unarchived");
   });
 
