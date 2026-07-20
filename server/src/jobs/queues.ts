@@ -58,9 +58,24 @@ export type NotificationJob = {
   link?: string;
 };
 
+// SEC-119: neither job had a jobId, so a double-enqueue of the same business event (e.g. the
+// caller's HTTP handler is retried by the client after a server crash, before the original
+// response was returned) queued a second, indistinguishable job — a worker crash after the
+// side effect but before the BullMQ ack then retries the SAME job too, but that's already
+// deduplicated by BullMQ itself via its own attempt tracking; this jobId targets the caller-side
+// double-enqueue case instead. Keyed on the business identity of the notification (type + target
+// entity + recipient), not its content, so two legitimately distinct notifications for the same
+// entity/user/type (at different times, e.g. two different "lead lost" reasons) are not
+// conflated — BullMQ treats a duplicate jobId as a no-op (or a rejection, depending on queue
+// state), not an error that would surface to the caller. BullMQ rejects a custom jobId containing
+// ":" (reserved for its own internal key namespacing), hence "|" as the field separator here.
+function notificationJobId(data: NotificationJob): string {
+  return `notification|${data.type ?? "GENERAL"}|${data.entityId ?? "none"}|${data.userId}`;
+}
+
 export async function enqueueNotification(data: NotificationJob) {
   try {
-    await communicationQueue.add(jobNames.sendNotification, data);
+    await communicationQueue.add(jobNames.sendNotification, data, { jobId: notificationJobId(data) });
   } catch (error) {
     logger.error({ err: error }, "[jobs] Failed to enqueue notification");
     if (env.SENTRY_DSN) {
@@ -73,7 +88,7 @@ export async function enqueueNotifications(items: NotificationJob[]) {
   if (items.length === 0) return;
   try {
     await communicationQueue.addBulk(
-      items.map((data) => ({ name: jobNames.sendNotification, data }))
+      items.map((data) => ({ name: jobNames.sendNotification, data, opts: { jobId: notificationJobId(data) } }))
     );
   } catch (error) {
     logger.error({ err: error }, "[jobs] Failed to enqueue notifications");
@@ -92,7 +107,18 @@ export type EmailJob = {
   /** Optional plain-text fallback; auto-generated from html if omitted. */
   text?: string;
   replyTo?: string;
+  // SEC-119: EmailJob has no inherent business identity (unlike NotificationJob's
+  // type+entityId+userId) — subject/html alone aren't a safe dedupe key (two legitimately
+  // distinct emails can share a subject). Callers that know their own business event's identity
+  // (e.g. "welcome email for proposal X") can opt in by passing one; omitted, behavior is
+  // unchanged from before (no jobId, BullMQ assigns a random one — never dropped as a duplicate).
+  dedupeKey?: string;
 };
+
+// BullMQ rejects a custom jobId containing ":" — see notificationJobId's comment above.
+function emailJobId(data: EmailJob): string | undefined {
+  return data.dedupeKey ? `email|${data.dedupeKey}` : undefined;
+}
 
 export async function enqueueEmail(data: EmailJob): Promise<void> {
   try {
@@ -100,6 +126,7 @@ export async function enqueueEmail(data: EmailJob): Promise<void> {
       // Emails get 5 attempts with exponential backoff
       attempts: 5,
       backoff: { type: "exponential", delay: 5000 },
+      jobId: emailJobId(data),
     });
   } catch (error) {
     logger.error({ err: error }, "[jobs] Failed to enqueue email");
@@ -116,7 +143,7 @@ export async function enqueueEmails(items: EmailJob[]): Promise<void> {
       items.map((data) => ({
         name: jobNames.sendEmail,
         data,
-        opts: { attempts: 5, backoff: { type: "exponential", delay: 5000 } },
+        opts: { attempts: 5, backoff: { type: "exponential", delay: 5000 }, jobId: emailJobId(data) },
       }))
     );
   } catch (error) {
@@ -142,10 +169,37 @@ export type DocumentJob =
   | { kind: "invoice"; invoice: GeneratorInvoice; project: GeneratorProject; client: GeneratorClient; uploadedById: string }
   | { kind: "roadmap"; project: GeneratorProject; uploadedById: string };
 
+// SEC-120: no jobId meant a double-enqueue of the same business event (e.g. acceptWithCascade
+// re-run because the caller's HTTP request was retried before the original response returned)
+// queued a second, indistinguishable batch of up to 7 document jobs. Keyed on kind + the entity
+// the document is FOR (not a generic random id), so a genuine second document of the same kind
+// for a DIFFERENT entity is never blocked. This matters more for "specs"/"roadmap" than the
+// others: SEC-110 already found regenerateSpecsWithAiContent creates a new versioned document on
+// every call (not idempotent) — a jobId here stops a duplicate ENQUEUE from ever reaching the
+// processor a second time, which a per-job BullMQ retry (already deduplicated by BullMQ itself
+// via its own attempt tracking) wouldn't have protected against on its own.
+// BullMQ rejects a custom jobId containing ":" — see notificationJobId's comment above.
+function documentJobId(data: DocumentJob): string {
+  switch (data.kind) {
+    case "welcomeLetter":
+    case "contract":
+    case "quote":
+      return `document|${data.kind}|${data.proposal.id}`;
+    case "specs":
+    case "clientBrief":
+    case "roadmap":
+      return `document|${data.kind}|${data.project.id}`;
+    case "invoice":
+      return `document|${data.kind}|${data.invoice.id}`;
+  }
+}
+
 export async function enqueueDocumentGeneration(jobs: DocumentJob[]): Promise<void> {
   if (jobs.length === 0) return;
   try {
-    await documentsQueue.addBulk(jobs.map((data) => ({ name: jobNames.generateDocument, data })));
+    await documentsQueue.addBulk(
+      jobs.map((data) => ({ name: jobNames.generateDocument, data, opts: { jobId: documentJobId(data) } }))
+    );
   } catch (error) {
     logger.error({ err: error }, "[jobs] Failed to enqueue document generation");
     if (env.SENTRY_DSN) {

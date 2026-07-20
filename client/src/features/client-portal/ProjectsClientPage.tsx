@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/api/axios";
@@ -20,6 +20,36 @@ import { PROJECT_STATUS_LABELS_FR } from "@secritou/shared";
 import { getProjectStatusBadgeClass } from "@/utils/statusColors";
 import { ProjectTimeline } from "./components/ProjectTimeline";
 import { CompletedTasksList } from "./components/CompletedTasksList";
+import { announce } from "@/lib/a11yAnnounce";
+
+// SEC-116: ProjectTimeline polls every 30s (useProjectTimeline) and used to be mounted
+// unconditionally for every card in the grid — up to 100 projects per client (pageSize: 100
+// above), so the total polling cost scaled with (active clients) × (projects per client). Once a
+// timeline becomes visible it stays mounted (no unmount-on-scroll-away): that would otherwise
+// discard useful React Query cache and refetch again the next time it scrolls back into view,
+// trading one cost for another instead of removing it.
+function LazyProjectTimeline({ projectId }: { projectId: string }) {
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (isVisible) return;
+    const element = containerRef.current;
+    if (!element) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setIsVisible(true);
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [isVisible]);
+
+  return <div ref={containerRef}>{isVisible && <ProjectTimeline projectId={projectId} />}</div>;
+}
 
 interface ClientProject {
   id: string;
@@ -62,6 +92,7 @@ function ApproveDialog({ project, open, onClose }: ApproveDialogProps) {
     mutationFn: () => projectsApi.clientApprove(project.id),
     onSuccess: () => {
       toast.success(`Le projet « ${project.name} » est clôturé. Votre facture de solde est disponible.`);
+      announce(`Le projet ${project.name} est clôturé. Votre facture de solde est disponible.`);
       void queryClient.invalidateQueries({ queryKey: ["client-projects"] });
       void queryClient.invalidateQueries({ queryKey: ["project-timeline", project.id] });
       void queryClient.invalidateQueries({ queryKey: ["client-invoices"] });
@@ -72,6 +103,7 @@ function ApproveDialog({ project, open, onClose }: ApproveDialogProps) {
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
         "Une erreur est survenue.";
       toast.error(msg);
+      announce(msg);
     },
   });
 
@@ -120,6 +152,7 @@ function ApproveDialog({ project, open, onClose }: ApproveDialogProps) {
             disabled={!confirmed || approveMutation.isPending}
             onClick={() => approveMutation.mutate()}
             className="bg-green-600 hover:bg-green-700 text-white"
+            aria-label="Confirmer et clôturer le projet"
           >
             {approveMutation.isPending ? "Clôture en cours…" : "Confirmer et clôturer"}
           </Button>
@@ -183,7 +216,7 @@ export function ProjectsClientPage() {
                   </div>
                 </div>
 
-                <ProjectTimeline projectId={project.id} />
+                <LazyProjectTimeline projectId={project.id} />
 
                 <CompletedTasksList projectId={project.id} />
 

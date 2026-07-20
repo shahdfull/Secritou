@@ -14,9 +14,15 @@ export interface PaginatedResult<T> {
   pageSize: number;
 }
 
-export function parseListQuery(query: Record<string, unknown>): ListQueryOptions {
+// SEC-118: the leads Kanban view sends pageSize: 200 to load its whole pipeline in one request
+// (it groups leads into columns client-side, so it can't paginate per-column against this single
+// endpoint) — the default 50 cap silently truncated any pipeline past 50 leads across ALL
+// columns combined, with no error or indication to the user. maxPageSize lets a specific caller
+// raise this ceiling deliberately (still capped, never unbounded) without loosening it for every
+// other list endpoint that shares parseListQuery and has no such reason to.
+export function parseListQuery(query: Record<string, unknown>, maxPageSize = 50): ListQueryOptions {
   const page = Math.max(1, Number(query.page) || 1);
-  const pageSize = Math.min(50, Math.max(1, Number(query.pageSize) || 10));
+  const pageSize = Math.min(maxPageSize, Math.max(1, Number(query.pageSize) || 10));
   const orderBy = typeof query.orderBy === "string" ? query.orderBy : undefined;
   const orderDir = query.orderDir === "desc" ? "desc" : "asc";
   const search =

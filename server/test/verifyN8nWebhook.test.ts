@@ -112,4 +112,24 @@ describe("verifyN8nWebhook — timestamp freshness (SEC-110)", { skip: env.N8N_W
     assert.ok(error);
     assert.equal(error!.statusCode, 401);
   });
+
+  // SEC-128: every other test here targets timestamp freshness — none actually replays the same
+  // signature twice, the exact scenario markSignatureSeen (Redis-backed) exists to catch.
+  test("rejects the exact same valid signature on a second call (replay)", async () => {
+    const req = makeReq({ aiSummary: "Replay me", timestamp: Date.now() });
+
+    let firstError: unknown;
+    await verifyN8nWebhook(req, {} as Response, (err?: unknown) => {
+      firstError = err;
+    });
+    assert.equal(firstError, undefined, "the first call with a fresh, valid signature must pass");
+
+    let secondError: HttpError | undefined;
+    await verifyN8nWebhook(req, {} as Response, (err?: unknown) => {
+      secondError = err as HttpError | undefined;
+    });
+    assert.ok(secondError, "replaying the exact same signature must be rejected");
+    assert.equal(secondError!.statusCode, 401);
+    assert.equal(secondError!.code, "REPLAYED_WEBHOOK");
+  });
 });

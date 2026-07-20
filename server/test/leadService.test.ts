@@ -62,7 +62,7 @@ describe(
       const leadB = await prisma.lead.create({ data: { name: "sec100-svc admin sees B", serviceId: serviceB } });
       createdLeadIds.push(leadA.id, leadB.id);
 
-      const result = await leadService.getLeads({ page: 1, pageSize: 50 }, { userRole: "ADMIN" });
+      const result = await leadService.getLeads({ page: 1, pageSize: 50, orderDir: "desc" }, { userRole: "ADMIN" });
       assert.ok(result.data.some((l) => l.id === leadA.id) && result.data.some((l) => l.id === leadB.id));
     });
 
@@ -71,7 +71,7 @@ describe(
       const otherLead = await prisma.lead.create({ data: { name: "sec100-svc other pole", serviceId: serviceB } });
       createdLeadIds.push(ownLead.id, otherLead.id);
 
-      const result = await leadService.getLeads({ page: 1, pageSize: 50 }, { userRole: "MANAGER", userServiceId: serviceA });
+      const result = await leadService.getLeads({ page: 1, pageSize: 50, orderDir: "desc" }, { userRole: "MANAGER", userServiceId: serviceA });
       assert.ok(result.data.some((l) => l.id === ownLead.id));
       assert.ok(!result.data.some((l) => l.id === otherLead.id));
     });
@@ -84,7 +84,7 @@ describe(
       const assignedLead = await prisma.lead.create({ data: { name: "sec100-svc assigned cross-pole", serviceId: serviceA, assignedManagerId: managerUser.id } });
       createdLeadIds.push(assignedLead.id);
 
-      const result = await leadService.getLeads({ page: 1, pageSize: 50 }, { userRole: "MANAGER", userServiceId: serviceB, userId: managerUser.id });
+      const result = await leadService.getLeads({ page: 1, pageSize: 50, orderDir: "desc" }, { userRole: "MANAGER", userServiceId: serviceB, userId: managerUser.id });
       assert.ok(result.data.some((l) => l.id === assignedLead.id), "assignedManagerId must grant visibility regardless of serviceId");
     });
 
@@ -92,7 +92,7 @@ describe(
       const lead = await prisma.lead.create({ data: { name: "sec100-svc no-service manager", serviceId: serviceA } });
       createdLeadIds.push(lead.id);
 
-      const result = await leadService.getLeads({ page: 1, pageSize: 50 }, { userRole: "MANAGER", userServiceId: null });
+      const result = await leadService.getLeads({ page: 1, pageSize: 50, orderDir: "desc" }, { userRole: "MANAGER", userServiceId: null });
       assert.ok(!result.data.some((l) => l.id === lead.id), "a MANAGER with no pole must not fall back to seeing every lead");
     });
   }

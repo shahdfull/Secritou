@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-115
+dernier_id: SEC-134
 
 anomalies:
   - id: SEC-001
@@ -7936,3 +7936,730 @@ anomalies:
       registre "additive-only" au sens strict si c'est un invariant attendu
       des migrations de ce dépôt. Gravité mineure faute d'impact fonctionnel
       constaté.
+
+  - id: SEC-116
+    titre: "ProjectsClientPage monte un ProjectTimeline (polling 30s) par carte projet — le coût de polling devient (nb clients actifs) × (nb projets affichés) × 2 req/min, sans limite de cartes ni lazy-mount"
+    perimetre: "4.6 Portail client — client/src/features/client-portal/ProjectsClientPage.tsx, client/src/features/client-portal/components/ProjectTimeline.tsx"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand le nombre de requêtes de polling simultanées sur
+      cette page est borné indépendamment du nombre de projets du client
+      (ex. timeline montée seulement pour la carte visible/dépliée, ou
+      requête de statut mutualisée pour toute la page au lieu d'une par
+      carte) — prouvé par un test qui rend la page avec N projets et vérifie
+      qu'au plus un nombre borné de requêtes de timeline est déclenché,
+      pas N.
+    detecte_le: "2026-07-20"
+    source: manuel
+    confiance: certain
+    note: >
+      Constat transmis directement par le porteur (liens fichier/ligne),
+      vérifié par lecture directe : `ProjectsClientPage.tsx:44`
+      (`useMyProjects` charge `pageSize: 100`), ligne 190
+      (`<ProjectTimeline projectId={project.id} />` monté sans condition
+      pour CHAQUE élément de `projects.map(...)`) ; `ProjectTimeline.tsx:18`
+      (`useProjectTimeline` — `refetchInterval: 30_000`, aucune limite au
+      nombre d'instances). Avec jusqu'à 100 projets affichés par client et
+      un polling de 30s par instance montée, le coût de polling total croît
+      linéairement avec le nombre de projets par client ET le nombre de
+      clients connectés simultanément, sans aucun plafond.
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-20 : nouveau composant
+      `LazyProjectTimeline` dans `ProjectsClientPage.tsx` — encapsule
+      `ProjectTimeline` derrière un `IntersectionObserver` (`rootMargin:
+      "200px"`), ne montant le vrai composant (donc ne démarrant son
+      polling 30s) que lorsque sa carte devient visible dans le viewport ;
+      une fois visible, reste monté (pas de démontage au défilement, pour
+      ne pas jeter le cache React Query utile et re-déclencher un refetch
+      inutile au retour). Preuve : nouveau fichier
+      `client/src/features/client-portal/ProjectsClientPage.test.tsx`
+      (2 cas, rendu réel de la page, `IntersectionObserver` mocké pour
+      contrôler la visibilité) — aucun appel à `getTimelineStatus` avant
+      qu'une carte ne devienne visible, puis appel réel dès qu'elle le
+      devient. Vérification complète client : `npx tsc --noEmit` (propre
+      sur les fichiers de ce périmètre — un fichier D'UNE AUTRE SESSION
+      CONCURRENTE, `ServiceRequestsAdminPage.tsx`, casse le typecheck
+      global et `npm run build`/`node scripts/check-i18n.mjs` au moment de
+      cette vérification, non lié à ce correctif, non touché par cette
+      session), `npx vitest run` (100/100, stable sur 2 exécutions),
+      `npm run lint` (12 warnings — exception SEC-049, stable). Résolu
+      SANS confirmation CI (workflow GitHub Actions sur `origin/main` en
+      `workflow_dispatch` uniquement, déviation documentée depuis la
+      session du 2026-07-17).
+
+  - id: SEC-117
+    titre: "useProjectTimeline (client-portal) ne suspend jamais son polling 30s quand l'onglet est masqué — pas de garde Page Visibility API — CONSTAT INFIRMÉ : le comportement demandé existe déjà nativement dans React Query v5"
+    perimetre: "4.6 Portail client — client/src/features/client-portal/components/ProjectTimeline.tsx"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: rejete
+    critere_de_resolution: >
+      Non applicable — vérification du code source de la librairie
+      (`node_modules/@tanstack/query-core/build/modern/queryObserver.js:215`,
+      `if (this.options.refetchIntervalInBackground ||
+      focusManager.isFocused())`) confirme que `refetchInterval` de React
+      Query v5 est DÉJÀ conditionné par défaut à `focusManager.isFocused()`
+      (`focusManager.js:59`, `globalThis.document?.visibilityState !==
+      "hidden"`, câblé sur l'event `visibilitychange`) — sauf si l'appelant
+      passe explicitement `refetchIntervalInBackground: true`, ce qu'aucun
+      code de ce dépôt ne fait (`grep -rn
+      "refetchIntervalInBackground" client/src/` : zéro résultat). Le
+      polling de `useProjectTimeline` s'arrête donc déjà quand l'onglet est
+      masqué, sans code supplémentaire requis.
+    detecte_le: "2026-07-20"
+    source: manuel
+    confiance: certain
+    note: >
+      Constat transmis directement par le porteur, vérifié par lecture
+      directe : `ProjectTimeline.tsx:14-20` (`useProjectTimeline`) —
+      `refetchInterval: 30_000`, effectivement sans option
+      `refetchIntervalInBackground` explicite. Le rapport source en
+      déduisait une absence de garde de visibilité — vérification du
+      comportement RÉEL de la librairie (pas seulement du code applicatif)
+      demandée par la procédure d'audit avant toute correction : la
+      garde existe déjà, nativement, côté `@tanstack/query-core`
+      (`refetchIntervalInBackground` par défaut `undefined`/falsy →
+      branche `focusManager.isFocused()` seule évaluée). Confirmé
+      également par `queryClient.ts` (aucune option globale
+      `refetchIntervalInBackground: true` dans `defaultOptions`). Statut
+      `rejete` plutôt que `ouvert` : il n'y a rien à corriger dans le code
+      applicatif, le comportement demandé est déjà celui observé. Aucun
+      test dédié ajouté — un test de ce comportement testerait la
+      librairie elle-même, pas du code de ce dépôt.
+
+  - id: SEC-118
+    titre: "LeadsPage kanban envoie pageSize: 200, mais parseListQuery le plafonne silencieusement à 50 côté serveur — le pipeline Kanban est tronqué au-delà de 50 leads, sans aucune indication à l'utilisateur"
+    perimetre: "4.1 CRM & Pipeline commercial — client/src/features/leads/LeadsPage.tsx, server/src/utils/listQuery.ts, server/src/controllers/lead.controller.ts"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand un pipeline de plus de 50 leads reste
+      intégralement visible dans le Kanban (toutes colonnes confondues),
+      soit en augmentant explicitement le plafond serveur pour ce cas
+      d'usage précis (avec un plafond dur raisonnable, ex. 500, pas
+      illimité), soit en chargeant le Kanban colonne par colonne avec la
+      pagination serveur déjà existante plutôt qu'en un seul appel — prouvé
+      par un test qui crée plus de 50 leads et vérifie qu'ils apparaissent
+      tous dans la réponse consommée par la vue Kanban.
+    detecte_le: "2026-07-20"
+    source: manuel
+    confiance: certain
+    note: >
+      Constat transmis directement par le porteur, formulé initialement
+      comme un simple souci de performance (« le kanban charge 200 lignes
+      d'un coup ») — vérification demandée par la procédure d'audit a
+      révélé un défaut plus grave que celui décrit : `LeadsPage.tsx:130`
+      envoie bien `pageSize: view === "kanban" ? 200 : pageSize`, MAIS
+      `server/src/utils/listQuery.ts:19`
+      (`const pageSize = Math.min(50, Math.max(1, Number(query.pageSize) ||
+      10))`) plafonne TOUT `pageSize` reçu à 50, sans exception pour la vue
+      Kanban. `lead.controller.ts:9` confirme que `getLeads` passe bien par
+      `parseListQuery`. Donc le Kanban Leads ne charge JAMAIS 200 leads —
+      il en reçoit au maximum 50, silencieusement, sans erreur ni message :
+      un pipeline avec plus de 50 leads perd une partie de ses leads dans
+      certaines colonnes (typiquement NEW, la plus peuplée) sans que
+      l'utilisateur ne le sache. Gravité élevée à « majeur » (pas
+      « bloquant ») car l'effet reste local à l'affichage (les leads ne
+      sont pas perdus en base, juste invisibles dans cette vue précise) et
+      dépend d'un volume de leads > 50, non garanti sur un pipeline en
+      lancement (0 client actif à ce jour).
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-20 :
+      `parseListQuery` (`listQuery.ts`) accepte désormais un second
+      paramètre optionnel `maxPageSize` (défaut 50, comportement inchangé
+      pour tout autre appelant) ; `lead.controller.ts#getLeads` passe
+      `LEADS_MAX_PAGE_SIZE = 500` explicitement — plafond dur choisi, pas
+      illimité, spécifique à ce seul endpoint (aucun autre endpoint de
+      liste n'a ce besoin de « tout charger d'un coup »). Preuve : nouveau
+      fichier `server/test/leadsKanbanMaxPageSize.test.ts` (3 cas) —
+      `parseListQuery` avec le plafond relevé laisse passer `pageSize: 200`
+      sans troncature, le plafond par défaut (sans override) reste bien à
+      50 pour tout autre endpoint, et `leadRepository.findAll` avec
+      `pageSize: 200` retourne bien les 60 leads réels créés en base par le
+      test (pas seulement 50). En vérifiant ce correctif, un test flaky
+      préexistant a été trouvé et corrigé dans le même fichier commité sous
+      SEC-100 (`leadService.test.ts`) : les 4 appels à
+      `leadService.getLeads({ page: 1, pageSize: 50 }, ...)` n'y précisaient
+      jamais `orderDir`, un champ pourtant non optionnel du type
+      `ListQueryOptions` — à l'exécution `orderDir: undefined` produisait un
+      tri Prisma non déterministe (`orderBy: { createdAt: undefined }`),
+      risquant de faire sortir de la première page de 50 les leads
+      fraîchement créés par CE test précis si la base de test partagée
+      contenait déjà suffisamment de leads d'autres tests (exactement ce
+      que ce nouveau fichier de 60 leads pour SEC-118 a rendu visible en
+      pratique — 1 échec intermittent observé sur 3 exécutions consécutives
+      de la suite avant correction, aucun depuis). Corrigé en ajoutant
+      `orderDir: "desc"` explicitement aux 4 appels, garantissant que les
+      leads du test apparaissent en tête de la première page quel que soit
+      le volume déjà présent en base. Vérification complète serveur : `npx
+      tsc --noEmit` (clean), `npm run lint` (0/0), `npx tsx --test
+      test/run-all.test.ts` (415/415, stable sur 2 exécutions consécutives
+      après ce correctif de flakiness). Résolu SANS confirmation CI
+      (workflow GitHub Actions sur `origin/main` en `workflow_dispatch`
+      uniquement, déviation documentée depuis la session du 2026-07-17).
+
+  - id: SEC-119
+    titre: "Les jobs de notification/email BullMQ n'ont pas de jobId déterministe — un retry après un crash post-effet-métier peut dupliquer un envoi (email ou notification en double)"
+    perimetre: "transverse — server/src/jobs/queues.ts, server/src/jobs/processors/communication.processor.ts"
+    regle_violee: null
+    classe: "job_bullmq_sans_deduplication"
+    gravite: majeur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand chaque job `sendNotification`/`sendEmail` porte un
+      `jobId` déterministe dérivé de l'événement métier qui l'a déclenché
+      (BullMQ refuse silencieusement un doublon de `jobId` déjà en file/
+      terminé, selon sa politique de rétention), OU quand le processor
+      vérifie l'existence de l'effet avant de l'appliquer — prouvé par un
+      test qui enfile deux fois le même job métier et vérifie qu'un seul
+      email/une seule notification est effectivement créé(e).
+    detecte_le: "2026-07-20"
+    source: manuel
+    confiance: certain
+    note: >
+      Constat transmis directement par le porteur, vérifié par lecture
+      directe : `queues.ts:61-84` (`enqueueNotification`/
+      `enqueueNotifications`, `communicationQueue.add`/`addBulk` sans
+      option `jobId`), `queues.ts:97-128` (`enqueueEmail`/`enqueueEmails`,
+      même constat, `attempts: 5` avec backoff exponentiel) ;
+      `communication.processor.ts:10-29`
+      (`processNotificationJob` appelle directement
+      `notificationRepository.create(data)`, aucune vérification
+      d'existence préalable), lignes 33-59 (`processEmailJob` appelle
+      directement `emailService.send(...)`, `throw error` en cas d'échec
+      pour laisser BullMQ retenter). Un crash du worker après l'envoi
+      SMTP/l'écriture en base mais avant l'ack BullMQ déclenche un retry
+      qui répète l'effet — email ou notification dupliqué(e), visible par
+      l'utilisateur final.
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-20 :
+      `notificationJobId(data)` dérive un `jobId` de la forme
+      `notification|{type}|{entityId}|{userId}` (identité métier de la
+      notification, pas son contenu — deux notifications légitimement
+      distinctes pour le même triplet à des moments différents ne sont pas
+      conflatées, seul un DOUBLE ENFILEMENT du même événement l'est) ;
+      câblé sur `enqueueNotification`/`enqueueNotifications`. `EmailJob`
+      n'a aucune identité métier inhérente (contrairement à
+      `NotificationJob`) — étendu d'un champ optionnel `dedupeKey`, que
+      l'appelant fournit s'il connaît l'identité de son propre événement
+      métier ; omis, comportement strictement inchangé (pas de `jobId`,
+      BullMQ assigne un id aléatoire, jamais déduplication). BullMQ rejette
+      tout `jobId` personnalisé contenant `:` (réservé à son espace de noms
+      interne) — `|` utilisé comme séparateur partout, découvert en
+      pratique via l'échec du premier jet de test (`Custom Id cannot
+      contain :`). Preuve : nouveau fichier
+      `server/test/jobDeduplication.test.ts` (appelle les vraies fonctions
+      contre une vraie file BullMQ/Redis, pas un mock d'`addBulk`) — deux
+      enfilements du même événement de notification produisent un seul job
+      réel (vérifié via `queue.getJob(jobId)`), deux événements distincts
+      (entité différente) produisent chacun leur propre job, un email avec
+      un `dedupeKey` partagé est bien déduplique, un email sans
+      `dedupeKey` garde le comportement antérieur (jamais déduplique).
+
+  - id: SEC-120
+    titre: "Les jobs de génération de documents (jusqu'à 7 par acceptation de proposition) n'ont pas de jobId déterministe — un retry peut régénérer un document déjà produit, aggravé par la non-idempotence de certains générateurs (SEC-110)"
+    perimetre: "transverse — server/src/jobs/queues.ts, server/src/jobs/index.ts, server/src/jobs/processors/documents.processor.ts, server/src/services/proposal.service.ts"
+    regle_violee: null
+    classe: "job_bullmq_sans_deduplication"
+    gravite: majeur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand chaque job `generateDocument` porte un `jobId`
+      déterministe dérivé de l'entité métier + type de document (proposal
+      acceptée + kind), garantissant qu'un retry ou un ré-enfilement
+      accidentel du même événement ne relance jamais deux fois la
+      génération d'un même document — prouvé par un test qui enfile deux
+      fois le même job de génération et vérifie qu'un seul document est
+      effectivement créé.
+    detecte_le: "2026-07-20"
+    source: manuel
+    confiance: certain
+    note: >
+      Constat transmis directement par le porteur, vérifié par lecture
+      directe : `proposal.service.ts:486-515`
+      (`acceptWithCascade` construit jusqu'à 7 `DocumentJob` —
+      welcomeLetter/contract/specs/clientBrief/quote/roadmap +
+      invoice optionnel — puis `enqueueDocumentGeneration(documentJobs)`) ;
+      `queues.ts:145-155` (`enqueueDocumentGeneration` →
+      `documentsQueue.addBulk`, sans `jobId`) ; `jobs/index.ts:109-118`
+      (worker documents, `concurrency: 3`) ; `documents.processor.ts:21-73`
+      (`processDocumentJob`, `throw error` en cas d'échec, laisse BullMQ
+      retenter selon `attempts: 4` du `documentsQueue`, `queues.ts:40-48`).
+      Aggravation confirmée par SEC-110 (déjà résolue) : `generateSpecs`/
+      `regenerateSpecsWithAiContent` créent un NOUVEAU document versionné à
+      chaque appel — un retry sur le job `specs` ne produit donc pas un
+      doublon identique inoffensif, mais une pollution cumulative réelle de
+      versions de documents, comme déjà établi pour le chemin webhook
+      n8n (même risque, ici via le chemin retry BullMQ plutôt que rejeu de
+      callback).
+
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-20 :
+      `documentJobId(data)` dérive un `jobId` de la forme
+      `document|{kind}|{entityId}` (l'entité pour laquelle le document est
+      généré — `proposal.id` pour welcomeLetter/contract/quote,
+      `project.id` pour specs/clientBrief/roadmap, `invoice.id` pour
+      invoice — jamais un id générique), câblé sur
+      `enqueueDocumentGeneration`. BullMQ rejette un `jobId` personnalisé
+      contenant `:` — `|` utilisé comme séparateur, même correction que
+      SEC-119. Preuve : `server/test/jobDeduplication.test.ts` — un double
+      enfilement du job `specs` pour le même `project.id` produit un seul
+      job réel dans `documentsQueue` (vérifié via `getJob`), empêchant
+      précisément la pollution cumulative de versions de documents que ce
+      constat décrivait. Vérification complète serveur : `npx tsc --noEmit`
+      (clean), `npm run lint` (0/0), `npx tsx --test test/run-all.test.ts`
+      (415/415, stable sur 2 exécutions consécutives). Résolu SANS
+      confirmation CI (workflow GitHub Actions sur `origin/main` en
+      `workflow_dispatch` uniquement, déviation documentée depuis la
+      session du 2026-07-17).
+
+  - id: SEC-121
+    titre: "Invalidation du cache de permissions par profil potentiellement O(n) sur le nombre de managers partageant un profil — CONSTAT NON VÉRIFIABLE : décrit du code en cours d'écriture par une session concurrente, non commité au moment de l'enregistrement"
+    perimetre: "server/src/services/managerPermission.service.ts, server/src/repositories/managerPermission.repository.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: rejete
+    critere_de_resolution: >
+      Non applicable — ce constat porte sur un mécanisme
+      (`findUserIdsByProfileId` + invalidation en boucle dans
+      `permissionProfileService.update`/`delete`) qui n'existe dans AUCUN
+      commit de ce dépôt au moment de la vérification (2026-07-20) : c'est
+      du travail en cours, non commité, d'une session concurrente
+      s'exécutant en parallèle de celle-ci sur la même copie de travail.
+      Rejeté au sens de « rien à corriger dans le dépôt tel qu'il existe
+      aujourd'hui » — si l'autre session commite ce mécanisme, une
+      nouvelle vérification (nouvel ID si le critère de résolution diffère)
+      sera nécessaire à ce moment-là, pas une réouverture de celui-ci.
+    detecte_le: "2026-07-20"
+    source: manuel
+    confiance: certain
+    note: >
+      Constat transmis directement par le porteur avec citations de
+      fichier/ligne précises (`managerPermission.service.ts:56/63/111/118`)
+      — vérifié par lecture directe du fichier sur disque : le code décrit
+      (`permissionProfileService.update`/`delete` appelant
+      `managerPermissionRepository.findUserIdsByProfileId` puis un
+      `Promise.all` de `cacheDel` par utilisateur) EXISTE bien tel que
+      décrit dans le working tree actuel. MAIS `git diff` sur ces deux
+      fichiers confirme que cette fonction et son usage sont entièrement
+      NON COMMITÉS (`findUserIdsByProfileId` absente de HEAD,
+      `update`/`delete` en HEAD ne font qu'un simple passthrough au
+      repository sans invalidation en boucle). Attribution des changements
+      (CLAUDE.md) : un changement n'est attribuable à la session en cours
+      que s'il figure dans la liste explicite des éditions de CETTE
+      session — ce code n'a été édité par aucun appel d'outil de cette
+      session, donc écrit par une session antérieure/concurrente, non
+      commité, non revu, intention non documentée. Statut `rejete` plutôt
+      que `ouvert` : il n'y a rien à corriger dans le dépôt versionné
+      aujourd'hui ; un `ouvert` laisserait croire à un défaut du code
+      livré, qui n'existe pas encore.
+
+  - id: SEC-122
+    titre: "documentRepository.findById n'applique aucun filtre de pôle pour le rôle MANAGER (seules les branches CLIENT et FREELANCER existent) alors que findAll le fait — un manager peut lire/télécharger par ID direct un document hors de son pôle"
+    perimetre: "4.9 Documents — server/src/repositories/document.repository.ts ; server/src/services/document.service.ts ; server/src/controllers/document.controller.ts"
+    regle_violee: null
+    classe: "scoping_pole_manquant_ou_incorrect"
+    gravite: bloquant
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand un MANAGER qui appelle `GET /documents/:id` (lecture
+      détail) ou la route de téléchargement sur un document rattaché à un
+      client/projet d'un AUTRE pôle reçoit un refus (404/403), au même titre
+      que ce que `findAll` applique déjà en liste — prouvé par un test qui
+      appelle réellement `documentService.getById`/`getDownloadUrl` (pas
+      `documentRepository.findAll`) avec un scope MANAGER d'un pôle A sur un
+      document d'un client du pôle B, sur une base migrée, et vérifie le
+      refus.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Découvert incidemment en vérifiant un rapport d'audit tiers sur la
+      couverture de test (le rapport lui-même ne mentionnait pas ce défaut
+      précis — seulement un manque de test générique sur le scoping
+      MANAGER/documents). Vérifié par lecture directe :
+      `document.repository.ts:88-102` (`findById`) — la fonction prend un
+      paramètre `viewer` mais ne traite QUE `viewer.role === "CLIENT"`
+      (ligne 92) et `viewer.role === "FREELANCER"` (lignes 93-101) ; aucune
+      branche `MANAGER`, donc pour ce rôle `where` reste `{ id, accessLevel:
+      {...} }` sans aucune restriction de pôle — l'appel matche n'importe
+      quel document existant. Pourtant `document.controller.ts:45-51,106-107`
+      transmet bien un `serviceId` de viewer jusqu'au repository — paramètre
+      silencieusement ignoré côté `findById`, alors que `findAll`
+      (`document.repository.ts:43-44`) applique correctement
+      `where.client = { projects: { some: { serviceId: viewerServiceId } } }`
+      pour ce même rôle. Aucun test ne couvre ce rôle sur cette méthode
+      (`documentCreateHttp.test.ts` et `documentSignContract.test.ts` ne
+      mentionnent jamais MANAGER, grep confirmé à zéro résultat). Gravité
+      `bloquant` (pas seulement `majeur`) : contrairement aux gaps de
+      couverture de test listés par ailleurs, ceci est un vrai défaut de
+      code en production, exploitable par accès direct à l'URL/ID sans
+      dépendre d'une faille UI — IDOR classique sur une entité pouvant
+      contenir des contrats, pièces jointes clients confidentielles.
+
+  - id: SEC-123
+    titre: "contactService.convertToLead accepte assignedManagerId et department en paramètres libres transmis tels quels par le controller, sans dériver ni vérifier le pôle de l'appelant — un manager peut convertir un ContactRequest en Lead assigné à un autre pôle"
+    perimetre: "4.1 CRM & Pipeline commercial — server/src/services/contact.service.ts#convertToLead ; server/src/controllers/contact.controller.ts#convertToLead"
+    regle_violee: RG-002
+    classe: "scoping_pole_manquant_ou_incorrect"
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `POST /contact-requests/:id/convert-to-lead` appelé
+      par un MANAGER du pôle A avec un `department`/`assignedManagerId`
+      pointant vers le pôle B est refusé (ou le `department` est forcé au
+      pôle de l'appelant, à trancher avec le porteur) — prouvé par un test
+      qui appelle réellement `contactService.convertToLead` avec un scope
+      MANAGER et un `department` d'un autre pôle sur une base migrée, et
+      vérifie le refus ou la correction forcée. Un ADMIN reste libre
+      d'assigner n'importe quel pôle.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Découvert incidemment en vérifiant un rapport d'audit tiers sur la
+      couverture de test (le rapport ne mentionnait que l'absence de test,
+      pas l'absence de contrôle serveur lui-même). Vérifié par lecture
+      directe : `contact.service.ts:85-109` (`convertToLead`) — `department`
+      et `assignedManagerId` sont insérés tels quels dans `tx.lead.create`
+      (lignes 100-101), aucune dérivation ni vérification de pôle.
+      `contact.controller.ts:55-64` (`convertToLead`) — extrait
+      `assignedManagerId`/`department` directement de `req.body` sans les
+      confronter à `req.user`. La route (`contact.routes.ts:13`) autorise
+      `ADMIN` ET `MANAGER`. Ce chemin est distinct de celui déjà documenté
+      sous SEC-102 (formulaire manuel « Ajouter un lead », résolu) : SEC-102
+      couvrait l'ABSENCE de `serviceId` par défaut sur la création directe ;
+      ici le `serviceId`/`department` est bien présent, mais librement
+      choisi par l'appelant sans validation contre son propre pôle — donc
+      pas une reformulation du même critère de résolution, classe partagée
+      (`scoping_pole_manquant_ou_incorrect`) mais ID distinct. Aucun test
+      n'existe (`grep -rn "convertToLead" server/test/` : zéro résultat).
+
+  - id: SEC-124
+    titre: "Aucun test HTTP n'exerce les routes RBAC/scope critiques (POST /proposals/:id/accept, DELETE /proposals/:id) avec un rôle refusé — rbac.test.ts ne teste que authorize() en isolation avec un req mocké, jamais une route réelle montée"
+    perimetre: "server/test/rbac.test.ts ; server/src/routes/proposal.routes.ts"
+    regle_violee: null
+    classe: "test_http_route_critique_manquant"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand au moins une suite de tests HTTP (supertest ou
+      équivalent) monte l'application réelle et vérifie qu'un rôle CLIENT
+      reçoit 403 sur `POST /proposals/:id/accept`, et qu'un rôle MANAGER
+      hors pôle reçoit un refus équivalent — en appelant la route via HTTP,
+      pas seulement le service ou le middleware isolément.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : le contrôle lui-même EXISTE et
+      fonctionne — `proposal.routes.ts:49`
+      (`authorize("ADMIN","MANAGER")` + `requirePermission`),
+      `proposal.controller.ts:109-111` (`getById` avec scope avant
+      `acceptWithCascade`), `proposal.service.ts:224-228` (`assertProposalInScope`
+      appliqué). `rbac.test.ts` (lu en entier) ne teste que `authorize()`
+      avec un `req` construit à la main (lignes 13-25). Seuls deux fichiers
+      HTTP existent dans `server/test/` (`documentCreateHttp.test.ts`,
+      `userProfilePhone.http.test.ts`), aucun ne couvre `/proposals`. Donc :
+      pas un défaut de sécurité (le scope est déjà prouvé par
+      `proposalScopeAfterCreation.test.ts` au niveau service), mais un vrai
+      trou de test sur l'angle HTTP bout-en-bout. Gravité `mineur` car la
+      protection réelle existe et est déjà vérifiée par un autre test au
+      niveau service.
+
+  - id: SEC-125
+    titre: "proposalService.send, update et addSection ne sont jamais testés pour le cas MANAGER hors pôle malgré qu'ils appellent assertProposalInScope dans le code — proposalScopeAfterCreation.test.ts ne couvre que getById/getAll/update/acceptWithCascade"
+    perimetre: "server/test/proposalScopeAfterCreation.test.ts ; server/src/services/proposal.service.ts"
+    regle_violee: null
+    classe: "test_scope_methode_non_couverte"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `proposalScopeAfterCreation.test.ts` (ou un fichier
+      équivalent) appelle réellement `proposalService.send`,
+      `proposalService.update` et `proposalService.addSection` avec un scope
+      MANAGER hors pôle sur une proposition existante, sur une base migrée,
+      et vérifie le refus pour les trois — pas seulement pour `getById`/
+      `getAll`/`acceptWithCascade` comme aujourd'hui.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : `proposal.service.ts` — `send` (lignes
+      310-312), `update` (lignes 266-268 — déjà testé), `addSection`
+      (lignes 599-602) appellent tous `assertProposalInScope`. `delete`
+      (lignes 298-308) ne prend même pas de paramètre `scope` et ne
+      l'appelle jamais, mais la route `DELETE /proposals/:id`
+      (`proposal.routes.ts:47`) est `authorize("ADMIN")` seul — MANAGER n'y
+      a pas accès au niveau routeur, donc l'absence de scope dans le service
+      n'est pas exploitable par cette route (aucun autre appelant trouvé).
+      Le code protège donc déjà `send`/`update`/`addSection` ; seul le test
+      manque pour le prouver sur ces trois méthodes précises.
+
+  - id: SEC-126
+    titre: "taskService.updateTask n'est jamais testé pour le cas MANAGER hors pôle ni FREELANCER étranger, malgré que le contrôle existe dans le code — taskScope.test.ts ne couvre que getAllTasks/getTaskById (lecture), jamais l'écriture"
+    perimetre: "server/test/taskScope.test.ts ; server/src/services/task.service.ts#updateTask"
+    regle_violee: null
+    classe: "test_scope_methode_non_couverte"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand un test appelle réellement `taskService.updateTask`
+      avec un scope MANAGER hors pôle, puis avec un FREELANCER qui n'est pas
+      l'assigné de la tâche, sur une base migrée, et vérifie le refus dans
+      les deux cas — pas seulement la lecture comme aujourd'hui.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : `task.service.ts:142-162`
+      (`updateTask`) — FREELANCER restreint à `assigneeId` + champ `status`
+      seul (lignes 147-158, conforme SEC-045), sinon
+      `assertProjectInScope(task.projectId, scope)` pour ADMIN/MANAGER
+      (ligne 161). Le contrôle existe et est correctement câblé.
+      `taskScope.test.ts` (lu en entier) ne teste que `getAllTasks`/
+      `getTaskById`. `grep -rn "updateTask" server/test/` pour un cas
+      cross-pole : absent. Pas un défaut de code, un trou de test.
+
+  - id: SEC-127
+    titre: "projectMeetingService.update/delete ne sont jamais testées pour le cas MANAGER hors pôle, contrairement à listByProject/create/getSchedule/setSchedule déjà couvertes — projectMeetingUpdateDelete.test.ts ne teste que l'autorisation auteur/non-auteur sur ces deux méthodes, jamais le scope de pôle"
+    perimetre: "server/test/projectMeetingUpdateDelete.test.ts ; server/src/services/projectMeeting.service.ts"
+    regle_violee: null
+    classe: "test_scope_methode_non_couverte"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand un test appelle réellement `projectMeetingService.update`
+      et `projectMeetingService.delete` avec un scope MANAGER hors pôle sur
+      un projet existant, sur une base migrée, et vérifie le refus (403
+      `PROJECT_OUT_OF_SCOPE`) — les 4 autres méthodes publiques du service
+      sont déjà prouvées cross-pôle par `managerScopeIdorFixes.test.ts`.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      CORRIGÉ après relecture complète de `managerScopeIdorFixes.test.ts`
+      (absent de la vérification initiale de cette entrée) : contrairement à
+      la première rédaction de ce constat qui affirmait qu'AUCUNE méthode
+      n'était testée pour le cas cross-pôle, ce fichier
+      (`managerScopeIdorFixes.test.ts:91-110`) teste déjà explicitement
+      `listByProject`, `create`, `getSchedule` ET `setSchedule` avec un
+      scope MANAGER hors pôle (assertions 403 sur les 4). Un rapport
+      d'audit tiers affirmait par ailleurs que `getSchedule` serait « hors
+      scope » dans le CODE — également faux, vérifié par lecture directe :
+      `projectMeeting.service.ts:69-72`, `getSchedule` appelle
+      `assertProjectInScope` comme les 5 autres méthodes publiques (lignes
+      22, 27, 46, 58, 70, 75 — couverture uniforme, aucune méthode n'y
+      échappe). Le gap réel restant, après élimination des deux erreurs
+      précédentes : seules `update` et `delete` — protégées dans le code
+      (ligne 46, ligne 58) — n'ont jamais de test cross-pôle ;
+      `projectMeetingUpdateDelete.test.ts` (lu en entier) ne vérifie que la
+      distinction auteur/non-auteur (`MEETING_NOT_YOURS`) sur ces deux
+      méthodes, jamais un scope de pôle différent.
+
+  - id: SEC-128
+    titre: "Aucun test n'exerce le mécanisme anti-rejeu Redis de verifyN8nWebhook en situation dégradée ni le rejet d'une signature déjà vue — verifyN8nWebhook.test.ts ne teste que la fraîcheur temporelle (timestamp), jamais le rejeu effectif"
+    perimetre: "server/test/verifyN8nWebhook.test.ts ; server/src/middlewares/verifyN8nWebhook.middleware.ts"
+    regle_violee: null
+    classe: "test_scenario_defense_manquant"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand un test envoie deux fois le même corps signé
+      (même signature) à `verifyN8nWebhook` et vérifie que le second appel
+      est rejeté (`REPLAYED_WEBHOOK`), en appelant réellement le middleware
+      — pas une réimplémentation locale de la vérification.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Distinct de SEC-110 (qui documente le fail-open Redis et l'absence de
+      timestamp contrôlé comme défaut de conception) : ici le constat porte
+      spécifiquement sur l'absence de test du comportement de rejet en
+      second appel, indépendamment de la question de conception déjà
+      ouverte sous SEC-110. Vérifié par lecture directe :
+      `verifyN8nWebhook.middleware.ts:18-29` (`markSignatureSeen`) —
+      fail-open confirmé si Redis indisponible (ligne 21, ligne 25-28).
+      `verifyN8nWebhook.test.ts` ne teste que timestamp stale/futur/absent
+      et signature invalide — aucun envoi en double de la même signature.
+
+  - id: SEC-129
+    titre: "Aucun test HTTP n'inspecte les attributs Set-Cookie (HttpOnly/Secure/SameSite) du refresh token, ni le flux réel login->logout->réutilisation du refresh token — auth.service.test.ts teste la logique via mock DB, jamais le contrat cookie/contrôleur"
+    perimetre: "server/test/auth.service.test.ts ; server/test/auth.middleware.test.ts ; server/src/utils/authCookies.ts"
+    regle_violee: null
+    classe: "test_http_route_critique_manquant"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand un test HTTP inspecte l'en-tête `Set-Cookie` d'une
+      réponse de login réelle et vérifie `HttpOnly`, `Secure` (en
+      production) et `SameSite=Strict`, ET qu'un autre test fait le flux
+      complet login -> logout -> tentative de réutilisation du refresh token
+      et vérifie le rejet — les deux contre l'application réelle montée, pas
+      seulement le service en isolation.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : `authCookies.ts:7-15`
+      (`setRefreshTokenCookie`) — `httpOnly: true`, `secure: env.NODE_ENV
+      === "production"`, `sameSite: "strict"` : les attributs sont corrects
+      en code. `grep -rn "httpOnly|Set-Cookie|res.cookie"
+      server/src/controllers/` : zéro résultat, la pose du cookie passe par
+      `authCookies.ts`, jamais testée en HTTP. `auth.service.test.ts:200-217`
+      teste bien le rejet d'un refresh token consommé, mais via un mock DB
+      direct (`db._rt = null`), jamais un vrai flux HTTP logout puis retry.
+      Pas un défaut de code (les attributs sont bons), un trou de test sur
+      le contrat transport.
+
+  - id: SEC-130
+    titre: "documentAccess.test.ts ne valide que la fonction pure visibleAccessLevels(), jamais son application réelle dans la requête findFirst de document.repository.ts — un mauvais câblage futur du where.accessLevel resterait invisible à ce test"
+    perimetre: "server/test/documentAccess.test.ts ; server/src/repositories/document.repository.ts"
+    regle_violee: null
+    classe: "test_helper_isole_non_cable"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand un test appelle réellement
+      `documentRepository.findById`/liste (pas seulement
+      `visibleAccessLevels` isolément) contre une base migrée avec des
+      documents de différents `accessLevel`, pour un rôle donné, et vérifie
+      que les documents non visibles pour ce rôle sont bien absents du
+      résultat.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : `documentAccess.test.ts:1-2`, commentaire
+      du fichier lui-même (« pure logic, no DB »). `document.repository.ts:91`
+      applique bien `visibleAccessLevels(viewer.role)` dans la clause `where`
+      de `findFirst` — donc la fonction EST câblée dans le code réel
+      aujourd'hui — mais aucun test n'exerce ce câblage contre une vraie
+      requête. Classe distincte de SEC-122 (qui porte sur l'ABSENCE de
+      branche MANAGER dans la même fonction `findById`) : ici le défaut est
+      seulement l'absence de test sur un câblage qui, à ce jour, est correct.
+
+  - id: SEC-131
+    titre: "clientCompletedTasks.test.ts utilise setTimeout(10)/setTimeout(20) fixes pour forcer un écart d'horodatage entre deux écritures, au lieu d'un poll d'état borné — source de flakiness CI sous charge"
+    perimetre: "server/test/clientCompletedTasks.test.ts"
+    regle_violee: null
+    classe: "test_delai_fixe_flaky"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand ce fichier n'utilise plus de délai fixe pour
+      garantir un ordre ou un écart temporel entre deux écritures (tri par
+      `updatedAt`, anti-régression `completedAt` de SEC-070), remplacé par
+      une garantie explicite (horodatage forcé en paramètre plutôt que
+      dépendu de l'horloge réelle, ou poll avec timeout borné) — prouvé par
+      une exécution répétée du test sous charge CPU artificielle sans échec
+      intermittent.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : `clientCompletedTasks.test.ts:61`
+      (`setTimeout(resolve, 10)`, entre deux créations de tâches DONE, pour
+      un test de tri) et ligne 89 (`setTimeout(resolve, 20)`, avant une
+      édition non liée, anti-régression SEC-070 sur `completedAt`). Un délai
+      de 10-20ms peut être insuffisant pour garantir un `updatedAt` distinct
+      sur une CI chargée (résolution d'horloge, contention I/O de la base).
+
+  - id: SEC-132
+    titre: "searchScope.test.ts réimplémente localement allowedCategories()/managerServiceValue() au lieu d'appeler searchRepository.search — ne prouve le scoping pôle sur AUCUNE des 9 catégories réellement scopées dans le code (leads, clients, projects, tasks, proposals, invoices, serviceRequests, approvals, documents)"
+    perimetre: "server/test/searchScope.test.ts ; server/src/repositories/search.repository.ts"
+    regle_violee: null
+    classe: "test_reimplemente_cible"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `searchScope.test.ts` appelle réellement
+      `searchRepository.search`/`searchForStaff` (importé et exécuté) contre
+      une base migrée avec des ressources de plusieurs pôles, pour un scope
+      MANAGER, et vérifie que chacune des catégories retournées exclut bien
+      les ressources hors pôle — pas une fonction locale qui mime la même
+      logique à côté.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Même classe de défaut que SEC-100/SEC-109 (test qui réimplémente sa
+      cible au lieu de l'appeler) — critère de résolution identique
+      (appeler le vrai code), mais fichier et cible distincts, donc ID
+      séparé conformément à la règle du projet. Vérifié par lecture
+      directe : `search.repository.ts:65-90` (`searchForStaff`) applique
+      le scoping `serviceId` de façon uniforme aux 9 catégories listées
+      dans le titre. `searchScope.test.ts:1-60` définit localement
+      `allowedCategories()` (lignes 10-23) et `managerServiceValue()`
+      (lignes 48-50) sans jamais importer `searchRepository` — donc si le
+      scoping réel dérive dans une seule de ces 9 catégories, ce test
+      resterait vert. Conforme à la règle CLAUDE.md « verifie: test exige
+      un test qui appelle le code réel » — ce test vaut `code_grep` au
+      mieux sur le fond, malgré son nom.
+
+  - id: SEC-133
+    titre: "prismaReadWriteSeparation.test.ts ne vérifie la séparation prismaRead/prismaWrite que sur 2 repositories (project, task) sur les 30 qui utilisent réellement cette séparation — couverture proportionnellement très faible (2/30)"
+    perimetre: "server/test/prismaReadWriteSeparation.test.ts ; server/src/repositories/*.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand ce test (ou un test équivalent généré à partir
+      d'une liste explicite de repositories) vérifie la séparation
+      prismaRead/prismaWrite sur l'ensemble des 30 repositories qui
+      l'utilisent aujourd'hui, pas seulement `project.repository.ts` et
+      `task.repository.ts`.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Vérifié par lecture directe : 30 fichiers dans
+      `server/src/repositories/*.ts` utilisent `prismaRead`/`prismaWrite`
+      (aiConversation, analytics, client, clientOnboarding, clientPortal,
+      clientProfitability, comment, commission, executiveMetrics,
+      freelancer, freelancerApplication, gscConnection, healthBoard,
+      invoice, lead, metricSnapshot, notification, project, projectMeeting,
+      projectTemplate, proposal, revenueForecast, search, serviceRequest,
+      summary, task, taskChecklist, timeEntry, user, userSession).
+      `prismaReadWriteSeparation.test.ts:47-62` ne scanne structurellement
+      (regex sur méthodes mutantes, pas d'exécution) que `project` et
+      `task`. Les 28 autres n'ont aucune assertion.
+
+  - id: SEC-134
+    titre: "Aucun test ne prouve que deux appels concurrents à proposalService.acceptWithCascade sur la même proposition ne dupliquent jamais Project/Invoice — la garde d'idempotence (status === ACCEPTED) protège le cas séquentiel mais pas deux transactions concurrentes lisant toutes deux le statut avant que l'une ait commité"
+    perimetre: "server/src/services/proposal.service.ts#acceptWithCascade ; server/test/proposalAcceptCascade.test.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand un test appelle réellement `acceptWithCascade` deux
+      fois en concurrence (`Promise.allSettled`, pattern déjà utilisé par
+      `projectTemplateIdempotencyAndFreelancerFields.test.ts:131-145` pour
+      `applyToProject`) sur la même proposition, sur une base migrée, et
+      vérifie qu'un seul `Project`/`Invoice` de dépôt existe au final — pas
+      seulement que le second appel séquentiel est idempotent.
+    detecte_le: "2026-07-20"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Distinct de SEC-111/SEC-112/SEC-113 (index manquants) et de SEC-100/
+      SEC-109 (tests qui réimplémentent leur cible) : ici le code réel est
+      appelé mais seulement de façon séquentielle. Vérifié par lecture
+      directe : `proposal.service.ts:367-392` — `alreadyAccepted =
+      proposal.status === "ACCEPTED"` (ligne 380) court-circuite le second
+      `update` si déjà accepté, dans un bloc `prisma.$transaction` (ligne
+      368). Cette garde protège le cas où le premier appel a déjà COMMITÉ
+      avant que le second ne lise le statut — pas le cas où les deux
+      transactions lisent `status !== "ACCEPTED"` avant que l'une des deux
+      ait commité (pas de verrou explicite ni de contrainte DB empêchant
+      deux `Project`/`Invoice` liés à la même proposition). `grep -rn
+      "acceptWithCascade" server/test/` : aucun test n'utilise
+      `Promise.allSettled` sur cette fonction.

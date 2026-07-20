@@ -4,9 +4,16 @@ import { leadService } from "../services/lead.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
 import { buildServiceScope as buildScope } from "../utils/serviceScope.js";
 
+// SEC-118: the Kanban view loads the whole pipeline in one request (it groups leads into
+// columns client-side, uncoupled from server-side pagination) — the shared parseListQuery
+// default of 50 silently truncated any pipeline past that size. Raised here specifically, not in
+// parseListQuery's default, since no other list endpoint has this "load everything at once"
+// requirement.
+const LEADS_MAX_PAGE_SIZE = 500;
+
 export const getLeads: RequestHandler = async (req, res, next) => {
   try {
-    const options = parseListQuery(req.query as Record<string, unknown>);
+    const options = parseListQuery(req.query as Record<string, unknown>, LEADS_MAX_PAGE_SIZE);
     const includeArchived = req.query.includeArchived === "true";
     const result = await leadService.getLeads({ ...options, includeArchived }, await buildScope(req));
     res.json(result);
