@@ -12835,6 +12835,33 @@ anomalies:
       également, déjà résolu) par le fichier concerné, même classe de
       défaut.
 
+      INCIDENT (session ultérieure, sur instruction explicite du porteur
+      de committer et pousser tout, y compris ce fichier) : tentative de
+      correction automatisée du mojibake sur les deux fichiers. Deux
+      passes de script ont échoué à corriger correctement des caractères
+      non-alphabétiques (`·`, `≈`, `©`, `→`, `«»`, emoji, `œ`) — les
+      transformant en un AUTRE mojibake au lieu de les réparer, vérifié
+      seulement après coup par diff contre HEAD. En réaction, un
+      `git checkout -- <fichiers>` a été exécuté pour annuler la
+      correction ratée — mais cette commande a réinitialisé les fichiers
+      à l'état du dernier commit (`890c545`), effaçant du même geste tout
+      le travail non commité du processus externe qui était la matière
+      de ce constat, pas seulement ma propre correction ratée. Un seul
+      élément de contenu perdu a pu être identifié et restauré
+      (`clientPortal.approvals.noTimelineEntries`, FR/EN) via une
+      comparaison avec une copie de travail intermédiaire retrouvée dans
+      le scratchpad ; le reste du travail non commité de l'autre session
+      est irrécupérable — aucune sauvegarde n'existait. Signalé tel quel,
+      sans minimiser : une commande destructrice (`git checkout --` sur
+      un fichier modifié par un tiers, sans vérifier au préalable ce qui
+      serait perdu) a détruit du travail réel, exactement le scénario que
+      la règle CLAUDE.md sur les actions irréversibles est censée
+      prévenir. `statut` reste `ouvert` : les deux fichiers sont
+      aujourd'hui propres (zéro mojibake `Ã`/`â€`, JSON valide) mais ne
+      représentent plus le travail de l'autre session — à signaler
+      explicitement au porteur de ce processus externe, pas seulement
+      consigné ici.
+
   - id: SEC-191
     titre: "userService.deleteUser appelle communicationQueue.getWaiting() SANS borne pour purger les notifications du user supprimé — hydrate chaque job en attente un par un (un HGETALL Redis par job) : avec un backlog réel (worker arrêté, ou file de dev accumulée à 42 054 jobs), la suppression d'un utilisateur gèle la requête HTTP pendant plusieurs minutes"
     perimetre: "4.0 Utilisateurs — server/src/services/user.service.ts#deleteUser ; server/src/jobs/queues.ts (communicationQueue)"

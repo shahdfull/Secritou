@@ -4,7 +4,7 @@ import { LeadStatus } from "@prisma/client";
 import { leadBaseSchema as sharedLeadBase } from "@secritou/shared";
 
 const leadBaseSchema = sharedLeadBase.extend({
-  status: z.nativeEnum(LeadStatus).optional(),
+  status: z.literal(LeadStatus.NEW).optional(),
 });
 
 export const createLeadSchema = z.object({

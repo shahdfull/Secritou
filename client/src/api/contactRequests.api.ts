@@ -16,6 +16,18 @@ export type Lead = {
   sourceContactId?: string | null;
   assignedManagerId?: string | null;
   department?: string | null;
+  sourceContact?: {
+    id: string;
+    name: string;
+    email: string;
+    phone?: string | null;
+    serviceType: string;
+    company: string;
+    budget?: string | null;
+    message: string;
+    status: "NEW" | "READ" | "ARCHIVED";
+    createdAt: string;
+  } | null;
 };
 
 export type ContactRequest = {

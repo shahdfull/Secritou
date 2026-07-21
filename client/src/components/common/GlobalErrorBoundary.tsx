@@ -8,6 +8,7 @@ interface Props {
 
 interface State {
   hasError: boolean;
+  eventId?: string;
 }
 
 export class GlobalErrorBoundary extends Component<Props, State> {
@@ -22,7 +23,8 @@ export class GlobalErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Global error caught:", error, errorInfo);
-    Sentry.captureException(error);
+    const eventId = Sentry.captureException(error);
+    this.setState({ eventId });
   }
 
   render() {
@@ -32,23 +34,28 @@ export class GlobalErrorBoundary extends Component<Props, State> {
           <div className="w-full max-w-md text-center">
             <h1 className="font-display text-8xl font-bold text-primary">500</h1>
             <h2 className="mt-4 font-display text-3xl font-bold text-ink">
-              Something went wrong
+              Une erreur est survenue
             </h2>
             <p className="mt-2 text-muted-foreground">
-              We're sorry for the inconvenience. Our team has been notified.
+              Réessayez. Si le problème persiste, transmettez la référence ci-dessous au support.
             </p>
+            {this.state.eventId && (
+              <p className="mt-3 rounded-xl border border-border bg-surface px-4 py-3 text-sm text-muted-foreground">
+                Référence support: <span className="font-mono text-ink">{this.state.eventId}</span>
+              </p>
+            )}
             <div className="mt-8 flex flex-col gap-3">
               <button
                 onClick={() => window.location.reload()}
                 className="group inline-flex h-12 items-center justify-center rounded-full bg-ink px-6 text-sm font-semibold text-white shadow-soft transition-transform hover:-translate-y-0.5"
               >
-                Try again
+                Réessayer
               </button>
               <Link
                 to="/"
                 className="group inline-flex h-12 items-center justify-center rounded-full border border-border bg-background px-6 text-sm font-semibold text-ink transition-colors hover:bg-surface"
               >
-                Return home
+                Retour à l'accueil
               </Link>
             </div>
           </div>

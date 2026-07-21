@@ -19,7 +19,6 @@ export function useClientServiceRequests() {
   return useQuery({
     queryKey: queryKeys.clientServiceRequests(),
     queryFn: () => serviceRequestsApi.getClientRequests(),
-    select: (result) => result.data,
   });
 }
 

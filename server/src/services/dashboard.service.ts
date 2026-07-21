@@ -41,16 +41,13 @@ export const dashboardService = {
   },
 
   async getSummary(serviceId?: string | null) {
-    // MANAGER scope: bypass global cache and compute scoped analytics directly.
-    if (serviceId !== undefined) {
-      return analyticsService.getSummary(undefined, undefined, serviceId);
-    }
-
-    const cacheKey = cacheKeys.dashboardSummary();
+    const cacheKey = cacheKeys.dashboardSummary(serviceId);
     const cached = await cacheGet<Awaited<ReturnType<typeof summaryRepository.getEnhancedDashboardSummary>>>(cacheKey);
     if (cached) return cached;
 
-    const summary = await summaryRepository.getEnhancedDashboardSummary();
+    const summary = serviceId !== undefined
+      ? await analyticsService.getSummary(undefined, undefined, serviceId)
+      : await summaryRepository.getEnhancedDashboardSummary();
     await cacheSet(cacheKey, summary, cacheTTL.dashboard, [cacheTags.dashboard(), cacheTags.company()]);
     return summary;
   },

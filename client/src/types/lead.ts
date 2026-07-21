@@ -20,6 +20,18 @@ export interface Lead {
   updatedAt: string;
   convertedClient?: { id: string; name: string; email: string | null } | null;
   proposals?: LeadProposal[];
+  sourceContact?: {
+    id: string;
+    name: string;
+    email: string;
+    phone?: string | null;
+    serviceType: string;
+    company: string;
+    budget?: string | null;
+    message: string;
+    status: "NEW" | "READ" | "ARCHIVED";
+    createdAt: string;
+  } | null;
 }
 
 export interface CreateLeadInput {

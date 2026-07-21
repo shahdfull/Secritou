@@ -1604,6 +1604,7 @@
       "timelineTitle": "Timeline",
       "respondSuccess": "Your response has been recorded.",
       "respondError": "Failed to send your response. Please try again.",
+      "noTimelineEntries": "No timeline entries yet.",
       "statuses": {
         "PENDING": "Pending",
         "APPROVED": "Approved",

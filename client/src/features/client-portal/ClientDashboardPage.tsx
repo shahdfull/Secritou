@@ -22,7 +22,7 @@ export function ClientDashboardPage() {
   const user = useAuthStore((state) => state.user);
   const { data: projectsResult, isError: projectsError } = useProjects({ page: 1, pageSize: 100 });
   const projects = projectsResult?.data ?? [];
-  const { data: requests, isError: requestsError } = useClientServiceRequests();
+  const { data: requestsResult, isError: requestsError } = useClientServiceRequests();
   const { data: documentsResult, isError: documentsError } = useQuery({
     queryKey: ["clientDocuments", user?.clientId],
     queryFn: () => user?.clientId ? documentsApi.getDocuments({ clientId: user.clientId }) : Promise.resolve({ data: [], total: 0, page: 1, pageSize: 10 }),
@@ -42,21 +42,21 @@ export function ClientDashboardPage() {
   const stats = [
     {
       title: "Projets",
-      value: projects?.length || 0,
+      value: projectsResult?.total ?? projects?.length ?? 0,
       icon: Briefcase,
       color: "bg-blue-50 text-blue-600",
       onClick: () => navigate("/client/projects"),
     },
     {
       title: "Demandes",
-      value: requests?.length || 0,
+      value: requestsResult?.total ?? requestsResult?.data?.length ?? 0,
       icon: MessageSquare,
       color: "bg-purple-50 text-purple-600",
       onClick: () => navigate("/client/requests"),
     },
     {
       title: "Documents",
-      value: documents?.length || 0,
+      value: documentsResult?.total ?? documents?.length ?? 0,
       icon: FileText,
       color: "bg-green-50 text-green-600",
     },

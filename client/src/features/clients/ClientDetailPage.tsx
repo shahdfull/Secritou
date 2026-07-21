@@ -58,6 +58,7 @@ import { FileUploadField } from "@/components/common/FileUploadField";
 import type { UploadResult } from "@/api/upload.api";
 import { documentSchema } from "@secritou/shared";
 import type { Project } from "@/types/project";
+import { getServerErrorMessage, getServerRequestId } from "@/utils/apiError";
 
 type CreditNote = {
   id: string;
@@ -200,8 +201,14 @@ export function ClientDetailPage() {
 
   async function handleInvite() {
     if (!inviteEmail || !inviteName) return;
-    await inviteClientUser.mutateAsync({ email: inviteEmail, name: inviteName });
-    setInviteDialogOpen(false);
+    try {
+      await inviteClientUser.mutateAsync({ email: inviteEmail, name: inviteName });
+      setInviteDialogOpen(false);
+    } catch (error) {
+      const message = getServerErrorMessage(error) ?? t("toasts.genericError");
+      const requestId = getServerRequestId(error);
+      toast.error(requestId ? `${message} (ref. ${requestId})` : message);
+    }
   }
 
   const handleAddDocument = (data: DocumentForm) => {

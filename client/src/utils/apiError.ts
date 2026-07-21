@@ -9,3 +9,12 @@ export function getServerErrorMessage(error: unknown): string | undefined {
   if (!(error instanceof AxiosError)) return undefined;
   return (error.response?.data as { error?: { message?: string } } | undefined)?.error?.message;
 }
+
+export function getServerRequestId(error: unknown): string | undefined {
+  if (!(error instanceof AxiosError)) return undefined;
+
+  const headers = error.response?.headers as Record<string, string | undefined> | undefined;
+  const data = error.response?.data as { requestId?: string } | undefined;
+
+  return data?.requestId ?? headers?.["x-request-id"] ?? headers?.["x-request-id".toLowerCase()];
+}

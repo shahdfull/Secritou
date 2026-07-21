@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import apiClient from "@/api/axios";
 import type { Approval as ApiApproval } from "@/api/approvals.api";
+import { getServerErrorMessage, getServerRequestId } from "@/utils/apiError";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CheckCircle, XCircle, MessageSquare, ClipboardCheck, Clock, Loader2 } from "lucide-react";
@@ -53,7 +54,11 @@ export function ApprovalsClientPage() {
     },
     // Without this, a failed respond (network, 403, already-actioned) left the
     // dialog open with no feedback — the client re-clicked "Confirm" blindly.
-    onError: () => toast.error(t("clientPortal.approvals.respondError")),
+    onError: (error) => {
+      const message = getServerErrorMessage(error) ?? t("clientPortal.approvals.respondError");
+      const requestId = getServerRequestId(error);
+      toast.error(requestId ? `${message} (ref. ${requestId})` : message);
+    },
   });
 
   if (isLoading) {
@@ -228,12 +233,12 @@ export function ApprovalsClientPage() {
                       {format(new Date(entry.createdAt), "d MMMM yyyy HH:mm", { locale: fr })}
                     </span>
                   </div>
-                  {entry.user && <p className="text-sm text-muted-foreground mb-1">By: {entry.user.name}</p>}
+                  {entry.user && <p className="text-sm text-muted-foreground mb-1">{t("common.by", "Par")} {entry.user.name}</p>}
                   {entry.comment && <p className="text-sm">{entry.comment}</p>}
                 </div>
               ))
             ) : (
-              <p className="text-center text-muted-foreground">No timeline entries yet</p>
+              <p className="text-center text-muted-foreground">{t("clientPortal.approvals.noTimelineEntries")}</p>
             )}
           </div>
           <DialogFooter>

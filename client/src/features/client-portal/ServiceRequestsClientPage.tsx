@@ -51,7 +51,7 @@ const getStatusText = (status: string, t: (key: string) => string) => {
 export function ServiceRequestsClientPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { data: requests, isLoading } = useClientServiceRequests();
+  const { data: requestsResult, isLoading } = useClientServiceRequests();
   const { mutate: createRequest, isPending } = useCreateClientServiceRequest();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -72,6 +72,8 @@ export function ServiceRequestsClientPage() {
       </div>
     );
   }
+
+  const requests = requestsResult?.data ?? [];
 
   return (
     <div className="container-page max-w-6xl mx-auto py-8">

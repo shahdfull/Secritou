@@ -57,6 +57,23 @@ export function LeadDetailDialog({ lead, open, onOpenChange }: LeadDetailDialogP
           </DialogHeader>
 
           <div className="space-y-4">
+            {current?.sourceContact && (
+              <div className="rounded-md border bg-muted/40 p-3 text-sm space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-ink">Source contact</p>
+                  <Badge variant="outline">{current.sourceContact.status}</Badge>
+                </div>
+                <p className="text-muted-foreground">
+                  {current.sourceContact.company} · {current.sourceContact.serviceType}
+                </p>
+                <p className="text-muted-foreground">{current.sourceContact.email}</p>
+                {current.sourceContact.phone && (
+                  <p className="text-muted-foreground">{current.sourceContact.phone}</p>
+                )}
+                <p className="whitespace-pre-wrap text-foreground/90">{current.sourceContact.message}</p>
+              </div>
+            )}
+
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-ink">
                 {t("proposals.fromLead.linkedProposals")}

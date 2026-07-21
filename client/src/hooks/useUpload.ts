@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { uploadApi, type UploadContext, type UploadResult } from "@/api/upload.api";
 import i18n from "@/i18n";
+import { getServerErrorMessage, getServerRequestId } from "@/utils/apiError";
 
 export interface UseUploadOptions {
   context: UploadContext;
@@ -29,7 +30,9 @@ export function useUpload({ context, onSuccess, onError }: UseUploadOptions): Us
       onSuccess?.(data);
     },
     onError: (err: Error) => {
-      toast.error(err.message ?? "Upload failed");
+      const message = getServerErrorMessage(err) ?? err.message ?? "Upload failed";
+      const requestId = getServerRequestId(err);
+      toast.error(requestId ? `${message} (ref. ${requestId})` : message);
       onError?.(err);
     },
   });

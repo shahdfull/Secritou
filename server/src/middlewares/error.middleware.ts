@@ -8,16 +8,23 @@ import { env } from "../config/env.js";
 import logger from "../utils/logger.js";
 
 export const errorMiddleware: ErrorRequestHandler = (error, req, res, _next) => {
+  const requestId = req.id;
+
+  const withRequestId = <T extends { error: Record<string, unknown>; message: string }>(body: T) => ({
+    ...body,
+    requestId,
+  });
+
   // Handle Prisma errors
   if (error instanceof Error && "code" in error && (error as { code?: unknown }).code === "P2002") {
     appErrorsTotal.inc({ type: "prisma_p2002", source: "database" });
-    res.status(409).json({
+    res.status(409).json(withRequestId({
       error: {
         code: "DUPLICATE_ENTRY",
         message: "A record with this unique field already exists",
       },
       message: "A record with this unique field already exists",
-    });
+    }));
     return;
   }
 
@@ -39,13 +46,13 @@ export const errorMiddleware: ErrorRequestHandler = (error, req, res, _next) => 
     }
 
     appErrorsTotal.inc({ type: `upload_${error.code}`, source: "multer" });
-    res.status(statusCode).json({
+    res.status(statusCode).json(withRequestId({
       error: {
         code: `MULTER_${error.code}`,
         message,
       },
       message,
-    });
+    }));
     return;
   }
 
@@ -61,20 +68,20 @@ export const errorMiddleware: ErrorRequestHandler = (error, req, res, _next) => 
   ) {
     const statusCode = (error as { statusCode: number }).statusCode;
     appErrorsTotal.inc({ type: `http_${statusCode}`, source: "validation" });
-    res.status(statusCode).json({
+    res.status(statusCode).json(withRequestId({
       error: {
         code: `HTTP_${statusCode}`,
         message: error.message,
       },
       message: error.message,
-    });
+    }));
     return;
   }
 
   if (error instanceof ZodError) {
     appErrorsTotal.inc({ type: "validation", source: "zod" });
     const details = error.flatten();
-    res.status(422).json({
+    res.status(422).json(withRequestId({
       error: {
         code: "VALIDATION_ERROR",
         message: "Validation failed",
@@ -83,13 +90,13 @@ export const errorMiddleware: ErrorRequestHandler = (error, req, res, _next) => 
       message: "Validation failed",
       issues: details,
       details,
-    });
+    }));
     return;
   }
 
   if (error instanceof HttpError) {
     appErrorsTotal.inc({ type: `http_${error.statusCode}`, source: "application" });
-    res.status(error.statusCode).json({
+    res.status(error.statusCode).json(withRequestId({
       error: {
         code: error.code,
         message: error.message,
@@ -97,18 +104,18 @@ export const errorMiddleware: ErrorRequestHandler = (error, req, res, _next) => 
       },
       message: error.message,
       details: error.details,
-    });
+    }));
     return;
   }
 
   appErrorsTotal.inc({ type: "unhandled", source: "server" });
   logger.error({ err: error, path: req.path, method: req.method }, "Unhandled error");
   if (env.SENTRY_DSN) Sentry.captureException(error);
-  res.status(500).json({
+  res.status(500).json(withRequestId({
     error: {
       code: "HTTP_500",
       message: "Internal server error",
     },
     message: "Internal server error",
-  });
+  }));
 };

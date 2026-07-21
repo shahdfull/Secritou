@@ -1,7 +1,10 @@
 import { COMPANY_ID } from "../config/constants.js";
 
 export const cacheKeys = {
-  dashboardSummary: () => `cache:dashboard:summary:${COMPANY_ID}`,
+  dashboardSummary: (serviceId?: string | null) =>
+    serviceId !== undefined
+      ? `cache:dashboard:summary:${COMPANY_ID}:${serviceId ?? "__none__"}`
+      : `cache:dashboard:summary:${COMPANY_ID}`,
   clientSummary: (clientId: string) => `cache:client:summary:${COMPANY_ID}:${clientId}`,
   projectSummary: (projectId: string) => `cache:project:summary:${COMPANY_ID}:${projectId}`,
   successSummary: (clientId: string) => `cache:success:summary:${COMPANY_ID}:${clientId}`,

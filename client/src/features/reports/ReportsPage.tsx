@@ -75,7 +75,7 @@ export function ReportsPage() {
     return { from: thirtyDaysAgo, to: today };
   });
 
-  const listParams = useMemo(() => ({ page: 1, pageSize: 500 }), []);
+  const listParams = useMemo(() => ({ page: 1, pageSize: 500, orderBy: "createdAt", orderDir: "desc" as const }), []);
   const { data: leadsResult, isLoading: leadsLoading } = useLeads(listParams);
   const { data: projectsResult, isLoading: projectsLoading } = useProjects(listParams);
   const { data: invoicesResult, isLoading: invoicesLoading } = useInvoices(listParams);

@@ -234,13 +234,14 @@ export function DocumentsClientPage() {
   }
 
   const docs = data?.data ?? [];
+  const loadedTotal = data?.data.length ?? 0;
+  const totalAvailable = data?.total ?? loadedTotal;
   const grouped = new Map<DocumentType, Document[]>();
   for (const type of DOC_TYPE_ORDER) {
     const items = docs.filter((d) => d.type === type);
     if (items.length > 0) grouped.set(type, items);
   }
 
-  const total = docs.length;
   const completed = docs.filter((d) => d.fileKey && (d.type !== "CONTRACT" || !!d.signedAt)).length;
   const hasContract = docs.some((d) => d.type === "CONTRACT");
 
@@ -248,9 +249,10 @@ export function DocumentsClientPage() {
     <section className="space-y-6 max-w-3xl mx-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Mes documents</h1>
-        {total > 0 && (
+        {loadedTotal > 0 && (
           <Badge variant="outline" className="text-base px-3 py-1">
-            {completed}/{total} document{total > 1 ? "s" : ""} complétés
+            {completed}/{loadedTotal} document{loadedTotal > 1 ? "s" : ""} complétés sur la page chargée
+            {totalAvailable > loadedTotal ? ` · ${totalAvailable} au total` : ""}
           </Badge>
         )}
       </div>

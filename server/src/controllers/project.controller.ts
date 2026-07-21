@@ -9,6 +9,7 @@ import { regenerateSpecsWithAiContent, regenerateRoadmapWithAiContent } from "..
 import { userRepository } from "../repositories/user.repository.js";
 
 const VALID_PROJECT_STATUSES = new Set(Object.values(ProjectStatus));
+const REPORTS_MAX_PAGE_SIZE = 500;
 
 // A set of statuses (e.g. the freelancer "active" sub-tab spanning PLANNING/IN_PROGRESS/REVIEW)
 // — distinct from parseListQuery's single-value `status`, which every other entity's
@@ -25,7 +26,7 @@ export const getAllProjects: RequestHandler = async (req, res, next) => {
     const userId = req.user!.sub;
     const userRole = req.user!.role;
     const clientId = req.user?.clientId as string | undefined;
-    const options = parseListQuery(req.query as Record<string, unknown>);
+    const options = parseListQuery(req.query as Record<string, unknown>, REPORTS_MAX_PAGE_SIZE);
     const statusIn = parseStatusIn(req.query.statusIn);
     const scope = userRole === "MANAGER" ? await buildServiceScope(req) : undefined;
     const result = await projectService.getAllProjects(userId, userRole, options, clientId, scope?.userServiceId, statusIn);
@@ -40,7 +41,7 @@ export const getDeletedProjects: RequestHandler = async (req, res, next) => {
     const userId = req.user!.sub;
     const userRole = req.user!.role;
     const clientId = req.user?.clientId as string | undefined;
-    const options = parseListQuery(req.query as Record<string, unknown>);
+    const options = parseListQuery(req.query as Record<string, unknown>, REPORTS_MAX_PAGE_SIZE);
     const scope = userRole === "MANAGER" ? await buildServiceScope(req) : undefined;
     const result = await projectService.getDeletedProjects(userId, userRole, options, clientId, scope?.userServiceId);
     res.json(result);
@@ -121,7 +122,7 @@ export const unarchiveProject: RequestHandler = async (req, res, next) => {
 export const getMyProjects: RequestHandler = async (req, res, next) => {
   try {
     const clientId = req.user!.clientId!;
-    const options = parseListQuery(req.query as Record<string, unknown>);
+    const options = parseListQuery(req.query as Record<string, unknown>, REPORTS_MAX_PAGE_SIZE);
     const result = await projectService.getAllProjects(req.user!.sub, "CLIENT", options, clientId);
     res.json(result);
   } catch (error) {

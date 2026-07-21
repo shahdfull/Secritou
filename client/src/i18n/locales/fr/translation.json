@@ -1604,6 +1604,7 @@
       "timelineTitle": "Historique",
       "respondSuccess": "Votre réponse a bien été enregistrée.",
       "respondError": "L'envoi de votre réponse a échoué. Veuillez réessayer.",
+      "noTimelineEntries": "Aucun historique pour le moment.",
       "statuses": {
         "PENDING": "En attente",
         "APPROVED": "Approuvé",

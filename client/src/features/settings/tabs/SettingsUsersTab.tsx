@@ -26,6 +26,7 @@ import { managerPermissionsApi } from "@/api/managerPermissions.api";
 import type { PermissionsMap, PermissionProfile } from "@/types/permissions";
 import { MODULES } from "@/types/permissions";
 import { PermissionsGrid } from "../PermissionsGrid";
+import { getServerErrorMessage, getServerRequestId } from "@/utils/apiError";
 
 type AppUser = {
   id: string;
@@ -87,7 +88,11 @@ function ManagerPermissionsPanel({ userId }: { userId: string }) {
       toast.success(t("permissions.updateSuccess"));
       void qc.invalidateQueries({ queryKey: ["manager-permissions", userId] });
     },
-    onError: () => toast.error(t("permissions.updateError")),
+    onError: (error) => {
+      const message = getServerErrorMessage(error) ?? t("permissions.updateError");
+      const requestId = getServerRequestId(error);
+      toast.error(requestId ? `${message} (ref. ${requestId})` : message);
+    },
   });
 
   // Build the effective overrides state from current managerPerm
@@ -123,11 +128,17 @@ function ManagerPermissionsPanel({ userId }: { userId: string }) {
   };
 
   const handleSaveOverrides = () => {
-    updateMutation.mutate({
-      profileId: managerPerm?.profileId ?? null,
-      overrides,
-    });
-    setOverridesDraft(null);
+    updateMutation.mutate(
+      {
+        profileId: managerPerm?.profileId ?? null,
+        overrides,
+      },
+      {
+        onSuccess: () => {
+          setOverridesDraft(null);
+        },
+      }
+    );
   };
 
   const selectedProfileId = managerPerm?.profileId ?? "__none__";

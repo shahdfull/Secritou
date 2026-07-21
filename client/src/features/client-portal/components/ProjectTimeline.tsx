@@ -6,6 +6,7 @@ import { formatDistanceToNowStrict } from "date-fns";
 import { projectsApi, TimelineStep } from "@/api/projects.api";
 import { formatDate } from "@/utils/format";
 import { announce } from "@/lib/a11yAnnounce";
+import { getServerErrorMessage, getServerRequestId } from "@/utils/apiError";
 
 // ---------------------------------------------------------------------------
 // Hook
@@ -91,7 +92,7 @@ function TimelineStepItem({ step, isLast }: { step: TimelineStep; isLast: boolea
 // ---------------------------------------------------------------------------
 
 export function ProjectTimeline({ projectId }: { projectId: string }) {
-  const { data: steps, isLoading, isError, dataUpdatedAt } = useProjectTimeline(projectId);
+  const { data: steps, isLoading, isError, dataUpdatedAt, error } = useProjectTimeline(projectId);
   const previousSignatureRef = useRef<string | null>(null);
 
   const freshnessLabel = dataUpdatedAt
@@ -124,9 +125,11 @@ export function ProjectTimeline({ projectId }: { projectId: string }) {
   }
 
   if (isError || !steps) {
+    const message = getServerErrorMessage(error) ?? "Impossible de charger la timeline.";
+    const requestId = getServerRequestId(error);
     return (
       <p className="text-sm text-muted-foreground">
-        Impossible de charger la timeline.
+        {requestId ? `${message} (réf. ${requestId})` : message}
       </p>
     );
   }

@@ -16,6 +16,7 @@ import { contactRequestsApi, type ContactRequest } from "@/api/contactRequests.a
 import { usersApi } from "@/api/users.api";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { getServerErrorMessage } from "@/utils/apiError";
 
 const createReviewSchema = (t: (key: string) => string) => z.object({
   name: z.string().min(2, t("auth.nameMinLength")),
@@ -87,11 +88,14 @@ export function SettingsJoinRequestsTab() {
         department: data.department || undefined,
       }),
     onSuccess: (result) => {
-      toast.success("Lead created successfully!");
+      toast.success(t("joinRequests.leadCreated"));
       setSelectedForConvert(null);
       queryClient.invalidateQueries({ queryKey: ["contact-requests"] });
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       navigate(`/app/crm/leads/${result.data.id}`);
+    },
+    onError: (error) => {
+      toast.error(getServerErrorMessage(error) ?? t("joinRequests.convertFailed"));
     },
   });
 
@@ -119,15 +123,15 @@ export function SettingsJoinRequestsTab() {
                     <p className="font-semibold text-ink">{request.name}</p>
                     {request.convertedLead && (
                       <Badge
-                      variant="default"
-                      className="cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/app/crm/leads/${request.convertedLead?.id}`);
-                      }}
-                    >
+                        variant="default"
+                        className="cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/app/crm/leads/${request.convertedLead?.id}`);
+                        }}
+                      >
                         <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Lead created
+                        {t("joinRequests.leadCreated")}
                       </Badge>
                     )}
                   </div>
@@ -240,10 +244,8 @@ export function SettingsJoinRequestsTab() {
       <Dialog open={!!selectedForConvert} onOpenChange={(open) => !open && setSelectedForConvert(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Convert Contact Request to Lead</DialogTitle>
-            <DialogDescription>
-              This will create a new lead in your CRM from this contact request.
-            </DialogDescription>
+            <DialogTitle>{t("joinRequests.convertTitle")}</DialogTitle>
+            <DialogDescription>{t("joinRequests.convertDescription")}</DialogDescription>
           </DialogHeader>
           <Form {...convertForm}>
             <form
@@ -260,10 +262,10 @@ export function SettingsJoinRequestsTab() {
                 name="assignedManagerId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Assigned Manager (optional)</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Manager ID" />
-                    </FormControl>
+                  <FormLabel>{t("joinRequests.assignedManager")}</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder={t("joinRequests.assignedManagerPlaceholder")} />
+                  </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -273,10 +275,10 @@ export function SettingsJoinRequestsTab() {
                 name="department"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Department (optional)</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Department" />
-                    </FormControl>
+                  <FormLabel>{t("joinRequests.department")}</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder={t("joinRequests.departmentPlaceholder")} />
+                  </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -287,7 +289,7 @@ export function SettingsJoinRequestsTab() {
                 </Button>
                 <Button type="submit" disabled={convertToLead.isPending}>
                   {convertToLead.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Convert to Lead
+                  {t("joinRequests.convertToLead")}
                 </Button>
               </DialogFooter>
             </form>
