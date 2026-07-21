@@ -7828,7 +7828,7 @@ anomalies:
     regle_violee: null
     classe: "index_manquant_colonne_filtree"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `schema.prisma#ServiceRequest` porte `@@index([priority])`
       et `@@index([type])` (ou un index composite couvrant les deux avec
@@ -7854,13 +7854,27 @@ anomalies:
       minimisation du risque à l'échelle (le volume de `ServiceRequest`
       croît avec l'activité commerciale, contrairement à SEC-113).
 
+      RÉSOLU (session en cours) : `@@index([priority])` et
+      `@@index([type])` ajoutés à `schema.prisma#ServiceRequest`, migration
+      `20260721020000_index_cleanup_and_time_entry_invoice_fk` (batch
+      couvrant aussi SEC-112/113/166/167), appliquée sur la base de dev
+      réelle. Preuve par test réel
+      (`server/test/schemaIndexCleanupAndTimeEntryFk.test.ts`) : requête
+      `pg_indexes` confirmant `ServiceRequest_priority_idx` et
+      `ServiceRequest_type_idx` existent réellement en base, pas
+      seulement dans le schéma. `npx tsc --noEmit` et
+      `npm run lint --workspace=server` verts, suite complète verte (505
+      tests). Dérogation CI déjà accordée par l'utilisateur pour cette
+      session : `resolu` malgré l'absence de run CI vert sur ce commit
+      précis.
+
   - id: SEC-112
     titre: "Document sans index composite (projectId, type) alors que documentRepository.findLatestByProjectAndType filtre exactement sur ce couple"
     perimetre: "schema.prisma — model Document ; server/src/repositories/document.repository.ts"
     regle_violee: null
     classe: "index_manquant_colonne_filtree"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `schema.prisma#Document` porte
       `@@index([projectId, type])`, qu'une migration correspondante est
@@ -7882,13 +7896,24 @@ anomalies:
       prouvé aujourd'hui, pas une minimisation du risque à l'échelle (le
       volume de `Document` croît avec l'activité, contrairement à SEC-113).
 
+      RÉSOLU (session en cours) : `@@index([projectId, type])` ajouté à
+      `schema.prisma#Document`, même migration batch que SEC-111
+      (`20260721020000_index_cleanup_and_time_entry_invoice_fk`). Preuve
+      par test réel
+      (`server/test/schemaIndexCleanupAndTimeEntryFk.test.ts`) : requête
+      `pg_indexes` confirmant `Document_projectId_type_idx` existe
+      réellement en base. Suite complète verte (505 tests), `npx tsc
+      --noEmit` et `npm run lint --workspace=server` verts. Dérogation CI
+      déjà accordée par l'utilisateur pour cette session : `resolu`
+      malgré l'absence de run CI vert sur ce commit précis.
+
   - id: SEC-113
     titre: "ManagerPermission.profileId sans index alors que managerPermissionRepository.findUserIdsByProfileId filtre dessus (appelé à chaque update/delete de PermissionProfile)"
     perimetre: "schema.prisma — model ManagerPermission ; server/src/repositories/managerPermission.repository.ts"
     regle_violee: null
     classe: "index_manquant_colonne_filtree"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `schema.prisma#ManagerPermission` porte
       `@@index([profileId])`, qu'une migration correspondante est commitée,
@@ -7913,6 +7938,16 @@ anomalies:
       SEC-111/SEC-112, `ManagerPermission` est borné par le nombre de
       managers internes, jamais par un volume d'activité commerciale : le
       risque n'augmente pas avec la croissance de l'agence).
+
+      RÉSOLU (session en cours) : `@@index([profileId])` ajouté à
+      `schema.prisma#ManagerPermission`, même migration batch que
+      SEC-111/112. Preuve par test réel
+      (`server/test/schemaIndexCleanupAndTimeEntryFk.test.ts`) : requête
+      `pg_indexes` confirmant `ManagerPermission_profileId_idx` existe
+      réellement en base. Suite complète verte (505 tests), `npx tsc
+      --noEmit` et `npm run lint --workspace=server` verts. Dérogation CI
+      déjà accordée par l'utilisateur pour cette session : `resolu`
+      malgré l'absence de run CI vert sur ce commit précis.
 
   - id: SEC-114
     titre: "PermissionProfile.delete ne vérifie pas si des ManagerPermission y sont encore rattachées : la suppression passe (ON DELETE SET NULL en base), mais les managers concernés perdent silencieusement toutes les permissions venant du profil, sans avertissement ni trace"
@@ -10975,7 +11010,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `TimeEntry.billedInvoiceId` est déclaré comme une
       vraie relation Prisma vers `Invoice` (`@relation(fields:
@@ -11007,13 +11042,36 @@ anomalies:
       `billedInvoiceId` si un jour un écran "temps facturés sur cette
       facture" est construit.
 
+      RÉSOLU (session en cours) : `billedInvoiceId` porte désormais une
+      vraie relation Prisma (`billedInvoice Invoice? @relation(...,
+      onDelete: SetNull)`, relation nommée `"TimeEntryBilledInvoice"`
+      avec le champ inverse `Invoice.billedTimeEntries`), plus
+      `@@index([billedInvoiceId])`. Zéro valeur orpheline confirmée par
+      requête sur la base réelle avant migration (`WHERE
+      billedInvoiceId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM
+      "Invoice" ...)`, résultat vide). `onDelete: SetNull` retenu :
+      une facture n'est jamais hard-deletée dans le code applicatif
+      (confirmé par la note d'origine), mais un `TimeEntry` facturé doit
+      malgré tout survivre si ce cas se produisait un jour hors chemin
+      applicatif standard. Preuve par test réel
+      (`server/test/schemaIndexCleanupAndTimeEntryFk.test.ts`) : crée un
+      vrai `TimeEntry` avec `billedInvoiceId` pointant vers une vraie
+      `Invoice`, vérifie que `include: { billedInvoice: true }` résout
+      correctement la relation, ET qu'un `billedInvoiceId` inexistant est
+      rejeté par une vraie violation de contrainte FK (pas seulement
+      absent de vérification applicative). Suite complète verte (505
+      tests), `npx tsc --noEmit` et `npm run lint --workspace=server`
+      verts. Dérogation CI déjà accordée par l'utilisateur pour cette
+      session : `resolu` malgré l'absence de run CI vert sur ce commit
+      précis.
+
   - id: SEC-167
     titre: "Trois colonnes portent à la fois une contrainte @unique/@@unique ET un @@index séparé sur exactement les mêmes colonnes (User.email, FreelancerApplication.email, Payment.idempotencyKey) — un index redondant qui n'apporte aucun bénéfice de requête (la contrainte unique crée déjà son propre index) mais double le coût d'écriture (INSERT/UPDATE) et l'espace disque sur ces colonnes"
     perimetre: "schema.prisma#User (lignes 200+203), #FreelancerApplication (lignes 891-892), #Payment (ligne 966+978)"
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `@@index([email])` est retiré de `User` et de
       `FreelancerApplication`, et `@@index([idempotencyKey])` retiré de
@@ -11043,6 +11101,23 @@ anomalies:
       (`Client.email`, `Service.name`, `Skill.name` — tous `@unique`/`@@unique`
       sans `@@index` redondant associé). Gravité mineure : coût réel mais
       faible en écriture, aucun risque d'incohérence de données.
+
+      RÉSOLU (session en cours) : les 3 `@@index` redondants retirés
+      (`User.email`, `FreelancerApplication.email`,
+      `Payment.idempotencyKey`), même migration batch que SEC-111/112/
+      113/166. Preuve par test réel
+      (`server/test/schemaIndexCleanupAndTimeEntryFk.test.ts`) : requête
+      `pg_indexes` sur la base réelle confirmant que
+      `User_email_idx`/`FreelancerApplication_email_idx`/
+      `Payment_idempotencyKey_idx` n'existent PLUS, tandis que
+      `User_email_key`/`FreelancerApplication_email_key`/
+      `Payment_idempotencyKey_key` (les index créés automatiquement par
+      les contraintes `@unique`/`@@unique`) existent toujours — un seul
+      index par colonne concernée, exactement le critère demandé. Suite
+      complète verte (505 tests), `npx tsc --noEmit` et
+      `npm run lint --workspace=server` verts. Dérogation CI déjà
+      accordée par l'utilisateur pour cette session : `resolu` malgré
+      l'absence de run CI vert sur ce commit précis.
 
   - id: SEC-168
     titre: "project.service.ts#clientApprove construit une URL de portail client avec des antislashs au lieu de slashs (`${env.FRONTEND_URL}\\client\\invoices`) dans l'email envoyé au client après approbation finale — lien cassé/inutilisable selon le navigateur"
@@ -11391,7 +11466,7 @@ anomalies:
     regle_violee: null
     classe: "incoherence_registre_anomalies"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand le champ `statut` de SEC-122 est mis à jour pour
       refléter l'état réel du dépôt (`resolu` si le porteur confirme que la
@@ -11426,6 +11501,15 @@ anomalies:
       Ce constat porte donc uniquement sur l'incohérence du registre lui-
       même (un `ouvert`/`bloquant` non mis à jour malgré un correctif
       commité et testé), pas sur le code applicatif.
+
+      RÉSOLU (session en cours) : `SEC-122` porte désormais
+      `statut: resolu` (mis à jour par mes propres appels d'outils, plus
+      tôt dans cette même session, avant la détection de SEC-175 par le
+      processus externe) — dérogation CI déjà accordée par l'utilisateur
+      pour toute la session ("Le ci n est pas important pour le moment
+      make them resolus"), donc `resolu` est le statut correct ici, pas
+      seulement `en_cours`. Le registre est de nouveau cohérent : SEC-122
+      et SEC-137 (qui le citait déjà comme résolu) s'accordent désormais.
 
   - id: SEC-176
     titre: "20 des 37 fichiers routes/*.ts n'appliquent aucun rate limiter (ni authRateLimit ni sensitiveWriteRateLimit ni autre) sur leurs routes POST/PUT/PATCH/DELETE authentifiées, alors que le middleware existe et est déjà utilisé ailleurs (invoice, client, freelancerApplication)"

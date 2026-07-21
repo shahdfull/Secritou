@@ -109,3 +109,4 @@ import "./depositRateSingleSource.test.ts";
 import "./leadCreateConcurrency.test.ts";
 import "./invoicePaymentInviteFailure.test.ts";
 import "./markOverdueInvoicesAuditLog.test.ts";
+import "./schemaIndexCleanupAndTimeEntryFk.test.ts";
