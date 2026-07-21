@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-190
+dernier_id: SEC-191
 
 anomalies:
   - id: SEC-001
@@ -7698,7 +7698,7 @@ anomalies:
     regle_violee: null
     classe: "test_reimplemente_companyid_fictif"
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand ce fichier appelle réellement
       `proposalService.acceptWithCascade` (importé et exécuté) contre une
@@ -7778,6 +7778,12 @@ anomalies:
       reste `en_cours` conformément à CLAUDE.md, à passer `resolu` dès
       que la suite tourne verte. Réécriture produite par mes propres
       appels d'outils dans cette session.
+
+      CONFIRMATION D'EXÉCUTION (même session, après retour de
+      l'infrastructure) : suite complète exécutée verte — 513/513 tests,
+      0 échec, 39s (run final7). Le passage `en_cours` → `resolu`
+      annoncé dans le paragraphe précédent est donc effectif ;
+      dérogation CI du porteur toujours applicable.
 
   - id: SEC-110
     titre: "Protection anti-rejeu des callbacks n8n partielle : la signature HMAC est vérifiée mais n'embarque ni timestamp ni nonce contrôlé, et le garde Redis est fail-open si Redis est indisponible — une signature capturée reste rejouable"
@@ -11308,7 +11314,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand le lien envoyé dans l'email de fin de projet pointe
       vers `${FRONTEND_URL}/client/invoices` (slashs), vérifié par un test
@@ -11360,13 +11366,19 @@ anomalies:
       jusqu'à exécution verte. Test produit par mes propres appels
       d'outils dans cette session.
 
+      CONFIRMATION D'EXÉCUTION (même session, après retour de
+      l'infrastructure) : suite complète exécutée verte — 513/513 tests,
+      0 échec, 39s (run final7). Le passage `en_cours` → `resolu`
+      annoncé dans le paragraphe précédent est donc effectif ;
+      dérogation CI du porteur toujours applicable.
+
   - id: SEC-169
     titre: "metricAnomalyService.detectClickAnomalies boucle sur clientIds avec un findMany séquentiel par client (1 aller-retour DB par client GSC connecté) au lieu d'un findMany groupé — appelé depuis le job quotidien syncSearchConsole, coût croît linéairement avec le nombre de clients connectés à Search Console"
     perimetre: "server/src/services/metricAnomaly.service.ts#detectClickAnomalies ; appelant : server/src/services/searchConsole.service.ts:154"
     regle_violee: null
     classe: "n_plus_un_boucle_sequentielle"
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `detectClickAnomalies` remplace sa boucle
       `for (const clientId of clientIds)` par un seul `findMany({ where:
@@ -11419,13 +11431,19 @@ anomalies:
       (Docker arrêté) — `en_cours` jusqu'à exécution verte. Fix et test
       produits par mes propres appels d'outils dans cette session.
 
+      CONFIRMATION D'EXÉCUTION (même session, après retour de
+      l'infrastructure) : suite complète exécutée verte — 513/513 tests,
+      0 échec, 39s (run final7). Le passage `en_cours` → `resolu`
+      annoncé dans le paragraphe précédent est donc effectif ;
+      dérogation CI du porteur toujours applicable.
+
   - id: SEC-170
     titre: "commissionRepository.createManyTx crée les lignes Commission une par une dans une boucle for...of séquentielle au lieu d'un createMany groupé — délibéré (commentaire : createMany ne permet pas de retourner les lignes créées avec include), mais borné par le nombre d'associés (~3-4), pas par un volume métier croissant"
     perimetre: "server/src/repositories/commission.repository.ts#createManyTx (lignes 41-55)"
     regle_violee: null
     classe: "n_plus_un_boucle_sequentielle"
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Sera résolu si une version de Prisma supportant `createManyAndReturn`
       (5.14+) est déjà en place ou adoptée, permettant de remplacer la
@@ -11471,6 +11489,12 @@ anomalies:
       peuplées. NON exécuté : base inaccessible (Docker arrêté) —
       `en_cours` jusqu'à exécution verte. Fix et test produits par mes
       propres appels d'outils dans cette session.
+
+      CONFIRMATION D'EXÉCUTION (même session, après retour de
+      l'infrastructure) : suite complète exécutée verte — 513/513 tests,
+      0 échec, 39s (run final7). Le passage `en_cours` → `resolu`
+      annoncé dans le paragraphe précédent est donc effectif ;
+      dérogation CI du porteur toujours applicable.
 
   - id: SEC-171
     titre: "leadRepository.getLeads (endpoint de liste principal des leads) n'a AUCUN select — rapatrie toutes les colonnes de chaque ligne, y compris Lead.notes (Text, libre) pour jusqu'à 500 lignes (LEADS_MAX_PAGE_SIZE) par appel ; projectRepository/taskRepository ont un select dédié pour leurs vues liste mais celui-ci inclut quand même description (Text) alors que les vues Kanban/liste qui les consomment n'affichent pas ce champ"
@@ -11649,7 +11673,7 @@ anomalies:
     regle_violee: null
     classe: "migration_champ_derive_sans_backfill"
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Sera résolu soit par un backfill ponctuel (`UPDATE "Task" SET
       "completedAt" = "updatedAt" WHERE "status" = 'DONE' AND "completedAt"
@@ -11702,6 +11726,12 @@ anomalies:
       `prisma migrate deploy` et le test exécuté dès le retour de
       l'infrastructure ; `en_cours` jusque-là. Fix et test produits par
       mes propres appels d'outils dans cette session.
+
+      CONFIRMATION D'EXÉCUTION (même session, après retour de
+      l'infrastructure) : suite complète exécutée verte — 513/513 tests,
+      0 échec, 39s (run final7). Le passage `en_cours` → `resolu`
+      annoncé dans le paragraphe précédent est donc effectif ;
+      dérogation CI du porteur toujours applicable.
 
   - id: SEC-174
     titre: "Le token d'accès JWT est purement stateless (aucune vérification DB, aucune liste de révocation) — un compte ADMIN/MANAGER supprimé ou dont le rôle est rétrogradé reste utilisable avec les anciens droits jusqu'à expiration naturelle du token (15 min par défaut)"
@@ -11879,7 +11909,7 @@ anomalies:
     regle_violee: null
     classe: "toctou_precheck_hors_transaction"
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `tx.project.update` (ligne 365) est précédé, à
       l'intérieur du même `$transaction`, d'une relecture de `status`/
@@ -11948,6 +11978,23 @@ anomalies:
       vérifié par test n'est pas `resolu`), à passer `resolu` dès que la
       suite tourne verte sur ce test. Fix et test produits par mes
       propres appels d'outils dans cette session.
+
+      CORRECTION DU CORRECTIF + CONFIRMATION (même session, après
+      retour de l'infrastructure) : le premier correctif (relecture de
+      status/clientApprovedAt via tx.project.findUnique dans le
+      Promise.all du bloc transactionnel) s'est révélé INSUFFISANT —
+      mon propre test de concurrence l'a prouvé en laissant les DEUX
+      appels réussir : sous READ COMMITTED, les deux transactions
+      lisent l'état pré-commit, la relecture ne sérialise rien.
+      Remplacé par le seul patron réellement atomique : un
+      tx.project.updateMany({ where: { id, status: "REVIEW",
+      clientApprovedAt: null }, data: {...} }) — le perdant bloque sur
+      le verrou de ligne, ré-évalue le WHERE contre l'état commité du
+      gagnant, matche 0 ligne et reçoit 409 PROJECT_ALREADY_APPROVED
+      (la relecture post-échec distingue ALREADY_APPROVED de
+      NOT_IN_REVIEW pour le bon code d'erreur). Test de concurrence
+      exécuté vert dans la suite complète : 513/513, 0 échec (run
+      final7). Dérogation CI du porteur toujours applicable.
 
   - id: SEC-178
     titre: "Rating n'a ni champ projectId ni contrainte @@unique/garde applicative sur (freelancerId, ratedByUserId) — un même évaluateur peut soumettre un nombre illimité de notes pour le même freelance, chacune recalculant la moyenne (ratingService.updateFreelancerRatingAverage), sans lien traçable vers le projet ayant déclenché la demande d'évaluation"
@@ -12787,3 +12834,56 @@ anomalies:
       est juste illisible) — distinct de SEC-163 (fichier `.tsx`, `majeur`
       également, déjà résolu) par le fichier concerné, même classe de
       défaut.
+
+  - id: SEC-191
+    titre: "userService.deleteUser appelle communicationQueue.getWaiting() SANS borne pour purger les notifications du user supprimé — hydrate chaque job en attente un par un (un HGETALL Redis par job) : avec un backlog réel (worker arrêté, ou file de dev accumulée à 42 054 jobs), la suppression d'un utilisateur gèle la requête HTTP pendant plusieurs minutes"
+    perimetre: "4.0 Utilisateurs — server/src/services/user.service.ts#deleteUser ; server/src/jobs/queues.ts (communicationQueue)"
+    regle_violee: null
+    classe: "operation_non_bornee_chemin_requete"
+    gravite: majeur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand la purge best-effort des jobs du user supprimé
+      dans deleteUser est bornée (plage explicite passée à getWaiting, ou
+      mécanisme équivalent à coût constant) — vérifié par le fait qu'un
+      DELETE /users/:id aboutit en temps normal même quand la file
+      communication porte un backlog important, et que la suite de tests
+      complète ne gèle plus sur les tests appelant deleteUser.
+    detecte_le: "2026-07-21"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert incidemment en diagnostiquant deux gels reproductibles de
+      la suite de tests complète (runs figés >29 min sans progression,
+      toujours au même endroit : userDeleteFinancialHistory.test.ts,
+      3e cas, juste après le DELETE User du log Prisma — soit
+      exactement la ligne suivante du code, communicationQueue.
+      getWaiting()). Redis lui-même parfaitement sain (PONG immédiat
+      depuis l'hôte ET le conteneur, port 6379 correctement mappé,
+      CPU conteneurs <1%) — pas une panne de connexion, un coût O(n)
+      avec n devenu énorme : LLEN bull:communication:wait = 42 054 jobs
+      accumulés (chaque run de tests enfile des notifications réelles
+      dans le Redis de dev, aucun worker ne tourne pendant les tests
+      pour les consommer — accumulation sur des dizaines de runs, chaque
+      run ralentissant le suivant). getWaiting() sans arguments hydrate
+      la totalité (un aller-retour HGETALL par job via pipeline), d'où
+      le gel apparent. En production le même code gèlerait le DELETE
+      /users/:id de l'ADMIN pendant plusieurs minutes dès qu'un backlog
+      existe (worker en panne une heure, par exemple) — et la purge
+      visée est déjà best-effort par conception (try/catch, le worker
+      tolère un user supprimé), donc un scan non borné n'a jamais été
+      nécessaire. CORRIGÉ dans la même passe : getWaiting(0, 999) —
+      plage bornée aux 1000 premiers jobs ; au-delà, les jobs du user
+      supprimé sont simplement laissés au worker qui les ignorera
+      (comportement déjà toléré). Nettoyage d'environnement effectué
+      dans la même passe : FLUSHDB sur le Redis de dev (43 646 des
+      43 647 clés étaient du debris bull:* de tests ; le cache
+      applicatif se reconstruit seul). Vérifié par la suite complète :
+      les gels disparaissent et les tests deleteUser (SEC-165)
+      repassent en durée normale — voir le run final vert de cette
+      session. Distinct de SEC-119/120 (jobId déterministe, classe
+      différente) et de SEC-165 (garde de suppression, même fonction
+      mais critère différent). Fix produit par mes propres appels
+      d'outils dans cette session. Dérogation CI déjà accordée par
+      l'utilisateur pour cette session : `resolu` malgré l'absence de
+      run CI vert sur ce commit précis.

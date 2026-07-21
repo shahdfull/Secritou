@@ -342,23 +342,11 @@ export const projectService = {
       // could be reopened (DONE -> REVIEW is a valid transition), an Approval created, or the
       // deposit invoice status changed in the window between preread and here. Without this,
       // the project could complete despite one of these conditions no longer holding.
-      const [openTasksTx, depositTx, unresolvedApprovalsTx, projectStateTx] = await Promise.all([
+      const [openTasksTx, depositTx, unresolvedApprovalsTx] = await Promise.all([
         tx.task.count({ where: { projectId, status: { not: "DONE" } } }),
         tx.invoice.findFirst({ where: { projectId, invoiceType: "DEPOSIT" }, select: { status: true } }),
         tx.approval.count({ where: { projectId, status: { in: ["PENDING", "REJECTED"] } } }),
-        // SEC-177: status/clientApprovedAt were only checked in the outside-transaction preread
-        // above — two near-simultaneous calls (double-click, network retry) could both pass that
-        // check before either commits, the second silently overwriting clientApprovedAt/
-        // clientApprovedById with a fresh timestamp. Re-checked here for the same reason as the
-        // three guards above.
-        tx.project.findUnique({ where: { id: projectId }, select: { status: true, clientApprovedAt: true } }),
       ]);
-      if (projectStateTx?.clientApprovedAt) {
-        throw new HttpError(409, "Project already approved", "PROJECT_ALREADY_APPROVED");
-      }
-      if (projectStateTx?.status !== "REVIEW") {
-        throw new HttpError(409, "Project is not ready for client approval", "PROJECT_NOT_IN_REVIEW");
-      }
       if (openTasksTx > 0) {
         throw new HttpError(400, `${openTasksTx} tâche(s) non terminée(s)`, "OPEN_TASKS_REMAINING");
       }
@@ -374,9 +362,25 @@ export const projectService = {
         );
       }
 
-      const project = await tx.project.update({
-        where: { id: projectId },
+      // SEC-177: status/clientApprovedAt were only checked in the outside-transaction preread —
+      // two near-simultaneous calls (double-click, network retry) could both pass it before
+      // either commits, the second silently overwriting clientApprovedAt/clientApprovedById. A
+      // tx re-read doesn't close this either (READ COMMITTED: both transactions still see the
+      // pre-commit state — confirmed by a real concurrency test where both calls succeeded).
+      // The atomic conditional update below is what actually serializes them: the loser blocks
+      // on the row lock, then re-evaluates the WHERE against the winner's committed state,
+      // matches 0 rows, and is rejected.
+      const approvalClaim = await tx.project.updateMany({
+        where: { id: projectId, status: "REVIEW", clientApprovedAt: null },
         data: { status: "COMPLETED", clientApprovedAt: new Date(), clientApprovedById: userId },
+      });
+      if (approvalClaim.count === 0) {
+        const state = await tx.project.findUnique({ where: { id: projectId }, select: { status: true, clientApprovedAt: true } });
+        if (state?.clientApprovedAt) throw new HttpError(409, "Project already approved", "PROJECT_ALREADY_APPROVED");
+        throw new HttpError(409, "Project is not ready for client approval", "PROJECT_NOT_IN_REVIEW");
+      }
+      const project = await tx.project.findUniqueOrThrow({
+        where: { id: projectId },
         select: { id: true, name: true, clientId: true, invoices: { select: { invoiceType: true } } },
       });
 

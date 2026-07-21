@@ -81,6 +81,13 @@ describe("clientApprove's client-facing email uses a real URL, not backslashes (
     try {
       const approved = await projectService.clientApprove(project.id, client.id, clientUser.id);
       assert.ok(approved, "clientApprove must resolve successfully");
+
+      // The client email is sent in a fire-and-forget async block AFTER clientApprove resolves
+      // (confirmed by tracing: the send fires post-resolution) — poll briefly, bounded, instead
+      // of asserting immediately. The mock must stay swapped until the capture happens.
+      for (let i = 0; i < 100 && !capturedBody; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
     } finally {
       emailService.send = originalSend;
     }

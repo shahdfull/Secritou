@@ -189,8 +189,13 @@ export const userService = {
 
     // Best-effort: remove waiting notification jobs addressed to this user so they
     // don't clutter the queue and produce spurious "user not found" failures.
+    // SEC-191: getWaiting() with no range hydrates EVERY waiting job (one HGETALL each) — with a
+    // real backlog (worker down, or a dev queue that accumulated 42k jobs across test runs) this
+    // made deleteUser hang for minutes inside an HTTP request. Bounded to the first 1000: this
+    // cleanup is cosmetic and already best-effort by design (the worker tolerates deleted users);
+    // jobs beyond the bound are simply left for the worker to skip, never worth an unbounded scan.
     try {
-      const waitingJobs = await communicationQueue.getWaiting();
+      const waitingJobs = await communicationQueue.getWaiting(0, 999);
       const userJobs = waitingJobs.filter((j) => (j.data as { userId?: string })?.userId === id);
       await Promise.all(userJobs.map((j) => j.remove()));
     } catch (err) {

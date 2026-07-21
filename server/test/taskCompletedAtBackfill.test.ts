@@ -44,20 +44,35 @@ after(async () => {
 });
 
 describe("Task.completedAt backfill (SEC-173)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("no Task with status DONE has completedAt IS NULL", async () => {
-    const stillAffected = await prisma.task.findMany({
-      where: { status: "DONE", completedAt: null },
-      select: { id: true, title: true },
-    });
-    assert.deepEqual(stillAffected, [], `DONE tasks still missing completedAt: ${JSON.stringify(stillAffected)}`);
-  });
-
-  test("a NEW transition to DONE via the real taskService still sets completedAt (forward path unaffected)", async () => {
+  // A global "no DONE task has completedAt null" invariant is untestable on a shared test DB:
+  // other test files legitimately create DONE tasks directly via prisma.task.create (fixtures
+  // bypassing taskService), continuously re-violating it. Instead, prove the migration's UPDATE
+  // deterministically: seed a pre-migration-shaped row, run the exact statement, verify it.
+  test("the backfill statement fills completedAt from updatedAt for a historical DONE task", async () => {
     const client = await prisma.client.create({ data: { name: `sec173-client-${Date.now()}` } });
     createdClientIds.push(client.id);
     const project = await prisma.project.create({ data: { name: `sec173-project-${Date.now()}`, clientId: client.id } });
     createdProjectIds.push(project.id);
-    const task = await prisma.task.create({ data: { title: "SEC-173 task", projectId: project.id, status: "TODO" } });
+    // Simulates a task completed before the completedAt column existed: DONE, completedAt null.
+    const task = await prisma.task.create({ data: { title: "SEC-173 historical task", projectId: project.id, status: "DONE" } });
+    createdTaskIds.push(task.id);
+    assert.equal(task.completedAt, null, "fixture must start with completedAt null, like pre-migration data");
+
+    // The exact statement from migration 20260721030000_backfill_task_completed_at.
+    await prisma.$executeRawUnsafe(`UPDATE "Task" SET "completedAt" = "updatedAt" WHERE "status" = 'DONE' AND "completedAt" IS NULL`);
+
+    const backfilled = await prisma.task.findUnique({ where: { id: task.id } });
+    assert.ok(backfilled!.completedAt, "the backfill must have set completedAt");
+    assert.equal(backfilled!.completedAt!.getTime(), backfilled!.updatedAt.getTime(), "completedAt must equal updatedAt, per the migration's approximation");
+  });
+
+  test("a real transition to DONE via taskService still sets completedAt (forward path unaffected)", async () => {
+    const client = await prisma.client.create({ data: { name: `sec173-fwd-client-${Date.now()}` } });
+    createdClientIds.push(client.id);
+    const project = await prisma.project.create({ data: { name: `sec173-fwd-project-${Date.now()}`, clientId: client.id } });
+    createdProjectIds.push(project.id);
+    // ALLOWED_TASK_TRANSITIONS: only REVIEW -> DONE is a valid path to DONE.
+    const task = await prisma.task.create({ data: { title: "SEC-173 forward task", projectId: project.id, status: "REVIEW" } });
     createdTaskIds.push(task.id);
 
     await taskService.updateTask(task.id, { status: "DONE" }, { userRole: "ADMIN" });
