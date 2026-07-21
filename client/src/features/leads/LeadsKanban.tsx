@@ -63,7 +63,10 @@ interface SortableLeadCardProps {
   onCreateProposal: (lead: Lead) => void;
 }
 
-function SortableLeadCard({ lead, onCreateProposal }: SortableLeadCardProps) {
+// SEC-157: memoized to match TasksKanban.tsx's SortableTaskCard — without it, every card across
+// every column re-renders on any parent state change (drag activeId, refetch), up to 500 leads
+// (LEADS_MAX_PAGE_SIZE).
+const SortableLeadCard = memo(function SortableLeadCard({ lead, onCreateProposal }: SortableLeadCardProps) {
   const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lead.id });
 
@@ -131,7 +134,7 @@ function SortableLeadCard({ lead, onCreateProposal }: SortableLeadCardProps) {
       </CardContent>
     </Card>
   );
-}
+});
 
 interface KanbanColumnProps {
   status: Lead["status"];
@@ -140,7 +143,8 @@ interface KanbanColumnProps {
   onCreateProposal: (lead: Lead) => void;
 }
 
-function KanbanColumn({ status, leads, isDragging, onCreateProposal }: KanbanColumnProps) {
+// SEC-157: memoized to match TasksKanban.tsx's KanbanColumn (same reasoning as SortableLeadCard).
+const KanbanColumn = memo(function KanbanColumn({ status, leads, isDragging, onCreateProposal }: KanbanColumnProps) {
   const { t } = useTranslation();
   const ids = useMemo(() => leads.map((lead) => lead.id), [leads]);
   const columnBg = status === "WON" ? "bg-green-50/50" : status === "LOST" ? "bg-red-50/50" : "bg-card";
@@ -219,7 +223,7 @@ function KanbanColumn({ status, leads, isDragging, onCreateProposal }: KanbanCol
       </div>
     </div>
   );
-}
+});
 
 // SEC-108: the desktop Kanban's drag-and-drop is unusable on a narrow screen without horizontal
 // scroll across up to 6 fixed-width columns, and dnd-kit's pointer-based drag doesn't translate

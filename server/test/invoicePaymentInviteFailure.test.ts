@@ -15,7 +15,7 @@
 //
 // Requires a real, migrated database; skipped if unreachable.
 
-import test, { describe, mock, before, after } from "node:test";
+import test, { describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 
 let prisma: typeof import("../src/config/prisma.js").prisma;
@@ -40,7 +40,6 @@ before(async () => {
 
 after(async () => {
   if (!dbAvailable) return;
-  mock.restoreAll();
   await prisma.invoice.deleteMany({ where: { id: { in: createdInvoiceIds } } });
   await prisma.project.deleteMany({ where: { id: { in: createdProjectIds } } });
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
@@ -57,13 +56,21 @@ describe("invoiceService.addPayment survives a non-409 portal invite failure (SE
     });
     createdInvoiceIds.push(invoice.id);
 
-    const inviteMock = mock.method(clientService, "inviteClientUser", async () => {
+    let inviteCallCount = 0;
+    const originalInvite = clientService.inviteClientUser;
+    clientService.inviteClientUser = async () => {
+      inviteCallCount++;
       throw new Error("SMTP connection timed out");
-    });
+    };
 
-    const result = await invoiceService.addPayment(invoice.id, { amount: 300, method: "BANK_TRANSFER" });
+    let result: Awaited<ReturnType<typeof invoiceService.addPayment>>;
+    try {
+      result = await invoiceService.addPayment(invoice.id, { amount: 300, method: "BANK_TRANSFER" });
+    } finally {
+      clientService.inviteClientUser = originalInvite;
+    }
 
-    assert.equal(inviteMock.mock.callCount(), 1, "the invite must actually have been attempted");
+    assert.equal(inviteCallCount, 1, "the invite must actually have been attempted");
     assert.equal(result.portalInviteFailed, true, "a non-409 invite failure must be reported, not thrown");
     assert.ok(result.payment, "the payment must still be returned as successful");
 
@@ -85,11 +92,17 @@ describe("invoiceService.addPayment survives a non-409 portal invite failure (SE
     createdInvoiceIds.push(invoice.id);
 
     const { HttpError } = await import("../src/utils/httpError.js");
-    mock.method(clientService, "inviteClientUser", async () => {
+    const originalInvite = clientService.inviteClientUser;
+    clientService.inviteClientUser = async () => {
       throw new HttpError(409, "Client user already exists");
-    });
+    };
 
-    const result = await invoiceService.addPayment(invoice.id, { amount: 300, method: "BANK_TRANSFER" });
+    let result: Awaited<ReturnType<typeof invoiceService.addPayment>>;
+    try {
+      result = await invoiceService.addPayment(invoice.id, { amount: 300, method: "BANK_TRANSFER" });
+    } finally {
+      clientService.inviteClientUser = originalInvite;
+    }
 
     assert.equal(result.portalInviteFailed, false);
     assert.ok(result.payment);

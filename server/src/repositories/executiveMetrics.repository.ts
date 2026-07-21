@@ -200,6 +200,7 @@ export const executiveMetricsRepository = {
       overdueInvoicesFull,
       pendingApprovals,
       hotLeads,
+      activeProjects,
 
     ] = await Promise.all([
       // ── Finance ──
@@ -315,6 +316,18 @@ export const executiveMetricsRepository = {
         where: { status: { in: ["QUALIFIED", "PROPOSAL"] }, archivedAt: null },
         select: { id: true, name: true, status: true, createdAt: true },
         take: 5,
+      }),
+
+      // SEC-161: was a separate await AFTER this Promise.all, adding an unparallelized
+      // round-trip — it only depends on projectScope/now (already computed above), not on
+      // anything else in this block, so it belongs in the same parallel batch.
+      prisma.project.findMany({
+        where: { status: { notIn: ["COMPLETED"] }, ...projectScope },
+        select: {
+          id: true, name: true, status: true, deadline: true,
+          client: { select: { name: true } },
+          tasks: { select: { status: true, updatedAt: true } },
+        },
       }),
     ]);
 
@@ -448,16 +461,8 @@ export const executiveMetricsRepository = {
     for (const r of projectStatusCounts) statusMap[r.status] = r._count;
     const totalProjects = Object.values(statusMap).reduce((s, n) => s + n, 0);
 
-    // Health scoring for each active project (simplified version for counts)
-    const activeProjects = await prisma.project.findMany({
-      where: { status: { notIn: ["COMPLETED"] }, ...projectScope },
-      select: {
-        id: true, name: true, status: true, deadline: true,
-        client: { select: { name: true } },
-        tasks: { select: { status: true, updatedAt: true } },
-      },
-    });
-
+    // Health scoring for each active project (simplified version for counts) — activeProjects
+    // itself is now fetched in the main Promise.all above (SEC-161).
     let criticalCount = 0, watchCount = 0;
     // Populated below, alongside criticalCount/watchCount, from the same per-project pass —
     // this is the only place isOverdue/isStale/blockedTasks are computed, so PROJECT_CRITICAL

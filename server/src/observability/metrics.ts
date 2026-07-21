@@ -110,15 +110,20 @@ export const redisConnectedClients = new Gauge({
   registers: [registry],
 });
 
+// SEC-159: labeled by prefix (the cache key's domain segment, e.g. "dashboard"/"manager") so a
+// production operator can distinguish the hit rate of the 5min manager-permissions cache from the
+// 60s dashboard cache or the 120-300s summary caches, instead of one indistinguishable global rate.
 export const redisCacheHits = new Counter({
   name: "redis_cache_hits_total",
   help: "Nombre de hits cache Redis",
+  labelNames: ["prefix"],
   registers: [registry],
 });
 
 export const redisCacheMisses = new Counter({
   name: "redis_cache_misses_total",
   help: "Nombre de misses cache Redis",
+  labelNames: ["prefix"],
   registers: [registry],
 });
 

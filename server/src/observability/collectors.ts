@@ -145,12 +145,20 @@ export function recordBullMQJob(
   bullmqJobsProcessed.inc({ queue, job_name: jobName, status });
 }
 
-export function recordCacheHit() {
-  redisCacheHits.inc();
+// SEC-159: prefix is the cache key's domain segment (e.g. "cache:dashboard:..." -> "dashboard",
+// "cache:manager:permissions:..." -> "manager") — derived here so cacheGet's callers never have
+// to pass it explicitly, and every existing cacheKeys.ts entry is labeled automatically.
+function cachePrefix(key: string): string {
+  const parts = key.split(":");
+  return parts[1] ?? "unknown";
 }
 
-export function recordCacheMiss() {
-  redisCacheMisses.inc();
+export function recordCacheHit(key: string) {
+  redisCacheHits.inc({ prefix: cachePrefix(key) });
+}
+
+export function recordCacheMiss(key: string) {
+  redisCacheMisses.inc({ prefix: cachePrefix(key) });
 }
 
 export function recordRawSqlDuration(operation: string, durationSec: number) {

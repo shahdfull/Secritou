@@ -26,14 +26,27 @@ function buildWhere(options: ListQueryOptions & { includeArchived?: boolean }, s
   };
 }
 
+// SEC-171: the list endpoint (up to 500 rows/call since LEADS_MAX_PAGE_SIZE) has no reason to
+// carry `notes` (free-text Text field) on every row — LeadsKanban.tsx and every other list/kanban
+// consumer only ever read the fields below (confirmed by grep: `notes` is only read on the single
+// lead detail view, which calls findById, not findAll). Kept as an explicit allow-list rather
+// than `omit: { notes: true }` so a future field addition to the model doesn't silently leak into
+// the list payload without a deliberate decision.
+const leadListSelect = {
+  id: true, name: true, email: true, phone: true, source: true, status: true,
+  serviceId: true, convertedClientId: true, archivedAt: true, sourceContactId: true,
+  assignedManagerId: true, department: true, lostReason: true,
+  createdAt: true, updatedAt: true,
+} satisfies Prisma.LeadSelect;
+
 export const leadRepository = {
-  async findAll(options: ListQueryOptions & { includeArchived?: boolean }, scope?: LeadScope): Promise<PaginatedResult<Lead>> {
+  async findAll(options: ListQueryOptions & { includeArchived?: boolean }, scope?: LeadScope): Promise<PaginatedResult<Omit<Lead, "notes">>> {
     const where = buildWhere(options, scope);
     const skip = (options.page - 1) * options.pageSize;
     const orderBy = buildOrderBy(options.orderBy, options.orderDir, SORTABLE_FIELDS, "createdAt");
 
     const [data, total] = await Promise.all([
-      prismaRead.lead.findMany({ where, orderBy, skip, take: options.pageSize }),
+      prismaRead.lead.findMany({ where, orderBy, skip, take: options.pageSize, select: leadListSelect }),
       prismaRead.lead.count({ where }),
     ]);
 
@@ -77,6 +90,20 @@ export const leadRepository = {
       },
       include: {
         convertedClient: { select: { id: true, name: true, email: true } },
+        sourceContact: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            serviceType: true,
+            company: true,
+            budget: true,
+            message: true,
+            status: true,
+            createdAt: true,
+          },
+        },
       },
     });
   },

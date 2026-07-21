@@ -27,8 +27,9 @@ A full-stack internal platform for a single digital agency: CRM, project managem
 ### Business Logic Automations
 | Trigger | Cascade |
 |---|---|
-| Admin accepts a proposal | Lead → WON · Project created · 30% deposit invoice · Client portal invite |
+| Admin accepts a proposal | Lead → WON · Project created · 30% deposit invoice |
 | Proposal accepted | 7 PDFs auto-generated in background (welcome letter, contract, specs, brief, quote, deposit invoice, roadmap) |
+| Deposit invoice paid | Client portal invite sent · portal access opened |
 | Client submits brief | Brief PDF generated · Manager notified |
 | Client signs contract | Timeline step updated |
 | Client approves project | Project → COMPLETED · 70% balance invoice · Manager + client emails |
@@ -61,7 +62,7 @@ A full-stack internal platform for a single digital agency: CRM, project managem
 | Framework | Express 5 + TypeScript (ESM) |
 | ORM | Prisma + PostgreSQL |
 | Cache | Redis (ioredis + BullMQ) |
-| Auth | JWT (access token 1h) + HTTP-only refresh cookie (7d) |
+| Auth | JWT (access token 15min, `JWT_ACCESS_EXPIRES_IN`) + HTTP-only refresh cookie (7d) |
 | File storage | AWS S3 / MinIO (pdfkit → Buffer → upload) |
 | Email | Nodemailer + branded HTML templates |
 | Queue | BullMQ (notifications, emails) |
@@ -290,7 +291,23 @@ The OpenAPI 3.1 spec is served at `http://localhost:5000/openapi.json`.
 `prismaRead` points to a replica (or same DB in dev) for all read queries; `prisma` (write client) is used only for mutations : enabling future read-replica scaling with no code change.
 
 ### PDF generation
-`documentGenerator.service.ts` generates in-memory PDF buffers via `pdfkit`, uploads them to MinIO via `@aws-sdk/client-s3`, then creates `Document` records in the DB. All 7 PDF types are triggered automatically after proposal acceptance using `Promise.allSettled` : failures never roll back the acceptance.
+`documentGenerator.service.ts` generates in-memory PDF buffers via `pdfkit`, uploads them to MinIO via `@aws-sdk/client-s3`, then creates `Document` records in the DB. All 7 PDF types are triggered automatically after proposal acceptance as individual BullMQ jobs (`documentsQueue`, one per document, each with a deterministic `jobId` so a retried/duplicate enqueue never regenerates the same document) rather than a synchronous in-request `Promise.allSettled` — a dedicated worker processes them at `concurrency: 3`, so a single failing document never rolls back the acceptance or blocks the others.
+
+### Data protection notes
+- Personal data is stored in PostgreSQL via Prisma and in generated PDFs / attachments stored in S3 or MinIO.
+- Signed download URLs for documents are short-lived and minted on demand by the API.
+- Document downloads and signatures are logged in `DocumentAccessLog` for operational traceability.
+- Client brief answers are collected to prepare the project brief, scope the mission, and produce the associated project documents.
+- Deletions are not a full GDPR erasure workflow: `Client` and `Lead` support archival/deletion states, but historical financial and audit records remain subject to legal retention and operational integrity requirements.
+
+### Subprocessors
+The repository uses the following subprocessors / third-party services in practice:
+- Storage: AWS S3 or self-hosted MinIO for documents and generated PDFs.
+- Email: Nodemailer-compatible SMTP service for invitations, notifications, and confirmations.
+- OAuth / external APIs: Google OAuth / Search Console via encrypted refresh tokens stored in `GscConnection`.
+- Queue / cache: Redis and BullMQ for asynchronous processing.
+
+The exact hosting region, DPA, and contractual status are deployment-specific and are not documented in this repository.
 
 ### Permission resolution
 `managerPermissionService.resolvePermissions(userId)`:

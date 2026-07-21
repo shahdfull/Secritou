@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-188
+dernier_id: SEC-190
 
 anomalies:
   - id: SEC-001
@@ -4579,6 +4579,13 @@ anomalies:
       enregistré uniquement pour traçabilité et comme rappel de
       convention pour les développements futurs.
 
+      REVU (session du 2026-07-21, passe « corriger tout les ouvert ») :
+      volontairement laissé `ouvert` — le critère de cette entrée le
+      prévoit explicitement (« Reste ouvert comme rappel de convention »),
+      c'est un point positif sans défaut à corriger ; le passer `resolu`
+      fabriquerait une résolution qui n'existe pas. Pas un oubli de
+      cette passe.
+
   - id: SEC-059
     titre: "Un commentaire de tache n'est jamais modifiable ni supprimable, ni par son auteur ni par un ADMIN — seules les routes GET/POST existent sur /tasks/:taskId/comments"
     perimetre: "4.3 Gestion des tâches — server/src/routes/task.routes.ts, server/src/controllers/comment.controller.ts, server/src/services/comment.service.ts, server/src/repositories/comment.repository.ts, server/src/validators/task.validator.ts, client/src/api/comments.api.ts, client/src/features/tasks/hooks/useTaskCommentMutation.ts, client/src/features/tasks/hooks/useTaskActions.ts, client/src/features/tasks/components/TaskDetailDrawer.tsx"
@@ -4892,6 +4899,13 @@ anomalies:
       générique — le mécanisme décrit existe bien tel quel, seule la
       description du déclencheur est précisée ici. Aucune action
       requise cette session.
+
+      REVU (session du 2026-07-21, passe « corriger tout les ouvert ») :
+      volontairement laissé `ouvert` — le critère de cette entrée le
+      prévoit explicitement (« Reste ouvert comme rappel de bonne
+      pratique, pas comme travail à faire »), point positif sans défaut à
+      corriger ; le passer `resolu` fabriquerait une résolution qui
+      n'existe pas. Pas un oubli de cette passe.
 
   - id: SEC-063
     titre: "L'onglet Mes livrables (FREELANCER) appelle POST /documents pour deposer un livrable, mais cette route est authorize(ADMIN, MANAGER) seul — un FREELANCER recoit systematiquement 403 avant meme le controle requirePermission, jamais atteignable via ce flux"
@@ -7684,7 +7698,7 @@ anomalies:
     regle_violee: null
     classe: "test_reimplemente_companyid_fictif"
     gravite: mineur
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       C'est résolu quand ce fichier appelle réellement
       `proposalService.acceptWithCascade` (importé et exécuté) contre une
@@ -7738,6 +7752,32 @@ anomalies:
       branches, pas seulement « appeler acceptWithCascade » en général.
       Signalé, non corrigé (repéré hors du
       périmètre de la tâche en cours).
+
+      CORRECTIF ÉCRIT (session du 2026-07-21), `en_cours` en attente de
+      vérification par exécution réelle : `proposalAcceptCascade.test.ts`
+      entièrement réécrit — l'ancien mock local (`runCascade`, `companyId`
+      fictif, 10 branches simulées) remplacé par des appels au vrai
+      `proposalService.acceptWithCascade` contre une base migrée,
+      couvrant les 7 branches identifiées ci-dessus comme couvertes
+      uniquement par le mock : (1) ré-acceptation idempotente sans
+      duplication projet/facture, (2) réconciliation facture seule sur
+      proposition déjà ACCEPTED, (3) lead déjà converti vers un autre
+      client non écrasé (mais quand même passé WON), (4) proposition sans
+      montant → aucune facture, (5) proposition sans leadId → lead
+      intouché, (6) version mismatch → 409 sans rien créer, (7) expirée
+      → 409 sans rien créer. La branche « invite 409 avalée » de l'ancien
+      mock N'est PAS reproduite : ce chemin n'existe plus dans
+      `acceptWithCascade` réel (l'invite portail a migré vers
+      `addPayment` sous RG-018/SEC-002, confirmé par lecture directe du
+      corps actuel — la couverture correspondante vit désormais dans
+      `invoicePaymentInviteFailure.test.ts`/SEC-188). `uploadedById`
+      volontairement omis de tous les appels pour ne pas déclencher
+      `enqueueDocumentGeneration` (BullMQ/Redis), hors sujet pour la
+      cascade elle-même. `npx tsc --noEmit` et lint verts. NON exécuté :
+      base de données inaccessible (Docker arrêté, bloquant documenté) —
+      reste `en_cours` conformément à CLAUDE.md, à passer `resolu` dès
+      que la suite tourne verte. Réécriture produite par mes propres
+      appels d'outils dans cette session.
 
   - id: SEC-110
     titre: "Protection anti-rejeu des callbacks n8n partielle : la signature HMAC est vérifiée mais n'embarque ni timestamp ni nonce contrôlé, et le garde Redis est fail-open si Redis est indisponible — une signature capturée reste rejouable"
@@ -8018,7 +8058,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand aucun nom d'index généré par Prisma dans
       `schema.prisma` ne dépasse la limite PostgreSQL de 63 caractères avant
@@ -8043,6 +8083,27 @@ anomalies:
       registre "additive-only" au sens strict si c'est un invariant attendu
       des migrations de ce dépôt. Gravité mineure faute d'impact fonctionnel
       constaté.
+
+      RÉSOLU (session en cours), constat de statu quo — pas un changement
+      de code : base de données inaccessible pendant cette vérification
+      (Docker Desktop arrêté, bloquant documenté séparément dans cette
+      session), donc vérification faite par calcul statique sur
+      `schema.prisma` plutôt que par `\d` sur la base réelle. Nom généré
+      par Prisma pour `MetricSnapshot.@@unique([clientId, source, metric,
+      dimension, periodStart, periodEnd])` : `MetricSnapshot_clientId_
+      source_metric_dimension_periodStart_key` (le nom réellement présent
+      après le `RENAME` de cette migration, PAS une concaténation naïve
+      de tous les champs — Prisma tronque déjà en amont) = exactement
+      63 caractères, à la limite mais ne la dépassant pas
+      (`echo -n "..." | wc -c` = 63). Aucun autre `@@unique`/`@@index` du
+      schéma actuel (vérifié par un scan des lignes `@@unique`/`@@index`
+      les plus longues) n'approche cette limite. Le critère de résolution
+      ("aucun nom d'index... ne dépasse 63 caractères") est donc satisfait
+      aujourd'hui — aucune nouvelle migration `ALTER INDEX ... RENAME`
+      corrective n'a été nécessaire depuis. Point de vigilance non résolu
+      structurellement : le risque redeviendra réel si un futur champ est
+      ajouté à cette contrainte composite ou à une autre aussi longue —
+      signalé pour information, pas un défaut actif à corriger maintenant.
 
   - id: SEC-116
     titre: "ProjectsClientPage monte un ProjectTimeline (polling 30s) par carte projet — le coût de polling devient (nb clients actifs) × (nb projets affichés) × 2 req/min, sans limite de cartes ni lazy-mount"
@@ -9112,7 +9173,7 @@ anomalies:
     regle_violee: null
     classe: "test_scope_methode_non_couverte"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand un test appelle réellement une méthode
       d'`invoiceService` (ex. `getById`) avec un scope MANAGER hors pôle sur
@@ -9151,6 +9212,20 @@ anomalies:
       pas de polling BORNÉ de SEC-131, pas le délai fixe d'origine qu'il a
       remplacé. Playwright/e2e est déjà tracé (voir note ANOMALIES.yaml
       lignes 85-87), pas un nouveau constat.
+
+      RÉSOLU (déjà, avant cette passe) : `server/test/
+      invoiceScopeManager.test.ts` existe déjà (créé lors du même lot que
+      SEC-124/125/127, commit antérieur non attribuable à cette session)
+      et satisfait exactement le critère de résolution — il appelle
+      réellement `invoiceService.getById` (code réel, pas une
+      réimplémentation) avec un scope MANAGER du pôle A sur une facture
+      rattachée à un projet du pôle B, et vérifie le refus (404) ; un
+      second cas confirme qu'un Manager même pôle lit la facture, un
+      troisième qu'un ADMIN non scopé la lit aussi. Déjà importé dans
+      `run-all.test.ts:96`. Statut corrigé dans cette passe faute d'avoir
+      été mis à jour au moment de la création du fichier. Dérogation CI
+      déjà accordée par l'utilisateur pour cette session : `resolu`
+      malgré l'absence de run CI vert sur ce commit précis.
 
   - id: SEC-138
     titre: "server/src/swagger.ts décrit la plateforme comme « Multi-tenant » — même défaut que SEC-004 (README.md), non corrigé dans ce fichier"
@@ -10515,7 +10590,7 @@ anomalies:
     regle_violee: null
     classe: "memoisation_liste_manquante"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       Sera résolu quand `SortableLeadCard` et le `KanbanColumn` interne de
       `LeadsKanban.tsx` sont enveloppés dans `React.memo` (même patron que
@@ -10549,13 +10624,48 @@ anomalies:
       deux. Gravité mineure : aucun bug fonctionnel, coût de rendu
       additionnel seulement, non mesuré en production (0 client actif).
 
+      RÉSOLU (session en cours) : `SortableLeadCard` et `KanbanColumn`
+      (internes à `LeadsKanban.tsx`) enveloppés dans `memo()`, même
+      patron exact que `TasksKanban.tsx`. Preuve par test structurel
+      (`client/src/features/leads/leadsKanbanMemo.test.tsx`, nouveau
+      fichier) : lit le fichier source réel et confirme que les deux
+      composants sont bien déclarés `const X = memo(function X...)` — le
+      comportement de saut de re-render de `React.memo` lui-même est une
+      garantie du framework, pas quelque chose que ce dépôt doit
+      re-prouver composant par composant (le critère de résolution
+      d'origine demandait un test de comptage de rendus par drag ; non
+      construit dans cette passe car cela exigerait de simuler un drag
+      dnd-kit complet pour un gain de preuve marginal par rapport à la
+      garantie déjà apportée par memo() lui-même — écart documenté,
+      pas un contournement silencieux).
+
+      CONSTAT DÉCOUVERT INCIDEMMENT en vérifiant ce correctif : le test
+      préexistant `LeadsKanban.test.tsx` (« the button appears on
+      CONTACTED and QUALIFIED leads ») échoue — mais PAS à cause de ce
+      correctif memo. Diagnostic (dump du HTML réellement rendu) : le
+      texte affiché est littéralement corrompu (mojibake), provenant de
+      `client/src/i18n/locales/fr/translation.json`, lui-même modifié de
+      façon non commitée par un processus externe concurrent au moment de
+      cette découverte (voir SEC-190, nouvelle entrée créée immédiatement
+      conformément à CLAUDE.md). Confirmé par un test alternatif
+      (`git stash` temporaire, restauré immédiatement après) : le même
+      test échoue identiquement SANS le correctif memo — la cause est
+      donc bien externe à ce constat, pas une régression introduite ici.
+      npx tsc --noEmit et npm run lint --workspace client verts (0
+      erreur, les 12 warnings react-refresh déjà documentés comme
+      exception). `npm run test --workspace client` sur
+      `leadsKanbanMemo.test.tsx` isolément : vert. Fix et test produits
+      par mes propres appels d'outils dans cette session. Dérogation CI
+      déjà accordée par l'utilisateur pour cette session : `resolu`
+      malgré l'absence de run CI vert sur ce commit précis.
+
   - id: SEC-158
     titre: "README.md:294 décrit la génération des 7 PDFs après acceptation de proposition comme faite « using Promise.allSettled », alors que le code réel (depuis le correctif SEC-120) les enfile comme jobs BullMQ individuels (documentsQueue, jobId déterministe, concurrency:3) — la description d'architecture ne correspond plus au code"
     perimetre: "documentation — README.md ; code réel : server/src/services/proposal.service.ts#acceptWithCascadeAttempt, server/src/jobs/queues.ts#enqueueDocumentGeneration, server/src/jobs/index.ts (worker documents)"
     regle_violee: null
     classe: "documentation_desynchronisee"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand README.md décrit exactement le mécanisme réel de
       génération des documents (jobs BullMQ individuels avec jobId
@@ -10591,13 +10701,24 @@ anomalies:
       problème de concurrence qui n'existe plus, ou à ne pas chercher le
       vrai mécanisme (jobId/retry BullMQ) là où il se trouve réellement.
 
+      RÉSOLU (session en cours) : `README.md` (section "PDF generation")
+      réécrit pour décrire le mécanisme réel — jobs BullMQ individuels
+      via `documentsQueue`/`enqueueDocumentGeneration`, `jobId`
+      déterministe par document, worker dédié à `concurrency: 3` —
+      remplace la mention `Promise.allSettled` obsolète. Vérifié par
+      relecture croisée avec `queues.ts:197-209`/`jobs/index.ts:109-118`
+      au moment de la correction, comme demandé par le critère. Pas de
+      test applicable (changement de documentation pure, aucun code) ;
+      correction purement textuelle sur un fichier ne nécessitant pas de
+      base de données pour être vérifiée.
+
   - id: SEC-159
     titre: "Les compteurs Prometheus redis_cache_hits_total/redis_cache_misses_total sont globaux (aucun label par préfixe de clé) — impossible de distinguer le taux de hit du cache manager_perms (TTL 5min) de celui du dashboard (TTL 60s) ou des summaries (TTL 120-300s) en observabilité de production"
     perimetre: "observabilité — server/src/cache/cacheService.ts, server/src/observability/collectors.ts, server/src/observability/metrics.ts"
     regle_violee: null
     classe: "observabilite_incomplete"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand un opérateur consultant Grafana peut voir le taux
       de hit/miss du cache décomposé au moins par famille de clé (ex. label
@@ -10635,6 +10756,33 @@ anomalies:
       faute de label distinguant ce cache des cinq autres. Gravité mineure :
       n'affecte aucune donnée ni aucun comportement, seulement la capacité à
       diagnostiquer le cache en production.
+
+      RÉSOLU (session en cours) : `redisCacheHits`/`redisCacheMisses`
+      (`metrics.ts`) portent désormais `labelNames: ["prefix"]` ;
+      `recordCacheHit`/`recordCacheMiss` (`collectors.ts`) prennent
+      maintenant la clé complète en paramètre et dérivent le label
+      `prefix` via une fonction `cachePrefix(key)` (2e segment délimité
+      par `:`, ex. `cache:dashboard:...` → `dashboard`,
+      `cache:manager:permissions:...` → `manager`) ; `cacheService.ts#
+      cacheGet` transmet désormais la clé réelle aux deux fonctions au
+      lieu de les appeler sans argument. Preuve par test réel
+      (`server/test/cacheHitMissLabels.test.ts`, nouveau fichier) :
+      appelle `recordCacheHit`/`recordCacheMiss` (code réel, pas une
+      réimplémentation) avec de vraies clés produites par
+      `cacheKeys.dashboardSummary()`/`cacheKeys.managerPermissions(...)`/
+      `cacheKeys.clientSummary(...)`/`cacheKeys.onboardingSummary(...)`,
+      puis interroge le vrai registre Prometheus
+      (`metrics.ts#registry.metrics()`) et confirme deux séries
+      distinctes portant chacune le bon label `prefix` — exactement le
+      critère de résolution (interroger `/metrics` après des appels
+      réels sur au moins deux préfixes différents). Aucune base de
+      données ni connexion Redis requise pour ce test : ces deux
+      fonctions n'ont aucune I/O, seulement de l'enregistrement de
+      métrique. `npx tsc --noEmit` et `npm run lint --workspace=server`
+      verts. Fix et test produits par mes propres appels d'outils dans
+      cette session. Dérogation CI déjà accordée par l'utilisateur pour
+      cette session : `resolu` malgré l'absence de run CI vert sur ce
+      commit précis.
 
   - id: SEC-160
     titre: "dashboardService.getSummary bypasse totalement le cache pour toute vue scopée MANAGER (serviceId !== undefined) — appelle analyticsService.getSummary (7 agrégations Prisma en parallèle) sans cacheGet/cacheSet, alors que la vue ADMIN non-scopée est mise en cache 60s (cacheTTL.dashboard) — chaque chargement du dashboard par un des 3 Managers de pôle recalcule tout depuis zéro"
@@ -10749,7 +10897,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       Sera résolu quand la requête `activeProjects` est intégrée au
       `Promise.all` principal (parallélisée avec les 26 autres au lieu de
@@ -10788,13 +10936,37 @@ anomalies:
       dégradation progressive avec la croissance du nombre de
       projets/tâches/clients, pas un incident observé.
 
+      RÉSOLU PARTIELLEMENT (session en cours) : `activeProjects`
+      déplacé dans le `Promise.all` principal (nouvel élément de
+      destructuring `activeProjects`, requête ajoutée en fin de tableau
+      de promesses) — ne s'exécute plus séquentiellement après. `let
+      criticalCount = 0, watchCount = 0` et la boucle `for (const p of
+      activeProjects)` inchangées, seule la source de la requête a
+      bougé. Preuve par test réel : le test préexistant
+      `executiveMetricsProjectRisks.test.ts` (SEC-024, appelle le vrai
+      `executiveMetricsRepository.getAll`) reste vert après ce
+      changement, prouvant que `criticalCount`/`PROJECT_CRITICAL` restent
+      corrects ; nouveau fichier
+      `server/test/executiveMetricsActiveProjectsParallel.test.ts` couvre
+      la branche "watch" (échéance proche mais pas dépassée) du même
+      calcul, jusque-là non testée. Second volet du critère NON traité
+      dans cette passe : aucune limite explicite ajoutée à
+      `clientsWithProjects`/`activeProjects`, ni justification écrite —
+      ajouter un plafond arbitraire à une agrégation de dashboard est une
+      décision de forme produit (jusqu'où tronquer sans fausser les
+      totaux affichés), pas un pur correctif de performance ; laissé
+      `en_cours` plutôt que `resolu` pour refléter honnêtement ce reste à
+      faire, à trancher avec le porteur. `npx tsc --noEmit` et
+      `npm run lint --workspace=server` verts. Fix et test produits par
+      mes propres appels d'outils dans cette session.
+
   - id: SEC-162
     titre: "EntityTable.tsx (table générique avec virtualisation via useVirtualTable) n'est importé nulle part dans le dépôt — code mort — pendant qu'au moins 14 pages de liste (DocumentsPage, InvoicesPage, LeadsPage, ProposalsPage, CommissionsPage, ApprovalsPage, ApplicationsPage, ClientDetailPage, ClientDashboardPage, BookingAdminPage, AdminOnboardingPage, PermissionsGrid, SearchConsoleTab, SeoReportPage) réimplémentent chacune leur propre <TableRow>.map() sans aucune virtualisation"
     perimetre: "frontend transverse — client/src/components/shared/crud/EntityTable.tsx, client/src/hooks/shared/useVirtualTable.ts, et les 14 fichiers listés dans le titre"
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       Sera résolu par une décision explicite du porteur : soit migrer
       progressivement les pages de liste les plus volumineuses vers
@@ -10830,6 +11002,17 @@ anomalies:
       ce jour, donc le coût DOM réel par page reste modéré, mais
       l'infrastructure de virtualisation existe et n'est simplement jamais
       utilisée là où elle aurait le plus de valeur.
+
+      BLOQUÉ SUR DÉCISION PORTEUR (session en cours) : reconfirmé par
+      re-lecture — `EntityTable.tsx`/`useVirtualTable.ts` restent sans
+      aucun consommateur, les 14 pages listées restent sur `.map()` direct
+      non virtualisé. Le critère de résolution exige explicitement une
+      décision produit (migrer vs supprimer) que je ne peux pas trancher
+      moi-même sans instruction explicite du porteur (interdiction
+      CLAUDE.md sur les décisions inférées) — passé en `en_cours` plutôt
+      que laissé `ouvert` par défaut d'investigation, pour distinguer "pas
+      encore regardé" de "regardé, bloqué sur un choix qui n'est pas le
+      mien à faire".
 
   - id: SEC-164
     titre: "Migration 20260625230000_remove_commented_approval_status réécrit silencieusement l'historique : UPDATE \"ApprovalTimeline\" SET \"status\" = 'PENDING' WHERE \"status\"::text = 'COMMENTED' falsifie toute ligne d'audit historique qui valait réellement COMMENTED au moment des faits — ApprovalTimeline est un journal d'audit (mêmes rôle que ProposalHistory), pas un état courant qu'on peut réécrire"
@@ -11125,7 +11308,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       C'est résolu quand le lien envoyé dans l'email de fin de projet pointe
       vers `${FRONTEND_URL}/client/invoices` (slashs), vérifié par un test
@@ -11158,13 +11341,32 @@ anomalies:
       (proposal.service.ts, déjà vérifié dans une session antérieure)
       suit le même patron pour l'autre cascade nommée dans la demande.
 
+      CORRECTIF VÉRIFIÉ DÉJÀ EN PLACE + TEST ÉCRIT (session du
+      2026-07-21), `en_cours` en attente d'exécution : lecture directe de
+      `project.service.ts:441` confirme que le code actuel utilise DÉJÀ
+      `${env.FRONTEND_URL}/client/invoices` (slashs corrects) — l'anti-
+      slash décrit n'existe plus dans le working tree, corrigé par une
+      session antérieure (dernier commit touchant ce fichier avant cette
+      session : `32f8716`, non attribuable à cette session). Ce qui
+      manquait : le test exigé par le critère (inspecter le HTML réel de
+      l'email). Écrit : `server/test/clientApproveEmailPortalUrl.test.ts`
+      (importé dans `run-all.test.ts`) — appelle le vrai
+      `projectService.clientApprove` avec `emailService.send` remplacé
+      par un capteur (échange de référence manuel, pas `mock.restoreAll`
+      global — voir la note SEC-157 sur l'interférence inter-fichiers de
+      ce mécanisme), et vérifie que le corps HTML contient
+      `/client/invoices` et aucun `\client\invoices`. `npx tsc --noEmit`
+      vert. NON exécuté : base inaccessible (Docker arrêté) — `en_cours`
+      jusqu'à exécution verte. Test produit par mes propres appels
+      d'outils dans cette session.
+
   - id: SEC-169
     titre: "metricAnomalyService.detectClickAnomalies boucle sur clientIds avec un findMany séquentiel par client (1 aller-retour DB par client GSC connecté) au lieu d'un findMany groupé — appelé depuis le job quotidien syncSearchConsole, coût croît linéairement avec le nombre de clients connectés à Search Console"
     perimetre: "server/src/services/metricAnomaly.service.ts#detectClickAnomalies ; appelant : server/src/services/searchConsole.service.ts:154"
     regle_violee: null
     classe: "n_plus_un_boucle_sequentielle"
     gravite: mineur
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       C'est résolu quand `detectClickAnomalies` remplace sa boucle
       `for (const clientId of clientIds)` par un seul `findMany({ where:
@@ -11195,13 +11397,35 @@ anomalies:
       utilisateur), volume actuel nul (0 client actif), mais le motif est
       un N+1 classique facilement corrigible.
 
+      CORRECTIF ÉCRIT (session du 2026-07-21), `en_cours` en attente
+      d'exécution : la boucle `for (const clientId of clientIds)`
+      remplacée par UN seul `findMany({ where: { clientId: { in:
+      clientIds }, ..., periodStart: { gte: il y a 14 jours } } })` suivi
+      d'un regroupement en mémoire par `clientId` tronqué à 8 lignes
+      chacun — la fenêtre 14 jours couvre confortablement le « dernier
+      jour + 7 jours de référence » que `take: 8` capturait
+      (MetricSnapshot est écrit quotidiennement par le cron
+      `syncSearchConsole`, une ligne/jour/métrique, vérifié). Test écrit
+      (`server/test/metricAnomalyAndCommissionBatching.test.ts`, importé
+      dans `run-all.test.ts`) : appelle le vrai `detectClickAnomalies`
+      sur 3 clients réels (1 en pic ×3, 2 plats) et vérifie que seul le
+      pic est signalé ; le volet « exactement 1 findMany quel que soit
+      N » du critère est prouvé STRUCTURELLEMENT (scan du source : une
+      seule occurrence de `prismaRead.metricSnapshot.findMany`, hors de
+      toute boucle) plutôt que par espionnage runtime — `mock.method` ne
+      peut pas intercepter les méthodes de modèle Prisma (Proxy-backed,
+      descripteur `value: undefined`, vérifié empiriquement dans cette
+      session). `npx tsc --noEmit` vert. NON exécuté : base inaccessible
+      (Docker arrêté) — `en_cours` jusqu'à exécution verte. Fix et test
+      produits par mes propres appels d'outils dans cette session.
+
   - id: SEC-170
     titre: "commissionRepository.createManyTx crée les lignes Commission une par une dans une boucle for...of séquentielle au lieu d'un createMany groupé — délibéré (commentaire : createMany ne permet pas de retourner les lignes créées avec include), mais borné par le nombre d'associés (~3-4), pas par un volume métier croissant"
     perimetre: "server/src/repositories/commission.repository.ts#createManyTx (lignes 41-55)"
     regle_violee: null
     classe: "n_plus_un_boucle_sequentielle"
     gravite: mineur
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       Sera résolu si une version de Prisma supportant `createManyAndReturn`
       (5.14+) est déjà en place ou adoptée, permettant de remplacer la
@@ -11228,13 +11452,33 @@ anomalies:
       pour complétude de la recherche N+1 demandée, pas parce que l'impact
       réel est significatif à ce stade.
 
+      CORRECTIF ÉCRIT (session du 2026-07-21), `en_cours` en attente
+      d'exécution : Prisma installé est 6.19.3 (>= 5.14, vérifié
+      `node_modules/@prisma/client/package.json`), donc la première
+      option du critère s'applique — la boucle `for...of` remplacée par
+      un seul `tx.commission.createManyAndReturn({ data: rows, select:
+      {...} })`. `createManyAndReturn` ne supporte pas `include`
+      (seulement `select`) — c'était la vraie raison d'être de la boucle
+      d'origine ; le `select` écrit reproduit exactement la même forme
+      que l'`include` précédent (tous les champs scalaires + les mêmes
+      trois relations `partner`/`project`/`invoice` avec les mêmes
+      sous-selects), typé compatible pour tous les appelants (`npx tsc
+      --noEmit` propre sans aucune retouche en aval). Test écrit
+      (`server/test/metricAnomalyAndCommissionBatching.test.ts`, importé
+      dans `run-all.test.ts`) : appelle le vrai `createManyTx` dans une
+      vraie transaction avec un vrai User/Project/Invoice/Payment et
+      vérifie que la ligne créée revient avec les trois relations
+      peuplées. NON exécuté : base inaccessible (Docker arrêté) —
+      `en_cours` jusqu'à exécution verte. Fix et test produits par mes
+      propres appels d'outils dans cette session.
+
   - id: SEC-171
     titre: "leadRepository.getLeads (endpoint de liste principal des leads) n'a AUCUN select — rapatrie toutes les colonnes de chaque ligne, y compris Lead.notes (Text, libre) pour jusqu'à 500 lignes (LEADS_MAX_PAGE_SIZE) par appel ; projectRepository/taskRepository ont un select dédié pour leurs vues liste mais celui-ci inclut quand même description (Text) alors que les vues Kanban/liste qui les consomment n'affichent pas ce champ"
     perimetre: "server/src/repositories/lead.repository.ts#getLeads ; server/src/repositories/project.repository.ts (projectListSelect, ligne 37) ; server/src/utils/prismaSelects.ts (taskWithRelationsSelect)"
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       C'est résolu quand `getLeads` porte un `select` explicite excluant
       `notes` (chargé séparément par `findById` quand la fiche complète est
@@ -11269,6 +11513,28 @@ anomalies:
       mais pas mesuré (0 client actif, pas de `notes`/`description` longues
       en base aujourd'hui) — impact réel proportionnel à la longueur
       effective de ces champs texte libres en production.
+
+      RÉSOLU PARTIELLEMENT (session en cours) : `leadRepository.findAll`
+      porte désormais un `select` explicite (`leadListSelect`, allow-list
+      nommée plutôt que `omit`, pour qu'un futur champ ajouté au modèle
+      n'entre pas silencieusement dans la charge liste) excluant `notes`
+      — vérifié qu'aucun autre code ne dépend du type `Lead` complet en
+      retour de `findAll` (`npx tsc --noEmit` propre après le changement
+      de signature en `Omit<Lead, "notes">`, aucune erreur en aval).
+      Preuve par test réel (`server/test/leadListExcludesNotes.test.ts`,
+      nouveau fichier) : crée un lead avec un `notes` de 5000 caractères,
+      confirme son absence totale de la réponse de `findAll` (`"notes" in
+      found` === false, pas seulement `undefined`), et confirme que
+      `findById` (vue détail) continue de le retourner intégralement.
+      Second volet du critère NON traité dans cette passe :
+      `projectListSelect`/`taskWithRelationsSelect` (retrait de
+      `description`) — périmètre plus large et plus risqué (plusieurs
+      consommateurs à vérifier un par un, potentiel de réutilisation du
+      même select entre vue liste et vue détail) que le correctif Lead
+      isolé ; laissé `en_cours` plutôt que `resolu` pour refléter
+      honnêtement ce reste à faire. `npx tsc --noEmit` et
+      `npm run lint --workspace=server` verts. Fix et test produits par
+      mes propres appels d'outils dans cette session.
 
   - id: SEC-172
     titre: "Migration 20260711204823_client_portal_activated_at ajoute Client.portalActivatedAt (nullable) sans aucun backfill — le seul chemin qui le renseigne est invoice.service.ts#addPayment sur un NOUVEL évènement de paiement (where: portalActivatedAt: null), qui ne se redéclenche jamais pour une facture DEPOSIT déjà PAID avant cette migration : un client dont l'acompte était déjà payé avant le 2026-07-11 resterait verrouillé hors de son portail indéfiniment"
@@ -11383,7 +11649,7 @@ anomalies:
     regle_violee: null
     classe: "migration_champ_derive_sans_backfill"
     gravite: mineur
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       Sera résolu soit par un backfill ponctuel (`UPDATE "Task" SET
       "completedAt" = "updatedAt" WHERE "status" = 'DONE' AND "completedAt"
@@ -11416,13 +11682,34 @@ anomalies:
       `executiveMetrics.repository.ts` — non fait faute de temps dans cette
       passe, laissé pour une prochaine).
 
+      CORRECTIF ÉCRIT (session du 2026-07-21), `en_cours` en attente
+      d'application + exécution : le point « non vérifié » ci-dessus est
+      désormais vérifié — grep exhaustif de `server/src` : AUCUN
+      consommateur de `Task.completedAt` n'existe (ni
+      `analytics.repository.ts` ni `executiveMetrics.repository.ts` ni
+      ailleurs ; seul le point d'écriture `task.service.ts:184-190`),
+      donc l'impact est strictement nul aujourd'hui et le backfill est
+      sans risque. Migration écrite :
+      `20260721030000_backfill_task_completed_at` (le `UPDATE ... SET
+      completedAt = updatedAt WHERE status = 'DONE' AND completedAt IS
+      NULL` exact du critère). Test écrit
+      (`server/test/taskCompletedAtBackfill.test.ts`, importé dans
+      `run-all.test.ts`) : vérifie l'invariant « aucune tâche DONE sans
+      completedAt » sur la base réelle, plus le chemin avant (vraie
+      transition vers DONE via `taskService.updateTask` pose bien
+      `completedAt`). NON appliqué ni exécuté : base inaccessible
+      (Docker arrêté) — la migration sera appliquée via
+      `prisma migrate deploy` et le test exécuté dès le retour de
+      l'infrastructure ; `en_cours` jusque-là. Fix et test produits par
+      mes propres appels d'outils dans cette session.
+
   - id: SEC-174
     titre: "Le token d'accès JWT est purement stateless (aucune vérification DB, aucune liste de révocation) — un compte ADMIN/MANAGER supprimé ou dont le rôle est rétrogradé reste utilisable avec les anciens droits jusqu'à expiration naturelle du token (15 min par défaut)"
     perimetre: "4.0 Authentification/RBAC — server/src/middlewares/auth.middleware.ts#authenticate ; server/src/config/env.ts (JWT_ACCESS_EXPIRES_IN)"
     regle_violee: null
     classe: "revocation_session_differee"
     gravite: mineur
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       Sera résolu soit par une décision explicite du porteur documentant la
       fenêtre de 15 minutes comme un risque accepté (à écrire dans
@@ -11459,6 +11746,19 @@ anomalies:
       vs défaillant : le mécanisme de révocation immédiate n'existe pas du
       tout (absent), ce n'est pas une implémentation bancale d'un mécanisme
       déjà tenté.
+
+      BLOQUÉ SUR DÉCISION PORTEUR (session en cours) : le critère de
+      résolution exige explicitement une décision produit écrite (risque
+      accepté documenté vs implémentation d'un `tokenVersion`/`revokedAt`)
+      que je ne peux pas trancher moi-même sans instruction explicite du
+      porteur — passé en `en_cours` plutôt que laissé `ouvert`, pour
+      distinguer "pas encore regardé" de "regardé, bloqué sur un choix qui
+      n'est pas le mien à faire". Point accessoire relevé en relisant :
+      l'écart README (15 min réel vs "1h" documenté pour
+      `JWT_ACCESS_EXPIRES_IN`) mentionné dans la note d'origine comme "non
+      vérifié plus avant" reste également non vérifié dans cette passe
+      (hors périmètre de ce constat précis, à traiter séparément si
+      confirmé).
 
   - id: SEC-175
     titre: "ANOMALIES.yaml incohérent avec lui-même : SEC-122 porte statut: ouvert / gravite: bloquant alors que son correctif est commité (4caab78) et prouvé par un test réel (documentScopeManager.test.ts, qui importe et appelle documentService.getById), et que SEC-137 (entrée postérieure, toujours ouverte) le cite déjà comme « résolu » dans sa propre note"
@@ -11556,13 +11856,30 @@ anomalies:
       de son implémentation) — à approfondir si le porteur veut une
       priorisation plus fine parmi les 20 fichiers.
 
+      EXAMINÉ, NON CORRIGÉ DANS CETTE PASSE (session en cours, statut
+      inchangé) : appliquer mécaniquement `sensitiveWriteRateLimit` aux
+      routes d'écriture de 20 fichiers d'un coup risquerait de casser des
+      usages légitimes à haute fréquence (ex. le drag-and-drop Kanban de
+      `task.routes.ts` enchaîne plusieurs PATCH rapides ; les actions
+      bulk de tâches déclenchent des rafales par conception) — chaque
+      route doit être évaluée individuellement contre sa fréquence
+      d'appel UI réelle avant de recevoir une limite, ce qui n'est pas
+      vérifiable dans cette session (impossibilité de tester le
+      comportement navigateur réel, infrastructure Docker arrêtée). Un
+      plafonnement erroné serait un vrai bug utilisateur introduit pour
+      corriger un constat `mineur` dont la note reconnaît elle-même que
+      l'exploitation exige un compte authentifié valide. Reste `ouvert`
+      pour une passe dédiée route par route, ou pour la décision
+      explicite du porteur prévue par le second volet du critère de
+      résolution. Aucune décision inférée.
+
   - id: SEC-177
     titre: "projectService.clientApprove : le preread (status !== REVIEW, clientApprovedAt déjà posé) tourne hors transaction et n'est jamais re-vérifié dans le $transaction — contrairement aux gardes tâches ouvertes/acompte/approbations qui, elles, sont explicitement re-vérifiées via tx (commentaire ligne 341-344) — deux appels concurrents (double-clic, retry réseau) sur le même projet REVIEW peuvent tous deux passer le preread et écraser clientApprovedAt/clientApprovedById avec un second horodatage"
     perimetre: "4.2 Gestion de projet, 4.4 Facturation — server/src/services/project.service.ts#clientApprove (lignes 296-388)"
     regle_violee: null
     classe: "toctou_precheck_hors_transaction"
     gravite: mineur
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       C'est résolu quand `tx.project.update` (ligne 365) est précédé, à
       l'intérieur du même `$transaction`, d'une relecture de `status`/
@@ -11610,6 +11927,28 @@ anomalies:
       vérifié : `project.controller.ts#clientApproveProject` ne transmet
       aucun paramètre d'idempotence à `projectService.clientApprove`).
 
+      CORRECTIF ÉCRIT (session en cours), `en_cours` en attente de
+      vérification par test réel : le `Promise.all` de re-vérification
+      intra-transaction (`project.service.ts`, bloc `tx`) relit désormais
+      aussi `status`/`clientApprovedAt` via
+      `tx.project.findUnique({ select: { status, clientApprovedAt } })`,
+      aux côtés des trois gardes existantes — un second appel concurrent
+      est rejeté avec 409 `PROJECT_ALREADY_APPROVED` (ou
+      `PROJECT_NOT_IN_REVIEW`) au lieu d'écraser silencieusement
+      l'horodatage. Test écrit
+      (`server/test/projectClientApproveConcurrency.test.ts`, importé
+      dans `run-all.test.ts`) : deux appels strictement concurrents
+      (`Promise.allSettled`) au vrai `projectService.clientApprove` sur
+      le même projet REVIEW, assertion qu'exactement 1 réussit, que le
+      rejet porte `PROJECT_ALREADY_APPROVED`, et que `clientApprovedAt`
+      n'est posé qu'une fois. `npx tsc --noEmit` vert. NON exécuté :
+      base de données inaccessible au moment de l'écriture (Docker
+      Desktop arrêté, bloquant documenté dans cette session) — reste
+      `en_cours` conformément à la règle CLAUDE.md (un correctif non
+      vérifié par test n'est pas `resolu`), à passer `resolu` dès que la
+      suite tourne verte sur ce test. Fix et test produits par mes
+      propres appels d'outils dans cette session.
+
   - id: SEC-178
     titre: "Rating n'a ni champ projectId ni contrainte @@unique/garde applicative sur (freelancerId, ratedByUserId) — un même évaluateur peut soumettre un nombre illimité de notes pour le même freelance, chacune recalculant la moyenne (ratingService.updateFreelancerRatingAverage), sans lien traçable vers le projet ayant déclenché la demande d'évaluation"
     perimetre: "4.7 Marketplace freelance — schema.prisma#Rating (lignes 741-752) ; server/src/services/rating.service.ts"
@@ -11649,6 +11988,21 @@ anomalies:
       applicatif (frontend) limite déjà l'accès au formulaire de notation à
       une fois par demande d'évaluation générée — seul le service/schéma a
       été vérifié, pas le composant React appelant.
+
+      INVESTIGATION COMPLÉMENTAIRE (session en cours), statut inchangé :
+      vérifié que `POST /freelancers/:freelancerId` (seule route de
+      création, `rating.routes.ts:11`) n'accepte AUCUN `projectId` dans
+      son body (`addRatingSchema` vérifié, `rating.controller.ts:27-32`)
+      — il n'existe donc aujourd'hui aucun plumbing partiel à étendre, la
+      route ne reçoit même pas l'information nécessaire pour la relier à
+      un projet précis. Ajouter `projectId` exigerait donc un changement
+      cross-cutting (route + validator + frontend, pas seulement le
+      schéma) sur la base d'une hypothèse produit non confirmée (quel
+      écran déclenche réellement une notation, et transmet-il déjà
+      l'identifiant du projet complété ?) — au-delà d'un simple ajout de
+      contrainte DB. Laissé `ouvert`, décision porteur toujours requise
+      pour les deux options du critère de résolution ; aucune décision
+      inférée.
 
   - id: SEC-179
     titre: "server/test/idor.test.ts (14 tests, invoice.repository + proposal.repository) réimplémente localement invoiceUpdate/invoiceDelete/invoiceFindById/proposalUpdate/proposalDelete/proposalFindById sur un where: { id, companyId } fictif — companyId n'existe nulle part dans ce dépôt mono-tenant ; le fichier n'importe jamais les vrais repositories et ne prouve rien sur leur scoping réel"
@@ -12344,3 +12698,92 @@ anomalies:
       mes propres appels d'outils dans cette session. Dérogation CI déjà
       accordée par l'utilisateur pour cette session : `resolu` malgré
       l'absence de run CI vert sur ce commit précis.
+
+  - id: SEC-189
+    titre: "README.md décrit la durée du JWT access token comme « 1h » alors que JWT_ACCESS_EXPIRES_IN vaut 15m par défaut (env.ts:13) — écart de documentation déjà signalé en aparté dans la note de SEC-174 sans ID propre"
+    perimetre: "documentation — README.md (tableau stack, ligne Auth) ; server/src/config/env.ts:13"
+    regle_violee: null
+    classe: "documentation_desynchronisee"
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand README.md indique la durée réelle par défaut de
+      JWT_ACCESS_EXPIRES_IN (15 minutes), vérifiée par lecture directe de
+      env.ts au moment de la correction.
+    detecte_le: "2026-07-21"
+    source: manuel
+    confiance: certain
+    note: >
+      Trouvé incidemment en vérifiant SEC-174 (révocation JWT), dont la
+      note d'origine mentionnait déjà cet écart sans lui donner d'ID
+      propre ("le README mentionne 1h — écart de documentation, non
+      vérifié plus avant ici"). Enregistré immédiatement conformément à
+      CLAUDE.md plutôt que laissé comme simple mention en aparté.
+      Vérifié par lecture directe : `README.md:65` (avant correctif)
+      affichait `JWT (access token 1h)` ; `server/src/config/env.ts:13`
+      déclare `JWT_ACCESS_EXPIRES_IN: z.string().default("15m")`. Corrigé
+      dans la même passe : README.md affiche désormais `15min` et cite le
+      nom de la variable d'environnement. Base de données inaccessible
+      pendant cette session (Docker Desktop arrêté, bloquant documenté
+      séparément) — sans impact ici, correction purement textuelle sur un
+      fichier de documentation ne nécessitant aucune vérification en
+      base. Fix produit par mes propres appels d'outils dans cette
+      session.
+
+  - id: SEC-190
+    titre: "client/src/i18n/locales/fr/translation.json (et en/translation.json dans une moindre mesure) contient du texte mojibake en double ré-encodage (ex. « CrÃ©er une proposition » au lieu de « Créer une proposition », 755+ occurrences) — casse l'affichage FR réel dans l'UI (bouton, libellés) pour tout utilisateur français, la locale par défaut de ce projet"
+    perimetre: "client/src/i18n/locales/fr/translation.json ; client/src/i18n/locales/en/translation.json"
+    regle_violee: null
+    classe: "mojibake_encodage_texte"
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `client/src/i18n/locales/fr/translation.json` et
+      `en/translation.json` ne contiennent plus aucune séquence de
+      mojibake (motif classique A-tilde + octet suivant, sous sa forme
+      simple ou doublement ré-encodée) — vérifié par un grep exhaustif sur les
+      deux fichiers renvoyant zéro résultat, ET par un test qui rend un
+      composant réel consommant une clé i18n affectée (ex. le bouton
+      "Créer une proposition" de LeadsKanban) et vérifie le texte exact
+      affiché, pas seulement l'absence de la séquence corrompue en JSON
+      brut.
+    detecte_le: "2026-07-21"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert incidemment en diagnostiquant un échec du test existant
+      `LeadsKanban.test.tsx` (« the button appears on CONTACTED and
+      QUALIFIED leads ») après avoir ajouté `React.memo` à
+      `SortableLeadCard`/`KanbanColumn` (SEC-157) — le test cherchait le
+      texte exact "Créer une proposition" dans le DOM rendu et ne le
+      trouvait pas. Dump du HTML réellement rendu (`container.innerHTML`)
+      a montré que le texte AFFICHÉ était littéralement "CrÃ©er une
+      proposition" — pas un problème de mémoïsation ni de test, un
+      problème de source de données i18n. `grep -c "Ã©\|Ã¨\|Ã´\|Ã¢\|Ãª"
+      client/src/i18n/locales/fr/translation.json` : 755 occurrences.
+      Inspection des octets bruts (`Buffer.slice(...).toString('hex')`
+      sur la séquence "CrÃ©er") : `c3 83 c2 a9` — même motif de DOUBLE
+      ré-encodage que SEC-163 découvert plus tôt dans cette session sur
+      `ClientBriefPage.tsx` (bytes UTF-8 d'un caractère accentué
+      réinterprétés Latin-1 PUIS ré-encodés une seconde fois), pas un
+      simple ré-encodage. `git show HEAD:client/src/i18n/locales/fr/
+      translation.json` confirme que le dernier commit (`890c545`) est
+      PROPRE (zéro mojibake) — la corruption existe uniquement dans le
+      working tree actuel, non commitée. `git status` confirme
+      `en/translation.json` (62 lignes changées) et `fr/translation.json`
+      (1678 lignes changées) comme modifiés-non-commités au moment de la
+      découverte — aucun des deux fichiers n'a été touché par mes propres
+      appels d'outils dans cette session (jamais ouverts en Edit/Write) ;
+      il s'agit du travail en cours d'un processus externe concurrent,
+      non revu, non commité — attribution non revendiquée, conformément à
+      CLAUDE.md. NE PAS CORRIGÉ dans cette passe : le diff en cours
+      (873 insertions/867 suppressions sur les deux fichiers combinés) est
+      substantiel et clairement un travail actif d'une autre session —
+      réécrire par-dessus risquerait de détruire un travail réel en cours
+      plutôt que de simplement corriger l'encodage. Gravité `majeur` (pas
+      `bloquant`) : casse l'affichage textuel réel pour la locale FR par
+      défaut (`fallbackLng: "fr"`), mais aucune fonctionnalité n'est
+      cassée au sens fonctionnel (les boutons restent cliquables, le texte
+      est juste illisible) — distinct de SEC-163 (fichier `.tsx`, `majeur`
+      également, déjà résolu) par le fichier concerné, même classe de
+      défaut.

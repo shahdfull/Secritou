@@ -342,11 +342,23 @@ export const projectService = {
       // could be reopened (DONE -> REVIEW is a valid transition), an Approval created, or the
       // deposit invoice status changed in the window between preread and here. Without this,
       // the project could complete despite one of these conditions no longer holding.
-      const [openTasksTx, depositTx, unresolvedApprovalsTx] = await Promise.all([
+      const [openTasksTx, depositTx, unresolvedApprovalsTx, projectStateTx] = await Promise.all([
         tx.task.count({ where: { projectId, status: { not: "DONE" } } }),
         tx.invoice.findFirst({ where: { projectId, invoiceType: "DEPOSIT" }, select: { status: true } }),
         tx.approval.count({ where: { projectId, status: { in: ["PENDING", "REJECTED"] } } }),
+        // SEC-177: status/clientApprovedAt were only checked in the outside-transaction preread
+        // above — two near-simultaneous calls (double-click, network retry) could both pass that
+        // check before either commits, the second silently overwriting clientApprovedAt/
+        // clientApprovedById with a fresh timestamp. Re-checked here for the same reason as the
+        // three guards above.
+        tx.project.findUnique({ where: { id: projectId }, select: { status: true, clientApprovedAt: true } }),
       ]);
+      if (projectStateTx?.clientApprovedAt) {
+        throw new HttpError(409, "Project already approved", "PROJECT_ALREADY_APPROVED");
+      }
+      if (projectStateTx?.status !== "REVIEW") {
+        throw new HttpError(409, "Project is not ready for client approval", "PROJECT_NOT_IN_REVIEW");
+      }
       if (openTasksTx > 0) {
         throw new HttpError(400, `${openTasksTx} tâche(s) non terminée(s)`, "OPEN_TASKS_REMAINING");
       }

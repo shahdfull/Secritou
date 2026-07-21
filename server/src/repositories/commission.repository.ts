@@ -43,15 +43,28 @@ export const commissionRepository = {
     rows: { partnerId: string; projectId: string; invoiceId: string; paymentId: string; basis: number; ratePct: number; amount: number }[]
   ) {
     if (rows.length === 0) return [];
-    // Create one by one to return the created records
-    const created = [];
-    for (const row of rows) {
-      created.push(await tx.commission.create({ 
-        data: row,
-        include: { partner: { select: { id: true, name: true, email: true } }, project: { select: { id: true, name: true } }, invoice: { select: { id: true, number: true } } }
-      }));
-    }
-    return created;
+    // SEC-170: createManyAndReturn (Prisma 5.14+) doesn't support `include`, only `select` — the
+    // one-row-at-a-time loop this replaced existed only to work around that gap. `select` here
+    // reproduces the exact same shape the previous `include` produced.
+    return tx.commission.createManyAndReturn({
+      data: rows,
+      select: {
+        id: true,
+        partnerId: true,
+        projectId: true,
+        invoiceId: true,
+        paymentId: true,
+        basis: true,
+        ratePct: true,
+        amount: true,
+        status: true,
+        paidAt: true,
+        createdAt: true,
+        partner: { select: { id: true, name: true, email: true } },
+        project: { select: { id: true, name: true } },
+        invoice: { select: { id: true, number: true } },
+      },
+    });
   },
 
   async getAll(

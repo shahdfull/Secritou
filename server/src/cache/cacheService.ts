@@ -7,13 +7,13 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
     if (!redis) return null;
     const raw = await redis.get(key);
     if (!raw) {
-      recordCacheMiss();
+      recordCacheMiss(key);
       return null;
     }
-    recordCacheHit();
+    recordCacheHit(key);
     return JSON.parse(raw) as T;
   } catch {
-    recordCacheMiss();
+    recordCacheMiss(key);
     return null;
   }
 }
