@@ -34,7 +34,11 @@ export const getContactRequests: RequestHandler = async (req, res, next) => {
   try {
     const status = req.query.status as ContactStatus | undefined;
     const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
-    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+    // SEC-181: pageSize is the dominant convention across the rest of the API (parseListQuery);
+    // limit is still accepted for backward compatibility, but a caller using the dominant
+    // convention must not have it silently ignored.
+    const limitParam = req.query.pageSize ?? req.query.limit;
+    const limit = limitParam ? parseInt(limitParam as string, 10) : 20;
     const result = await contactService.getContactRequests(status, page, limit);
     res.status(200).json(result);
   } catch (error) {

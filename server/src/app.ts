@@ -8,6 +8,7 @@ import rateLimit from "express-rate-limit";
 import swaggerUi from "swagger-ui-express";
 import { env } from "./config/env.js";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
+import { HttpError } from "./utils/httpError.js";
 import { loggingMiddleware, requestIdMiddleware } from "./middlewares/logging.middleware.js";
 import { metricsAuthMiddleware } from "./middlewares/metricsAuth.middleware.js";
 import { enforceMustChangePassword } from "./middlewares/mustChangePassword.middleware.js";
@@ -131,8 +132,8 @@ app.use("/api/v1", (req, res, next) => {
 app.use("/api/v1", apiRoutes);
 app.use("/api/v1/metrics", metricsRoutes);
 
-app.use((_req, res) => {
-  res.status(404).json({ message: "Route not found" });
+app.use((_req, _res, next) => {
+  next(new HttpError(404, "Route not found", "ROUTE_NOT_FOUND"));
 });
 
 app.use(errorMiddleware);

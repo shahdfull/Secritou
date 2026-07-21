@@ -7,6 +7,11 @@
 // middleware's branching — per CLAUDE.md, a test that mirrors the target instead of calling it
 // proves nothing.
 //
+// SEC-180: the generic 404 fallback (app.ts, no route matched) used to bypass errorMiddleware
+// entirely — `res.status(404).json({ message: "Route not found" })` with no `next()` call — the
+// only HTTP exit point in the whole API carrying neither `error.code` nor `requestId`. Fixed by
+// routing it through `next(new HttpError(404, ..., "ROUTE_NOT_FOUND"))` like every other error.
+//
 // Requires a real, migrated database (DATABASE_URL) — skipped automatically if unreachable.
 
 import test, { describe, before, after } from "node:test";
@@ -173,5 +178,15 @@ describe("Uniform error envelope — real HTTP stack (SEC-145, SEC-149)", { skip
 
     assert.equal(res.status, 400, JSON.stringify(res.body));
     assert.equal(res.body.error?.code, "MISSING_AI_SPECS_PAYLOAD");
+  });
+
+  // SEC-180: a request to a route that matches no handler at all.
+  test("GET /api/v1/this-route-does-not-exist returns 404 with the standard error envelope, not a bare { message }", async () => {
+    const res = await request(app).get("/api/v1/this-route-does-not-exist");
+
+    assert.equal(res.status, 404, JSON.stringify(res.body));
+    assert.equal(res.body.error?.code, "ROUTE_NOT_FOUND");
+    assert.ok(res.body.error?.message, "error.message must be present");
+    assert.ok(res.body.requestId, "requestId must be present, like every other error response");
   });
 });

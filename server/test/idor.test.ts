@@ -1,320 +1,85 @@
-// Tests for IDOR (Insecure Direct Object Reference) protection on invoice and proposal repositories
-// Pattern: stub prisma by injection : same as lead.repository.test.ts
-// Source: src/repositories/invoice.repository.ts, src/repositories/proposal.repository.ts
+// SEC-179: this file used to reimplement invoiceUpdate/invoiceDelete/invoiceFindById/
+// proposalUpdate/proposalDelete/proposalFindById locally against a fake `where: { id, companyId }`
+// — companyId doesn't exist anywhere in this mono-tenant schema (CLAUDE.md forbids reintroducing
+// multi-tenancy, SEC-004). None of the 14 tests ever imported the real repositories, so the file
+// proved nothing about actual IDOR protection despite its name.
+//
+// The real scoping model in this codebase, confirmed by reading the actual routes/controllers:
+// - Invoice/Proposal direct-by-id routes (GET /invoices/:id, GET /proposals/:id) are
+//   ADMIN/MANAGER only (invoice.routes.ts:325, proposal.routes.ts:268) — pole-scoped via
+//   assertInvoiceInScope/assertProposalInScope (already covered by invoiceScopeManager.test.ts /
+//   SEC-137 and proposalAcceptRbacHttp.test.ts / SEC-124). A CLIENT never reaches these routes.
+// - The CLIENT-facing by-id path is POST /proposals/:id/respond (proposal.routes.ts:186,
+//   authorize("CLIENT")), whose controller (proposal.controller.ts:23-33) calls
+//   proposalService.getByIdForClient(id, clientId) -> proposalRepository.findByIdForClient, a
+//   REAL where: { id, clientId } query (the actual analog of what this file used to fake with
+//   companyId) plus an explicit ownership check before any mutation.
+//
+// This test imports and calls the real proposalRepository.findByIdForClient and
+// proposalService.getByIdForClient — not a reimplementation — against a real database, proving a
+// CLIENT cannot read another client's proposal by direct id, on the exact code path
+// respondToProposal (accept/reject) depends on.
+//
+// Requires a real, migrated database; skipped if unreachable.
 
-import test, { describe } from "node:test";
+import test, { describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 
-// ─── Fake prisma types ────────────────────────────────────────────────────────
+let prisma: typeof import("../src/config/prisma.js").prisma;
+let proposalRepository: typeof import("../src/repositories/proposal.repository.js").proposalRepository;
+let proposalService: typeof import("../src/services/proposal.service.js").proposalService;
+let dbAvailable = true;
 
-type FakeInvoicePrisma = {
-  invoice: {
-    update: (args: { where: object; data: object }) => Promise<unknown>;
-    delete: (args: { where: object }) => Promise<unknown>;
-    findUnique: (args: { where: object }) => Promise<unknown>;
-  };
-};
+const createdClientIds: string[] = [];
+const createdProposalIds: string[] = [];
 
-type FakeProposalPrisma = {
-  proposal: {
-    update: (args: { where: object; data: object }) => Promise<unknown>;
-    delete: (args: { where: object }) => Promise<unknown>;
-    findUnique: (args: { where: object }) => Promise<unknown>;
-  };
-};
-
-// ─── Extracted repository functions (mirror of the real repositories) ─────────
-
-async function invoiceUpdate(
-  prisma: FakeInvoicePrisma,
-  id: string,
-  companyId: string,
-  data: object
-) {
-  return prisma.invoice.update({ where: { id, companyId }, data });
-}
-
-async function invoiceDelete(
-  prisma: FakeInvoicePrisma,
-  id: string,
-  companyId: string
-) {
-  return prisma.invoice.delete({ where: { id, companyId } });
-}
-
-async function invoiceFindById(
-  prisma: FakeInvoicePrisma,
-  id: string,
-  companyId: string
-) {
-  return prisma.invoice.findUnique({ where: { id, companyId } });
-}
-
-async function proposalUpdate(
-  prisma: FakeProposalPrisma,
-  id: string,
-  companyId: string,
-  data: object
-) {
-  return prisma.proposal.update({ where: { id, companyId }, data });
-}
-
-async function proposalDelete(
-  prisma: FakeProposalPrisma,
-  id: string,
-  companyId: string
-) {
-  return prisma.proposal.delete({ where: { id, companyId } });
-}
-
-async function proposalFindById(
-  prisma: FakeProposalPrisma,
-  id: string,
-  companyId: string
-) {
-  return prisma.proposal.findUnique({ where: { id, companyId } });
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function makeInvoice(overrides = {}) {
-  return {
-    id: "inv-1",
-    companyId: "company-1",
-    clientId: "client-1",
-    number: "INV-001",
-    title: "Développement web",
-    amount: 5000,
-    amountPaid: 0,
-    status: "SENT" as const,
-    currency: "EUR",
-    dueDate: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    ...overrides,
-  };
-}
-
-function makeProposal(overrides = {}) {
-  return {
-    id: "prop-1",
-    companyId: "company-1",
-    clientId: "client-1",
-    title: "Refonte site web",
-    status: "SENT" as const,
-    amount: 5000,
-    currency: "EUR",
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    ...overrides,
-  };
-}
-
-// ─── Invoice IDOR tests ───────────────────────────────────────────────────────
-
-describe("invoice.repository : IDOR protection", () => {
-  const INVOICE_ID = "inv-1";
-  const COMPANY_ID = "company-1";
-  const ATTACKER_COMPANY_ID = "company-attacker";
-
-  test("update WHERE clause includes both id and companyId", async () => {
-    let capturedWhere: object | null = null;
-    const fakePrisma: FakeInvoicePrisma = {
-      invoice: {
-        update: async (args) => { capturedWhere = args.where; return makeInvoice(); },
-        delete: async () => makeInvoice(),
-        findUnique: async () => makeInvoice(),
-      },
-    };
-
-    await invoiceUpdate(fakePrisma, INVOICE_ID, COMPANY_ID, { status: "PAID" });
-
-    assert.deepEqual(capturedWhere, { id: INVOICE_ID, companyId: COMPANY_ID });
-  });
-
-  test("update WHERE must contain companyId : not id alone", async () => {
-    let capturedWhere: Record<string, unknown> | null = null;
-    const fakePrisma: FakeInvoicePrisma = {
-      invoice: {
-        update: async (args) => { capturedWhere = args.where as Record<string, unknown>; return makeInvoice(); },
-        delete: async () => makeInvoice(),
-        findUnique: async () => makeInvoice(),
-      },
-    };
-
-    await invoiceUpdate(fakePrisma, INVOICE_ID, COMPANY_ID, { status: "PAID" });
-
-    assert.ok(capturedWhere !== null);
-    assert.ok("companyId" in capturedWhere!, "companyId must be in WHERE");
-    assert.ok(Object.keys(capturedWhere!).length >= 2, "WHERE must have at least id + companyId");
-  });
-
-  test("delete WHERE clause includes both id and companyId", async () => {
-    let capturedWhere: object | null = null;
-    const fakePrisma: FakeInvoicePrisma = {
-      invoice: {
-        update: async () => makeInvoice(),
-        delete: async (args) => { capturedWhere = args.where; return makeInvoice(); },
-        findUnique: async () => makeInvoice(),
-      },
-    };
-
-    await invoiceDelete(fakePrisma, INVOICE_ID, COMPANY_ID);
-
-    assert.deepEqual(capturedWhere, { id: INVOICE_ID, companyId: COMPANY_ID });
-  });
-
-  test("delete WHERE must contain companyId : not id alone", async () => {
-    let capturedWhere: Record<string, unknown> | null = null;
-    const fakePrisma: FakeInvoicePrisma = {
-      invoice: {
-        update: async () => makeInvoice(),
-        delete: async (args) => { capturedWhere = args.where as Record<string, unknown>; return makeInvoice(); },
-        findUnique: async () => makeInvoice(),
-      },
-    };
-
-    await invoiceDelete(fakePrisma, INVOICE_ID, COMPANY_ID);
-
-    assert.ok("companyId" in capturedWhere!, "companyId must be in DELETE WHERE");
-  });
-
-  test("findById with wrong companyId returns null (cross-company isolation)", async () => {
-    const ownedInvoice = makeInvoice({ id: INVOICE_ID, companyId: COMPANY_ID });
-    const fakePrisma: FakeInvoicePrisma = {
-      invoice: {
-        update: async () => makeInvoice(),
-        delete: async () => makeInvoice(),
-        findUnique: async (args: { where: { id: string; companyId: string } }) => {
-          if (args.where.id === ownedInvoice.id && args.where.companyId === ownedInvoice.companyId) {
-            return ownedInvoice;
-          }
-          return null;
-        },
-      },
-    };
-
-    const result = await invoiceFindById(fakePrisma, INVOICE_ID, ATTACKER_COMPANY_ID);
-    assert.equal(result, null, "Cross-company read must return null");
-  });
-
-  test("findById WHERE includes companyId", async () => {
-    let capturedWhere: Record<string, unknown> | null = null;
-    const fakePrisma: FakeInvoicePrisma = {
-      invoice: {
-        update: async () => makeInvoice(),
-        delete: async () => makeInvoice(),
-        findUnique: async (args) => { capturedWhere = args.where as Record<string, unknown>; return null; },
-      },
-    };
-
-    await invoiceFindById(fakePrisma, INVOICE_ID, COMPANY_ID);
-
-    assert.ok("companyId" in capturedWhere!, "companyId must be in findById WHERE");
-    assert.equal(capturedWhere!.companyId, COMPANY_ID);
-  });
+before(async () => {
+  try {
+    ({ prisma } = await import("../src/config/prisma.js"));
+    ({ proposalRepository } = await import("../src/repositories/proposal.repository.js"));
+    ({ proposalService } = await import("../src/services/proposal.service.js"));
+    await prisma.$queryRaw`SELECT 1`;
+  } catch {
+    dbAvailable = false;
+  }
 });
 
-// ─── Proposal IDOR tests ──────────────────────────────────────────────────────
+after(async () => {
+  if (!dbAvailable) return;
+  await prisma.proposal.deleteMany({ where: { id: { in: createdProposalIds } } });
+  await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
+});
 
-describe("proposal.repository : IDOR protection", () => {
-  const PROPOSAL_ID = "prop-1";
-  const COMPANY_ID = "company-1";
-  const ATTACKER_COMPANY_ID = "company-attacker";
+describe("proposalRepository/proposalService: CLIENT cross-client IDOR protection (SEC-179)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
+  test("findByIdForClient returns null when the proposal belongs to a different client", async () => {
+    const owner = await prisma.client.create({ data: { name: `sec179-owner-${Date.now()}` } });
+    createdClientIds.push(owner.id);
+    const attacker = await prisma.client.create({ data: { name: `sec179-attacker-${Date.now()}` } });
+    createdClientIds.push(attacker.id);
+    const proposal = await prisma.proposal.create({
+      data: { title: "SEC-179 proposal", clientId: owner.id, status: "SENT" },
+    });
+    createdProposalIds.push(proposal.id);
 
-  test("update WHERE clause includes both id and companyId", async () => {
-    let capturedWhere: object | null = null;
-    const fakePrisma: FakeProposalPrisma = {
-      proposal: {
-        update: async (args) => { capturedWhere = args.where; return makeProposal(); },
-        delete: async () => makeProposal(),
-        findUnique: async () => makeProposal(),
-      },
-    };
+    const asAttacker = await proposalRepository.findByIdForClient(proposal.id, attacker.id);
+    assert.equal(asAttacker, null, "a client must never be able to read another client's proposal by direct id");
 
-    await proposalUpdate(fakePrisma, PROPOSAL_ID, COMPANY_ID, { status: "ACCEPTED" });
-
-    assert.deepEqual(capturedWhere, { id: PROPOSAL_ID, companyId: COMPANY_ID });
+    const asOwner = await proposalRepository.findByIdForClient(proposal.id, owner.id);
+    assert.ok(asOwner, "the owning client must still be able to read their own proposal");
+    assert.equal(asOwner!.id, proposal.id);
   });
 
-  test("update WHERE must contain companyId : not id alone", async () => {
-    let capturedWhere: Record<string, unknown> | null = null;
-    const fakePrisma: FakeProposalPrisma = {
-      proposal: {
-        update: async (args) => { capturedWhere = args.where as Record<string, unknown>; return makeProposal(); },
-        delete: async () => makeProposal(),
-        findUnique: async () => makeProposal(),
-      },
-    };
+  test("proposalService.getByIdForClient (the real code respondToProposal depends on) enforces the same isolation", async () => {
+    const owner = await prisma.client.create({ data: { name: `sec179-svc-owner-${Date.now()}` } });
+    createdClientIds.push(owner.id);
+    const attacker = await prisma.client.create({ data: { name: `sec179-svc-attacker-${Date.now()}` } });
+    createdClientIds.push(attacker.id);
+    const proposal = await prisma.proposal.create({
+      data: { title: "SEC-179 service proposal", clientId: owner.id, status: "SENT" },
+    });
+    createdProposalIds.push(proposal.id);
 
-    await proposalUpdate(fakePrisma, PROPOSAL_ID, COMPANY_ID, { status: "ACCEPTED" });
-
-    assert.ok("companyId" in capturedWhere!, "companyId must be in WHERE");
-    assert.ok(Object.keys(capturedWhere!).length >= 2);
-  });
-
-  test("delete WHERE clause includes both id and companyId", async () => {
-    let capturedWhere: object | null = null;
-    const fakePrisma: FakeProposalPrisma = {
-      proposal: {
-        update: async () => makeProposal(),
-        delete: async (args) => { capturedWhere = args.where; return makeProposal(); },
-        findUnique: async () => makeProposal(),
-      },
-    };
-
-    await proposalDelete(fakePrisma, PROPOSAL_ID, COMPANY_ID);
-
-    assert.deepEqual(capturedWhere, { id: PROPOSAL_ID, companyId: COMPANY_ID });
-  });
-
-  test("delete WHERE must contain companyId : not id alone", async () => {
-    let capturedWhere: Record<string, unknown> | null = null;
-    const fakePrisma: FakeProposalPrisma = {
-      proposal: {
-        update: async () => makeProposal(),
-        delete: async (args) => { capturedWhere = args.where as Record<string, unknown>; return makeProposal(); },
-        findUnique: async () => makeProposal(),
-      },
-    };
-
-    await proposalDelete(fakePrisma, PROPOSAL_ID, COMPANY_ID);
-
-    assert.ok("companyId" in capturedWhere!, "companyId must be in DELETE WHERE");
-  });
-
-  test("findById with wrong companyId returns null (cross-company isolation)", async () => {
-    const ownedProposal = makeProposal({ id: PROPOSAL_ID, companyId: COMPANY_ID });
-    const fakePrisma: FakeProposalPrisma = {
-      proposal: {
-        update: async () => makeProposal(),
-        delete: async () => makeProposal(),
-        findUnique: async (args: { where: { id: string; companyId: string } }) => {
-          if (args.where.id === ownedProposal.id && args.where.companyId === ownedProposal.companyId) {
-            return ownedProposal;
-          }
-          return null;
-        },
-      },
-    };
-
-    const result = await proposalFindById(fakePrisma, PROPOSAL_ID, ATTACKER_COMPANY_ID);
-    assert.equal(result, null, "Cross-company read must return null");
-  });
-
-  test("findById WHERE includes companyId", async () => {
-    let capturedWhere: Record<string, unknown> | null = null;
-    const fakePrisma: FakeProposalPrisma = {
-      proposal: {
-        update: async () => makeProposal(),
-        delete: async () => makeProposal(),
-        findUnique: async (args) => { capturedWhere = args.where as Record<string, unknown>; return null; },
-      },
-    };
-
-    await proposalFindById(fakePrisma, PROPOSAL_ID, COMPANY_ID);
-
-    assert.ok("companyId" in capturedWhere!, "companyId must be in findById WHERE");
-    assert.equal(capturedWhere!.companyId, COMPANY_ID);
+    const asAttacker = await proposalService.getByIdForClient(proposal.id, attacker.id);
+    assert.equal(asAttacker, null, "cross-client read must return null, the exact condition respondToProposal checks before mutating");
   });
 });

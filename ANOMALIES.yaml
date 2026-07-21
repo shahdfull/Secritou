@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-182
+dernier_id: SEC-188
 
 anomalies:
   - id: SEC-001
@@ -7920,7 +7920,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: majeur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand la suppression d'un `PermissionProfile` encore
       rattaché à au moins un `ManagerPermission` est soit bloquée (erreur
@@ -7954,6 +7954,28 @@ anomalies:
       utilisateur précis), avec un référentiel de permissions vide sauf
       overrides — sans notification à l'admin qui a supprimé le profil, ni
       au manager concerné.
+
+      RÉSOLU (session en cours, commit `3e4d14d`) : ajout de
+      `managerPermissionRepository.findUserNamesByProfileId` (résout les
+      noms des managers rattachés, pas seulement leurs ids) et modification
+      de `permissionProfileService.delete` — si au moins un manager est
+      encore rattaché au profil, lève `HttpError(409,
+      "Cannot delete a permission profile still assigned to N manager(s):
+      <noms>", "PERMISSION_PROFILE_IN_USE")` avant tout appel à
+      `permissionProfileRepository.delete`, au lieu de supprimer puis
+      seulement invalider le cache. Option retenue : le blocage explicite
+      (premier volet du critère de résolution), pas la confirmation
+      explicite côté appelant (second volet) — plus simple, et cohérent
+      avec le patron déjà utilisé pour le dernier ADMIN (SEC-165 même
+      session). Note : cette entrée avait déjà été marquée `resolu` plus
+      tôt dans cette session, puis écrasée par une écriture concurrente
+      externe sur ce même fichier qui a ramené `statut: ouvert` sans note
+      de résolution — republié ici pour de bon ; le code, lui, n'a jamais
+      été perdu (vérifié par `git show HEAD` sur `3e4d14d`, présent).
+      Suite complète (496 tests), `tsc --noEmit` et
+      `npm run lint --workspace=server` verts au moment du commit d'origine.
+      Dérogation CI déjà accordée par l'utilisateur pour cette session :
+      `resolu` malgré l'absence de run CI vert sur ce commit précis.
 
   - id: SEC-115
     titre: "Migration 20260711183136_sync_schema_drift contient un ALTER INDEX ... RENAME TO ..., donc n'est pas strictement additive-only"
@@ -11550,7 +11572,7 @@ anomalies:
     regle_violee: null
     classe: "test_reimplemente_companyid_fictif"
     gravite: moyen
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `idor.test.ts` appelle réellement
       `invoiceRepository`/`proposalRepository` (ou les services qui les
@@ -11591,13 +11613,43 @@ anomalies:
       réelle serait la plus coûteuse à ne pas détecter avant mise en
       production.
 
+      RÉSOLU (session en cours) : `idor.test.ts` entièrement réécrit.
+      Lecture directe préalable des routes réelles a montré que le modèle
+      de scoping de ce dépôt n'a jamais utilisé de `where: {id, companyId}`
+      au niveau repository : `GET /invoices/:id`/`GET /proposals/:id`
+      (accès direct par id) sont `ADMIN`/`MANAGER` uniquement
+      (`invoice.routes.ts:325`, `proposal.routes.ts:268`), scopés par pôle
+      via `assertInvoiceInScope`/`assertProposalInScope` au niveau
+      SERVICE (déjà couverts par `invoiceScopeManager.test.ts`/SEC-137 et
+      `proposalAcceptRbacHttp.test.ts`/SEC-124) — un CLIENT n'atteint
+      jamais ces routes. Le seul chemin CLIENT par id est `POST
+      /proposals/:id/respond` (`proposal.routes.ts:186`,
+      `authorize("CLIENT")`), dont le controller
+      (`proposal.controller.ts:23-33`) appelle réellement
+      `proposalService.getByIdForClient(id, clientId)` →
+      `proposalRepository.findByIdForClient`, un VRAI `where: { id,
+      clientId }` (l'équivalent réel de ce que l'ancien fichier fabriquait
+      avec `companyId`). Le nouveau fichier (2 tests, remplaçant les 14
+      fictifs) importe et appelle `proposalRepository.findByIdForClient`
+      et `proposalService.getByIdForClient` (code réel, pas une
+      réimplémentation) contre une base migrée, et confirme qu'un client
+      B ne peut jamais lire par id direct une proposition du client A —
+      exactement le chemin dont dépend `respondToProposal`. Suite complète
+      verte (487 tests après ce changement, contre 496 avant — 14→2 tests
+      dans ce fichier, net -9 sur le total, réduction attendue vu la
+      suppression de la fausse couverture). `npx tsc --noEmit` et
+      `npm run lint --workspace=server` verts. Fix et test produits par
+      mes propres appels d'outils dans cette session. Dérogation CI déjà
+      accordée par l'utilisateur pour cette session : `resolu` malgré
+      l'absence de run CI vert sur ce commit précis.
+
   - id: SEC-180
     titre: "Le fallback 404 générique (app.ts, route inexistante) répond { message: \"Route not found\" } au lieu de l'enveloppe d'erreur uniforme { error: { code, message }, message, requestId } produite par error.middleware.ts pour absolument tous les autres cas (HttpError, ZodError, Prisma P2002, Multer) — seul point de sortie HTTP de l'API qui ne porte ni error.code ni requestId"
     perimetre: "transverse — server/src/app.ts (lignes 134-136) ; server/src/middlewares/error.middleware.ts"
     regle_violee: null
     classe: "enveloppe_erreur_non_uniforme"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand une requête vers une route inexistante (404)
       reçoit la même enveloppe que toute autre erreur — `{ error: { code:
@@ -11632,13 +11684,28 @@ anomalies:
       de `error.middleware.ts`, toutes unifiées sous `HttpError` depuis
       SEC-149).
 
+      RÉSOLU (session en cours) : `app.ts` — le handler générique
+      remplacé par `app.use((_req, _res, next) => { next(new
+      HttpError(404, "Route not found", "ROUTE_NOT_FOUND")); })`, qui
+      traverse désormais `errorMiddleware` comme toute autre erreur
+      (option 1 du critère de résolution). Preuve par test réel : nouveau
+      cas ajouté à `errorEnvelope.http.test.ts` (SEC-145/SEC-149, même
+      fichier/style) — `GET /api/v1/this-route-does-not-exist` via le
+      vrai stack HTTP (`app.ts` → `errorMiddleware`), vérifie `status
+      404`, `error.code === "ROUTE_NOT_FOUND"`, `error.message` et
+      `requestId` présents. Suite complète verte, `npx tsc --noEmit` et
+      `npm run lint --workspace=server` verts. Fix et test produits par
+      mes propres appels d'outils dans cette session. Dérogation CI déjà
+      accordée par l'utilisateur pour cette session : `resolu` malgré
+      l'absence de run CI vert sur ce commit précis.
+
   - id: SEC-181
     titre: "La convention de pagination (page/pageSize/orderBy/orderDir via parseListQuery) n'est pas uniforme : contact.controller.ts et customQuestion.controller.ts utilisent un paramètre `limit` au lieu de `pageSize`, tandis qu'aiConversation.controller.ts/projectMeeting.controller.ts/timeEntry.controller.ts réimplémentent leur propre parsing page/pageSize avec des plafonds et comportements de repli divergents (50, 100, ou aucun plafond visible) au lieu d'appeler parseListQuery"
     perimetre: "transverse — server/src/controllers/{contact,customQuestion,aiConversation,projectMeeting,timeEntry}.controller.ts ; server/src/utils/listQuery.ts#parseListQuery"
     regle_violee: null
     classe: "convention_api_non_uniforme"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand ces 5 controllers appellent `parseListQuery`
       (comme la majorité des autres endpoints de liste) au lieu de
@@ -11668,13 +11735,47 @@ anomalies:
       retombant sur leurs valeurs par défaut respectives sans erreur ni
       avertissement.
 
+      RÉSOLU PARTIELLEMENT, décision documentée (session en cours) :
+      vérification directe des 3 controllers `aiConversation`/
+      `projectMeeting`/`timeEntry` a trouvé un constat moins large que le
+      titre d'origine — les trois utilisent DÉJÀ le nom `pageSize` (pas
+      `limit`), avec des replis sûrs
+      (`aiConversation.controller.ts:7-8` :
+      `Math.max(1, Number(...)||1)`/`Math.min(50, Math.max(1,
+      Number(...)||20))` ; `timeEntry.controller.ts:21-22` :
+      `Number(...)||1`/`Math.min(Number(...)||20, 100)` ;
+      `projectMeeting.controller.ts:10-13` : déjà gardé par
+      `Number.isInteger(page) && page>0 && ...`, AUCUN `NaN` possible
+      contrairement à ce que la note d'origine supposait sans le
+      vérifier) — seul leur PLAFOND diffère de `parseListQuery` (50 vs
+      100 vs interne), pas leur convention de nommage. Seuls
+      `contact.controller.ts` et `customQuestion.controller.ts` avaient
+      le vrai défaut décrit (paramètre `limit` au lieu de `pageSize`,
+      silencieusement ignoré par un client générique) — corrigé dans les
+      deux en acceptant `pageSize` en priorité, `limit` gardé en repli
+      pour compatibilité ascendante (`req.query.pageSize ??
+      req.query.limit`), sans toucher aux signatures de service
+      existantes (`getContactRequests`/`getMyQuestions`/
+      `getAllQuestions` gardent `(status, page, limit)` — un renommage de
+      paramètre interne n'aurait aucune valeur observable). Décision
+      explicite : ne PAS convertir les 5 controllers vers
+      `parseListQuery` — un refactor de signature de service plus large
+      que proportionné pour un défaut `mineur` dont la vraie portée
+      (2 fichiers sur 5, pas les plafonds) est confirmée plus restreinte
+      que le titre d'origine ; les divergences de plafond (50/100)
+      restent, documentées ici, pas un défaut de nommage. `npx tsc
+      --noEmit` et `npm run lint --workspace=server` verts. Fix produit
+      par mes propres appels d'outils dans cette session. Dérogation CI
+      déjà accordée par l'utilisateur pour cette session : `resolu`
+      malgré l'absence de run CI vert sur ce commit précis.
+
   - id: SEC-182
     titre: "Les blocs @swagger des mutations métier critiques ne documentent que les codes structurels (401/403/404/422) et omettent systématiquement les codes 409 propres à la règle métier — POST /projects/{id}/client-approve promet 200/401/403/404 alors que le service expose au moins 6 codes distincts (PROJECT_ALREADY_APPROVED, PROJECT_ALREADY_COMPLETED, PROJECT_NOT_IN_REVIEW, DEPOSIT_UNPAID, PENDING_APPROVALS_REMAINING, OPEN_TASKS_REMAINING) qu'aucun client généré depuis le spec OpenAPI ne peut anticiper"
     perimetre: "transverse (fidélité documentation) — server/src/routes/project.routes.ts (client-approve, lignes 344-380) ; server/src/services/project.service.ts#clientApprove ; échantillon également relevé sur invoice.routes.ts (POST /:id/payments)"
     regle_violee: null
     classe: "swagger_codes_erreur_incomplets"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand le bloc `@swagger` de `POST
       /projects/{id}/client-approve` liste explicitement au moins les
@@ -11716,3 +11817,288 @@ anomalies:
       `mineur` : n'affecte aucun client interne (le frontend React n'utilise
       pas le spec OpenAPI généré, seulement les vrais endpoints), l'impact
       se limite à un futur consommateur API tiers.
+
+      RÉSOLU (session en cours) : bloc `@swagger` de `POST
+      /projects/{id}/client-approve` (`project.routes.ts`) étendu avec
+      une entrée `409` listant les 5 codes réels
+      (`PROJECT_ALREADY_APPROVED`, `PROJECT_ALREADY_COMPLETED`,
+      `PROJECT_NOT_IN_REVIEW`, `DEPOSIT_UNPAID`,
+      `PENDING_APPROVALS_REMAINING`) plus une mention du 6e
+      (`OPEN_TASKS_REMAINING`, gardé à part car sa vraie réponse HTTP est
+      400, pas 409 — l'exactitude prime sur le simple respect du
+      complément demandé). Vérifié en importatn `src/swagger.ts` via tsx
+      et en inspectant `swaggerSpec.paths['/projects/{id}/client-approve']
+      .post.responses['409']` : le bloc parse correctement et contient
+      les 5 codes. Extension à `POST /invoices/{id}/payments` (mentionnée
+      dans le critère comme optionnelle, "si le porteur le souhaite") non
+      traitée dans cette passe — hors du périmètre strict de cette entrée
+      par manque d'échantillon exhaustif de ses propres codes 409 réels,
+      resterait à couvrir séparément si besoin. `npx tsc --noEmit` vert
+      (aucune erreur de syntaxe JSDoc). Fix produit par mes propres appels
+      d'outils dans cette session. Dérogation CI déjà accordée par
+      l'utilisateur pour cette session : `resolu` malgré l'absence de run
+      CI vert sur ce commit précis.
+
+  - id: SEC-183
+    titre: "Le taux d'acompte de 30% est un littéral 0.3 recopié indépendamment à 3 endroits (project.service.ts#clientApprove, proposal.service.ts#acceptWithCascade, documentGenerator.service.ts#generateQuotePDF) sans constante partagée — une future évolution du taux métier corrigée dans un seul site laisserait les autres calculer un acompte/solde différent de ce que le devis PDF a promis au client ou de ce que la facture réelle applique"
+    perimetre: "4.4 Facturation, 4.1 CRM & Pipeline commercial — server/src/services/project.service.ts:336 ; server/src/services/proposal.service.ts:466 ; server/src/services/documentGenerator.service.ts:399"
+    regle_violee: null
+    classe: "constante_metier_dupliquee_sans_source_unique"
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand une constante unique (ex. `DEPOSIT_RATE = 0.3`,
+      dans `shared/` ou un module serveur central déjà importé des trois
+      côtés) remplace les 3 occurrences littérales de `0.3`, avec un test
+      qui modifie la constante et vérifie que les 3 calculs (devis PDF,
+      cascade d'acceptation, fallback de `clientApprove`) produisent
+      bien le même nouveau taux — pas seulement que chacun reste
+      individuellement correct au taux actuel.
+    detecte_le: "2026-07-21"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit finance/RevOps (item 1, exactitude des montants). RG-004b/
+      SEC-030 (déjà dans ce registre) avait vérifié que le calcul du
+      SOLDE dans `clientApprove` est un complément-à-100% correct et
+      unique à cet endroit précis — cette entrée ne le contredit pas,
+      elle porte sur un site DIFFÉRENT et non vérifié à l'époque : le
+      taux d'ACOMPTE lui-même (30%), qui apparaît en toutes lettres et
+      indépendamment à 3 emplacements distincts, vérifiés par lecture
+      directe et grep (`\* 0\.3\b`) sur tout `server/src` : (1)
+      `project.service.ts:336`, fallback utilisé par `clientApprove`
+      quand `depositInvoice.amountHT` est absent ; (2)
+      `proposal.service.ts:466`, le calcul RÉEL exécuté par
+      `acceptWithCascade` au moment de créer la facture d'acompte ; (3)
+      `documentGenerator.service.ts:399`, le calcul illustratif affiché
+      dans le PDF du devis envoyé au client AVANT acceptation. Aucun des
+      trois n'importe une constante partagée. Gravité `majeur` (pas
+      `mineur`) : c'est une valeur qui engage contractuellement l'agence
+      envers le client (montant annoncé dans un devis PDF téléchargeable)
+      — une divergence, même par oubli d'un seul site lors d'un futur
+      changement de taux, produirait un écart chiffré et documenté entre
+      ce qui a été promis par écrit et ce qui est réellement facturé.
+
+  - id: SEC-184
+    titre: "creditNoteService.create ne vérifie le montant du nouvel avoir que contre invoice.amountPaid, jamais contre la somme des avoirs déjà émis sur la même facture — des avoirs cumulés peuvent dépasser ce que le client a réellement payé, créditant client.creditBalance au-delà du montant reçu"
+    perimetre: "4.4 Facturation — server/src/services/creditNote.service.ts#create (lignes 48-61)"
+    regle_violee: null
+    classe: "garde_montant_cumulatif_manquante"
+    gravite: bloquant
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand la garde de `creditNoteService.create` compare
+      le nouveau montant à `invoice.amountPaid MOINS la somme des
+      avoirs déjà émis sur cette facture (statut confirmé, non annulé)`,
+      pas seulement à `invoice.amountPaid` seul — prouvé par un test qui
+      appelle réellement `creditNoteService.create` deux fois de suite
+      sur la même facture payée intégralement (ex. 1000 payés, un
+      premier avoir de 800 accepté, un second avoir de 700 doit être
+      refusé alors qu'il passerait aujourd'hui puisque 700 < 1000).
+    detecte_le: "2026-07-21"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit finance/RevOps (item 3, avoirs). Vérifié par lecture directe :
+      `creditNote.service.ts:48-61` — la seule garde est `if (data.amount
+      > Number(invoice.amountPaid)) throw new HttpError(409, ...,
+      "CREDIT_EXCEEDS_PAID")`, exécutée dans une transaction (`tx`, pas
+      de TOCTOU sur la lecture elle-même) mais qui ne relit ni ne somme
+      jamais `tx.creditNote.findMany({ where: { invoiceId } })`. Scénario
+      concret : facture de 1000 TND intégralement payée
+      (`amountPaid = 1000`) ; un premier avoir de 800 TND est émis
+      (remboursement partiel) — passe (800 ≤ 1000),
+      `client.creditBalance` incrémenté de 800 ; un second avoir de 700
+      TND est émis sur la MÊME facture par erreur ou abus — passe
+      également (700 ≤ 1000, la vérification ignore le premier avoir) —
+      total des avoirs = 1500 TND sur une facture qui n'a rapporté que
+      1000 TND à l'agence, `client.creditBalance` gonflé de 400 TND
+      au-delà de ce qui a réellement été reçu. Gravité `bloquant` (perte
+      d'argent réelle, pas juste une incohérence comptable) : ce
+      `creditBalance` gonflé est ensuite consommable via `POST
+      /invoices/{id}/apply-credit` pour réduire le montant dû sur
+      D'AUTRES factures — la fuite ne reste pas cantonnée à la facture
+      d'origine. Non vérifié dans cette passe : si un avoir peut être
+      annulé/inversé (auquel cas la somme devrait exclure les avoirs
+      annulés) — `CreditNote` n'a pas de champ `status` dans le schéma
+      lu, seulement `appliedAt`/`appliedToInvoiceId`, donc probablement
+      aucune notion d'annulation d'avoir n'existe — à confirmer si
+      pertinent pour la correction exacte.
+
+  - id: SEC-185
+    titre: "La signature électronique de contrat (PATCH /documents/:id/sign) ne capture ni hash du contenu du PDF, ni adresse IP, ni user-agent du signataire — seuls signedAt/signedByClientId sont écrits, alors que le même service capture déjà ipAddress/userAgent pour un simple téléchargement via documentService.logAccess"
+    perimetre: "4.9 Documents — server/src/services/document.service.ts#signDocument ; server/src/controllers/document.controller.ts#signDocument"
+    regle_violee: null
+    classe: "preuve_signature_electronique_insuffisante"
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `signDocument` capture au minimum l'IP et le
+      user-agent du signataire (même mécanisme que `logAccess`, déjà
+      câblé pour `downloadDocument`) et un hash (SHA-256) du contenu du
+      PDF au moment de la signature, persistés de façon consultable
+      indépendamment du flag `signedAt` — ou qu'une décision explicite
+      du porteur documente que la valeur probante actuelle (horodatage +
+      identité applicative seule) est jugée suffisante pour l'usage visé,
+      à écrire dans REFERENTIEL.md §7.
+    detecte_le: "2026-07-21"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit finance/RevOps (item 5, preuve de signature). Vérifié par
+      lecture directe : `document.controller.ts#signDocument` (lignes
+      94-103) appelle `documentService.signDocument(id, clientId,
+      req.user!.sub)` — ni `req.ip` ni `req.get("User-Agent")` transmis.
+      `document.service.ts#signDocument` (déjà lu intégralement lors de
+      l'audit sécurité de cette même conversation) n'écrit que `{
+      signedAt: new Date(), signedByClientId: signingUserId }` — aucun
+      hash du PDF signé, aucune IP, aucun user-agent. Comparaison
+      directe : `downloadDocument` (même fichier,
+      `document.controller.ts:105-117`) transmet lui bien `ipAddress:
+      req.ip, userAgent: req.get("User-Agent")` à
+      `documentService.logAccess` pour un simple téléchargement — le
+      mécanisme de capture existe déjà dans ce même module, il n'est
+      simplement jamais appelé au moment de l'action la plus
+      juridiquement sensible du flux (signature d'un contrat). Absent,
+      pas défaillant : aucune tentative de hash/IP n'existe sur ce
+      chemin précis, ce n'est pas un mécanisme cassé. Gravité `majeur` :
+      n'empêche aucune opération métier aujourd'hui (l'idempotence
+      anti-double-signature et l'ownership sont corrects, déjà vérifiés),
+      mais affaiblit la valeur probante du contrat en cas de litige — un
+      client qui contesterait avoir signé n'aurait, côté Secritou, qu'un
+      timestamp et un ID utilisateur en base, sans preuve technique liant
+      cette action à une IP/un contenu de document précis.
+
+  - id: SEC-186
+    titre: "markOverdueInvoices (cron quotidien) fait passer des factures SENT/PARTIAL à OVERDUE via updateMany sans jamais appeler auditLogService.record — seule transition de statut parmi les 4 citées par le porteur (émise/payée/en retard/annulée) absente de la table AuditLog, alors que send/addPayment/cancel y sont tous journalisés"
+    perimetre: "4.4 Facturation — server/src/jobs/processors/maintenance.processor.ts#markOverdueInvoices (lignes 246-265)"
+    regle_violee: null
+    classe: "trace_audit_transition_statut_manquante"
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `markOverdueInvoices` appelle
+      `auditLogService.record` pour chaque facture qu'il fait passer à
+      `OVERDUE` (actorId/actorRole null, système cron — le schéma
+      `AuditLog` accepte déjà ces deux champs en nullable), au même
+      titre que `send`/`addPayment`/`cancel` dans `invoice.service.ts`.
+    detecte_le: "2026-07-21"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit finance/RevOps (item 6, trace d'audit). Vérifié par lecture
+      directe : `invoice.service.ts` appelle `auditLogService.record`
+      pour `invoice.cancel` (ligne 164), `invoice.delete` (173),
+      `invoice.send` (189), et le flux de paiement (285, dans
+      `addPayment`) — 3 des 4 transitions citées par le porteur sont
+      couvertes. `maintenance.processor.ts#markOverdueInvoices` (lignes
+      246-265) fait `prisma.invoice.updateMany({ data: { status:
+      "OVERDUE" } } )` puis enchaîne directement sur l'envoi de
+      notifications in-app, sans aucun appel à `auditLogService` entre
+      les deux — confirmé par grep sur toute la fonction. La table
+      `AuditLog` elle-même est vérifiée immuable en pratique : seul point
+      d'écriture dans tout `server/src` est `auditLog.service.ts:21`
+      (`prisma.auditLog.create`), aucun `.update`/`.delete` sur ce modèle
+      trouvé nulle part — la partie « consultable indépendamment,
+      immuable » de l'item 6 est donc satisfaite pour tout ce qui EST
+      journalisé, seul le passage à OVERDUE manque à l'appel.
+
+  - id: SEC-187
+    titre: "leadService.createLead s'appuie sur un pré-check (tx.lead.findFirst puis tx.lead.create) suivi d'un catch P2002 présenté comme filet de sécurité DB, mais Lead.email ne porte qu'un @@index, jamais un @@unique — deux créations vraiment concurrentes (deux managers sur le même prospect) peuvent toutes deux lire « aucun doublon » avant que l'une des deux ne commite, produisant deux leads actifs avec le même email malgré SEC-155"
+    perimetre: "4.1 CRM & Pipeline commercial — server/src/services/lead.service.ts#createLead (lignes 69-101) ; schema.prisma#Lead (ligne 268, 291)"
+    regle_violee: null
+    classe: "toctou_precheck_sans_contrainte_db_reelle"
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand `Lead.email` porte une contrainte réellement
+      unique en base parmi les lignes actives (ex. `@@unique([email])`
+      sur une colonne générée `emailIfActive` valant `email` quand
+      `archivedAt IS NULL` et `NULL` sinon — pour ne pas bloquer la
+      légitime ré-entrée sur un lead archivé déjà couverte par SEC-155),
+      pour que le `catch` P2002 déjà écrit dans `createLead` cesse
+      d'être du code mort — prouvé par un test qui appelle réellement
+      `leadService.createLead` deux fois en concurrence stricte
+      (`Promise.allSettled`, même modèle que
+      `proposalAcceptCascadeConcurrency.test.ts`, SEC-134) avec le même
+      email, et vérifie qu'un seul lead actif existe ensuite en base.
+    detecte_le: "2026-07-21"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit RevOps CRM (item 4, déduplication). Vérifié par lecture
+      directe : `lead.service.ts:77` affirme en commentaire « the
+      DB-level unique constraint is the real guard, the pre-check is
+      only there to give a clean 409 in the common (non-concurrent)
+      case » — affirmation vérifiée FAUSSE par lecture du schéma :
+      `schema.prisma:268` (`email String? @db.VarChar(255)`) et ligne 291
+      (`@@index([email])`, pas `@@unique`) — aucune contrainte
+      d'unicité n'existe sur ce champ, dans aucune forme (simple ou
+      composite). Le `catch (err) { if (... P2002 ...) }` aux lignes
+      96-99 ne peut donc jamais s'exécuter en pratique : Postgres n'a
+      rien à rejeter. Seule protection réelle : le
+      `tx.lead.findFirst` avant `tx.lead.create`, à l'intérieur d'une
+      transaction Prisma par défaut (pas de `isolationLevel:
+      "Serializable"` précisé) — insuffisant contre deux transactions
+      concurrentes qui liraient toutes deux « pas de doublon » avant que
+      l'une ne commite. `leadDuplicateEmail.test.ts` (SEC-155) confirmé
+      par lecture directe comme purement séquentiel (un premier
+      `await createLead(...)` complètement terminé avant le second) —
+      ne peut structurellement pas détecter cette race, même modèle de
+      lacune que celui déjà trouvé dans l'audit QA de cette même
+      conversation (tests séquentiels ne prouvant rien sur une
+      protection concurrente). Gravité `majeur`, pas `bloquant` : pas de
+      perte d'argent directe, mais fausse exactement les métriques que
+      SEC-155 visait à protéger (volume de pipeline, taux de
+      conversion) — deux lignes pour le même prospect gonflent le
+      compte de leads actifs si la fenêtre de course est atteinte.
+
+  - id: SEC-188
+    titre: "invoice.service.ts#addPayment : le paiement est déjà commité (statut PAID, portalActivatedAt posé) quand l'invite client post-commit s'exécute ; si inviteClientUser échoue pour une raison autre que 409 (ex. panne SMTP réelle), l'erreur remonte et fait échouer toute la requête HTTP addPayment, laissant l'appelant croire que le paiement n'a pas été enregistré alors qu'il l'a été"
+    perimetre: "4.4 Facturation, 4.6 Portail client — server/src/services/invoice.service.ts#addPayment (lignes 214-306)"
+    regle_violee: "RG-018"
+    classe: "erreur_post_commit_masque_succes_transaction"
+    gravite: majeur
+    statut: ouvert
+    critere_de_resolution: >
+      C'est résolu quand une erreur d'invitation non-409 après le commit
+      de `addPayment` ne fait plus échouer la requête HTTP — le paiement
+      doit être rapporté comme réussi (200/201) avec un signal explicite
+      (ex. `data.portalInviteFailed: true`) que l'invite doit être
+      renvoyée manuellement via `POST /clients/:id/invite` (déjà
+      existant, SEC-154), au lieu de propager l'exception — prouvé par
+      un test qui simule un `inviteClientUser` rejetant une erreur
+      non-409 et vérifie que `addPayment` retourne quand même un succès
+      avec le paiement bien persisté en base.
+    detecte_le: "2026-07-21"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Audit RevOps CRM (item 3, cascade — creusé après avoir constaté que
+      la prémisse initiale de la question, l'invite au moment de
+      `acceptWithCascade`, ne correspond plus au code réel depuis SEC-002/
+      RG-018 : l'invite portail est désormais déclenchée par
+      `invoice.service.ts#addPayment`, pas par l'acceptation de
+      proposition). Vérifié par lecture directe : `addPayment` (lignes
+      214-306) exécute `tx.payment.create`/`tx.invoice.update` (statut →
+      PAID, `portalActivatedAt` posé si c'est la première activation)
+      À L'INTÉRIEUR de `prisma.$transaction`, qui commite avant la ligne
+      299. Ensuite, post-commit, `clientService.inviteClientUser(...)`
+      est appelé dans un `try/catch` qui n'avale QUE les erreurs 409
+      (« already invited ») — ligne 304 : `if (!(err instanceof HttpError
+      && err.statusCode === 409)) throw err;` — toute autre erreur (panne
+      SMTP réelle, timeout, erreur de template) est relancée et remonte
+      jusqu'au middleware d'erreur, renvoyant un 4xx/5xx au manager qui
+      vient d'enregistrer le paiement, MASQUANT le fait que
+      `tx.payment.create` a réussi. Le chemin de rattrapage existe déjà
+      (`POST /clients/:id/invite`, SEC-154, reissue un mot de passe
+      temporaire vers le même compte) mais rien dans la réponse d'erreur
+      ne l'indique — le manager n'a aucun signal que le paiement est
+      bien enregistré et qu'il doit utiliser cette route précise pour
+      finir le travail. Gravité `majeur`, pas `bloquant` : aucune perte
+      de données (le paiement est bien en base), mais une vraie
+      confusion opérationnelle à fort risque de double-saisie si le
+      manager retente `addPayment` en pensant qu'il a échoué — protégé
+      dans ce cas précis par la clé d'idempotence/fenêtre de 10s déjà en
+      place, donc pas de double paiement réel, seulement de la friction
+      et une inquiétude injustifiée.

@@ -16,7 +16,11 @@ export const createQuestion: RequestHandler = async (req, res, next) => {
 export const getMyQuestions: RequestHandler = async (req, res, next) => {
   try {
     const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
-    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+    // SEC-181: pageSize is the dominant convention across the rest of the API (parseListQuery);
+    // limit is still accepted for backward compatibility, but a caller using the dominant
+    // convention must not have it silently ignored.
+    const limitParam = req.query.pageSize ?? req.query.limit;
+    const limit = limitParam ? parseInt(limitParam as string, 10) : 20;
     const result = await customQuestionService.getMyQuestions(req.user!.sub, page, limit);
     res.json(result);
   } catch (error) {
@@ -43,7 +47,11 @@ export const getAllQuestions: RequestHandler = async (req, res, next) => {
   try {
     const status = req.query.status as CustomQuestionStatus | undefined;
     const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
-    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+    // SEC-181: pageSize is the dominant convention across the rest of the API (parseListQuery);
+    // limit is still accepted for backward compatibility, but a caller using the dominant
+    // convention must not have it silently ignored.
+    const limitParam = req.query.pageSize ?? req.query.limit;
+    const limit = limitParam ? parseInt(limitParam as string, 10) : 20;
     const result = await customQuestionService.getAllQuestions(
       { status },
       page,

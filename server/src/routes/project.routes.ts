@@ -374,6 +374,14 @@ router.patch("/:id/ai-specs", verifyN8nWebhook, receiveAiSpecs);
  *         description: Forbidden — wrong role, portal not activated, or project belongs to another client
  *       404:
  *         $ref: '#/components/responses/NotFound'
+ *       409:
+ *         description: >
+ *           PROJECT_ALREADY_APPROVED — already approved by the client;
+ *           PROJECT_ALREADY_COMPLETED — project already completed;
+ *           PROJECT_NOT_IN_REVIEW — project has not reached the REVIEW status yet;
+ *           DEPOSIT_UNPAID — the deposit invoice must be paid first;
+ *           PENDING_APPROVALS_REMAINING — one or more Approval items are still PENDING/REJECTED.
+ *           OPEN_TASKS_REMAINING (400, not 409) — one or more tasks are not yet DONE.
  */
 // Client final approval : triggers project COMPLETED + balance invoice — deep in execution,
 // necessarily after the deposit is paid.
