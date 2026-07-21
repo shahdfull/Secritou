@@ -154,7 +154,7 @@ export const documentRepository = {
     });
   },
 
-  async addAccessLog(documentId: string, data: { action: string; userId?: string; ipAddress?: string; userAgent?: string }) {
+  async addAccessLog(documentId: string, data: { action: string; userId?: string; ipAddress?: string; userAgent?: string; contentHash?: string }) {
     await prisma.document.findUniqueOrThrow({ where: { id: documentId }, select: { id: true } });
     return prisma.documentAccessLog.create({ data: { ...data, documentId } });
   },

@@ -18,7 +18,7 @@ import { invoiceService } from "./invoice.service.js";
 import { emailService } from "./email.service.js";
 import { projectApprovedClientTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
-import { roundMoney } from "../utils/vat.js";
+import { roundMoney, DEPOSIT_RATE } from "../utils/vat.js";
 import { PROJECT_STATUS_VALID_TRANSITIONS } from "@secritou/shared";
 import { notifyN8n } from "../utils/webhook.js";
 
@@ -333,7 +333,7 @@ export const projectService = {
     }
 
     const proposalAmount = preread.proposal?.amount != null ? Number(preread.proposal.amount) : 0;
-    const depositAmount = depositInvoice?.amountHT != null ? Number(depositInvoice.amountHT) : (proposalAmount > 0 ? roundMoney(proposalAmount * 0.3) : 0);
+    const depositAmount = depositInvoice?.amountHT != null ? Number(depositInvoice.amountHT) : (proposalAmount > 0 ? roundMoney(proposalAmount * DEPOSIT_RATE) : 0);
     const balanceAmount = proposalAmount > 0 ? roundMoney(proposalAmount - depositAmount) : 0;
     const currency = preread.proposal?.currency ?? "TND";
 

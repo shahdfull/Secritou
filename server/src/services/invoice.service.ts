@@ -17,6 +17,7 @@ import { commissionService } from "./commission.service.js";
 import { notifyN8n } from "../utils/webhook.js";
 import { clientService } from "./client.service.js";
 import { auditLogService } from "./auditLog.service.js";
+import logger from "../utils/logger.js";
 
 // Invoice mutations change dashboard / executive KPIs (overdue, cash, forecast).
 async function invalidateFinanceCaches() {
@@ -223,13 +224,13 @@ export const invoiceService = {
       if (data.idempotencyKey) {
         const existingPayment = await tx.payment.findUnique({ where: { idempotencyKey: data.idempotencyKey } });
         if (existingPayment && existingPayment.invoiceId === id) {
-          return { payment: existingPayment, creditNote: null, overpaidBy: 0, clientId: invoice.clientId, deduplicated: true };
+          return { payment: existingPayment, creditNote: null, overpaidBy: 0, clientId: invoice.clientId, deduplicated: true, justActivatedPortal: false };
         }
       } else {
         // Fallback to 10-second window for backward compatibility
         const tenSecondsAgo = new Date(Date.now() - 10_000);
         const duplicate = await tx.payment.findFirst({ where: { invoiceId: id, amount: data.amount, recordedById: recordedById ?? null, createdAt: { gte: tenSecondsAgo } }, orderBy: { createdAt: "desc" } });
-        if (duplicate) return { payment: duplicate, creditNote: null, overpaidBy: 0, clientId: invoice.clientId, deduplicated: true };
+        if (duplicate) return { payment: duplicate, creditNote: null, overpaidBy: 0, clientId: invoice.clientId, deduplicated: true, justActivatedPortal: false };
       }
 
       const payment = await tx.payment.create({ data: { invoiceId: id, amount: data.amount, method: data.method, reference: data.reference, idempotencyKey: data.idempotencyKey, recordedById, paidAt: data.paidAt ?? new Date() } });
@@ -278,7 +279,7 @@ export const invoiceService = {
       return { payment, creditNote, overpaidBy, clientId: invoice.clientId, deduplicated: false, commissions, justActivatedPortal };
     });
 
-    if (result.deduplicated) return result;
+    if (result.deduplicated) return { ...result, portalInviteFailed: false };
 
     await invalidateFinanceCaches();
 
@@ -290,6 +291,7 @@ export const invoiceService = {
       after: { amount: data.amount, method: data.method, paymentId: result.payment.id, overpaidBy: result.overpaidBy || undefined },
     });
 
+    let portalInviteFailed = false;
     const invoiceMeta = await invoiceRepository.findById(id);
     if (invoiceMeta) {
       // RG-018 / SEC-002: invite the client (create their portal account) the moment their
@@ -297,11 +299,21 @@ export const invoiceService = {
       // acceptWithCascade, which used to invite immediately at proposal acceptance, before
       // any payment. 409 (account already exists — e.g. re-invoked, or an Admin already
       // invited manually) is swallowed, same as the original call site.
+      // SEC-188: the payment itself is already committed by this point — a non-409 invite
+      // failure (e.g. a real SMTP outage) used to propagate and fail the whole HTTP request,
+      // making the caller think the payment itself hadn't been recorded. Report it as a
+      // recoverable flag instead: the payment succeeded, but the invite needs a manual retry via
+      // POST /clients/:id/invite (SEC-154), which already supports resending.
       if (result.justActivatedPortal && invoiceMeta.client?.email && invoiceMeta.client?.name) {
         try {
           await clientService.inviteClientUser(invoiceMeta.clientId, invoiceMeta.client.email, invoiceMeta.client.name);
         } catch (err) {
-          if (!(err instanceof HttpError && err.statusCode === 409)) throw err;
+          if (err instanceof HttpError && err.statusCode === 409) {
+            // already invited — not a failure
+          } else {
+            logger.error({ err, invoiceId: id, clientId: invoiceMeta.clientId }, "[invoiceService] Portal invite failed after payment was already committed");
+            portalInviteFailed = true;
+          }
         }
       }
 
@@ -345,7 +357,7 @@ export const invoiceService = {
       }
     }
 
-    return result;
+    return { ...result, portalInviteFailed };
   },
 
   async addReminder(id: string, type: string, scope?: ServiceScope) {

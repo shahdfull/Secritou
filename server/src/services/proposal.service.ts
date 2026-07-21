@@ -16,7 +16,7 @@ import { invoiceService } from "./invoice.service.js";
 import { linkLeadToClientTx } from "./lead.service.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
-import { roundMoney } from "../utils/vat.js";
+import { roundMoney, DEPOSIT_RATE } from "../utils/vat.js";
 import { notifyN8n } from "../utils/webhook.js";
 import { managerPermissionService } from "./managerPermission.service.js";
 
@@ -463,7 +463,7 @@ export const proposalService = {
 
       let invoiceId = proposal.invoice?.id ?? null;
       if (!invoiceId && proposal.amount != null && Number(proposal.amount) > 0) {
-        const depositAmount = roundMoney(Number(proposal.amount) * 0.3);
+        const depositAmount = roundMoney(Number(proposal.amount) * DEPOSIT_RATE);
         try {
           const invoice = await invoiceService.createDepositInvoiceTx(tx, {
             title: `Acompte 30% : ${proposal.title}`,

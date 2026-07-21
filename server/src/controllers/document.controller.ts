@@ -97,7 +97,8 @@ export const signDocument = async (req: Request, res: Response) => {
   const document = await documentService.signDocument(
     req.params.id as string,
     clientId,
-    req.user!.sub
+    req.user!.sub,
+    { ipAddress: req.ip, userAgent: req.get("User-Agent") }
   );
   res.json({ data: document });
 };
@@ -108,5 +109,11 @@ export const downloadDocument = async (req: Request, res: Response) => {
     req.params.id as string,
     { role: req.user!.role, clientId: req.user!.clientId, serviceId: scope?.userServiceId, userId: req.user!.sub }
   );
+  await documentService.logAccess(req.params.id as string, {
+    action: "DOWNLOAD",
+    userId: req.user?.sub as string | undefined,
+    ipAddress: req.ip,
+    userAgent: req.get("User-Agent"),
+  });
   res.json({ data: result });
 };

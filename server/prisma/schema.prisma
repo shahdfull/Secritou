@@ -1229,6 +1229,10 @@ model DocumentAccessLog {
   document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   ipAddress  String?  @db.VarChar(45)
   userAgent  String?  @db.Text
+  // SEC-185: populated only for action "SIGN" — the S3 object's ETag (MD5 of the exact bytes
+  // signed, see upload.service.ts#getObjectContentHash) binding the signature event to the
+  // precise document content at that moment, independent of Document.signedAt.
+  contentHash String? @db.VarChar(64)
   createdAt  DateTime @default(now()) @db.Timestamptz(6)
 
   @@index([documentId])

@@ -8,6 +8,7 @@ import { analyticsEventService } from "../../services/analyticsEvent.service.js"
 import { enqueueNotifications } from "../queues.js";
 import { env } from "../../config/env.js";
 import { notifyN8n } from "../../utils/webhook.js";
+import { auditLogService } from "../../services/auditLog.service.js";
 
 export async function cleanupExpiredRefreshTokens() {
   const start = performance.now();
@@ -263,6 +264,20 @@ export async function markOverdueInvoices() {
     where: { id: { in: newlyOverdue.map((i) => i.id) }, status: { in: ["SENT", "PARTIAL"] } },
     data: { status: "OVERDUE" },
   });
+
+  // SEC-186: send/addPayment/cancel all record an AuditLog entry for their status transition —
+  // this cron-driven transition was the only one of the 4 that didn't. actorId/actorRole are
+  // null (system-triggered, not a user action), which AuditLog already supports as nullable.
+  await Promise.all(newlyOverdue.map((inv) =>
+    auditLogService.record({
+      actorId: null,
+      actorRole: null,
+      action: "invoice.markOverdue",
+      entityType: "Invoice",
+      entityId: inv.id,
+      after: { status: "OVERDUE" },
+    })
+  ));
 
   const [admins, ...clientUserGroups] = await Promise.all([
     userRepository.findAdmins(),

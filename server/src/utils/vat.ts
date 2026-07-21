@@ -2,6 +2,12 @@
 // Convention: Proposal.amount and quote PDFs are always HT (tax-exclusive).
 export const TVA_RATE = 0.19;
 
+// SEC-183: the deposit rate (RG-002/Cadrage §6) used to be an independent 0.3 literal copied at
+// 3 call sites (project.service.ts#clientApprove, proposal.service.ts#acceptWithCascade,
+// documentGenerator.service.ts#generateQuotePDF) — a future rate change fixed at only one site
+// would silently desync the quote PDF's promised split from the actual deposit/balance invoices.
+export const DEPOSIT_RATE = 0.3;
+
 // TND is denominated in millimes (3 decimal places) — round to 3, not 2.
 export function roundMoney(n: number): number {
   return Math.round(n * 1000) / 1000;

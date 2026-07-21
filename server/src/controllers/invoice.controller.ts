@@ -6,6 +6,8 @@ import { InvoiceStatus } from "@prisma/client";
 import { buildServiceScope } from "../utils/serviceScope.js";
 import { HttpError } from "../utils/httpError.js";
 
+const REPORTS_MAX_PAGE_SIZE = 500;
+
 function textQuery(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
@@ -13,14 +15,14 @@ function textQuery(value: unknown): string | undefined {
 export const getManagerInvoices = async (req: Request, res: Response) => {
   const scope = await buildServiceScope(req);
   if (!scope.userServiceId) throw new HttpError(403, "Manager has no service assigned");
-  const options = { ...parseListQuery(req.query as Record<string, unknown>), status: textQuery(req.query.status) as InvoiceStatus | undefined, search: textQuery(req.query.search) };
+  const options = { ...parseListQuery(req.query as Record<string, unknown>, REPORTS_MAX_PAGE_SIZE), status: textQuery(req.query.status) as InvoiceStatus | undefined, search: textQuery(req.query.search) };
   const result = await invoiceService.getAllByServiceId(scope.userServiceId, options);
   res.json(result);
 };
 
 export const getMyInvoices = async (req: Request, res: Response) => {
   const clientId = req.user!.clientId!;
-  const options = { ...parseListQuery(req.query as Record<string, unknown>), clientId, status: textQuery(req.query.status) as InvoiceStatus | undefined };
+  const options = { ...parseListQuery(req.query as Record<string, unknown>, REPORTS_MAX_PAGE_SIZE), clientId, status: textQuery(req.query.status) as InvoiceStatus | undefined };
   const result = await invoiceService.getAllByClientId(clientId, options);
   res.json(result);
 };
@@ -29,17 +31,17 @@ export const getInvoices = async (req: Request, res: Response) => {
   const scope = await buildServiceScope(req);
   if (scope.userRole === "MANAGER") {
     if (!scope.userServiceId) throw new HttpError(403, "Manager has no service assigned");
-    const options = { ...parseListQuery(req.query as Record<string, unknown>), status: textQuery(req.query.status) as InvoiceStatus | undefined, search: textQuery(req.query.search) };
+    const options = { ...parseListQuery(req.query as Record<string, unknown>, REPORTS_MAX_PAGE_SIZE), status: textQuery(req.query.status) as InvoiceStatus | undefined, search: textQuery(req.query.search) };
     const result = await invoiceService.getAllByServiceId(scope.userServiceId, options);
     return res.json(result);
   }
-  const options = { ...parseListQuery(req.query as Record<string, unknown>), clientId: textQuery(req.query.clientId), status: textQuery(req.query.status) as InvoiceStatus | undefined, search: textQuery(req.query.search) };
+  const options = { ...parseListQuery(req.query as Record<string, unknown>, REPORTS_MAX_PAGE_SIZE), clientId: textQuery(req.query.clientId), status: textQuery(req.query.status) as InvoiceStatus | undefined, search: textQuery(req.query.search) };
   const result = await invoiceService.getAll(options);
   res.json(result);
 };
 
 export const getDeletedInvoices = async (req: Request, res: Response) => {
-  const options = { ...parseListQuery(req.query as Record<string, unknown>), clientId: textQuery(req.query.clientId), status: textQuery(req.query.status) as InvoiceStatus | undefined, search: textQuery(req.query.search) };
+  const options = { ...parseListQuery(req.query as Record<string, unknown>, REPORTS_MAX_PAGE_SIZE), clientId: textQuery(req.query.clientId), status: textQuery(req.query.status) as InvoiceStatus | undefined, search: textQuery(req.query.search) };
   const result = await invoiceService.getDeleted(options);
   res.json(result);
 };
@@ -70,8 +72,8 @@ export const sendInvoice = async (req: Request, res: Response) => {
 };
 
 export const addPayment = async (req: Request, res: Response) => {
-  const { payment, creditNote } = await invoiceService.addPayment(req.params.id as string, req.body, req.user!.id, await buildServiceScope(req));
-  res.status(201).json({ data: payment, ...(creditNote ? { creditNote } : {}) });
+  const { payment, creditNote, portalInviteFailed } = await invoiceService.addPayment(req.params.id as string, req.body, req.user!.id, await buildServiceScope(req));
+  res.status(201).json({ data: payment, ...(creditNote ? { creditNote } : {}), ...(portalInviteFailed ? { portalInviteFailed: true } : {}) });
 };
 
 export const addInvoiceReminder = async (req: Request, res: Response) => {

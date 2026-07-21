@@ -126,4 +126,36 @@ describe("documentService.signDocument (SEC-023)", { skip: !dbAvailable ? "no re
       }
     );
   });
+
+  // SEC-185: signDocument used to write only { signedAt, signedByClientId } — no IP, user-agent,
+  // or content hash, despite the same capture mechanism already existing for downloadDocument via
+  // documentService.logAccess. Fixed by writing a DocumentAccessLog row (action "SIGN") alongside
+  // the signature, carrying ipAddress/userAgent (and contentHash when the document has a fileKey
+  // in S3 — none of this file's fixtures do, covered by the hash's best-effort null path here).
+  test("signing captures the signer's IP and user-agent in a DocumentAccessLog row (SEC-185)", async () => {
+    const { client, user } = await makeClientWithUser("sec185-a");
+    const doc = await prisma.document.create({
+      data: { name: "Contract E", title: "Contract E", type: "CONTRACT", url: "https://example.com/e.pdf", clientId: client.id, uploadedById: adminId },
+    });
+    createdDocumentIds.push(doc.id);
+
+    await documentService.signDocument(doc.id, client.id, user.id, { ipAddress: "203.0.113.7", userAgent: "SEC-185 test agent" });
+
+    const log = await prisma.documentAccessLog.findFirst({ where: { documentId: doc.id, action: "SIGN" } });
+    assert.ok(log, "a SIGN access log row must be created");
+    assert.equal(log!.ipAddress, "203.0.113.7");
+    assert.equal(log!.userAgent, "SEC-185 test agent");
+    assert.equal(log!.userId, user.id);
+  });
+
+  test("signing without IP/user-agent metadata (e.g. an internal call) still succeeds — capture is best-effort, never blocking", async () => {
+    const { client, user } = await makeClientWithUser("sec185-b");
+    const doc = await prisma.document.create({
+      data: { name: "Contract F", title: "Contract F", type: "CONTRACT", url: "https://example.com/f.pdf", clientId: client.id, uploadedById: adminId },
+    });
+    createdDocumentIds.push(doc.id);
+
+    const signed = await documentService.signDocument(doc.id, client.id, user.id);
+    assert.ok(signed.signedAt);
+  });
 });

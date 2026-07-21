@@ -52,8 +52,14 @@ export const creditNoteService = {
       const invoice = await tx.invoice.findUnique({ where: { id: invoiceId }, select: { id: true, clientId: true, amountPaid: true } });
       if (!invoice) throw new HttpError(404, "Invoice not found");
 
-      // A credit note can never exceed what the client has actually paid on the invoice.
-      if (data.amount > Number(invoice.amountPaid)) {
+      // SEC-184: a credit note can never exceed what the client has actually paid on the
+      // invoice MINUS whatever has already been credited back on it — CreditNote has no
+      // status/cancellation field (every row counts), so comparing only against amountPaid lets
+      // repeated credit notes on the same invoice cumulatively exceed what was ever received.
+      const existing = await tx.creditNote.aggregate({ where: { invoiceId }, _sum: { amount: true } });
+      const alreadyCredited = Number(existing._sum.amount ?? 0);
+      const remainingCreditable = Number(invoice.amountPaid) - alreadyCredited;
+      if (data.amount > remainingCreditable) {
         throw new HttpError(409, "Credit note amount exceeds the amount paid on this invoice", "CREDIT_EXCEEDS_PAID");
       }
 

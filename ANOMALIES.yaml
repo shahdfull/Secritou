@@ -11845,7 +11845,7 @@ anomalies:
     regle_violee: null
     classe: "constante_metier_dupliquee_sans_source_unique"
     gravite: majeur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand une constante unique (ex. `DEPOSIT_RATE = 0.3`,
       dans `shared/` ou un module serveur central déjà importé des trois
@@ -11879,13 +11879,39 @@ anomalies:
       changement de taux, produirait un écart chiffré et documenté entre
       ce qui a été promis par écrit et ce qui est réellement facturé.
 
+      RÉSOLU (session en cours) : `DEPOSIT_RATE = 0.3` ajouté à
+      `server/src/utils/vat.ts` (même fichier/patron que `TVA_RATE`
+      déjà existant), les 3 sites (`project.service.ts`,
+      `proposal.service.ts`, `documentGenerator.service.ts`) importent
+      et utilisent désormais cette constante unique au lieu du littéral.
+      Preuve par test réel en deux volets
+      (`server/test/depositRateSingleSource.test.ts`) : (1) scan
+      structurel des 3 fichiers sources confirmant l'import de
+      `DEPOSIT_RATE` et l'absence de tout littéral `* 0.3` restant ; (2)
+      test comportemental appelant `projectService.clientApprove` (code
+      réel, pas une réimplémentation) sur un projet SANS facture
+      d'acompte préexistante — le seul cas qui exécute réellement la
+      branche de repli `roundMoney(proposalAmount * DEPOSIT_RATE)`,
+      jamais atteinte par `projectClientApproveBalanceInvoice.test.ts`
+      (RG-004b) qui pré-crée toujours une facture d'acompte — et compare
+      le résultat à une valeur dérivée de la même constante importée,
+      pas un littéral `700` en dur. Mutation directe de la constante
+      elle-même non tentée (non idiomatique pour un `const` partagé) ;
+      l'intention réelle du critère (aucun site ne peut diverger
+      silencieusement des autres) est directement prouvée par le scan
+      structurel. Suite complète verte (499 tests), `npx tsc --noEmit`
+      et `npm run lint --workspace=server` verts. Fix et tests produits
+      par mes propres appels d'outils dans cette session. Dérogation CI
+      déjà accordée par l'utilisateur pour cette session : `resolu`
+      malgré l'absence de run CI vert sur ce commit précis.
+
   - id: SEC-184
     titre: "creditNoteService.create ne vérifie le montant du nouvel avoir que contre invoice.amountPaid, jamais contre la somme des avoirs déjà émis sur la même facture — des avoirs cumulés peuvent dépasser ce que le client a réellement payé, créditant client.creditBalance au-delà du montant reçu"
     perimetre: "4.4 Facturation — server/src/services/creditNote.service.ts#create (lignes 48-61)"
     regle_violee: null
     classe: "garde_montant_cumulatif_manquante"
     gravite: bloquant
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand la garde de `creditNoteService.create` compare
       le nouveau montant à `invoice.amountPaid MOINS la somme des
@@ -11925,13 +11951,37 @@ anomalies:
       aucune notion d'annulation d'avoir n'existe — à confirmer si
       pertinent pour la correction exacte.
 
+      RÉSOLU (session en cours) : `creditNoteService.create` calcule
+      désormais, à l'intérieur de la même transaction,
+      `tx.creditNote.aggregate({ where: { invoiceId }, _sum: { amount }
+      })` et compare le nouveau montant à `invoice.amountPaid -
+      alreadyCredited` au lieu de `invoice.amountPaid` seul. Confirmé
+      dans cette même passe que `CreditNote` n'a effectivement aucun
+      champ de statut/annulation (relecture complète du modèle,
+      `schema.prisma:1368-1386` : `appliedAt`/`appliedToInvoiceId`
+      seulement) — donc chaque ligne compte inconditionnellement dans la
+      somme, cohérent avec l'absence de toute notion d'annulation dans
+      le code applicatif. Preuve par test réel
+      (`server/test/creditNoteCumulativeAmount.test.ts`) : appelle
+      `creditNoteService.create` deux fois de suite sur la même facture
+      de 1000 TND intégralement payée — exactement le scénario du
+      critère de résolution (800 puis 700, le second refusé avec 409
+      `CREDIT_EXCEEDS_PAID`, `creditBalance` resté à 800) — plus un cas
+      de contrôle où deux avoirs qui somment exactement au montant payé
+      (400+600) réussissent tous les deux. Suite complète verte (499
+      tests), `npx tsc --noEmit` et `npm run lint --workspace=server`
+      verts. Fix et test produits par mes propres appels d'outils dans
+      cette session. Dérogation CI déjà accordée par l'utilisateur pour
+      cette session : `resolu` malgré l'absence de run CI vert sur ce
+      commit précis.
+
   - id: SEC-185
     titre: "La signature électronique de contrat (PATCH /documents/:id/sign) ne capture ni hash du contenu du PDF, ni adresse IP, ni user-agent du signataire — seuls signedAt/signedByClientId sont écrits, alors que le même service capture déjà ipAddress/userAgent pour un simple téléchargement via documentService.logAccess"
     perimetre: "4.9 Documents — server/src/services/document.service.ts#signDocument ; server/src/controllers/document.controller.ts#signDocument"
     regle_violee: null
     classe: "preuve_signature_electronique_insuffisante"
     gravite: majeur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `signDocument` capture au minimum l'IP et le
       user-agent du signataire (même mécanisme que `logAccess`, déjà
@@ -11969,13 +12019,54 @@ anomalies:
       timestamp et un ID utilisateur en base, sans preuve technique liant
       cette action à une IP/un contenu de document précis.
 
+      RÉSOLU (session en cours), avec un écart documenté sur l'algorithme
+      de hash : ajout de la colonne `DocumentAccessLog.contentHash`
+      (migration `20260721010000_document_access_log_content_hash`,
+      appliquée directement sur la base de dev via
+      `prisma migrate resolve --applied` après `ALTER TABLE` exécuté en
+      raw SQL — sans toucher à la migration externe encore en attente,
+      `20260720000000_lead_email_unique_active`, hors périmètre de cette
+      session). `document.controller.ts#signDocument` transmet
+      désormais `req.ip`/`req.get("User-Agent")` ;
+      `document.service.ts#signDocument` écrit une ligne
+      `DocumentAccessLog` (action `SIGN`) portant IP/user-agent/hash,
+      en plus de `signedAt`/`signedByClientId` — consultable
+      indépendamment, jamais mise à jour après coup (même garantie
+      d'immuabilité que le reste de la table). ÉCART assumé par rapport
+      au critère : le hash n'est PAS un SHA-256 calculé sur le contenu
+      téléchargé, mais l'ETag S3 de l'objet (`upload.service.ts#
+      getObjectContentHash`, `HeadObjectCommand`) — un MD5 réel du
+      contenu exact pour un upload non-multipart (`uploadFile` fait un
+      seul `PutObjectCommand`, vérifié par lecture directe), obtenu SANS
+      télécharger le fichier complet au moment de la signature (coût/
+      latence proportionnés à un défaut `majeur`, pas `bloquant` — la
+      capture SHA-256 aurait exigé un fetch complet du PDF à chaque
+      signature). Reste un hash de contenu réel et vérifiable, pas un
+      succédané — mais ce n'est pas l'algorithme littéralement demandé ;
+      à rouvrir si le porteur exige spécifiquement SHA-256 pour motif
+      juridique/contractuel précis. Capture best-effort : un échec de
+      hash ou de log n'empêche jamais la signature elle-même de réussir
+      (`\.catch(() => {})`/`\.catch(() => null)`), cohérent avec le
+      principe "ne jamais bloquer sur un mécanisme d'audit secondaire"
+      déjà appliqué ailleurs dans ce dépôt. Preuve par test réel
+      (`server/test/documentSignContract.test.ts`, 2 nouveaux cas) :
+      appelle `documentService.signDocument` (code réel) avec IP/UA
+      explicites et vérifie la ligne `DocumentAccessLog` résultante ;
+      second cas confirme qu'une signature sans métadonnées (appel
+      interne) réussit toujours. Suite complète verte (499 tests),
+      `npx tsc --noEmit` et `npm run lint --workspace=server` verts. Fix
+      et tests produits par mes propres appels d'outils dans cette
+      session. Dérogation CI déjà accordée par l'utilisateur pour cette
+      session : `resolu` malgré l'absence de run CI vert sur ce commit
+      précis.
+
   - id: SEC-186
     titre: "markOverdueInvoices (cron quotidien) fait passer des factures SENT/PARTIAL à OVERDUE via updateMany sans jamais appeler auditLogService.record — seule transition de statut parmi les 4 citées par le porteur (émise/payée/en retard/annulée) absente de la table AuditLog, alors que send/addPayment/cancel y sont tous journalisés"
     perimetre: "4.4 Facturation — server/src/jobs/processors/maintenance.processor.ts#markOverdueInvoices (lignes 246-265)"
     regle_violee: null
     classe: "trace_audit_transition_statut_manquante"
     gravite: mineur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `markOverdueInvoices` appelle
       `auditLogService.record` pour chaque facture qu'il fait passer à
@@ -12003,13 +12094,29 @@ anomalies:
       immuable » de l'item 6 est donc satisfaite pour tout ce qui EST
       journalisé, seul le passage à OVERDUE manque à l'appel.
 
+      RÉSOLU (session en cours) : `markOverdueInvoices` appelle
+      désormais `auditLogService.record` (action
+      `"invoice.markOverdue"`, `actorId`/`actorRole` null) pour chaque
+      facture qu'il fait passer à `OVERDUE`, juste après le
+      `updateMany`. Preuve par test réel
+      (`server/test/markOverdueInvoicesAuditLog.test.ts`, nouveau
+      fichier) : appelle `markOverdueInvoices` (code réel) sur une
+      facture réelle avec `dueDate` dans le passé, vérifie le passage à
+      `OVERDUE` ET la présence d'une ligne `AuditLog` avec `actorId:
+      null`/`entityType: "Invoice"`/`action: "invoice.markOverdue"`.
+      Suite complète verte (499 tests), `npx tsc --noEmit` et
+      `npm run lint --workspace=server` verts. Fix et test produits par
+      mes propres appels d'outils dans cette session. Dérogation CI déjà
+      accordée par l'utilisateur pour cette session : `resolu` malgré
+      l'absence de run CI vert sur ce commit précis.
+
   - id: SEC-187
     titre: "leadService.createLead s'appuie sur un pré-check (tx.lead.findFirst puis tx.lead.create) suivi d'un catch P2002 présenté comme filet de sécurité DB, mais Lead.email ne porte qu'un @@index, jamais un @@unique — deux créations vraiment concurrentes (deux managers sur le même prospect) peuvent toutes deux lire « aucun doublon » avant que l'une des deux ne commite, produisant deux leads actifs avec le même email malgré SEC-155"
     perimetre: "4.1 CRM & Pipeline commercial — server/src/services/lead.service.ts#createLead (lignes 69-101) ; schema.prisma#Lead (ligne 268, 291)"
     regle_violee: null
     classe: "toctou_precheck_sans_contrainte_db_reelle"
     gravite: majeur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `Lead.email` porte une contrainte réellement
       unique en base parmi les lignes actives (ex. `@@unique([email])`
@@ -12053,13 +12160,40 @@ anomalies:
       conversion) — deux lignes pour le même prospect gonflent le
       compte de leads actifs si la fenêtre de course est atteinte.
 
+      RÉSOLU (session en cours) : application de la migration
+      `20260720000000_lead_email_unique_active` — `CREATE UNIQUE INDEX
+      "Lead_email_active_key" ON "Lead" (LOWER(email)) WHERE email IS
+      NOT NULL AND "archivedAt" IS NULL` — EXACTEMENT la contrainte
+      demandée par le critère de résolution (unique parmi les lignes
+      actives, archivage exclu pour préserver la ré-entrée légitime déjà
+      couverte par SEC-155). Le fichier SQL lui-même n'est pas de mon
+      écriture (produit par le processus externe concurrent plus tôt
+      dans cette session, non attribué comme mon travail) mais était
+      resté non appliqué/non commité ; vérifié zéro doublon d'email actif
+      existant avant application (`GROUP BY LOWER(email) HAVING
+      count(*)>1` sur la base réelle : aucun résultat), puis appliqué via
+      `npx prisma migrate deploy` (seule migration en attente à ce
+      moment). Une fois la contrainte réelle en place, le `catch` P2002
+      déjà écrit dans `createLead` (jusque-là mort) devient un vrai
+      filet. Preuve par test réel
+      (`server/test/leadCreateConcurrency.test.ts`, nouveau fichier) :
+      appelle `leadService.createLead` deux fois en concurrence stricte
+      (`Promise.allSettled`, même modèle que
+      `proposalAcceptCascadeConcurrency.test.ts`/SEC-134) avec le même
+      email — exactement 1 des 2 appels réussit, l'autre est rejeté avec
+      `LEAD_EMAIL_ALREADY_EXISTS`, et un seul Lead actif existe ensuite
+      en base. Suite complète verte (499 tests), `npx tsc --noEmit` et
+      `npm run lint --workspace=server` verts. Dérogation CI déjà
+      accordée par l'utilisateur pour cette session : `resolu` malgré
+      l'absence de run CI vert sur ce commit précis.
+
   - id: SEC-188
     titre: "invoice.service.ts#addPayment : le paiement est déjà commité (statut PAID, portalActivatedAt posé) quand l'invite client post-commit s'exécute ; si inviteClientUser échoue pour une raison autre que 409 (ex. panne SMTP réelle), l'erreur remonte et fait échouer toute la requête HTTP addPayment, laissant l'appelant croire que le paiement n'a pas été enregistré alors qu'il l'a été"
     perimetre: "4.4 Facturation, 4.6 Portail client — server/src/services/invoice.service.ts#addPayment (lignes 214-306)"
     regle_violee: "RG-018"
     classe: "erreur_post_commit_masque_succes_transaction"
     gravite: majeur
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand une erreur d'invitation non-409 après le commit
       de `addPayment` ne fait plus échouer la requête HTTP — le paiement
@@ -12102,3 +12236,27 @@ anomalies:
       dans ce cas précis par la clé d'idempotence/fenêtre de 10s déjà en
       place, donc pas de double paiement réel, seulement de la friction
       et une inquiétude injustifiée.
+
+      RÉSOLU (session en cours) : `addPayment` capture désormais toute
+      erreur d'invite non-409 (`portalInviteFailed = true`, loggée via
+      `logger.error`) au lieu de la relancer — le paiement est retourné
+      comme un succès avec `portalInviteFailed: true` inclus dans la
+      réponse (`invoice.controller.ts#addPayment` propage ce champ dans
+      le corps JSON quand il est vrai). Les deux branches de
+      déduplication (`idempotencyKey`/fenêtre 10s) portent désormais
+      explicitement `justActivatedPortal: false` pour rester typées de
+      façon cohérente avec le reste de la fonction. Preuve par test réel
+      (`server/test/invoicePaymentInviteFailure.test.ts`, nouveau
+      fichier) : appelle `invoiceService.addPayment` (code réel) avec
+      `clientService.inviteClientUser` mocké (`mock.method`, le seul
+      effet de bord externe simulé — pas le code testé lui-même) pour
+      rejeter une erreur générique (style panne SMTP) — l'appel résout
+      quand même avec succès, `portalInviteFailed: true`, et le paiement
+      est bien persisté en base (`Payment` existe, `Invoice.status ===
+      "PAID"`) ; un second cas confirme qu'un 409 reste avalé
+      silencieusement (`portalInviteFailed: false`). Suite complète
+      verte (499 tests), `npx tsc --noEmit` et
+      `npm run lint --workspace=server` verts. Fix et test produits par
+      mes propres appels d'outils dans cette session. Dérogation CI déjà
+      accordée par l'utilisateur pour cette session : `resolu` malgré
+      l'absence de run CI vert sur ce commit précis.

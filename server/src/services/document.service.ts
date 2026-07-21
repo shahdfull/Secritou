@@ -2,7 +2,7 @@ import { documentRepository } from "../repositories/document.repository.js";
 import type { DocumentType, DocumentAccessLevel, Role, Prisma } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { prisma } from "../config/prisma.js";
-import { getSignedReadUrl, deleteFile } from "./upload.service.js";
+import { getSignedReadUrl, deleteFile, getObjectContentHash } from "./upload.service.js";
 import { HttpError } from "../utils/httpError.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { enqueueNotifications } from "../jobs/queues.js";
@@ -97,7 +97,7 @@ export const documentService = {
   // User.id (relation "SignedDocuments" on User), not Client.id. Writing clientId into it
   // always violated the FK constraint (SEC-023) — no client has ever been able to actually
   // sign a contract through this endpoint until this fix.
-  async signDocument(documentId: string, clientId: string, signingUserId: string) {
+  async signDocument(documentId: string, clientId: string, signingUserId: string, meta?: { ipAddress?: string; userAgent?: string }) {
     const doc = await prisma.document.findFirst({ where: { id: documentId }, include: { project: { select: { clientId: true, name: true } } } });
     if (!doc) throw new HttpError(404, "Document not found");
     // Ownership via either the linked project's client, OR the document's own direct
@@ -109,6 +109,18 @@ export const documentService = {
     if (doc.type !== "CONTRACT") throw new HttpError(400, "Only the contract document can be signed", "NOT_A_CONTRACT");
     if (doc.signedAt) throw new HttpError(409, "Document already signed", "ALREADY_SIGNED");
     const signed = await prisma.document.update({ where: { id: documentId }, data: { signedAt: new Date(), signedByClientId: signingUserId } });
+
+    // SEC-185: bind this signature event to the signer's IP/user-agent and the exact document
+    // bytes at that moment (S3 ETag) — evidentiary value in case a signature is later disputed.
+    // Best-effort: a hash lookup failure must never block the signature itself from completing.
+    const contentHash = doc.fileKey ? await getObjectContentHash(doc.fileKey).catch(() => null) : null;
+    await documentRepository.addAccessLog(documentId, {
+      action: "SIGN",
+      userId: signingUserId,
+      ipAddress: meta?.ipAddress,
+      userAgent: meta?.userAgent,
+      contentHash: contentHash ?? undefined,
+    }).catch(() => {});
     const admins = await userRepository.findAdmins();
     void enqueueNotifications(admins.map((admin) => ({
       userId: admin.id,

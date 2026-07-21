@@ -104,3 +104,8 @@ import "./taskUpdateScopeRefusal.test.ts";
 import "./proposalWriteScopeRefusal.test.ts";
 import "./userDeleteFinancialHistory.test.ts";
 import "./clientPortalActivationBackfill.test.ts";
+import "./creditNoteCumulativeAmount.test.ts";
+import "./depositRateSingleSource.test.ts";
+import "./leadCreateConcurrency.test.ts";
+import "./invoicePaymentInviteFailure.test.ts";
+import "./markOverdueInvoicesAuditLog.test.ts";

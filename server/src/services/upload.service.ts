@@ -266,6 +266,18 @@ export async function getSignedReadUrl(
   return getSignedUrl(getS3(), command, { expiresIn: expiresInSeconds });
 }
 
+// SEC-185: S3's ETag is the object's MD5 hash for a plain (non-multipart) PutObject upload —
+// uploadFile above always does a single PutObjectCommand, so this is a real content hash without
+// having to download the file. Used to bind a contract signature to the exact bytes signed.
+export async function getObjectContentHash(key: string): Promise<string | null> {
+  try {
+    const result = await getS3().send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }));
+    return result.ETag ? result.ETag.replace(/"/g, "") : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fileExists(key: string): Promise<boolean> {
   try {
     await getS3().send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }));
@@ -281,4 +293,5 @@ export const uploadService = {
   signedUrl: getSignedReadUrl,
   exists: fileExists,
   validate: validateUpload,
+  contentHash: getObjectContentHash,
 };

@@ -4,7 +4,7 @@ import { documentRepository } from "../repositories/document.repository.js";
 import { prisma } from "../config/prisma.js";
 import { COMPANY_ID } from "../config/constants.js";
 import type { Document, DocumentType } from "@prisma/client";
-import { computeVat, roundMoney, TVA_RATE } from "../utils/vat.js";
+import { computeVat, roundMoney, TVA_RATE, DEPOSIT_RATE } from "../utils/vat.js";
 
 // Timbre fiscal: flat Tunisian stamp duty applied per invoice (barème en vigueur — à confirmer avec un comptable).
 const TIMBRE_FISCAL = 0.6;
@@ -396,7 +396,7 @@ export const documentGeneratorService = {
   ): Promise<Document> {
     const totalHT = proposal.amount != null ? Number(proposal.amount) : 0;
     const { amountTTC: totalTTC, tvaAmount } = computeVat(totalHT);
-    const acompte = roundMoney(totalHT * 0.3);
+    const acompte = roundMoney(totalHT * DEPOSIT_RATE);
     const solde = roundMoney(totalHT - acompte);
     const cur = proposal.currency ?? "TND";
 
