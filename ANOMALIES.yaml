@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-197
+dernier_id: SEC-198
 
 anomalies:
   - id: SEC-001
@@ -13375,4 +13375,67 @@ anomalies:
       d'intégration réel de SEC-114 qui exerce précisément ce chemin.
       `resolu` NON déclaré : commité localement, pas encore confirmé
       vert par un run CI réel sur ce commit précis.
+
+  - id: SEC-198
+    titre: "documentGeneratorService.generateInvoicePDF affiche un « Net à payer » = Invoice.amount (TTC stocké) + TIMBRE_FISCAL (0.6 TND, constante locale au fichier) — TIMBRE_FISCAL n'est jamais stocké sur Invoice ni pris en compte par invoiceService.addPayment, qui compare tout paiement reçu à Invoice.amount seul : un client qui paie exactement le montant écrit sur son PDF (le « Net à payer ») sur-paie systématiquement de 0.6 TND par facture, créé automatiquement en avoir (CreditNote) via le mécanisme overpaidBy d'addPayment"
+    perimetre: "server/src/services/documentGenerator.service.ts#generateInvoicePDF (TIMBRE_FISCAL, ligne 10, 486, 495-496) ; server/src/services/invoice.service.ts#addPayment (compare au TTC seul, jamais au timbre)"
+    regle_violee: null
+    classe: "affichage_desynchronise_du_stockage"
+    gravite: majeur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand le montant qu'un client est invité à payer (le
+      PDF de facture) et le montant que `invoiceService.addPayment`
+      compare réellement pour déterminer le statut PARTIAL/PAID sont la
+      MÊME valeur — soit en stockant le timbre fiscal comme un champ réel
+      sur `Invoice` (ex. `Invoice.timbreFiscal`, inclus dans `amount` dès
+      la création) et en supprimant la constante locale dupliquée du
+      générateur PDF, soit par une décision explicite du porteur
+      documentant que le timbre fiscal est volontairement hors du champ
+      `amount`/`addPayment` (README comptable, pas seulement un
+      commentaire de code) — dans les deux cas, prouvé par une vérification
+      dev reproduisant le scénario exact ci-dessous avec un résultat
+      cohérent (le paiement du montant réellement demandé au client
+      n'active ni un surpaiement ni un sous-paiement inattendu).
+    detecte_le: "2026-07-22"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert en exécutant réellement le volet 2 d'une demande
+      explicite du porteur (« vérifier la cohérence affiché vs stocké sur
+      un cas réel en dev : générer une facture PDF et comparer chaque
+      montant affiché au Invoice correspondant en base »). Script de
+      vérification ponctuel (non committé, supprimé après usage) :
+      crée un vrai `Client`/`Project`/`Invoice` (amountHT=370.37,
+      tvaRate=0.19, tvaAmount=70.37, amount=440.74, valeurs volontairement
+      non rondes pour détecter tout ré-arrondi silencieux), appelle
+      réellement `documentGeneratorService.generateInvoicePDF`, télécharge
+      le PDF réellement produit depuis MinIO (même chemin S3 que la
+      production), en extrait le texte via `pdf-parse`. Résultat : les
+      trois premières lignes (Montant HT, TVA, Montant TTC) correspondent
+      exactement aux valeurs stockées (370,370 / 70,370 / 440,740 TND) —
+      cohérence confirmée jusqu'à la 3e décimale (millime). Écart trouvé
+      sur la 5e ligne : « Net à payer 441,340 TND » (441.34), alors que
+      `Invoice.amount` réellement stocké en base est 440.74 — un écart de
+      exactement 0.6 TND, la valeur de `TIMBRE_FISCAL`
+      (`documentGenerator.service.ts:10`, commentaire ligne 9 : « barème
+      en vigueur — à confirmer avec un comptable »). Confirmé par grep
+      exhaustif que `TIMBRE_FISCAL` n'existe nulle part ailleurs dans
+      `src/` — jamais lu par `invoice.service.ts#addPayment` (qui compare
+      `data.amount` cumulé à `invoice.amount` seul, `invoice.service.ts:238-241`)
+      ni par aucun repository. Impact concret : un client qui règle
+      fidèlement le « Net à payer » écrit sur son PDF de facture (le seul
+      montant qui lui est présenté comme dû) déclenche systématiquement
+      la branche `overpaidBy > 0` d'`addPayment` (ligne 241, 264-267) —
+      création automatique d'un `CreditNote` de 0.6 TND et d'une
+      notification « trop-perçu » pour un paiement pourtant exact et
+      volontaire, à chaque facture émise avec le régime TVA (donc
+      chaque facture réelle du dépôt). Gravité `majeur` (pas `bloquant`) :
+      aucune perte financière (l'avoir de 0.6 TND reste correctement
+      crédité au client via le mécanisme déjà existant), mais un vrai
+      défaut d'expérience/comptabilité qui génère un bruit systématique
+      (CreditNote + notification) sur 100% des factures TVA, jamais
+      remarqué car jamais testé bout-en-bout jusqu'ici (aucun test
+      n'appelle `generateInvoicePDF` et ne compare son contenu réel au
+      stockage — confirmé par grep `generateInvoicePDF` sur `server/test/`).
 
