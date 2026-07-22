@@ -71,6 +71,36 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - name: Wait for Postgres and Redis to accept real queries
+        # SEC-212: the `services:` health-checks (pg_isready / redis-cli ping) only prove the
+        # server process has started accepting TCP connections, not that it can reliably execute
+        # a query under runner CPU/network contention at job start — the app-level connectivity
+        # checks in server/test/*.test.ts each make exactly one un-retried query and permanently
+        # self-skip their whole file on a single transient failure. Looping a real query here,
+        # before npm ci/any test file runs, absorbs that transient window instead.
+        run: |
+          for i in $(seq 1 30); do
+            if PGPASSWORD=secritou psql -h localhost -p 5432 -U secritou -d secritou_test -c "SELECT 1" >/dev/null 2>&1; then
+              echo "Postgres ready after ${i} attempt(s)."
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "::error::Postgres did not become queryable after 30 attempts."
+              exit 1
+            fi
+            sleep 2
+          done
+          for i in $(seq 1 30); do
+            if redis-cli -h localhost -p 6379 ping 2>/dev/null | grep -q PONG; then
+              echo "Redis ready after ${i} attempt(s)."
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "::error::Redis did not respond to PING after 30 attempts."
+              exit 1
+            fi
+            sleep 2
+          done
       - run: npm ci
       - run: npm run prisma:validate --workspace=server
       - run: npm run prisma:format:check --workspace=server
@@ -224,6 +254,33 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - name: Wait for Postgres and Redis to accept real queries
+        # SEC-212: see the identical step in the `server` job — same runner-contention symptom
+        # observed here as the app server's first real request (login) being slow enough to trip
+        # Playwright's default 5s expect() timeout while Postgres/Redis are still warming up.
+        run: |
+          for i in $(seq 1 30); do
+            if PGPASSWORD=secritou psql -h localhost -p 5432 -U secritou -d secritou_test -c "SELECT 1" >/dev/null 2>&1; then
+              echo "Postgres ready after ${i} attempt(s)."
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "::error::Postgres did not become queryable after 30 attempts."
+              exit 1
+            fi
+            sleep 2
+          done
+          for i in $(seq 1 30); do
+            if redis-cli -h localhost -p 6379 ping 2>/dev/null | grep -q PONG; then
+              echo "Redis ready after ${i} attempt(s)."
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "::error::Redis did not respond to PING after 30 attempts."
+              exit 1
+            fi
+            sleep 2
+          done
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run prisma:generate --workspace=server

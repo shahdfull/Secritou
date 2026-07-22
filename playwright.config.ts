@@ -20,6 +20,10 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   workers: 1,
   reporter: process.env.CI ? [["github"], ["list"]] : "list",
+  // SEC-212: CI runners observed with a slow first request (login) while Postgres/Redis
+  // containers are still warming up under contention, tripping the 5s default before the
+  // server even responds — default stays tight locally where the DB is already warm.
+  expect: process.env.CI ? { timeout: 15_000 } : undefined,
   use: {
     baseURL: "http://localhost:5173",
     trace: "retain-on-failure",

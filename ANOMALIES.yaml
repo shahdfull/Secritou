@@ -14432,3 +14432,40 @@ anomalies:
       démarrage des conteneurs (non consultables depuis cette session :
       403 sur l'API de téléchargement des logs GitHub Actions).
 
+      Session de remédiation (2026-07-22) : option "wrapper les before()
+      applicatifs d'un retry" écartée après vérification empirique — un
+      before() placé en tête de server/test/run-all.test.ts (point
+      d'entrée unique de `npm run test:coverage`) ne peut PAS gater les
+      77 fichiers de test individuels : reproduit avec un repro minimal
+      (node --test sur 2 fichiers), les before() de node:test s'exécutent
+      par fichier, en parallèle, sans garantie d'ordre par rapport aux
+      imports statiques du fichier d'entrée — contrairement à l'hypothèse
+      initiale d'ordre séquentiel garanti par les imports ESM. Corriger
+      ainsi aurait nécessité de toucher les 77 fichiers de test
+      individuellement (un helper de retry importé partout), écarté
+      comme disproportionné pour un défaut d'infrastructure CI (décision
+      du porteur, question posée explicitement).
+
+      Correctif appliqué à la place, scope infra pur (.github/workflows/
+      ci.yml, playwright.config.ts, aucun fichier de test touché) :
+      1) jobs `server` et `e2e` : nouvelle étape "Wait for Postgres and
+      Redis to accept real queries" juste après actions/setup-node,
+      avant `npm ci` — boucle jusqu'à 30 tentatives (2s d'intervalle,
+      donc jusqu'à 60s) d'un `SELECT 1` réel via psql et d'un `PING` réel
+      via redis-cli, distincte des health-checks `services:` existants
+      qui prouvent seulement que le process a démarré, pas qu'il répond
+      de façon fiable sous contention runner ;
+      2) playwright.config.ts : `expect.timeout` porté à 15s en CI
+      uniquement (`process.env.CI`, inchangé en local où le défaut 5s
+      convient) — absorbe une première requête (login) lente pendant que
+      Postgres/Redis finissent de chauffer, sans masquer un vrai défaut
+      applicatif (le timeout reste fini et le test échoue toujours si
+      /login ne répond jamais).
+      `npm run lint`/`npm run typecheck` --workspace=server vérifiés
+      propres après ces changements (aucun fichier server/src ou
+      server/test modifié). Statut laissé `en_cours` : critère de
+      résolution exige un commit poussé ET 2 runs CI consécutifs verts
+      sur `main`, aucun des deux n'existe encore à la fin de cette
+      session — voir CLAUDE.md « Un critère de résolution se vérifie sur
+      un commit ».
+
