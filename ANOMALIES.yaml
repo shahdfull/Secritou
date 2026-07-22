@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-195
+dernier_id: SEC-197
 
 anomalies:
   - id: SEC-001
@@ -13237,4 +13237,83 @@ anomalies:
       de cette ampleur mérite sa propre session dédiée avec vérification
       fichier par fichier, pas une correction hâtive pour débloquer un
       run CI précis.
+
+  - id: SEC-196
+    titre: "managerPermissionRepository.findUserNamesByProfileId (server/src/repositories/managerPermission.repository.ts) est du code mort : aucun appelant nulle part dans le dépôt (src/ ni test/, ni client/) — remplacée par findManagersByProfileId (mêmes lignes du même fichier, mêmes données + le userId en plus) sans jamais être nettoyée"
+    perimetre: "server/src/repositories/managerPermission.repository.ts (lignes 21-29)"
+    regle_violee: null
+    classe: "code_mort_apres_remplacement"
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand `findUserNamesByProfileId` est supprimée du
+      dépôt (repository et tout commentaire qui la référence) — vérifié
+      par un grep exhaustif sur `server/` et `client/` confirmant zéro
+      occurrence restante, et par un `npx tsc --noEmit`/`npm run lint`
+      verts après suppression (aucune référence cassée).
+    detecte_le: "2026-07-22"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert en relisant `managerPermission.service.ts` en entier à la
+      demande du porteur, pour confirmer que le comportement réel de
+      SEC-114 correspond à son critère de résolution écrit (pas
+      seulement à l'existence d'un test). `managerPermission.service.ts`
+      n'appelle jamais `findUserNamesByProfileId` — seule
+      `findManagersByProfileId` (ligne 32-38 du même fichier repository)
+      est utilisée par `permissionProfileService.delete`. Grep exhaustif
+      confirmé : `grep -rn "findUserNamesByProfileId" . --include="*.ts"`
+      sur tout `server/` (hors `node_modules`) ne retourne que sa propre
+      définition (ligne 23) ; aucune occurrence côté `client/`. Probable
+      reliquat d'une itération antérieure du correctif SEC-114 (le
+      commentaire ligne 21-22 dit explicitement « used to block
+      PermissionProfile deletion with a useful message », comportement
+      aujourd'hui porté par `findManagersByProfileId` + le message
+      d'erreur de `permissionProfileService.delete`), jamais nettoyé
+      après le remplacement. Pas une violation du critère de résolution
+      de SEC-114 lui-même (le comportement réel est correct via l'autre
+      méthode) — un défaut de propreté distinct, découvert incidemment.
+
+  - id: SEC-197
+    titre: "permissionProfileService.delete : fenêtre TOCTOU mineure entre la suppression réelle du profil (permissionProfileRepository.delete, ligne 146) et l'invalidation du cache des managers affectés (cacheDel, lignes 148-151) — un resolvePermissions concurrent exécuté dans cet intervalle lirait encore l'ancien cache valide (les permissions de l'ancien profil), alors que le profil n'existe déjà plus en base"
+    perimetre: "server/src/services/managerPermission.service.ts#permissionProfileService.delete (lignes 125-171)"
+    regle_violee: null
+    classe: "toctou_invalidation_cache_apres_suppression"
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      Sera résolu soit en inversant l'ordre (invalider le cache avant ou
+      dans la même opération atomique que la suppression réelle), soit
+      par une décision explicite du porteur documentant que la fenêtre
+      est jugée négligeable (durée de l'appel `prisma.delete` seul, TTL
+      cache de 300s largement supérieur, `force` déjà un chemin rare et
+      volontaire côté ADMIN) — dans les deux cas la décision doit être
+      écrite (REFERENTIEL.md §7 ou commentaire dans le code), pas laissée
+      implicite. Prouvé, si corrigé, par un test qui simule un
+      `resolvePermissions` concurrent pendant l'intervalle exact entre
+      les deux opérations et confirme qu'il ne voit jamais l'ancien
+      profil après le début de la suppression.
+    detecte_le: "2026-07-22"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert dans la même relecture intégrale que SEC-196, en
+      vérifiant que le critère de résolution de SEC-114 (« pas
+      silencieusement vidée ») porte sur le signal/la traçabilité de
+      l'opération, pas sur une garantie d'atomicité stricte — cette
+      fenêtre TOCTOU est donc hors du périmètre exact du critère de
+      SEC-114 tel qu'écrit (qui n'est pas violé), mais reste un défaut
+      réel distinct à tracer sous son propre ID plutôt que sous SEC-114
+      (règle du dépôt : un ID = un critère de résolution). Impact borné :
+      la fenêtre est la durée d'un seul appel Prisma (`delete`, ligne
+      146) avant les `cacheDel` (lignes 148-151) — de l'ordre de la
+      milliseconde en usage normal, pas une fenêtre longue ouverte
+      indéfiniment. `force` est déjà un chemin volontaire et rare
+      (suppression de profil RBAC par un ADMIN), pas un flux à haut
+      volume concurrent — gravité `mineur` en conséquence, pas `majeur`.
+      Non vérifié dans cette passe : le coût réel d'inverser l'ordre
+      (invalider le cache avant que le profil soit confirmé supprimé
+      risquerait, en cas d'échec de la suppression elle-même, de forcer
+      un recalcul inutile plutôt que de créer une incohérence — probable
+      compromis correct mais non testé ici).
 
