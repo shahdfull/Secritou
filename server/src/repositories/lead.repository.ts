@@ -39,6 +39,11 @@ const leadListSelect = {
   createdAt: true, updatedAt: true,
 } satisfies Prisma.LeadSelect;
 
+const leadDetailSelect = {
+  ...leadListSelect,
+  notes: true,
+} satisfies Prisma.LeadSelect;
+
 export const leadRepository = {
   async findAll(options: ListQueryOptions & { includeArchived?: boolean }, scope?: LeadScope): Promise<PaginatedResult<Omit<Lead, "notes">>> {
     const where = buildWhere(options, scope);
@@ -68,7 +73,8 @@ export const leadRepository = {
         id,
         ...(!includeArchived ? { archivedAt: null } : {}),
         ...serviceFilter
-      }
+      },
+      select: leadDetailSelect,
     });
   },
 
@@ -88,7 +94,8 @@ export const leadRepository = {
         ...(!includeArchived ? { archivedAt: null } : {}),
         ...serviceFilter
       },
-      include: {
+      select: {
+        ...leadDetailSelect,
         convertedClient: { select: { id: true, name: true, email: true } },
         sourceContact: {
           select: {
