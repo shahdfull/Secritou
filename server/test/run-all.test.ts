@@ -117,3 +117,4 @@ import "./taskCompletedAtBackfill.test.ts";
 import "./projectClientApproveConcurrency.test.ts";
 import "./clientApproveEmailPortalUrl.test.ts";
 import "./metricAnomalyAndCommissionBatching.test.ts";
+import "./permissionProfileDelete.test.ts";
