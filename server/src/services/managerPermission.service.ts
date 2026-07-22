@@ -142,10 +142,19 @@ export const permissionProfileService = {
       throw new HttpError(404, "Permission profile not found", "NOT_FOUND");
     }
 
+    // SEC-197: invalidate before AND after the delete itself. A single invalidation after
+    // delete() leaves a window where a concurrent resolvePermissions() could repopulate the
+    // cache with the (already gone) profile's grants between the delete and the cacheDel call
+    // below. Invalidating first closes most of that window; invalidating again after covers the
+    // remaining case where a reader repopulated the cache from the still-valid pre-delete state
+    // during the delete() call itself.
+    if (managers.length > 0) {
+      await Promise.all(managers.map((m) => cacheDel(cacheKeys.managerPermissions(m.userId))));
+    }
+
     // Delete the profile
     const deletedProfile = await permissionProfileRepository.delete(id);
 
-    // Invalidate cache for affected managers
     if (managers.length > 0) {
       await Promise.all(managers.map((m) => cacheDel(cacheKeys.managerPermissions(m.userId))));
     }
