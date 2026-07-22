@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-193
+dernier_id: SEC-194
 
 anomalies:
   - id: SEC-001
@@ -13063,4 +13063,66 @@ anomalies:
       jamais commité). `resolu` NON déclaré : le correctif est commité
       localement mais pas encore vu vert par la CI elle-même sur ce commit
       précis. Reste `en_cours` jusqu'à confirmation du run CI réel.
+
+  - id: SEC-194
+    titre: "npm run test:coverage --workspace=server (job \"server\" de ci.yml) n'a probablement jamais pu réussir depuis son introduction : (1) le binaire c8 qu'il appelle en dur n'était déclaré nulle part dans server/package.json (ni dependencies ni devDependencies), échec immédiat \"c8: not found\" sur toute installation fraîche (npm ci) ; (2) une fois c8 installé, la couverture réelle mesurée (64.46% lignes/statements, 72.59% branches, 42.91% fonctions) est très en dessous des seuils exigés par le script (85/80/85/85), jamais atteints"
+    perimetre: "server/package.json (script test:coverage, devDependencies) ; .github/workflows/ci.yml (job server)"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand `npm run test:coverage --workspace=server` sort
+      avec le code 0 sur une installation fraîche (`npm ci` puis la
+      commande, sans installation manuelle préalable de `c8`) — vérifié
+      localement puis confirmé par un run CI vert sur le job "server".
+    detecte_le: "2026-07-22"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert en poursuivant l'investigation du job "server" après la
+      correction du "Schema drift check" (SEC-193) : le step suivant du
+      pipeline (`npm run test:coverage --workspace=server`) échouait avec
+      `sh: 1: c8: not found`, exit code 127. Confirmé par lecture directe :
+      `grep -n '"c8"' server/package.json` ne retourne rien avant cette
+      session — le script `test:coverage` (`server/package.json:15`)
+      appelle `c8` directement (pas `npx c8`), donc rien ne l'installe
+      automatiquement sur un `npm ci` frais, contrairement à l'exécution
+      locale habituelle où `npx` masque l'absence en téléchargeant le
+      binaire à la volée à chaque appel (confirmé : `which c8` ne retrouve
+      rien non plus sur la machine de développement). `git log -p --
+      package.json` ne montre qu'un seul commit d'introduction de ce
+      script, jamais modifié depuis — cohérent avec le fait que SEC-010
+      (CI restée en `workflow_dispatch` seul depuis le 2026-07-17) a
+      empêché toute exécution automatique de ce step avant cette session.
+
+      RÉSOLU (session en cours), en deux volets, décision explicite du
+      porteur (AskUserQuestion) pour chacun :
+      1) `npm install --save-dev c8` exécuté dans `server/` — `c8` ajouté
+      à `server/package.json#devDependencies` (`package-lock.json`
+      régénéré en conséquence). Débloque l'échec immédiat.
+      2) Une fois `c8` installé, la couverture réelle mesurée (`npx c8
+      --reporter=text-summary node --test --import tsx
+      test/run-all.test.ts`, 520/520 tests verts) : Statements 64.46%
+      (18584/28830), Branches 72.59% (1187/1635), Functions 42.91%
+      (427/995), Lines 64.46% (18584/28830) — très en dessous des seuils
+      exigés (85/80/85/85), jamais configurés avec un `.c8rc.json` pour
+      exclure les fichiers non pertinents (ex. point d'entrée, certains
+      contrôleurs jamais exercés par les tests unitaires) — non
+      investigué plus avant dans cette session si une exclusion aurait pu
+      relever ces chiffres sans écrire de nouveaux tests. Décision du
+      porteur (AskUserQuestion) : baisser les seuils au niveau réel
+      mesuré, avec marge de sécurité (`--statements 60 --branches 70
+      --functions 40 --lines 60`, chacun arrondi sous la valeur mesurée
+      pour absorber la variance normale entre runs) plutôt que d'exiger
+      une remontée de couverture non demandée. Vérifié : `npm run
+      test:coverage --workspace=server` sort désormais avec le code 0 en
+      local. Ne PAS relever ces seuils sans nouvelle instruction — ce ne
+      sont pas des seuils de qualité arbitrés, seulement un plancher
+      reflétant l'état réel du dépôt au 2026-07-22, choisis pour ne plus
+      jamais faire échouer silencieusement `test:coverage` sur un défaut
+      de configuration plutôt que sur une vraie régression de couverture.
+      `en_cours` (pas `resolu`) : le critère local passe, mais la CI n'a
+      pas encore confirmé ce commit précis — conformément à la règle du
+      dépôt.
 
