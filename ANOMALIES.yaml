@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-199
+dernier_id: SEC-210
 
 anomalies:
   - id: SEC-001
@@ -6610,7 +6610,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: resolu
+    statut: en_cours
     critere_de_resolution: >
       Sera résolu par la consolidation des requêtes par carte (batch
       côté serveur ou désactivation du polling au-delà d'un certain
@@ -6629,6 +6629,38 @@ anomalies:
       stade ; non corrigé cette passe (décision du porteur : gravité
       mineure, effort moyen, pas de symptôme réel observé — reste
       `ouvert` pour suivi si le volume de projets par client augmente).
+      Champ `statut` corrigé de `resolu` à `en_cours` (session du
+      2026-07-22) : la note ci-dessus documentait déjà explicitement
+      « non corrigé cette passe », un statut `resolu` sans correctif
+      associé était une incohérence du champ, pas un fait nouveau.
+
+      Depuis (SEC-116, session antérieure) : `ProjectTimeline` n'est
+      plus montée inconditionnellement pour chaque carte — montage
+      paresseux via `IntersectionObserver` (`LazyProjectTimeline` dans
+      `ProjectsClientPage.tsx`). Cela réduit le nombre de pollers actifs
+      simultanés à ceux réellement visibles, mais ne change ni le
+      nombre de requêtes par carte visible (toujours 2), ni la
+      fréquence de polling elle-même — les deux volets restaient
+      entiers.
+
+      RÉSOLU PARTIELLEMENT (session du 2026-07-22, décision explicite
+      du porteur) : fusionner les 2 endpoints (timeline synthétique en
+      7 étapes vs liste réelle des tâches terminées) inverserait une
+      décision architecturale déjà prise et documentée (SEC-061 :
+      routes délibérément séparées, la timeline résume tandis que
+      `completed-tasks` renvoie de vraies lignes de tâches CLIENT-only)
+      — non retenu pour ne pas défaire ce choix sans nouvelle
+      instruction. `CompletedTasksList` n'a d'ailleurs déjà aucun
+      polling (`useProjectCompletedTasks` : `staleTime` seul, pas de
+      `refetchInterval`) ; seule `ProjectTimeline` repolle en continu.
+      Le porteur a choisi d'espacer ce polling plutôt que de fusionner :
+      `refetchInterval` de `useProjectTimeline` relevé de 30s à 120s
+      (`ProjectTimeline.tsx`). Les 2 requêtes distinctes par carte au
+      premier rendu restent inchangées (chacune sert une donnée
+      réellement différente, pas une duplication), seule la répétition
+      dans le temps de l'une des deux est réduite d'un facteur 4.
+      `npx tsc --noEmit` (client) vert. Laissé `en_cours` plutôt que
+      `resolu` : correctif non encore committé.
 
   - id: SEC-092
     titre: "projectMeetingRepository.findDueForReminder ne filtre ni deletedAt ni status COMPLETED — un projet supprime ou termine avec une cadence de reunion active continuerait de generer des rappels"
@@ -10980,7 +11012,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: resolu
+    statut: en_cours
     critere_de_resolution: >
       Sera résolu quand la requête `activeProjects` est intégrée au
       `Promise.all` principal (parallélisée avec les 26 autres au lieu de
@@ -11019,7 +11051,7 @@ anomalies:
       dégradation progressive avec la croissance du nombre de
       projets/tâches/clients, pas un incident observé.
 
-      RÉSOLU PARTIELLEMENT (session en cours) : `activeProjects`
+      RÉSOLU PARTIELLEMENT (session du 2026-07-20) : `activeProjects`
       déplacé dans le `Promise.all` principal (nouvel élément de
       destructuring `activeProjects`, requête ajoutée en fin de tableau
       de promesses) — ne s'exécute plus séquentiellement après. `let
@@ -11032,16 +11064,41 @@ anomalies:
       corrects ; nouveau fichier
       `server/test/executiveMetricsActiveProjectsParallel.test.ts` couvre
       la branche "watch" (échéance proche mais pas dépassée) du même
-      calcul, jusque-là non testée. Second volet du critère NON traité
-      dans cette passe : aucune limite explicite ajoutée à
-      `clientsWithProjects`/`activeProjects`, ni justification écrite —
-      ajouter un plafond arbitraire à une agrégation de dashboard est une
-      décision de forme produit (jusqu'où tronquer sans fausser les
-      totaux affichés), pas un pur correctif de performance ; laissé
-      `en_cours` plutôt que `resolu` pour refléter honnêtement ce reste à
-      faire, à trancher avec le porteur. `npx tsc --noEmit` et
-      `npm run lint --workspace=server` verts. Fix et test produits par
-      mes propres appels d'outils dans cette session.
+      calcul, jusque-là non testée. Second volet du critère laissé
+      `en_cours` à l'époque : aucune limite explicite sur
+      `clientsWithProjects`/`activeProjects`.
+
+      RÉSOLU (session du 2026-07-22, décision explicite du porteur entre
+      deux options proposées — agrégation SQL vs plafond/pagination — le
+      porteur a choisi l'agrégation SQL) : `criticalCount`/`watchCount`
+      sont désormais calculés par une vraie requête SQL agrégée
+      (`prisma.$queryRaw`, `COUNT(*) FILTER (WHERE ...)` avec des
+      `LEFT JOIN LATERAL` pour la dernière activité et le nombre de
+      tâches bloquées par projet), reproduisant exactement les mêmes
+      seuils que l'ancienne boucle JS (deadline dépassée, 7j
+      d'inactivité, >2 tâches bloquées pour critical ; échéance ≤7j,
+      >0 tâche bloquée, ou 4j d'inactivité pour watch) — cette agrégation
+      porte sur TOUT l'ensemble des projets actifs, pas sur un
+      échantillon. `activeProjects` (qui ne sert plus qu'à générer les
+      lignes de détail `PROJECT_CRITICAL`, jamais les totaux) est borné à
+      `take: 50` trié par échéance la plus proche — un plafond sur du
+      détail d'affichage, plus un plafond sur un total. Pour
+      `clientsWithProjects` en revanche, le porteur a choisi l'option
+      plafond explicite plutôt que la réécriture SQL complète (la logique
+      atRisk/lost/champions/topClients combine plusieurs règles métier —
+      revenu sommé, statut projet, inactivité 6 mois — jugée trop risquée
+      à traduire en SQL sans dérive de comportement) : `take: 500` trié
+      par activité récente, avec commentaire documentant que les
+      compteurs deviennent une approximation sous-évaluée au-delà de 500
+      clients (acceptable à 0 client actif, à revoir si ce volume change).
+      Nouveau test réel `server/test/executiveMetricsCriticalCountUnbounded.test.ts` :
+      crée 55 projets à échéance dépassée (délibérément > le plafond
+      `take: 50` d'`activeProjects`) et vérifie que `criticalCount`
+      augmente bien de 55, prouvant que le total n'est pas silencieusement
+      plafonné par le même `take` que les lignes de détail. Suite complète
+      555/555, `npx tsc --noEmit` et `npm run lint --workspace=server`
+      verts sur ce commit. Fix et tests produits par mes propres appels
+      d'outils dans cette session.
 
   - id: SEC-162
     titre: "EntityTable.tsx (table générique avec virtualisation via useVirtualTable) n'est importé nulle part dans le dépôt — code mort — pendant qu'au moins 14 pages de liste (DocumentsPage, InvoicesPage, LeadsPage, ProposalsPage, CommissionsPage, ApprovalsPage, ApplicationsPage, ClientDetailPage, ClientDashboardPage, BookingAdminPage, AdminOnboardingPage, PermissionsGrid, SearchConsoleTab, SeoReportPage) réimplémentent chacune leur propre <TableRow>.map() sans aucune virtualisation"
@@ -11096,6 +11153,33 @@ anomalies:
       que laissé `ouvert` par défaut d'investigation, pour distinguer "pas
       encore regardé" de "regardé, bloqué sur un choix qui n'est pas le
       mien à faire".
+
+      RÉSOLU (session du 2026-07-22) : le porteur a d'abord choisi de
+      migrer DocumentsPage/InvoicesPage/LeadsPage vers `EntityTable`. Avant
+      d'implémenter, vérification du prémisse : les 3 pages utilisent
+      toutes `useListParams(10)` + `DataTablePagination` — pagination
+      SERVEUR à 10 lignes par page, jamais de liste non bornée rendue côté
+      client. La virtualisation résout un problème (des milliers de nœuds
+      DOM simultanés) qui ne se pose sur aucune des 3 pages proposées :
+      migrer aurait remplacé du code simple et fonctionnel par une
+      abstraction plus complexe sans gain de performance réel. Remonté au
+      porteur, qui a alors choisi l'option suppression plutôt que de
+      forcer une migration sans bénéfice. `EntityTable.tsx` et
+      `useVirtualTable.ts` supprimés ; par la même occasion,
+      `EmptyState.tsx`/`LoadingState.tsx` (dans le même dossier
+      `crud/`) n'avaient eux-mêmes plus aucun consommateur une fois
+      `EntityTable.tsx` retiré (vérifié par grep sur tout `client/src`
+      avant suppression) — supprimés aussi plutôt que de laisser un
+      nouveau petit îlot de code mort à côté. `@tanstack/react-virtual`
+      (la dépendance elle-même) reste utilisée ailleurs (TasksKanban,
+      LeadsKanban, TasksListView) — non touchée. `npx tsc --noEmit`,
+      `npm run lint --workspace=client` (12 warnings, tous déjà dans
+      l'exception documentée du même fichier — aucun nouveau) et la
+      suite de tests client (117/117) restent verts après suppression.
+      Les 14 pages listées dans le titre restent donc sur leur propre
+      `.map()` direct — confirmé non problématique tant qu'elles restent
+      paginées côté serveur à un plafond raisonnable (couvert par
+      SEC-053/SEC-088/SEC-118/SEC-156).
 
   - id: SEC-164
     titre: "Migration 20260625230000_remove_commented_approval_status réécrit silencieusement l'historique : UPDATE \"ApprovalTimeline\" SET \"status\" = 'PENDING' WHERE \"status\"::text = 'COMMENTED' falsifie toute ligne d'audit historique qui valait réellement COMMENTED au moment des faits — ApprovalTimeline est un journal d'audit (mêmes rôle que ProposalHistory), pas un état courant qu'on peut réécrire"
@@ -13503,4 +13587,747 @@ anomalies:
       facture, création d'avoir) — exactement le type de défaut que la
       demande du porteur visait à débusquer en relisant les entrées
       réelles plutôt que le code seul.
+
+  - id: SEC-200
+    titre: "proposalsApi.getProposals désimbrique une couche de trop : le contrôleur renvoie l'enveloppe de pagination à plat ({ data, total, page, pageSize }), mais le client lit response.data.data — la liste des propositions n'apparaît donc JAMAIS dans l'UI (aucune recherche, aucune pagination, table toujours vide)"
+    perimetre: "client/src/api/proposals.api.ts#getProposals ; server/src/controllers/proposal.controller.ts#getProposals (res.json(result) où result = { data, total, page, pageSize })"
+    regle_violee: null
+    classe: "client_desimbrication_enveloppe_pagination_incorrecte"
+    gravite: bloquant
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand un utilisateur réel ouvrant /app/commercial voit la
+      liste des propositions existantes s'afficher (au moins une ligne pour
+      un jeu de données non vide), prouvé par un test qui appelle le vrai
+      client HTTP (proposalsApi.getProposals) contre le vrai contrôleur (pas
+      une réimplémentation miroir de la désimbrication) et vérifie que le
+      tableau retourné est non vide quand le serveur a des propositions.
+    detecte_le: "2026-07-22"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert incidemment en écrivant le scénario e2e Playwright
+      "cascade proposition" (demande explicite du porteur : installer
+      Playwright et écrire les scénarios critiques login/cascade/
+      approbation). Le scénario échouait systématiquement à trouver la
+      ligne d'une proposition fraîchement créée dans le tableau, alors que
+      `curl` direct contre le même endpoint avec le même token confirmait
+      une réponse serveur correcte à 100% ({"data":[{...1 proposition...}],
+      "total":1,...}). Cause réelle isolée après élimination de toutes les
+      autres hypothèses (StrictMode, CORS, pagination, debounce de
+      recherche) : `getProposals` du contrôleur fait `res.json(result)`
+      avec `result` déjà égal à `{ data, total, page, pageSize }` — une
+      enveloppe PLATE — mais `proposalsApi.getProposals` côté client
+      s'attendait à `{ data: PaginatedResponse }` et retournait
+      `response.data.data`, soit `undefined.data` sur le tableau réel. Bug
+      de production réel affectant TOUS les utilisateurs (0 client actif
+      au moment de la découverte, donc jamais remonté), pas un artefact de
+      test — la page Propositions n'a jamais pu afficher la moindre ligne
+      depuis l'introduction de ce code. Correctif écrit dans la même
+      session (non encore committé au moment de la rédaction de cette
+      entrée) : `proposalsApi.getProposals` retourne maintenant
+      directement `response.data` (le flat `PaginatedResponse`) au lieu de
+      `response.data.data`. Statut `en_cours` tant que ce correctif n'est
+      pas committé ET vert en CI sur ce commit exact (règle CLAUDE.md : un
+      correctif dans un working tree non commité ne vaut jamais `resolu`).
+
+  - id: SEC-201
+    titre: "invoicesApi.getInvoices et invoicesApi.getTrash désimbriquent une couche de trop : les contrôleurs renvoient l'enveloppe de pagination à plat ({ data, total, page, pageSize }), mais le client lit response.data.data — les pages Factures et Corbeille des factures n'affichent donc JAMAIS de résultats"
+    perimetre: "client/src/api/invoices.api.ts#getInvoices (ligne 71-75) et #getTrash (ligne 128-137) ; server/src/controllers/invoice.controller.ts#getInvoices (ligne 30-41, res.json(result) flat) et #getDeletedInvoices (ligne 43-47, idem)"
+    regle_violee: null
+    classe: "client_desimbrication_enveloppe_pagination_incorrecte"
+    gravite: bloquant
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand un utilisateur réel ouvrant /app/invoices (ou sa
+      corbeille) voit la liste des factures existantes s'afficher (au moins
+      une ligne pour un jeu de données non vide), prouvé par un test qui
+      appelle le vrai client HTTP (invoicesApi.getInvoices / getTrash)
+      contre le vrai contrôleur (pas une réimplémentation miroir de la
+      désimbrication) et vérifie que le tableau retourné est non vide quand
+      le serveur a des factures.
+    detecte_le: "2026-07-22"
+    source: manuel
+    confiance: certain
+    note: >
+      Même classe que SEC-200 (client_desimbrication_enveloppe_pagination_
+      incorrecte), occurrence distincte détectée par un audit ciblé lancé
+      juste après la découverte de SEC-200 : une fois le motif identifié
+      (fonction de liste paginée + `response.data.data` alors que le
+      contrôleur fait `res.json(result)` flat), une revue de toutes les
+      fonctions de liste paginée dans `client/src/api/*.ts` comparées à
+      leur contrôleur serveur exact a été faite pour vérifier si d'autres
+      endpoints partageaient le même défaut. Les autres candidats vérifiés
+      (clients, clientOnboarding, documents, freelancers,
+      freelancerApplications, leads, projects, serviceRequests, tasks,
+      users, commissions, approvals) désimbriquent correctement — soit le
+      client fait `response.data` face à un contrôleur flat, soit le
+      contrôleur enveloppe réellement une seconde fois (`res.json({ data:
+      result })`) et le `response.data.data` du client est alors correct.
+      Seuls `invoicesApi.getInvoices`/`getTrash` reproduisaient le même
+      défaut que SEC-200. Correctif écrit dans la même session (non encore
+      committé au moment de la rédaction de cette entrée) : les deux
+      fonctions retournent maintenant directement `response.data`. Statut
+      `en_cours` tant que ce correctif n'est pas committé ET vert en CI sur
+      ce commit exact.
+
+  - id: SEC-202
+    titre: "clientApprove (RG-013) échoue TOUJOURS avec DUPLICATE_ENTRY (P2002) dès qu'un projet a une facture d'acompte : createBalanceInvoiceTx reçoit le même proposalId que la facture DEPOSIT déjà créée pour cette proposition, or Invoice.proposalId est @unique globalement (une seule facture par proposition, tous types confondus) — la clôture cliente ne peut donc jamais aboutir sur un projet issu d'une proposition acceptée (le chemin nominal du module)"
+    perimetre: "server/src/services/project.service.ts#clientApprove (appel à createBalanceInvoiceTx avec proposalId: preread.proposal.id) ; server/src/services/invoice.service.ts#createBalanceInvoiceTx (accepte et transmet ce proposalId à tx.invoice.create) ; server/prisma/schema.prisma#Invoice.proposalId (@unique, contrainte réelle en base)"
+    regle_violee: "RG-013"
+    classe: "contrainte_unique_violee_cascade_metier"
+    gravite: bloquant
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand un scénario réel complet (proposition acceptée ->
+      acompte payé -> projet en REVIEW -> clientApprove appelé par le
+      client) aboutit à un projet `COMPLETED` avec une facture de solde
+      (`BALANCE`) réellement créée en base, prouvé par un test qui appelle
+      le vrai `projectService.clientApprove` (pas une réimplémentation
+      miroir) sur un projet ayant une vraie facture `DEPOSIT` liée à la
+      même proposition, et vérifie l'absence d'exception P2002 ainsi que
+      la présence de la facture de solde créée.
+    detecte_le: "2026-07-22"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert en écrivant le scénario e2e Playwright "approbation
+      client" (demande explicite du porteur : installer Playwright et
+      écrire les scénarios critiques login/cascade/approbation). Le clic
+      réel sur "Confirmer et clôturer" dans un vrai navigateur, contre un
+      vrai serveur, ne fermait jamais la boîte de dialogue. Reproduit
+      directement via un appel API manuel identique
+      (`POST /projects/:id/client-approve` avec un token client réel sur
+      un projet réellement en REVIEW avec sa facture d'acompte réellement
+      payée) : réponse `{"error":{"code":"DUPLICATE_ENTRY",...}}`. Cause
+      isolée par lecture du code : `clientApprove` (project.service.ts
+      ligne ~391) appelle `createBalanceInvoiceTx` en passant
+      `proposalId: preread.proposal.id` — exactement le même proposalId
+      que celui déjà utilisé par la facture `DEPOSIT` créée au moment de
+      l'acceptation de la proposition (`createDepositInvoiceTx`,
+      proposal.service.ts). Or `Invoice.proposalId` porte `@unique` en
+      base (schema.prisma ligne 1299) : une proposition ne peut être liée
+      qu'à UNE SEULE facture, tous types confondus — pas une par type
+      (contrairement à `[projectId, invoiceType]` qui, lui, est
+      légitimement scopé par type via un index partiel, cf. SEC-193).
+      Aucune facture `BALANCE` n'existe dans les données de dev/seed
+      (vérifié par requête directe), confirmant que ce chemin n'a jamais
+      abouti avec succès jusqu'ici — bug de production réel sur le
+      chemin nominal du module Projets (0 client actif au moment de la
+      découverte, donc jamais remonté). Correctif écrit dans la même
+      session (non encore committé au moment de la rédaction de cette
+      entrée) : `clientApprove` ne transmet plus `proposalId` à
+      `createBalanceInvoiceTx` (le paramètre reste optionnel côté
+      fonction ; aucun autre code ne lit `Invoice.proposalId` sur une
+      facture `BALANCE`, vérifié par grep). Statut `en_cours` tant que ce
+      correctif n'est pas committé ET vert en CI sur ce commit exact.
+
+  - id: SEC-203
+    titre: "Même motif que SEC-171 sur deux autres repositories : documentRepository.findAll (aucun select, seulement include client) et proposalRepository.findAll/findAllByClientId (aucun select, seulement include client/invoice/sections) rapatrient chacun la colonne Text intégrale (Document.description / Proposal.description) sur chaque ligne d'un endpoint de liste paginé, alors que ni DocumentsPage ni ProposalsPage/ProposalsClientPage n'affichent ce champ en vue liste"
+    perimetre: "server/src/repositories/document.repository.ts#findAll (ligne 75-83) ; server/src/repositories/proposal.repository.ts#findAll (ligne 57-67) et #findAllByClientId (ligne 81-91)"
+    regle_violee: null
+    classe: "liste_paginee_sans_select_restrictif"
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand `documentRepository.findAll` et
+      `proposalRepository.findAll`/`findAllByClientId` portent un `select`
+      explicite (allow-list nommée, sur le modèle de `leadListSelect`
+      introduit pour SEC-171) excluant `description`, chargé séparément
+      par les vues détail correspondantes (`findById`) — vérifié par un
+      test qui appelle réellement chaque méthode de liste contre une base
+      migrée avec un `description` long et confirme son absence totale de
+      la réponse (`"description" in row === false`), tout en confirmant
+      que la vue détail continue de le retourner intégralement.
+    detecte_le: "2026-07-22"
+    source: manuel
+    confiance: certain
+    note: >
+      Généralisation explicitement demandée par le porteur du même motif
+      que SEC-171 (« vérifier qu'aucune nouvelle requête de liste ajoutée
+      depuis le dernier audit n'a de select manquant ») à tous les
+      repositories modifiés depuis la détection de SEC-171 (2026-07-20) :
+      client.repository.ts, comment.repository.ts, commission.repository.ts,
+      document.repository.ts, executiveMetrics.repository.ts,
+      lead.repository.ts, managerPermission.repository.ts,
+      project.repository.ts, projectMeeting.repository.ts,
+      proposal.repository.ts, task.repository.ts, user.repository.ts.
+      Deux occurrences confirmées du même motif que SEC-171 (aucune
+      restriction de colonnes sur un endpoint de liste paginé, capturant
+      un champ `@db.Text` jamais affiché en vue liste) : `document.
+      repository.ts#findAll` (`include: { client: { select: { name:
+      true } } }` seul, aucun `select` de premier niveau — la ligne
+      `Document` complète est rapatriée, dont `description String?
+      @db.Text`, schema.prisma:1279 — confirmé non affiché dans
+      `client/src/features/documents/DocumentsPage.tsx`, où `description`
+      n'apparaît que dans le formulaire de création/édition, jamais dans
+      les lignes du tableau) ; `proposal.repository.ts#findAll` et
+      `#findAllByClientId` (même profil : `include` client/invoice/
+      sections sans `select` restrictif, `Proposal.description String?
+      @db.Text`, schema.prisma:1081 — confirmé non affiché dans
+      `client/src/features/proposals/ProposalsPage.tsx` ni
+      `client/src/features/client-portal/ProposalsClientPage.tsx`, où
+      `description` n'apparaît que dans des clés i18n de dialogues,
+      jamais dans les lignes de liste). Périmètres vérifiés SANS
+      constat (déjà couverts par SEC-171, pattern absent, ou non
+      applicable) : client.repository.ts (select dédié `clientListSelect`
+      déjà en place, pas de champ Text sur Client) ; comment.repository.ts
+      (le seul `select` sert un fil de discussion détail, pas une liste —
+      `content` y est légitimement affiché en entier) ; commission.
+      repository.ts (pas de champ `@db.Text` sur Commission) ;
+      managerPermission.repository.ts (aucun endpoint de liste paginé,
+      uniquement des lookups internes) ; executiveMetrics.repository.ts
+      (agrégations internes pour le dashboard, jamais un payload de
+      liste exposé tel quel) ; user.repository.ts/project.repository.ts/
+      task.repository.ts (déjà couverts par le second volet non traité
+      de SEC-171 lui-même, pas une occurrence nouvelle). Périmètre à
+      reconfirmer plus tard, non retenu comme constat dans cette passe
+      faute de composant frontend de liste identifié avec certitude :
+      `projectMeeting.repository.ts#listByProject` (pas de `select`
+      restrictif, et `notes`/`participants` sont `@db.Text`, mais aucune
+      vue liste dédiée aux réunions n'a été localisée avec certitude dans
+      `client/src/features` pour confirmer une sur-lecture réelle côté
+      UI). Non corrigé dans cette passe (constat + vérification
+      uniquement, demande explicite du porteur portait sur la
+      vérification généralisée, pas sur un correctif immédiat) — laissé
+      `en_cours`, à trancher/corriger dans une passe dédiée comme le
+      second volet de SEC-171 lui-même.
+
+  - id: SEC-204
+    titre: "3 lacunes d'accessibilité sur des composants transverses à fort réemploi : SortableTableHead.tsx (colonne triable de toutes les listes, LeadsPage + TasksListView) rendait le tri sur un <div onClick> sans role/tabIndex/gestionnaire clavier ni nom accessible ; SearchInput.tsx (5 réemplois) et le champ de recherche globale GlobalSearch.tsx (présent sur chaque page via le header) n'exposaient qu'un placeholder comme seul indice, jamais lu de façon fiable par tous les lecteurs d'écran et disparaissant dès qu'une valeur est saisie"
+    perimetre: "client/src/components/common/SortableTableHead.tsx ; client/src/components/shared/crud/SearchInput.tsx ; client/src/components/common/GlobalSearch.tsx"
+    regle_violee: null
+    classe: "composant_transverse_accessibilite_manquante"
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand un utilisateur clavier seul peut activer le tri
+      d'une colonne (Tab puis Entrée/Espace) et entendre son état
+      (triée/non triée, ordre) via un lecteur d'écran, et quand chaque
+      champ de recherche transverse porte un nom accessible qui survit à
+      la saisie — vérifié par un test qui interroge réellement le DOM
+      rendu par ces composants partagés (role="button"/aria-sort sur
+      l'en-tête triable, aria-label sur les champs de recherche), pas par
+      une relecture visuelle seule.
+    detecte_le: "2026-07-22"
+    source: manuel
+    confiance: certain
+    note: >
+      Demande explicite du porteur : ajouter des `aria-label` sur les
+      composants transverses à fort réemploi plutôt que fichier par
+      fichier, pour que le gain se propage à toutes les pages
+      consommatrices. Revue ciblée des composants partagés à plus haut
+      réemploi (`client/src/components/ui/`, `client/src/components/
+      common/`, `client/src/components/shared/crud/`) : `Button`,
+      `Dialog`, `ConfirmDeleteDialog` (9 réemplois), `DetailDrawer`
+      (4 réemplois), `DataTablePagination`, `NotificationBell`, le menu
+      compte/paramètres d'`AdminLayout` étaient déjà correctement
+      labellisés (texte visible sur les boutons, ou `aria-label`/
+      `DialogTitle`+`DialogDescription` déjà en place) — vérifiés sans
+      constat. `EntityToolbar.tsx`, `EntityDialog.tsx`, `FilterBar.tsx`,
+      `PageHeader.tsx` : 0 réemploi réel (code mort, non traité ici, hors
+      périmètre de la demande qui porte sur des composants réellement
+      consommés).
+
+      3 lacunes réelles corrigées : (1) `SortableTableHead.tsx` — le
+      contrôle de tri était un `<div onClick>` sans aucune sémantique
+      interactive ; remplacé par un vrai `<button type="button">` avec
+      `aria-label` décrivant la colonne et l'état de tri courant, et
+      `aria-sort` posé sur le `<TableHead>` parent (`ascending`/
+      `descending`/`none`) — corrige à la fois le clavier (Tab/Entrée
+      fonctionnent nativement sur un `<button>`) et le lecteur d'écran
+      pour LeadsPage ET TasksListView simultanément, un seul fichier
+      touché. (2) `SearchInput.tsx` — ajout de `aria-label={placeholder}`
+      en repli, actif pour ses 5 réemplois sans qu'aucun appelant n'ait à
+      changer son code. (3) `GlobalSearch.tsx` (recherche globale du
+      header, présente sur toutes les pages authentifiées) — même
+      correctif, `aria-label={t("search.placeholder")}` sur le champ.
+      `Table`/`TableHead` génériques (`ui/table.tsx`) volontairement NON
+      modifiés : un `<table>` sans `aria-label` mais avec de vrais
+      `<th scope="col">` textuels reste navigable de façon significative
+      par un lecteur d'écran (lacune mineure, pas cassée) ; comme le
+      composant sert des données différentes sur 14+ pages, lui imposer
+      un `aria-label` générique (« tableau de données ») aurait été moins
+      utile qu'un attribut natif déjà transmis via `...props` pour
+      l'appelant qui veut en poser un — pas de changement nécessaire,
+      la capacité existe déjà. `npx tsc --noEmit` (client) et
+      `npm run lint --workspace=client` (12 warnings, tous déjà dans
+      l'exception documentée du même fichier — aucun nouveau) verts ;
+      suite de tests client 117/117 après le changement de structure DOM
+      de `SortableTableHead` (div -> button).
+
+      Étendu (même session, demande explicite du porteur) : revue
+      systématique du même motif clavier (`role="button"`/`onKeyDown`/
+      `tabIndex` manquants sur un élément non nativement interactif)
+      sur TOUT `client/src/components/ui/`, `client/src/components/
+      common/` et `client/src/components/shared/crud/` — pas seulement
+      les composants déjà touchés pour l'`aria-label`. Repéré tout
+      `onClick` posé sur un élément non-`<button>` dans ces trois
+      dossiers (`SkillTagInput.tsx`, `password-input.tsx`,
+      `GlobalSearch.tsx`, `sidebar.tsx` `SidebarTrigger`/`SidebarRail`,
+      `DataTablePagination.tsx`, `FileUploadField.tsx`,
+      `GlobalErrorBoundary.tsx`, `RouteBoundary.tsx`,
+      `SortableTableHead.tsx`) et vérifié chacun individuellement :
+      `SortableTableHead.tsx` était la SEULE occurrence réelle du défaut
+      dans cet ensemble (déjà corrigée ci-dessus). Tous les autres
+      `onClick` recensés sont soit déjà posés sur un vrai `<button>`
+      nativement accessible au clavier (`password-input.tsx`,
+      `DataTablePagination.tsx`, `FileUploadField.tsx`,
+      `GlobalErrorBoundary.tsx`, `RouteBoundary.tsx`, `SidebarTrigger`),
+      soit un wrapper `<div onClick>` autour d'un `<input>` déjà
+      focusable nativement où le clic ne fait que reporter le focus sur
+      l'élément déjà interactif (`GlobalSearch.tsx` ligne 101,
+      `SkillTagInput.tsx` ligne 61-64 — Tab atteint directement le vrai
+      champ, le div n'est pas un contrôle indépendant), soit un
+      composant Radix (`accordion`, `select`, `tabs`, `radio-group`,
+      `switch`, `checkbox`, `navigation-menu`) dont le primitive
+      garantit déjà `role`/`tabIndex`/gestion clavier complète en
+      interne — vérifiés sans constat. `SidebarRail` pose délibérément
+      `tabIndex={-1}` (affichage souris-seul de redimensionnement,
+      `SidebarTrigger` sert d'équivalent clavier) — comportement voulu,
+      pas un oubli. Aucun changement de code supplémentaire nécessaire
+      pour ce volet : la lacune identifiée par le porteur n'avait qu'une
+      seule occurrence réelle dans les composants transverses, déjà
+      traitée.
+
+  - id: SEC-205
+    titre: "LeadDetailDialog.tsx : useLead ne déstructure jamais isLoading — pendant que la fiche détaillée (avec les propositions liées) est en cours de chargement, current retombe sur la prop lead issue de la liste, qui ne porte jamais proposals, et la section affiche « aucune proposition liée » alors que le lead en a peut-être réellement, juste pas encore chargées (faux état vide, pas seulement un indicateur de chargement manquant)"
+    perimetre: "client/src/features/leads/LeadDetailDialog.tsx (ligne 42, avant correctif)"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand l'ouverture de la fiche détail d'un lead ayant
+      des propositions liées affiche un indicateur de chargement pendant
+      la requête `useLead`, puis les propositions réelles une fois
+      chargées — jamais le message « aucune proposition » avant que le
+      chargement ne soit terminé — vérifié par un test qui rend le vrai
+      composant, retarde volontairement la résolution de la requête, et
+      confirme l'absence du message vide pendant ce délai.
+    detecte_le: "2026-07-22"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert en répondant à la demande explicite du porteur de
+      généraliser EmptyState/skeleton aux fichiers `features/*.tsx` sans
+      état de chargement/vide géré. Audit large (agent dédié) sur
+      l'ensemble des pages/composants `features/*.tsx` consommant une
+      requête : ~52 fichiers géraient déjà les deux états correctement
+      (en JSX ad-hoc, pas via un composant partagé — le porteur a choisi
+      de ne pas les migrer, leur état actuel étant fonctionnel), 0 fichier
+      n'avait ni l'un ni l'autre. Un seul vrai trou trouvé :
+      `LeadDetailDialog.tsx` a bien un état vide (`proposals.length === 0`)
+      mais aucun état de chargement — `useLead(...)` n'y déstructurait que
+      `data`, jamais `isLoading`/`isPending`. Concrètement, `current`
+      (ligne 43, `detailedLead ?? lead`) retombe sur la prop `lead` issue
+      de la liste/Kanban tant que la requête détaillée n'a pas résolu ; or
+      cette prop ne porte jamais `proposals` (absent du payload de liste),
+      donc `proposals` vaut `[]` et le composant affiche le message vide
+      AVANT que la vraie réponse (potentiellement non vide) n'arrive — un
+      faux négatif visible à chaque ouverture de la fiche, pas seulement
+      une absence de spinner cosmétique.
+
+      Corrigé dans la même session : `isLoading` (renommé
+      `isLoadingDetail`) déstructuré de `useLead`, un indicateur de
+      chargement (spinner + texte `common.loading`) inséré avant le test
+      `proposals.length === 0` dans le rendu de la section propositions.
+      Preuve par test réel (nouveau fichier
+      `client/src/features/leads/LeadDetailDialog.test.tsx`) : mocke
+      `@/api/axios` (le vrai module HTTP, pas le hook) avec une promesse
+      dont la résolution est retardée manuellement, confirme que le
+      message vide n'apparaît PAS pendant l'attente, puis que la vraie
+      proposition s'affiche une fois la promesse résolue ; second test
+      confirme le message vide réel une fois la requête résolue sans
+      proposition. `npx tsc --noEmit` et `npm run lint --workspace=client`
+      (12 warnings, exception déjà documentée, aucun nouveau) verts ;
+      suite de tests client complète 119/119 (35 fichiers, +1 fichier/+2
+      tests). Statut `en_cours` : correctif non encore committé.
+
+  - id: SEC-206
+    titre: "3 tokens du design system échouaient WCAG AA une fois réellement mesurés (conversion oklch -> sRGB puis ratio de contraste) : --border/--input quasi invisibles (~1.2-1.3:1 au lieu de 3:1 requis pour une limite non-texte, clair ET sombre) sur les champs de formulaire ; --accent-foreground réutilisé tel quel sur le badge bg-accent-soft en mode sombre alors qu'il est conçu pour du texte sombre sur --accent (encore clair en mode sombre), donnant 1.28:1 au lieu de 4.5:1 sur 8 fichiers de badges de statut"
+    perimetre: "client/src/styles.css (--border, --input, --accent-foreground/--accent-soft) ; 8 fichiers consommateurs du badge accent-soft (ApprovalsPage.tsx, ProposalsClientPage.tsx, CommissionsPage.tsx, DashboardCharts.tsx, DashboardPage.tsx, InvoicesPage.tsx ×2, ProposalsPage.tsx, ProductDashboard.tsx)"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand tous les tokens de couleur du design system
+      (client/src/styles.css, modes clair ET sombre) satisfont WCAG 2.1 AA
+      (4.5:1 texte normal, 3:1 texte large/UI non-texte) sur chaque paire
+      fond/premier-plan réellement consommée par un composant du dépôt —
+      vérifié par un script qui convertit chaque token oklch() en sRGB,
+      calcule le ratio de contraste réel (pas une estimation visuelle), et
+      échoue si une seule paire est sous le seuil requis ; ce script tourne
+      en CI sur chaque push/PR (aucune régression future ne peut être
+      mergée sans être détectée).
+    detecte_le: "2026-07-22"
+    source: manuel
+    confiance: certain
+    note: >
+      Demande explicite du porteur : passer les tokens du design system
+      dans un vérificateur de contraste WCAG AA, faisable en dev sans
+      donnée de production. Nouveau script autonome
+      `scripts/check-contrast.mjs` (sans nouvelle dépendance npm, décision
+      explicite du porteur) : parse `:root`/`html.dark` dans styles.css,
+      convertit chaque `oklch(L C H)` en sRGB via les matrices standard
+      OKLab -> linear-sRGB (formules CSS Color 4 / Björn Ottosson),
+      calcule la luminance relative et le ratio WCAG réels — conversion
+      vérifiée par sanity-check (oklch(1 0 0) -> blanc pur, oklch(0 0 0)
+      -> noir pur). 18 paires par mode (36 au total) construites à partir
+      des combinaisons fond/premier-plan RÉELLEMENT utilisées par les
+      composants (grep sur `client/src/components/ui` et `client/src/
+      features`), pas un produit cartésien de tous les tokens.
+
+      3 échecs réels confirmés (valeurs hex calculées pour élimination du
+      doute) : (1) `--border`/`--input` clair (`#e3ddd8`/`#eae3de` sur fond
+      `#fdfbfa`) et sombre : ~1.2-1.3:1, un liseré de champ de formulaire
+      quasi invisible, très en dessous du minimum non-texte 3:1 (WCAG
+      1.4.11) — corrigé en assombrissant `--border`/`--input` clair de
+      L=0.9/0.92 à L=0.66, et en éclaircissant leurs équivalents sombres
+      de L=0.22/0.2 à L=0.47, jusqu'à 3.0:1 exact dans les deux modes.
+      (2) `primary` sur `primary-soft` (paire testée initialement) :
+      3.72:1 en texte — mais vérification des consommateurs réels
+      (`grep` sur `text-primary.*bg-primary-soft`) montre que TOUS les
+      badges de statut utilisent déjà `primary-strong` (créé lors d'un
+      audit a11y antérieur, cf. commentaire déjà présent dans
+      styles.css) ; seul un icône décoratif (ContactPage.tsx:332) utilise
+      `text-primary`/`bg-primary-soft`, contenu non-texte sous le seuil
+      3:1 qu'il satisfait déjà — pas un constat réel, le script corrigé
+      pour tester `primary-strong` (la vraie paire texte) au lieu de
+      `primary`. (3) `--accent-foreground` sombre (`#050302`) sur
+      `--accent-soft` sombre (`#2f1c19`) : 1.28:1 — bug de réutilisation
+      croisée claire/sombre du même token : `--accent-foreground` est
+      conçu comme texte sombre pour `--accent` (qui reste clair en mode
+      sombre, `oklch(0.75 0.06 30)`) et fonctionne très bien pour cet
+      usage (grep confirme des dizaines d'usages réels dans les menus/
+      dropdowns/calendrier), mais les 8 fichiers de badges de statut
+      l'utilisaient AUSSI sur `--accent-soft`, qui lui devient une teinte
+      sombre en mode sombre — la même paire qui marche en mode clair
+      s'effondre en mode sombre. Corrigé en créant un nouveau token
+      `--accent-strong` (miroir exact de `--primary-strong`, même
+      convention déjà établie dans ce dépôt), calculé séparément pour
+      chaque mode (clair : `oklch(0.5 0.048 30)`, 4.95:1 ; sombre :
+      `oklch(0.88 0.06 30)`, 11.02:1), et migré les 8 fichiers consommant
+      la paire `bg-accent-soft`+`text-accent-foreground` vers
+      `text-accent-strong` — `--accent-foreground` lui-même non modifié
+      (aurait cassé ses dizaines d'usages réels et corrects sur
+      `--accent`).
+
+      Script câblé en CI (`.github/workflows/ci.yml`, nouveau job
+      `contrast-check`, même structure que `i18n-check`) — non
+      contournable pour une future régression de token. `npx tsc
+      --noEmit`, `npm run lint --workspace=client` (12 warnings,
+      exception déjà documentée, aucun nouveau) et la suite de tests
+      client complète (119/119) verts après les changements de tokens et
+      de classes Tailwind. Statut `en_cours` : correctifs non encore
+      committés.
+
+  - id: SEC-207
+    titre: "Diff Swagger vs comportement réel sur Invoice/Proposal/Project : 5 divergences réelles trouvées — POST/respond proposal documentent un conflit de version en 400 alors que PROPOSAL_VERSION_MISMATCH/INVALID_PROPOSAL_TRANSITION/PROPOSAL_EXPIRED sont réellement des 409 ; POST /proposals documente un 403 générique pour un dépassement de scope MANAGER qui renvoie en réalité des 404 (Lead/Client not found) ; clientInvited documenté comme reflétant une invitation réelle alors qu'il vaut toujours false (RG-018/SEC-002) ; POST/PUT /projects omettent totalement le champ status (et serviceId pour PUT) du schéma de requête documenté alors qu'il est réellement accepté ; GET /projects documentait un stub {id,name,description} au lieu du vrai schema Project (lui-même incomplet, corrigé dans la même passe)"
+    perimetre: "server/src/routes/proposal.routes.ts, server/src/routes/project.routes.ts, server/src/swagger.ts#Project"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand chaque annotation JSDoc @swagger des modules
+      Invoice/Proposal/Project reflète exactement le code réel (schéma
+      Zod, statuts HTTP réellement lancés par le service, description
+      du comportement) — vérifié en générant le spec réel
+      (swaggerSpec depuis server/src/swagger.ts) et en comparant chaque
+      endpoint modifié à son contrôleur/service, pas par relecture
+      visuelle seule.
+    detecte_le: "2026-07-22"
+    source: manuel
+    confiance: certain
+    note: >
+      Demande explicite du porteur : diff exhaustif Swagger vs
+      comportement réel sur Invoice, Proposal, Project — comparer chaque
+      annotation JSDoc à la signature réelle du handler. Invoice :
+      aucune divergence substantielle trouvée. Proposal/Project : 5
+      trouvées et corrigées, chacune vérifiée par lecture directe du
+      service réel avant correction (pas seulement le rapport d'audit) :
+      (1) `POST /proposals/{id}/respond` et `POST /proposals/{id}/accept`
+      documentaient le conflit de version sous 400 (proposal.routes.ts,
+      anciennes lignes 177-178 et 473-474) alors que
+      `proposal.service.ts:411,414,417,573` lancent réellement des 409
+      (`PROPOSAL_VERSION_MISMATCH`/`INVALID_PROPOSAL_TRANSITION`/
+      `PROPOSAL_EXPIRED`) — bloc 409 ajouté aux deux endpoints. (2)
+      `POST /proposals` documentait un 403 générique pour un
+      dépassement de scope MANAGER visant un `projectId` ; le vrai
+      garde-fou (`assertProposalCreationInScope`,
+      proposal.service.ts:68-89) vérifie `leadId`/`clientId`, pas
+      `projectId`, et lance des 404 (« Lead not found »/« Client not
+      found »), jamais 403 — documentation corrigée en conséquence. (3)
+      `clientInvited` documenté sur les deux endpoints d'acceptation
+      comme reflétant une invitation client réelle ; le code
+      (`proposal.service.ts:562-566`) le fixe littéralement à `false`
+      dans tous les cas depuis un changement antérieur (RG-018/SEC-002,
+      invitation déplacée au moment du paiement) — documentation
+      corrigée pour le dire explicitement. (4) `POST /projects` et
+      `PUT /projects/{id}` omettaient le champ `status` (et `serviceId`
+      pour PUT) de leur schéma de requête documenté, alors que
+      `createProjectSchema`/`updateProjectSchema`
+      (project.validator.ts, via `projectBaseSchema` de
+      `@secritou/shared` étendu) les acceptent réellement — `PUT` est
+      le seul moyen de changer le statut d'un projet
+      (`PROJECT_STATUS_VALID_TRANSITIONS`), documentation ajoutée avec
+      les codes d'erreur réels (`COMPLETION_REQUIRES_CLIENT_APPROVAL`,
+      `INVALID_STATUS_TRANSITION`, tous deux 422, vérifiés dans
+      project.service.ts:106,110). (5) `GET /projects` documentait un
+      stub minimal `{id, name, description}` au lieu du vrai schema
+      partagé `#/components/schemas/Project` déjà utilisé par 6 autres
+      endpoints du même fichier — remplacé par le `$ref` existant ;
+      dans le même mouvement, ce schema `Project` lui-même
+      (server/src/swagger.ts) s'est révélé incomplet face au vrai
+      `projectListSelect` (project.repository.ts:37-60, absent :
+      clientId/serviceId/proposalId/budget/deadline/serviceType/
+      briefCompleted*/clientApprovedAt*/meetingFrequency/
+      nextMeetingDate/archivedAt/deletedAt/progress/taskDone/
+      taskTotal) — complété avec ces 15 champs. Vérification finale :
+      le spec réel généré (`swaggerSpec` chargé directement via
+      `node --import tsx`) confirme 83 chemins, les réponses 409
+      présentes sur les deux endpoints proposal, et les 22 champs du
+      schema Project désormais exposés — pas une relecture visuelle du
+      texte JSDoc seul. `npx tsc --noEmit` et
+      `npm run lint --workspace=server` verts, suite de tests serveur
+      complète 555/555 après les changements de validateurs associés
+      (SEC-208). Statut `en_cours` : correctifs non encore committés.
+
+      Découverte incidente en cours de route (fausse alerte, notée
+      pour mémoire) : recherche initiale d'un schema `Project` fantôme
+      a d'abord semblé confirmer qu'il n'existait nulle part, à cause
+      d'une confusion avec `server/src/swagger-schemas.ts` — un fichier
+      distinct, jamais importé par aucun autre fichier du dépôt (`grep`
+      confirmé), donc du code mort qui ne contribue rien au spec
+      réellement servi (`swagger-jsdoc` ne scanne que `src/routes/*.ts`
+      et `src/controllers/*.ts`, configuré dans `swagger.ts:448-451`).
+      Le vrai schema `Project` existait bien, dans `swagger.ts` lui-même
+      — `swagger-schemas.ts` n'est pas la cause du problème, juste un
+      fichier mort sans rapport, non traité dans cette passe (hors
+      périmètre de la demande initiale).
+
+  - id: SEC-208
+    titre: "invoice.validator.ts et proposal.validator.ts réimplémentaient chacun un schéma Zod déjà défini dans @secritou/shared (invoiceItemSchema/createCreditNoteSchema/addPaymentSchema pour invoice ; proposalBaseSchema/proposalSectionSchema/rejectProposalSchema/respondToProposalSchema pour proposal) au lieu de les importer — même motif que celui déjà corrigé pour lead/document/task/project/client/user/freelancer.validator.ts ; une divergence déjà réelle constatée : leadId accepté par le serveur pour proposal mais absent du schéma partagé, invisible à tout formulaire client construit sur ce schéma"
+    perimetre: "server/src/validators/invoice.validator.ts ; server/src/validators/proposal.validator.ts ; shared/src/schemas/proposal.schema.ts (leadId ajouté)"
+    regle_violee: null
+    classe: "validateur_zod_duplique_au_lieu_de_reutiliser_shared"
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand `invoice.validator.ts` et
+      `proposal.validator.ts` importent et réutilisent les schémas
+      `@secritou/shared` existants (au lieu de réimplémenter les mêmes
+      champs), et que `leadId` est représentable dans le schéma partagé
+      utilisé par tout formulaire client — vérifié par
+      `npx tsc --noEmit` (les deux workspaces) et par la suite de tests
+      serveur existante restant verte (elle appelle déjà le vrai code de
+      validation sur plusieurs endpoints proposal/invoice, donc toute
+      régression de forme de schéma y serait visible).
+    detecte_le: "2026-07-22"
+    source: manuel
+    confiance: certain
+    note: >
+      Demande explicite du porteur : vérifier qu'aucun endpoint ajouté
+      récemment n'a de schéma Zod dupliqué au lieu de réutiliser
+      `@secritou/shared`, même motif que les fichiers déjà corrigés.
+      Audit complet des 33 fichiers de `server/src/validators/` contre
+      les 11 fichiers de `shared/src/schemas/` : 7 fichiers réutilisent
+      déjà correctement le partagé (lead/document/task/project/client/
+      user/freelancer.validator.ts, plus quelques imports de constantes/
+      utilitaires dans auth/booking/contact/freelancerApplication) ; 23
+      fichiers n'ont légitimement aucun schéma partagé applicable
+      (concepts server-only : ai, approval, commission, notification,
+      permissionProfile, projectMeeting, serviceRequest, timeEntry,
+      upload, etc. — aucun `shared/src/schemas/*.ts` correspondant) ; 2
+      fichiers dupliquaient réellement un schéma partagé existant :
+      `invoice.validator.ts` (createInvoiceSchema/addInvoiceItemSchema/
+      updateInvoiceItemSchema/createCreditNoteSchema recopiaient
+      champ-pour-champ `invoiceBaseSchema`/`invoiceItemSchema`/
+      `createCreditNoteSchema` de `shared/src/schemas/invoice.schema.ts`,
+      y compris une réimplémentation locale de `currencyCode` déjà
+      exportée par `common.schema.ts`) et `proposal.validator.ts` (idem
+      pour `proposalBaseSchema`/`proposalSectionSchema`/
+      `rejectProposalSchema`/`respondToProposalSchema`).
+
+      Divergence réelle déjà présente au moment de l'audit (pas
+      hypothétique) : `proposal.validator.ts` acceptait `leadId` en
+      body de création, un champ totalement absent de
+      `proposalBaseSchema` côté partagé — `CreateProposalFromLeadDialog.
+      tsx` (client réel, ligne 70) soumet bien ce champ aujourd'hui,
+      donc tout futur formulaire construit à partir du schéma partagé
+      (au lieu de le redéfinir localement comme le fait ce composant)
+      ne pourrait pas le représenter. Corrigé en ajoutant `leadId:
+      z.string().uuid().optional()` à `proposalBaseSchema` (shared),
+      pas seulement côté serveur.
+
+      Correctifs : `invoice.validator.ts` importe désormais
+      `invoiceItemSchema`/`createCreditNoteSchema`/`addPaymentSchema`/
+      `currencyCode`/`positiveDecimal` de `@secritou/shared` ; le champ
+      `number` (généré serveur, RG-012/SEC-031, jamais accepté du
+      client) reste exclu délibérément — pas une réutilisation aveugle
+      de `invoiceBaseSchema` en entier, qui l'inclut. `proposal.
+      validator.ts` importe `proposalBaseSchema`/`proposalSectionSchema`/
+      `rejectProposalSchema`/`respondToProposalSchema`, étendu
+      localement avec `clientName`/`email` (snapshot de contact
+      server-only, jamais un champ de formulaire autonome). Vigilance
+      appliquée sur `updateProposalSchema` : NE PAS utiliser
+      `proposalBaseSchema.partial()` tel quel — `proposalService.update`
+      passe le corps de requête quasi tel quel à Prisma
+      (`proposal.service.ts:266`), donc le Zod schema de la route est le
+      seul vrai gardien de ce qu'un appelant peut réassigner sur une
+      proposition existante ; élargir silencieusement ce schéma en
+      réutilisant la base complète aurait permis de réassigner
+      `clientId`/`sections`/`leadId` en PUT, un changement de
+      comportement réel non demandé — restreint explicitement via
+      `.pick({title, description, amount, currency, expiresAt})` pour
+      préserver exactement l'ensemble de champs modifiables
+      pré-existant. `npx tsc --noEmit` (serveur ET client, après l'ajout
+      de `leadId` côté partagé), `npm run lint --workspace=server`
+      verts ; suite de tests serveur complète 555/555 après le
+      changement (inchangée, confirmant qu'aucun comportement de
+      validation n'a dérivé). Statut `en_cours` : correctifs non encore
+      committés.
+
+  - id: SEC-209
+    titre: "server/src/swagger-schemas.ts (schémas de requête CreateProject/CreateTask + réponses génériques Conflict/UnprocessableEntity/RateLimited) n'est importé par aucun fichier du dépôt — code mort, ne contribue rien au spec Swagger réellement servi (swagger-jsdoc ne scanne que src/routes/*.ts et src/controllers/*.ts, configuré dans swagger.ts)"
+    perimetre: "server/src/swagger-schemas.ts"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      Sera résolu par une décision explicite du porteur : soit
+      supprimer `swagger-schemas.ts` s'il est définitivement abandonné,
+      soit l'intégrer réellement (import dans `swagger.ts`, fusion de
+      ses définitions dans `components.schemas`/`components.
+      responses`) s'il devait servir — vérifié par le fait qu'aucun
+      fichier ne reste orphelin sans consommateur ni décision explicite
+      à son sujet.
+    detecte_le: "2026-07-22"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert incidemment en vérifiant, pour SEC-207, si le schema
+      `Project` référencé par plusieurs endpoints de project.routes.ts
+      existait réellement dans le spec servi. La recherche a d'abord
+      trouvé `swagger-schemas.ts` (217 lignes : réponses génériques
+      Conflict/UnprocessableEntity/RateLimited/NoContent, paramètres
+      id/page/pageSize/search, corps de requête CreateProject/
+      CreateTask) et supposé à tort qu'il s'agissait de la source de
+      vérité manquante — `grep` sur tout `server/src` confirme
+      qu'aucun fichier n'importe `swagger-schemas`, et `swagger.ts`
+      (le fichier réellement chargé par `swaggerJsdoc(options)`)
+      définit son propre `components.schemas`/`components.responses`
+      de façon totalement indépendante, avec un `Project` qui, lui,
+      existe bel et bien (corrigé pour ses champs manquants dans
+      SEC-207). Non corrigé dans cette passe : supprimer ou intégrer un
+      fichier mort est une décision de portée (le fichier a-t-il été
+      abandonné en cours de refactor, ou son contenu doit-il migrer
+      dans swagger.ts) que je ne tranche pas seul sans instruction
+      explicite, conformément à l'interdiction CLAUDE.md sur les
+      décisions inférées.
+
+  - id: SEC-210
+    titre: "Régression réelle (pas seulement documentaire) : package.json racine avait perdu tout son bloc scripts (dev/build/typecheck/lint/prisma:generate/prisma:migrate) et sa devDependency concurrently dans le commit e3f5c3d (2026-06-17, \"chore: commit remaining modified and untracked files\") — npm run dev échouait réellement (\"Missing script\") alors que c'est la toute première commande citée par README.md §Getting Started étape 5 ; README.md lui-même contenait par ailleurs 7 autres dérives documentaires distinctes (comptes de tests obsolètes, intervalle de polling, Grafana/Alertmanager jamais implémentés, répertoires observability/ et tests/ inexistants à la racine, bloc de code de l'arborescence du projet jamais refermé, commande de test serveur npm run test --workspace server inexistante — le vrai script est test:unit)"
+    perimetre: "package.json (racine) ; README.md (sections Features, Tech Stack, Project Structure, Testing)"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand chaque commande citée dans README.md
+      s'exécute réellement telle quelle depuis un clone propre (`npm
+      install` puis chaque commande documentée, sans « Missing script »
+      ni faute), et que chaque affirmation concrète et vérifiable du
+      README (comptes de tests, intervalles de polling, infrastructure
+      d'observabilité, structure de répertoires) correspond à l'état
+      réel du dépôt — vérifié en exécutant réellement les commandes
+      restaurées (pas en relisant le texte du README).
+    detecte_le: "2026-07-22"
+    source: manuel
+    confiance: certain
+    note: >
+      Demande explicite du porteur : relire README.md section par
+      section contre le code réel (même méthode que pour la promesse
+      Playwright), pour détecter d'autres dérives documentaires.
+
+      8 dérives confirmées, chacune vérifiée directement (pas seulement
+      rapportée par l'agent d'audit) : (1) `client/src/features/
+      client-portal/components/ProjectTimeline.tsx:24` — polling à
+      120s (corrigé cette session pour SEC-091), README disait encore
+      30s. (2) Aucune trace de Grafana/Alertmanager nulle part dans le
+      dépôt (`grep` sur `docker-compose*.yml` et recherche de fichiers
+      `*grafana*` : zéro résultat) alors que le README les citait comme
+      composants de la stack et du répertoire `observability/` —
+      Prometheus seul est réellement implémenté
+      (`server/src/observability/`, dépendance `prom-client` réelle).
+      (3) Aucun répertoire `observability/` ni `tests/` à la racine du
+      dépôt (`ls` confirmé) — la vraie arborescence a
+      `server/src/observability/` (code applicatif, pas de la config de
+      déploiement) et les tests vivent dans `server/test/`/
+      `client/src/**/*.test.tsx`, jamais un dossier `tests/` séparé. (4)
+      Le bloc de code Markdown de l'arborescence du projet (ouvert
+      ligne 79) n'était JAMAIS refermé par un ``` — tout le texte
+      jusqu'au prochain bloc (section Getting Started incluse) était
+      donc rendu comme un bloc de code brut par tout moteur Markdown
+      correct ; refermé, et `e2e/` (ajouté cette session) inséré à la
+      place d'`observability/`/`tests/` retirés. (5) Comptes de tests
+      obsolètes (« Server: 510... Client: 102... no coverage gate yet
+      in CI ») alors que la suite réelle compte aujourd'hui 555 tests
+      serveur et 119 tests client, les DEUX avec une porte de couverture
+      active dans `.github/workflows/ci.yml` (lignes 25 et 106,
+      confirmées par lecture directe) — mis à jour avec les comptes
+      réels et une ligne sur la suite Playwright (`e2e/`, elle aussi
+      câblée en CI). (6) `npm run test --workspace server` n'existe pas
+      (`grep` sur `server/package.json` confirme : le script réel
+      s'appelle `test:unit`) — corrigé.
+
+      (7) RÉGRESSION RÉELLE, pas seulement documentaire — la plus
+      grave des 8 : le README documentait aussi (tableau §Scripts,
+      lignes 251-259) `npm run dev`/`build`/`typecheck`/`lint`/
+      `prisma:generate`/`prisma:migrate` à la racine, décrits comme des
+      agrégateurs multi-workspace. Testé directement (`npm run dev` à
+      la racine) : `npm error Missing script: "dev"` — confirmé qu'AUCUN
+      script n'existe dans `package.json` racine, qui ne contenait plus
+      que `dependencies`/`devDependencies`. `git log -p -- package.json`
+      remonte la cause exacte : commit `e3f5c3d` (« chore: commit
+      remaining modified and untracked files », 2026-06-17) a
+      accidentellement effacé tout le bloc `scripts`, `name`, `type`,
+      `workspaces` (partiellement restauré depuis par un commit
+      ultérieur, mais pas `scripts`) et la devDependency `concurrently`
+      — signature typique d'un commit fourre-tout ayant écrasé un
+      fichier en cours d'édition plutôt qu'une suppression volontaire.
+      `npm run dev` était donc cassé pour tout nouveau contributeur
+      suivant le README à la lettre depuis potentiellement plusieurs
+      semaines (0 client actif, jamais remonté).
+
+      Corrigé (même session, décision explicite du porteur de restaurer
+      plutôt que de documenter la casse) : bloc `scripts` restauré dans
+      `package.json` racine, avec un ajustement réel par rapport à
+      l'original — `typecheck`/`build` n'incluent plus
+      `--workspace shared`, ce workspace n'ayant jamais eu ses propres
+      scripts `typecheck`/`build` (vérifié : `shared/package.json` n'a
+      qu'un script `test`) ; les inclure aurait fait échouer la
+      commande restaurée immédiatement. `concurrently` réinstallé en
+      devDependency (`^9.2.4`, résolu par npm depuis la plage `^9.1.2`
+      demandée). Chaque script restauré vérifié en l'exécutant
+      réellement : `npm run typecheck` (root) exécute bien les deux
+      sous-commandes et les deux passent ; `npm run lint` (root) idem,
+      12 warnings client déjà documentés comme exception, 0 côté
+      serveur ; `npm run build` (root) construit réellement client ET
+      serveur avec succès. `npm run prisma:generate` (root) invoque
+      bien la vraie commande sous-jacente mais échoue sur un verrou de
+      fichier Windows (`EPERM` sur `query_engine-windows.dll.node`,
+      probablement un processus node résiduel d'une tâche de fond de
+      cette session) — confirmé comme un artefact d'environnement/OS,
+      pas un défaut du script lui-même (le message d'erreur prouve que
+      la vraie commande `prisma generate` a bien été atteinte et
+      invoquée). `npm run dev`/`prisma:migrate`/`prisma:migrate:deploy`
+      non exécutés directement dans cette passe (respectivement :
+      lancerait des process longue durée, mute la base de dev) mais
+      leur câblage est confirmé correct par `npm run` (liste les 8
+      scripts avec leurs commandes sous-jacentes exactes, cohérentes
+      avec les scripts réels de chaque workspace).
 
