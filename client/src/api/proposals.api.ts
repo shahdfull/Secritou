@@ -78,10 +78,10 @@ export const proposalsApi = {
     clientId?: string;
     leadId?: string;
   }) => {
-    const response = await apiClient.get<{ data: PaginatedResponse<Proposal> }>("/proposals", {
+    const response = await apiClient.get<PaginatedResponse<Proposal>>("/proposals", {
       params,
     });
-    return response.data.data;
+    return response.data;
   },
 
   getProposalById: async (id: string) => {

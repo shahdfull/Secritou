@@ -68,10 +68,10 @@ export const invoicesApi = {
     status?: string;
     clientId?: string;
   }) => {
-    const response = await apiClient.get<{ data: PaginatedResponse<Invoice> }>("/invoices", {
+    const response = await apiClient.get<PaginatedResponse<Invoice>>("/invoices", {
       params,
     });
-    return response.data.data;
+    return response.data;
   },
 
   getInvoiceById: async (id: string) => {
@@ -132,8 +132,8 @@ export const invoicesApi = {
     status?: string;
     clientId?: string;
   }) => {
-    const response = await apiClient.get<{ data: PaginatedResponse<Invoice> }>("/invoices/trash", { params });
-    return response.data.data;
+    const response = await apiClient.get<PaginatedResponse<Invoice>>("/invoices/trash", { params });
+    return response.data;
   },
 
   addPayment: async (id: string, data: { amount: number; method?: string; reference?: string; idempotencyKey?: string }) => {
