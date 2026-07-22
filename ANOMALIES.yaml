@@ -11939,6 +11939,28 @@ anomalies:
       qu'un utilisateur actif sur le Kanban ne se fasse pas bloquer par
       429 en usage normal.
 
+      DÉCISION SUR LES 7 DERNIERS FICHIERS (session du 2026-07-22, sur
+      demande explicite du porteur de trancher un par un plutôt que de
+      laisser un silence) : `analytics.routes.ts`, `dashboard.routes.ts`,
+      `search.routes.ts`, `service.routes.ts`, `summary.routes.ts`,
+      `clientPortal.routes.ts` lus intégralement — les 6 ne contiennent
+      QUE des routes `GET`, confirmé par `grep -nE
+      "\.(post|put|patch|delete)\("` sur chacun (zéro résultat sur les
+      6). Le critère de résolution de SEC-176 porte explicitement sur
+      « chaque route d'écriture authentifiée (POST/PUT/PATCH/DELETE) » —
+      il ne s'applique littéralement à aucune route de ces 6 fichiers,
+      ce n'est donc pas une dérogation à motiver (rien à exempter) mais
+      une non-applicabilité vérifiée et tracée dans REFERENTIEL.md §7
+      (entrée du 2026-07-22), pas laissée en silence. Décision identique
+      appliquée au 7e fichier du périmètre non nommé explicitement par la
+      demande (probablement une confusion de comptage, la liste
+      structurée `perimetre:` de cette entrée n'en compte que 20 au
+      total, tous déjà couverts par le correctif ou cette vérification).
+      SEC-176 reste `en_cours` globalement : le risque de régression UX
+      sur `task.routes.ts` (paragraphe précédent) n'est toujours pas levé,
+      et aucun des correctifs de cette entrée n'a encore été confirmé
+      vert par un run CI réel.
+
   - id: SEC-177
     titre: "projectService.clientApprove : le preread (status !== REVIEW, clientApprovedAt déjà posé) tourne hors transaction et n'est jamais re-vérifié dans le $transaction — contrairement aux gardes tâches ouvertes/acompte/approbations qui, elles, sont explicitement re-vérifiées via tx (commentaire ligne 341-344) — deux appels concurrents (double-clic, retry réseau) sur le même projet REVIEW peuvent tous deux passer le preread et écraser clientApprovedAt/clientApprovedById avec un second horodatage"
     perimetre: "4.2 Gestion de projet, 4.4 Facturation — server/src/services/project.service.ts#clientApprove (lignes 296-388)"
