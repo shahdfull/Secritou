@@ -14489,3 +14489,59 @@ anomalies:
       toujours `en_cours` : ce correctif n'a pas encore été observé vert
       en CI au moment de cette note.
 
+      Diagnostic révisé après un run réel du job `server` (commit
+      `df1641a`, log CI collé et lu en entier dans cette session) : le
+      job échoue encore, avec EXACTEMENT le même symptôme que la
+      découverte initiale (test `authorize allows matching role` à
+      5739ms, 40 tests sur 16 fichiers/blocs distincts sautés via
+      `# no reachable database`/`# no database available`, couverture
+      sous les seuils : lines 57.51%, functions 33.06%, branches
+      69.81%, statements 57.51%). Ceci PROUVE que l'étape "Wait for
+      Postgres and Redis" (ajoutée dans ce même correctif, avant `npm
+      ci`) ne suffit pas : le log confirme des logins HTTP réels et des
+      transactions Prisma réelles réussissant tout au long du run
+      (ex. `POST /api/v1/auth/login 200`, un vrai rollback de
+      transaction sur une contrainte unique) — Postgres/Redis sont donc
+      prouvés up et utilisés avec succès PENDANT le run, mais 16
+      fichiers sur 77 échouent quand même leur unique `$queryRaw SELECT
+      1` non retried, de façon dispersée sur tout le run (pas concentrée
+      au démarrage). Une étape qui attend AVANT que le process Node ne
+      démarre ne peut structurellement pas empêcher un échec ponctuel
+      qui se produit APRÈS, en plein milieu d'un run où le service
+      répond déjà par ailleurs.
+
+      Hypothèse de concurrence testée et écartée : reproduit localement
+      (2 fichiers de test statiquement importés dans un fichier
+      d'entrée, comme `run-all.test.ts` importe ses 77 fichiers) que
+      `node --test` exécute les tests strictement séquentiellement ici
+      (deux tests de 300ms chacun mesurés à ~310ms d'écart, pas en
+      parallèle) — élimine un épuisement de pool par accès concurrent
+      comme cause, la requête `SELECT 1` d'un fichier ne peut pas être
+      en compétition avec celle d'un autre fichier au même instant.
+
+      Correctif tenté à la place (même session, ci.yml uniquement,
+      aucun fichier de test touché) : `connect_timeout=30&pool_timeout=
+      30` ajoutés à `DATABASE_URL` dans les jobs `server` et `e2e`
+      (au lieu des valeurs par défaut de Prisma : connect_timeout 5s,
+      pool_timeout 10s) — durcit directement la connexion Prisma elle-
+      même contre un blip réseau transitoire côté runner, plutôt que de
+      tenter (à tort) de garantir que le service est « prêt » avant que
+      le process ne démarre. L'étape "Wait for Postgres and Redis"
+      ajoutée précédemment est laissée en place (elle reste correcte
+      pour son objectif réduit : éviter un échec précoce et total si les
+      conteneurs mettent réellement plus de 50s health-check à démarrer
+      — un scénario distinct de celui observé ici) mais n'est plus
+      présentée comme LE correctif de SEC-212 : elle ne l'était pas.
+      Aucune couverture équivalente ajoutée côté Redis/ioredis (le
+      client BullMQ/cache a son propre mécanisme de retry par défaut,
+      non modifié ici, hors périmètre de cette tentative). YAML
+      revalidé (`js-yaml`) après l'édition. Statut toujours `en_cours` :
+      non observé vert en CI au moment de cette note — nouvelle
+      incertitude non résolue : `connect_timeout`/`pool_timeout` ciblent
+      un délai de connexion, pas une coupure/erreur réseau franche ; si
+      le symptôme réel est une erreur (pas un timeout), ce correctif
+      pourrait lui aussi s'avérer insuffisant et nécessiterait alors un
+      vrai retry applicatif (donc de revenir à l'option écartée plus
+      tôt : modifier les 77 fichiers, ou introduire un helper partagé),
+      décision à reprendre avec le porteur si ce run échoue aussi.
+

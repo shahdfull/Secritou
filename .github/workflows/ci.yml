@@ -59,7 +59,14 @@ jobs:
           - 6379:6379
     env:
       NODE_ENV: test
-      DATABASE_URL: postgresql://secritou:secritou@localhost:5432/secritou_test
+      # SEC-212: connect_timeout/pool_timeout raised from Prisma's 5s/10s defaults — the CI
+      # runner has been observed dropping a single Prisma connection attempt (SELECT 1 in each
+      # test file's before()) even while Postgres answers real queries successfully throughout
+      # the rest of the same run, scattered across ~16/77 test files per run. This hardens the
+      # connection itself against a transient runner network blip instead of trying to guarantee
+      # the service is "ready" before the process starts (already proven insufficient — the
+      # skips happen well after Postgres is in active, successful use elsewhere in the run).
+      DATABASE_URL: postgresql://secritou:secritou@localhost:5432/secritou_test?connect_timeout=30&pool_timeout=30
       JWT_ACCESS_SECRET: ci-test-access-secret-min-32-chars-long
       JWT_REFRESH_SECRET: ci-test-refresh-secret-min-32-chars
       CACHE_ENABLED: "true"
@@ -251,7 +258,8 @@ jobs:
           - 6379:6379
     env:
       NODE_ENV: development
-      DATABASE_URL: postgresql://secritou:secritou@localhost:5432/secritou_test
+      # SEC-212: see the identical DATABASE_URL comment in the `server` job.
+      DATABASE_URL: postgresql://secritou:secritou@localhost:5432/secritou_test?connect_timeout=30&pool_timeout=30
       JWT_ACCESS_SECRET: ci-test-access-secret-min-32-chars-long
       JWT_REFRESH_SECRET: ci-test-refresh-secret-min-32-chars
       CACHE_ENABLED: "true"
