@@ -1374,8 +1374,18 @@ en filet de sécurité ; filtre `where.serviceId` ajouté pour MANAGER dans
 
 **RG-003 — TVA fixe.**
 Le taux de TVA appliqué aux factures d'acompte et de solde est fixe à 19%
-(`TVA_RATE`). *Module : 4.4.* Statut : IMPLÉMENTÉ. `verifie: code_direct`
-(`server/src/utils/vat.ts`, intégral, session précédente).
+(`TVA_RATE`). *Module : 4.4.* Statut : **IMPLÉMENTÉ. `verifie: test`**
+(session du 2026-07-22) — `computeVat`/`computeVatSlice`
+(`server/src/utils/vat.ts`) n'avaient jusqu'ici aucun test, ni direct ni
+indirect (seule la constante `DEPOSIT_RATE` était couverte par
+`depositRateSingleSource.test.ts`) : le code réel n'avait jamais été
+appelé pour prouver le calcul HT/TVA/TTC lui-même, seulement lu
+(`code_direct`). Nouveau `server/test/vat.test.ts` : appelle réellement
+`computeVat`/`computeVatSlice`, vérifie le taux par défaut (19%) et un
+taux explicite, l'arrondi aux millimes (3 décimales, pas 2), la
+cohérence `amountHT + tvaAmount = amountTTC`, le cas zéro, et que les
+tranches acompte/solde (`computeVatSlice`) se recombinent sans dérive
+d'arrondi par rapport au calcul TVA sur le total complet.
 
 **RG-004a — Facture d'acompte à l'acceptation.**
 À l'acceptation d'une proposition, une facture d'acompte est générée pour
@@ -1421,7 +1431,16 @@ Chaque mission (`Project`) porte une ou plusieurs répartitions de commission
 (`ProjectCommissionSplit`), saisies manuellement par associé avec un
 `ratePct` (chaque taux `> 0`, somme des taux d'un même projet `≤ 100`, un
 seul enregistrement par couple projet/associé). *Module : 4.5.* Statut :
-IMPLÉMENTÉ. `verifie: code_direct` (`commission.service.ts`, intégral).
+**IMPLÉMENTÉ. `verifie: test`** (session du 2026-07-22) —
+`commissionService.setSplits` (la validation elle-même) n'avait aucun
+test avant cette session, ni direct ni indirect (seul le chemin déclenché
+par paiement, `computeForPaymentTx`, était couvert). Nouveau
+`server/test/commissionService.test.ts` : appelle réellement `setSplits`
+contre une base migrée — accepte une somme exactement à 100% et une
+somme partielle, rejette une somme `> 100%` (`COMMISSION_RATES_EXCEED_100`,
+et confirme qu'aucun split n'est écrit dans ce cas), un taux non-positif
+(`INVALID_COMMISSION_RATE`), un partenaire dupliqué dans le même appel
+(`DUPLICATE_COMMISSION_PARTNER`), et un projet inexistant (404).
 
 **RG-007 — Base de calcul de la commission.**
 La commission due est calculée sur le **montant brut réellement encaissé**
@@ -1627,6 +1646,61 @@ suppression d'un non-Admin ne vérifie jamais le nombre d'Admins), session
 du 2026-07-16 (audit 4.14, Constat H). Sortie citée : `tests 242 / pass 242
 / fail 0`, exécuté deux fois de suite pour écarter l'intermittence,
 typecheck 0 erreur.
+
+**RG-022 — Trop-perçu génère automatiquement un avoir, plafonné cumulativement.**
+Un paiement (`Payment`) qui dépasse le solde restant dû sur une facture
+crée automatiquement un `CreditNote` pour l'excédent (`overpaidBy`),
+crédité au solde client (`Client.creditBalance`). La création manuelle
+d'un avoir (`creditNoteService.create`, hors du chemin automatique) est
+plafonnée à ce qui a été réellement encaissé sur la facture MOINS la
+somme de tous les avoirs déjà émis sur cette même facture — jamais
+seulement comparée au montant payé en isolation, ce qui permettrait à
+des avoirs cumulés de dépasser ce qui a réellement été reçu. *Module :
+4.4.* Statut : **IMPLÉMENTÉ. `verifie: test`** —
+`server/src/services/invoice.service.ts#addPayment` (lignes 238-241,
+264-267, création automatique) et
+`server/src/services/creditNote.service.ts#create` (lignes 48-66,
+plafond cumulatif, `SEC-184`). Preuve : `server/test/
+creditNoteCumulativeAmount.test.ts` (cumul, `resolu` session du
+2026-07-21) — étendu session du 2026-07-22
+pour couvrir aussi le rejet `amount<=0`/`amount négatif`
+(`INVALID_CREDIT_AMOUNT`) sur le vrai `creditNoteService.create` : la
+seule preuve antérieure de ce garde précis était un MIROIR
+(`invoice.service.test.ts`, fonction locale `assertCreditAmount`),
+interdit comme preuve `verifie: test` par CLAUDE.md (resterait vert si
+le vrai garde régressait).
+
+**RG-023 — Numérotation des avoirs, jamais collisionnable.**
+Chaque `CreditNote` reçoit un numéro (`CN-<timestamp>-<séquence>`) garanti
+unique même sous création concurrente stricte (compteur en mémoire de
+processus, jamais réinitialisé, indépendant d'un `Date.now()` qui
+collisionnerait sous forte fréquence). *Module : 4.4.* Statut :
+IMPLÉMENTÉ. `verifie: test` (`server/test/creditNoteNumberConcurrency.test.ts`,
+SEC-151, appelle réellement `creditNoteService.create` en concurrence
+stricte via `Promise.allSettled`).
+
+**RG-024 — Timbre fiscal affiché mais non comptable (ÉCART).**
+Le PDF de facture d'acompte affiche un « Net à payer » égal au montant
+TTC stocké plus un timbre fiscal forfaitaire de 0.6 TND
+(`TIMBRE_FISCAL`, barème à confirmer avec un comptable). *Module : 4.4.*
+Statut : **ÉCART**. `verifie: test` (négatif — l'absence de prise en
+compte est ce qui est vérifié) : `TIMBRE_FISCAL`
+(`server/src/services/documentGenerator.service.ts:10`) n'est stocké
+sur aucun champ d'`Invoice` et n'est lu nulle part par
+`invoiceService.addPayment`, qui compare tout paiement au seul `Invoice.
+amount` (TTC sans timbre). Vérifié par exécution réelle du scénario
+complet en dev (génération d'un vrai PDF via `generateInvoicePDF`,
+téléchargement depuis MinIO, extraction du texte réel, comparaison à
+l'`Invoice` stocké) : les lignes Montant HT/TVA/Montant TTC concordent
+exactement avec le stockage, seule la ligne « Net à payer » (441.34)
+diverge de `Invoice.amount` (440.74) de exactement 0.6 TND. Conséquence
+concrète : un client qui règle fidèlement le montant écrit sur son PDF
+déclenche systématiquement la branche de trop-perçu de RG-022
+(création d'un `CreditNote` de 0.6 TND) sur chaque facture émise avec
+régime TVA — voir SEC-198 pour le détail complet et le critère de
+résolution (stocker le timbre comme champ réel d'`Invoice`, ou décision
+explicite du porteur documentant qu'il reste volontairement hors du
+champ `amount`).
 
 ---
 
