@@ -110,8 +110,7 @@ secritou/
 │
 ├── docker-compose.yml       # PostgreSQL + Redis + MinIO
 ├── observability/           # Prometheus + Grafana + Alertmanager
-└── e2e/                     # Playwright tests
-```
+└── tests/                   # Vitest + node:test suites
 
 ---
 
@@ -324,9 +323,13 @@ The exact hosting region, DPA, and contractual status are deployment-specific an
 # Server unit tests (node:test)
 npm run test --workspace server
 
-# E2E (Playwright)
-npx playwright test
+# Client unit/integration tests (Vitest)
+npm run test --workspace client
 ```
+
+Current test coverage in the repository:
+- Server: 510 declared node:test cases, with a coverage gate on `npm run test:coverage --workspace server`
+- Client: 102 declared Vitest cases, with no coverage gate yet in CI
 
 ---
 
@@ -362,3 +365,4 @@ S3_SECRET_ACCESS_KEY=...
 ## License
 
 MIT
+
