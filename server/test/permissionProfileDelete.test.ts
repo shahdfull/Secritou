@@ -2,6 +2,7 @@
 // Tests for permissionProfileService.delete (SEC-114)
 import test, { describe, mock, before, after } from "node:test";
 import type { HttpError } from "../src/utils/httpError.js";
+import type { AuditLogEntry } from "../src/services/auditLog.service.js";
 import assert from "node:assert/strict";
 
 const { permissionProfileRepository } = await import("../src/repositories/permissionProfile.repository.js");
@@ -73,11 +74,11 @@ describe("permissionProfileService.delete (SEC-114)", () => {
 
     assert.equal(deleteProfileMock.mock.callCount(), 1, "should call delete when forced");
     assert.equal(auditMock.mock.callCount(), 1, "should record audit log");
-    const auditLogCall = auditMock.mock.calls[0]!.arguments[0] as any;
+    const auditLogCall = auditMock.mock.calls[0]!.arguments[0] as AuditLogEntry;
     assert.equal(auditLogCall.action, "delete");
     assert.equal(auditLogCall.entityType, "PermissionProfile");
     assert.equal(auditLogCall.entityId, "profile-1");
-    assert.deepEqual(auditLogCall.before.attachedManagers, [
+    assert.deepEqual((auditLogCall.before as { attachedManagers: unknown })?.attachedManagers, [
       { userId: "user-1", userName: "Manager One" },
       { userId: "user-2", userName: "Manager Two" },
     ]);
