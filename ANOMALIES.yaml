@@ -8074,6 +8074,32 @@ anomalies:
       Dérogation CI déjà accordée par l'utilisateur pour cette session :
       `resolu` malgré l'absence de run CI vert sur ce commit précis.
 
+      REVUE COMPLÈTE DU TEST (session du 2026-07-22, sur demande explicite
+      du porteur de relire `permissionProfileDelete.test.ts` en entier, pas
+      seulement son import) : deux constats. (1) Écart de nommage dans le
+      `critère_de_resolution` ci-dessus lui-même — il nomme littéralement
+      `managerPermissionService.delete`, mais `managerPermissionService`
+      (`managerPermission.service.ts:54`) n'a JAMAIS eu de méthode
+      `delete` ; la méthode réelle visée par tout ce constat est
+      `permissionProfileService.delete` (`managerPermission.service.ts:97`),
+      un second objet distinct exporté par le même fichier. Le test et le
+      correctif ciblent bien la bonne méthode réelle — seule la
+      formulation du critère dans ce fichier porte le mauvais nom.
+      Non corrigé ici : le titre/critère d'un ID ne se reformule pas
+      (règle CLAUDE.md) ; ce paragraphe documente l'écart sans y toucher.
+      (2) Trou de couverture réel trouvé : le test mocké existant prouve
+      le blocage 409 et le contenu de l'`AuditLog`, mais aucune assertion
+      ne vérifiait l'effet métier que le critère nomme explicitement — la
+      permission du manager réellement vidée après un force-delete, par
+      opposition à `resolvePermissions` retombant silencieusement sur
+      `base = {}`. Corrigé par un nouveau test d'intégration réel (vraie
+      DB + vrai Redis) dans le même fichier : crée un vrai
+      User/PermissionProfile/ManagerPermission, peuple le cache via le
+      vrai `resolvePermissions`, confirme qu'un refus (sans force) laisse
+      le cache intact, puis qu'un force-delete vide réellement les
+      permissions résolues. Suite complète stable sur 3 exécutions
+      consécutives (521/521).
+
   - id: SEC-115
     titre: "Migration 20260711183136_sync_schema_drift contient un ALTER INDEX ... RENAME TO ..., donc n'est pas strictement additive-only"
     perimetre: "server/prisma/migrations/20260711183136_sync_schema_drift/migration.sql"
