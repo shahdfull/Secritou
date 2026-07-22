@@ -33,10 +33,10 @@ export default tseslint.config(
     },
   },
   {
-    // Node-side build/tooling scripts (e.g. scripts/prerender.mjs) run outside
-    // the browser: they need Node globals (console, process, document via
+    // Node-side build/tooling scripts (e.g. scripts/prerender.mjs, vitest.config.js) run
+    // outside the browser: they need Node globals (console, process, document via
     // puppeteer's page context), not globals.browser.
-    files: ["**/*.mjs"],
+    files: ["**/*.mjs", "*.config.js"],
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: "module",
