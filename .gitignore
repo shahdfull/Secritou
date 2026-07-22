@@ -44,3 +44,9 @@ app/
 
 # Reference-only code, not part of this project's history (see CLAUDE.md)
 reference/
+
+# Playwright e2e run artifacts
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

@@ -173,3 +173,81 @@ jobs:
         with:
           node-version: 24
       - run: node scripts/check-i18n.mjs
+
+  contrast-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/check-contrast.mjs
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: secritou
+          POSTGRES_PASSWORD: secritou
+          POSTGRES_DB: secritou_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    env:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://secritou:secritou@localhost:5432/secritou_test
+      JWT_ACCESS_SECRET: ci-test-access-secret-min-32-chars-long
+      JWT_REFRESH_SECRET: ci-test-refresh-secret-min-32-chars
+      CACHE_ENABLED: "true"
+      REDIS_HOST: localhost
+      REDIS_PORT: "6379"
+      FRONTEND_URL: http://localhost:5173
+      PLAYWRIGHT_SKIP_WEB_SERVER: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run prisma:generate --workspace=server
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+        working-directory: server
+      - name: Seed database
+        run: npm run seed --workspace=server
+      - run: npm run build --workspace=client
+      - name: Start server
+        run: npm run dev --workspace=server > server.log 2>&1 &
+      - name: Wait for server
+        run: npx wait-on http://localhost:5000/api/v1/health -t 60000
+      - name: Start client preview
+        run: npm run preview --workspace=client > client-preview.log 2>&1 &
+      - name: Wait for client
+        run: npx wait-on http://localhost:5173 -t 60000
+      - run: npx playwright test --reporter=list
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
