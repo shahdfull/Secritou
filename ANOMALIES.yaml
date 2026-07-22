@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-210
+dernier_id: SEC-211
 
 anomalies:
   - id: SEC-001
@@ -14333,4 +14333,42 @@ anomalies:
       leur câblage est confirmé correct par `npm run` (liste les 8
       scripts avec leurs commandes sous-jacentes exactes, cohérentes
       avec les scripts réels de chaque workspace).
+
+  - id: SEC-211
+    titre: "Le job e2e de .github/workflows/ci.yml appelle `npm run seed --workspace=server`, qui n'existe pas — server/package.json n'a que `prisma:seed` (\"prisma db seed\", qui invoque à son tour prisma.seed=\"tsx prisma/seed.ts\" via la convention Prisma) ; le job e2e échoue systématiquement à l'étape \"Run npm run seed --workspace=server\" avec `npm error Missing script: \"seed\"`, avant même de pouvoir lancer les tests Playwright"
+    perimetre: ".github/workflows/ci.yml (ligne 234, job e2e, étape de seed avant lancement du serveur dev) ; server/package.json (script réel : prisma:seed)"
+    regle_violee: null
+    classe: null
+    gravite: majeur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand le job e2e de ci.yml invoque le script qui
+      existe réellement dans server/package.json (`prisma:seed`, pas
+      `seed`) et qu'un run CI sur le commit du correctif montre l'étape
+      de seed en succès (pas seulement l'absence de l'erreur "Missing
+      script" — le seed doit réellement peupler la base utilisée par
+      les tests Playwright qui suivent).
+    detecte_le: "2026-07-22"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert en lisant le log complet du job e2e du run CI
+      `29957366526` (commit `e7f7ecb`, poussé pour SEC-195) : l'étape
+      "Run npm run seed --workspace=server" échoue immédiatement avec
+      `npm error Missing script: "seed"`. Confirmé par lecture directe
+      de `server/package.json` : le bloc `scripts` ne contient que
+      `prisma:seed: "prisma db seed"` (qui délègue à `prisma.seed:
+      "tsx prisma/seed.ts"`, la convention native de Prisma pour `prisma
+      db seed`/`prisma migrate reset`) — aucun script nommé `seed` tout
+      court n'a jamais existé dans ce fichier. Pré-existant à SEC-195 :
+      les 3 runs CI précédant le commit SEC-195 sur `main` (`97470f0`,
+      `9a41073`, `63e9b9d`) échouaient déjà, donc ce défaut n'est pas
+      une régression introduite par SEC-195 — simplement découvert en
+      lisant ce log précis pendant la vérification post-push de
+      SEC-195. Distinct de l'échec du job `server` sur ce même run
+      (couverture de code sous les seuils à cause d'un timeout Redis
+      réel côté infra CI ce run précis, cf. le log : `ConnectionTimeoutError`
+      sur Redis puis un premier test qui prend 6.6s au lieu de
+      quelques ms) — deux causes différentes de deux jobs différents,
+      non fusionnées sous un seul ID malgré leur proximité temporelle.
 

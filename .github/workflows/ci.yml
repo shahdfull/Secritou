@@ -231,7 +231,7 @@ jobs:
         run: npx prisma migrate deploy
         working-directory: server
       - name: Seed database
-        run: npm run seed --workspace=server
+        run: npm run prisma:seed --workspace=server
       - run: npm run build --workspace=client
       - name: Start server
         run: npm run dev --workspace=server > server.log 2>&1 &
