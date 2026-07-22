@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Plus } from "lucide-react";
+import { FileText, Loader2, Plus } from "lucide-react";
 import { useLead } from "@/hooks/useLeads";
 import type { Lead, LeadProposal } from "@/types/lead";
 import { CreateProposalFromLeadDialog } from "./CreateProposalFromLeadDialog";
@@ -39,8 +39,11 @@ export function LeadDetailDialog({ lead, open, onOpenChange }: LeadDetailDialogP
   const [proposalDialogOpen, setProposalDialogOpen] = useState(false);
 
   // Fetch the full lead (with linked proposals) only while the dialog is open.
-  const { data: detailedLead } = useLead(open && lead ? lead.id : "");
+  const { data: detailedLead, isLoading: isLoadingDetail } = useLead(open && lead ? lead.id : "");
   const current = detailedLead ?? lead;
+  // Until the detailed fetch resolves, `current` falls back to the list-sourced `lead` prop,
+  // which never carries `proposals` — without isLoadingDetail, an empty array here would show
+  // "no proposals" even when the lead genuinely has some still loading, not actually empty.
   const proposals = current?.proposals ?? [];
   const canCreateProposal = !!current && CAN_CREATE_PROPOSAL.includes(current.status);
 
@@ -86,7 +89,12 @@ export function LeadDetailDialog({ lead, open, onOpenChange }: LeadDetailDialogP
               )}
             </div>
 
-            {proposals.length === 0 ? (
+            {isLoadingDetail ? (
+              <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {t("common.loading")}
+              </div>
+            ) : proposals.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">
                 {t("proposals.fromLead.noProposals")}
               </p>
