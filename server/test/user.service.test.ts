@@ -19,6 +19,7 @@ const { AuthRepository } = await import("../src/repositories/auth.repository.js"
 const { auditLogService } = await import("../src/services/auditLog.service.js");
 const { communicationQueue } = await import("../src/jobs/queues.js");
 const { userService } = await import("../src/services/user.service.js");
+const { authDenylist } = await import("../src/cache/authDenylist.js");
 
 function makeUser(overrides: Record<string, unknown> = {}) {
   return {
@@ -50,6 +51,10 @@ describe("userService.updateUser session revocation (RG-019)", () => {
     }));
     revokeMock = mock.method(AuthRepository.prototype, "revokeAllSessionsForUser", async () => ({ count: 1 }));
     auditMock = mock.method(auditLogService, "record", async () => {});
+    // userService.updateUser also calls the real authDenylist.revokeAccessToken (SEC-174) — mocked
+    // here so this suite's literal "user-1" sub never actually writes to Redis, which would leak
+    // a real revocation across test files sharing that same literal sub (see authDenylist.test.ts).
+    mock.method(authDenylist, "revokeAccessToken", async () => {});
   });
 
   after(() => {
@@ -109,6 +114,9 @@ describe("userService last-Admin protection (RG-021)", () => {
     getWaitingMock = mock.method(communicationQueue, "getWaiting", async () => []);
     // audit record stubbed for its side effect only; the handle is never read in this block.
     mock.method(auditLogService, "record", async () => {});
+    // userService.deleteUser also calls the real authDenylist.revokeAccessToken (SEC-174) — same
+    // reason as the RG-019 block above: keep this suite's literal "user-1" sub out of real Redis.
+    mock.method(authDenylist, "revokeAccessToken", async () => {});
   });
 
   after(() => {

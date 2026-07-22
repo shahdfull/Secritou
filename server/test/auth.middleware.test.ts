@@ -24,33 +24,41 @@ function makeReq(token?: string) {
 }
 
 test("authenticate accepts access tokens only", async () => {
-  const token = jwt.sign(
-    {
-      id: "user-1",
-      sub: "user-1",
-      tokenType: "access",
-      email: "admin@example.com",
-      role: "ADMIN",
-      companyId: "company-1",
-      clientId: null,
-    },
-    process.env.JWT_ACCESS_SECRET!,
-    {
-      expiresIn: "15m",
-      issuer: process.env.JWT_ISSUER!,
-      audience: process.env.JWT_AUDIENCE!,
-    },
-  );
+  // "user-1" is a literal sub reused across several unrelated test files in this suite (they run
+  // concurrently under run-all.test.ts) — stubbed to false rather than relying on the absence of
+  // a real Redis denylist key for this exact sub, which is not otherwise guaranteed.
+  const revokeMock = mock.method(authDenylist, "isAccessTokenRevoked", async () => false);
+  try {
+    const token = jwt.sign(
+      {
+        id: "user-1",
+        sub: "user-1",
+        tokenType: "access",
+        email: "admin@example.com",
+        role: "ADMIN",
+        companyId: "company-1",
+        clientId: null,
+      },
+      process.env.JWT_ACCESS_SECRET!,
+      {
+        expiresIn: "15m",
+        issuer: process.env.JWT_ISSUER!,
+        audience: process.env.JWT_AUDIENCE!,
+      },
+    );
 
-  const req = makeReq(token);
-  let called = false;
-  await authenticate(req as unknown as Request, {} as Response, (err?: unknown) => {
-    assert.equal(err, undefined);
-    called = true;
-  });
+    const req = makeReq(token);
+    let called = false;
+    await authenticate(req as unknown as Request, {} as Response, (err?: unknown) => {
+      assert.equal(err, undefined);
+      called = true;
+    });
 
-  assert.equal(called, true);
-  assert.equal((req as unknown as Request).user!.tokenType, "access");
+    assert.equal(called, true);
+    assert.equal((req as unknown as Request).user!.tokenType, "access");
+  } finally {
+    revokeMock.mock.restore();
+  }
 });
 
 test("authenticate rejects refresh tokens", async () => {
@@ -98,29 +106,38 @@ test("authenticate rejects malformed tokens", async () => {
 
 test("authenticate rejects a revoked access token before expiration", async () => {
   const revokeMock = mock.method(authDenylist, "isAccessTokenRevoked", async () => true);
-  const token = jwt.sign(
-    {
-      id: "user-1",
-      sub: "user-1",
-      tokenType: "access",
-      email: "admin@example.com",
-      role: "ADMIN",
-      clientId: null,
-    },
-    process.env.JWT_ACCESS_SECRET!,
-    {
-      expiresIn: "15m",
-      issuer: process.env.JWT_ISSUER!,
-      audience: process.env.JWT_AUDIENCE!,
-    },
-  );
+  try {
+    const token = jwt.sign(
+      {
+        id: "user-1",
+        sub: "user-1",
+        tokenType: "access",
+        email: "admin@example.com",
+        role: "ADMIN",
+        clientId: null,
+      },
+      process.env.JWT_ACCESS_SECRET!,
+      {
+        expiresIn: "15m",
+        issuer: process.env.JWT_ISSUER!,
+        audience: process.env.JWT_AUDIENCE!,
+      },
+    );
 
-  const req = makeReq(token);
-  let error: HttpError | undefined;
-  await authenticate(req as unknown as Request, {} as Response, (err?: unknown) => {
-    error = err as HttpError | undefined;
-  });
+    const req = makeReq(token);
+    let error: HttpError | undefined;
+    await authenticate(req as unknown as Request, {} as Response, (err?: unknown) => {
+      error = err as HttpError | undefined;
+    });
 
-  assert.equal(error?.statusCode, 401);
-  assert.equal(revokeMock.mock.callCount(), 1);
+    assert.equal(error?.statusCode, 401);
+    assert.equal(revokeMock.mock.callCount(), 1);
+  } finally {
+    // Without an explicit restore, this mock leaks past this test: mock.method patches the
+    // shared authDenylist singleton for the whole process, and this file (unlike describe-based
+    // suites elsewhere) has no after() hook to call mock.restoreAll() — run-all.test.ts runs
+    // every file's tests concurrently in one process, so a leaked mock here made
+    // authDenylist.test.ts's real-Redis assertions fail intermittently depending on scheduling.
+    revokeMock.mock.restore();
+  }
 });
