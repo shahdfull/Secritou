@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-194
+dernier_id: SEC-195
 
 anomalies:
   - id: SEC-001
@@ -13125,4 +13125,68 @@ anomalies:
       `en_cours` (pas `resolu`) : le critère local passe, mais la CI n'a
       pas encore confirmé ce commit précis — conformément à la règle du
       dépôt.
+
+  - id: SEC-195
+    titre: "Le garde `dbAvailable`/`describe(name, { skip: !dbAvailable ? \"...\" : false }, fn)` utilisé dans 39 fichiers de test server/test/*.ts est structurellement peu fiable : `skip` est évalué de façon SYNCHRONE au moment de l'enregistrement du `describe`, avant que le `before()` asynchrone correspondant (qui assigne réellement `dbAvailable`) n'ait pu s'exécuter — le garde ne protège donc jamais vraiment contre une base/Redis injoignable ou un before() qui échoue, il fonctionnait par accident de timing (before() qui a le temps de finir avant que node:test planifie les tests enfants), pas par une garantie structurelle"
+    perimetre: "server/test/*.ts — 39 fichiers utilisant describe(..., { skip: !dbAvailable ... }, ...) : authCookieAndLogoutReuse, checkInvoiceFollowup, clientInviteResend, clientPortalActivationBackfill, commissionCreationExclusivity, creditNoteApply, creditNoteCumulativeAmount, creditNoteNumberConcurrency, depositRateSingleSource, documentCreateHttp, documentScopeManager, documentSignContract, executiveMetricsActiveProjectsParallel, executiveMetricsProjectRisks, freelancerSeesOwnDeliverable, idor, invoiceAuditLog, invoiceNumberingGapless, invoicePaymentInviteFailure, invoiceScopeManager, leadCreateConcurrency, leadDuplicateEmail, leadListExcludesNotes, markOverdueInvoicesAuditLog, metricAnomalyAndCommissionBatching, portalActivationOnPayment, projectClientApproveBalanceInvoice, projectClientApproveConcurrency, projectDetailIncludesTasks, projectStatusInFilter, proposalAcceptCascadeConcurrency, proposalAcceptRbacHttp, proposalCreationScope, proposalWriteScopeRefusal, schemaIndexCleanupAndTimeEntryFk, taskCompletedAtBackfill, taskUpdateScopeRefusal, userDeleteFinancialHistory, userProfilePhone.http.test.ts (compte exact susceptible de varier de ±1 selon la méthode de grep utilisée — vérifier par relecture avant toute migration)"
+    regle_violee: null
+    classe: "garde_skip_evalue_avant_before_async"
+    gravite: majeur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand les 39 fichiers utilisent un mécanisme de skip qui
+      lit réellement `dbAvailable` APRÈS que `before()` a fini de s'exécuter
+      — par exemple en passant `{ skip: !dbAvailable }` (ou équivalent) à
+      chaque `test(...)` individuel plutôt qu'au `describe` englobant (le
+      pattern déjà utilisé correctement dans
+      `projectTemplateIdempotencyAndFreelancerFields.test.ts` et 21 autres
+      fichiers) — prouvé par un test qui simule un `before()` échouant
+      après un délai artificiel et confirme que le test enfant est bien
+      sauté, pas exécuté avec des données `undefined`.
+    detecte_le: "2026-07-22"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Découvert en investiguant un run CI réel (commit `97470f0`, job
+      "server") qui échouait avec des erreurs Prisma explicites
+      (`Argument client is missing`, `Argument where ... needs at least
+      one of id or serviceId`) sur des variables (`clientId`, `serviceId`)
+      censées être assignées par un `before()` — alors que 3 exécutions
+      locales consécutives de la suite complète, avec les mêmes variables
+      d'environnement CI simulées, passaient 520/520 sans aucun échec.
+      Investigation déléguée à un agent en lecture seule (aucune
+      modification de fichier), qui a reproduit empiriquement
+      l'hypothèse dans un script isolé : un `describe(name, { skip: !flag
+      ? "..." : false }, fn)` enregistré après un `before()` asynchrone qui
+      met `flag = false` après un délai — le test s'exécute quand même
+      avec `flag` déjà `false` au moment de l'assertion, parce que
+      `node:test` lit l'option `skip` au moment de l'enregistrement
+      synchrone du `describe`, alors que le `before()` correspondant ne
+      s'exécute que lors du "run" réel de la suite, trop tard pour
+      influencer un `skip` déjà figé. Confirmé par lecture directe de
+      `checkInvoiceFollowup.test.ts` (describe ligne 74 et 109,
+      `dbAvailable` initialisé à `true` ligne 19, `before()` lignes 51-65)
+      — le fichier en échec sur ce run précis. Distinct de
+      `projectTemplateIdempotencyAndFreelancerFields.test.ts` (également
+      en échec sur ce run, mais utilisant déjà le pattern sûr `skip` au
+      niveau `test()` individuel, ligne 90) : son échec pointe vers une
+      cause différente, non résolue dans cette passe — soit `before()` a
+      échoué silencieusement dans sa branche `catch` (aucun `Service`
+      seedé sur le runner CI au moment de cet essai), soit une pollution
+      de données par un test antérieur dans le même run concaténé
+      (`run-all.test.ts`, ordre fixe des ~72 fichiers importés) qui aurait
+      supprimé les `Service` avant que ce `before()` précis ne s'exécute —
+      à investiguer séparément, hors périmètre de cette entrée. Le
+      décalage local/CI s'explique par la latence : en local, `before()`
+      a généralement le temps de finir avant que `node:test` planifie
+      l'exécution des tests enfants (moins de contention CPU/I/O) — sur
+      GitHub Actions (I/O plus lent, DB/Redis potentiellement plus lents à
+      répondre), cette hypothèse de timing n'est plus garantie, or rien
+      dans le code ne la garantissait jamais : c'était un fonctionnement
+      par accident, pas par conception. Portée large (39 fichiers)
+      délibérément non traitée dans cette session — décision explicite du
+      porteur (AskUserQuestion) : enregistrer sans corriger, une migration
+      de cette ampleur mérite sa propre session dédiée avec vérification
+      fichier par fichier, pas une correction hâtive pour débloquer un
+      run CI précis.
 
