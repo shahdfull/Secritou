@@ -4,6 +4,7 @@
  * All dashboard KPIs flow through this file. No other repository should
  * recompute revenue, cash, client health, or project risk — call this one.
  */
+import { Prisma } from "@prisma/client";
 import { prismaRead as prisma } from "../config/prisma.js";
 import { DEFAULT_CURRENCY } from "../constants/currency.js";
 import { env } from "../config/env.js";
@@ -201,6 +202,7 @@ export const executiveMetricsRepository = {
       pendingApprovals,
       hotLeads,
       activeProjects,
+      criticalWatchCountsRaw,
 
     ] = await Promise.all([
       // ── Finance ──
@@ -251,6 +253,14 @@ export const executiveMetricsRepository = {
       prisma.client.count({ where: { deletedAt: null, ...(serviceId ? { projects: { some: { serviceId } } } : {}) } }),
       prisma.client.count({ where: { deletedAt: null, createdAt: { gte: mtdStart }, ...(serviceId ? { projects: { some: { serviceId } } } : {}) } }),
       prisma.client.count({ where: { deletedAt: null, createdAt: { gte: prevMtdStart, lte: prevMtdEnd }, ...(serviceId ? { projects: { some: { serviceId } } } : {}) } }),
+      // SEC-161: previously unbounded (every client, every project, every invoice nested) —
+      // for a large book of clients this loads the whole graph into Node just to rank the top
+      // 5 by revenue and count atRisk/lost/champions. Bounded to the 500 most recently active
+      // clients (ordered by their own most recent update, nulls irrelevant since updatedAt is
+      // always set), documented as an explicit approximation: atRisk/lost/champions/churnRate/
+      // topClients become undercounted beyond 500 clients rather than silently degrading query
+      // time — acceptable given 0 active clients today (session 2026-07-22), revisit the cap
+      // if that ever changes.
       prisma.client.findMany({
         where: { deletedAt: null, ...(serviceId ? { projects: { some: { serviceId } } } : {}) },
         select: {
@@ -268,6 +278,8 @@ export const executiveMetricsRepository = {
             },
           },
         },
+        orderBy: [{ updatedAt: "desc" }],
+        take: 500,
       }),
 
       // ── Projects ──
@@ -321,6 +333,13 @@ export const executiveMetricsRepository = {
       // SEC-161: was a separate await AFTER this Promise.all, adding an unparallelized
       // round-trip — it only depends on projectScope/now (already computed above), not on
       // anything else in this block, so it belongs in the same parallel batch.
+      //
+      // Bounded to the 50 soonest deadlines (nulls last): this list only ever feeds the
+      // up-to-20 visible PROJECT_CRITICAL/detail risk rows (risks.slice(0, 20) below), never
+      // criticalCount/watchCount — those are now real SQL counts (criticalCountRaw below),
+      // computed over the FULL active-project set regardless of this take. Without the bound,
+      // this fetched every active project's full task list into Node just to render a handful
+      // of risk rows.
       prisma.project.findMany({
         where: { status: { notIn: ["COMPLETED"] }, ...projectScope },
         select: {
@@ -328,7 +347,44 @@ export const executiveMetricsRepository = {
           client: { select: { name: true } },
           tasks: { select: { status: true, updatedAt: true } },
         },
+        orderBy: [{ deadline: { sort: "asc", nulls: "last" } }],
+        take: 50,
       }),
+
+      // SEC-161: criticalCount/watchCount previously required loading every active project's
+      // full task list into Node (see activeProjects above) just to count how many matched.
+      // Computed here as real SQL aggregates instead — accurate regardless of the `take: 50`
+      // bound above, since projectRisks (the visible detail rows) and criticalCount/watchCount
+      // (the totals) no longer share the same underlying fetch.
+      prisma.$queryRaw<Array<{ critical: bigint; watch: bigint }>>`
+        SELECT
+          COUNT(*) FILTER (
+            WHERE p."deadline" < ${now}
+               OR (last_activity.last_updated_at IS NOT NULL AND last_activity.last_updated_at < ${day7ago})
+               OR blocked.blocked_count > 2
+          ) AS critical,
+          COUNT(*) FILTER (
+            WHERE p."deadline" IS NULL OR p."deadline" >= ${now}
+            AND (last_activity.last_updated_at IS NULL OR last_activity.last_updated_at >= ${day7ago})
+            AND COALESCE(blocked.blocked_count, 0) <= 2
+            AND (
+              (p."deadline" >= ${now} AND p."deadline" <= ${new Date(now.getTime() + 7 * 86_400_000)})
+              OR COALESCE(blocked.blocked_count, 0) > 0
+              OR (last_activity.last_updated_at IS NOT NULL AND last_activity.last_updated_at < ${new Date(now.getTime() - 4 * 86_400_000)})
+            )
+          ) AS watch
+        FROM "Project" p
+        LEFT JOIN LATERAL (
+          SELECT MAX(t."updatedAt") AS last_updated_at FROM "Task" t WHERE t."projectId" = p.id
+        ) last_activity ON true
+        LEFT JOIN LATERAL (
+          SELECT COUNT(*)::int AS blocked_count FROM "Task" t
+          WHERE t."projectId" = p.id AND t."status" = 'REVIEW' AND t."updatedAt" < ${day3ago}
+        ) blocked ON true
+        WHERE p.status NOT IN ('COMPLETED')
+          AND p."deletedAt" IS NULL
+          ${serviceId ? Prisma.sql`AND p."serviceId" = ${serviceId}` : Prisma.empty}
+      `,
     ]);
 
     // ── Finance computation ────────────────────────────────────────────────
@@ -461,12 +517,15 @@ export const executiveMetricsRepository = {
     for (const r of projectStatusCounts) statusMap[r.status] = r._count;
     const totalProjects = Object.values(statusMap).reduce((s, n) => s + n, 0);
 
-    // Health scoring for each active project (simplified version for counts) — activeProjects
-    // itself is now fetched in the main Promise.all above (SEC-161).
-    let criticalCount = 0, watchCount = 0;
-    // Populated below, alongside criticalCount/watchCount, from the same per-project pass —
-    // this is the only place isOverdue/isStale/blockedTasks are computed, so PROJECT_CRITICAL
-    // risk items must be pushed here, not left as a count with no risk row (SEC-024).
+    // SEC-161: criticalCount/watchCount are real SQL aggregates (criticalWatchCountsRaw above),
+    // accurate over the FULL active-project set — not derived from the bounded `activeProjects`
+    // list below, which only ever feeds the up-to-20 visible PROJECT_CRITICAL risk rows.
+    const criticalCount = Number(criticalWatchCountsRaw[0]?.critical ?? 0);
+    const watchCount = Number(criticalWatchCountsRaw[0]?.watch ?? 0);
+    // This per-project pass still computes isOverdue/isStale/blockedTasks to generate
+    // PROJECT_CRITICAL risk *rows* (title/subtitle/entityId) — the only place that detail
+    // exists (SEC-024) — but it no longer drives criticalCount/watchCount themselves, so
+    // bounding `activeProjects` (take: 50, soonest deadline first) cannot skew those totals.
     const projectRisks: RiskItem[] = [];
     for (const p of activeProjects) {
       const isOverdue = p.deadline ? p.deadline < now : false;
@@ -474,11 +533,8 @@ export const executiveMetricsRepository = {
       // A project with no tasks is "not started", never stale/critical on that basis.
       const isStale = lastActivity ? lastActivity < day7ago : false;
       const blockedTasks = p.tasks.filter(t => t.status === "REVIEW" && t.updatedAt < day3ago).length;
-      const daysUntilDeadline = p.deadline ? Math.ceil((p.deadline.getTime() - now.getTime()) / 86_400_000) : null;
-      const isWarnDeadline = daysUntilDeadline !== null && daysUntilDeadline <= 7 && daysUntilDeadline >= 0;
 
       if (isOverdue || isStale || blockedTasks > 2) {
-        criticalCount++;
         const daysAgo = isOverdue && p.deadline ? Math.ceil((now.getTime() - p.deadline.getTime()) / 86_400_000) : undefined;
         projectRisks.push({
           type: "PROJECT_CRITICAL",
@@ -489,8 +545,6 @@ export const executiveMetricsRepository = {
           entityId: p.id,
           daysAgo,
         });
-      } else if (isWarnDeadline || blockedTasks > 0 || (lastActivity && lastActivity < new Date(now.getTime() - 4 * 86_400_000))) {
-        watchCount++;
       }
     }
 

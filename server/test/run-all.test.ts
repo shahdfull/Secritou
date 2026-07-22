@@ -122,3 +122,5 @@ import "./authDenylist.test.ts";
 import "./vat.test.ts";
 import "./commissionService.test.ts";
 import "./invoiceCreateFromProposal.test.ts";
+import "./serviceRequestService.test.ts";
+import "./executiveMetricsCriticalCountUnbounded.test.ts";

@@ -16,7 +16,12 @@ export function useProjectTimeline(projectId: string) {
   return useQuery({
     queryKey: ["project-timeline", projectId],
     queryFn: () => projectsApi.getTimelineStatus(projectId),
-    refetchInterval: 30_000,
+    // SEC-091: was 30s — each visible project card polls this independently (N cards = N
+    // concurrent pollers), and a project's timeline step rarely changes within a couple of
+    // minutes, so 30s bought little freshness for the added request volume. CompletedTasksList
+    // (the other query on the same card) has no polling at all, only staleTime — kept that way,
+    // per the SEC-061 decision to keep the two endpoints separate rather than merge them.
+    refetchInterval: 120_000,
     staleTime: 10_000,
   });
 }
