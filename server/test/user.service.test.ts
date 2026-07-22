@@ -39,6 +39,7 @@ function makeUser(overrides: Record<string, unknown> = {}) {
 describe("userService.updateUser session revocation (RG-019)", () => {
   let findByIdMock: ReturnType<typeof mock.method>;
   let revokeMock: ReturnType<typeof mock.method>;
+  let revokeAccessTokenMock: ReturnType<typeof mock.method>;
   let auditMock: ReturnType<typeof mock.method>;
 
   before(() => {
@@ -54,7 +55,9 @@ describe("userService.updateUser session revocation (RG-019)", () => {
     // userService.updateUser also calls the real authDenylist.revokeAccessToken (SEC-174) — mocked
     // here so this suite's literal "user-1" sub never actually writes to Redis, which would leak
     // a real revocation across test files sharing that same literal sub (see authDenylist.test.ts).
-    mock.method(authDenylist, "revokeAccessToken", async () => {});
+    // Its call is asserted below (not just stubbed): SEC-174 revoking the still-valid 15-minute
+    // access token has no value if updateUser stops calling it, so a silent removal must fail here.
+    revokeAccessTokenMock = mock.method(authDenylist, "revokeAccessToken", async () => {});
   });
 
   after(() => {
@@ -64,6 +67,7 @@ describe("userService.updateUser session revocation (RG-019)", () => {
   test("role change triggers revocation", async () => {
     findByIdMock.mock.resetCalls();
     revokeMock.mock.resetCalls();
+    revokeAccessTokenMock.mock.resetCalls();
     auditMock.mock.resetCalls();
     findByIdMock.mock.mockImplementationOnce(async () => makeUser({ role: "MANAGER" }));
 
@@ -71,29 +75,35 @@ describe("userService.updateUser session revocation (RG-019)", () => {
 
     assert.equal(revokeMock.mock.callCount(), 1, "should call revokeAllSessionsForUser");
     assert.equal(revokeMock.mock.calls[0]!.arguments[0], "user-1");
+    assert.equal(revokeAccessTokenMock.mock.callCount(), 1, "should also revoke the already-issued access token (SEC-174)");
+    assert.deepEqual(revokeAccessTokenMock.mock.calls[0]!.arguments[0], { sub: "user-1" });
     assert.equal(auditMock.mock.callCount(), 1, "should record USER_ROLE_CHANGED");
   });
 
   test("name-only update does not trigger revocation", async () => {
     findByIdMock.mock.resetCalls();
     revokeMock.mock.resetCalls();
+    revokeAccessTokenMock.mock.resetCalls();
     auditMock.mock.resetCalls();
     findByIdMock.mock.mockImplementationOnce(async () => makeUser({ role: "MANAGER" }));
 
     await userService.updateUser("user-1", "New Name", undefined, { id: "actor-1", role: "ADMIN" });
 
     assert.equal(revokeMock.mock.callCount(), 0, "should not call revokeAllSessionsForUser");
+    assert.equal(revokeAccessTokenMock.mock.callCount(), 0, "should not revoke the access token (SEC-174) on a non-role change");
     assert.equal(auditMock.mock.callCount(), 0, "should not record USER_ROLE_CHANGED");
   });
 
   test("role provided but unchanged does not trigger revocation", async () => {
     findByIdMock.mock.resetCalls();
     revokeMock.mock.resetCalls();
+    revokeAccessTokenMock.mock.resetCalls();
     findByIdMock.mock.mockImplementationOnce(async () => makeUser({ role: "MANAGER" }));
 
     await userService.updateUser("user-1", undefined, "MANAGER", { id: "actor-1", role: "ADMIN" });
 
     assert.equal(revokeMock.mock.callCount(), 0, "should not call revokeAllSessionsForUser");
+    assert.equal(revokeAccessTokenMock.mock.callCount(), 0, "should not revoke the access token (SEC-174) when the role is unchanged");
   });
 });
 
@@ -102,6 +112,7 @@ describe("userService last-Admin protection (RG-021)", () => {
   let countByRoleMock: ReturnType<typeof mock.method>;
   let deleteMock: ReturnType<typeof mock.method>;
   let getWaitingMock: ReturnType<typeof mock.method>;
+  let revokeAccessTokenMock: ReturnType<typeof mock.method>;
 
   before(() => {
     findByIdMock = mock.method(userRepository, "findById", async () => makeUser({ role: "ADMIN" }));
@@ -116,7 +127,9 @@ describe("userService last-Admin protection (RG-021)", () => {
     mock.method(auditLogService, "record", async () => {});
     // userService.deleteUser also calls the real authDenylist.revokeAccessToken (SEC-174) — same
     // reason as the RG-019 block above: keep this suite's literal "user-1" sub out of real Redis.
-    mock.method(authDenylist, "revokeAccessToken", async () => {});
+    // Its call is asserted below on the successful-delete tests (not just stubbed): revoking a
+    // deleted user's still-valid access token has no value if deleteUser stops calling it.
+    revokeAccessTokenMock = mock.method(authDenylist, "revokeAccessToken", async () => {});
   });
 
   after(() => {
@@ -149,6 +162,7 @@ describe("userService last-Admin protection (RG-021)", () => {
   test("deleteUser: deleting the last Admin throws 409 LAST_ADMIN", async () => {
     findByIdMock.mock.mockImplementationOnce(async () => makeUser({ role: "ADMIN" }));
     countByRoleMock.mock.mockImplementationOnce(async () => 1);
+    revokeAccessTokenMock.mock.resetCalls();
 
     await assert.rejects(
       () => userService.deleteUser("user-1", { id: "actor-1", role: "ADMIN" }),
@@ -160,6 +174,7 @@ describe("userService last-Admin protection (RG-021)", () => {
     );
 
     assert.equal(deleteMock.mock.callCount(), 0, "delete must not be called once refused");
+    assert.equal(revokeAccessTokenMock.mock.callCount(), 0, "must not revoke a token for a delete that never happened");
   });
 
   test("deleteUser: deleting an Admin is allowed when other Admins exist", async () => {
@@ -167,21 +182,27 @@ describe("userService last-Admin protection (RG-021)", () => {
     countByRoleMock.mock.mockImplementationOnce(async () => 2);
     deleteMock.mock.resetCalls();
     getWaitingMock.mock.resetCalls();
+    revokeAccessTokenMock.mock.resetCalls();
 
     await assert.doesNotReject(() => userService.deleteUser("user-1", { id: "actor-1", role: "ADMIN" }));
 
     assert.equal(deleteMock.mock.callCount(), 1);
+    assert.equal(revokeAccessTokenMock.mock.callCount(), 1, "should revoke the deleted user's access token (SEC-174)");
+    assert.deepEqual(revokeAccessTokenMock.mock.calls[0]!.arguments[0], { sub: "user-1" });
   });
 
   test("deleteUser: deleting a non-Admin never checks the admin count", async () => {
     findByIdMock.mock.mockImplementationOnce(async () => makeUser({ role: "MANAGER" }));
     countByRoleMock.mock.resetCalls();
     deleteMock.mock.resetCalls();
+    revokeAccessTokenMock.mock.resetCalls();
 
     await assert.doesNotReject(() => userService.deleteUser("user-2", { id: "actor-1", role: "ADMIN" }));
 
     assert.equal(countByRoleMock.mock.callCount(), 0, "should not count admins for a non-Admin target");
     assert.equal(deleteMock.mock.callCount(), 1);
+    assert.equal(revokeAccessTokenMock.mock.callCount(), 1, "should revoke the deleted user's access token (SEC-174)");
+    assert.deepEqual(revokeAccessTokenMock.mock.calls[0]!.arguments[0], { sub: "user-2" });
   });
 });
 

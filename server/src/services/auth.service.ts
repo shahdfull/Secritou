@@ -10,7 +10,7 @@ import { enqueueEmail } from "../jobs/queues.js";
 import { passwordResetTemplate } from "./emailTemplates/index.js";
 import { HttpError } from "../utils/httpError.js";
 import { parseDurationToDate } from "../utils/parseDuration.js";
-import { revokeAccessToken } from "../cache/authDenylist.js";
+import { authDenylist } from "../cache/authDenylist.js";
 
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
@@ -152,7 +152,7 @@ export class AuthService {
     const stored = await this.repo.findRefreshToken(tokenHash);
     if (stored) {
       await this.repo.revokeTokenFamily(stored.familyId);
-      await revokeAccessToken({ sub: stored.userId });
+      await authDenylist.revokeAccessToken({ sub: stored.userId });
     }
   }
 
@@ -205,7 +205,7 @@ export class AuthService {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
     if (userId) {
-      await revokeAccessToken({ sub: userId });
+      await authDenylist.revokeAccessToken({ sub: userId });
     }
   }
 
@@ -222,7 +222,7 @@ export class AuthService {
       data: { passwordHash, mustChangePassword: false },
     });
     await this.db.refreshToken.deleteMany({ where: { userId: user.id } });
-    await revokeAccessToken({ sub: user.id });
+    await authDenylist.revokeAccessToken({ sub: user.id });
   }
 
   private async issueTokens(

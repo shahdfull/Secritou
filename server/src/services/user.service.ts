@@ -13,7 +13,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { auditLogService } from "./auditLog.service.js";
 import logger from "../utils/logger.js";
-import { revokeAccessToken } from "../cache/authDenylist.js";
+import { authDenylist } from "../cache/authDenylist.js";
 
 const authRepository = new AuthRepository(prisma);
 
@@ -163,7 +163,7 @@ export const userService = {
     // token: force re-authentication so the new role takes effect immediately.
     if (role && role !== user.role) {
       await authRepository.revokeAllSessionsForUser(id);
-      await revokeAccessToken({ sub: id });
+      await authDenylist.revokeAccessToken({ sub: id });
       void auditLogService.record({
         actorId: actor?.id, actorRole: actor?.role, ipAddress: actor?.ip,
         action: "USER_ROLE_CHANGED", entityType: "User", entityId: id,
@@ -188,7 +188,7 @@ export const userService = {
       );
     }
     const deleted = await userRepository.delete(id);
-    await revokeAccessToken({ sub: id });
+    await authDenylist.revokeAccessToken({ sub: id });
 
     // Best-effort: remove waiting notification jobs addressed to this user so they
     // don't clutter the queue and produce spurious "user not found" failures.
