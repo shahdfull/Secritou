@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-212
+dernier_id: SEC-213
 
 anomalies:
   - id: SEC-001
@@ -14611,8 +14611,95 @@ anomalies:
       laissés en place (décision du porteur : défense en profondeur,
       pas de retrait) même s'ils ne sont plus considérés comme LE
       correctif — ils ne ciblaient pas la vraie cause, qui est
-      l'absence de seed, pas un problème réseau/timing. Statut toujours
-      `en_cours` : critère de résolution (2 runs CI consécutifs verts
-      sur `main`) non encore observé au moment de cette note — ce
-      correctif n'a pas encore été poussé.
+      l'absence de seed, pas un problème réseau/timing.
+
+      Confirmation post-push (2026-07-22, même session) : le job
+      `server` du run déclenché par `fea20ac` est passé vert — confirme
+      la cause « absence de seed » ci-dessus. Le job `e2e` a échoué sur
+      un symptôme DIFFÉRENT cette fois (login qui reste sur `/login`
+      malgré des identifiants corrects, plus un 429 sur un retry) — pas
+      le même que les runs précédents, donc pas expliqué par l'absence
+      de seed (e2e seed déjà correctement, ligne 321 préexistante).
+      Diagnostiqué en reproduisant tout le flux e2e en local (Docker
+      Postgres/Redis frais, build+preview réel, vrai serveur, Playwright
+      réel — même méthode que pour la cause `server`) : `curl` direct
+      sur `/auth/login` prouve que le serveur fonctionne parfaitement
+      (200, tokens valides) — élimine tout défaut serveur/DB. La trace
+      Playwright capture la cause exacte dans la console du navigateur :
+      `"Connecting to 'http://localhost:5000/api/v1/auth/login'
+      violates the following Content Security Policy directive:
+      \"connect-src 'self' https:\". The action has been blocked."` —
+      `client/vite.config.ts` sert en mode preview/production une CSP
+      qui n'autorise que `'self'` et `https:` sur `connect-src` (pas de
+      `http://` en clair), alors que le serveur e2e tourne en
+      `http://localhost:5000` — bloqué au niveau du navigateur, avant
+      même d'atteindre le réseau, ce qui explique l'absence de toute
+      erreur réseau visible côté serveur/logs CI. Un run initial en
+      local avait faussement semblé passer (process `vite preview`
+      resté d'une session antérieure avec l'ancienne CSP dev en
+      mémoire) — corrigé en relançant `preview` proprement avant de
+      confirmer la reproduction.
+
+      Correctif ajouté (2e commit, même session) : nouvelle variable
+      `VITE_E2E` — `playwright.config.ts` la passe à la commande
+      `preview` du job e2e ; `client/vite.config.ts` l'utilise pour
+      garder la CSP permissive de développement (`http://localhost:*`
+      autorisé sur `connect-src`) uniquement dans ce cas, sans toucher
+      à la CSP réellement servie à un déploiement de production réel
+      (`'self' https:` reste la valeur par défaut du build). Vérifié en
+      local : `curl -I` sur le preview confirme la CSP permissive
+      seulement quand `VITE_E2E=true` est positionné ; les 3 tests de
+      `login.spec.ts` et celui de `proposal-cascade.spec.ts` passent
+      tous, à froid, après ce correctif (`client-approval.spec.ts`
+      échoue encore mais sur une cause distincte, sans rapport avec
+      CSP/login/seed — voir SEC-213, ouvert séparément, hors périmètre
+      de SEC-212).
+      Statut toujours `en_cours` : critère de résolution (2 runs CI
+      consécutifs verts sur `main`, server ET e2e) non encore observé —
+      ce correctif CSP n'a pas encore été poussé au moment de cette
+      note.
+
+  - id: SEC-213
+    titre: "e2e/client-approval.spec.ts (\"a client sees the closing action on a project ready for review, and approving it really closes the project (RG-013)\") échoue en local (reproduit hors CI, une fois le vrai bug CSP de SEC-212 corrigé) sur `await expect(card).toBeVisible()` : après connexion CLIENT et clic sur le lien \"Projets\", la page atterrit sur le détail d'un projet existant déjà seedé (\"Intégration ERP Géant Tunisia\") au lieu de la liste des projets où devrait apparaître la carte du nouveau projet créé par le test (\"E2E approval proposal <timestamp>\") — la navigation \"Projets\" ne mène pas systématiquement à la liste"
+    perimetre: "e2e/client-approval.spec.ts, client/src (page/route \"Projets\" du portail CLIENT)"
+    regle_violee: null
+    classe: "e2e_navigation_liste_vs_detail"
+    gravite: mineur
+    statut: "[À CONFIRMER — non trié]"
+    critere_de_resolution: >
+      C'est résolu quand `e2e/client-approval.spec.ts` passe de façon
+      stable (observé sur au moins 2 exécutions locales consécutives,
+      base fraîchement seedée à chaque fois) : soit parce que la page
+      "Projets" du portail CLIENT mène bien à la liste (pas au détail
+      d'un projet existant), soit parce que le test est corrigé pour
+      cibler explicitement la liste si ce comportement est en fait
+      voulu (ex. redirection intentionnelle vers l'unique projet actif
+      quand un client n'en a qu'un) — distinction à trancher en lisant
+      le code de routing réel, pas en devinant depuis le seul symptôme
+      e2e.
+    detecte_le: "2026-07-22"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert en corrigeant SEC-212 (le bug CSP masquait cette
+      anomalie : tant que le login e2e échouait silencieusement,
+      client-approval.spec.ts échouait avant même d'atteindre ce point).
+      Une fois SEC-212 corrigé (VITE_E2E dans playwright.config.ts/
+      vite.config.ts), reproduit 2 fois de suite en local (Docker
+      Postgres/Redis frais + seed + build/preview réel + serveur réel) :
+      le test échoue systématiquement au même endroit
+      (client-approval.spec.ts:101, `await
+      expect(card).toBeVisible({ timeout: 15_000 })`), jamais ailleurs —
+      pas un flake aléatoire. La capture DOM de l'échec
+      (error-context.md) montre le portail CLIENT affichant directement
+      "Intégration ERP Géant Tunisia" (un projet du seed, avec sa
+      progression 67%, ses étapes 4/7) après le clic sur "Projets",
+      plutôt qu'une liste de cartes contenant le nouveau projet créé par
+      le test. Non encore lu : le code de routing réel du portail CLIENT
+      (`client/src/routes/*` ou équivalent) pour déterminer si ce
+      comportement (redirection auto vers l'unique/dernier projet) est
+      intentionnel — statut laissé `[À CONFIRMER — non trié]` par
+      prudence plutôt que d'inventer une cause. Hors périmètre de la
+      session SEC-212 (infrastructure CI Postgres/Redis) : symptôme
+      purement applicatif/frontend, aucune anomalie de service Docker.
 

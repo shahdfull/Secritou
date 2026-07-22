@@ -45,7 +45,15 @@ export default defineConfig({
           timeout: 60_000,
         },
         {
-          command: "npm run build --workspace=client && npm run preview --workspace=client",
+          // VITE_E2E: production preview's CSP restricts connect-src to 'self' https: (real prod
+          // never talks plain http://), which silently blocks every API call to the local
+          // http://localhost:5000 server this suite runs against — confirmed via a captured CSP
+          // violation in a Playwright trace ("Connecting to 'http://localhost:5000/api/v1/auth/
+          // login' violates ... connect-src 'self' https:"), which is why login always looked like
+          // it silently failed and stayed on /login. vite.config.ts keeps the permissive
+          // http://localhost:*/127.0.0.1:* connect-src used in dev mode when this flag is set,
+          // without loosening the CSP actually shipped to a real deployment.
+          command: "npm run build --workspace=client && VITE_E2E=true npm run preview --workspace=client",
           url: "http://localhost:5173",
           reuseExistingServer: !process.env.CI,
           timeout: 120_000,

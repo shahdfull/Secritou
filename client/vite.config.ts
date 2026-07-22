@@ -10,6 +10,13 @@ export default defineConfig(({ mode }) => {
   const isDevelopment = mode === "development";
   const isProduction = mode === "production";
   const analyze = process.env.ANALYZE === "true";
+  // playwright.config.ts sets this when starting the production preview server for e2e: real
+  // prod's connect-src is deliberately 'self' https: only (no plain http://), but the e2e suite
+  // runs that same production build against a local http://localhost:5000 server — without this
+  // exception the CSP silently blocks every API call (confirmed via a captured browser console
+  // CSP violation: "Connecting to 'http://localhost:5000/api/v1/auth/login' violates ...
+  // connect-src 'self' https:"), which looked like a broken login with no visible error.
+  const isE2E = process.env.VITE_E2E === "true";
 
   // loadEnv reads .env files the same way Vite does for the app code itself
   // (process.env alone would miss a value set only in .env.production).
@@ -18,7 +25,7 @@ export default defineConfig(({ mode }) => {
   }
 
   const securityHeaders = {
-    "Content-Security-Policy": isDevelopment
+    "Content-Security-Policy": isDevelopment || isE2E
       ? "default-src 'self'; img-src 'self' data: https:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; frame-ancestors 'none'"
       : "default-src 'self'; img-src 'self' data: https:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https:; frame-ancestors 'none'",
     "X-Frame-Options": "DENY",
