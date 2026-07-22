@@ -13274,6 +13274,13 @@ anomalies:
       de SEC-114 lui-même (le comportement réel est correct via l'autre
       méthode) — un défaut de propreté distinct, découvert incidemment.
 
+      RÉSOLU (session en cours, commit `623677d`) : `findUserNamesByProfileId`
+      supprimée du repository (méthode + son commentaire). `npx tsc
+      --noEmit` et `npm run lint --workspace=server` propres, suite
+      complète 521/521 sur 3 exécutions consécutives. `resolu` NON
+      déclaré : commité localement, pas encore confirmé vert par un run
+      CI réel sur ce commit précis — conformément à la règle du dépôt.
+
   - id: SEC-197
     titre: "permissionProfileService.delete : fenêtre TOCTOU mineure entre la suppression réelle du profil (permissionProfileRepository.delete, ligne 146) et l'invalidation du cache des managers affectés (cacheDel, lignes 148-151) — un resolvePermissions concurrent exécuté dans cet intervalle lirait encore l'ancien cache valide (les permissions de l'ancien profil), alors que le profil n'existe déjà plus en base"
     perimetre: "server/src/services/managerPermission.service.ts#permissionProfileService.delete (lignes 125-171)"
@@ -13316,4 +13323,21 @@ anomalies:
       risquerait, en cas d'échec de la suppression elle-même, de forcer
       un recalcul inutile plutôt que de créer une incohérence — probable
       compromis correct mais non testé ici).
+
+      RÉSOLU (session en cours, commit `e3e67ff`) : double invalidation
+      du cache — une fois AVANT `permissionProfileRepository.delete(id)`,
+      une fois APRÈS (au lieu d'une seule invalidation après). Ferme les
+      deux sous-fenêtres : un lecteur concurrent qui repeuplerait le
+      cache avec l'état pré-suppression pendant l'appel `delete()`
+      lui-même reste couvert par la seconde invalidation ; un lecteur
+      concurrent juste avant le `delete()` ne trouve déjà plus rien en
+      cache. N'élimine pas une race théorique infinitésimale (repeuplage
+      exactement entre la seconde invalidation et le retour de la
+      fonction), jugée negligeable au vu de la gravité `mineur` déjà
+      établie et du volume d'usage réel (chemin ADMIN volontaire, rare).
+      `npx tsc --noEmit` et `npm run lint --workspace=server` propres,
+      suite complète 521/521 sur 3 exécutions consécutives, dont le test
+      d'intégration réel de SEC-114 qui exerce précisément ce chemin.
+      `resolu` NON déclaré : commité localement, pas encore confirmé
+      vert par un run CI réel sur ce commit précis.
 
