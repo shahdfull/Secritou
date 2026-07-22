@@ -388,6 +388,10 @@ export const projectService = {
       const balanceAlreadyExistsInTx = project.invoices.some((inv) => inv.invoiceType === "BALANCE");
       let balanceInvoice: { id: string } | null = null;
       if (!balanceAlreadyExistsInTx && balanceAmount > 0 && clientId) {
+        // SEC-202: Invoice.proposalId is globally @unique (one invoice per proposal, period) —
+        // the proposal's DEPOSIT invoice already claims that slot, so passing the same
+        // proposalId here always collides (P2002) once a project actually has a deposit
+        // invoice, which clientApprove's own DEPOSIT_UNPAID guard above guarantees it does.
         balanceInvoice = await invoiceService.createBalanceInvoiceTx(tx, {
           title: `Facture de solde : ${preread.name}`,
           description: `Solde restant (70%) pour le projet ${preread.name}`,
@@ -395,7 +399,6 @@ export const projectService = {
           currency,
           clientId,
           projectId,
-          proposalId: preread.proposal ? preread.proposal.id : undefined,
           dueInDays: 30,
         });
       }
