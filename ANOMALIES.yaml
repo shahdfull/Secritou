@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-192
+dernier_id: SEC-193
 
 anomalies:
   - id: SEC-001
@@ -12983,4 +12983,60 @@ anomalies:
       inexactitude documentaire. Nouvel ID car le critère de résolution
       (README fiable sur l'outillage de test disponible) est distinct de
       celui de SEC-001 (vocabulaire des pôles cohérent).
+
+  - id: SEC-193
+    titre: "Le job \"server\" de .github/workflows/ci.yml échoue structurellement à l'étape \"Schema drift check\" (prisma migrate diff --from-migrations ... --to-schema-datamodel ...) : Invoice.[projectId,invoiceType] et Proposal.leadId sont déclarés comme index uniques TOTAUX dans schema.prisma (@@unique/@unique), mais les migrations réelles les créent en index uniques PARTIELS (WHERE invoiceType <> 'STANDARD' ; WHERE leadId IS NOT NULL) — une forme que le DSL Prisma ne peut pas exprimer nativement, donc le diff les signale à tort comme absents à chaque exécution"
+    perimetre: "server/prisma/schema.prisma (modèles Invoice, Proposal) ; .github/workflows/ci.yml (job server, étape \"Schema drift check\") ; migrations 20260713120000_invoice_partial_unique, 20260625160000_add_lead_id_to_proposal"
+    regle_violee: null
+    classe: "limite_prisma_index_partiel_non_representable"
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand `npx prisma migrate diff --from-migrations
+      ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma
+      --shadow-database-url <url> --exit-code` (la commande exacte du job
+      "server") sort avec le code 0 sur une base neuve migrée depuis zéro —
+      soit en documentant explicitement dans schema.prisma (commentaire sur
+      chaque modèle concerné, pas seulement dans le fichier de migration)
+      que l'index unique réel est partiel et pourquoi le diff le signale à
+      tort, avec une décision du porteur sur l'étape CI (l'assouplir pour ce
+      cas précis documenté, ou accepter qu'elle reste rouge sur ce point
+      connu), soit par toute autre solution qui fait disparaître le faux
+      signal sans masquer un vrai futur drift sur ces mêmes tables.
+    detecte_le: "2026-07-22"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert en investiguant l'échec du job "server" sur le premier run
+      CI déclenché après réactivation des triggers push/pull_request
+      (commit 998af57, SEC-010). Reproduit localement avec une vraie shadow
+      database (`postgresql://secritou:secritou@localhost:5434/
+      secritou_shadow_test`, créée puis supprimée pour ce test) : le diff
+      rapporte `[+] Added unique index on columns (projectId, invoiceType)`
+      sur `Invoice` et `[+] Added unique index on columns (leadId)` sur
+      `Proposal`, alors que les deux existent réellement en base. Cause
+      confirmée par lecture directe des migrations :
+      `20260713120000_invoice_partial_unique/migration.sql` documente
+      explicitement « Partial indexes cannot be expressed in the Prisma
+      schema language, so this index is intentionally declared only here »
+      (l'ancien index total de `20260711183136_sync_schema_drift` a été
+      remplacé par un partiel excluant `invoiceType = 'STANDARD'`, pour ne
+      pas plafonner les factures STANDARD à une seule par projet) ;
+      `20260625160000_add_lead_id_to_proposal/migration.sql` crée
+      `Proposal_leadId_key` en `CREATE UNIQUE INDEX ... WHERE "leadId" IS
+      NOT NULL`, confirmé par un commentaire similaire dans
+      `20260711183136_sync_schema_drift/migration.sql:35`. Aucun des deux
+      contextes n'est visible depuis `schema.prisma` seul — seul le
+      commentaire du fichier de migration l'explique, jamais lu par
+      quelqu'un qui audite uniquement le schéma. Non causé par cette
+      session : les deux migrations datent du 2026-06-25 et du 2026-07-13,
+      bien avant la réactivation du trigger CI qui a permis de le
+      découvrir — SEC-010 (CI restée en `workflow_dispatch` seul depuis le
+      2026-07-17 jusqu'à cette session) explique pourquoi ce défaut de
+      pipeline n'avait jamais été vu vert ou rouge par une exécution
+      automatique jusqu'ici. Décision explicite du porteur (AskUserQuestion,
+      session du 2026-07-22) : enregistrer sans toucher à `ci.yml` ni au
+      schéma pour l'instant — le job "server" reste donc rouge sur cette
+      étape précise tant qu'une décision de traitement n'est pas prise
+      séparément.
 
