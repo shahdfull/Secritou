@@ -13040,3 +13040,27 @@ anomalies:
       étape précise tant qu'une décision de traitement n'est pas prise
       séparément.
 
+      CORRECTIF ÉCRIT (même session, second passage sur le job "server" en
+      échec) : le premier symptôme observé n'était pas SEC-193 directement
+      — le step "Schema drift check" échouait AVANT d'atteindre le vrai
+      diff (« You must pass the --shadow-database-url » : le job "server"
+      ne déclarait aucun service Postgres ni shadow database, malgré
+      `DATABASE_URL` déjà défini comme si un service existait — bug de
+      configuration CI distinct, corrigé séparément). Une fois ce bug de
+      config corrigé (service `postgres` ajouté au job, étape "Apply
+      migrations", base `secritou_shadow` dédiée créée avant le diff), le
+      job retombe bien sur le vrai SEC-193. Décision du porteur
+      (AskUserQuestion, second passage, même session) : documenter les 2
+      index dans `schema.prisma` (commentaire explicite sur
+      `Invoice.@@unique([projectId, invoiceType])` et `Proposal.leadId`)
+      et adapter le step CI pour tolérer SPÉCIFIQUEMENT ces 2 lignes de
+      diff connues (capture texte filtrée, pas `--exit-code` brut) — toute
+      autre ligne de diff continue de faire échouer l'étape. Vérifié
+      localement dans les deux sens avant de committer : le filtre laisse
+      passer les 2 index partiels connus ET détecte un drift injecté
+      artificiellement sur un champ sans rapport
+      (`Task.fakeDriftTestField`, ajouté puis retiré pour ce seul test,
+      jamais commité). `resolu` NON déclaré : le correctif est commité
+      localement mais pas encore vu vert par la CI elle-même sur ce commit
+      précis. Reste `en_cours` jusqu'à confirmation du run CI réel.
+
