@@ -9091,6 +9091,27 @@ anomalies:
       désormais les deux propriétés ensemble (pas de duplication + réponse
       cohérente pour le perdant) sur une base réelle.
 
+      REVÉRIFIÉ (session du 2026-07-22, sur demande explicite du porteur
+      après les commits de Phase 0 — renormalisation LF, lots de commits,
+      réactivation CI) : `git log 3e4d14d..HEAD -- server/src/services/
+      proposal.service.ts server/test/proposalAcceptCascadeConcurrency.test.ts`
+      ne montre qu'un seul commit (`0d1d3f1`, antérieur à cette session,
+      déjà présent dans l'historique avant son démarrage) — diff limité
+      au remplacement du littéral `0.3` par la constante `DEPOSIT_RATE`
+      (SEC-183), sans rapport avec la logique de retry/idempotence.
+      Confirmé que le commit de renormalisation LF (`edd5d12`) n'a touché
+      ni `proposal.service.ts` ni le test de concurrence — le grep
+      différentiel exhaustif sur `services/*.ts` (demandé séparément dans
+      cette session) l'avait déjà établi. Code réel relu : le wrapper
+      `acceptWithCascade`/`acceptWithCascadeAttempt`
+      (`proposal.service.ts:367-393`) et son retry sur `P2002`/`P2010`+
+      `25P02` intacts ; les deux contraintes `@unique` sur `Project.
+      proposalId`/`Invoice.proposalId` (`schema.prisma:547,1299`) toujours
+      présentes. Suite complète exécutée 3 fois consécutives : 522/522 à
+      chaque run, dont `proposalService.acceptWithCascade under real
+      concurrency (SEC-134)` vert systématiquement. Aucune régression
+      constatée.
+
   - id: SEC-135
     titre: "4 repositories (client, lead, user, comment#create) aliasent prismaRead sous le nom prisma et l'utilisent pour des écritures — même défaut racine déjà trouvé et corrigé sur project.repository.ts, jamais étendu à ces 4 fichiers : si DATABASE_READ_URL pointe un jour vers une vraie réplique en lecture seule, toute écriture sur Client/Lead/User/Comment échouerait"
     perimetre: "server/src/repositories/client.repository.ts ; lead.repository.ts ; user.repository.ts ; comment.repository.ts#create"
@@ -9214,6 +9235,20 @@ anomalies:
       (4/4), `portalActivationOnPayment.test.ts` (3/3) — tous verts après
       le correctif. `npx tsc --noEmit` propre sur `server/` après la
       restructuration du fichier.
+
+      REVÉRIFIÉ (session du 2026-07-22, même passe que SEC-134 ci-dessus)
+      : le retry sur `P2002`/`P2010`+`25P02` (`proposal.service.ts:376-393`)
+      et le fallback interne inutilisé-mais-toujours-présent
+      (`tx.project.findFirst`/`tx.invoice.findFirst`, lignes 454-461 et
+      480-486, gardé tel quel — code correct par intention, seulement
+      inatteignable dans la même transaction) sont identiques au commit
+      de résolution. Seul changement du fichier depuis SEC-114 : `0.3` →
+      `DEPOSIT_RATE` (SEC-183, commit `0d1d3f1`, antérieur à cette
+      session), sans rapport avec ce correctif. Suite complète 522/522
+      sur 3 exécutions consécutives, dont `proposalAcceptCascade.test.ts`
+      et `proposalAcceptCascadeConcurrency.test.ts`. Aucune régression
+      constatée, y compris après la renormalisation LF (fichier non
+      touché par ce commit, confirmé par `git show --stat edd5d12`).
 
   - id: SEC-137
     titre: "documentScopeManager.test.ts (SEC-122) prouve le scope MANAGER cross-pôle sur Document mais pas sur Invoice, alors que assertInvoiceInScope existe et est appliqué uniformément dans invoice.service.ts — aucun test n'appelle le vrai service pour le prouver"
