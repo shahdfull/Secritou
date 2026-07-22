@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-198
+dernier_id: SEC-199
 
 anomalies:
   - id: SEC-001
@@ -13438,4 +13438,69 @@ anomalies:
       remarqué car jamais testé bout-en-bout jusqu'ici (aucun test
       n'appelle `generateInvoicePDF` et ne compare son contenu réel au
       stockage — confirmé par grep `generateInvoicePDF` sur `server/test/`).
+
+  - id: SEC-199
+    titre: "Traçabilité AuditLog incomplète sur le cycle facture→paiement→avoir : invoiceService.create n'écrit AUCUNE entrée AuditLog (la création même d'une facture n'est pas tracée), et l'avoir automatique créé par addPayment lors d'un surpaiement (createCreditNoteTx, partagée avec creditNoteService.create) n'a pas sa propre entrée AuditLog — seul le log invoice.payment.add mentionne overpaidBy en passant, sans jamais tracer explicitement l'id/numéro du CreditNote créé"
+    perimetre: "server/src/services/invoice.service.ts#create (aucun audit log) et #addPayment (crédit automatique non audité par lui-même) ; server/src/services/creditNote.service.ts#createCreditNoteTx (fonction partagée, auditée seulement côté appelant manuel)"
+    regle_violee: null
+    classe: "auditlog_couverture_incomplete_cycle_financier"
+    gravite: majeur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand un scénario réel création-facture → envoi →
+      paiement-avec-surpaiement → application-d'avoir produit une entrée
+      `AuditLog` distincte pour CHAQUE mutation financière réelle,
+      chacune identifiable par son `entityId` propre — en particulier :
+      une entrée `action: "invoice.create"` (ou équivalent) au moment de
+      `invoiceService.create`, ET une entrée dont l'`entityId` est celui
+      du `CreditNote` créé automatiquement par un surpaiement (pas
+      seulement une mention `overpaidBy` dans le log du paiement) —
+      prouvé par une relecture des lignes `AuditLog` réellement produites
+      par ce scénario exact, pas par une lecture du code seul.
+    detecte_le: "2026-07-22"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert en exécutant réellement le volet 4 d'une demande
+      explicite du porteur (« vérifier la traçabilité AuditLog sur au
+      moins un scénario complet — création facture → paiement → avoir —
+      en relisant les entrées before/after générées en dev »). Script
+      ponctuel (non committé, supprimé après usage) : `invoiceService.
+      create` → `invoiceService.send` → `invoiceService.addPayment`
+      (paiement de 1050 sur une facture de 1000, surpaiement de 50,
+      déclenchant la création automatique d'un `CreditNote` via
+      `createCreditNoteTx`) → `creditNoteService.applyCredit` (applique
+      cet avoir sur une seconde facture de 30). Résultat réel : 4 lignes
+      `AuditLog` trouvées (`invoice.send`, `invoice.payment.add`,
+      `invoice.send` de la 2e facture, `creditNote.apply`) — 2 attendues
+      manquantes. (1) Aucune ligne pour la création de la première
+      facture : confirmé par lecture directe, `invoiceService.create`
+      (`invoice.service.ts:127-131`) n'appelle jamais
+      `auditLogService.record`, contrairement à `cancel`/`delete`/
+      `restore`/`send`/`addPayment` qui le font tous. Grep exhaustif
+      confirme 11 méthodes de mutation de ce fichier sans aucun audit log
+      (`create`, `update`, `setReminderPaused`, `addItem`, `updateItem`,
+      `deleteItem`, `addItemsFromTimeEntries`, `addReminder`,
+      `createFromProposal`, `createDepositInvoiceTx`,
+      `createBalanceInvoiceTx`) contre seulement 5 qui en ont — portée
+      plus large que ce seul scénario, non étendue à toutes les 11 dans
+      cette entrée (à trancher séparément si le porteur veut auditer
+      chaque mutation ou seulement les plus sensibles). (2) Aucune ligne
+      dont l'`entityId` est le `CreditNote` créé automatiquement par le
+      surpaiement : `createCreditNoteTx` (`creditNote.service.ts:35-43`,
+      fonction partagée) n'a elle-même aucun appel `auditLogService.
+      record` — seul son appelant manuel, `creditNoteService.create`
+      (ligne 69), logge après coup avec `entityId: creditNote.id`.
+      Le chemin automatique (`invoice.service.ts:266`, appelé depuis
+      `addPayment`) ne fait que ce même appel `createCreditNoteTx`, donc
+      hérite de la même absence de log — le seul log produit
+      (`invoice.payment.add`) mentionne `overpaidBy: 50` mais jamais l'id
+      ou le numéro du `CreditNote` réellement créé, rendant impossible de
+      relier directement ce log au futur `creditNote.apply` sans
+      re-corréler manuellement par date/montant. Gravité `majeur` (pas
+      `bloquant`) : aucun impact fonctionnel immédiat, mais un vrai trou
+      de piste d'audit sur des mouvements d'argent réels (création de
+      facture, création d'avoir) — exactement le type de défaut que la
+      demande du porteur visait à débusquer en relisant les entrées
+      réelles plutôt que le code seul.
 
