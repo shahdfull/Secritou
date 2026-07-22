@@ -50,6 +50,10 @@ export default defineConfig(({ mode }) => {
       headers: securityHeaders,
     },
     preview: {
+      // Same port as the dev server: the server's CORS allowlist (FRONTEND_URL) is fixed to
+      // http://localhost:5173, and e2e (playwright.config.ts) runs preview instead of dev to avoid
+      // React StrictMode's dev-only double-mount — but it still needs to pass CORS.
+      port: 5173,
       headers: securityHeaders,
     },
     esbuild: isProduction ? { drop: ["console", "debugger"] } : undefined,
