@@ -72,12 +72,17 @@ jobs:
           node-version: 24
           cache: npm
       - name: Wait for Postgres and Redis to accept real queries
-        # SEC-212: the `services:` health-checks (pg_isready / redis-cli ping) only prove the
-        # server process has started accepting TCP connections, not that it can reliably execute
-        # a query under runner CPU/network contention at job start — the app-level connectivity
-        # checks in server/test/*.test.ts each make exactly one un-retried query and permanently
-        # self-skip their whole file on a single transient failure. Looping a real query here,
-        # before npm ci/any test file runs, absorbs that transient window instead.
+        # SEC-212: the `services:` health-checks (pg_isready / redis-cli ping, run INSIDE each
+        # service container) only prove the server process has started accepting TCP connections,
+        # not that it can reliably execute a query under runner CPU/network contention at job
+        # start — the app-level connectivity checks in server/test/*.test.ts each make exactly one
+        # un-retried query and permanently self-skip their whole file on a single transient
+        # failure. Looping a real query here, before npm ci/any test file runs, absorbs that
+        # transient window instead. Redis is probed with a raw RESP PING over a Node TCP socket
+        # rather than `redis-cli`, which is not installed on the runner host (only inside the
+        # redis:7-alpine service container) — confirmed by a real CI run where this step's
+        # Postgres probe passed on attempt 1 but `redis-cli: command not found` silently looped
+        # as a failed PING for all 30 attempts under `2>/dev/null`.
         run: |
           for i in $(seq 1 30); do
             if PGPASSWORD=secritou psql -h localhost -p 5432 -U secritou -d secritou_test -c "SELECT 1" >/dev/null 2>&1; then
@@ -91,7 +96,13 @@ jobs:
             sleep 2
           done
           for i in $(seq 1 30); do
-            if redis-cli -h localhost -p 6379 ping 2>/dev/null | grep -q PONG; then
+            if node -e "
+              const net = require('node:net');
+              const sock = net.createConnection({ host: 'localhost', port: 6379 }, () => sock.write('PING\r\n'));
+              sock.setTimeout(2000, () => { sock.destroy(); process.exit(1); });
+              sock.on('data', (data) => { process.exit(data.toString().includes('PONG') ? 0 : 1); });
+              sock.on('error', () => process.exit(1));
+            "; then
               echo "Redis ready after ${i} attempt(s)."
               break
             fi
@@ -258,6 +269,11 @@ jobs:
         # SEC-212: see the identical step in the `server` job — same runner-contention symptom
         # observed here as the app server's first real request (login) being slow enough to trip
         # Playwright's default 5s expect() timeout while Postgres/Redis are still warming up.
+        # Redis is probed with a raw RESP PING over a Node TCP socket rather than `redis-cli`,
+        # which is not installed on the runner host (only inside the redis:7-alpine service
+        # container) — confirmed by a real CI run of the `server` job where the Postgres probe
+        # passed on attempt 1 but `redis-cli: command not found` silently looped as a failed PING
+        # for all 30 attempts under `2>/dev/null`.
         run: |
           for i in $(seq 1 30); do
             if PGPASSWORD=secritou psql -h localhost -p 5432 -U secritou -d secritou_test -c "SELECT 1" >/dev/null 2>&1; then
@@ -271,7 +287,13 @@ jobs:
             sleep 2
           done
           for i in $(seq 1 30); do
-            if redis-cli -h localhost -p 6379 ping 2>/dev/null | grep -q PONG; then
+            if node -e "
+              const net = require('node:net');
+              const sock = net.createConnection({ host: 'localhost', port: 6379 }, () => sock.write('PING\r\n'));
+              sock.setTimeout(2000, () => { sock.destroy(); process.exit(1); });
+              sock.on('data', (data) => { process.exit(data.toString().includes('PONG') ? 0 : 1); });
+              sock.on('error', () => process.exit(1));
+            "; then
               echo "Redis ready after ${i} attempt(s)."
               break
             fi

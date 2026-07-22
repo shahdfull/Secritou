@@ -14469,3 +14469,23 @@ anomalies:
       session — voir CLAUDE.md « Un critère de résolution se vérifie sur
       un commit ».
 
+      Correction post-push (2026-07-22, même session) : le premier push
+      (commit `7f08dd5`) a fait échouer le job `server` — log CI observé
+      directement : `Postgres ready after 1 attempt(s).` puis
+      `Redis did not respond to PING after 30 attempts.` Cause : `psql`
+      est préinstallé sur l'image `ubuntu-latest`, mais `redis-cli` ne
+      l'est PAS (seulement à l'intérieur du conteneur `redis:7-alpine`
+      via `services:`, où tourne le health-check natif) — l'étape ajoutée
+      appelait un binaire absent de l'hôte runner, `2>/dev/null` masquant
+      silencieusement le `command not found` en échec de PING. Remplacé
+      par une sonde PING RESP brute via socket TCP Node (`node -e ...`,
+      net.createConnection sur le port 6379, écrit `PING\r\n`, vérifie
+      `+PONG` dans la réponse) — Node est déjà disponible à cette étape
+      (`actions/setup-node` tourne juste avant), aucune dépendance
+      binaire externe. Vérifié en local : le script sort en code 0
+      contre un vrai serveur Redis répondant PONG, et en code 1 contre un
+      port fermé — les deux branches de la boucle testées avant de
+      pousser. YAML revalidé (`js-yaml`) après l'édition. Statut
+      toujours `en_cours` : ce correctif n'a pas encore été observé vert
+      en CI au moment de cette note.
+
