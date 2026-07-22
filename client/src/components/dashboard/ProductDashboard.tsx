@@ -172,7 +172,7 @@ export function ProductDashboard() {
                     <td className="hidden px-4 py-2.5 text-muted-foreground sm:table-cell">{r.p}</td>
                     <td className="px-4 py-2.5 font-semibold text-ink">{r.m}</td>
                     <td className="px-4 py-2.5 text-right sm:px-5">
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${r.color === "primary" ? "bg-primary-soft text-primary-strong" : "bg-accent-soft text-accent-foreground"}`}>
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${r.color === "primary" ? "bg-primary-soft text-primary-strong" : "bg-accent-soft text-accent-strong"}`}>
                         {t(`dashboardProduct.healthLabels.${r.h === "Healthy" ? "healthy" : "atRisk"}`)}
                       </span>
                     </td>

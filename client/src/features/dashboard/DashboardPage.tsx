@@ -506,7 +506,7 @@ export function DashboardPage() {
           {pendingApprovalsCount > 0 && (
             <button
               onClick={() => navigate("/app/commercial?tab=approvals")}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-accent-soft border border-accent/20 text-accent-foreground text-xs font-medium hover:bg-accent/20 transition-colors"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-accent-soft border border-accent/20 text-accent-strong text-xs font-medium hover:bg-accent/20 transition-colors"
             >
               <AlertTriangle className="h-3.5 w-3.5" />
               {pendingApprovalsCount} {t("dashboard.pendingApprovals", { count: pendingApprovalsCount })}

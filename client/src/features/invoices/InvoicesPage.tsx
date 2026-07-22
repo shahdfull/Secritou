@@ -117,7 +117,7 @@ export function InvoicesPage() {
       case "PAID":
         return "bg-green-100 text-green-800";
       case "PARTIAL":
-        return "bg-accent-soft text-accent-foreground";
+        return "bg-accent-soft text-accent-strong";
       case "OVERDUE":
         return "bg-red-100 text-red-700";
       case "CANCELLED":
@@ -334,7 +334,7 @@ export function InvoicesPage() {
                             {t("invoices.creditNotes.applied", { date: format(new Date(cn.appliedAt), "dd/MM/yyyy", { locale: fr }) })}
                           </Badge>
                         ) : (
-                          <Badge className="bg-accent-soft text-accent-foreground">
+                          <Badge className="bg-accent-soft text-accent-strong">
                             {t("invoices.creditNotes.available")}
                           </Badge>
                         )}

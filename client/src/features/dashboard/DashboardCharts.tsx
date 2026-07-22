@@ -125,7 +125,7 @@ export const DashboardCharts = memo(function DashboardCharts({
               {t("dashboard.leadsByStatusAllTime")}
             </CardDescription>
           </div>
-          <Badge className="bg-accent-soft text-accent-foreground text-[10px] font-semibold px-2 py-0.5 rounded-full">
+          <Badge className="bg-accent-soft text-accent-strong text-[10px] font-semibold px-2 py-0.5 rounded-full">
             {t("dashboard.allTime")}
           </Badge>
         </CardHeader>

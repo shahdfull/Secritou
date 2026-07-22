@@ -129,7 +129,7 @@ export function ApprovalsPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "PENDING":
-        return "bg-accent-soft text-accent-foreground";
+        return "bg-accent-soft text-accent-strong";
       case "APPROVED":
         return "bg-green-100 text-green-800";
       case "REJECTED":

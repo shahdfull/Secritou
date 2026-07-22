@@ -160,7 +160,7 @@ export function CommissionsPage() {
                   <TableCell>{c.ratePct}%</TableCell>
                   <TableCell className="font-medium">{c.amount.toLocaleString("fr-FR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</TableCell>
                   <TableCell>
-                    <Badge className={c.status === "PAID" ? "bg-green-100 text-green-800" : "bg-accent-soft text-accent-foreground"}>
+                    <Badge className={c.status === "PAID" ? "bg-green-100 text-green-800" : "bg-accent-soft text-accent-strong"}>
                       {t(`commissions.statuses.${c.status.toLowerCase()}`)}
                     </Badge>
                     {c.status === "PAID" && c.paidAt && (

@@ -34,7 +34,7 @@ const STATUS_COLORS: Record<string, string> = {
   VIEWED: "bg-primary-soft text-primary-strong",
   ACCEPTED: "bg-green-100 text-green-800",
   REJECTED: "bg-red-100 text-red-700",
-  EXPIRED: "bg-accent-soft text-accent-foreground",
+  EXPIRED: "bg-accent-soft text-accent-strong",
 };
 
 export function ProposalsClientPage() {
