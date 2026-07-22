@@ -10,7 +10,7 @@
 #                             # même critère → même ID ; critère ou gravité différents → ID distinct
 #                             # relié par la même classe.
 #   gravite: bloquant | majeur | mineur
-#   statut: resolu | confirme | en_cours | resolu | rejete
+#   statut: ouvert | confirme | en_cours | resolu | rejete
 #     # RESOLU exige : le correctif est commité (pas seulement présent dans le
 #     # working tree) ET les portes déterministes (typecheck, lint, tests)
 #     # sont vertes sur CE commit en CI. Un correctif non commité — même
@@ -11863,7 +11863,7 @@ anomalies:
     regle_violee: null
     classe: "rate_limiting_couverture_incomplete"
     gravite: mineur
-    statut: résolu
+    statut: en_cours
     critere_de_resolution: >
       C'est résolu quand chaque route d'écriture authentifiée (POST/PUT/
       PATCH/DELETE) sur ces 20 fichiers applique un rate limiter (au
@@ -11918,6 +11918,26 @@ anomalies:
       pour une passe dédiée route par route, ou pour la décision
       explicite du porteur prévue par le second volet du critère de
       résolution. Aucune décision inférée.
+
+      CORRECTIF APPLIQUÉ SANS ÉVALUATION ROUTE PAR ROUTE (session du
+      2026-07-22, commit `702b07b`) : `sensitiveWriteRateLimit` ajouté
+      mécaniquement sur les 19 des 20 fichiers restants (tout sauf
+      `permissionProfile.routes.ts`, traité séparément commit `0b8c065`)
+      — exactement l'action que la note précédente refusait de faire sans
+      vérification. `sensitiveWriteRateLimit` = 10 requêtes/minute par clé
+      (`rateLimitKeyGenerator`, `rateLimit.middleware.ts:45-52`). Risque
+      identifié mais NON vérifié dans cette session (même blocage
+      qu'en_cours précédent : pas d'environnement pour tester le
+      comportement navigateur réel) : `task.routes.ts` reçoit la limite
+      sur `PUT /:id` (utilisé par le drag-and-drop Kanban, potentiellement
+      plusieurs appels/minute par utilisateur actif) et sur
+      `bulk/status`/`bulk/delete`. Statut délibérément laissé `en_cours`
+      (pas `resolu`) : le critère de résolution textuel est rempli
+      littéralement, mais le risque de régression UX nommé par la note du
+      2026-07-21 n'a pas été levé, seulement contourné par nécessité de
+      livrer le lot demandé. À vérifier avant tout déploiement réel :
+      qu'un utilisateur actif sur le Kanban ne se fasse pas bloquer par
+      429 en usage normal.
 
   - id: SEC-177
     titre: "projectService.clientApprove : le preread (status !== REVIEW, clientApprovedAt déjà posé) tourne hors transaction et n'est jamais re-vérifié dans le $transaction — contrairement aux gardes tâches ouvertes/acompte/approbations qui, elles, sont explicitement re-vérifiées via tx (commentaire ligne 341-344) — deux appels concurrents (double-clic, retry réseau) sur le même projet REVIEW peuvent tous deux passer le preread et écraser clientApprovedAt/clientApprovedById avec un second horodatage"
