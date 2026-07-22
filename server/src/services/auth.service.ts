@@ -10,6 +10,7 @@ import { enqueueEmail } from "../jobs/queues.js";
 import { passwordResetTemplate } from "./emailTemplates/index.js";
 import { HttpError } from "../utils/httpError.js";
 import { parseDurationToDate } from "../utils/parseDuration.js";
+import { revokeAccessToken } from "../cache/authDenylist.js";
 
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
@@ -53,6 +54,7 @@ function signAccessToken(
       expiresIn: env.JWT_ACCESS_EXPIRES_IN as SignOptions["expiresIn"],
       issuer: env.JWT_ISSUER,
       audience: env.JWT_AUDIENCE,
+      jwtid: randomBytes(16).toString("hex"),
     },
   );
 }
@@ -150,6 +152,7 @@ export class AuthService {
     const stored = await this.repo.findRefreshToken(tokenHash);
     if (stored) {
       await this.repo.revokeTokenFamily(stored.familyId);
+      await revokeAccessToken({ sub: stored.userId });
     }
   }
 
@@ -181,6 +184,7 @@ export class AuthService {
   async resetPassword(token: string, newPassword: string) {
     const tokenHash = hashToken(token);
     const passwordHash = await bcrypt.hash(newPassword, 12);
+    let userId: string | null = null;
 
     // Serializable isolation ensures that two concurrent calls with the same token
     // cannot both pass the findFirst check — one will succeed and the other will
@@ -197,7 +201,12 @@ export class AuthService {
         data: { passwordHash, resetToken: null, resetTokenExpiry: null, mustChangePassword: false },
       });
       await tx.refreshToken.deleteMany({ where: { userId: user.id } });
+      userId = user.id;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+    if (userId) {
+      await revokeAccessToken({ sub: userId });
+    }
   }
 
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
@@ -213,6 +222,7 @@ export class AuthService {
       data: { passwordHash, mustChangePassword: false },
     });
     await this.db.refreshToken.deleteMany({ where: { userId: user.id } });
+    await revokeAccessToken({ sub: user.id });
   }
 
   private async issueTokens(

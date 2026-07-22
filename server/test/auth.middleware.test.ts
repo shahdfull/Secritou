@@ -1,4 +1,5 @@
 import test from "node:test";
+import { mock } from "node:test";
 import assert from "node:assert/strict";
 import jwt from "jsonwebtoken";
 import type { Request, Response } from "express";
@@ -9,8 +10,10 @@ process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET ?? "b".repeat(32
 process.env.JWT_ISSUER = process.env.JWT_ISSUER ?? "secritou-api";
 process.env.JWT_AUDIENCE = process.env.JWT_AUDIENCE ?? "secritou-web";
 process.env.JWT_ACCESS_EXPIRES_IN = process.env.JWT_ACCESS_EXPIRES_IN ?? "15m";
+process.env.DATABASE_URL = process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/secritou?schema=public";
 
 const { authenticate } = await import("../src/middlewares/auth.middleware.js");
+const { authDenylist } = await import("../src/cache/authDenylist.js");
 
 function makeReq(token?: string) {
   return {
@@ -91,4 +94,33 @@ test("authenticate rejects malformed tokens", async () => {
   });
 
   assert.equal(error?.statusCode, 401);
+});
+
+test("authenticate rejects a revoked access token before expiration", async () => {
+  const revokeMock = mock.method(authDenylist, "isAccessTokenRevoked", async () => true);
+  const token = jwt.sign(
+    {
+      id: "user-1",
+      sub: "user-1",
+      tokenType: "access",
+      email: "admin@example.com",
+      role: "ADMIN",
+      clientId: null,
+    },
+    process.env.JWT_ACCESS_SECRET!,
+    {
+      expiresIn: "15m",
+      issuer: process.env.JWT_ISSUER!,
+      audience: process.env.JWT_AUDIENCE!,
+    },
+  );
+
+  const req = makeReq(token);
+  let error: HttpError | undefined;
+  await authenticate(req as unknown as Request, {} as Response, (err?: unknown) => {
+    error = err as HttpError | undefined;
+  });
+
+  assert.equal(error?.statusCode, 401);
+  assert.equal(revokeMock.mock.callCount(), 1);
 });

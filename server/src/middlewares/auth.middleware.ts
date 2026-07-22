@@ -3,8 +3,9 @@ import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
 import type { JwtPayload } from "../types/auth.js";
 import { HttpError } from "../utils/httpError.js";
+import { authDenylist } from "../cache/authDenylist.js";
 
-export const authenticate: RequestHandler = (req, _res, next) => {
+export const authenticate: RequestHandler = async (req, _res, next) => {
   const header = req.header("authorization");
   const token = header?.startsWith("Bearer ") ? header.slice(7) : undefined;
 
@@ -22,6 +23,10 @@ export const authenticate: RequestHandler = (req, _res, next) => {
     }) as JwtPayload;
     if (req.user.tokenType !== "access") {
       throw new Error("Invalid token type");
+    }
+    if (await authDenylist.isAccessTokenRevoked({ sub: req.user.sub, jti: req.user.jti })) {
+      next(new HttpError(401, "Invalid or expired token"));
+      return;
     }
     next();
   } catch {
