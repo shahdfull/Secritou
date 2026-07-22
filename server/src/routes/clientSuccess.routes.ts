@@ -28,6 +28,7 @@ import {
   updateRecommendationSchema,
   addTimelineSchema,
 } from "../validators/clientSuccess.validator.js";
+import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 
 const router = express.Router();
 
@@ -43,6 +44,7 @@ router.get(
 );
 router.put(
   "/:clientId/score",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("client-success", "update"),
   validate(updateScoreSchema),
@@ -50,6 +52,7 @@ router.put(
 );
 router.post(
   "/:clientId/calculate-score",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("client-success", "update"),
   calculateClientSuccessScore
@@ -58,6 +61,7 @@ router.post(
 // Objectives
 router.post(
   "/:clientId/objectives",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("client-success", "create"),
   validate(addObjectiveSchema),
@@ -65,6 +69,7 @@ router.post(
 );
 router.put(
   "/:clientId/objectives/:objectiveId",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("client-success", "update"),
   validate(updateObjectiveSchema),
@@ -72,6 +77,7 @@ router.put(
 );
 router.delete(
   "/:clientId/objectives/:objectiveId",
+  sensitiveWriteRateLimit,
   authorize("ADMIN"),
   deleteSuccessObjective
 );
@@ -79,6 +85,7 @@ router.delete(
 // Metrics
 router.post(
   "/:clientId/metrics",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("client-success", "create"),
   validate(addMetricSchema),
@@ -86,6 +93,7 @@ router.post(
 );
 router.put(
   "/:clientId/metrics/:metricId",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("client-success", "update"),
   validate(updateMetricSchema),
@@ -93,6 +101,7 @@ router.put(
 );
 router.delete(
   "/:clientId/metrics/:metricId",
+  sensitiveWriteRateLimit,
   authorize("ADMIN"),
   deleteSuccessMetric
 );
@@ -100,6 +109,7 @@ router.delete(
 // Recommendations
 router.post(
   "/:clientId/recommendations",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("client-success", "create"),
   validate(addRecommendationSchema),
@@ -107,6 +117,7 @@ router.post(
 );
 router.put(
   "/:clientId/recommendations/:recommendationId",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("client-success", "update"),
   validate(updateRecommendationSchema),
@@ -114,6 +125,7 @@ router.put(
 );
 router.delete(
   "/:clientId/recommendations/:recommendationId",
+  sensitiveWriteRateLimit,
   authorize("ADMIN"),
   deleteSuccessRecommendation
 );
@@ -121,6 +133,7 @@ router.delete(
 // Timeline
 router.post(
   "/:clientId/timeline",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("client-success", "create"),
   validate(addTimelineSchema),
@@ -128,6 +141,7 @@ router.post(
 );
 router.delete(
   "/:clientId/timeline/:timelineId",
+  sensitiveWriteRateLimit,
   authorize("ADMIN"),
   deleteSuccessTimeline
 );

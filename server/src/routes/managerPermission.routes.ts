@@ -8,12 +8,13 @@ import {
   updateManagerPermission,
   getMyPermissions,
 } from "../controllers/managerPermission.controller.js";
+import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 
 const router = Router();
 router.use(authenticate);
 
 router.get("/me", getMyPermissions);
 router.get("/:userId", authorize("ADMIN"), getManagerPermission);
-router.put("/:userId", authorize("ADMIN"), validate(updateManagerPermissionSchema), updateManagerPermission);
+router.put("/:userId", sensitiveWriteRateLimit, authorize("ADMIN"), validate(updateManagerPermissionSchema), updateManagerPermission);
 
 export default router;

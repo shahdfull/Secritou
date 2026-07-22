@@ -3,6 +3,7 @@ import { authenticate } from '../middlewares/auth.middleware.js';
 import * as notificationController from '../controllers/notification.controller.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { notificationIdParamSchema } from '../validators/notification.validator.js';
+import { sensitiveWriteRateLimit } from '../middlewares/rateLimit.middleware.js';
 
 const router = Router();
 
@@ -96,7 +97,7 @@ router.get('/', authenticate, notificationController.getNotifications);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.patch('/:id/read', authenticate, validate(notificationIdParamSchema), notificationController.markAsRead);
+router.patch('/:id/read', authenticate, sensitiveWriteRateLimit, validate(notificationIdParamSchema), notificationController.markAsRead);
 
 /**
  * @swagger
@@ -120,6 +121,6 @@ router.patch('/:id/read', authenticate, validate(notificationIdParamSchema), not
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.patch('/read-all', authenticate, notificationController.markAllAsRead);
+router.patch('/read-all', authenticate, sensitiveWriteRateLimit, notificationController.markAllAsRead);
 
 export default router;

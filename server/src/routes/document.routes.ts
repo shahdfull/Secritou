@@ -18,6 +18,7 @@ import {
   createDocumentVersionSchema,
   documentIdParamSchema,
 } from "../validators/document.validator.js";
+import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 
 const router = express.Router();
 
@@ -40,6 +41,7 @@ router.get(
 // DELIVERABLE on a project they're staffed on — this authorize() alone doesn't cover that.
 router.post(
   "/",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER", "FREELANCER"),
   requirePermission("documents", "create"),
   validate(createDocumentSchema),
@@ -47,21 +49,23 @@ router.post(
 );
 router.put(
   "/:id",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("documents", "update"),
   validate(updateDocumentSchema),
   updateDocument
 );
-router.delete("/:id", authorize("ADMIN"), validate(documentIdParamSchema), deleteDocument);
+router.delete("/:id", sensitiveWriteRateLimit, authorize("ADMIN"), validate(documentIdParamSchema), deleteDocument);
 router.post(
   "/:id/versions",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("documents", "update"),
   validate(createDocumentVersionSchema),
   createDocumentVersion
 );
 
-router.patch("/:id/sign", authorize("CLIENT"), signDocument);
+router.patch("/:id/sign", sensitiveWriteRateLimit, authorize("CLIENT"), signDocument);
 router.get(
   "/:id/download",
   authorize("ADMIN", "MANAGER", "CLIENT", "FREELANCER"),

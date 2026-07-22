@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
-import { contactRateLimit } from "../middlewares/rateLimit.middleware.js";
+import { contactRateLimit, sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 import {
   createQuestion,
   getMyQuestions,
@@ -26,6 +26,7 @@ router.get("/:id", authenticate, getQuestionById);
 router.post(
   "/:id/messages",
   authenticate,
+  sensitiveWriteRateLimit,
   validate(addCustomQuestionMessageSchema),
   addMessage
 );
@@ -33,6 +34,7 @@ router.patch(
   "/:id/status",
   authenticate,
   authorize("ADMIN", "MANAGER"),
+  sensitiveWriteRateLimit,
   validate(updateCustomQuestionStatusSchema),
   updateQuestionStatus
 );

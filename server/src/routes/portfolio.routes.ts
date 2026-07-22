@@ -6,6 +6,7 @@ import { HttpError } from "../utils/httpError.js";
 import { z } from "zod";
 import { validate } from "../middlewares/validate.middleware.js";
 import type { RequestHandler } from "express";
+import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 
 const router = Router();
 router.use(authenticate, authorize("FREELANCER"));
@@ -41,7 +42,7 @@ router.get("/", async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.post("/", validate(portfolioItemSchema), async (req, res, next) => {
+router.post("/", sensitiveWriteRateLimit, validate(portfolioItemSchema), async (req, res, next) => {
   try {
     // getFreelancerId (mounted above) guarantees this is set or already errored; assert for the
     // type system so create() gets a definite string rather than string | undefined.
@@ -60,7 +61,7 @@ router.post("/", validate(portfolioItemSchema), async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.put("/:id", validate(portfolioItemSchema), async (req, res, next) => {
+router.put("/:id", sensitiveWriteRateLimit, validate(portfolioItemSchema), async (req, res, next) => {
   try {
     const itemId = String(req.params.id);
     const existing = await prismaRead.portfolioItem.findFirst({
@@ -81,7 +82,7 @@ router.put("/:id", validate(portfolioItemSchema), async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", sensitiveWriteRateLimit, async (req, res, next) => {
   try {
     const itemId = String(req.params.id);
     const existing = await prismaRead.portfolioItem.findFirst({

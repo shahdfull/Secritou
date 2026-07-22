@@ -7,6 +7,7 @@ import {
 } from "../validators/freelancer.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
+import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 
 const router = Router();
 
@@ -25,6 +26,7 @@ router.get("/:id", authenticate, authorize("ADMIN", "MANAGER", "FREELANCER"), re
 router.post(
   "/me",
   authenticate,
+  sensitiveWriteRateLimit,
   authorize("FREELANCER"),
   validate(createFreelancerProfileSchema),
   freelancerController.createMyProfile
@@ -33,6 +35,7 @@ router.post(
 router.put(
   "/me",
   authenticate,
+  sensitiveWriteRateLimit,
   authorize("FREELANCER"),
   validate(updateFreelancerProfileSchema),
   freelancerController.updateMyProfile
@@ -41,6 +44,7 @@ router.put(
 router.delete(
   "/me",
   authenticate,
+  sensitiveWriteRateLimit,
   authorize("FREELANCER"),
   freelancerController.deleteMyProfile
 );

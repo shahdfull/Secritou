@@ -11,6 +11,7 @@ import { createTimeEntrySchema } from "../validators/timeEntry.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize, requirePermission, requireActivatedPortal } from "../middlewares/rbac.middleware.js";
 import { verifyN8nWebhook } from "../middlewares/verifyN8nWebhook.middleware.js";
+import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 const router = Router();
 
 /**
@@ -288,7 +289,7 @@ router.get("/:id/brief", authenticate, authorize("ADMIN", "MANAGER", "CLIENT", "
  *       409:
  *         description: BRIEF_ALREADY_SUBMITTED — the brief was already completed
  */
-router.post("/:id/brief/submit", authenticate, authorize("CLIENT"), requireActivatedPortal, submitBrief);
+router.post("/:id/brief/submit", authenticate, sensitiveWriteRateLimit, authorize("CLIENT"), requireActivatedPortal, submitBrief);
 
 /**
  * @swagger
@@ -385,7 +386,7 @@ router.patch("/:id/ai-specs", verifyN8nWebhook, receiveAiSpecs);
  */
 // Client final approval : triggers project COMPLETED + balance invoice — deep in execution,
 // necessarily after the deposit is paid.
-router.post("/:id/client-approve", authenticate, authorize("CLIENT"), requireActivatedPortal, clientApproveProject);
+router.post("/:id/client-approve", authenticate, sensitiveWriteRateLimit, authorize("CLIENT"), requireActivatedPortal, clientApproveProject);
 
 // Apply auth middleware to all admin/manager routes
 router.use(authenticate);
@@ -497,7 +498,7 @@ router.get("/:id", requirePermission("projects", "read"), getProjectById);
  *           Either a Zod validation error (see ValidationError schema), or
  *           PROPOSAL_NOT_ACCEPTED — the referenced proposal is not in ACCEPTED status.
  */
-router.post("/", validate(createProjectSchema), authorize("ADMIN", "MANAGER"), requirePermission("projects", "create"), createProject);
+router.post("/", sensitiveWriteRateLimit, validate(createProjectSchema), authorize("ADMIN", "MANAGER"), requirePermission("projects", "create"), createProject);
 
 /**
  * @swagger
@@ -533,7 +534,7 @@ router.post("/", validate(createProjectSchema), authorize("ADMIN", "MANAGER"), r
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.put("/:id", validate(updateProjectSchema), authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), updateProject);
+router.put("/:id", sensitiveWriteRateLimit, validate(updateProjectSchema), authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), updateProject);
 
 /**
  * @swagger
@@ -589,7 +590,7 @@ router.put("/:id", validate(updateProjectSchema), authorize("ADMIN", "MANAGER"),
 // a project is a higher-impact action that cascades to all of its tasks and is gated by
 // invoice/onboarding checks in project.service.ts — kept consistent with archive/restore
 // below rather than opened up to MANAGER.
-router.delete("/:id", authorize("ADMIN"), deleteProject);
+router.delete("/:id", sensitiveWriteRateLimit, authorize("ADMIN"), deleteProject);
 
 /**
  * @swagger
@@ -621,7 +622,7 @@ router.delete("/:id", authorize("ADMIN"), deleteProject);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.post("/:id/archive", authorize("ADMIN"), archiveProject);
+router.post("/:id/archive", sensitiveWriteRateLimit, authorize("ADMIN"), archiveProject);
 
 /**
  * @swagger
@@ -653,7 +654,7 @@ router.post("/:id/archive", authorize("ADMIN"), archiveProject);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.post("/:id/unarchive", authorize("ADMIN"), unarchiveProject);
+router.post("/:id/unarchive", sensitiveWriteRateLimit, authorize("ADMIN"), unarchiveProject);
 
 /**
  * @swagger
@@ -685,7 +686,7 @@ router.post("/:id/unarchive", authorize("ADMIN"), unarchiveProject);
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.post("/:id/restore", authorize("ADMIN"), restoreProject);
+router.post("/:id/restore", sensitiveWriteRateLimit, authorize("ADMIN"), restoreProject);
 
 /**
  * @swagger
@@ -765,7 +766,7 @@ router.post("/:id/restore", authorize("ADMIN"), restoreProject);
  *         $ref: '#/components/responses/Forbidden'
  */
 // Time tracking
-router.post("/:id/time-entries", authorize("ADMIN", "MANAGER", "FREELANCER"), validate(createTimeEntrySchema), createTimeEntry);
+router.post("/:id/time-entries", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER", "FREELANCER"), validate(createTimeEntrySchema), createTimeEntry);
 router.get("/:id/time-entries", authorize("ADMIN", "MANAGER", "FREELANCER"), listTimeEntries);
 
 /**
@@ -863,7 +864,7 @@ router.get("/:id/my-time-summary", authorize("ADMIN", "MANAGER", "FREELANCER"), 
  *         $ref: '#/components/responses/NotFound'
  */
 // Templates — apply the project's pole template as a one-shot bulk task creation
-router.post("/:id/apply-template", authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), applyTemplateToProject);
+router.post("/:id/apply-template", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), applyTemplateToProject);
 
 /**
  * @swagger
@@ -946,7 +947,7 @@ router.post("/:id/apply-template", authorize("ADMIN", "MANAGER"), requirePermiss
 // author or ADMIN — requirePermission("projects", "update") alone would let any MANAGER of the
 // project's pole edit a colleague's meeting note.
 router.get("/:id/meetings", authorize("ADMIN", "MANAGER"), requirePermission("projects", "read"), listProjectMeetings);
-router.post("/:id/meetings", authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(createProjectMeetingSchema), createProjectMeeting);
+router.post("/:id/meetings", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(createProjectMeetingSchema), createProjectMeeting);
 
 /**
  * @swagger
@@ -1020,8 +1021,8 @@ router.post("/:id/meetings", authorize("ADMIN", "MANAGER"), requirePermission("p
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.put("/:id/meetings/:meetingId", authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(updateProjectMeetingSchema), updateProjectMeeting);
-router.delete("/:id/meetings/:meetingId", authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(deleteProjectMeetingSchema), deleteProjectMeeting);
+router.put("/:id/meetings/:meetingId", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(updateProjectMeetingSchema), updateProjectMeeting);
+router.delete("/:id/meetings/:meetingId", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(deleteProjectMeetingSchema), deleteProjectMeeting);
 
 /**
  * @swagger
@@ -1103,6 +1104,6 @@ router.delete("/:id/meetings/:meetingId", authorize("ADMIN", "MANAGER"), require
  */
 // Recurring meeting cadence — drives the daily reminder job (checkMeetingReminders)
 router.get("/:id/meeting-schedule", authorize("ADMIN", "MANAGER"), requirePermission("projects", "read"), getMeetingSchedule);
-router.put("/:id/meeting-schedule", authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(updateMeetingScheduleSchema), updateMeetingSchedule);
+router.put("/:id/meeting-schedule", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("projects", "update"), validate(updateMeetingScheduleSchema), updateMeetingSchedule);
 
 export default router;

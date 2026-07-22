@@ -17,6 +17,7 @@ import {
 } from "../validators/serviceRequest.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize, requirePermission, requireActivatedPortal } from "../middlewares/rbac.middleware.js";
+import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 const router = Router();
 
 router.use(authenticate);
@@ -25,6 +26,7 @@ router.use(authenticate);
 router.get("/my", authorize("CLIENT"), requireActivatedPortal, getClientServiceRequests);
 router.post(
   "/my",
+  sensitiveWriteRateLimit,
   authorize("CLIENT"),
   requireActivatedPortal,
   validate(createServiceRequestSchema),
@@ -46,6 +48,7 @@ router.get(
 );
 router.patch(
   "/admin/:id",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("service-requests", "update"),
   validate(adminUpdateServiceRequestSchema),
@@ -53,6 +56,7 @@ router.patch(
 );
 router.delete(
   "/admin/:id",
+  sensitiveWriteRateLimit,
   authorize("ADMIN"),
   requirePermission("service-requests", "delete"),
   adminDeleteServiceRequest
@@ -61,6 +65,7 @@ router.delete(
 // Comments (admin + manager only)
 router.post(
   "/admin/:id/comments",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("service-requests", "update"),
   validate(addCommentSchema),
@@ -68,6 +73,7 @@ router.post(
 );
 router.delete(
   "/admin/:id/comments/:commentId",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("service-requests", "update"),
   deleteComment

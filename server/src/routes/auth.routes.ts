@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authenticate } from "../middlewares/auth.middleware.js";
-import { authRateLimit, refreshRateLimit } from "../middlewares/rateLimit.middleware.js";
+import { authRateLimit, refreshRateLimit, sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import {
   login,
@@ -179,7 +179,7 @@ authRoutes.post("/refresh", refreshRateLimit, validate(refreshSchema), refresh);
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-authRoutes.post("/logout", authenticate, validate(logoutSchema), logout);
+authRoutes.post("/logout", authenticate, sensitiveWriteRateLimit, validate(logoutSchema), logout);
 
 /**
  * @swagger
@@ -293,4 +293,4 @@ authRoutes.post("/reset-password", authRateLimit, validate(resetPasswordSchema),
  *       401:
  *         description: Invalid current password or unauthorized
  */
-authRoutes.post("/change-password", authenticate, validate(changePasswordSchema), changePassword);
+authRoutes.post("/change-password", authenticate, sensitiveWriteRateLimit, validate(changePasswordSchema), changePassword);

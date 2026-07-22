@@ -10,7 +10,7 @@ import {
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
-import { aiRateLimit } from "../middlewares/rateLimit.middleware.js";
+import { aiRateLimit, sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 import {
   createConversationSchema,
   addMessageSchema,
@@ -23,9 +23,9 @@ router.use(authenticate, authorize("ADMIN", "MANAGER"));
 
 router.get("/", listConversations);
 router.post("/", aiRateLimit, validate(createConversationSchema), createConversation);
-router.post("/import", validate(importSchema), importFromLocalStorage);
+router.post("/import", sensitiveWriteRateLimit, validate(importSchema), importFromLocalStorage);
 router.get("/:id", validate(deleteConversationSchema), getConversation);
 router.post("/:id/messages", aiRateLimit, validate(addMessageSchema), addMessage);
-router.delete("/:id", validate(deleteConversationSchema), deleteConversation);
+router.delete("/:id", sensitiveWriteRateLimit, validate(deleteConversationSchema), deleteConversation);
 
 export default router;

@@ -24,6 +24,7 @@ import {
 } from "../controllers/clientOnboarding.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize, requireActivatedPortal, requirePermission } from "../middlewares/rbac.middleware.js";
+import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 const router = express.Router();
 
 // Apply base middleware to all onboarding routes
@@ -49,18 +50,21 @@ router.get(
 );
 router.post(
   "/",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("client-onboarding", "create"),
   createOnboarding
 );
 router.put(
   "/:id",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("client-onboarding", "update"),
   updateOnboarding
 );
 router.delete(
   "/:id",
+  sensitiveWriteRateLimit,
   authorize("ADMIN"),
   deleteOnboarding
 );
@@ -72,6 +76,7 @@ router.delete(
 // Questionnaires, specs, kickoffs, and deliveries (post-activation) DO have the gate.
 router.put(
   "/steps/:stepId",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER", "CLIENT"),
   requirePermission("client-onboarding", "update"),
   updateStep
@@ -80,12 +85,14 @@ router.put(
 // Contract routes
 router.post(
   "/steps/:stepId/contract",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("client-onboarding", "create"),
   createContract
 );
 router.put(
   "/contracts/:contractId",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER", "CLIENT"),
   requirePermission("client-onboarding", "update"),
   updateContract
@@ -94,12 +101,14 @@ router.put(
 // Payment routes
 router.post(
   "/steps/:stepId/payment",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("client-onboarding", "create"),
   createPayment
 );
 router.put(
   "/payments/:paymentId",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER", "CLIENT"),
   requirePermission("client-onboarding", "update"),
   updatePayment
@@ -108,12 +117,14 @@ router.put(
 // Questionnaire routes
 router.post(
   "/steps/:stepId/questionnaire",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("client-onboarding", "create"),
   createQuestionnaire
 );
 router.put(
   "/questionnaires/:questionnaireId",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER", "CLIENT"),
   requireActivatedPortal,
   requirePermission("client-onboarding", "update"),
@@ -123,12 +134,14 @@ router.put(
 // Specifications routes
 router.post(
   "/steps/:stepId/specifications",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("client-onboarding", "create"),
   createSpecifications
 );
 router.put(
   "/specifications/:specificationsId",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER", "CLIENT"),
   requireActivatedPortal,
   requirePermission("client-onboarding", "update"),
@@ -138,12 +151,14 @@ router.put(
 // Kickoff routes
 router.post(
   "/steps/:stepId/kickoff",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("client-onboarding", "create"),
   createKickoff
 );
 router.put(
   "/kickoffs/:kickoffId",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER", "CLIENT"),
   requireActivatedPortal,
   requirePermission("client-onboarding", "update"),
@@ -153,12 +168,14 @@ router.put(
 // Production routes
 router.post(
   "/steps/:stepId/production",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("client-onboarding", "create"),
   createProduction
 );
 router.put(
   "/productions/:productionId",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("client-onboarding", "update"),
   updateProduction
@@ -167,12 +184,14 @@ router.put(
 // Delivery routes
 router.post(
   "/steps/:stepId/delivery",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER"),
   requirePermission("client-onboarding", "create"),
   createDelivery
 );
 router.put(
   "/deliveries/:deliveryId",
+  sensitiveWriteRateLimit,
   authorize("ADMIN", "MANAGER", "CLIENT"),
   requireActivatedPortal,
   requirePermission("client-onboarding", "update"),

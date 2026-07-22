@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authenticate } from "../middlewares/auth.middleware.js";
-import { uploadPublicRateLimit } from "../middlewares/rateLimit.middleware.js";
+import { uploadPublicRateLimit, sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 import {
   uploadFile,
   deleteFile,
@@ -25,6 +25,11 @@ router.post("/:context", validate(uploadContextParamSchema), (req, res, next) =>
   if (PUBLIC_UPLOAD_CONTEXTS.has(req.params.context as string)) {
     return uploadPublicRateLimit(req, res, next);
   }
+  return sensitiveWriteRateLimit(req, res, next);
+}, (req, res, next) => {
+  if (PUBLIC_UPLOAD_CONTEXTS.has(req.params.context as string)) {
+    return next();
+  }
   return authenticate(req, res, next);
 }, ...uploadFile);
 
@@ -32,6 +37,6 @@ router.post("/:context", validate(uploadContextParamSchema), (req, res, next) =>
 // Always requires authentication — even for public-context keys (cv/, portfolio/).
 // The key is returned only to the uploader; there is no legitimate unauthenticated
 // delete use case, and omitting auth would allow anyone who knows a key to delete it.
-router.delete("/", authenticate, validate(deleteFileSchema), deleteFile);
+router.delete("/", authenticate, sensitiveWriteRateLimit, validate(deleteFileSchema), deleteFile);
 
 export default router;
