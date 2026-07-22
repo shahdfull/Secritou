@@ -693,7 +693,9 @@
   "common": {
     "loading": "Loading...",
     "save": "Save",
+    "send": "Send",
     "cancel": "Cancel",
+    "by": "By",
     "confirm": "Confirm",
     "delete": "Delete",
     "edit": "Edit",
@@ -1006,7 +1008,16 @@
     "role": "Account role",
     "rolePlaceholder": "Choose a role",
     "createAccount": "Create account",
-    "accountCreated": "Account created from the join request."
+    "accountCreated": "Account created from the join request.",
+    "leadCreated": "Lead created",
+    "convertFailed": "Could not convert this request into a lead.",
+    "convertTitle": "Convert to lead",
+    "convertDescription": "Assign a manager and a department before creating the lead from this request.",
+    "assignedManager": "Assigned manager",
+    "assignedManagerPlaceholder": "Manager ID (optional)",
+    "department": "Department",
+    "departmentPlaceholder": "Relevant department (optional)",
+    "convertToLead": "Convert to lead"
   },
   "dashboardHero": {
     "browserUrl": "app.secritou.com / future",

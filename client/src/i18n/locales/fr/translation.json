@@ -693,7 +693,9 @@
   "common": {
     "loading": "Chargement...",
     "save": "Enregistrer",
+    "send": "Envoyer",
     "cancel": "Annuler",
+    "by": "Par",
     "confirm": "Confirmer",
     "delete": "Supprimer",
     "edit": "Modifier",
@@ -1006,7 +1008,16 @@
     "role": "Rôle du compte",
     "rolePlaceholder": "Choisissez un rôle",
     "createAccount": "Créer un compte",
-    "accountCreated": "Compte créé à partir de la demande d'adhésion."
+    "accountCreated": "Compte créé à partir de la demande d'adhésion.",
+    "leadCreated": "Lead créé",
+    "convertFailed": "Impossible de convertir cette demande en lead.",
+    "convertTitle": "Convertir en lead",
+    "convertDescription": "Assignez un manager et un pôle avant de créer le lead à partir de cette demande.",
+    "assignedManager": "Manager assigné",
+    "assignedManagerPlaceholder": "ID du manager (optionnel)",
+    "department": "Pôle",
+    "departmentPlaceholder": "Pôle concerné (optionnel)",
+    "convertToLead": "Convertir en lead"
   },
   "dashboardHero": {
     "browserUrl": "app.secritou.com / avenir",
