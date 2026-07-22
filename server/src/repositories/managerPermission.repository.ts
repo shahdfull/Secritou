@@ -18,16 +18,6 @@ export const managerPermissionRepository = {
     return rows.map((row) => row.userId);
   },
 
-  // SEC-114: used to block PermissionProfile deletion with a useful message — names, not just
-  // ids, so the ADMIN making the call can actually tell who would be affected.
-  async findUserNamesByProfileId(profileId: string): Promise<string[]> {
-    const rows = await prisma.managerPermission.findMany({
-      where: { profileId },
-      select: { user: { select: { name: true } } },
-    });
-    return rows.map((row) => row.user.name);
-  },
-
   // SEC-114: get detailed info about managers affected by profile deletion (for AuditLog)
   async findManagersByProfileId(profileId: string): Promise<Array<{ userId: string; userName: string }>> {
     const rows = await prisma.managerPermission.findMany({
