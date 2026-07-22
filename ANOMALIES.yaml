@@ -14545,3 +14545,74 @@ anomalies:
       tôt : modifier les 77 fichiers, ou introduire un helper partagé),
       décision à reprendre avec le porteur si ce run échoue aussi.
 
+      CAUSE RÉELLE TROUVÉE (2026-07-22, même session) : le run déclenché
+      par `1449484` a échoué avec EXACTEMENT les mêmes 4 pourcentages de
+      couverture que le tout premier run échoué (lines 57.51%, functions
+      33.06%, branches 69.81%, statements 57.51% — identiques à la
+      décimale près sur 3 runs consécutifs, sur 2 correctifs différents).
+      Des pourcentages identiques au bit près sur plusieurs runs
+      excluent une cause transitoire/réseau — un vrai blip aléatoire ne
+      produirait pas la même empreinte à chaque fois. Reproduit
+      directement en local dans cette session, hors CI, contre des
+      conteneurs Docker `postgres:16`/`redis:7-alpine` frais et sains
+      (`docker run`, migrations appliquées avec succès, `pg_isready`/
+      `redis-cli ping` verts au 1er essai) : le même symptôme apparaît
+      (`# no reachable database` sur des dizaines de tests), alors même
+      que d'autres tests du même run exécutent avec succès de vraies
+      requêtes Prisma et de vrais logins HTTP juste à côté — élimine
+      formellement toute cause d'infrastructure CI/réseau/contention.
+
+      Cause identifiée en lisant le code réel : `.github/workflows/
+      ci.yml`, le job `server` applique les migrations
+      (`prisma migrate deploy`) mais n'exécute JAMAIS `npm run
+      prisma:seed` — seul le job `e2e` le fait (ligne 321, préexistant).
+      Au moins 18 fichiers de test (recensés par grep :
+      `checkInvoiceFollowup`, `clientApproveEmailPortalUrl`,
+      `clientCompletedTasks`, `commissionCreationExclusivity`,
+      `commissionService`, `creditNoteApply`, `depositRateSingleSource`,
+      `documentCreateHttp`, `documentSignContract`,
+      `executiveMetricsActiveProjectsParallel`,
+      `executiveMetricsCriticalCountUnbounded`,
+      `executiveMetricsProjectRisks`, `freelancerSeesOwnDeliverable`,
+      `invoiceNumberingGapless`, `portalActivationOnPayment`,
+      `projectClientApproveBalanceInvoice`,
+      `projectClientApproveConcurrency`, `projectDetailIncludesTasks`,
+      `projectStatusInFilter`) ont un `before()` qui, en plus du
+      `$queryRaw SELECT 1` de connectivité, exige une ligne de donnée de
+      référence semée par `seed.ts` — preuve directe dans
+      `commissionService.test.ts` lignes 26-32 : `await
+      prisma.$queryRaw\`SELECT 1\`; const service = await
+      prisma.service.findFirst(); if (!service) throw new Error("no
+      Service seeded");` — capturé par le même `catch { dbAvailable =
+      false; }` que l'échec de connexion, donc indiscernable dans les
+      logs d'un vrai problème réseau. Sur une base migrée mais jamais
+      semée (l'état exact du job `server` à chaque run, de façon
+      déterministe), ces 18 fichiers échouent TOUJOURS, alors que les 59
+      autres fichiers (connectivité seule, sans dépendance de seed)
+      passent normalement — confirmé en local : `Auth cookie attributes
+      + logout/reuse` (connectivité pure, pas de dépendance seed) passe
+      avec de vraies requêtes HTTP (630ms), tandis que
+      `commissionService.setSplits` (dépendance seed) se saute
+      entièrement dans le même run.
+
+      Correctif appliqué (ci.yml, job `server` uniquement) : nouvelle
+      étape "Seed database" (`npm run prisma:seed --workspace=server`),
+      insérée après "Schema drift check" (qui diffe contre
+      `secritou_shadow`, une base séparée, donc non affectée par le
+      seed de `secritou_test`) et avant `npm run test:coverage` — même
+      commande, même pattern déjà en production dans le job `e2e`.
+      `seed.ts` vérifié idempotent (upsert / `skipIf` sur count() partout
+      pour les tables concernées) : aucun risque de collision avec les
+      données que les tests créent eux-mêmes ensuite, puisque le seed
+      s'exécute une seule fois, avant le tout premier test.
+      `npm run lint`/`npm run typecheck` --workspace=server vérifiés
+      propres. YAML revalidé (`js-yaml`). Le wait-step et le
+      `connect_timeout`/`pool_timeout` des 2 tentatives précédentes sont
+      laissés en place (décision du porteur : défense en profondeur,
+      pas de retrait) même s'ils ne sont plus considérés comme LE
+      correctif — ils ne ciblaient pas la vraie cause, qui est
+      l'absence de seed, pas un problème réseau/timing. Statut toujours
+      `en_cours` : critère de résolution (2 runs CI consécutifs verts
+      sur `main`) non encore observé au moment de cette note — ce
+      correctif n'a pas encore été poussé.
+

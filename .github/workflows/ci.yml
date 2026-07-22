@@ -151,6 +151,18 @@ jobs:
           echo "Schema drift check passed (only the known SEC-193 partial indexes differ)."
       - run: npm run lint --workspace=server
       - run: npm run typecheck --workspace=server
+      - name: Seed database
+        # SEC-212 real root cause: this job migrates secritou_test but never seeded it, so the
+        # Service table (and other seed-only reference rows) was always empty here — deterministic
+        # across every run, not infra flakiness. At least 18 test files' before() hooks throw when
+        # a required seed row is missing (e.g. commissionService.test.ts: `const service = await
+        # prisma.service.findFirst(); if (!service) throw new Error("no Service seeded")`), which
+        # their catch block reports identically to "no reachable database" — self-skipping the
+        # whole file and dragging coverage under the threshold. Confirmed by reproducing locally
+        # against fresh, healthy Docker containers (zero CI runner involved): same skips, same
+        # coverage percentages to the decimal, while files with a bare `SELECT 1` (no seed
+        # dependency) passed cleanly with real DB traffic throughout the same run.
+        run: npm run prisma:seed --workspace=server
       - run: npm run test:coverage --workspace=server
       - run: npm run build --workspace=server
       - name: Circular dependency check
