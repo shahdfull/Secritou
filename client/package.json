@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "prerender": "node scripts/prerender.mjs",
     "build:seo": "npm run build && node scripts/prerender.mjs"
   },
@@ -94,6 +95,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.4",
+    "@vitest/coverage-v8": "^4.1.10",
     "cross-env": "^7.0.3",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.1",

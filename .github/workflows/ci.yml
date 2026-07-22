@@ -22,7 +22,7 @@ jobs:
       - run: npm ci
       - run: npm run lint --workspace=client
       - run: npm run typecheck --workspace=client
-      - run: npm run test --workspace=client
+      - run: npm run test:coverage --workspace=client
       - run: npm run build --workspace=client
       - name: Bundle secret scan
         run: |
