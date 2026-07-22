@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-211
+dernier_id: SEC-212
 
 anomalies:
   - id: SEC-001
@@ -14371,4 +14371,64 @@ anomalies:
       sur Redis puis un premier test qui prend 6.6s au lieu de
       quelques ms) — deux causes différentes de deux jobs différents,
       non fusionnées sous un seul ID malgré leur proximité temporelle.
+
+  - id: SEC-212
+    titre: "Les jobs `server` et `e2e` de .github/workflows/ci.yml échouent de façon récurrente (au moins les 10 derniers runs sur main, du 2026-07-17 au 2026-07-22) sur des symptômes de lenteur/indisponibilité transitoire des conteneurs de service Postgres/Redis en CI — un ConnectionTimeoutError Redis explicite fait chuter la couverture de code sous les seuils (test:coverage) en faisant sauter un grand nombre de tests dépendants de la DB via leur garde dbAvailable ; côté e2e, les 2 tests de login.spec.ts échouent en restant bloqués sur /login malgré des identifiants seedés corrects — reproduit localement (build+preview identique à la CI) SANS échec (3/3 verts), ce qui exclut un défaut du code applicatif et pointe vers l'environnement CI lui-même (runner sous contention CPU/réseau au démarrage des conteneurs de service)"
+    perimetre: ".github/workflows/ci.yml (jobs server et e2e, services postgres/redis) — infrastructure CI, pas le code applicatif"
+    regle_violee: null
+    classe: "ci_infra_lenteur_services_docker"
+    gravite: majeur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand un run CI sur `main` est vert sur les jobs
+      `server` ET `e2e` sans qu'aucun des deux ne dépende d'un relance
+      manuelle — vérifié en observant au moins 2 runs CI consécutifs
+      verts sur des commits distincts (pas un seul run vert isolé, qui
+      pourrait n'être qu'une coïncidence de charge du runner à cet
+      instant précis).
+    detecte_le: "2026-07-22"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert en vérifiant deux runs CI consécutifs après SEC-195
+      (commit `e7f7ecb`) et SEC-211 (commit `0f7673b`) : le job `server`
+      échoue les deux fois avec le même `ConnectionTimeoutError` Redis
+      au tout premier test (`authorize allows matching role`, qui prend
+      6.6-6.8s au lieu de <1ms) suivi d'une chute de couverture sous les
+      seuils (statements 57.51% < 60%, branches 69.84% < 70%) — chute
+      causée par le grand nombre de tests qui s'auto-sautent légitimement
+      via `t.skip("no reachable database")` une fois que `before()` n'a
+      pas pu se connecter à temps (mécanisme correct, cf. SEC-195 :
+      c'est le SYMPTÔME d'une DB/Redis indisponible qui est visible ici,
+      pas un défaut du garde de skip lui-même). Le job `e2e` échoue sur
+      les mêmes deux runs avec 4 tests bloqués sur `/login` malgré des
+      identifiants corrects (vérifiés œil nu contre `server/prisma/
+      seed.ts` : admin@secritou.tn/admin123, client3@example.tn/
+      client123, correspondance exacte) — un test avec un MAUVAIS mot de
+      passe passe pourtant normalement (montre une erreur, ne navigue
+      pas), ce qui prouve que le pipeline réseau/CORS/formulaire
+      fonctionne : seul le cas nominal échoue à naviguer après un login
+      qui devrait réussir. Reproduit directement en local (`npm run
+      prisma:seed`, `npm run build --workspace=client`, `npm run preview
+      --workspace=client`, `PLAYWRIGHT_SKIP_WEB_SERVER=true npx
+      playwright test e2e/login.spec.ts`) : les 3 tests passent (2.7s,
+      2.0s, 1.6s), aucun échec — élimine un défaut du code
+      applicatif (seed, build, LoginPage.tsx, auth.service.ts) comme
+      cause, et pointe vers l'environnement d'exécution CI lui-même
+      (runner GitHub Actions sous contention au moment du démarrage des
+      conteneurs `services:` postgres/redis, malgré des health-checks
+      configurés à 5 tentatives/10s qui a priori garantissent que le
+      conteneur répond avant le début du job). Historique confirmé via
+      l'API GitHub Actions : les 10 derniers runs sur `main` (du
+      2026-07-17 19:33 au 2026-07-22 21:17) sont TOUS en échec, dont 3
+      runs antérieurs à toute modification de cette session — exclut
+      formellement SEC-195/SEC-211 comme cause. Hors périmètre de
+      remédiation dans cette session : une correction fiable nécessite
+      soit d'augmenter les seuils de health-check/retry des services CI,
+      soit de wrapper les avant-avant (`before()`) applicatifs d'un
+      retry avec backoff, soit de changer de runner — décision
+      d'infrastructure qui dépasse un simple correctif de code et
+      mérite sa propre session dédiée avec accès aux logs complets de
+      démarrage des conteneurs (non consultables depuis cette session :
+      403 sur l'API de téléchargement des logs GitHub Actions).
 
