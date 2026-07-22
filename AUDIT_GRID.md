@@ -74,7 +74,18 @@ passes de recherche, sans reformulation qui en altérerait le sens.
 | Confirmation/statut : archive/reopen | `lead.service.ts:99-104` (`archive`, appel non confirmé), `142-153` (`reopenLead`) | Oui | Oui (4.1) | aucune | code_direct |
 | Confirmation/statut : convertLeadToClient | `lead.service.ts:155-217` | Oui | Oui (4.1) | aucune | code_direct — crée le Client associé en transaction |
 
+**Mise à jour (session 2026-07-22)** : `convertLeadToClient` (bouton manuel ci-dessus) n'est
+plus le seul chemin — `proposal.service.ts` (fonction d'acceptation de proposition, ~lignes
+422-431) marque désormais automatiquement le lead lié `WON` et appelle `linkLeadToClientTx`
+dans la même transaction dès qu'une proposition liée à un lead est acceptée. Le bouton manuel
+reste un no-op de secours pour les leads pré-existants à ce changement, mais n'est plus le
+chemin principal.
+
 **Constat hors mandat (non résolu, signalé pour ANOMALIES.yaml)** : `maintenance.processor.ts` référence des tables `LeadArchive`, `ContactRequestArchive`, `NotificationArchive`, `DocumentArchive` qui **n'existent dans aucun modèle de `schema.prisma`** ni dans aucune migration (grep vide). Le job `archiveColdData` est pourtant planifié (cron quotidien `30 3 * * *`, `jobs/index.ts:234-238`). Si exécuté, l'étape `CREATE TABLE ... PARTITION OF "LeadArchive"` échouerait — soit le job échoue silencieusement à chaque exécution, soit il n'a jamais tourné. **Ceci relève de la règle CLAUDE.md « enregistrement immédiat de tout écart constaté » — à créer en ANOMALIES.yaml dans une prochaine session, pas fait ici (ce tour ne modifie pas ANOMALIES.yaml par contrainte explicite de la tâche).**
+
+**Résolu (SEC-016, `resolu` dans ANOMALIES.yaml)** : partitions Lead/ContactRequest créées et
+vérifiées par exécution réelle du job (pas seulement relecture du code) ; NotificationArchive/
+DocumentArchive restent hors scope de ce correctif — voir la note complète de SEC-016.
 
 ## 3.5 Client
 
@@ -203,6 +214,10 @@ passes de recherche, sans reformulation qui en altérerait le sens.
 | VAT (RG-003) | `server/src/utils/vat.ts:1-28` | Oui | Oui (4.4) | RG-003 | code_direct — `TVA_RATE=0.19` fixe |
 
 **Observation incidente** : `invoice.repository.ts:addPayment` (lignes 212-228) semble être du **code mort** — `invoiceService.addPayment` fait `tx.payment.create` directement (ligne 232) sans jamais appeler cette méthode repository. À vérifier séparément.
+
+**Correction (session 2026-07-22)** : `invoice.repository.ts#addPayment` n'existe plus du tout
+(`grep` sur le fichier : aucune occurrence) — le code mort ci-dessus a été supprimé depuis, le
+constat est devenu obsolète (plus de code mort à retirer, il ne reste plus rien à ce nom).
 
 ## 3.11 Payment
 
@@ -370,6 +385,11 @@ Aucun écart perimetre_code supplémentaire — module déjà corrigé en sessio
 
 **Écart critique — code potentiellement mort, candidat ANOMALIES.yaml** : `executiveMetrics.*` (service/repository/controller) et `revenueForecast.*` (service/repository/controller) existent, sont listés dans le perimetre_code 4.8, mais **grep exhaustif sur `server/src/routes/index.ts` = 0 résultat pour `executiveMetrics` et `revenueForecast`**. Ces fichiers ne sont accessibles par **aucune route HTTP**. Non lus en détail (`code_grep` seulement) — signalé, pas créé en ANOMALIES.yaml (hors contrainte de ce tour).
 
+**Corrigé (`resolu`, session 2026-07-22)** : les deux sont désormais montés — `grep` confirme
+`getExecutiveMetrics`/`getRevenueForecast` importés et routés dans
+`server/src/routes/analytics.routes.ts` et `server/src/routes/dashboard.routes.ts`. Plus du
+code mort.
+
 ## 3.20 ClientSuccess (+ SuccessObjective, SuccessMetric, MetricHistory, SuccessRecommendation, SuccessTimeline)
 
 | Opération | Fichier:ligne | Existe | Dans perimetre_code du module ? | RG associée | Vérifié comment |
@@ -461,7 +481,7 @@ Fichiers réellement utilisés/appelés en production mais absents du `perimetre
 - `server/src/jobs/processors/maintenance.processor.ts` — voir aussi 3.4 (archivage Lead) ; à vérifier s'il touche aussi Freelancer/FreelancerApplication.
 
 ### Module 4.8 — Analytics & Performance
-- Aucun écart de fichier manquant (tous présents), mais **anomalie fonctionnelle candidate** : `executiveMetrics.*` et `revenueForecast.*` (6 fichiers) sont dans le perimetre_code mais **ne sont montés sur aucune route** (`server/src/routes/index.ts` grep = 0 résultat pour ces deux noms) — code potentiellement mort ou fonctionnalité inachevée.
+- Aucun écart de fichier manquant (tous présents), mais **anomalie fonctionnelle candidate** : `executiveMetrics.*` et `revenueForecast.*` (6 fichiers) sont dans le perimetre_code mais **ne sont montés sur aucune route** (`server/src/routes/index.ts` grep = 0 résultat pour ces deux noms) — code potentiellement mort ou fonctionnalité inachevée. **Corrigé (`resolu`, session 2026-07-22)** : montés depuis dans `analytics.routes.ts`/`dashboard.routes.ts`.
 
 ### Module 4.9 — Client Success
 - `server/src/jobs/processors/maintenance.processor.ts` — contient `recalculateClientScores` (cron quotidien), non listé.
@@ -488,13 +508,17 @@ Ces 4 fichiers forment un CRUD complet et actif (create/read/update/delete/creat
 
 Ce tour ne modifie pas ANOMALIES.yaml (contrainte explicite de la tâche). Les constats suivants, rencontrés incidemment pendant cette recherche, sont à enregistrer dans une prochaine session conformément à la règle CLAUDE.md « enregistrement immédiat de tout écart constaté » :
 
-1. **Tables d'archive inexistantes en base, job cron potentiellement cassé** — `server/src/jobs/processors/maintenance.processor.ts` (fonction `archiveColdData`/`archiveTableRows`, lignes ~39-44, 69-94, 135-169) référence des tables `LeadArchive`, `ContactRequestArchive`, `NotificationArchive`, `DocumentArchive` absentes de `schema.prisma` et de toute migration (grep vide). Le job est planifié quotidiennement (cron `30 3 * * *`, `jobs/index.ts:234-238`). Si exécuté, l'étape `CREATE TABLE ... PARTITION OF "LeadArchive"` échouerait — soit échec silencieux à chaque run, soit le job n'a jamais tourné en production.
-2. **Code potentiellement mort — `executiveMetrics.*`/`revenueForecast.*` non routés** (module 4.8, détaillé ci-dessus).
-3. **Code mort — `invoice.repository.ts:addPayment`** (lignes 212-228), jamais appelé par `invoiceService.addPayment`.
-4. **Code mort — `siteContentRepository.upsertMany`** (`siteContent.repository.ts:74-91`), zéro appelant.
-5. **Code mort — `aiConversationRepository.deleteAll`** (`aiConversation.repository.ts:53-55`), sans route/controller l'exposant.
-6. **Code mort — `freelancerApplicationRepository.delete`** (`freelancerApplication.repository.ts:50-52`), jamais appelé par aucun contrôleur/route.
-7. **Incohérence RBAC signalée** — `rating.controller.ts` restreint via `req.user!.id`, alors que le reste du code utilise `req.user!.sub` (`JwtPayload`) — à vérifier si `id` existe réellement sur ce type ou si c'est un bug silencieux.
+**Mise à jour (session 2026-07-22)** : les 7 constats ci-dessous ont tous été enregistrés
+depuis (règle suivie) et sont désormais soit `resolu`, soit `rejete` dans ANOMALIES.yaml —
+listés ici tels qu'ils apparaissaient au moment de leur découverte, avec leur statut final :
+
+1. **Tables d'archive inexistantes en base, job cron potentiellement cassé** — `server/src/jobs/processors/maintenance.processor.ts` (fonction `archiveColdData`/`archiveTableRows`, lignes ~39-44, 69-94, 135-169) référence des tables `LeadArchive`, `ContactRequestArchive`, `NotificationArchive`, `DocumentArchive` absentes de `schema.prisma` et de toute migration (grep vide). Le job est planifié quotidiennement (cron `30 3 * * *`, `jobs/index.ts:234-238`). Si exécuté, l'étape `CREATE TABLE ... PARTITION OF "LeadArchive"` échouerait — soit échec silencieux à chaque run, soit le job n'a jamais tourné en production. → **SEC-016, `resolu`** (partitions Lead/ContactRequest créées et vérifiées par exécution réelle du job ; NotificationArchive/DocumentArchive restent hors scope, voir la note de SEC-016).
+2. **Code potentiellement mort — `executiveMetrics.*`/`revenueForecast.*` non routés** (module 4.8, détaillé ci-dessus). → **`resolu`** (les deux sont désormais montés, confirmé par grep sur `server/src/routes/analytics.routes.ts` et `dashboard.routes.ts`).
+3. **Code mort — `invoice.repository.ts:addPayment`** (lignes 212-228), jamais appelé par `invoiceService.addPayment`. → **SEC-019, `resolu`** (méthode supprimée, confirmé par grep : plus aucune occurrence dans le fichier).
+4. **Code mort — `siteContentRepository.upsertMany`** (`siteContent.repository.ts:74-91`), zéro appelant. → **SEC-019, `resolu`** (méthode supprimée).
+5. **Code mort — `aiConversationRepository.deleteAll`** (`aiConversation.repository.ts:53-55`), sans route/controller l'exposant. → **SEC-019, `resolu`** (méthode supprimée).
+6. **Code mort — `freelancerApplicationRepository.delete`** (`freelancerApplication.repository.ts:50-52`), jamais appelé par aucun contrôleur/route. → **SEC-019, `resolu`**.
+7. **Incohérence RBAC signalée** — `rating.controller.ts` restreint via `req.user!.id`, alors que le reste du code utilise `req.user!.sub` (`JwtPayload`) — à vérifier si `id` existe réellement sur ce type ou si c'est un bug silencieux. → **`rejete`** (faux positif : `JwtPayload` porte réellement les deux champs `id` et `sub`, ce ne sont pas des noms concurrents — voir la note de l'entrée pour la vérification directe).
 
 ---
 

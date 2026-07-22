@@ -1534,6 +1534,14 @@ conservé tel quel (il couvre un chemin distinct, les garde-fous internes de
 d'exclusivité proprement dite. Sortie citée : `tests 247 / pass 247 / fail 0`,
 exécuté deux fois de suite, ~5-6s (baseline), typecheck 0 erreur.
 
+Ce statut IMPLÉMENTÉ porte spécifiquement sur le garde-fou de rejet
+(`updateProject` ne peut pas court-circuiter `clientApprove`) — il ne
+couvre pas le succès de bout en bout de `clientApprove` lui-même. **SEC-202**
+(découvert le 2026-07-22, session e2e Playwright) : `clientApprove` échoue
+systématiquement avec `DUPLICATE_ENTRY` (P2002) dès qu'un projet a une
+facture d'acompte réelle — chemin nominal jamais abouti avec succès en
+dev/seed. En cours de correction dans la même session.
+
 ### Autres règles
 
 **RG-014 — Vérification de rôle avant action IA.**

@@ -2,16 +2,25 @@
 
 Date: 2026-07-08
 
+> **Statut documentaire (REFERENTIEL.md §"Sources") : historique — citable comme piste, jamais
+> comme source de vérité.** Ce rapport est un instantané figé au 2026-07-08 ; plusieurs de ses
+> constats ont depuis été corrigés en code sans que ce fichier soit mis à jour (il n'est pas
+> maintenu comme un document vivant). Vérification directe menée le 2026-07-22 : au moins 3 des
+> 5 lacunes de l'Executive Summary ci-dessous sont **obsolètes** (le code a changé depuis) —
+> voir les annotations « **Mise à jour 2026-07-22** » insérées aux endroits concernés. Pour
+> l'état réel courant d'un point précis, se référer à REFERENTIEL.md/ANOMALIES.yaml, pas à ce
+> fichier.
+
 ---
 
 ## Executive Summary
 
 Les workflows métiers clés de Secritou sont bien implémentés avec des transitions de statut contrôlées, mais les principales lacunes identifiées sont :
-1. **Conversion Lead → Client**: Nécessite une action manuelle après acceptation de proposition.
-2. **Commission Payout**: Aucune étape de paiement (uniquement calculée/marquée comme payée).
-3. **Client Success**: Entièrement manuel (aucune intégration avec projets/factures pour mise à jour automatique des métriques).
-4. **Rating**: Implémenté backend mais absent du frontend.
-5. **Capacity Check**: Aucune vérification de disponibilité des freelancers avant affectation.
+1. **Conversion Lead → Client**: Nécessite une action manuelle après acceptation de proposition. **[Mise à jour 2026-07-22 : OBSOLÈTE — `proposal.service.ts` convertit désormais automatiquement le lead lié dès l'acceptation de la proposition (voir §1.1 et §2 ci-dessous).]**
+2. **Commission Payout**: Aucune étape de paiement (uniquement calculée/marquée comme payée). **[Vérifié 2026-07-22 : toujours exact — `commission.service.ts#markPaid` reste un simple flag, aucune intégration bancaire.]**
+3. **Client Success**: Entièrement manuel (aucune intégration avec projets/factures pour mise à jour automatique des métriques). **[Vérifié 2026-07-22 : toujours globalement exact.]**
+4. **Rating**: Implémenté backend mais absent du frontend. **[Non revérifié en détail le 2026-07-22 — voir §2 pour un point lié : un déclencheur de notification existe désormais à la clôture de projet.]**
+5. **Capacity Check**: Aucune vérification de disponibilité des freelancers avant affectation. **[Mise à jour 2026-07-22 : OBSOLÈTE — `task.service.ts#checkFreelancerAvailability` existe et est appelé par `createTask`/`updateTask`, détecte les chevauchements d'affectation (voir §5 ci-dessous).]**
 
 ---
 
@@ -27,7 +36,14 @@ Les workflows métiers clés de Secritou sont bien implémentés avec des transi
 | NEW/CONTACTED/QUALIFIED/PROPOSAL → | LOST | Mise à jour manuelle | ADMIN/MANAGER | Manuel | [LeadsPage.tsx](file:///c:/Users/shahd/Documents/SaaS/client/src/features/leads/LeadsPage.tsx), [LeadsKanban.tsx](file:///c:/Users/shahd/Documents/SaaS/client/src/features/leads/LeadsKanban.tsx) |
 | WON →             | (Converti en Client) | Clic sur "Convert to Client" | ADMIN/MANAGER | Manuel | [LeadDetailDialog.tsx](file:///c:/Users/shahd/Documents/SaaS/client/src/features/leads/LeadDetailDialog.tsx) |
 
-**Code**: [lead.service.ts](file:///c:/Users/shahd/Documents/SaaS/server/src/services/lead.service.ts#L84-L146)
+**Mise à jour 2026-07-22** : cette dernière ligne est obsolète en l'état — pour un lead lié à
+une proposition, la conversion en Client est désormais **Auto**, déclenchée dans la même
+transaction que l'acceptation de la proposition (`proposal.service.ts`, ~lignes 422-431 :
+passe le lead à `WON` puis appelle `linkLeadToClientTx`). Le bouton manuel "Convert to Client"
+reste disponible mais n'est plus le chemin principal — il devient un no-op pour un lead déjà
+converti par la cascade.
+
+**Code**: [lead.service.ts](file:///c:/Users/shahd/Documents/SaaS/server/src/services/lead.service.ts#L84-L146) — citation de ligne non revérifiée le 2026-07-22, susceptible d'avoir dérivé.
 
 ---
 
@@ -55,7 +71,7 @@ Les workflows métiers clés de Secritou sont bien implémentés avec des transi
 | REVIEW →          | IN_PROGRESS    | Mise à jour manuelle | ADMIN/MANAGER | Manuel | [ProjectsPage.tsx](file:///c:/Users/shahd/Documents/SaaS/client/src/features/projects/ProjectsPage.tsx), [ProjectDetailPage.tsx](file:///c:/Users/shahd/Documents/SaaS/client/src/features/projects/ProjectDetailPage.tsx) |
 | REVIEW →          | COMPLETED      | Clic sur "Approve" (vérifie tâches terminées + acompte payé) | Client | Manuel | [ProjectsClientPage.tsx](file:///c:/Users/shahd/Documents/SaaS/client/src/features/client-portal/ProjectsClientPage.tsx), [ProjectDetailPage.tsx](file:///c:/Users/shahd/Documents/SaaS/client/src/features/projects/ProjectDetailPage.tsx) |
 
-**Code**: [project.service.ts](file:///c:/Users/shahd/Documents/SaaS/server/src/services/project.service.ts#L66-L106), [project.service.ts:clientApprove](file:///c:/Users/shahd/Documents/SaaS/server/src/services/project.service.ts#L194-L302)
+**Code**: [project.service.ts](file:///c:/Users/shahd/Documents/SaaS/server/src/services/project.service.ts#L66-L106), [project.service.ts:clientApprove](file:///c:/Users/shahd/Documents/SaaS/server/src/services/project.service.ts#L194-L302) — **citation dérivée (2026-07-22) : `clientApprove` est désormais à ~L295-407, la plage citée couvre maintenant `getBrief`, pas `clientApprove`.**
 
 ---
 
@@ -108,14 +124,14 @@ Les workflows métiers clés de Secritou sont bien implémentés avec des transi
 
 | Gap | Evidence | Business Impact | Effort Estimé |
 |-----|----------|-----------------|---------------|
-| Conversion Lead → Client non automatique | [lead.service.ts#L84-L146](file:///c:/Users/shahd/Documents/SaaS/server/src/services/lead.service.ts#L84-L146) (besoin de clic manuel après acceptation de proposition) | Risque d'oubli, ralentit le flux | Low (ajouter dans `acceptWithCascade` la conversion auto) |
-| Rating frontend manquant | [FreelancerDetailPage.tsx](file:///c:/Users/shahd/Documents/SaaS/client/src/features/freelancers/FreelancerDetailPage.tsx) (pas de UI pour ajouter/voir des notes) | Données non utilisées, pas de feedback | Medium |
-| Vérification capacité freelancer absente | Recherche dans le repo (aucun code vérifiant les affectations superposées) | Risque de surréservation | Medium |
-| Projet ne peut pas être complété si approbation ouverte | [project.service.ts:clientApprove](file:///c:/Users/shahd/Documents/SaaS/server/src/services/project.service.ts#L194-L302) (ne vérifie pas les approbations) | Risque de payer avant validation | Low |
-| Paiement commission (pas d'intégration bancaire) | [commission.service.ts:markPaid](file:///c:/Users/shahd/Documents/SaaS/server/src/services/commission.service.ts#L86-L91) (juste un flag) | Processus manuel, erreur possible | High (dépend de l'intégration bancaire) |
-| Client Success metrics 100% manuelles | [clientSuccess.service.ts](file:///c:/Users/shahd/Documents/SaaS/server/src/services/clientSuccess.service.ts) (aucun calcul auto depuis projets/factures) | Données obsolètes, pas de valeur ajoutée | Medium |
-| Aucun workflow Contract → Project | [schema.prisma](file:///c:/Users/shahd/Documents/SaaS/server/prisma/schema.prisma#L73-L78) (Contract existe mais pas utilisé) | Modèle inutilisé | Low (supprimer ou intégrer) |
-| Rating pas lié à Project/Task completion | [rating.service.ts](file:///c:/Users/shahd/Documents/SaaS/server/src/services/rating.service.ts) (aucun trigger automatique) | Pas de contexte pour les notes | Medium |
+| ~~Conversion Lead → Client non automatique~~ **[OBSOLÈTE 2026-07-22]** | ~~[lead.service.ts#L84-L146]~~ — voir `proposal.service.ts` ~L422-431 (`linkLeadToClientTx` appelé automatiquement à l'acceptation) | — | — |
+| Rating frontend manquant | [FreelancerDetailPage.tsx](file:///c:/Users/shahd/Documents/SaaS/client/src/features/freelancers/FreelancerDetailPage.tsx) (pas de UI pour ajouter/voir des notes) | Données non utilisées, pas de feedback | Medium — **non revérifié le 2026-07-22** |
+| ~~Vérification capacité freelancer absente~~ **[OBSOLÈTE 2026-07-22]** | ~~Recherche dans le repo (aucun code...)~~ — `task.service.ts#checkFreelancerAvailability` existe, appelé par `createTask`/`updateTask`, détecte les chevauchements de date pour un même `assigneeId` | — | — |
+| ~~Projet ne peut pas être complété si approbation ouverte~~ **[OBSOLÈTE 2026-07-22]** | ~~[project.service.ts:clientApprove#L194-L302]~~ (citation dérivée, ne couvre plus `clientApprove`) — le code réel vérifie bien les approbations non résolues (`unresolvedApprovalsList`/`PENDING_APPROVALS_REMAINING`) | — | — |
+| Paiement commission (pas d'intégration bancaire) | [commission.service.ts:markPaid](file:///c:/Users/shahd/Documents/SaaS/server/src/services/commission.service.ts#L86-L91) (juste un flag) | Processus manuel, erreur possible | High — **vérifié 2026-07-22 : toujours exact** |
+| Client Success metrics 100% manuelles | [clientSuccess.service.ts](file:///c:/Users/shahd/Documents/SaaS/server/src/services/clientSuccess.service.ts) (aucun calcul auto depuis projets/factures) | Données obsolètes, pas de valeur ajoutée | Medium — **vérifié 2026-07-22 : globalement toujours exact** |
+| Aucun workflow Contract → Project | [schema.prisma](file:///c:/Users/shahd/Documents/SaaS/server/prisma/schema.prisma#L73-L78) (Contract existe mais pas utilisé) | Modèle inutilisé | Low (supprimer ou intégrer) — **non revérifié le 2026-07-22** |
+| Rating pas lié à Project/Task completion | [rating.service.ts](file:///c:/Users/shahd/Documents/SaaS/server/src/services/rating.service.ts) (aucun trigger automatique) | Pas de contexte pour les notes | Medium — **partiellement obsolète (2026-07-22) : `clientApprove` envoie désormais une notification `RATING_REQUESTED` aux admins/managers à la clôture de projet — ce n'est pas une création automatique de Rating, mais ce n'est plus « aucun trigger automatique »** |
 
 ---
 
@@ -152,8 +168,8 @@ Les workflows métiers clés de Secritou sont bien implémentés avec des transi
 |-------|------------|----------|
 | Proposition modifiable après consultation ? | ✅ Oui (redevient DRAFT) | [proposal.service.ts#L202-L210](file:///c:/Users/shahd/Documents/SaaS/server/src/services/proposal.service.ts#L202-L210) |
 | Facture modifiable/supprimable après envoi ? | ❌ Non (seulement cancel, pas de suppression) | [invoice.service.ts#L132-L139](file:///c:/Users/shahd/Documents/SaaS/server/src/services/invoice.service.ts#L132-L139) |
-| Double réservation freelancer bloquée ? | ❌ Non | Aucun code trouvé |
-| Projet complété avec tâches ouvertes ? | ❌ Non (bloqué) | [project.service.ts#L204-L207](file:///c:/Users/shahd/Documents/SaaS/server/src/services/project.service.ts#L204-L207) |
+| Double réservation freelancer bloquée ? | **[OBSOLÈTE 2026-07-22]** ~~❌ Non~~ → ✅ Oui, bloquée (409 `FREELANCER_UNAVAILABLE`) | ~~Aucun code trouvé~~ — `task.service.ts#createTask`/`#updateTask` appellent `checkFreelancerAvailability` (chevauchement de dates sur le même `assigneeId`) et lancent une vraie 409 si un conflit existe, pas un simple avertissement |
+| Projet complété avec tâches ouvertes ? | ❌ Non (bloqué) — **vérifié 2026-07-22 : règle toujours exacte**, citation dérivée (code réel désormais ~L310-312, `OPEN_TASKS_REMAINING`) | [project.service.ts#L204-L207](file:///c:/Users/shahd/Documents/SaaS/server/src/services/project.service.ts#L204-L207) |
 | Facturation récurrente ? | ❌ Non | Aucun code trouvé |
 | Multi-devises avec conversion ? | ❌ Non (seulement stockage de devise) | Aucun code trouvé |
 

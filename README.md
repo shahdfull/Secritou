@@ -17,7 +17,7 @@ A full-stack internal platform for a single digital agency: CRM, project managem
 - **Settings** : company branding, user management, dynamic RBAC for Managers
 
 ### Client Portal
-- Project timeline (7 interactive steps with 30s polling)
+- Project timeline (7 interactive steps, 120s polling)
 - Document viewer with contract e-signature
 - Client brief questionnaire (one question set per pole: Management & Performance / Croissance digitale / Technologie / IA & Automatisation)
 - Invoice history
@@ -66,7 +66,7 @@ A full-stack internal platform for a single digital agency: CRM, project managem
 | File storage | AWS S3 / MinIO (pdfkit → Buffer → upload) |
 | Email | Nodemailer + branded HTML templates |
 | Queue | BullMQ (notifications, emails) |
-| Observability | Prometheus metrics + Grafana dashboards |
+| Observability | Prometheus metrics (`server/src/observability/`) — Grafana/Alertmanager not yet implemented |
 | Docs | Swagger / OpenAPI 3.1 |
 
 ### Shared (`shared/`)
@@ -109,8 +109,8 @@ secritou/
 ├── shared/                  # Shared Zod schemas (ESM)
 │
 ├── docker-compose.yml       # PostgreSQL + Redis + MinIO
-├── observability/           # Prometheus + Grafana + Alertmanager
-└── tests/                   # Vitest + node:test suites
+└── e2e/                     # Playwright end-to-end scenarios
+```
 
 ---
 
@@ -321,15 +321,19 @@ The exact hosting region, DPA, and contractual status are deployment-specific an
 
 ```bash
 # Server unit tests (node:test)
-npm run test --workspace server
+npm run test:unit --workspace server
 
 # Client unit/integration tests (Vitest)
 npm run test --workspace client
+
+# End-to-end (Playwright, from repo root)
+npx playwright test
 ```
 
 Current test coverage in the repository:
-- Server: 510 declared node:test cases, with a coverage gate on `npm run test:coverage --workspace server`
-- Client: 102 declared Vitest cases, with no coverage gate yet in CI
+- Server: 555 declared node:test cases, with a coverage gate (`npm run test:coverage --workspace server`, wired into CI)
+- Client: 119 declared Vitest cases, with a coverage gate (`npm run test:coverage --workspace client`, wired into CI)
+- End-to-end: Playwright scenarios in `e2e/` (login, proposal acceptance cascade, client approval), wired into CI
 
 ---
 
