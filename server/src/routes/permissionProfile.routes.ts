@@ -9,17 +9,20 @@ import {
 } from "../validators/permissionProfile.validator.js";
 import {
   getPermissionProfiles,
+  getPermissionProfileDeleteImpact,
   createPermissionProfile,
   updatePermissionProfile,
   deletePermissionProfile,
 } from "../controllers/permissionProfile.controller.js";
+import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 
 const router = Router();
 router.use(authenticate);
 
 router.get("/", authorize("ADMIN"), getPermissionProfiles);
-router.post("/", authorize("ADMIN"), validate(createPermissionProfileSchema), createPermissionProfile);
-router.patch("/:id", authorize("ADMIN"), validate(updatePermissionProfileSchema), updatePermissionProfile);
-router.delete("/:id", authorize("ADMIN"), validate(deletePermissionProfileSchema), deletePermissionProfile);
+router.get("/:id/delete-impact", authorize("ADMIN"), getPermissionProfileDeleteImpact);
+router.post("/", sensitiveWriteRateLimit, authorize("ADMIN"), validate(createPermissionProfileSchema), createPermissionProfile);
+router.patch("/:id", sensitiveWriteRateLimit, authorize("ADMIN"), validate(updatePermissionProfileSchema), updatePermissionProfile);
+router.delete("/:id", sensitiveWriteRateLimit, authorize("ADMIN"), validate(deletePermissionProfileSchema), deletePermissionProfile);
 
 export default router;

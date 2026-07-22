@@ -28,6 +28,15 @@ export const managerPermissionRepository = {
     return rows.map((row) => row.user.name);
   },
 
+  // SEC-114: get detailed info about managers affected by profile deletion (for AuditLog)
+  async findManagersByProfileId(profileId: string): Promise<Array<{ userId: string; userName: string }>> {
+    const rows = await prisma.managerPermission.findMany({
+      where: { profileId },
+      select: { userId: true, user: { select: { name: true } } },
+    });
+    return rows.map((row) => ({ userId: row.userId, userName: row.user.name }));
+  },
+
   async create(data: {
     userId: string;
     profileId?: string;

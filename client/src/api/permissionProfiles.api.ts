@@ -16,6 +16,11 @@ export interface UpdateProfileInput {
   isDefault?: boolean;
 }
 
+export interface PermissionProfileDeleteImpact {
+  managerCount: number;
+  managers: Array<{ userId: string; userName: string }>;
+}
+
 export const permissionProfilesApi = {
   getAll: async (): Promise<PermissionProfile[]> => {
     const response = await apiClient.get<ApiResponse<PermissionProfile[]>>("/permission-profiles");
@@ -32,7 +37,12 @@ export const permissionProfilesApi = {
     return response.data.data;
   },
 
-  delete: async (id: string): Promise<void> => {
-    await apiClient.delete(`/permission-profiles/${id}`);
+  getDeleteImpact: async (id: string): Promise<PermissionProfileDeleteImpact> => {
+    const response = await apiClient.get<ApiResponse<PermissionProfileDeleteImpact>>(`/permission-profiles/${id}/delete-impact`);
+    return response.data.data;
+  },
+
+  delete: async (id: string, force?: boolean): Promise<void> => {
+    await apiClient.delete(`/permission-profiles/${id}`, { params: force ? { force: "true" } : undefined });
   },
 };

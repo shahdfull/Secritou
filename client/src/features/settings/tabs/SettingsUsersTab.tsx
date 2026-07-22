@@ -315,6 +315,8 @@ function ProfileEditor({
 function ProfilesManagerDialog() {
   const [open, setOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<PermissionProfile | null | "new">(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState<PermissionProfile | null>(null);
+  const [forceDelete, setForceDelete] = useState(false);
   const qc = useQueryClient();
 
   const { data: profiles = [], isLoading } = useQuery({
@@ -323,18 +325,40 @@ function ProfilesManagerDialog() {
     enabled: open,
   });
 
+  const { data: deleteImpact, isLoading: isDeleteImpactLoading } = useQuery({
+    queryKey: ["permission-profile-delete-impact", deleteDialogOpen?.id],
+    queryFn: () => permissionProfilesApi.getDeleteImpact(deleteDialogOpen!.id),
+    enabled: !!deleteDialogOpen,
+  });
+
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => permissionProfilesApi.delete(id),
+    mutationFn: ({ id, force }: { id: string; force?: boolean }) => permissionProfilesApi.delete(id, force),
     onSuccess: () => {
       toast.success("Profil supprimé");
       void qc.invalidateQueries({ queryKey: ["permission-profiles"] });
+      setDeleteDialogOpen(null);
+      setForceDelete(false);
     },
-    onError: () => toast.error("Impossible de supprimer ce profil (il est peut-être assigné à un Manager)"),
+    onError: (error) => {
+      const message = getServerErrorMessage(error);
+      if (!forceDelete && message?.includes("assigné")) {
+        // Show force option
+        setForceDelete(true);
+      } else {
+        toast.error(message || "Impossible de supprimer ce profil");
+        setDeleteDialogOpen(null);
+        setForceDelete(false);
+      }
+    },
   });
 
   function handleOpenChange(next: boolean) {
     setOpen(next);
-    if (!next) setEditingProfile(null);
+    if (!next) {
+      setEditingProfile(null);
+      setDeleteDialogOpen(null);
+      setForceDelete(false);
+    }
   }
 
   return (
@@ -390,7 +414,7 @@ function ProfilesManagerDialog() {
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 text-red-500 hover:text-red-700"
-                        onClick={() => deleteMutation.mutate(p.id)}
+                        onClick={() => setDeleteDialogOpen(p)}
                         disabled={deleteMutation.isPending}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -411,6 +435,68 @@ function ProfilesManagerDialog() {
           </>
         )}
       </DialogContent>
+
+      {/* Delete Confirmation Dialog */}
+      {deleteDialogOpen && (
+        <Dialog
+          open={!!deleteDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleteDialogOpen(null);
+              setForceDelete(false);
+            }
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Supprimer le profil « {deleteDialogOpen.name} »</DialogTitle>
+              <DialogDescription>
+                {isDeleteImpactLoading ? (
+                  "Analyse des managers affectes..."
+                ) : deleteImpact && deleteImpact.managerCount > 0 ? (
+                  <>
+                    Ce profil est actuellement assigne a {deleteImpact.managerCount} manager
+                    {deleteImpact.managerCount > 1 ? "s" : ""}. Sa suppression retirera les permissions
+                    accordees par ce profil aux comptes concernes.
+                    <span className="mt-2 block">
+                      Managers impactes : {deleteImpact.managers.map((manager) => manager.userName).join(", ")}
+                    </span>
+                    {forceDelete ? (
+                      <span className="mt-2 block">
+                        La confirmation explicite a ete demandee apres un premier refus. Vous pouvez forcer la
+                        suppression si c&apos;est bien l&apos;action voulue.
+                      </span>
+                    ) : null}
+                  </>
+                ) : (
+                  "Etes-vous sur de vouloir supprimer ce profil ?"
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => {
+                  setDeleteDialogOpen(null);
+                  setForceDelete(false);
+                }}
+                disabled={deleteMutation.isPending}
+              >
+                Annuler
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => deleteMutation.mutate({ id: deleteDialogOpen.id, force: forceDelete })}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {forceDelete ? "Forcer la suppression" : "Supprimer"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </Dialog>
   );
 }
@@ -769,3 +855,4 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
     </TooltipProvider>
   );
 });
+

@@ -31,4 +31,5 @@ export const updatePermissionProfileSchema = z.object({
 
 export const deletePermissionProfileSchema = z.object({
   params: z.object({ id: uuidParam }).strict(),
+  query: z.object({ force: z.string().optional().transform((val) => val === "true") }).strict(),
 });

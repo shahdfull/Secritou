@@ -29,10 +29,25 @@ export const updatePermissionProfile: RequestHandler = async (req, res, next) =>
   }
 };
 
+export const getPermissionProfileDeleteImpact: RequestHandler = async (req, res, next) => {
+  try {
+    const id = req.params.id as string;
+    const impact = await permissionProfileService.getDeleteImpact(id);
+    res.json({ data: impact });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const deletePermissionProfile: RequestHandler = async (req, res, next) => {
   try {
     const id = req.params.id as string;
-    await permissionProfileService.delete(id);
+    const force = req.query.force === "true";
+    await permissionProfileService.delete(id, {
+      force,
+      actorId: req.user?.id,
+      ipAddress: req.ip,
+    });
     res.status(204).send();
   } catch (error) {
     next(error);

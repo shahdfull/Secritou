@@ -5,6 +5,7 @@ import { permissionProfileRepository } from "../repositories/permissionProfile.r
 import { cacheGet, cacheSet, cacheDel } from "../cache/cacheService.js";
 import { cacheKeys } from "../cache/cacheKeys.js";
 import { HttpError } from "../utils/httpError.js";
+import { auditLogService } from "./auditLog.service.js";
 
 // The permission matrix stored as JSON: per-module CRUD flags. Kept structurally typed (a plain
 // record) rather than a Prisma type because it is serialized to/from a Json column.
@@ -102,6 +103,14 @@ export const permissionProfileService = {
     return permissionProfileRepository.findById(id);
   },
 
+  async getDeleteImpact(id: string) {
+    const managers = await managerPermissionRepository.findManagersByProfileId(id);
+    return {
+      managerCount: managers.length,
+      managers,
+    };
+  },
+
   async create(data: { name: string; description?: string; permissions: Prisma.InputJsonValue; isDefault?: boolean }) {
     return permissionProfileRepository.create(data);
   },
@@ -113,19 +122,51 @@ export const permissionProfileService = {
     return updated;
   },
 
-  async delete(id: string) {
+  async delete(id: string, options: { force?: boolean; actorId?: string; ipAddress?: string } = {}) {
     // SEC-114: the FK is ON DELETE SET NULL, so the delete itself never fails — but a Manager
     // still attached to this profile would silently lose every permission the profile granted
     // (resolvePermissions falls back to base = {}) the next time their cache entry expires or is
-    // invalidated. Block instead, naming the affected managers, rather than degrade them silently.
-    const names = await managerPermissionRepository.findUserNamesByProfileId(id);
-    if (names.length > 0) {
+    // invalidated. Block by default, or allow force deletion with AuditLog.
+    const managers = await managerPermissionRepository.findManagersByProfileId(id);
+    if (managers.length > 0 && !options.force) {
       throw new HttpError(
         409,
-        `Cannot delete a permission profile still assigned to ${names.length} manager(s): ${names.join(", ")}`,
+        `Cannot delete a permission profile still assigned to ${managers.length} manager(s): ${managers.map((m) => m.userName).join(", ")}`,
         "PERMISSION_PROFILE_IN_USE"
       );
     }
-    return permissionProfileRepository.delete(id);
+
+    // Get the profile before deleting for AuditLog
+    const profileBefore = await permissionProfileRepository.findById(id);
+    if (!profileBefore) {
+      throw new HttpError(404, "Permission profile not found", "NOT_FOUND");
+    }
+
+    // Delete the profile
+    const deletedProfile = await permissionProfileRepository.delete(id);
+
+    // Invalidate cache for affected managers
+    if (managers.length > 0) {
+      await Promise.all(managers.map((m) => cacheDel(cacheKeys.managerPermissions(m.userId))));
+    }
+
+    // Record AuditLog
+    await auditLogService.record({
+      actorId: options.actorId,
+      action: "delete",
+      entityType: "PermissionProfile",
+      entityId: id,
+      before: {
+        ...profileBefore,
+        attachedManagers: managers.map((m) => ({ userId: m.userId, userName: m.userName })),
+      },
+      after: {
+        deleted: true,
+        detachedManagers: managers.map((m) => ({ userId: m.userId, userName: m.userName })),
+      },
+      ipAddress: options.ipAddress,
+    });
+
+    return deletedProfile;
   },
 };
