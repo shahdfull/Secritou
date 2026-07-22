@@ -59,9 +59,13 @@ after(async () => {
   if (testUserId) await prisma.user.delete({ where: { id: testUserId } }).catch(() => {});
 });
 
-describe("Uniform error envelope — real HTTP stack (SEC-145, SEC-149)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("Uniform error envelope — real HTTP stack (SEC-145, SEC-149)", () => {
   // SEC-145: the ZodError branch of error.middleware.ts.
-  test("a Zod validation failure (POST /auth/register with an invalid body) returns 422 with the standard error envelope", async () => {
+  test("a Zod validation failure (POST /auth/register with an invalid body) returns 422 with the standard error envelope", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const res = await request(app)
       .post("/api/v1/auth/register")
       .send({ email: "not-an-email", password: "short", name: "" });
@@ -75,7 +79,8 @@ describe("Uniform error envelope — real HTTP stack (SEC-145, SEC-149)", { skip
   });
 
   // SEC-149: auth.controller.ts#refresh — previously `res.status(401).json({ message: ... })`.
-  test("POST /auth/refresh with no refresh token returns 401 with error.code REFRESH_TOKEN_REQUIRED", async () => {
+  test("POST /auth/refresh with no refresh token returns 401 with error.code REFRESH_TOKEN_REQUIRED", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const res = await request(app).post("/api/v1/auth/refresh").send({});
 
     assert.equal(res.status, 401, JSON.stringify(res.body));
@@ -85,7 +90,8 @@ describe("Uniform error envelope — real HTTP stack (SEC-145, SEC-149)", { skip
 
   let accessToken: string;
 
-  test("login as the test ADMIN user", async () => {
+  test("login as the test ADMIN user", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const res = await request(app)
       .post("/api/v1/auth/login")
       .send({ email: TEST_EMAIL, password: TEST_PASSWORD });
@@ -103,7 +109,8 @@ describe("Uniform error envelope — real HTTP stack (SEC-145, SEC-149)", { skip
   // route were ever wired without its validate() guard. Asserting the real 422/VALIDATION_ERROR
   // here (not the controller's own codes) is the accurate description of current behavior — see
   // SEC-149's note in ANOMALIES.yaml for the full account.
-  test("POST /api/v1/upload/:context with an invalid context returns 422 (caught by validate(uploadContextParamSchema), not the controller's own INVALID_UPLOAD_CONTEXT branch)", async () => {
+  test("POST /api/v1/upload/:context with an invalid context returns 422 (caught by validate(uploadContextParamSchema), not the controller's own INVALID_UPLOAD_CONTEXT branch)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const res = await request(app)
       .post("/api/v1/upload/not-a-real-context")
       .set("Authorization", `Bearer ${accessToken}`)
@@ -113,7 +120,8 @@ describe("Uniform error envelope — real HTTP stack (SEC-145, SEC-149)", { skip
     assert.equal(res.body.error?.code, "VALIDATION_ERROR");
   });
 
-  test("POST /api/v1/upload/document with no file attached returns 400 with error.code NO_FILE_PROVIDED", async () => {
+  test("POST /api/v1/upload/document with no file attached returns 400 with error.code NO_FILE_PROVIDED", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const res = await request(app)
       .post("/api/v1/upload/document")
       .set("Authorization", `Bearer ${accessToken}`);
@@ -122,7 +130,8 @@ describe("Uniform error envelope — real HTTP stack (SEC-145, SEC-149)", { skip
     assert.equal(res.body.error?.code, "NO_FILE_PROVIDED");
   });
 
-  test("DELETE /api/v1/upload with no key in the body returns 422 (caught by validate(deleteFileSchema), not the controller's own MISSING_UPLOAD_KEY branch)", async () => {
+  test("DELETE /api/v1/upload with no key in the body returns 422 (caught by validate(deleteFileSchema), not the controller's own MISSING_UPLOAD_KEY branch)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const res = await request(app)
       .delete("/api/v1/upload")
       .set("Authorization", `Bearer ${accessToken}`)
@@ -132,7 +141,8 @@ describe("Uniform error envelope — real HTTP stack (SEC-145, SEC-149)", { skip
     assert.equal(res.body.error?.code, "VALIDATION_ERROR");
   });
 
-  test("DELETE /api/v1/upload with a path-traversal key returns 400 with error.code INVALID_UPLOAD_KEY (deleteFileSchema only checks presence/length, not path traversal — this branch IS reachable)", async () => {
+  test("DELETE /api/v1/upload with a path-traversal key returns 400 with error.code INVALID_UPLOAD_KEY (deleteFileSchema only checks presence/length, not path traversal — this branch IS reachable)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const res = await request(app)
       .delete("/api/v1/upload")
       .set("Authorization", `Bearer ${accessToken}`)
@@ -146,7 +156,8 @@ describe("Uniform error envelope — real HTTP stack (SEC-145, SEC-149)", { skip
   // Same dead-code situation as above: validate(upsertSiteContentSchema) already requires
   // key/locale/value, so the controller's own MISSING_SITE_CONTENT_FIELDS branch is unreachable
   // through this route.
-  test("PUT /api/v1/admin/site-content with missing fields returns 422 (caught by validate(upsertSiteContentSchema), not the controller's own MISSING_SITE_CONTENT_FIELDS branch)", async () => {
+  test("PUT /api/v1/admin/site-content with missing fields returns 422 (caught by validate(upsertSiteContentSchema), not the controller's own MISSING_SITE_CONTENT_FIELDS branch)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const res = await request(app)
       .put("/api/v1/admin/site-content")
       .set("Authorization", `Bearer ${accessToken}`)
@@ -181,7 +192,8 @@ describe("Uniform error envelope — real HTTP stack (SEC-145, SEC-149)", { skip
   });
 
   // SEC-180: a request to a route that matches no handler at all.
-  test("GET /api/v1/this-route-does-not-exist returns 404 with the standard error envelope, not a bare { message }", async () => {
+  test("GET /api/v1/this-route-does-not-exist returns 404 with the standard error envelope, not a bare { message }", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const res = await request(app).get("/api/v1/this-route-does-not-exist");
 
     assert.equal(res.status, 404, JSON.stringify(res.body));

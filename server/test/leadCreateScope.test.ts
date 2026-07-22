@@ -45,11 +45,12 @@ after(async () => {
   await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
 });
 
-describe(
-  "leadService.createLead — pole scope on manual creation (SEC-102)",
-  { skip: !dbAvailable ? "no reachable database" : false },
-  () => {
-    test("a lead created by a MANAGER gets that manager's serviceId/assignedManagerId, and appears in their own list", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("leadService.createLead — pole scope on manual creation (SEC-102)", () => {
+    test("a lead created by a MANAGER gets that manager's serviceId/assignedManagerId, and appears in their own list", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const managerUser = await prisma.user.create({
         data: {
           email: `sec102-mgr-${Date.now()}@test.local`,
@@ -83,12 +84,12 @@ describe(
       assert.ok(!otherPoleList.data.some((l) => l.id === lead.id), "a manager from another pole must not see it");
     });
 
-    test("a lead created by an ADMIN keeps no service/manager assignment (matches prior behavior)", async () => {
+    test("a lead created by an ADMIN keeps no service/manager assignment (matches prior behavior)", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const lead = await leadService.createLead({ name: "SEC-102 admin lead" }, { userRole: "ADMIN" });
       createdLeadIds.push(lead.id);
 
       assert.equal(lead.serviceId, null);
       assert.equal(lead.assignedManagerId, null);
     });
-  }
-);
+});

@@ -44,14 +44,19 @@ after(async () => {
   await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
 });
 
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
 describe("auth-user carries the stored phone — SEC-050", () => {
-  test("login() returns the phone stored on the user (and never the passwordHash)", { skip: !dbAvailable }, async () => {
+  test("login() returns the phone stored on the user (and never the passwordHash)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const result = await authService.login({ email, password: "correct-password" });
     assert.equal(result.user.phone, phone);
     assert.ok(!("passwordHash" in result.user), "passwordHash must not be exposed");
   });
 
-  test("me() returns the same phone (the path that already worked, now consistent with login)", { skip: !dbAvailable }, async () => {
+  test("me() returns the same phone (the path that already worked, now consistent with login)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const user = await authService.me(createdUserIds[0]!);
     assert.equal(user.phone, phone);
   });

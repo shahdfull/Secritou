@@ -51,8 +51,12 @@ async function makeManagerWithProject(uniq: number) {
   return { manager, project };
 }
 
-describe("userService.deleteUser refuses to destroy financial history (SEC-165)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("deleting a user with a TimeEntry is refused with 409, and the TimeEntry survives", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("userService.deleteUser refuses to destroy financial history (SEC-165)", () => {
+  test("deleting a user with a TimeEntry is refused with 409, and the TimeEntry survives", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const uniq = Date.now();
     const { manager, project } = await makeManagerWithProject(uniq);
     const entry = await prisma.timeEntry.create({
@@ -74,7 +78,8 @@ describe("userService.deleteUser refuses to destroy financial history (SEC-165)"
     assert.ok(userStillThere, "the User must not have been deleted");
   });
 
-  test("deleting a user with a ProjectCommissionSplit is refused with 409, and the split survives", async () => {
+  test("deleting a user with a ProjectCommissionSplit is refused with 409, and the split survives", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const uniq = Date.now() + 1;
     const { manager, project } = await makeManagerWithProject(uniq);
     const split = await prisma.projectCommissionSplit.create({
@@ -94,7 +99,8 @@ describe("userService.deleteUser refuses to destroy financial history (SEC-165)"
     assert.ok(stillThere, "the ProjectCommissionSplit must not have been cascade-deleted");
   });
 
-  test("deleting a user with no financial history is still allowed", async () => {
+  test("deleting a user with no financial history is still allowed", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const uniq = Date.now() + 2;
     const manager = await prisma.user.create({
       data: { email: `sec165-clean-${uniq}@test.local`, name: `SEC165 Clean ${uniq}`, passwordHash: "x", role: "MANAGER" },

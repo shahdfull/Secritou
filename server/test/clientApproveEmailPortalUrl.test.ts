@@ -48,8 +48,12 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
 });
 
-describe("clientApprove's client-facing email uses a real URL, not backslashes (SEC-168)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("the portal link in the post-approval client email uses forward slashes", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("clientApprove's client-facing email uses a real URL, not backslashes (SEC-168)", () => {
+  test("the portal link in the post-approval client email uses forward slashes", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const uniq = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const client = await prisma.client.create({ data: { name: `sec168-client-${uniq}`, email: `sec168-${uniq}@example.com`, serviceId } });
     createdClientIds.push(client.id);

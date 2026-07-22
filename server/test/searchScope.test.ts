@@ -52,8 +52,12 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
 });
 
-describe("searchRepository.search — real code, pole scope and role restrictions (SEC-132)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("a MANAGER only finds leads/clients/tasks/proposals from their own pole", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("searchRepository.search — real code, pole scope and role restrictions (SEC-132)", () => {
+  test("a MANAGER only finds leads/clients/tasks/proposals from their own pole", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const lead = await prisma.lead.create({ data: { name: `SEC132-lead-${uniq}`, serviceId: serviceA } });
     createdLeadIds.push(lead.id);
     const otherPoleLead = await prisma.lead.create({ data: { name: `SEC132-lead-${uniq}`, serviceId: serviceB } });
@@ -89,7 +93,8 @@ describe("searchRepository.search — real code, pole scope and role restriction
     assert.ok(!taskResults.tasks.some((t) => (t as { id: string }).id === otherPoleTask.id), "cross-pole task must not be found");
   });
 
-  test("a MANAGER never receives the freelancer directory, regardless of pole; ADMIN does", async () => {
+  test("a MANAGER never receives the freelancer directory, regardless of pole; ADMIN does", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const freelancer = await prisma.user.create({
       data: { email: `sec132-freelancer-${uniq}@test.local`, name: `SEC132-freelancer-${uniq}`, passwordHash: "x", role: "FREELANCER" },
     });
@@ -107,7 +112,8 @@ describe("searchRepository.search — real code, pole scope and role restriction
     await prisma.user.delete({ where: { id: freelancer.id } });
   });
 
-  test("a MANAGER only finds projects/invoices/serviceRequests/approvals from their own pole", async () => {
+  test("a MANAGER only finds projects/invoices/serviceRequests/approvals from their own pole", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: `SEC132-full-client-${uniq}` } });
     createdClientIds.push(client.id);
     const otherClient = await prisma.client.create({ data: { name: `SEC132-full-client-other-${uniq}` } });
@@ -155,7 +161,8 @@ describe("searchRepository.search — real code, pole scope and role restriction
     await prisma.approval.deleteMany({ where: { id: { in: [approval.id, otherPoleApproval.id] } } });
   });
 
-  test("a CLIENT only finds their own proposals, never another client's", async () => {
+  test("a CLIENT only finds their own proposals, never another client's", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: `SEC132-clientscope-${uniq}` } });
     createdClientIds.push(client.id);
     const otherClient = await prisma.client.create({ data: { name: `SEC132-clientscope-other-${uniq}` } });

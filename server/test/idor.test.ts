@@ -50,8 +50,12 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
 });
 
-describe("proposalRepository/proposalService: CLIENT cross-client IDOR protection (SEC-179)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("findByIdForClient returns null when the proposal belongs to a different client", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("proposalRepository/proposalService: CLIENT cross-client IDOR protection (SEC-179)", () => {
+  test("findByIdForClient returns null when the proposal belongs to a different client", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const owner = await prisma.client.create({ data: { name: `sec179-owner-${Date.now()}` } });
     createdClientIds.push(owner.id);
     const attacker = await prisma.client.create({ data: { name: `sec179-attacker-${Date.now()}` } });
@@ -69,7 +73,8 @@ describe("proposalRepository/proposalService: CLIENT cross-client IDOR protectio
     assert.equal(asOwner!.id, proposal.id);
   });
 
-  test("proposalService.getByIdForClient (the real code respondToProposal depends on) enforces the same isolation", async () => {
+  test("proposalService.getByIdForClient (the real code respondToProposal depends on) enforces the same isolation", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const owner = await prisma.client.create({ data: { name: `sec179-svc-owner-${Date.now()}` } });
     createdClientIds.push(owner.id);
     const attacker = await prisma.client.create({ data: { name: `sec179-svc-attacker-${Date.now()}` } });

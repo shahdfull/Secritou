@@ -80,26 +80,33 @@ async function makeArchivedProjectWithTask() {
   return { project, task, freelancer };
 }
 
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
 describe("archived project task visibility — SEC-041 follow-up", () => {
-  test("ADMIN's getAllTasks excludes tasks of an archived project", { skip: !dbAvailable }, async () => {
+  test("ADMIN's getAllTasks excludes tasks of an archived project", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { task } = await makeArchivedProjectWithTask();
     const result = await taskService.getAllTasks(undefined, "admin-id", "ADMIN", { page: 1, pageSize: 100 });
     assert.ok(!result.data.some((t) => t.id === task.id));
   });
 
-  test("MANAGER's getAllTasks (same pole) excludes tasks of an archived project", { skip: !dbAvailable }, async () => {
+  test("MANAGER's getAllTasks (same pole) excludes tasks of an archived project", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { task } = await makeArchivedProjectWithTask();
     const result = await taskService.getAllTasks(undefined, "manager-id", "MANAGER", { page: 1, pageSize: 100 }, { userRole: "MANAGER", userServiceId: serviceA });
     assert.ok(!result.data.some((t) => t.id === task.id));
   });
 
-  test("FREELANCER's getAllTasks excludes their own task once its project is archived", { skip: !dbAvailable }, async () => {
+  test("FREELANCER's getAllTasks excludes their own task once its project is archived", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { task, freelancer } = await makeArchivedProjectWithTask();
     const result = await taskService.getAllTasks(undefined, freelancer.id, "FREELANCER", { page: 1, pageSize: 100 });
     assert.ok(!result.data.some((t) => t.id === task.id));
   });
 
-  test("getTaskById 404s on a task belonging to an archived project", { skip: !dbAvailable }, async () => {
+  test("getTaskById 404s on a task belonging to an archived project", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { task } = await makeArchivedProjectWithTask();
     await assert.rejects(
       () => taskService.getTaskById(task.id, "admin-id", "ADMIN"),
@@ -107,7 +114,8 @@ describe("archived project task visibility — SEC-041 follow-up", () => {
     );
   });
 
-  test("getProjectById still returns an archived project by direct id (findById is unfiltered, unlike task visibility)", { skip: !dbAvailable }, async () => {
+  test("getProjectById still returns an archived project by direct id (findById is unfiltered, unlike task visibility)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { project } = await makeArchivedProjectWithTask();
     const found = await projectService.getProjectById(project.id, "admin-id", "ADMIN");
     assert.equal(found.id, project.id);

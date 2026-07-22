@@ -37,11 +37,12 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
 });
 
-describe(
-  "proposalRepository.findAll — orderBy whitelist (SEC-103)",
-  { skip: !dbAvailable ? "no reachable database" : false },
-  () => {
-    test("an unknown orderBy field does not throw — falls back to the default sort", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("proposalRepository.findAll — orderBy whitelist (SEC-103)", () => {
+    test("an unknown orderBy field does not throw — falls back to the default sort", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const client = await prisma.client.create({ data: { name: "sec103 client" } });
       createdClientIds.push(client.id);
       const proposal = await prisma.proposal.create({ data: { title: "sec103 proposal", clientId: client.id } });
@@ -57,7 +58,8 @@ describe(
       assert.ok(result.data.some((p) => p.id === proposal.id), "the fallback sort must still return real data");
     });
 
-    test("a whitelisted orderBy field (title) sorts as expected", async () => {
+    test("a whitelisted orderBy field (title) sorts as expected", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const client = await prisma.client.create({ data: { name: "sec103 client 2" } });
       createdClientIds.push(client.id);
       const a = await prisma.proposal.create({ data: { title: "AAA sec103", clientId: client.id } });

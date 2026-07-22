@@ -56,15 +56,20 @@ async function makeDocumentInPole(serviceId: string) {
   return doc;
 }
 
-describe("SEC-122: documentService.getById enforces Manager pole scope", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("a pole-A Manager cannot read a pole-B document by direct id", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("SEC-122: documentService.getById enforces Manager pole scope", () => {
+  test("a pole-A Manager cannot read a pole-B document by direct id", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const doc = await makeDocumentInPole(serviceB);
 
     const found = await documentService.getById(doc.id, { role: "MANAGER", serviceId: serviceA });
     assert.equal(found, null);
   });
 
-  test("a same-pole Manager can still read the document", async () => {
+  test("a same-pole Manager can still read the document", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const doc = await makeDocumentInPole(serviceA);
 
     const found = await documentService.getById(doc.id, { role: "MANAGER", serviceId: serviceA });
@@ -72,7 +77,8 @@ describe("SEC-122: documentService.getById enforces Manager pole scope", { skip:
     assert.equal(found!.id, doc.id);
   });
 
-  test("an ADMIN (unscoped) can read a document from any pole", async () => {
+  test("an ADMIN (unscoped) can read a document from any pole", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const doc = await makeDocumentInPole(serviceB);
 
     const found = await documentService.getById(doc.id, { role: "ADMIN" });

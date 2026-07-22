@@ -87,8 +87,12 @@ function managerAScope() {
   return { userRole: "MANAGER" as const, userServiceId: serviceA };
 }
 
-describe("SEC (session 2026-07-18): Manager pole scope enforced on meetings, templates, brief, timeline", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("projectMeetingService: a pole-A Manager cannot list/create meetings or read/change the schedule of a pole-B project", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("SEC (session 2026-07-18): Manager pole scope enforced on meetings, templates, brief, timeline", () => {
+  test("projectMeetingService: a pole-A Manager cannot list/create meetings or read/change the schedule of a pole-B project", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const project = await makeProjectInPoleB();
 
     await assert.rejects(
@@ -109,7 +113,8 @@ describe("SEC (session 2026-07-18): Manager pole scope enforced on meetings, tem
     );
   });
 
-  test("projectMeetingService: a same-pole Manager (or ADMIN, unscoped) can still use meetings normally", async () => {
+  test("projectMeetingService: a same-pole Manager (or ADMIN, unscoped) can still use meetings normally", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "idor-ownpole client", serviceId: serviceA } });
     createdClientIds.push(client.id);
     const project = await prisma.project.create({ data: { name: "idor-ownpole project", clientId: client.id, serviceId: serviceA } });
@@ -129,7 +134,8 @@ describe("SEC (session 2026-07-18): Manager pole scope enforced on meetings, tem
     assert.equal(adminList.total, 0);
   });
 
-  test("projectTemplateService.applyToProject: a pole-A Manager cannot apply a template to a pole-B project", async () => {
+  test("projectTemplateService.applyToProject: a pole-A Manager cannot apply a template to a pole-B project", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const project = await makeProjectInPoleB();
 
     await assert.rejects(
@@ -143,7 +149,8 @@ describe("SEC (session 2026-07-18): Manager pole scope enforced on meetings, tem
     );
   });
 
-  test("projectService.getBrief: a pole-A Manager gets 404 for a pole-B project's brief, not the real data", async () => {
+  test("projectService.getBrief: a pole-A Manager gets 404 for a pole-B project's brief, not the real data", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const project = await makeProjectInPoleB();
 
     await assert.rejects(
@@ -152,7 +159,8 @@ describe("SEC (session 2026-07-18): Manager pole scope enforced on meetings, tem
     );
   });
 
-  test("projectService.getTimelineStatus: a pole-A Manager gets 404 for a pole-B project's timeline", async () => {
+  test("projectService.getTimelineStatus: a pole-A Manager gets 404 for a pole-B project's timeline", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const project = await makeProjectInPoleB();
 
     await assert.rejects(

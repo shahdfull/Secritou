@@ -46,11 +46,13 @@ after(async () => {
   await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
 });
 
-describe(
-  "leadRepository.findById/findAll — real pole scoping (SEC-100)",
-  { skip: !dbAvailable ? "no reachable database" : false },
-  () => {
-    test("a MANAGER cannot read a lead scoped to another pole", async () => {
+// SEC-195: `{ skip: !dbAvailable }` on describe/test is evaluated SYNCHRONOUSLY when the
+// describe/test call itself runs, before the async before() above has any chance to set the
+// real value — it worked only by accident of timing locally. Checking `dbAvailable` inside each
+// test body (via t.skip()) is the only pattern that actually runs after before() has resolved.
+describe("leadRepository.findById/findAll — real pole scoping (SEC-100)", () => {
+    test("a MANAGER cannot read a lead scoped to another pole", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const lead = await prisma.lead.create({ data: { name: "sec100 lead pole B", serviceId: serviceB } });
       createdLeadIds.push(lead.id);
 
@@ -58,7 +60,8 @@ describe(
       assert.equal(result, null, "a lead in another pole must not be readable");
     });
 
-    test("a MANAGER CAN read a lead in their own pole", async () => {
+    test("a MANAGER CAN read a lead in their own pole", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const lead = await prisma.lead.create({ data: { name: "sec100 lead pole A", serviceId: serviceA } });
       createdLeadIds.push(lead.id);
 
@@ -67,7 +70,8 @@ describe(
       assert.equal(result!.id, lead.id);
     });
 
-    test("a MANAGER CAN read a lead assigned to them directly, even if its serviceId is another pole", async () => {
+    test("a MANAGER CAN read a lead assigned to them directly, even if its serviceId is another pole", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const managerUser = await prisma.user.create({
         data: { email: `sec100-mgr-${Date.now()}@test.local`, name: "Manager B", passwordHash: "x", role: "MANAGER", serviceId: serviceB },
       });
@@ -81,7 +85,8 @@ describe(
       assert.ok(result, "a lead directly assigned to the manager must be readable regardless of its serviceId");
     });
 
-    test("an ADMIN reads any lead regardless of pole", async () => {
+    test("an ADMIN reads any lead regardless of pole", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const lead = await prisma.lead.create({ data: { name: "sec100 lead admin read", serviceId: serviceB } });
       createdLeadIds.push(lead.id);
 
@@ -89,7 +94,8 @@ describe(
       assert.ok(result);
     });
 
-    test("findById excludes an archived lead by default, includes it when explicitly requested", async () => {
+    test("findById excludes an archived lead by default, includes it when explicitly requested", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const lead = await prisma.lead.create({ data: { name: "sec100 lead archived", serviceId: serviceA, archivedAt: new Date() } });
       createdLeadIds.push(lead.id);
 
@@ -100,7 +106,8 @@ describe(
       assert.ok(shown, "an archived lead must be returned when includeArchived is true");
     });
 
-    test("findAll for a MANAGER only returns leads in their pole or assigned to them", async () => {
+    test("findAll for a MANAGER only returns leads in their pole or assigned to them", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const ownPoleLead = await prisma.lead.create({ data: { name: "sec100 findAll own pole", serviceId: serviceA } });
       const otherPoleLead = await prisma.lead.create({ data: { name: "sec100 findAll other pole", serviceId: serviceB } });
       createdLeadIds.push(ownPoleLead.id, otherPoleLead.id);
@@ -113,5 +120,4 @@ describe(
       assert.ok(result.data.some((l) => l.id === ownPoleLead.id), "own-pole lead must appear in the list");
       assert.ok(!result.data.some((l) => l.id === otherPoleLead.id), "other-pole lead must not appear in the list");
     });
-  }
-);
+});

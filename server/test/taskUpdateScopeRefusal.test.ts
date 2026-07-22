@@ -58,8 +58,12 @@ async function makeTaskInService(serviceId: string, namePrefix: string, assignee
   return task;
 }
 
-describe("taskService.updateTask enforces scope on write (SEC-126)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("a MANAGER outside the task's pole is refused with PROJECT_OUT_OF_SCOPE", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("taskService.updateTask enforces scope on write (SEC-126)", () => {
+  test("a MANAGER outside the task's pole is refused with PROJECT_OUT_OF_SCOPE", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const task = await makeTaskInService(serviceB, "sec126-manager-oop");
 
     await assert.rejects(
@@ -71,14 +75,16 @@ describe("taskService.updateTask enforces scope on write (SEC-126)", { skip: !db
     assert.equal(unchanged?.title, `sec126-manager-oop task`, "the refused update must not have applied");
   });
 
-  test("a same-pole MANAGER can update the task", async () => {
+  test("a same-pole MANAGER can update the task", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const task = await makeTaskInService(serviceA, "sec126-manager-own");
 
     const updated = await taskService.updateTask(task.id, { title: "renamed by own-pole manager" }, { userRole: "MANAGER", userServiceId: serviceA });
     assert.equal(updated.title, "renamed by own-pole manager");
   });
 
-  test("a FREELANCER who isn't the assignee is refused with TASK_NOT_ASSIGNED_TO_YOU", async () => {
+  test("a FREELANCER who isn't the assignee is refused with TASK_NOT_ASSIGNED_TO_YOU", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const assignee = await prisma.user.create({ data: { email: `sec126-assignee-${Date.now()}@example.com`, name: "Assignee", passwordHash: "x", role: "FREELANCER" } });
     createdUserIds.push(assignee.id);
     const stranger = await prisma.user.create({ data: { email: `sec126-stranger-${Date.now()}@example.com`, name: "Stranger", passwordHash: "x", role: "FREELANCER" } });
@@ -92,7 +98,8 @@ describe("taskService.updateTask enforces scope on write (SEC-126)", { skip: !db
     );
   });
 
-  test("the actual assignee FREELANCER can update the task's status", async () => {
+  test("the actual assignee FREELANCER can update the task's status", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const assignee = await prisma.user.create({ data: { email: `sec126-real-assignee-${Date.now()}@example.com`, name: "Real Assignee", passwordHash: "x", role: "FREELANCER" } });
     createdUserIds.push(assignee.id);
 

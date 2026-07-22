@@ -83,8 +83,12 @@ async function login(email: string) {
   return res.body.data.tokens.accessToken as string;
 }
 
-describe("POST /documents — real HTTP stack (SEC-068 + SEC-063)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("an ADMIN creating a document with a title actually persists that title (SEC-068)", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("POST /documents — real HTTP stack (SEC-068 + SEC-063)", () => {
+  test("an ADMIN creating a document with a title actually persists that title (SEC-068)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const admin = await makeUser(`sec068-admin-${Date.now()}@example.com`, "ADMIN");
     const token = await login(admin.email);
 
@@ -98,7 +102,8 @@ describe("POST /documents — real HTTP stack (SEC-068 + SEC-063)", { skip: !dbA
     if (res.body.data.id) createdDocIds.push(res.body.data.id);
   });
 
-  test("a FREELANCER staffed on the project can deposit their own DELIVERABLE, title included (SEC-063 + SEC-068)", async () => {
+  test("a FREELANCER staffed on the project can deposit their own DELIVERABLE, title included (SEC-063 + SEC-068)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "sec063 http client", serviceId } });
     createdClientIds.push(client.id);
     const project = await prisma.project.create({ data: { name: "sec063 http project", clientId: client.id, serviceId } });
@@ -126,7 +131,8 @@ describe("POST /documents — real HTTP stack (SEC-068 + SEC-063)", { skip: !dbA
     if (res.body.data.id) createdDocIds.push(res.body.data.id);
   });
 
-  test("a FREELANCER attempting a non-DELIVERABLE type is rejected with 403 (security)", async () => {
+  test("a FREELANCER attempting a non-DELIVERABLE type is rejected with 403 (security)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "sec063 reject-type client", serviceId } });
     createdClientIds.push(client.id);
     const project = await prisma.project.create({ data: { name: "sec063 reject-type project", clientId: client.id, serviceId } });
@@ -144,7 +150,8 @@ describe("POST /documents — real HTTP stack (SEC-068 + SEC-063)", { skip: !dbA
     assert.equal(res.status, 403, JSON.stringify(res.body));
   });
 
-  test("a FREELANCER not staffed on the project is rejected with 403 (security)", async () => {
+  test("a FREELANCER not staffed on the project is rejected with 403 (security)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "sec063 not-staffed client", serviceId } });
     createdClientIds.push(client.id);
     const project = await prisma.project.create({ data: { name: "sec063 not-staffed project", clientId: client.id, serviceId } });

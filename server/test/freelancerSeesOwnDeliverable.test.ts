@@ -58,8 +58,12 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
 });
 
-describe("FREELANCER sees their own project-scoped deliverable (document upload projectId gap)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("a deliverable created with projectId/clientId is visible to the freelancer staffed on that project", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("FREELANCER sees their own project-scoped deliverable (document upload projectId gap)", () => {
+  test("a deliverable created with projectId/clientId is visible to the freelancer staffed on that project", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "deliverable-scope client", serviceId } });
     createdClientIds.push(client.id);
     const freelancer = await prisma.user.create({
@@ -97,7 +101,8 @@ describe("FREELANCER sees their own project-scoped deliverable (document upload 
     );
   });
 
-  test("without projectId (the pre-fix behavior), the same deliverable is invisible to the freelancer — proves the gap was real", async () => {
+  test("without projectId (the pre-fix behavior), the same deliverable is invisible to the freelancer — proves the gap was real", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "deliverable-gap client", serviceId } });
     createdClientIds.push(client.id);
     const freelancer = await prisma.user.create({

@@ -55,10 +55,14 @@ after(async () => {
   if (testClientId) await prisma.client.delete({ where: { id: testClientId } }).catch(() => {});
 });
 
-describe("Client portal phone field — real HTTP stack (SEC-006)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("Client portal phone field — real HTTP stack (SEC-006)", () => {
   let accessToken: string;
 
-  test("login as the CLIENT test user", async () => {
+  test("login as the CLIENT test user", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const res = await request(app)
       .post("/api/v1/auth/login")
       .send({ email: TEST_EMAIL, password: TEST_PASSWORD });
@@ -68,7 +72,8 @@ describe("Client portal phone field — real HTTP stack (SEC-006)", { skip: !dbA
     assert.ok(accessToken, "login must return an access token");
   });
 
-  test("(1) write: PATCH /users/me with a phone number persists it", async () => {
+  test("(1) write: PATCH /users/me with a phone number persists it", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const res = await request(app)
       .patch("/api/v1/users/me")
       .set("Authorization", `Bearer ${accessToken}`)
@@ -77,7 +82,8 @@ describe("Client portal phone field — real HTTP stack (SEC-006)", { skip: !dbA
     assert.equal(res.body.data.phone, "+21612345678");
   });
 
-  test("(2) reread: a fresh GET /users/me shows the same value (relu ET pré-rempli, per the criterion)", async () => {
+  test("(2) reread: a fresh GET /users/me shows the same value (relu ET pré-rempli, per the criterion)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const res = await request(app)
       .get("/api/v1/users/me")
       .set("Authorization", `Bearer ${accessToken}`);
@@ -85,7 +91,8 @@ describe("Client portal phone field — real HTTP stack (SEC-006)", { skip: !dbA
     assert.equal(res.body.data.phone, "+21612345678", "a fresh request must see the persisted value, not stale client state");
   });
 
-  test("a name-only update does not clear the previously written phone", async () => {
+  test("a name-only update does not clear the previously written phone", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const res = await request(app)
       .patch("/api/v1/users/me")
       .set("Authorization", `Bearer ${accessToken}`)
@@ -94,7 +101,8 @@ describe("Client portal phone field — real HTTP stack (SEC-006)", { skip: !dbA
     assert.equal(res.body.data.phone, "+21612345678", "phone must survive an update that never mentions it");
   });
 
-  test("(3) clear: PATCH /users/me with phone: null actually removes it", async () => {
+  test("(3) clear: PATCH /users/me with phone: null actually removes it", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const res = await request(app)
       .patch("/api/v1/users/me")
       .set("Authorization", `Bearer ${accessToken}`)

@@ -86,8 +86,13 @@ async function ensureTemplateForServiceA() {
   return template;
 }
 
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when `test()` is called, before
+// the async `before()` above has any chance to set the real value — it worked only by accident
+// of timing locally. Checking `dbAvailable` inside each test body (via t.skip()) is the only
+// pattern that actually runs after `before()` has resolved.
 describe("projectTemplateService.applyToProject idempotence — SEC-043 (B1)", () => {
-  test("applies the template to an empty project", { skip: !dbAvailable }, async () => {
+  test("applies the template to an empty project", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     await ensureTemplateForServiceA();
     const project = await makeProject();
     const tasks = await projectTemplateService.applyToProject(project.id, { userRole: "ADMIN" });
@@ -96,7 +101,8 @@ describe("projectTemplateService.applyToProject idempotence — SEC-043 (B1)", (
     assert.ok(count >= 2);
   });
 
-  test("a second apply on a project that already has tasks is rejected 409 TEMPLATE_ALREADY_APPLIED", { skip: !dbAvailable }, async () => {
+  test("a second apply on a project that already has tasks is rejected 409 TEMPLATE_ALREADY_APPLIED", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     await ensureTemplateForServiceA();
     const project = await makeProject();
     await projectTemplateService.applyToProject(project.id, { userRole: "ADMIN" });
@@ -112,7 +118,8 @@ describe("projectTemplateService.applyToProject idempotence — SEC-043 (B1)", (
     assert.equal(countAfterSecond, countAfterFirst);
   });
 
-  test("a project with any pre-existing task (not from a template) is also refused", { skip: !dbAvailable }, async () => {
+  test("a project with any pre-existing task (not from a template) is also refused", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     await ensureTemplateForServiceA();
     const project = await makeProject();
     await prisma.task.create({ data: { title: "manual task", projectId: project.id } });
@@ -123,7 +130,8 @@ describe("projectTemplateService.applyToProject idempotence — SEC-043 (B1)", (
     );
   });
 
-  test("SEC-073: two strictly concurrent applies on the same empty project never both succeed", { skip: !dbAvailable }, async () => {
+  test("SEC-073: two strictly concurrent applies on the same empty project never both succeed", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const template = await ensureTemplateForServiceA();
     const project = await makeProject();
     const templateTaskCount = await prisma.taskTemplate.count({ where: { templateId: template.id } });
@@ -161,13 +169,15 @@ describe("task.service.updateTask FREELANCER field restriction — SEC-045 (B5)"
     return { project, freelancer, task };
   }
 
-  test("a FREELANCER may update the status of their own task", { skip: !dbAvailable }, async () => {
+  test("a FREELANCER may update the status of their own task", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { freelancer, task } = await makeFreelancerAndTask();
     const updated = await taskService.updateTask(task.id, { status: "IN_PROGRESS" }, { userRole: "FREELANCER", userId: freelancer.id });
     assert.equal(updated.status, "IN_PROGRESS");
   });
 
-  test("a FREELANCER updating any field other than status is rejected 403 DISALLOWED_FIELD_UPDATE", { skip: !dbAvailable }, async () => {
+  test("a FREELANCER updating any field other than status is rejected 403 DISALLOWED_FIELD_UPDATE", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { freelancer, task } = await makeFreelancerAndTask();
     await assert.rejects(
       () => taskService.updateTask(task.id, { title: "hijacked title" }, { userRole: "FREELANCER", userId: freelancer.id }),
@@ -175,7 +185,8 @@ describe("task.service.updateTask FREELANCER field restriction — SEC-045 (B5)"
     );
   });
 
-  test("a FREELANCER updating status AND another field in the same call is still rejected", { skip: !dbAvailable }, async () => {
+  test("a FREELANCER updating status AND another field in the same call is still rejected", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { freelancer, task } = await makeFreelancerAndTask();
     await assert.rejects(
       () => taskService.updateTask(task.id, { status: "IN_PROGRESS", description: "sneaky" }, { userRole: "FREELANCER", userId: freelancer.id }),
@@ -183,7 +194,8 @@ describe("task.service.updateTask FREELANCER field restriction — SEC-045 (B5)"
     );
   });
 
-  test("a FREELANCER cannot touch a task assigned to someone else (403 TASK_NOT_ASSIGNED_TO_YOU)", { skip: !dbAvailable }, async () => {
+  test("a FREELANCER cannot touch a task assigned to someone else (403 TASK_NOT_ASSIGNED_TO_YOU)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { task } = await makeFreelancerAndTask();
     const other = await prisma.user.create({
       data: { email: `other-${task.id}@test.local`, name: "O", passwordHash: "x", role: "FREELANCER" },
@@ -199,24 +211,28 @@ describe("task.service.updateTask FREELANCER field restriction — SEC-045 (B5)"
 describe("createTaskSchema date validation — SEC-044 (B4)", () => {
   const base = { title: "t", projectId: "p1" };
 
-  test("accepts a YYYY-MM-DD calendar date (what <input type=date> sends)", { skip: !schemaLoaded }, () => {
+  test("accepts a YYYY-MM-DD calendar date (what <input type=date> sends)", (t) => {
+    if (!schemaLoaded) { t.skip("createTaskSchema failed to load"); return; }
     const r = createTaskSchema.safeParse({ body: { ...base, startDate: "2024-03-15", dueDate: "2024-03-20" } });
     assert.equal(r.success, true);
   });
 
-  test("accepts a full ISO 8601 datetime (what the meeting client sends)", { skip: !schemaLoaded }, () => {
+  test("accepts a full ISO 8601 datetime (what the meeting client sends)", (t) => {
+    if (!schemaLoaded) { t.skip("createTaskSchema failed to load"); return; }
     const r = createTaskSchema.safeParse({ body: { ...base, dueDate: "2024-03-20T09:30:00.000Z" } });
     assert.equal(r.success, true);
   });
 
-  test("rejects a free-text date that Date.parse would have accepted before", { skip: !schemaLoaded }, () => {
+  test("rejects a free-text date that Date.parse would have accepted before", (t) => {
+    if (!schemaLoaded) { t.skip("createTaskSchema failed to load"); return; }
     for (const bad of ["March 3", "2024/1/1", "Sat Jan 01 2024", "demain"]) {
       const r = createTaskSchema.safeParse({ body: { ...base, dueDate: bad } });
       assert.equal(r.success, false, `expected "${bad}" to be rejected`);
     }
   });
 
-  test("still allows omitting the dates entirely", { skip: !schemaLoaded }, () => {
+  test("still allows omitting the dates entirely", (t) => {
+    if (!schemaLoaded) { t.skip("createTaskSchema failed to load"); return; }
     const r = createTaskSchema.safeParse({ body: base });
     assert.equal(r.success, true);
   });

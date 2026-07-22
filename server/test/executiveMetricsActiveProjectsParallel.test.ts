@@ -42,8 +42,12 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
 });
 
-describe("executiveMetricsRepository.getAll — activeProjects parallelized with the main batch (SEC-161)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("a project deadline within the next 7 days is still classified as a watch item (projectHealth.watch), proving activeProjects data still reaches health scoring", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("executiveMetricsRepository.getAll — activeProjects parallelized with the main batch (SEC-161)", () => {
+  test("a project deadline within the next 7 days is still classified as a watch item (projectHealth.watch), proving activeProjects data still reaches health scoring", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "SEC-161 test client", serviceId } });
     createdClientIds.push(client.id);
     const upcomingDeadline = new Date(Date.now() + 3 * 86_400_000);

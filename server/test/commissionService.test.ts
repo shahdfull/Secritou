@@ -57,8 +57,12 @@ async function makePartner(namePrefix: string) {
   return partner;
 }
 
-describe("commissionService.setSplits (real code, not a reimplementation)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("accepts splits summing to exactly 100%, persisted for real", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("commissionService.setSplits (real code, not a reimplementation)", () => {
+  test("accepts splits summing to exactly 100%, persisted for real", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const project = await makeProject("split-100");
     const partnerA = await makePartner("split-100-a");
     const partnerB = await makePartner("split-100-b");
@@ -73,14 +77,16 @@ describe("commissionService.setSplits (real code, not a reimplementation)", { sk
     assert.equal(persisted.length, 2, "splits must actually be written to the database");
   });
 
-  test("accepts splits summing to less than 100% (not every project needs to allocate the full share)", async () => {
+  test("accepts splits summing to less than 100% (not every project needs to allocate the full share)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const project = await makeProject("split-partial");
     const partner = await makePartner("split-partial-a");
 
     await assert.doesNotReject(() => commissionService.setSplits(project.id, [{ partnerId: partner.id, ratePct: 50 }]));
   });
 
-  test("rejects splits summing to more than 100% with 422 COMMISSION_RATES_EXCEED_100", async () => {
+  test("rejects splits summing to more than 100% with 422 COMMISSION_RATES_EXCEED_100", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const project = await makeProject("split-over");
     const partnerA = await makePartner("split-over-a");
     const partnerB = await makePartner("split-over-b");
@@ -103,7 +109,8 @@ describe("commissionService.setSplits (real code, not a reimplementation)", { sk
     assert.equal(persisted.length, 0, "a rejected call must not write any split");
   });
 
-  test("rejects a non-positive rate with 422 INVALID_COMMISSION_RATE", async () => {
+  test("rejects a non-positive rate with 422 INVALID_COMMISSION_RATE", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const project = await makeProject("split-zero-rate");
     const partner = await makePartner("split-zero-rate-a");
 
@@ -118,7 +125,8 @@ describe("commissionService.setSplits (real code, not a reimplementation)", { sk
     );
   });
 
-  test("rejects a duplicate partner in the same call with 422 DUPLICATE_COMMISSION_PARTNER", async () => {
+  test("rejects a duplicate partner in the same call with 422 DUPLICATE_COMMISSION_PARTNER", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const project = await makeProject("split-dup");
     const partner = await makePartner("split-dup-a");
 
@@ -137,7 +145,8 @@ describe("commissionService.setSplits (real code, not a reimplementation)", { sk
     );
   });
 
-  test("rejects splits for a non-existent project with 404", async () => {
+  test("rejects splits for a non-existent project with 404", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     await assert.rejects(
       () => commissionService.setSplits("00000000-0000-0000-0000-000000000000", [{ partnerId: "00000000-0000-0000-0000-000000000001", ratePct: 50 }]),
       (err: unknown) => {
@@ -149,7 +158,10 @@ describe("commissionService.setSplits (real code, not a reimplementation)", { sk
   });
 });
 
-describe("commissionService.markPaid (real code, not a reimplementation)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("commissionService.markPaid (real code, not a reimplementation)", () => {
   async function makePendingCommission(namePrefix: string) {
     const project = await makeProject(namePrefix);
     const partner = await makePartner(`${namePrefix}-partner`);
@@ -163,7 +175,8 @@ describe("commissionService.markPaid (real code, not a reimplementation)", { ski
     return commission;
   }
 
-  test("marks a PENDING commission as PAID, stamping paidAt", async () => {
+  test("marks a PENDING commission as PAID, stamping paidAt", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const commission = await makePendingCommission("markpaid-ok");
 
     const updated = await commissionService.markPaid(commission.id);
@@ -175,7 +188,8 @@ describe("commissionService.markPaid (real code, not a reimplementation)", { ski
     assert.equal(persisted!.status, "PAID", "the status change must actually be persisted, not just returned");
   });
 
-  test("rejects marking an already-PAID commission again with 409 COMMISSION_ALREADY_PAID", async () => {
+  test("rejects marking an already-PAID commission again with 409 COMMISSION_ALREADY_PAID", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const commission = await makePendingCommission("markpaid-twice");
     await commissionService.markPaid(commission.id);
 
@@ -190,7 +204,8 @@ describe("commissionService.markPaid (real code, not a reimplementation)", { ski
     );
   });
 
-  test("rejects marking a non-existent commission with 404", async () => {
+  test("rejects marking a non-existent commission with 404", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     await assert.rejects(
       () => commissionService.markPaid("00000000-0000-0000-0000-000000000000"),
       (err: unknown) => {

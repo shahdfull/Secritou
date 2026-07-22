@@ -54,8 +54,12 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
 });
 
-describe("Client.portalActivatedAt backfill (SEC-172)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("a client whose deposit was paid by direct DB write (bypassing addPayment) still gets activated, and the column self-heals", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("Client.portalActivatedAt backfill (SEC-172)", () => {
+  test("a client whose deposit was paid by direct DB write (bypassing addPayment) still gets activated, and the column self-heals", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const uniq = Date.now();
     const client = await prisma.client.create({ data: { name: `SEC172 direct-write client ${uniq}` } });
     createdClientIds.push(client.id);
@@ -84,7 +88,8 @@ describe("Client.portalActivatedAt backfill (SEC-172)", { skip: !dbAvailable ? "
     assert.ok(selfHealed!.portalActivatedAt, "the cached column must have been self-healed by the fallback");
   });
 
-  test("a NEW deposit payment on a fresh client still activates the portal (forward path unaffected)", async () => {
+  test("a NEW deposit payment on a fresh client still activates the portal (forward path unaffected)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const uniq = Date.now();
     const client = await prisma.client.create({ data: { name: `SEC172 client ${uniq}` } });
     createdClientIds.push(client.id);

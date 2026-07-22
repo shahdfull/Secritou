@@ -69,8 +69,12 @@ async function makeRequest(clientId: string, title: string) {
   return req;
 }
 
-describe("serviceRequestService MANAGER scoping (real code, not a reimplementation)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("a manager can read a service request whose client has a project in the manager's service", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("serviceRequestService MANAGER scoping (real code, not a reimplementation)", () => {
+  test("a manager can read a service request whose client has a project in the manager's service", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClientWithProject("scope-read-ok", serviceIdA);
     const req = await makeRequest(client.id, "scope read ok");
 
@@ -78,7 +82,8 @@ describe("serviceRequestService MANAGER scoping (real code, not a reimplementati
     assert.equal(found.id, req.id);
   });
 
-  test("a manager cannot read a service request whose client has no project in the manager's service (404, not leaked)", async () => {
+  test("a manager cannot read a service request whose client has no project in the manager's service (404, not leaked)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClientWithProject("scope-read-blocked", serviceIdA);
     const req = await makeRequest(client.id, "scope read blocked");
 
@@ -92,7 +97,8 @@ describe("serviceRequestService MANAGER scoping (real code, not a reimplementati
     );
   });
 
-  test("a manager with no serviceId assigned is scoped to nothing (cannot read any service request)", async () => {
+  test("a manager with no serviceId assigned is scoped to nothing (cannot read any service request)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClientWithProject("scope-no-service", serviceIdA);
     const req = await makeRequest(client.id, "scope no service");
 
@@ -106,7 +112,8 @@ describe("serviceRequestService MANAGER scoping (real code, not a reimplementati
     );
   });
 
-  test("deleteServiceRequest enforces the same scope as getServiceRequestById, not just the read path", async () => {
+  test("deleteServiceRequest enforces the same scope as getServiceRequestById, not just the read path", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClientWithProject("scope-delete-blocked", serviceIdA);
     const req = await makeRequest(client.id, "scope delete blocked");
 
@@ -123,7 +130,8 @@ describe("serviceRequestService MANAGER scoping (real code, not a reimplementati
     assert.ok(stillThere, "a scope-blocked delete must not actually delete the row");
   });
 
-  test("an ADMIN (no scope) can read across services", async () => {
+  test("an ADMIN (no scope) can read across services", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClientWithProject("scope-admin", serviceIdB);
     const req = await makeRequest(client.id, "scope admin");
 
@@ -132,8 +140,12 @@ describe("serviceRequestService MANAGER scoping (real code, not a reimplementati
   });
 });
 
-describe("serviceRequestService.adminUpdateServiceRequest status transitions (real code, not a reimplementation)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("allows a valid transition (NEW -> IN_REVIEW) and records history", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("serviceRequestService.adminUpdateServiceRequest status transitions (real code, not a reimplementation)", () => {
+  test("allows a valid transition (NEW -> IN_REVIEW) and records history", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClientWithProject("transition-valid", serviceIdA);
     const req = await makeRequest(client.id, "transition valid");
 
@@ -146,7 +158,8 @@ describe("serviceRequestService.adminUpdateServiceRequest status transitions (re
     assert.equal(history[0].newValue, "IN_REVIEW");
   });
 
-  test("rejects an invalid transition (NEW -> COMPLETED, skipping the workflow) with 422", async () => {
+  test("rejects an invalid transition (NEW -> COMPLETED, skipping the workflow) with 422", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClientWithProject("transition-invalid", serviceIdA);
     const req = await makeRequest(client.id, "transition invalid");
 
@@ -163,7 +176,8 @@ describe("serviceRequestService.adminUpdateServiceRequest status transitions (re
     assert.equal(stillNew?.status, "NEW", "a rejected transition must not partially apply");
   });
 
-  test("rejects any transition out of a terminal status (COMPLETED -> IN_PROGRESS)", async () => {
+  test("rejects any transition out of a terminal status (COMPLETED -> IN_PROGRESS)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClientWithProject("transition-terminal", serviceIdA);
     const req = await makeRequest(client.id, "transition terminal");
     await serviceRequestService.adminUpdateServiceRequest(req.id, actorUserId, { status: "IN_REVIEW" });
@@ -180,7 +194,8 @@ describe("serviceRequestService.adminUpdateServiceRequest status transitions (re
     );
   });
 
-  test("rejects an attempt to change type (immutable after creation) with SERVICE_REQUEST_TYPE_IMMUTABLE", async () => {
+  test("rejects an attempt to change type (immutable after creation) with SERVICE_REQUEST_TYPE_IMMUTABLE", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClientWithProject("transition-type", serviceIdA);
     const req = await makeRequest(client.id, "transition type");
 

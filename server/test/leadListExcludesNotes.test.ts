@@ -35,8 +35,12 @@ after(async () => {
   await prisma.lead.deleteMany({ where: { id: { in: createdLeadIds } } });
 });
 
-describe("leadRepository.findAll excludes notes from the list payload (SEC-171)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("a lead with long notes does not carry notes in the list result, but findById still returns it", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("leadRepository.findAll excludes notes from the list payload (SEC-171)", () => {
+  test("a lead with long notes does not carry notes in the list result, but findById still returns it", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const longNotes = "x".repeat(5000);
     const lead = await prisma.lead.create({ data: { name: `sec171-lead-${Date.now()}`, notes: longNotes, status: "NEW" } });
     createdLeadIds.push(lead.id);

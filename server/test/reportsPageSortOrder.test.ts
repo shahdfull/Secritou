@@ -84,10 +84,14 @@ after(async () => {
   await prisma.user.delete({ where: { id: adminUserId } }).catch(() => {});
 });
 
-describe("Reports page sees the most recent records, not the oldest, past the default page-size cap (SEC-156)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("Reports page sees the most recent records, not the oldest, past the default page-size cap (SEC-156)", () => {
   let accessToken: string;
 
-  test("login as the test ADMIN", async () => {
+  test("login as the test ADMIN", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const res = await request(app).post("/api/v1/auth/login").send({ email: TEST_EMAIL, password: TEST_PASSWORD });
     assert.equal(res.status, 200, JSON.stringify(res.body));
     accessToken = res.body.data.tokens.accessToken;
@@ -96,7 +100,8 @@ describe("Reports page sees the most recent records, not the oldest, past the de
 
   const reportsParams = { page: 1, pageSize: 500, orderBy: "createdAt", orderDir: "desc" };
 
-  test("GET /leads with ReportsPage's exact params returns all records with the newest first", async () => {
+  test("GET /leads with ReportsPage's exact params returns all records with the newest first", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const res = await request(app)
       .get("/api/v1/leads")
       .query(reportsParams)
@@ -109,7 +114,8 @@ describe("Reports page sees the most recent records, not the oldest, past the de
     assert.equal(ours[ours.length - 1].name, "SEC-156 lead 0", "the oldest test lead must come last");
   });
 
-  test("GET /projects with ReportsPage's exact params returns all records with the newest first", async () => {
+  test("GET /projects with ReportsPage's exact params returns all records with the newest first", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const res = await request(app)
       .get("/api/v1/projects")
       .query(reportsParams)
@@ -122,7 +128,8 @@ describe("Reports page sees the most recent records, not the oldest, past the de
     assert.equal(ours[ours.length - 1].name, "SEC-156 project 0", "the oldest test project must come last");
   });
 
-  test("GET /invoices with ReportsPage's exact params returns all records with the newest first", async () => {
+  test("GET /invoices with ReportsPage's exact params returns all records with the newest first", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const res = await request(app)
       .get("/api/v1/invoices")
       .query(reportsParams)

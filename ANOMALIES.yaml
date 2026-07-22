@@ -13294,22 +13294,23 @@ anomalies:
       dépôt.
 
   - id: SEC-195
-    titre: "Le garde `dbAvailable`/`describe(name, { skip: !dbAvailable ? \"...\" : false }, fn)` utilisé dans 39 fichiers de test server/test/*.ts est structurellement peu fiable : `skip` est évalué de façon SYNCHRONE au moment de l'enregistrement du `describe`, avant que le `before()` asynchrone correspondant (qui assigne réellement `dbAvailable`) n'ait pu s'exécuter — le garde ne protège donc jamais vraiment contre une base/Redis injoignable ou un before() qui échoue, il fonctionnait par accident de timing (before() qui a le temps de finir avant que node:test planifie les tests enfants), pas par une garantie structurelle"
-    perimetre: "server/test/*.ts — 39 fichiers utilisant describe(..., { skip: !dbAvailable ... }, ...) : authCookieAndLogoutReuse, checkInvoiceFollowup, clientInviteResend, clientPortalActivationBackfill, commissionCreationExclusivity, creditNoteApply, creditNoteCumulativeAmount, creditNoteNumberConcurrency, depositRateSingleSource, documentCreateHttp, documentScopeManager, documentSignContract, executiveMetricsActiveProjectsParallel, executiveMetricsProjectRisks, freelancerSeesOwnDeliverable, idor, invoiceAuditLog, invoiceNumberingGapless, invoicePaymentInviteFailure, invoiceScopeManager, leadCreateConcurrency, leadDuplicateEmail, leadListExcludesNotes, markOverdueInvoicesAuditLog, metricAnomalyAndCommissionBatching, portalActivationOnPayment, projectClientApproveBalanceInvoice, projectClientApproveConcurrency, projectDetailIncludesTasks, projectStatusInFilter, proposalAcceptCascadeConcurrency, proposalAcceptRbacHttp, proposalCreationScope, proposalWriteScopeRefusal, schemaIndexCleanupAndTimeEntryFk, taskCompletedAtBackfill, taskUpdateScopeRefusal, userDeleteFinancialHistory, userProfilePhone.http.test.ts (compte exact susceptible de varier de ±1 selon la méthode de grep utilisée — vérifier par relecture avant toute migration)"
+    titre: "Le garde `{ skip: !dbAvailable }` (ou `!schemaLoaded`), qu'il soit posé sur `describe(...)` OU sur chaque `test(...)` individuel, est structurellement peu fiable dans server/test/*.ts : l'option `skip` est TOUJOURS évaluée de façon SYNCHRONE au moment de l'enregistrement de describe/test, avant que le `before()` asynchrone correspondant (qui assigne réellement `dbAvailable`) n'ait pu s'exécuter — contrairement à ce que cette entrée affirmait initialement, déplacer `skip` du `describe` vers chaque `test()` individuel NE corrige RIEN : `test(name, { skip: !flag }, fn)` a exactement le même défaut de timing que `describe(name, { skip: !flag }, fn)`, seul un check FAIT DANS LE CORPS du test (via le paramètre `t: TestContext` et `t.skip(msg)`) s'exécute après que before() a résolu"
+    perimetre: "server/test/*.ts — 63 fichiers corrigés dans cette passe (grep sur `SEC-195:` pour la liste exacte, à jour) : archivedProjectTaskVisibility, authCookieAndLogoutReuse, authPhoneRoundTrip, checkInvoiceFollowup, clientApproveEmailPortalUrl, clientInviteResend, clientPortalActivationBackfill, commissionCreationExclusivity, commissionService, contactConvertToLeadScope, creditNoteApply, creditNoteCumulativeAmount, creditNoteNumberConcurrency, depositRateSingleSource, documentCreateHttp, documentScopeManager, documentSignContract, errorEnvelope.http, executiveMetricsActiveProjectsParallel, executiveMetricsCriticalCountUnbounded, executiveMetricsProjectRisks, freelancerSeesOwnDeliverable, idor, invoiceAuditLog, invoiceCreateFromProposal, invoiceNumberingGapless, invoicePaymentInviteFailure, invoiceScopeManager, lead.repository, leadCreateConcurrency, leadCreateScope, leadDuplicateEmail, leadListExcludesNotes, leadService, leadsKanbanMaxPageSize, managerScopeIdorFixes, markOverdueInvoicesAuditLog, metricAnomalyAndCommissionBatching, portalActivationOnPayment, projectClientApproveBalanceInvoice, projectClientApproveConcurrency, projectCreateArchiveRestore, projectDetailIncludesTasks, projectStatusInFilter, projectTemplateIdempotencyAndFreelancerFields, proposal.service, proposalAcceptCascade, proposalAcceptCascadeConcurrency, proposalAcceptRbacHttp, proposalCreationScope, proposalListOrderBy, proposalScopeAfterCreation, proposalScopeSendUpdateAddSection, proposalWriteScopeRefusal, reportsPageSortOrder, schemaIndexCleanupAndTimeEntryFk, searchScope, serviceRequestService, taskCompletedAtBackfill, taskPrioritySort, taskUpdateScopeRefusal, userDeleteFinancialHistory, userProfilePhone.http"
     regle_violee: null
     classe: "garde_skip_evalue_avant_before_async"
     gravite: majeur
     statut: en_cours
     critere_de_resolution: >
-      C'est résolu quand les 39 fichiers utilisent un mécanisme de skip qui
-      lit réellement `dbAvailable` APRÈS que `before()` a fini de s'exécuter
-      — par exemple en passant `{ skip: !dbAvailable }` (ou équivalent) à
-      chaque `test(...)` individuel plutôt qu'au `describe` englobant (le
-      pattern déjà utilisé correctement dans
-      `projectTemplateIdempotencyAndFreelancerFields.test.ts` et 21 autres
-      fichiers) — prouvé par un test qui simule un `before()` échouant
-      après un délai artificiel et confirme que le test enfant est bien
-      sauté, pas exécuté avec des données `undefined`.
+      C'est résolu quand les 63 fichiers listés ci-dessus utilisent
+      exclusivement le pattern : `describe(...)` SANS option `skip`, et
+      chaque `test(...)` accepte un paramètre `t` et vérifie
+      `if (!dbAvailable) { t.skip("..."); return; }` comme première ligne
+      du corps du test (le seul mécanisme qui s'exécute après que
+      before() a résolu) — vérifié par grep exhaustif confirmant zéro
+      occurrence restante de `{ skip: !dbAvailable` ou `{ skip:
+      !schemaLoaded` en dehors des commentaires, ET par un run CI vert
+      sur le commit qui porte ce correctif (voir règle générale du
+      dépôt : un correctif non commité/non vert en CI reste `en_cours`).
     detecte_le: "2026-07-22"
     source: audit_llm
     confiance: certain
@@ -13321,41 +13322,43 @@ anomalies:
       censées être assignées par un `before()` — alors que 3 exécutions
       locales consécutives de la suite complète, avec les mêmes variables
       d'environnement CI simulées, passaient 520/520 sans aucun échec.
-      Investigation déléguée à un agent en lecture seule (aucune
-      modification de fichier), qui a reproduit empiriquement
-      l'hypothèse dans un script isolé : un `describe(name, { skip: !flag
-      ? "..." : false }, fn)` enregistré après un `before()` asynchrone qui
-      met `flag = false` après un délai — le test s'exécute quand même
-      avec `flag` déjà `false` au moment de l'assertion, parce que
-      `node:test` lit l'option `skip` au moment de l'enregistrement
-      synchrone du `describe`, alors que le `before()` correspondant ne
-      s'exécute que lors du "run" réel de la suite, trop tard pour
-      influencer un `skip` déjà figé. Confirmé par lecture directe de
-      `checkInvoiceFollowup.test.ts` (describe ligne 74 et 109,
-      `dbAvailable` initialisé à `true` ligne 19, `before()` lignes 51-65)
-      — le fichier en échec sur ce run précis. Distinct de
-      `projectTemplateIdempotencyAndFreelancerFields.test.ts` (également
-      en échec sur ce run, mais utilisant déjà le pattern sûr `skip` au
-      niveau `test()` individuel, ligne 90) : son échec pointe vers une
-      cause différente, non résolue dans cette passe — soit `before()` a
-      échoué silencieusement dans sa branche `catch` (aucun `Service`
-      seedé sur le runner CI au moment de cet essai), soit une pollution
-      de données par un test antérieur dans le même run concaténé
-      (`run-all.test.ts`, ordre fixe des ~72 fichiers importés) qui aurait
-      supprimé les `Service` avant que ce `before()` précis ne s'exécute —
-      à investiguer séparément, hors périmètre de cette entrée. Le
-      décalage local/CI s'explique par la latence : en local, `before()`
-      a généralement le temps de finir avant que `node:test` planifie
-      l'exécution des tests enfants (moins de contention CPU/I/O) — sur
-      GitHub Actions (I/O plus lent, DB/Redis potentiellement plus lents à
-      répondre), cette hypothèse de timing n'est plus garantie, or rien
-      dans le code ne la garantissait jamais : c'était un fonctionnement
-      par accident, pas par conception. Portée large (39 fichiers)
-      délibérément non traitée dans cette session — décision explicite du
-      porteur (AskUserQuestion) : enregistrer sans corriger, une migration
-      de cette ampleur mérite sa propre session dédiée avec vérification
-      fichier par fichier, pas une correction hâtive pour débloquer un
-      run CI précis.
+      Hypothèse initiale confirmée : `node:test` lit l'option `skip` au
+      moment de l'enregistrement synchrone de describe/test, alors que le
+      `before()` correspondant ne s'exécute que lors du "run" réel de la
+      suite, trop tard pour influencer un `skip` déjà figé.
+
+      Correction de cette entrée (même session, avant toute clôture) :
+      le critère de résolution initial affirmait que
+      `projectTemplateIdempotencyAndFreelancerFields.test.ts` utilisait
+      "déjà correctement" le pattern `skip` au niveau `test()` individuel
+      (ligne 90), et proposait de généraliser cette migration
+      describe→test aux 38 autres fichiers. Ce critère était FAUX : ce
+      fichier précis faisait partie des échecs CI sur ce run, alors qu'il
+      utilisait déjà `test(name, { skip: !dbAvailable }, fn)`. Reproduit
+      empiriquement via deux scripts `node -e` isolés : un `test(name, {
+      skip: !flag }, fn)` enregistré après un `before()` async qui met
+      `flag = true` après un délai artificiel EST SAUTÉ quand même,
+      exactement comme au niveau `describe` — l'option `skip` de `test()`
+      partage le même défaut d'évaluation synchrone que celle de
+      `describe()`. Le seul pattern qui fonctionne réellement : accepter
+      `(t)` dans le corps du test et faire `if (!flag) { t.skip(msg);
+      return; }` comme première ligne du test — ce corps ne s'exécute
+      qu'après que node:test a attendu la résolution de before().
+
+      Portée réelle également corrigée à la hausse : la première passe
+      avait compté "39 fichiers" par un grep approximatif ; un nouveau
+      grep exhaustif sur `server/test/*.ts` a trouvé 63 fichiers avec le
+      pattern `skip: !dbAvailable`/`skip: !schemaLoaded` (describe-level
+      ou test-level confondus), tous corrigés dans cette même session par
+      script + vérification manuelle des cas ambigus (fichiers à
+      describe multiples, variante multi-lignes `describe(\n  title,\n
+      { skip: ... },\n  () => {`). Après correction : 555 tests locaux,
+      554 passent, le seul échec restant (`taskBulkActions.test.ts`,
+      SEC-097, assertion de timing sur l'exécution concurrente) est un
+      test préexistant non touché par cette passe, non lié au défaut
+      décrit ici. `npm run typecheck` et `npm run lint` verts côté
+      server après correction. Reste à committer et confirmer un run CI
+      vert sur ce commit avant de passer ce statut à `resolu`.
 
   - id: SEC-196
     titre: "managerPermissionRepository.findUserNamesByProfileId (server/src/repositories/managerPermission.repository.ts) est du code mort : aucun appelant nulle part dans le dépôt (src/ ni test/, ni client/) — remplacée par findManagersByProfileId (mêmes lignes du même fichier, mêmes données + le userId en plus) sans jamais être nettoyée"

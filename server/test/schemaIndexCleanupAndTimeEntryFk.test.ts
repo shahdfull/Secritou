@@ -57,21 +57,28 @@ async function indexExists(name: string): Promise<boolean> {
   return rows.length > 0;
 }
 
-describe("schema index cleanup batch (SEC-111/112/113/166/167)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("SEC-111: ServiceRequest_priority_idx and ServiceRequest_type_idx exist", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("schema index cleanup batch (SEC-111/112/113/166/167)", () => {
+  test("SEC-111: ServiceRequest_priority_idx and ServiceRequest_type_idx exist", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     assert.ok(await indexExists("ServiceRequest_priority_idx"));
     assert.ok(await indexExists("ServiceRequest_type_idx"));
   });
 
-  test("SEC-112: Document_projectId_type_idx exists", async () => {
+  test("SEC-112: Document_projectId_type_idx exists", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     assert.ok(await indexExists("Document_projectId_type_idx"));
   });
 
-  test("SEC-113: ManagerPermission_profileId_idx exists", async () => {
+  test("SEC-113: ManagerPermission_profileId_idx exists", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     assert.ok(await indexExists("ManagerPermission_profileId_idx"));
   });
 
-  test("SEC-166: TimeEntry_billedInvoiceId_idx exists and the FK is enforced", async () => {
+  test("SEC-166: TimeEntry_billedInvoiceId_idx exists and the FK is enforced", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     assert.ok(await indexExists("TimeEntry_billedInvoiceId_idx"));
 
     const client = await prisma.client.create({ data: { name: `sec166-client-${Date.now()}` } });
@@ -98,7 +105,8 @@ describe("schema index cleanup batch (SEC-111/112/113/166/167)", { skip: !dbAvai
     );
   });
 
-  test("SEC-167: the redundant @@index on User.email/FreelancerApplication.email/Payment.idempotencyKey was dropped, the @unique index remains", async () => {
+  test("SEC-167: the redundant @@index on User.email/FreelancerApplication.email/Payment.idempotencyKey was dropped, the @unique index remains", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     assert.equal(await indexExists("User_email_idx"), false, "the redundant index must be dropped");
     assert.ok(await indexExists("User_email_key"), "the @@unique index must still exist");
 

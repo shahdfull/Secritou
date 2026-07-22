@@ -61,8 +61,12 @@ async function makeClient(namePrefix: string) {
   return client;
 }
 
-describe("proposalService.acceptWithCascade — real service, 7 previously mock-only branches (SEC-109)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("idempotent: re-accepting an ACCEPTED proposal creates no duplicate project/invoice", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("proposalService.acceptWithCascade — real service, 7 previously mock-only branches (SEC-109)", () => {
+  test("idempotent: re-accepting an ACCEPTED proposal creates no duplicate project/invoice", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("sec109-idem");
     const proposal = await prisma.proposal.create({ data: { title: "SEC-109 idempotent", clientId: client.id, status: "SENT", amount: 1000, currency: "TND" } });
     createdProposalIds.push(proposal.id);
@@ -81,7 +85,8 @@ describe("proposalService.acceptWithCascade — real service, 7 previously mock-
     assert.equal(invoiceCount, 1);
   });
 
-  test("reconcile: proposal already ACCEPTED with a project but no invoice — backfills the invoice only", async () => {
+  test("reconcile: proposal already ACCEPTED with a project but no invoice — backfills the invoice only", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("sec109-reconcile");
     const proposal = await prisma.proposal.create({ data: { title: "SEC-109 reconcile", clientId: client.id, status: "ACCEPTED", acceptedAt: new Date(), amount: 800, currency: "TND" } });
     createdProposalIds.push(proposal.id);
@@ -97,7 +102,8 @@ describe("proposalService.acceptWithCascade — real service, 7 previously mock-
     assert.equal(projectCount, 1);
   });
 
-  test("no amount: project created, no deposit invoice", async () => {
+  test("no amount: project created, no deposit invoice", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("sec109-noamount");
     const proposal = await prisma.proposal.create({ data: { title: "SEC-109 no amount", clientId: client.id, status: "SENT", amount: null, currency: "TND" } });
     createdProposalIds.push(proposal.id);
@@ -109,7 +115,8 @@ describe("proposalService.acceptWithCascade — real service, 7 previously mock-
     assert.equal(result.invoiceId, null, "no invoice must be created for an amount-less proposal");
   });
 
-  test("no leadId: skips lead update, still creates project + invoice", async () => {
+  test("no leadId: skips lead update, still creates project + invoice", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("sec109-nolead");
     const proposal = await prisma.proposal.create({ data: { title: "SEC-109 no lead", clientId: client.id, status: "SENT", amount: 500, currency: "TND", leadId: null } });
     createdProposalIds.push(proposal.id);
@@ -122,7 +129,8 @@ describe("proposalService.acceptWithCascade — real service, 7 previously mock-
     assert.ok(result.invoiceId);
   });
 
-  test("lead already converted to a different client: auto-conversion does not overwrite it, but the lead is still marked WON", async () => {
+  test("lead already converted to a different client: auto-conversion does not overwrite it, but the lead is still marked WON", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const otherClient = await makeClient("sec109-lead-other");
     const client = await makeClient("sec109-lead-owner");
     const lead = await prisma.lead.create({ data: { name: "SEC-109 lead", convertedClientId: otherClient.id } });
@@ -139,7 +147,8 @@ describe("proposalService.acceptWithCascade — real service, 7 previously mock-
     assert.equal(updatedLead!.convertedClientId, otherClient.id, "the existing conversion to another client must not be overwritten");
   });
 
-  test("version mismatch throws PROPOSAL_VERSION_MISMATCH and creates nothing", async () => {
+  test("version mismatch throws PROPOSAL_VERSION_MISMATCH and creates nothing", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("sec109-version");
     const proposal = await prisma.proposal.create({ data: { title: "SEC-109 version", clientId: client.id, status: "SENT", amount: 200, currency: "TND", version: 3 } });
     createdProposalIds.push(proposal.id);
@@ -156,7 +165,8 @@ describe("proposalService.acceptWithCascade — real service, 7 previously mock-
     assert.equal(await prisma.project.count({ where: { proposalId: proposal.id } }), 0);
   });
 
-  test("expired proposal throws PROPOSAL_EXPIRED and creates nothing", async () => {
+  test("expired proposal throws PROPOSAL_EXPIRED and creates nothing", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("sec109-expired");
     const proposal = await prisma.proposal.create({ data: { title: "SEC-109 expired", clientId: client.id, status: "SENT", amount: 200, currency: "TND", expiresAt: new Date(Date.now() - 86_400_000) } });
     createdProposalIds.push(proposal.id);

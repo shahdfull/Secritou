@@ -50,8 +50,12 @@ function extractCookie(setCookieHeader: string[] | undefined, name: string): str
   return setCookieHeader?.find((c) => c.startsWith(`${name}=`));
 }
 
-describe("Auth cookie attributes + logout/reuse — real HTTP stack (SEC-129)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("login sets the refresh cookie as HttpOnly and SameSite=Strict", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("Auth cookie attributes + logout/reuse — real HTTP stack (SEC-129)", () => {
+  test("login sets the refresh cookie as HttpOnly and SameSite=Strict", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const passwordHash = await bcrypt.hash(TEST_PASSWORD, 10);
     const user = await prisma.user.create({
       data: { email: `sec129-cookie-${Date.now()}@example.com`, name: "SEC-129 cookie", passwordHash, role: "ADMIN" },
@@ -68,7 +72,8 @@ describe("Auth cookie attributes + logout/reuse — real HTTP stack (SEC-129)", 
     assert.match(refreshCookie!, /SameSite=Strict/i, "the refresh cookie must be SameSite=Strict");
   });
 
-  test("the refresh cookie issued at login is rejected after logout", async () => {
+  test("the refresh cookie issued at login is rejected after logout", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const passwordHash = await bcrypt.hash(TEST_PASSWORD, 10);
     const user = await prisma.user.create({
       data: { email: `sec129-reuse-${Date.now()}@example.com`, name: "SEC-129 reuse", passwordHash, role: "ADMIN" },

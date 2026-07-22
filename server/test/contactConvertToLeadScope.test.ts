@@ -54,11 +54,12 @@ async function makeContactRequest() {
   return cr;
 }
 
-describe(
-  "contactService.convertToLead — pole scope enforced (SEC-123)",
-  { skip: !dbAvailable ? "no reachable database" : false },
-  () => {
-    test("a MANAGER's own pole always wins, even if the caller passed another pole's department/manager", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("contactService.convertToLead — pole scope enforced (SEC-123)", () => {
+    test("a MANAGER's own pole always wins, even if the caller passed another pole's department/manager", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const contactService = new ContactService();
       const managerUser = await prisma.user.create({
         data: { email: `sec123-mgr-${Date.now()}@test.local`, name: "Manager A", passwordHash: "x", role: "MANAGER", serviceId: serviceA },
@@ -82,7 +83,8 @@ describe(
       assert.equal(lead.assignedManagerId, managerUser.id, "the lead must be forced to the calling manager themself");
     });
 
-    test("an ADMIN (unscoped) can freely assign department/manager as passed", async () => {
+    test("an ADMIN (unscoped) can freely assign department/manager as passed", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const contactService = new ContactService();
       const targetManager = await prisma.user.create({
         data: { email: `sec123-admin-target-${Date.now()}@test.local`, name: "Manager C", passwordHash: "x", role: "MANAGER", serviceId: serviceB },

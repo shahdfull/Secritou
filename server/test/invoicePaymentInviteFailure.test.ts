@@ -45,8 +45,12 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
 });
 
-describe("invoiceService.addPayment survives a non-409 portal invite failure (SEC-188)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("a real SMTP-style invite failure does not fail the payment — reports portalInviteFailed: true, payment is persisted", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("invoiceService.addPayment survives a non-409 portal invite failure (SEC-188)", () => {
+  test("a real SMTP-style invite failure does not fail the payment — reports portalInviteFailed: true, payment is persisted", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: `sec188-client-${Date.now()}`, email: `sec188-${Date.now()}@example.com` } });
     createdClientIds.push(client.id);
     const project = await prisma.project.create({ data: { name: `sec188-project-${Date.now()}`, clientId: client.id } });
@@ -81,7 +85,8 @@ describe("invoiceService.addPayment survives a non-409 portal invite failure (SE
     assert.equal(updatedInvoice!.status, "PAID", "the invoice must still be marked PAID");
   });
 
-  test("a 409 (already invited) is still swallowed silently, no portalInviteFailed flag", async () => {
+  test("a 409 (already invited) is still swallowed silently, no portalInviteFailed flag", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: `sec188-409-client-${Date.now()}`, email: `sec188-409-${Date.now()}@example.com` } });
     createdClientIds.push(client.id);
     const project = await prisma.project.create({ data: { name: `sec188-409-project-${Date.now()}`, clientId: client.id } });

@@ -66,11 +66,12 @@ function assert404(promise: Promise<unknown>) {
   });
 }
 
-describe(
-  "proposalService.send/update/addSection enforce pole scope (SEC-125)",
-  { skip: !dbAvailable ? "no reachable database" : false },
-  () => {
-    test("a pole-B MANAGER is rejected by send/update/addSection on a pole-A proposal", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("proposalService.send/update/addSection enforce pole scope (SEC-125)", () => {
+    test("a pole-B MANAGER is rejected by send/update/addSection on a pole-A proposal", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const proposal = await makeProposalInPoleA();
       const poleB = { userRole: "MANAGER" as const, userServiceId: serviceB };
 
@@ -83,7 +84,8 @@ describe(
       assert.equal(untouched?.title, "SEC-125 proposal", "update must not have gone through");
     });
 
-    test("the pole-A MANAGER can still use send/update/addSection normally", async () => {
+    test("the pole-A MANAGER can still use send/update/addSection normally", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const proposal = await makeProposalInPoleA();
       const poleA = { userRole: "MANAGER" as const, userServiceId: serviceA };
 

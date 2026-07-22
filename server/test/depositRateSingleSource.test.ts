@@ -56,21 +56,27 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
 });
 
-describe("DEPOSIT_RATE is the single source of truth for the 30% deposit rate (SEC-183)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("DEPOSIT_RATE is exported and equals 0.3", () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("DEPOSIT_RATE is the single source of truth for the 30% deposit rate (SEC-183)", () => {
+  test("DEPOSIT_RATE is exported and equals 0.3", (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     assert.equal(DEPOSIT_RATE, 0.3);
   });
 
   const sites = ["project.service.ts", "proposal.service.ts", "documentGenerator.service.ts"];
   for (const file of sites) {
-    test(`${file}: imports and uses DEPOSIT_RATE, no bare 0.3 deposit-rate literal remains`, () => {
+    test(`${file}: imports and uses DEPOSIT_RATE, no bare 0.3 deposit-rate literal remains`, (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
       const content = readFileSync(join(SRC_DIR, file), "utf-8");
       assert.ok(content.includes("DEPOSIT_RATE"), `${file} must import/use DEPOSIT_RATE`);
       assert.doesNotMatch(content, /\*\s*0\.3\b/, `${file} must not multiply by a bare 0.3 literal anymore`);
     });
   }
 
-  test("clientApprove's fallback deposit computation (no real deposit invoice) actually uses DEPOSIT_RATE, not an independent value", async () => {
+  test("clientApprove's fallback deposit computation (no real deposit invoice) actually uses DEPOSIT_RATE, not an independent value", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: `sec183-client-${Date.now()}`, serviceId } });
     createdClientIds.push(client.id);
     const clientUser = await prisma.user.create({

@@ -53,11 +53,12 @@ after(async () => {
   await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
 });
 
-describe(
-  "leadService.getLeads — real MANAGER pole isolation (SEC-100)",
-  { skip: !dbAvailable ? "no reachable database" : false },
-  () => {
-    test("an ADMIN sees leads across every pole", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("leadService.getLeads — real MANAGER pole isolation (SEC-100)", () => {
+    test("an ADMIN sees leads across every pole", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const leadA = await prisma.lead.create({ data: { name: "sec100-svc admin sees A", serviceId: serviceA } });
       const leadB = await prisma.lead.create({ data: { name: "sec100-svc admin sees B", serviceId: serviceB } });
       createdLeadIds.push(leadA.id, leadB.id);
@@ -66,7 +67,8 @@ describe(
       assert.ok(result.data.some((l) => l.id === leadA.id) && result.data.some((l) => l.id === leadB.id));
     });
 
-    test("a MANAGER with a pole only sees leads in that pole", async () => {
+    test("a MANAGER with a pole only sees leads in that pole", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const ownLead = await prisma.lead.create({ data: { name: "sec100-svc own pole", serviceId: serviceA } });
       const otherLead = await prisma.lead.create({ data: { name: "sec100-svc other pole", serviceId: serviceB } });
       createdLeadIds.push(ownLead.id, otherLead.id);
@@ -76,7 +78,8 @@ describe(
       assert.ok(!result.data.some((l) => l.id === otherLead.id));
     });
 
-    test("a MANAGER also sees a lead assigned directly to them, even outside their own pole", async () => {
+    test("a MANAGER also sees a lead assigned directly to them, even outside their own pole", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const managerUser = await prisma.user.create({
         data: { email: `sec100-svc-mgr-${Date.now()}@test.local`, name: "Manager B2", passwordHash: "x", role: "MANAGER", serviceId: serviceB },
       });
@@ -88,12 +91,12 @@ describe(
       assert.ok(result.data.some((l) => l.id === assignedLead.id), "assignedManagerId must grant visibility regardless of serviceId");
     });
 
-    test("a MANAGER with no service (userServiceId: null) matches nothing by serviceId, not the whole company", async () => {
+    test("a MANAGER with no service (userServiceId: null) matches nothing by serviceId, not the whole company", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const lead = await prisma.lead.create({ data: { name: "sec100-svc no-service manager", serviceId: serviceA } });
       createdLeadIds.push(lead.id);
 
       const result = await leadService.getLeads({ page: 1, pageSize: 50, orderDir: "desc" }, { userRole: "MANAGER", userServiceId: null });
       assert.ok(!result.data.some((l) => l.id === lead.id), "a MANAGER with no pole must not fall back to seeing every lead");
     });
-  }
-);
+});

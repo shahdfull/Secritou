@@ -44,8 +44,12 @@ after(async () => {
   await prisma.lead.deleteMany({ where: { id: { in: createdLeadIds } } });
 });
 
-describe("leadService.createLead under real concurrency (SEC-187)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("two strictly concurrent creates with the same email never both produce an active Lead", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("leadService.createLead under real concurrency (SEC-187)", () => {
+  test("two strictly concurrent creates with the same email never both produce an active Lead", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const email = `sec187-${Date.now()}@example.com`;
 
     const results = await Promise.allSettled([

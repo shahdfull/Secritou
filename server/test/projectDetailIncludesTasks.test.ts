@@ -58,8 +58,12 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
 });
 
-describe("projectService.getProjectById includes the project's tasks", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("a project with 3 tasks returns all 3 in .tasks, with id/title/status populated", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("projectService.getProjectById includes the project's tasks", () => {
+  test("a project with 3 tasks returns all 3 in .tasks, with id/title/status populated", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "tasks-in-detail client", serviceId } });
     createdClientIds.push(client.id);
     const project = await prisma.project.create({ data: { name: "tasks-in-detail project", clientId: client.id, serviceId } });
@@ -80,7 +84,8 @@ describe("projectService.getProjectById includes the project's tasks", { skip: !
     assert.deepEqual(statuses, ["DONE", "IN_PROGRESS", "TODO"]);
   });
 
-  test("a project with no tasks returns an empty tasks array, not undefined", async () => {
+  test("a project with no tasks returns an empty tasks array, not undefined", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "no-tasks client", serviceId } });
     createdClientIds.push(client.id);
     const project = await prisma.project.create({ data: { name: "no-tasks project", clientId: client.id, serviceId } });

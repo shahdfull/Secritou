@@ -68,15 +68,20 @@ async function makeProposal(clientId: string, status: "DRAFT" | "SENT" | "ACCEPT
   return proposal;
 }
 
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when test() runs, before the
+// async before() above has any chance to set the real value. Checking dbAvailable inside each
+// test body (via t.skip()) is the only pattern that actually runs after before() resolves.
 describe("projectService.createProject — SEC-040", () => {
-  test("rejects a non-existent proposalId with 404", { skip: !dbAvailable }, async () => {
+  test("rejects a non-existent proposalId with 404", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     await assert.rejects(
       () => projectService.createProject({ name: "x", proposalId: "00000000-0000-0000-0000-000000000000" }),
       (err: unknown) => err instanceof HttpError && err.statusCode === 404
     );
   });
 
-  test("rejects a proposal that is not ACCEPTED with 422", { skip: !dbAvailable }, async () => {
+  test("rejects a proposal that is not ACCEPTED with 422", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("draft-proposal");
     const proposal = await makeProposal(client.id, "SENT");
     await assert.rejects(
@@ -85,7 +90,8 @@ describe("projectService.createProject — SEC-040", () => {
     );
   });
 
-  test("succeeds from a real ACCEPTED proposal (the only valid path per acceptWithCascade)", { skip: !dbAvailable }, async () => {
+  test("succeeds from a real ACCEPTED proposal (the only valid path per acceptWithCascade)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("accepted-proposal");
     const proposal = await makeProposal(client.id, "ACCEPTED");
     const project = await projectService.createProject({ name: "real project", proposalId: proposal.id, clientId: client.id });
@@ -93,7 +99,8 @@ describe("projectService.createProject — SEC-040", () => {
     assert.equal(project.clientId, client.id);
   });
 
-  test("forces serviceId to the MANAGER's own pole even if the caller passes another pole's id", { skip: !dbAvailable }, async () => {
+  test("forces serviceId to the MANAGER's own pole even if the caller passes another pole's id", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("manager-scope-force");
     const proposal = await makeProposal(client.id, "ACCEPTED");
     const project = await projectService.createProject(
@@ -106,7 +113,8 @@ describe("projectService.createProject — SEC-040", () => {
 });
 
 describe("projectService.archiveProject / restoreProject — SEC-040", () => {
-  test("archiveProject sets archivedAt and hides the project from findAll", { skip: !dbAvailable }, async () => {
+  test("archiveProject sets archivedAt and hides the project from findAll", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("archive-target");
     const project = await prisma.project.create({ data: { name: "to be archived", clientId: client.id } });
     createdProjectIds.push(project.id);
@@ -118,7 +126,8 @@ describe("projectService.archiveProject / restoreProject — SEC-040", () => {
     assert.ok(!listed.data.some((p) => p.id === project.id));
   });
 
-  test("archiveProject on an already-deleted or already-archived project rejects with 404", { skip: !dbAvailable }, async () => {
+  test("archiveProject on an already-deleted or already-archived project rejects with 404", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("archive-twice");
     const project = await prisma.project.create({ data: { name: "double archive", clientId: client.id } });
     createdProjectIds.push(project.id);
@@ -130,7 +139,8 @@ describe("projectService.archiveProject / restoreProject — SEC-040", () => {
     );
   });
 
-  test("restoreProject only reverses deletedAt (soft-delete), not archivedAt", { skip: !dbAvailable }, async () => {
+  test("restoreProject only reverses deletedAt (soft-delete), not archivedAt", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("restore-vs-archive");
     const project = await prisma.project.create({ data: { name: "archived not deleted", clientId: client.id } });
     createdProjectIds.push(project.id);
@@ -145,7 +155,8 @@ describe("projectService.archiveProject / restoreProject — SEC-040", () => {
     );
   });
 
-  test("restoreProject reverses a real soft-delete (deletedAt)", { skip: !dbAvailable }, async () => {
+  test("restoreProject reverses a real soft-delete (deletedAt)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("restore-target");
     const project = await prisma.project.create({ data: { name: "to be restored", clientId: client.id } });
     createdProjectIds.push(project.id);
@@ -155,7 +166,8 @@ describe("projectService.archiveProject / restoreProject — SEC-040", () => {
     assert.equal(restored.deletedAt, null);
   });
 
-  test("SEC-086: getProjectById 404s on a soft-deleted project for every role, and returns it again once restored", { skip: !dbAvailable }, async () => {
+  test("SEC-086: getProjectById 404s on a soft-deleted project for every role, and returns it again once restored", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("findbyid-deleted");
     const project = await prisma.project.create({ data: { name: "findById deleted target", clientId: client.id } });
     createdProjectIds.push(project.id);
@@ -177,7 +189,8 @@ describe("projectService.archiveProject / restoreProject — SEC-040", () => {
 });
 
 describe("projectService.unarchiveProject — SEC-078", () => {
-  test("reverses a real archive (archivedAt) and the project reappears in findAll", { skip: !dbAvailable }, async () => {
+  test("reverses a real archive (archivedAt) and the project reappears in findAll", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("unarchive-target");
     // Unique name + `search` isolates this exact project regardless of how many other projects
     // the rest of the suite creates concurrently — findAll's default createdAt-desc order with a
@@ -197,7 +210,8 @@ describe("projectService.unarchiveProject — SEC-078", () => {
     assert.ok(listed.data.some((p) => p.id === project.id), "the project must reappear in findAll once unarchived");
   });
 
-  test("unarchiveProject on a project that was never archived rejects with 404", { skip: !dbAvailable }, async () => {
+  test("unarchiveProject on a project that was never archived rejects with 404", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("unarchive-never-archived");
     const project = await prisma.project.create({ data: { name: "never archived", clientId: client.id } });
     createdProjectIds.push(project.id);
@@ -208,7 +222,8 @@ describe("projectService.unarchiveProject — SEC-078", () => {
     );
   });
 
-  test("unarchiveProject on an already-unarchived project rejects with 404 (not a silent no-op)", { skip: !dbAvailable }, async () => {
+  test("unarchiveProject on an already-unarchived project rejects with 404 (not a silent no-op)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("unarchive-twice");
     const project = await prisma.project.create({ data: { name: "double unarchive", clientId: client.id } });
     createdProjectIds.push(project.id);
@@ -221,7 +236,8 @@ describe("projectService.unarchiveProject — SEC-078", () => {
     );
   });
 
-  test("unarchiveProject only reverses archivedAt, not a real soft-delete (deletedAt)", { skip: !dbAvailable }, async () => {
+  test("unarchiveProject only reverses archivedAt, not a real soft-delete (deletedAt)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("unarchive-vs-delete");
     const project = await prisma.project.create({ data: { name: "deleted not archived", clientId: client.id } });
     createdProjectIds.push(project.id);
@@ -238,7 +254,8 @@ describe("projectService.unarchiveProject — SEC-078", () => {
 });
 
 describe("projectService.updateProject on a COMPLETED project — SEC-081", () => {
-  test("a no-op status (COMPLETED -> COMPLETED) does not trigger COMPLETION_REQUIRES_CLIENT_APPROVAL", { skip: !dbAvailable }, async () => {
+  test("a no-op status (COMPLETED -> COMPLETED) does not trigger COMPLETION_REQUIRES_CLIENT_APPROVAL", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("update-completed-noop");
     const project = await prisma.project.create({ data: { name: "already completed", clientId: client.id, status: "COMPLETED" } });
     createdProjectIds.push(project.id);
@@ -248,7 +265,8 @@ describe("projectService.updateProject on a COMPLETED project — SEC-081", () =
     assert.equal(updated.status, "COMPLETED");
   });
 
-  test("a real transition INTO COMPLETED via this path is still rejected", { skip: !dbAvailable }, async () => {
+  test("a real transition INTO COMPLETED via this path is still rejected", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("update-completed-real-transition");
     const project = await prisma.project.create({ data: { name: "in review", clientId: client.id, status: "REVIEW" } });
     createdProjectIds.push(project.id);
@@ -261,7 +279,8 @@ describe("projectService.updateProject on a COMPLETED project — SEC-081", () =
 });
 
 describe("projectService.clientApprove requires REVIEW — SEC-085", () => {
-  test("rejects 409 PROJECT_NOT_IN_REVIEW on a project that never reached REVIEW, even with zero tasks", { skip: !dbAvailable }, async () => {
+  test("rejects 409 PROJECT_NOT_IN_REVIEW on a project that never reached REVIEW, even with zero tasks", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("approve-not-review");
     const project = await prisma.project.create({ data: { name: "still planning", clientId: client.id, status: "PLANNING" } });
     createdProjectIds.push(project.id);

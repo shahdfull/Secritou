@@ -60,8 +60,12 @@ async function makeClient(namePrefix: string) {
   return client;
 }
 
-describe("proposalService.create — pole scope (RG-002 / SEC-028)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("a MANAGER cannot create a proposal for a Lead assigned to another pole", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("proposalService.create — pole scope (RG-002 / SEC-028)", () => {
+  test("a MANAGER cannot create a proposal for a Lead assigned to another pole", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("sec028-lead");
     const lead = await prisma.lead.create({ data: { name: "Lead B", serviceId: serviceB } });
     createdLeadIds.push(lead.id);
@@ -80,7 +84,8 @@ describe("proposalService.create — pole scope (RG-002 / SEC-028)", { skip: !db
     );
   });
 
-  test("a MANAGER CAN create a proposal for a Lead assigned to their own pole", async () => {
+  test("a MANAGER CAN create a proposal for a Lead assigned to their own pole", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("sec028-lead-own");
     const lead = await prisma.lead.create({ data: { name: "Lead A", serviceId: serviceA } });
     createdLeadIds.push(lead.id);
@@ -93,7 +98,8 @@ describe("proposalService.create — pole scope (RG-002 / SEC-028)", { skip: !db
     assert.ok(proposal.id);
   });
 
-  test("a MANAGER cannot create a proposal for a Client already tied exclusively to another pole's project", async () => {
+  test("a MANAGER cannot create a proposal for a Client already tied exclusively to another pole's project", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("sec028-client");
     const project = await prisma.project.create({ data: { name: "Pole B project", clientId: client.id, serviceId: serviceB } });
     createdProjectIds.push(project.id);
@@ -112,7 +118,8 @@ describe("proposalService.create — pole scope (RG-002 / SEC-028)", { skip: !db
     );
   });
 
-  test("a MANAGER CAN create a proposal for a brand-new Client with no project at all", async () => {
+  test("a MANAGER CAN create a proposal for a brand-new Client with no project at all", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("sec028-new");
 
     const proposal = await proposalService.create(
@@ -123,7 +130,8 @@ describe("proposalService.create — pole scope (RG-002 / SEC-028)", { skip: !db
     assert.ok(proposal.id);
   });
 
-  test("an ADMIN (no service scope) can create a proposal for any client/lead regardless of pole", async () => {
+  test("an ADMIN (no service scope) can create a proposal for any client/lead regardless of pole", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClient("sec028-admin");
     const project = await prisma.project.create({ data: { name: "Pole B project (admin test)", clientId: client.id, serviceId: serviceB } });
     createdProjectIds.push(project.id);

@@ -61,8 +61,12 @@ async function makeInvoiceWithCreditNote(opts: { creditNoteAlreadyApplied: boole
   return { client, invoice, creditNote };
 }
 
-describe("creditNoteService.applyCredit — P2025 handling (SEC-022)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("applying an already-applied credit note throws a real 409 HttpError, not a raw Prisma error", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("creditNoteService.applyCredit — P2025 handling (SEC-022)", () => {
+  test("applying an already-applied credit note throws a real 409 HttpError, not a raw Prisma error", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { invoice, creditNote } = await makeInvoiceWithCreditNote({ creditNoteAlreadyApplied: true });
 
     await assert.rejects(
@@ -76,7 +80,8 @@ describe("creditNoteService.applyCredit — P2025 handling (SEC-022)", { skip: !
     );
   });
 
-  test("applying a fresh credit note succeeds and actually reduces the client's credit balance", async () => {
+  test("applying a fresh credit note succeeds and actually reduces the client's credit balance", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { client, invoice, creditNote } = await makeInvoiceWithCreditNote({ creditNoteAlreadyApplied: false });
 
     const result = await creditNoteService.applyCredit(creditNote.id, invoice.id);

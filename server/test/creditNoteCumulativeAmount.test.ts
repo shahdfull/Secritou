@@ -42,8 +42,12 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
 });
 
-describe("creditNoteService.create enforces a cumulative cap across multiple credit notes on the same invoice (SEC-184)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("a second credit note that would push the total past amountPaid is refused with 409 CREDIT_EXCEEDS_PAID", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("creditNoteService.create enforces a cumulative cap across multiple credit notes on the same invoice (SEC-184)", () => {
+  test("a second credit note that would push the total past amountPaid is refused with 409 CREDIT_EXCEEDS_PAID", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: `sec184-client-${Date.now()}` } });
     createdClientIds.push(client.id);
     const invoice = await prisma.invoice.create({
@@ -68,7 +72,8 @@ describe("creditNoteService.create enforces a cumulative cap across multiple cre
     assert.equal(Number(clientAfter!.creditBalance), 800, "creditBalance must reflect only the first, accepted credit note");
   });
 
-  test("a second credit note that stays within the remaining creditable amount still succeeds", async () => {
+  test("a second credit note that stays within the remaining creditable amount still succeeds", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: `sec184-ok-client-${Date.now()}` } });
     createdClientIds.push(client.id);
     const invoice = await prisma.invoice.create({
@@ -91,8 +96,12 @@ describe("creditNoteService.create enforces a cumulative cap across multiple cre
 // defines its own local assertCreditAmount() and tests that instead of the real service, which
 // CLAUDE.md's verifie:test rule treats as no proof at all (it would stay green even if the real
 // guard regressed). This calls the real creditNoteService.create against a real database.
-describe("creditNoteService.create rejects a non-positive amount before any DB write (real code, not the invoice.service.test.ts mirror)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("a zero amount is rejected with 400 INVALID_CREDIT_AMOUNT, no CreditNote row created", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("creditNoteService.create rejects a non-positive amount before any DB write (real code, not the invoice.service.test.ts mirror)", () => {
+  test("a zero amount is rejected with 400 INVALID_CREDIT_AMOUNT, no CreditNote row created", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: `sec184-zero-client-${Date.now()}` } });
     createdClientIds.push(client.id);
     const invoice = await prisma.invoice.create({
@@ -114,7 +123,8 @@ describe("creditNoteService.create rejects a non-positive amount before any DB w
     assert.equal(count, 0, "no CreditNote row must exist after a rejected creation");
   });
 
-  test("a negative amount is rejected with 400 INVALID_CREDIT_AMOUNT", async () => {
+  test("a negative amount is rejected with 400 INVALID_CREDIT_AMOUNT", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: `sec184-neg-client-${Date.now()}` } });
     createdClientIds.push(client.id);
     const invoice = await prisma.invoice.create({

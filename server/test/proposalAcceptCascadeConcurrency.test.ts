@@ -45,8 +45,12 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
 });
 
-describe("proposalService.acceptWithCascade under real concurrency (SEC-134)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("two strictly concurrent accepts on the same proposal never both produce a Project", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("proposalService.acceptWithCascade under real concurrency (SEC-134)", () => {
+  test("two strictly concurrent accepts on the same proposal never both produce a Project", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "sec134 client" } });
     createdClientIds.push(client.id);
     const proposal = await prisma.proposal.create({

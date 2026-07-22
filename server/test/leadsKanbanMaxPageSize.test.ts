@@ -43,21 +43,24 @@ after(async () => {
   await prisma.lead.deleteMany({ where: { id: { in: createdLeadIds } } });
 });
 
-describe(
-  "Kanban lead pagination — real pageSize: 200 is honored past the old 50 cap (SEC-118)",
-  { skip: !dbAvailable ? "no reachable database" : false },
-  () => {
-    test("parseListQuery with the raised Kanban-specific ceiling returns pageSize: 200, not capped at 50", () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("Kanban lead pagination — real pageSize: 200 is honored past the old 50 cap (SEC-118)", () => {
+    test("parseListQuery with the raised Kanban-specific ceiling returns pageSize: 200, not capped at 50", (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const options = parseListQuery({ pageSize: "200", page: "1" }, 500);
       assert.equal(options.pageSize, 200, "the Kanban-specific ceiling must let pageSize: 200 through uncapped");
     });
 
-    test("parseListQuery with the default (no override) ceiling still caps at 50 for every other list endpoint", () => {
+    test("parseListQuery with the default (no override) ceiling still caps at 50 for every other list endpoint", (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const options = parseListQuery({ pageSize: "200", page: "1" });
       assert.equal(options.pageSize, 50, "other list endpoints must keep the original 50 cap unchanged");
     });
 
-    test("leadRepository.findAll with pageSize: 200 returns all 60 seeded leads, not just 50", async () => {
+    test("leadRepository.findAll with pageSize: 200 returns all 60 seeded leads, not just 50", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const result = await leadRepository.findAll({ page: 1, pageSize: 200, orderDir: "desc" });
       const seededInResult = result.data.filter((l) => createdLeadIds.includes(l.id));
       assert.equal(seededInResult.length, LEAD_COUNT, `expected all ${LEAD_COUNT} seeded leads, got ${seededInResult.length} — the old 50 cap would have silently truncated this`);

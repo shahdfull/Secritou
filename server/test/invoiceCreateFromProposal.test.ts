@@ -36,8 +36,12 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
 });
 
-describe("invoiceService.createFromProposal (real code, not a reimplementation)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("creates an invoice with amount/amountHT/tvaRate/tvaAmount actually derived from computeVat on the proposal's HT amount", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("invoiceService.createFromProposal (real code, not a reimplementation)", () => {
+  test("creates an invoice with amount/amountHT/tvaRate/tvaAmount actually derived from computeVat on the proposal's HT amount", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: `createFromProposal-client-${Date.now()}` } });
     createdClientIds.push(client.id);
     const proposal = await prisma.proposal.create({
@@ -59,7 +63,8 @@ describe("invoiceService.createFromProposal (real code, not a reimplementation)"
     assert.equal(Number(persisted!.amount), 1190, "the VAT-inclusive amount must actually be persisted, not just returned");
   });
 
-  test("rejects a proposal that is not ACCEPTED with 422", async () => {
+  test("rejects a proposal that is not ACCEPTED with 422", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: `createFromProposal-notaccepted-${Date.now()}` } });
     createdClientIds.push(client.id);
     const proposal = await prisma.proposal.create({
@@ -76,7 +81,8 @@ describe("invoiceService.createFromProposal (real code, not a reimplementation)"
     );
   });
 
-  test("rejects a proposal that already has an invoice with 409, never creating a second one", async () => {
+  test("rejects a proposal that already has an invoice with 409, never creating a second one", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: `createFromProposal-dup-${Date.now()}` } });
     createdClientIds.push(client.id);
     const proposal = await prisma.proposal.create({
@@ -99,7 +105,8 @@ describe("invoiceService.createFromProposal (real code, not a reimplementation)"
     assert.equal(count, 1, "a rejected second call must not create a second invoice");
   });
 
-  test("rejects a non-existent proposal with 404", async () => {
+  test("rejects a non-existent proposal with 404", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     await assert.rejects(
       () => invoiceService.createFromProposal("00000000-0000-0000-0000-000000000000"),
       (err: unknown) => {

@@ -63,8 +63,12 @@ async function makeProjectWithSplit(namePrefix: string, ratePct: number) {
   return { client, partner, project };
 }
 
-describe("RG-008 : Commission created only when a Payment is actually recorded", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("a real payment against an invoice creates exactly one Commission, prorated on the applied amount", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("RG-008 : Commission created only when a Payment is actually recorded", () => {
+  test("a real payment against an invoice creates exactly one Commission, prorated on the applied amount", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { project } = await makeProjectWithSplit("rg008-a", 50);
     const invoice = await prisma.invoice.create({
       data: { number: `RG008-A-${Date.now()}`, title: "Test", amount: 1000, amountPaid: 0, status: "SENT", currency: "TND", projectId: project.id, clientId: project.clientId },
@@ -78,7 +82,8 @@ describe("RG-008 : Commission created only when a Payment is actually recorded",
     assert.equal(Number(commissions[0].amount), 200, "amount must be prorated by the split's ratePct (50% of 400)");
   });
 
-  test("a payment fully absorbed as overpayment (appliedAmount = 0) creates no Commission", async () => {
+  test("a payment fully absorbed as overpayment (appliedAmount = 0) creates no Commission", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { project } = await makeProjectWithSplit("rg008-b", 50);
     // amountPaid already equals amount, but status is left at PARTIAL (not yet recomputed to
     // PAID) — a state addPayment() itself would never leave an invoice in, but reachable here

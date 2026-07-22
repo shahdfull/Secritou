@@ -66,8 +66,12 @@ async function login(email: string) {
   return res.body.data.tokens.accessToken as string;
 }
 
-describe("POST /proposals/:id/accept — real HTTP stack (SEC-124)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("a CLIENT is rejected with 403, never reaching the accept logic", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("POST /proposals/:id/accept — real HTTP stack (SEC-124)", () => {
+  test("a CLIENT is rejected with 403, never reaching the accept logic", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const passwordHash = await bcrypt.hash(TEST_PASSWORD, 10);
     const client = await prisma.client.create({ data: { name: "sec124 client", serviceId: serviceA } });
     createdClientIds.push(client.id);
@@ -92,7 +96,8 @@ describe("POST /proposals/:id/accept — real HTTP stack (SEC-124)", { skip: !db
     assert.equal(untouched?.status, "SENT", "the proposal must not have been accepted");
   });
 
-  test("a cross-pole MANAGER is rejected with 404, never reaching the accept logic", async () => {
+  test("a cross-pole MANAGER is rejected with 404, never reaching the accept logic", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const passwordHash = await bcrypt.hash(TEST_PASSWORD, 10);
     const client = await prisma.client.create({ data: { name: "sec124 cross-pole client" } });
     createdClientIds.push(client.id);

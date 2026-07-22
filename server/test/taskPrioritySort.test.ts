@@ -42,8 +42,12 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
 });
 
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
 describe("task list sortable by priority — SEC-047", () => {
-  test("orderBy=priority&orderDir=desc returns URGENT before LOW (enum order LOW→URGENT)", { skip: !dbAvailable }, async () => {
+  test("orderBy=priority&orderDir=desc returns URGENT before LOW (enum order LOW→URGENT)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "prio-sort client", serviceId: serviceA } });
     createdClientIds.push(client.id);
     const project = await prisma.project.create({ data: { name: "prio-sort project", clientId: client.id, serviceId: serviceA } });

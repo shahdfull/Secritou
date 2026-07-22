@@ -65,8 +65,12 @@ async function findAuditLogFor(entityType: string, entityId: string, action: str
   return null;
 }
 
-describe("Invoice and CreditNote mutations write to AuditLog (SEC-152)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("invoiceService.send writes an invoice.send AuditLog entry with actorId and before/after status", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("Invoice and CreditNote mutations write to AuditLog (SEC-152)", () => {
+  test("invoiceService.send writes an invoice.send AuditLog entry with actorId and before/after status", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "sec152 client A" } });
     createdClientIds.push(client.id);
     const invoice = await prisma.invoice.create({
@@ -85,7 +89,8 @@ describe("Invoice and CreditNote mutations write to AuditLog (SEC-152)", { skip:
     assert.deepEqual(entry!.after, { status: "SENT" });
   });
 
-  test("invoiceService.cancel writes an invoice.cancel AuditLog entry", async () => {
+  test("invoiceService.cancel writes an invoice.cancel AuditLog entry", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "sec152 client B" } });
     createdClientIds.push(client.id);
     const invoice = await prisma.invoice.create({
@@ -101,7 +106,8 @@ describe("Invoice and CreditNote mutations write to AuditLog (SEC-152)", { skip:
     assert.deepEqual(entry!.after, { status: "CANCELLED" });
   });
 
-  test("invoiceService.addPayment writes an invoice.payment.add AuditLog entry", async () => {
+  test("invoiceService.addPayment writes an invoice.payment.add AuditLog entry", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "sec152 client C" } });
     createdClientIds.push(client.id);
     const invoice = await prisma.invoice.create({
@@ -118,7 +124,8 @@ describe("Invoice and CreditNote mutations write to AuditLog (SEC-152)", { skip:
     assert.equal((entry!.after as { paymentId?: string })?.paymentId, result.payment.id);
   });
 
-  test("creditNoteService.create writes a creditNote.create AuditLog entry", async () => {
+  test("creditNoteService.create writes a creditNote.create AuditLog entry", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "sec152 client D" } });
     createdClientIds.push(client.id);
     const invoice = await prisma.invoice.create({
@@ -136,7 +143,8 @@ describe("Invoice and CreditNote mutations write to AuditLog (SEC-152)", { skip:
     assert.equal((entry!.after as { number?: string })?.number, creditNote.number);
   });
 
-  test("creditNoteService.applyCredit writes a creditNote.apply AuditLog entry", async () => {
+  test("creditNoteService.applyCredit writes a creditNote.apply AuditLog entry", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "sec152 client E" } });
     createdClientIds.push(client.id);
     const sourceInvoice = await prisma.invoice.create({

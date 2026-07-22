@@ -55,8 +55,12 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
 });
 
-describe("detectClickAnomalies uses one grouped query regardless of client count (SEC-169)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("a 3x spike is still detected, and only 1 findMany call is made for 3 clients", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("detectClickAnomalies uses one grouped query regardless of client count (SEC-169)", () => {
+  test("a 3x spike is still detected, and only 1 findMany call is made for 3 clients", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const clients = await Promise.all(
       [0, 1, 2].map((i) => prisma.client.create({ data: { name: `sec169-client-${i}-${Date.now()}` } }))
     );
@@ -96,7 +100,8 @@ describe("detectClickAnomalies uses one grouped query regardless of client count
   // undefined`), so the "exactly 1 findMany call" claim from the resolution criterion is proven
   // structurally instead: the real source has exactly one findMany call site in the function,
   // not one per iteration of a clientIds loop.
-  test("the real source contains exactly one metricSnapshot.findMany call site, not one per client in a loop", () => {
+  test("the real source contains exactly one metricSnapshot.findMany call site, not one per client in a loop", (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const content = readFileSync(join(process.cwd(), "src/services/metricAnomaly.service.ts"), "utf-8");
     const matches = content.match(/prismaRead\.metricSnapshot\.findMany/g) ?? [];
     assert.equal(matches.length, 1, `expected exactly 1 call site, found ${matches.length}`);
@@ -104,8 +109,12 @@ describe("detectClickAnomalies uses one grouped query regardless of client count
   });
 });
 
-describe("commissionRepository.createManyTx via createManyAndReturn (SEC-170)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("creates all rows with the same relation shape the previous include-based loop produced", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("commissionRepository.createManyTx via createManyAndReturn (SEC-170)", () => {
+  test("creates all rows with the same relation shape the previous include-based loop produced", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const partner = await prisma.user.create({ data: { email: `sec170-partner-${Date.now()}@example.com`, name: "SEC-170 partner", passwordHash: "x", role: "MANAGER" } });
     createdUserIds.push(partner.id);
     const client = await prisma.client.create({ data: { name: `sec170-client-${Date.now()}` } });

@@ -58,18 +58,20 @@ async function makeSentProposal(namePrefix: string, extra: { amount?: number; cu
   return { client, proposal };
 }
 
-describe(
-  "proposalService.reject/send/update/acceptWithCascade — real behavior (SEC-100)",
-  { skip: !dbAvailable ? "no reachable database" : false },
-  () => {
-    test("reject transitions a SENT proposal to REJECTED", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("proposalService.reject/send/update/acceptWithCascade — real behavior (SEC-100)", () => {
+    test("reject transitions a SENT proposal to REJECTED", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const { proposal } = await makeSentProposal("sec100-reject");
       const updated = await proposalService.reject(proposal.id, "Budget trop élevé");
       assert.equal(updated.status, "REJECTED");
       assert.ok(updated.rejectedAt);
     });
 
-    test("reject refuses a DRAFT proposal (INVALID_PROPOSAL_TRANSITION)", async () => {
+    test("reject refuses a DRAFT proposal (INVALID_PROPOSAL_TRANSITION)", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const client = await prisma.client.create({ data: { name: "sec100-reject-draft client" } });
       createdClientIds.push(client.id);
       const proposal = await prisma.proposal.create({ data: { title: "sec100-reject-draft proposal", clientId: client.id, status: "DRAFT" } });
@@ -85,7 +87,8 @@ describe(
       );
     });
 
-    test("send transitions a DRAFT proposal to SENT", async () => {
+    test("send transitions a DRAFT proposal to SENT", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const client = await prisma.client.create({ data: { name: "sec100-send client" } });
       createdClientIds.push(client.id);
       const proposal = await prisma.proposal.create({ data: { title: "sec100-send proposal", clientId: client.id, status: "DRAFT" } });
@@ -95,7 +98,8 @@ describe(
       assert.equal(updated.status, "SENT");
     });
 
-    test("update reverts a SENT proposal to DRAFT and bumps version on a real content change", async () => {
+    test("update reverts a SENT proposal to DRAFT and bumps version on a real content change", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const { proposal } = await makeSentProposal("sec100-update-content");
       assert.equal(proposal.version, 1);
 
@@ -107,7 +111,8 @@ describe(
       assert.ok(history.some((h) => h.action === "REVERTED_TO_DRAFT"));
     });
 
-    test("update does NOT revert a SENT proposal when the new title is identical (no-op)", async () => {
+    test("update does NOT revert a SENT proposal when the new title is identical (no-op)", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const { proposal } = await makeSentProposal("sec100-update-noop");
 
       const updated = await proposalService.update(proposal.id, { title: proposal.title });
@@ -115,7 +120,8 @@ describe(
       assert.equal(updated?.version, 1);
     });
 
-    test("update does NOT revert a SENT proposal when only a non-content field (pdfUrl) changes", async () => {
+    test("update does NOT revert a SENT proposal when only a non-content field (pdfUrl) changes", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const { proposal } = await makeSentProposal("sec100-update-noncontent");
 
       const updated = await proposalService.update(proposal.id, { pdfUrl: "https://cdn.example.com/new.pdf" });
@@ -123,7 +129,8 @@ describe(
       assert.equal(updated?.version, 1);
     });
 
-    test("acceptWithCascade rejects a stale expectedVersion with PROPOSAL_VERSION_MISMATCH", async () => {
+    test("acceptWithCascade rejects a stale expectedVersion with PROPOSAL_VERSION_MISMATCH", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const client = await prisma.client.create({ data: { name: "sec100-version client" } });
       createdClientIds.push(client.id);
       const proposal = await prisma.proposal.create({
@@ -143,7 +150,8 @@ describe(
       );
     });
 
-    test("acceptWithCascade succeeds and creates a project when expectedVersion matches", async () => {
+    test("acceptWithCascade succeeds and creates a project when expectedVersion matches", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const { proposal } = await makeSentProposal("sec100-accept-ok", { amount: 500, currency: "TND" });
 
       const result = await proposalService.acceptWithCascade(proposal.id, proposal.version);

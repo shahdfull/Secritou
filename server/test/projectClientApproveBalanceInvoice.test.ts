@@ -89,8 +89,12 @@ async function makeApprovedProjectWithDeposit(opts: { namePrefix: string; propos
   return { client, clientUser, project, proposal };
 }
 
-describe("projectService.clientApprove — balance invoice amount (RG-004b)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("nominal case: 30% deposit already paid, balance invoice is exactly the complement to 100%", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("projectService.clientApprove — balance invoice amount (RG-004b)", () => {
+  test("nominal case: 30% deposit already paid, balance invoice is exactly the complement to 100%", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { client, clientUser, project } = await makeApprovedProjectWithDeposit({ namePrefix: "rg004b-a", proposalAmount: 1000, depositAmountHT: 300 });
 
     await projectService.clientApprove(project.id, client.id, clientUser.id);
@@ -100,7 +104,8 @@ describe("projectService.clientApprove — balance invoice amount (RG-004b)", { 
     assert.equal(Number(balanceInvoice!.amountHT), 700, "balance must be proposalAmount (1000) - actual deposit (300) = 700");
   });
 
-  test("deposit deviates from the usual 30%: balance is still the exact complement to 100%, not an independent 70% recompute", async () => {
+  test("deposit deviates from the usual 30%: balance is still the exact complement to 100%, not an independent 70% recompute", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     // Deposit billed at 400 (not the usual 300 for a 1000 proposal) — if the code recomputed an
     // independent fixed 70% (700) instead of complementing the ACTUAL deposit, this would either
     // double-bill (400 + 700 = 1100, more than the proposal) or the discrepancy would go

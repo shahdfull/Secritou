@@ -57,8 +57,12 @@ async function makeProposalInPole(serviceId: string, namePrefix: string) {
   return proposal;
 }
 
-describe("proposalService write methods enforce Manager pole scope (SEC-125)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("send refuses a cross-pole MANAGER with 404, and does not send the proposal", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("proposalService write methods enforce Manager pole scope (SEC-125)", () => {
+  test("send refuses a cross-pole MANAGER with 404, and does not send the proposal", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const proposal = await makeProposalInPole(serviceB, "sec125-send");
 
     await assert.rejects(
@@ -70,7 +74,8 @@ describe("proposalService write methods enforce Manager pole scope (SEC-125)", {
     assert.equal(unchanged?.status, "DRAFT", "the refused send must not have applied");
   });
 
-  test("send succeeds for the same-pole MANAGER", async () => {
+  test("send succeeds for the same-pole MANAGER", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const proposal = await makeProposalInPole(serviceA, "sec125-send-own");
 
     await proposalService.send(proposal.id, "manager-a-id", { userRole: "MANAGER", userServiceId: serviceA });
@@ -79,7 +84,8 @@ describe("proposalService write methods enforce Manager pole scope (SEC-125)", {
     assert.equal(updated?.status, "SENT");
   });
 
-  test("update refuses a cross-pole MANAGER with 404, and does not apply the change", async () => {
+  test("update refuses a cross-pole MANAGER with 404, and does not apply the change", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const proposal = await makeProposalInPole(serviceB, "sec125-update");
 
     await assert.rejects(
@@ -91,14 +97,16 @@ describe("proposalService write methods enforce Manager pole scope (SEC-125)", {
     assert.equal(unchanged?.title, "sec125-update proposal", "the refused update must not have applied");
   });
 
-  test("update succeeds for the same-pole MANAGER", async () => {
+  test("update succeeds for the same-pole MANAGER", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const proposal = await makeProposalInPole(serviceA, "sec125-update-own");
 
     const updated = await proposalService.update(proposal.id, { title: "renamed by own-pole manager" }, undefined, { userRole: "MANAGER", userServiceId: serviceA });
     assert.equal(updated?.title, "renamed by own-pole manager");
   });
 
-  test("addSection refuses a cross-pole MANAGER with 404, and does not create the section", async () => {
+  test("addSection refuses a cross-pole MANAGER with 404, and does not create the section", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const proposal = await makeProposalInPole(serviceB, "sec125-addsection");
 
     await assert.rejects(
@@ -110,7 +118,8 @@ describe("proposalService write methods enforce Manager pole scope (SEC-125)", {
     assert.equal(sections.length, 0, "the refused addSection must not have created a row");
   });
 
-  test("addSection succeeds for the same-pole MANAGER", async () => {
+  test("addSection succeeds for the same-pole MANAGER", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const proposal = await makeProposalInPole(serviceA, "sec125-addsection-own");
 
     const section = await proposalService.addSection(proposal.id, { title: "Legit section", orderIndex: 0 }, { userRole: "MANAGER", userServiceId: serviceA });

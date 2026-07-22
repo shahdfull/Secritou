@@ -34,8 +34,12 @@ after(async () => {
   await prisma.lead.deleteMany({ where: { id: { in: createdLeadIds } } });
 });
 
-describe("leadService.createLead rejects duplicate active emails (SEC-155)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("creating a second lead with the same email as an existing active lead throws 409 LEAD_EMAIL_ALREADY_EXISTS", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("leadService.createLead rejects duplicate active emails (SEC-155)", () => {
+  test("creating a second lead with the same email as an existing active lead throws 409 LEAD_EMAIL_ALREADY_EXISTS", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const email = `sec155-${Date.now()}@example.com`;
 
     const first = await leadService.createLead({ name: "First entry", email });
@@ -54,7 +58,8 @@ describe("leadService.createLead rejects duplicate active emails (SEC-155)", { s
     assert.equal(leadsWithEmail.length, 1, "the rejected attempt must never have inserted a second row");
   });
 
-  test("a lead can be created with the same email as an ARCHIVED (lost/won) lead — a re-entry is legitimate", async () => {
+  test("a lead can be created with the same email as an ARCHIVED (lost/won) lead — a re-entry is legitimate", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const email = `sec155-archived-${Date.now()}@example.com`;
 
     const original = await leadService.createLead({ name: "Original prospect", email });
@@ -69,7 +74,8 @@ describe("leadService.createLead rejects duplicate active emails (SEC-155)", { s
     assert.equal(leadsWithEmail.length, 2, "an archived lead must not block a legitimate re-entry for the same email");
   });
 
-  test("a lead created with no email at all is never checked for duplicates (multiple no-email leads are legitimate)", async () => {
+  test("a lead created with no email at all is never checked for duplicates (multiple no-email leads are legitimate)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const first = await leadService.createLead({ name: "No email lead 1" });
     createdLeadIds.push(first.id);
     const second = await leadService.createLead({ name: "No email lead 2" });

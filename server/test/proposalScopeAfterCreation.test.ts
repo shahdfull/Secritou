@@ -60,11 +60,12 @@ async function makeClient(namePrefix: string) {
   return client;
 }
 
-describe(
-  "assertProposalInScope after creation — SEC-099",
-  { skip: !dbAvailable ? "no reachable database" : false },
-  () => {
-    test("a MANAGER can list and read their own proposal (via lead scope) before any project exists", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("assertProposalInScope after creation — SEC-099", () => {
+    test("a MANAGER can list and read their own proposal (via lead scope) before any project exists", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const client = await makeClient("sec099-lead");
       const lead = await prisma.lead.create({ data: { name: "Lead A", serviceId: serviceA } });
       createdLeadIds.push(lead.id);
@@ -86,7 +87,8 @@ describe(
       assert.ok(list.data.some((p) => p.id === proposal.id), "the manager's own proposal must appear in their own list");
     });
 
-    test("a MANAGER from another pole gets 404 on that same proposal, and it is absent from their list", async () => {
+    test("a MANAGER from another pole gets 404 on that same proposal, and it is absent from their list", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const client = await makeClient("sec099-lead-cross");
       const lead = await prisma.lead.create({ data: { name: "Lead A2", serviceId: serviceA } });
       createdLeadIds.push(lead.id);
@@ -113,7 +115,8 @@ describe(
       assert.ok(!list.data.some((p) => p.id === proposal.id), "a cross-pole proposal must not appear in the other manager's list");
     });
 
-    test("a MANAGER can still read/update their own proposal once acceptWithCascade creates its linkedProject", async () => {
+    test("a MANAGER can still read/update their own proposal once acceptWithCascade creates its linkedProject", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const client = await makeClient("sec099-accepted");
       const proposal = await proposalService.create(
         { title: "SEC-099 accepted", clientId: client.id, amount: 100, currency: "TND" },
@@ -145,7 +148,8 @@ describe(
       );
     });
 
-    test("a MANAGER cannot read a proposal tied (via client) exclusively to another pole's project, even with no lead", async () => {
+    test("a MANAGER cannot read a proposal tied (via client) exclusively to another pole's project, even with no lead", async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
       const client = await makeClient("sec099-client-cross");
       const project = await prisma.project.create({ data: { name: "Pole B project", clientId: client.id, serviceId: serviceB } });
       createdProjectIds.push(project.id);
@@ -162,5 +166,4 @@ describe(
         }
       );
     });
-  }
-);
+});

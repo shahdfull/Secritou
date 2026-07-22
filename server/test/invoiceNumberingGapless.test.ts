@@ -56,8 +56,12 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
 });
 
-describe("invoiceService.create — sequential gapless numbering (RG-012)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("consecutive invoices under the same month prefix get strictly consecutive numbers", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("invoiceService.create — sequential gapless numbering (RG-012)", () => {
+  test("consecutive invoices under the same month prefix get strictly consecutive numbers", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "RG-012 client", serviceId } });
     createdClientIds.push(client.id);
 
@@ -74,7 +78,8 @@ describe("invoiceService.create — sequential gapless numbering (RG-012)", { sk
     assert.equal(seq2, seq1 + 1, "the second invoice's sequence must be exactly one more than the first — no gap");
   });
 
-  test("a caller-supplied `number` is never used — createInvoiceSchema no longer accepts it, invoiceService.create always generates its own", async () => {
+  test("a caller-supplied `number` is never used — createInvoiceSchema no longer accepts it, invoiceService.create always generates its own", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "RG-012 no-bypass client", serviceId } });
     createdClientIds.push(client.id);
 

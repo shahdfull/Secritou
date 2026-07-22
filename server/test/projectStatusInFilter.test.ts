@@ -71,8 +71,12 @@ async function makeProjectWithTask(namePrefix: string, status: "PLANNING" | "IN_
   return project;
 }
 
-describe("projectRepository.findAll — statusIn (freelancer Active/Done sub-tabs)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("statusIn=[PLANNING,IN_PROGRESS,REVIEW] returns only active projects, never COMPLETED ones", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("projectRepository.findAll — statusIn (freelancer Active/Done sub-tabs)", () => {
+  test("statusIn=[PLANNING,IN_PROGRESS,REVIEW] returns only active projects, never COMPLETED ones", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const active1 = await makeProjectWithTask("statusin-active-1", "PLANNING");
     const active2 = await makeProjectWithTask("statusin-active-2", "IN_PROGRESS");
     const done1 = await makeProjectWithTask("statusin-done-1", "COMPLETED");
@@ -90,7 +94,8 @@ describe("projectRepository.findAll — statusIn (freelancer Active/Done sub-tab
     assert.ok(!ids.includes(done1.id), "COMPLETED project must never appear in the active set");
   });
 
-  test("statusIn paginates independently: page size 1 with 2 matching projects returns exactly 1, but total reflects both", async () => {
+  test("statusIn paginates independently: page size 1 with 2 matching projects returns exactly 1, but total reflects both", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const p1 = await makeProjectWithTask("statusin-page-1", "PLANNING");
     const p2 = await makeProjectWithTask("statusin-page-2", "REVIEW");
 

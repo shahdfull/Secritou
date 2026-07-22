@@ -37,8 +37,12 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
 });
 
-describe("markOverdueInvoices records an AuditLog entry for the OVERDUE transition (SEC-186)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("an invoice past its due date gets an AuditLog row with action invoice.markOverdue", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("markOverdueInvoices records an AuditLog entry for the OVERDUE transition (SEC-186)", () => {
+  test("an invoice past its due date gets an AuditLog row with action invoice.markOverdue", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: `sec186-client-${Date.now()}` } });
     createdClientIds.push(client.id);
     const pastDue = new Date(Date.now() - 24 * 60 * 60 * 1000);

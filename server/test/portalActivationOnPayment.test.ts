@@ -84,8 +84,12 @@ after(async () => {
   await closeRedisClient();
 });
 
-describe("Portal account creation moves from acceptance to deposit payment (SEC-002 / RG-018)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("accepting a proposal creates the deposit invoice but NO client User account", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("Portal account creation moves from acceptance to deposit payment (SEC-002 / RG-018)", () => {
+  test("accepting a proposal creates the deposit invoice but NO client User account", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const email = `sec002-${Date.now()}-a@example.com`;
     const { client, proposal } = await makeAcceptableProposal(email);
 
@@ -101,7 +105,8 @@ describe("Portal account creation moves from acceptance to deposit payment (SEC-
     assert.equal(clientRow?.portalActivatedAt, null, "portalActivatedAt must still be null — no payment has happened yet");
   });
 
-  test("fully paying the deposit invoice creates the client's User account and activates the portal", async () => {
+  test("fully paying the deposit invoice creates the client's User account and activates the portal", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const email = `sec002-${Date.now()}-b@example.com`;
     const { client, proposal } = await makeAcceptableProposal(email);
     const result = await proposalService.acceptWithCascade(proposal.id);
@@ -124,7 +129,8 @@ describe("Portal account creation moves from acceptance to deposit payment (SEC-
     assert.ok(clientRow?.portalActivatedAt, "portalActivatedAt must be set once the deposit is fully paid");
   });
 
-  test("a second, unrelated payment on an already-activated client does not create a duplicate account", async () => {
+  test("a second, unrelated payment on an already-activated client does not create a duplicate account", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const email = `sec002-${Date.now()}-c@example.com`;
     const { client, proposal } = await makeAcceptableProposal(email);
     const result = await proposalService.acceptWithCascade(proposal.id);

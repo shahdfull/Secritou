@@ -43,12 +43,16 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
 });
 
-describe("Task.completedAt backfill (SEC-173)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("Task.completedAt backfill (SEC-173)", () => {
   // A global "no DONE task has completedAt null" invariant is untestable on a shared test DB:
   // other test files legitimately create DONE tasks directly via prisma.task.create (fixtures
   // bypassing taskService), continuously re-violating it. Instead, prove the migration's UPDATE
   // deterministically: seed a pre-migration-shaped row, run the exact statement, verify it.
-  test("the backfill statement fills completedAt from updatedAt for a historical DONE task", async () => {
+  test("the backfill statement fills completedAt from updatedAt for a historical DONE task", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: `sec173-client-${Date.now()}` } });
     createdClientIds.push(client.id);
     const project = await prisma.project.create({ data: { name: `sec173-project-${Date.now()}`, clientId: client.id } });
@@ -66,7 +70,8 @@ describe("Task.completedAt backfill (SEC-173)", { skip: !dbAvailable ? "no reach
     assert.equal(backfilled!.completedAt!.getTime(), backfilled!.updatedAt.getTime(), "completedAt must equal updatedAt, per the migration's approximation");
   });
 
-  test("a real transition to DONE via taskService still sets completedAt (forward path unaffected)", async () => {
+  test("a real transition to DONE via taskService still sets completedAt (forward path unaffected)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: `sec173-fwd-client-${Date.now()}` } });
     createdClientIds.push(client.id);
     const project = await prisma.project.create({ data: { name: `sec173-fwd-project-${Date.now()}`, clientId: client.id } });

@@ -36,8 +36,12 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
 });
 
-describe("clientService.inviteClientUser resend behavior (SEC-154)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("first invite creates a new User account (resent: false)", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("clientService.inviteClientUser resend behavior (SEC-154)", () => {
+  test("first invite creates a new User account (resent: false)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "sec154 client A" } });
     createdClientIds.push(client.id);
     const email = `sec154-a-${Date.now()}@example.com`;
@@ -52,7 +56,8 @@ describe("clientService.inviteClientUser resend behavior (SEC-154)", { skip: !db
     assert.equal(usersForClient.length, 1, "exactly one User must exist after the first invite");
   });
 
-  test("a second invite on a never-logged-in account resends to the SAME account instead of 409ing or creating a second User", async () => {
+  test("a second invite on a never-logged-in account resends to the SAME account instead of 409ing or creating a second User", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "sec154 client B" } });
     createdClientIds.push(client.id);
     const email = `sec154-b-${Date.now()}@example.com`;
@@ -74,7 +79,8 @@ describe("clientService.inviteClientUser resend behavior (SEC-154)", { skip: !db
     assert.notEqual(secondPasswordHash, firstPasswordHash, "the resend must issue a fresh temp password, invalidating the old unread one");
   });
 
-  test("a third invite attempt after the client has actually logged in (lastLoginAt set) still returns 409", async () => {
+  test("a third invite attempt after the client has actually logged in (lastLoginAt set) still returns 409", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "sec154 client C" } });
     createdClientIds.push(client.id);
     const email = `sec154-c-${Date.now()}@example.com`;

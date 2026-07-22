@@ -37,8 +37,12 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
 });
 
-describe("creditNoteService.create number generation under real concurrency (SEC-151)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("two strictly concurrent credit note creations never collide on CreditNote.number", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("creditNoteService.create number generation under real concurrency (SEC-151)", () => {
+  test("two strictly concurrent credit note creations never collide on CreditNote.number", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "sec151 client" } });
     createdClientIds.push(client.id);
 
@@ -69,7 +73,8 @@ describe("creditNoteService.create number generation under real concurrency (SEC
     assert.equal(distinctNumbers.size, 2, "both credit notes must be persisted with distinct numbers");
   });
 
-  test("a burst of 20 concurrent credit note creations on 20 different invoices produces 20 distinct numbers", async () => {
+  test("a burst of 20 concurrent credit note creations on 20 different invoices produces 20 distinct numbers", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await prisma.client.create({ data: { name: "sec151 burst client" } });
     createdClientIds.push(client.id);
 

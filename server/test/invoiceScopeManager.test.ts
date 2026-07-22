@@ -60,8 +60,12 @@ async function makeInvoiceInPole(serviceId: string) {
   return invoice;
 }
 
-describe("SEC-137: invoiceService.getById enforces Manager pole scope", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("a pole-A Manager cannot read a pole-B invoice attached to a project", async () => {
+// SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
+// the async before() above has any chance to set the real value. Checking dbAvailable inside
+// each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
+describe("SEC-137: invoiceService.getById enforces Manager pole scope", () => {
+  test("a pole-A Manager cannot read a pole-B invoice attached to a project", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const invoice = await makeInvoiceInPole(serviceB);
 
     await assert.rejects(
@@ -74,7 +78,8 @@ describe("SEC-137: invoiceService.getById enforces Manager pole scope", { skip: 
     );
   });
 
-  test("a same-pole Manager can still read the invoice", async () => {
+  test("a same-pole Manager can still read the invoice", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const invoice = await makeInvoiceInPole(serviceA);
 
     const found = await invoiceService.getById(invoice.id, { userRole: "MANAGER", userServiceId: serviceA });
@@ -82,7 +87,8 @@ describe("SEC-137: invoiceService.getById enforces Manager pole scope", { skip: 
     assert.equal(found!.id, invoice.id);
   });
 
-  test("an ADMIN (unscoped) can read an invoice from any pole", async () => {
+  test("an ADMIN (unscoped) can read an invoice from any pole", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const invoice = await makeInvoiceInPole(serviceB);
 
     const found = await invoiceService.getById(invoice.id, { userRole: "ADMIN" });

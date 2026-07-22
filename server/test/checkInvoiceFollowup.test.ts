@@ -71,8 +71,13 @@ after(async () => {
   await prisma.client.delete({ where: { id: clientId } }).catch(() => {});
 });
 
-describe("checkInvoiceFollowup — tier by dueDate, not createdAt (SEC-014)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("an invoice created recently but with dueDate 14 days in the past gets the SECOND tier", async () => {
+// SEC-195: `describe`/`test`'s own `skip` option is evaluated SYNCHRONOUSLY at registration
+// time, before the async `before()` above has any chance to resolve and set `dbAvailable` — it
+// worked only by accident of timing locally. Checking `dbAvailable` inside each test body (and
+// returning early) is the only pattern that actually runs after `before()` has resolved.
+describe("checkInvoiceFollowup — tier by dueDate, not createdAt (SEC-014)", () => {
+  test("an invoice created recently but with dueDate 14 days in the past gets the SECOND tier", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const inv = await makeInvoice({
       status: "SENT",
       // createdAt is recent (1 day ago) — if the bug were still present (tiering off
@@ -91,7 +96,8 @@ describe("checkInvoiceFollowup — tier by dueDate, not createdAt (SEC-014)", { 
     assert.equal(reminders[0]!.type, "SECOND", "14 days overdue by dueDate must select the SECOND tier, not FIRST or none");
   });
 
-  test("an invoice with dueDate only 3 days in the past gets no reminder yet (below the 7-day FIRST threshold)", async () => {
+  test("an invoice with dueDate only 3 days in the past gets no reminder yet (below the 7-day FIRST threshold)", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const inv = await makeInvoice({
       status: "SENT",
       createdAt: daysAgo(30), // old creation date must not matter
@@ -106,8 +112,9 @@ describe("checkInvoiceFollowup — tier by dueDate, not createdAt (SEC-014)", { 
   });
 });
 
-describe("checkInvoiceFollowup — OVERDUE invoices keep receiving tiered reminders (SEC-015)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
-  test("an invoice already in OVERDUE status still receives a FINAL reminder at 30+ days overdue", async () => {
+describe("checkInvoiceFollowup — OVERDUE invoices keep receiving tiered reminders (SEC-015)", () => {
+  test("an invoice already in OVERDUE status still receives a FINAL reminder at 30+ days overdue", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const inv = await makeInvoice({
       status: "OVERDUE",
       createdAt: daysAgo(35),
@@ -122,7 +129,8 @@ describe("checkInvoiceFollowup — OVERDUE invoices keep receiving tiered remind
     assert.equal(reminders[0]!.type, "FINAL");
   });
 
-  test("an OVERDUE invoice does not get a duplicate reminder for a tier it already received", async () => {
+  test("an OVERDUE invoice does not get a duplicate reminder for a tier it already received", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     const inv = await makeInvoice({
       status: "OVERDUE",
       createdAt: daysAgo(10),
