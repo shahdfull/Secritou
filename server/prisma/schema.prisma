@@ -1099,6 +1099,11 @@ model Proposal {
   project          Project?          @relation("ProjectProposals", fields: [projectId], references: [id], onDelete: SetNull)
   serviceRequestId String?           @unique
   serviceRequest   ServiceRequest?   @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
+  // SEC-193: the real DB index (Proposal_leadId_key, migration 20260625160000_add_lead_id_to_proposal)
+  // is a PARTIAL unique index (WHERE "leadId" IS NOT NULL), a form Prisma's schema DSL cannot
+  // express — `@unique` here declares the equivalent total-index intent, but `prisma migrate diff`
+  // always reports it as "missing" against schema.prisma. Known, documented divergence: do not
+  // "fix" by dropping @unique (would remove the type-level guarantee this is a real constraint).
   leadId           String?           @unique
   lead             Lead?             @relation(fields: [leadId], references: [id], onDelete: SetNull)
   sections         ProposalSection[]
@@ -1305,6 +1310,13 @@ model Invoice {
   createdAt          DateTime          @default(now()) @db.Timestamptz(6)
   updatedAt          DateTime          @updatedAt @db.Timestamptz(6)
 
+  // SEC-193: the real DB index (Invoice_projectId_invoiceType_key, migration
+  // 20260713120000_invoice_partial_unique) is a PARTIAL unique index
+  // (WHERE "invoiceType" <> 'STANDARD') — a total index here would wrongly cap STANDARD invoices
+  // at one per project. `@@unique` cannot express the WHERE clause, so `prisma migrate diff`
+  // always reports this index as "missing" against schema.prisma. Known, documented divergence:
+  // do not "fix" by dropping @@unique (would remove the type-level guarantee this is a real
+  // constraint the DEPOSIT/BALANCE acceptance cascade relies on for its P2002 idempotency check).
   @@unique([projectId, invoiceType])
   @@index([clientId])
   @@index([status])
