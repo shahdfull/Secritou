@@ -48,11 +48,23 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
     env:
       NODE_ENV: test
       DATABASE_URL: postgresql://secritou:secritou@localhost:5432/secritou_test
       JWT_ACCESS_SECRET: ci-test-access-secret-min-32-chars-long
       JWT_REFRESH_SECRET: ci-test-refresh-secret-min-32-chars
+      CACHE_ENABLED: "true"
+      REDIS_HOST: localhost
+      REDIS_PORT: "6379"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
