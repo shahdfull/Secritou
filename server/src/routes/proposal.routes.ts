@@ -130,9 +130,10 @@ router.get("/my", authenticate, authorize("CLIENT"), getMyProposals);
  *     description: >
  *       CLIENT only, and only on a proposal belonging to the caller's own clientId (403
  *       otherwise). `action: accept` triggers the full acceptance cascade (creates the Project
- *       and the deposit Invoice, invites the client's portal user if not yet activated) — the
- *       response `meta` carries the created `projectId`/`invoiceId`/`clientInvited`, not just
- *       the updated proposal in `data`.
+ *       and the deposit Invoice) — the response `meta` carries the created
+ *       `projectId`/`invoiceId`/`clientInvited`, not just the updated proposal in `data`.
+ *       Client portal invitation itself no longer happens here (moved to payment time,
+ *       RG-018/SEC-002) — `clientInvited` is always false on this route.
  *     parameters:
  *       - in: path
  *         name: id
@@ -173,9 +174,17 @@ router.get("/my", authenticate, authorize("CLIENT"), getMyProposals);
  *                   properties:
  *                     projectId: { type: string, format: uuid }
  *                     invoiceId: { type: string, format: uuid }
- *                     clientInvited: { type: boolean }
+ *                     clientInvited:
+ *                       type: boolean
+ *                       description: >
+ *                         Always false — client portal invitation was moved to payment time
+ *                         (RG-018/SEC-002) and no longer happens as part of this cascade.
  *       400:
- *         description: Invalid action, or version conflict on accept
+ *         description: Invalid action (Zod validation failure on the request body itself).
+ *       409:
+ *         description: >
+ *           PROPOSAL_VERSION_MISMATCH (expectedVersion is stale), INVALID_PROPOSAL_TRANSITION
+ *           (the proposal is not in a status this action can apply to), or PROPOSAL_EXPIRED.
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
@@ -322,7 +331,13 @@ router.get("/:id", authorize("ADMIN", "MANAGER"), requirePermission("proposals",
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
- *         description: Forbidden, including a MANAGER targeting a projectId outside their pôle scope
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         description: >
+ *           Lead not found (leadId's own serviceId is outside a MANAGER's pôle) or Client not
+ *           found (the client already has projects, all in a different pôle than the calling
+ *           MANAGER) — a MANAGER creating a proposal scoped outside their pôle gets a 404, not a
+ *           403, so the existence of an out-of-scope lead/client is not leaked.
  */
 router.post("/", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("proposals", "create"), validate(createProposalSchema), createProposal);
 
@@ -437,8 +452,10 @@ router.post("/:id/send", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"),
  *       - bearerAuth: []
  *     description: >
  *       Staff-side equivalent of POST /proposals/{id}/respond with action=accept — same
- *       acceptance cascade (creates Project + deposit Invoice, invites the client portal user).
- *       MANAGER is scope-checked against the proposal's pôle before the cascade runs.
+ *       acceptance cascade (creates Project + deposit Invoice). MANAGER is scope-checked
+ *       against the proposal's pôle before the cascade runs. Client portal invitation no
+ *       longer happens here (moved to payment time, RG-018/SEC-002) — `clientInvited` in the
+ *       response is always false.
  *     parameters:
  *       - in: path
  *         name: id
@@ -469,9 +486,11 @@ router.post("/:id/send", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"),
  *                   properties:
  *                     projectId: { type: string, format: uuid }
  *                     invoiceId: { type: string, format: uuid }
- *                     clientInvited: { type: boolean }
- *       400:
- *         description: Version conflict (expectedVersion stale)
+ *                     clientInvited: { type: boolean, description: "Always false — see description above." }
+ *       409:
+ *         description: >
+ *           PROPOSAL_VERSION_MISMATCH (expectedVersion is stale), INVALID_PROPOSAL_TRANSITION,
+ *           or PROPOSAL_EXPIRED.
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:

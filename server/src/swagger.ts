@@ -270,6 +270,7 @@ const options = {
         },
         Project: {
           type: "object",
+          description: "Matches projectListSelect (project.repository.ts) — the shape returned by GET /projects and GET /projects/{id}.",
           properties: {
             id: {
               type: "string",
@@ -288,6 +289,23 @@ const options = {
               enum: ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED"],
               example: "IN_PROGRESS",
             },
+            clientId: { type: "string", format: "uuid", nullable: true },
+            serviceId: { type: "string", format: "uuid", nullable: true },
+            proposalId: { type: "string", format: "uuid", nullable: true },
+            budget: { type: "number", nullable: true },
+            deadline: { type: "string", format: "date-time", nullable: true },
+            serviceType: { type: "string", nullable: true },
+            briefCompleted: { type: "boolean" },
+            briefCompletedAt: { type: "string", format: "date-time", nullable: true },
+            clientApprovedAt: { type: "string", format: "date-time", nullable: true },
+            clientApprovedById: { type: "string", format: "uuid", nullable: true },
+            meetingFrequency: { type: "string", nullable: true },
+            nextMeetingDate: { type: "string", format: "date-time", nullable: true },
+            archivedAt: { type: "string", format: "date-time", nullable: true },
+            deletedAt: { type: "string", format: "date-time", nullable: true },
+            progress: { type: "integer", description: "0-100, computed from tasks (not a stored column)." },
+            taskDone: { type: "integer" },
+            taskTotal: { type: "integer" },
             createdAt: {
               type: "string",
               format: "date-time",

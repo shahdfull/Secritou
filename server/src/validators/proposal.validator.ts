@@ -1,42 +1,33 @@
 import { z } from "zod";
-import { DEFAULT_CURRENCY } from "../constants/currency.js";
+import {
+  proposalBaseSchema as sharedProposalBase,
+  proposalSectionSchema,
+  rejectProposalSchema as sharedRejectProposalSchema,
+  respondToProposalSchema as sharedRespondToProposalSchema,
+} from "@secritou/shared";
 
 const uuidParam = z.string().uuid();
-// RG-001: every proposal/invoice is denominated in TND — no other currency is accepted in
-// writing (SEC-032). See invoice.validator.ts for the full rationale.
-const currencyCode = z.literal(DEFAULT_CURRENCY);
+
+// Optional contact snapshot (pre-filled from the source Lead when created from a lead) — not
+// part of the shared base schema since it's populated server-side from the lead, never a
+// standalone field a client-only form (without a lead context) would need to represent.
+const proposalBaseSchema = sharedProposalBase.extend({
+  clientName: z.string().max(255).optional(),
+  email: z.string().email().max(255).optional(),
+});
 
 export const createProposalSchema = z.object({
-  body: z.object({
-    title: z.string().min(1).max(255),
-    description: z.string().max(5000).optional(),
-    amount: z.number().nonnegative().optional(),
-    currency: currencyCode.default("TND"),
-    clientId: z.string().uuid(),
-    // Optional contact snapshot (pre-filled from the source Lead when created from a lead).
-    clientName: z.string().max(255).optional(),
-    email: z.string().email().max(255).optional(),
-    projectId: z.string().uuid().optional(),
-    serviceRequestId: z.string().uuid().optional(),
-    leadId: z.string().uuid().optional(),
-    expiresAt: z.string().datetime({ offset: true }).optional(),
-    sections: z.array(z.object({
-      title: z.string().min(1).max(255),
-      content: z.string().max(10000).optional(),
-      orderIndex: z.number().int().nonnegative().default(0),
-    })).optional(),
-  }),
+  body: proposalBaseSchema,
 });
 
 export const updateProposalSchema = z.object({
   params: z.object({ id: uuidParam }),
-  body: z.object({
-    title: z.string().min(1).max(255).optional(),
-    description: z.string().max(5000).optional(),
-    amount: z.number().nonnegative().optional(),
-    currency: currencyCode.optional(),
-    expiresAt: z.string().datetime({ offset: true }).optional().nullable(),
-  }),
+  // Deliberately narrower than proposalBaseSchema.partial(): clientId/projectId/serviceRequestId/
+  // leadId/sections are not updatable via this endpoint (proposalService.update passes the body
+  // through close to unchecked to Prisma — this Zod schema is the only real gate on what a client
+  // can reassign on an existing proposal, so widening it must be a deliberate decision, not a
+  // side effect of reusing the shared create schema).
+  body: proposalBaseSchema.pick({ title: true, description: true, amount: true, currency: true, expiresAt: true }).partial(),
 });
 
 export const proposalIdParamSchema = z.object({
@@ -45,37 +36,22 @@ export const proposalIdParamSchema = z.object({
 
 export const rejectProposalSchema = z.object({
   params: z.object({ id: uuidParam }),
-  body: z.object({
-    comment: z.string().max(2000).optional(),
-  }),
+  body: sharedRejectProposalSchema,
 });
 
 export const respondToProposalSchema = z.object({
   params: z.object({ id: uuidParam }),
-  body: z.object({
-    action: z.enum(["accept", "reject"]),
-    comment: z.string().max(2000).optional(),
-    // Optimistic-concurrency token: the proposal version the client reviewed before accepting.
-    expectedVersion: z.number().int().positive().optional(),
-  }),
+  body: sharedRespondToProposalSchema,
 });
 
 export const addSectionSchema = z.object({
   params: z.object({ id: uuidParam }),
-  body: z.object({
-    title: z.string().min(1).max(255),
-    content: z.string().max(10000).optional(),
-    orderIndex: z.number().int().nonnegative().default(0),
-  }),
+  body: proposalSectionSchema,
 });
 
 export const updateSectionSchema = z.object({
   params: z.object({ id: uuidParam, sectionId: uuidParam }),
-  body: z.object({
-    title: z.string().min(1).max(255).optional(),
-    content: z.string().max(10000).optional(),
-    orderIndex: z.number().int().nonnegative().optional(),
-  }),
+  body: proposalSectionSchema.partial(),
 });
 
 export const sectionParamSchema = z.object({

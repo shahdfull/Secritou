@@ -417,11 +417,7 @@ router.use(authenticate);
  *                 data:
  *                   type: array
  *                   items:
- *                     type: object
- *                     properties:
- *                       id: { type: string }
- *                       name: { type: string }
- *                       description: { type: string }
+ *                     $ref: '#/components/schemas/Project'
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
@@ -484,6 +480,8 @@ router.get("/:id", requirePermission("projects", "read"), getProjectById);
  *               description: { type: string }
  *               proposalId: { type: string, format: uuid, description: "Must reference an ACCEPTED proposal" }
  *               clientId: { type: string, format: uuid }
+ *               status: { type: string, enum: [PLANNING, IN_PROGRESS, REVIEW, COMPLETED], default: PLANNING }
+ *               serviceId: { type: string, format: uuid }
  *     responses:
  *       201:
  *         description: Project created
@@ -508,6 +506,11 @@ router.post("/", sensitiveWriteRateLimit, validate(createProjectSchema), authori
  *     tags: [Projects]
  *     security:
  *       - bearerAuth: []
+ *     description: >
+ *       Also the only way to change a project's status (not just name/description). COMPLETED
+ *       cannot be set directly here — it's only reachable via POST /projects/{id}/client-approve
+ *       (422 COMPLETION_REQUIRES_CLIENT_APPROVAL otherwise). Any other transition not allowed by
+ *       PROJECT_STATUS_VALID_TRANSITIONS returns 422 INVALID_STATUS_TRANSITION.
  *     parameters:
  *       - in: path
  *         name: id
@@ -522,11 +525,15 @@ router.post("/", sensitiveWriteRateLimit, validate(createProjectSchema), authori
  *             properties:
  *               name: { type: string }
  *               description: { type: string }
+ *               status: { type: string, enum: [PLANNING, IN_PROGRESS, REVIEW, COMPLETED] }
+ *               serviceId: { type: string, format: uuid }
  *     responses:
  *       200:
  *         description: Project updated
  *       422:
- *         $ref: '#/components/responses/ValidationError'
+ *         description: >
+ *           Zod validation error, COMPLETION_REQUIRES_CLIENT_APPROVAL, or
+ *           INVALID_STATUS_TRANSITION — see description above.
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
