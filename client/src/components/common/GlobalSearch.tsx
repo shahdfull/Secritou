@@ -107,6 +107,7 @@ export function GlobalSearch() {
             ref={inputRef}
             type="search"
             placeholder={t("search.placeholder")}
+            aria-label={t("search.placeholder")}
             className="pl-10 bg-muted/50 border-muted-foreground/20 cursor-pointer"
             value={query}
             onChange={(e) => {

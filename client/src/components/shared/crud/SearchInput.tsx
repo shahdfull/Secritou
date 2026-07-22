@@ -20,6 +20,11 @@ export function SearchInput({ value, onChange, placeholder, className }: SearchI
       <Input
         type="search"
         placeholder={placeholder}
+        // A placeholder alone is not a reliable accessible name (some screen readers skip it,
+        // and it disappears once the field has a value) — fall back to it here so every
+        // consumer of this shared component gets a real aria-label without having to pass one
+        // explicitly on top of the placeholder they already provide.
+        aria-label={placeholder}
         value={value}
         onChange={handleChange}
         className="pl-10"
