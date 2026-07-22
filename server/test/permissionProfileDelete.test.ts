@@ -191,3 +191,65 @@ test("force-deleting a profile actually empties the attached manager's resolved 
   const after = await managerPermissionService.resolvePermissions(manager.id);
   assert.equal(after.projects?.update, undefined, "the manager's permissions must actually be empty after a forced delete (cache real-invalidated, not stale)");
 });
+
+// SEC-197: permissionProfileService.delete invalidates the cache both BEFORE and AFTER the real
+// delete() call specifically to close the race where a concurrent resolvePermissions() call
+// repopulates the cache with the (already gone) profile's grants between the two. This is the
+// one new lock-free read-then-write contention point introduced by the Phase 0 fixes worth a
+// concurrency test for — authDenylist's revokeAccessToken/isAccessTokenRevoked (also touched
+// this session) are plain SET/EXISTS with no read-modify-write step, so they have no equivalent
+// window. Requires a real database/Redis; skipped if unreachable.
+test("concurrent resolvePermissions calls racing a force-delete never leave a stale cache entry (SEC-197)", { skip: !realDbAvailable ? "no reachable database/redis" : false }, async () => {
+  const manager = await prisma.user.create({
+    data: {
+      email: `sec197-manager-${Date.now()}@test.local`,
+      name: "SEC-197 test manager",
+      passwordHash: "x",
+      role: "MANAGER",
+    },
+  });
+  createdUserIds.push(manager.id);
+
+  // Repeated over several iterations rather than once: this is a timing-dependent race, a single
+  // run could pass by luck even if the window were wide open. permissionProfileService.delete
+  // performs a real DELETE (no soft-delete), so each iteration needs its own fresh profile —
+  // reusing one across iterations would violate ManagerPermission's profileId FK from the second
+  // pass on. Each iteration seeds the cache (simulating a fresh, unrelated request reading
+  // permissions right before the delete lands) and fires resolvePermissions concurrently with the
+  // delete itself, then re-checks the cache after both settle — a stale cache here would mean a
+  // manager keeps a deleted profile's grants for the rest of the 5-minute TTL, not just briefly.
+  for (let i = 0; i < 20; i++) {
+    const profile = await prisma.permissionProfile.create({
+      data: {
+        name: `sec197-profile-${Date.now()}-${i}`,
+        permissions: { projects: { read: true, update: true } },
+      },
+    });
+    createdProfileIds.push(profile.id);
+
+    await prisma.managerPermission.upsert({
+      where: { userId: manager.id },
+      create: { userId: manager.id, profileId: profile.id },
+      update: { profileId: profile.id },
+    });
+    await managerPermissionService.invalidateCache(manager.id);
+
+    const seeded = await managerPermissionService.resolvePermissions(manager.id);
+    assert.equal(seeded.projects?.update, true, `iteration ${i}: cache must be seeded with the real grant before racing`);
+
+    const [raceResult] = await Promise.allSettled([
+      managerPermissionService.resolvePermissions(manager.id),
+      permissionProfileService.delete(profile.id, { force: true, actorId: "sec197-race-test" }),
+    ]);
+    // The concurrent read must never throw — it either sees the pre-delete or post-delete state,
+    // never an error from the race itself.
+    assert.equal(raceResult.status, "fulfilled", `iteration ${i}: a concurrent resolvePermissions must not throw`);
+
+    const finalRead = await managerPermissionService.resolvePermissions(manager.id);
+    assert.equal(
+      finalRead.projects?.update,
+      undefined,
+      `iteration ${i}: after the delete settles, the cache must reflect the deleted profile — not a value repopulated mid-race`,
+    );
+  }
+});
