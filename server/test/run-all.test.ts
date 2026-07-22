@@ -119,3 +119,6 @@ import "./clientApproveEmailPortalUrl.test.ts";
 import "./metricAnomalyAndCommissionBatching.test.ts";
 import "./permissionProfileDelete.test.ts";
 import "./authDenylist.test.ts";
+import "./vat.test.ts";
+import "./commissionService.test.ts";
+import "./invoiceCreateFromProposal.test.ts";

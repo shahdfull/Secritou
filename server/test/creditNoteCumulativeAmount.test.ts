@@ -85,3 +85,51 @@ describe("creditNoteService.create enforces a cumulative cap across multiple cre
     assert.equal(Number(clientAfter!.creditBalance), 1000);
   });
 });
+
+// The only prior coverage of creditNoteService.create's amount<=0/amount>amountPaid guard
+// (creditNote.service.ts:49, INVALID_CREDIT_AMOUNT) was a "mirror" — invoice.service.test.ts
+// defines its own local assertCreditAmount() and tests that instead of the real service, which
+// CLAUDE.md's verifie:test rule treats as no proof at all (it would stay green even if the real
+// guard regressed). This calls the real creditNoteService.create against a real database.
+describe("creditNoteService.create rejects a non-positive amount before any DB write (real code, not the invoice.service.test.ts mirror)", { skip: !dbAvailable ? "no reachable database" : false }, () => {
+  test("a zero amount is rejected with 400 INVALID_CREDIT_AMOUNT, no CreditNote row created", async () => {
+    const client = await prisma.client.create({ data: { name: `sec184-zero-client-${Date.now()}` } });
+    createdClientIds.push(client.id);
+    const invoice = await prisma.invoice.create({
+      data: { number: `SEC-184-ZERO-${Date.now()}`, title: "Invoice", amount: 1000, amountPaid: 1000, currency: "TND", status: "PAID", clientId: client.id, invoiceType: "STANDARD" },
+    });
+    createdInvoiceIds.push(invoice.id);
+
+    await assert.rejects(
+      () => creditNoteService.create(invoice.id, { amount: 0, reason: "Zero amount" }),
+      (err: unknown) => {
+        assert.ok(err instanceof HttpError);
+        assert.equal(err.statusCode, 400);
+        assert.equal(err.code, "INVALID_CREDIT_AMOUNT");
+        return true;
+      }
+    );
+
+    const count = await prisma.creditNote.count({ where: { invoiceId: invoice.id } });
+    assert.equal(count, 0, "no CreditNote row must exist after a rejected creation");
+  });
+
+  test("a negative amount is rejected with 400 INVALID_CREDIT_AMOUNT", async () => {
+    const client = await prisma.client.create({ data: { name: `sec184-neg-client-${Date.now()}` } });
+    createdClientIds.push(client.id);
+    const invoice = await prisma.invoice.create({
+      data: { number: `SEC-184-NEG-${Date.now()}`, title: "Invoice", amount: 1000, amountPaid: 1000, currency: "TND", status: "PAID", clientId: client.id, invoiceType: "STANDARD" },
+    });
+    createdInvoiceIds.push(invoice.id);
+
+    await assert.rejects(
+      () => creditNoteService.create(invoice.id, { amount: -50, reason: "Negative amount" }),
+      (err: unknown) => {
+        assert.ok(err instanceof HttpError);
+        assert.equal(err.statusCode, 400);
+        assert.equal(err.code, "INVALID_CREDIT_AMOUNT");
+        return true;
+      }
+    );
+  });
+});
