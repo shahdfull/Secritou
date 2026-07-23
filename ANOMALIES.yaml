@@ -13767,6 +13767,27 @@ anomalies:
       facture `BALANCE`, vérifié par grep). Statut `en_cours` tant que ce
       correctif n'est pas committé ET vert en CI sur ce commit exact.
 
+      Vérification du critère de résolution (2026-07-23, session
+      suivante) : le correctif était déjà committé (`d5047bb`, sur
+      `main`), mais SANS test ajouté avec ce commit — le seul test
+      pertinent, `projectClientApproveBalanceInvoice.test.ts` (RG-004b),
+      appelle bien le vrai `projectService.clientApprove`, mais sa
+      facture `DEPOSIT` de fixture ne renseignait PAS `proposalId` —
+      contrairement au vrai chemin de production
+      (`invoice.service.ts#createDepositInvoiceTx`, qui le renseigne
+      toujours, paramètre non optionnel). Ce test ne reproduisait donc
+      pas la collision P2002 réelle et n'aurait pas détecté une
+      régression sur SEC-202 précisément (aurait pu passer même avec
+      l'ancien code buggé). Corrigé : `proposalId: proposal.id` ajouté à
+      la fixture, reproduisant exactement le lien que
+      `createDepositInvoiceTx` établit en production. `npm run
+      typecheck`/`npm run lint` --workspace=server vérifiés propres.
+      Non exécuté contre une vraie base au moment de ce commit : Docker
+      local indisponible (incident signalé sous SEC-200/201, non encore
+      résolu) — poussé sans confirmation locale, la CI (Docker
+      indépendant) fera foi. Statut laissé `en_cours` : ni exécuté
+      localement ni observé vert en CI au moment de cette note.
+
   - id: SEC-203
     titre: "Même motif que SEC-171 sur deux autres repositories : documentRepository.findAll (aucun select, seulement include client) et proposalRepository.findAll/findAllByClientId (aucun select, seulement include client/invoice/sections) rapatrient chacun la colonne Text intégrale (Document.description / Proposal.description) sur chaque ligne d'un endpoint de liste paginé, alors que ni DocumentsPage ni ProposalsPage/ProposalsClientPage n'affichent ce champ en vue liste"
     perimetre: "server/src/repositories/document.repository.ts#findAll (ligne 75-83) ; server/src/repositories/proposal.repository.ts#findAll (ligne 57-67) et #findAllByClientId (ligne 81-91)"

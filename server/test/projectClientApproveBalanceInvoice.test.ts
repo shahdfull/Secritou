@@ -84,6 +84,11 @@ async function makeApprovedProjectWithDeposit(opts: { namePrefix: string; propos
       invoiceType: "DEPOSIT",
       clientId: client.id,
       projectId: project.id,
+      // SEC-202: proposalId must be set here, matching createDepositInvoiceTx's real production
+      // shape (invoice.service.ts) — that's the one already claiming Invoice.proposalId's @unique
+      // slot for this proposal. Without it, this fixture wouldn't reproduce the exact P2002
+      // collision the bug caused when createBalanceInvoiceTx also passed the same proposalId.
+      proposalId: proposal.id,
     },
   });
   return { client, clientUser, project, proposal };
