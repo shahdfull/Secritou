@@ -14293,6 +14293,32 @@ anomalies:
       seule occurrence réelle dans les composants transverses, déjà
       traitée.
 
+      TESTS AJOUTÉS, CORRECTIF POUSSÉ EN ATTENTE DE CI (2026-07-23) : le
+      correctif de code (commit 2884074, déjà sur main) n'avait aucune
+      preuve `verifie: test` — le critère de résolution exige explicitement
+      un test qui interroge le DOM réel. Ajouté : `client/src/components/
+      common/SortableTableHead.test.tsx` (rend le composant réel dans un
+      `<table>`, vérifie `getByRole("button", { name })`, `aria-sort` sur
+      le `<th>` parent dans les deux états triée/non-triée, et
+      l'activation clavier Tab+Entrée réelle via `@testing-library/
+      user-event`) ; `client/src/components/shared/crud/
+      SearchInput.test.tsx` (vérifie `getByRole("searchbox", { name })`
+      avant ET après saisie d'une valeur, pour couvrir précisément le
+      défaut d'origine — un placeholder qui disparaît à la saisie) ;
+      `client/src/components/common/GlobalSearch.test.tsx` (même
+      vérification sur le composant réel, réseau mocké via
+      `@/api/search.api`, pas la logique du composant). Les 3 fichiers
+      importent et rendent les composants réels (`render` de
+      `@testing-library/react`), pas une réimplémentation. `npx vitest
+      run` sur les 3 fichiers : 6/6 verts en local. Suite complète client
+      (`npm run test --workspace=client`) : 125/125 vertes en local (vs
+      117/118 avant, +7/8 issus de cette session — SEC-171/SEC-176 et
+      SEC-204 combinés). `npm run typecheck`/`npm run lint --workspace=
+      client` verts (12 warnings, tous déjà dans l'exception documentée,
+      aucun nouveau). Laissé `en_cours` : le commit portant ces tests
+      n'a pas encore de run CI GitHub Actions confirmé vert — passera
+      `resolu` dès confirmation.
+
   - id: SEC-205
     titre: "LeadDetailDialog.tsx : useLead ne déstructure jamais isLoading — pendant que la fiche détaillée (avec les propositions liées) est en cours de chargement, current retombe sur la prop lead issue de la liste, qui ne porte jamais proposals, et la section affiche « aucune proposition liée » alors que le lead en a peut-être réellement, juste pas encore chargées (faux état vide, pas seulement un indicateur de chargement manquant)"
     perimetre: "client/src/features/leads/LeadDetailDialog.tsx (ligne 42, avant correctif)"
