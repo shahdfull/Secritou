@@ -13864,7 +13864,7 @@ anomalies:
     regle_violee: "RG-013"
     classe: "contrainte_unique_violee_cascade_metier"
     gravite: bloquant
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand un scénario réel complet (proposition acceptée ->
       acompte payé -> projet en REVIEW -> clientApprove appelé par le
@@ -13929,6 +13929,15 @@ anomalies:
       résolu) — poussé sans confirmation locale, la CI (Docker
       indépendant) fera foi. Statut laissé `en_cours` : ni exécuté
       localement ni observé vert en CI au moment de cette note.
+
+      CLÔTURE (2026-07-23, même session) : commit `8d5161e` (portant ce
+      correctif) est un ancêtre direct de `56d7c4d`, lui-même confirmé
+      vert par le porteur (job `server`, qui exécute l'intégralité de
+      `test/run-all.test.ts` — y compris
+      `projectClientApproveBalanceInvoice.test.ts` où ce correctif est
+      testé). Le test renforcé (facture DEPOSIT de fixture liée par un
+      vrai `proposalId`) a donc réellement tourné et passé en CI.
+      Critère satisfait. `resolu`.
 
   - id: SEC-203
     titre: "Même motif que SEC-171 sur deux autres repositories : documentRepository.findAll (aucun select, seulement include client) et proposalRepository.findAll/findAllByClientId (aucun select, seulement include client/invoice/sections) rapatrient chacun la colonne Text intégrale (Document.description / Proposal.description) sur chaque ligne d'un endpoint de liste paginé, alors que ni DocumentsPage ni ProposalsPage/ProposalsClientPage n'affichent ce champ en vue liste"
