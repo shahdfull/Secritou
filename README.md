@@ -331,8 +331,8 @@ npx playwright test
 ```
 
 Current test coverage in the repository:
-- Server: 555 declared node:test cases, with a coverage gate (`npm run test:coverage --workspace server`, wired into CI)
-- Client: 119 declared Vitest cases, with a coverage gate (`npm run test:coverage --workspace client`, wired into CI)
+- Server: 553 declared node:test cases, with a coverage gate (`npm run test:coverage --workspace server`, wired into CI)
+- Client: 118 declared Vitest cases, with a coverage gate (`npm run test:coverage --workspace client`, wired into CI)
 - End-to-end: Playwright scenarios in `e2e/` (login, proposal acceptance cascade, client approval), wired into CI
 
 ---

@@ -14464,7 +14464,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: majeur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand chaque commande citée dans README.md
       s'exécute réellement telle quelle depuis un clone propre (`npm
@@ -14560,13 +14560,31 @@ anomalies:
       scripts avec leurs commandes sous-jacentes exactes, cohérentes
       avec les scripts réels de chaque workspace).
 
+      RÉSOLU (session du 2026-07-23, audit CI) : les 3 commandes non
+      exécutées lors de la passe précédente (`npm run typecheck`, `npm
+      run lint`, `npm run build`, toutes à la racine) exécutées
+      réellement dans cette session — les trois sortent avec succès
+      (typecheck : les deux sous-commandes passent ; lint : 0 erreur, 12
+      warnings client déjà documentés comme exception ; build : client
+      ET serveur construits avec succès, ~49s). Comptes de tests
+      recomptés précisément par script (pas une estimation) : 553 cas
+      serveur (`server test() count`, tous fichiers `server/test/*.ts`)
+      et 118 cas client (tous fichiers `*.test.ts(x)` sous
+      `client/src`) — légère dérive par rapport aux 555/119 documentés
+      (nouveaux tests ajoutés/retirés depuis la rédaction du README, pas
+      un défaut), README corrigé pour refléter les comptes exacts
+      mesurés cette session. Porte de couverture confirmée réellement
+      câblée en CI pour les deux workspaces (`grep` sur
+      `.github/workflows/ci.yml` : `test:coverage` appelé lignes 25 et
+      166), cohérent avec l'affirmation du README. `resolu`.
+
   - id: SEC-211
     titre: "Le job e2e de .github/workflows/ci.yml appelle `npm run seed --workspace=server`, qui n'existe pas — server/package.json n'a que `prisma:seed` (\"prisma db seed\", qui invoque à son tour prisma.seed=\"tsx prisma/seed.ts\" via la convention Prisma) ; le job e2e échoue systématiquement à l'étape \"Run npm run seed --workspace=server\" avec `npm error Missing script: \"seed\"`, avant même de pouvoir lancer les tests Playwright"
     perimetre: ".github/workflows/ci.yml (ligne 234, job e2e, étape de seed avant lancement du serveur dev) ; server/package.json (script réel : prisma:seed)"
     regle_violee: null
     classe: null
     gravite: majeur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand le job e2e de ci.yml invoque le script qui
       existe réellement dans server/package.json (`prisma:seed`, pas
@@ -14597,6 +14615,20 @@ anomalies:
       sur Redis puis un premier test qui prend 6.6s au lieu de
       quelques ms) — deux causes différentes de deux jobs différents,
       non fusionnées sous un seul ID malgré leur proximité temporelle.
+
+      RÉSOLU (commit `0f7673b`, session ultérieure — antérieure à celle
+      qui a écrit cette clôture) : le job `e2e` de `ci.yml` invoque
+      désormais `npm run prisma:seed --workspace=server` (le script réel),
+      confirmé par lecture directe de `.github/workflows/ci.yml` ligne
+      332 dans cette session. Le job `e2e` a depuis été observé vert à
+      de nombreuses reprises dans le cadre du traitement de SEC-212
+      (notamment commit `0627ac0`, 2 runs consécutifs confirmés verts)
+      — l'étape de seed y réussit systématiquement (les tests Playwright
+      qui suivent dépendent directement des comptes seedés, ex.
+      `admin@secritou.tn`/`client3@example.tn` utilisés par
+      `e2e/login.spec.ts`, et passent). Critère satisfait : le seed
+      réussit réellement, pas seulement l'absence de l'erreur "Missing
+      script". `resolu`.
 
   - id: SEC-212
     titre: "Les jobs `server` et `e2e` de .github/workflows/ci.yml échouent de façon récurrente (au moins les 10 derniers runs sur main, du 2026-07-17 au 2026-07-22) sur des symptômes de lenteur/indisponibilité transitoire des conteneurs de service Postgres/Redis en CI — un ConnectionTimeoutError Redis explicite fait chuter la couverture de code sous les seuils (test:coverage) en faisant sauter un grand nombre de tests dépendants de la DB via leur garde dbAvailable ; côté e2e, les 2 tests de login.spec.ts échouent en restant bloqués sur /login malgré des identifiants seedés corrects — reproduit localement (build+preview identique à la CI) SANS échec (3/3 verts), ce qui exclut un défaut du code applicatif et pointe vers l'environnement CI lui-même (runner sous contention CPU/réseau au démarrage des conteneurs de service)"
