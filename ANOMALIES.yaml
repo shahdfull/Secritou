@@ -6747,6 +6747,14 @@ anomalies:
       indisponible — poussé sans confirmation locale, la CI fera foi.
       Décision consignée dans REFERENTIEL.md §7.
 
+      CONFIRMÉ (2026-07-23) : `npx playwright test --reporter=list`
+      vert sur le commit `e6fcb7c` (« green », après le correctif
+      SEC-218 sur ce même run) — le scénario e2e du portail client
+      (`client-approval.spec.ts`), qui exerce directement le chemin
+      `LazyProjectCard`/`usePortalSummaries` introduit par ce
+      correctif, passe réellement en conditions réelles (navigateur +
+      serveur + base), pas seulement en test unitaire mocké.
+
   - id: SEC-092
     titre: "projectMeetingRepository.findDueForReminder ne filtre ni deletedAt ni status COMPLETED — un projet supprime ou termine avec une cadence de reunion active continuerait de generer des rappels"
     perimetre: "4.2 Gestion de projet — server/src/repositories/projectMeeting.repository.ts#findDueForReminder"
@@ -15671,7 +15679,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand le run `npx playwright test
       e2e/client-approval.spec.ts` passe vert de façon stable (pas
@@ -15719,4 +15727,9 @@ anomalies:
       serveur + la base de données démarrés, indisponibles localement
       — Docker arrêté) : poussé sans confirmation locale, la CI ou une
       exécution manuelle ultérieure fera foi.
+
+      RÉSOLU (2026-07-23) : `npx playwright test --reporter=list`
+      confirmé vert par l'utilisateur sur le commit `e6fcb7c` (« green »),
+      incluant `client-approval.spec.ts` — le test précédemment en
+      échec reproductible passe désormais de façon stable.
 
