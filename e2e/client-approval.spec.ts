@@ -111,7 +111,11 @@ test("a client sees the closing action on a project ready for review, and approv
   // the toast, so the assertion can only be satisfied once the mutation has truly resolved.
   await page.getByRole("button", { name: "Confirmer et clôturer" }).click();
   await expect(page.getByRole("dialog")).not.toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText(/clôturé/)).toBeVisible();
+  // A bare page.getByText(/clôturé/) matches 2 elements once a11yAnnounce's sr-only aria-live
+  // region (ProjectsClientPage.tsx#announce) duplicates the same success text — Playwright's
+  // strict mode correctly rejects that ambiguity. Scoped to the visible sonner toast container so
+  // this only ever resolves to the real user-visible confirmation, not the screen-reader-only copy.
+  await expect(page.locator("[data-sonner-toaster]").getByText(/clôturé/)).toBeVisible();
 
   // Confirm the real server-side state actually changed, not just a client-side optimistic toast.
   const projectAfter = await request.get(`${API_BASE}/projects/${projectId}`, { headers: adminAuth });

@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-217
+dernier_id: SEC-218
 
 anomalies:
   - id: SEC-001
@@ -15664,4 +15664,59 @@ anomalies:
       reste une action manuelle du porteur sur GitHub (Settings >
       Environments > production), hors de portée de cette session.
       YAML de `backup.yml` revalidé après édition (`js-yaml`).
+
+  - id: SEC-218
+    titre: "e2e/client-approval.spec.ts:114 asserte page.getByText(/clôturé/) sans le scoper au toast visible — matche aussi la région sr-only aria-live d'a11yAnnounce (ProjectsClientPage.tsx#announce), qui duplique le même texte de succès ; Playwright rejette l'ambiguïté en strict mode (2 éléments résolus) au lieu de faire échouer le test pour une vraie régression fonctionnelle"
+    perimetre: "e2e/client-approval.spec.ts (ligne 114) ; client/src/features/client-portal/ProjectsClientPage.tsx (ligne 103, announce())"
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand le run `npx playwright test
+      e2e/client-approval.spec.ts` passe vert de façon stable (pas
+      seulement au premier essai) sur un environnement où
+      a11yAnnounce's sr-only région est présente, sans avoir retiré ou
+      affaibli la région sr-only elle-même (mécanisme d'accessibilité
+      légitime, pas la cause du défaut) — vérifié par une exécution
+      réelle du test, pas une relecture du sélecteur seule.
+    detecte_le: "2026-07-23"
+    source: manuel
+    confiance: certain
+    note: >
+      Détecté en exécutant `npx playwright test --reporter=list` sur
+      demande du porteur (vérification post-SEC-091, qui ne touchait
+      pas ce fichier de test ni ProjectsClientPage.tsx#ApproveDialog —
+      confirmé par lecture du diff du commit précédent, aucun rapport
+      de cause). Échec reproductible 2 fois de suite (essai initial +
+      retry Playwright), donc pas un flake de timing : `Error:
+      expect(locator).toBeVisible() failed ... strict mode violation:
+      getByText(/clôturé/) resolved to 2 elements` — un `<div
+      class="sr-only" aria-live="polite">` (le mécanisme
+      `announce()` de `client/src/lib/a11yAnnounce.ts`, appelé ligne
+      103 de `ProjectsClientPage.tsx` avec le même texte que le toast
+      sonner visible) et le toast sonner réel lui-même. Le commentaire
+      déjà présent dans le test (lignes 107-111) anticipait une
+      ambiguïté possible avec le contenu statique du dialogue de
+      confirmation, mais pas avec la région sr-only, ajoutée par une
+      passe d'accessibilité ultérieure au fichier de test — les deux
+      n'ont jamais été vérifiés ensemble avant ce run.
+
+      Corrigé : l'assertion ligne 114 scope désormais l'assertion au
+      conteneur réel des toasts sonner
+      (`page.locator("[data-sonner-toaster]").getByText(/clôturé/)`),
+      confirmé présent dans `node_modules/sonner/dist/index.mjs`
+      (`data-sonner-toaster`) — matche uniquement le toast visible par
+      l'utilisateur, jamais la copie destinée aux lecteurs d'écran. La
+      région sr-only elle-même n'est pas touchée : elle sert un besoin
+      d'accessibilité réel (annoncer un changement d'état à un
+      utilisateur de lecteur d'écran qui ne peut pas voir un toast
+      apparaître), retirer un test annexe plutôt qu'un mécanisme
+      fonctionnel. `npx playwright test --list
+      e2e/client-approval.spec.ts` confirme que le fichier reste
+      syntaxiquement valide après l'édition. Non exécuté contre un
+      run Playwright complet au moment de ce commit (nécessite le
+      serveur + la base de données démarrés, indisponibles localement
+      — Docker arrêté) : poussé sans confirmation locale, la CI ou une
+      exécution manuelle ultérieure fera foi.
 
