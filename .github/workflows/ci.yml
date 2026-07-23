@@ -14,7 +14,7 @@ jobs:
   client:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -73,7 +73,7 @@ jobs:
       REDIS_HOST: localhost
       REDIS_PORT: "6379"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -188,7 +188,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://secritou:secritou@localhost:5432/secritou_test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -228,7 +228,7 @@ jobs:
   i18n-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -237,7 +237,7 @@ jobs:
   contrast-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -280,7 +280,7 @@ jobs:
       FRONTEND_URL: http://localhost:5173
       PLAYWRIGHT_SKIP_WEB_SERVER: "true"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 24
