@@ -14325,7 +14325,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand l'ouverture de la fiche détail d'un lead ayant
       des propositions liées affiche un indicateur de chargement pendant
@@ -14371,7 +14371,18 @@ anomalies:
       proposition. `npx tsc --noEmit` et `npm run lint --workspace=client`
       (12 warnings, exception déjà documentée, aucun nouveau) verts ;
       suite de tests client complète 119/119 (35 fichiers, +1 fichier/+2
-      tests). Statut `en_cours` : correctif non encore committé.
+      tests).
+
+      RÉSOLU (2026-07-23) : le champ `statut` était resté `en_cours` par
+      erreur alors que le correctif était déjà committé (`a4f82f7`,
+      confirmé présent dans `client/src/features/leads/
+      LeadDetailDialog.tsx` ligne 42 : `isLoadingDetail` bien déstructuré
+      de `useLead`, testé sur le rendu ligne 92) et déjà inclus dans un
+      run CI confirmé vert : `git merge-base --is-ancestor a4f82f7
+      0627ac0` confirme que `a4f82f7` est un ancêtre du commit `0627ac0`,
+      lui-même confirmé vert par 2 runs CI consécutifs (SEC-212, note de
+      `15b3b08`). Correction du champ `statut` seule, aucun changement de
+      code dans cette passe.
 
   - id: SEC-206
     titre: "3 tokens du design system échouaient WCAG AA une fois réellement mesurés (conversion oklch -> sRGB puis ratio de contraste) : --border/--input quasi invisibles (~1.2-1.3:1 au lieu de 3:1 requis pour une limite non-texte, clair ET sombre) sur les champs de formulaire ; --accent-foreground réutilisé tel quel sur le badge bg-accent-soft en mode sombre alors qu'il est conçu pour du texte sombre sur --accent (encore clair en mode sombre), donnant 1.28:1 au lieu de 4.5:1 sur 8 fichiers de badges de statut"
@@ -14479,7 +14490,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand chaque annotation JSDoc @swagger des modules
       Invoice/Proposal/Project reflète exactement le code réel (schéma
@@ -14543,7 +14554,13 @@ anomalies:
       texte JSDoc seul. `npx tsc --noEmit` et
       `npm run lint --workspace=server` verts, suite de tests serveur
       complète 555/555 après les changements de validateurs associés
-      (SEC-208). Statut `en_cours` : correctifs non encore committés.
+      (SEC-208).
+
+      RÉSOLU (2026-07-23) : correctifs committés (`4bcfca7`), confirmés
+      ancêtres du commit `0627ac0` lui-même confirmé vert par 2 runs CI
+      consécutifs (SEC-212, note de `15b3b08`) via `git merge-base
+      --is-ancestor 4bcfca7 0627ac0`. Correction du champ `statut` seule
+      dans cette passe, aucun changement de code.
 
       Découverte incidente en cours de route (fausse alerte, notée
       pour mémoire) : recherche initiale d'un schema `Project` fantôme
@@ -14564,7 +14581,7 @@ anomalies:
     regle_violee: null
     classe: "validateur_zod_duplique_au_lieu_de_reutiliser_shared"
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `invoice.validator.ts` et
       `proposal.validator.ts` importent et réutilisent les schémas
@@ -14637,8 +14654,14 @@ anomalies:
       de `leadId` côté partagé), `npm run lint --workspace=server`
       verts ; suite de tests serveur complète 555/555 après le
       changement (inchangée, confirmant qu'aucun comportement de
-      validation n'a dérivé). Statut `en_cours` : correctifs non encore
-      committés.
+      validation n'a dérivé).
+
+      RÉSOLU (2026-07-23) : correctifs committés (`4bcfca7`, même commit
+      que SEC-207), confirmés ancêtres du commit `0627ac0` lui-même
+      confirmé vert par 2 runs CI consécutifs (SEC-212, note de
+      `15b3b08`) via `git merge-base --is-ancestor 4bcfca7 0627ac0`.
+      Correction du champ `statut` seule dans cette passe, aucun
+      changement de code.
 
   - id: SEC-209
     titre: "server/src/swagger-schemas.ts (schémas de requête CreateProject/CreateTask + réponses génériques Conflict/UnprocessableEntity/RateLimited) n'est importé par aucun fichier du dépôt — code mort, ne contribue rien au spec Swagger réellement servi (swagger-jsdoc ne scanne que src/routes/*.ts et src/controllers/*.ts, configuré dans swagger.ts)"
@@ -14646,7 +14669,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Sera résolu par une décision explicite du porteur : soit
       supprimer `swagger-schemas.ts` s'il est définitivement abandonné,
@@ -14678,6 +14701,13 @@ anomalies:
       dans swagger.ts) que je ne tranche pas seul sans instruction
       explicite, conformément à l'interdiction CLAUDE.md sur les
       décisions inférées.
+
+      RÉSOLU (2026-07-23) : décision explicite du porteur obtenue
+      (AskUserQuestion, session du 2026-07-23) — supprimer le fichier.
+      `server/src/swagger-schemas.ts` supprimé après re-confirmation
+      qu'aucun fichier de `server/src` ne l'importe (`grep` sur
+      "swagger-schemas", 0 résultat). `npx tsc --noEmit` (serveur) vert
+      après suppression. Décision consignée dans REFERENTIEL.md §7.
 
   - id: SEC-210
     titre: "Régression réelle (pas seulement documentaire) : package.json racine avait perdu tout son bloc scripts (dev/build/typecheck/lint/prisma:generate/prisma:migrate) et sa devDependency concurrently dans le commit e3f5c3d (2026-06-17, \"chore: commit remaining modified and untracked files\") — npm run dev échouait réellement (\"Missing script\") alors que c'est la toute première commande citée par README.md §Getting Started étape 5 ; README.md lui-même contenait par ailleurs 7 autres dérives documentaires distinctes (comptes de tests obsolètes, intervalle de polling, Grafana/Alertmanager jamais implémentés, répertoires observability/ et tests/ inexistants à la racine, bloc de code de l'arborescence du projet jamais refermé, commande de test serveur npm run test --workspace server inexistante — le vrai script est test:unit)"
