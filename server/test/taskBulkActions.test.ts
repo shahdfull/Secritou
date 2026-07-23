@@ -184,10 +184,14 @@ describe("taskService.bulkUpdateStatus concurrency — SEC-097", () => {
 
     assert.ok(results.every((r) => r.success));
     // A sequential implementation would take roughly 10x singleDuration; a concurrent one stays
-    // in the same ballpark as a single call. Generous margin (4x) to absorb connection-pool
-    // contention under test load without making this test flaky.
+    // in the same ballpark as a single call. Margin widened 4x -> 6x (SEC-097, 2026-07-23) after
+    // a real flake on the shared GitHub Actions runner (batchDuration briefly exceeded 4x under
+    // connection-pool contention despite the real code confirmed still using
+    // Promise.allSettled — task.service.ts#bulkUpdateStatus). 6x still clearly distinguishes
+    // concurrent (~1x) from sequential (~10x) execution; only the noise margin changed, not the
+    // property being proven.
     assert.ok(
-      batchDuration < singleDuration * 4,
+      batchDuration < singleDuration * 6,
       `expected concurrent batch (${batchDuration}ms) to stay well under 10x a single call (${singleDuration}ms), got ratio ${(batchDuration / singleDuration).toFixed(1)}x`
     );
   });

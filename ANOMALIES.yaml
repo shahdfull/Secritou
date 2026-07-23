@@ -7046,6 +7046,24 @@ anomalies:
       `origin/main` en `workflow_dispatch` uniquement (déviation établie
       en session le 2026-07-17, citée à chaque clôture depuis).
 
+      FLAKE OBSERVÉ ET CORRIGÉ (2026-07-23, run CI `npm run
+      test:coverage --workspace=server` sur le commit `4432dff`) : le
+      même test d'assertion de timing (`taskBulkActions.test.ts`) a
+      échoué sur ce run précis (marge ×4 dépassée), faisant échouer tout
+      le job server. Code réel revérifié à cette occasion :
+      `task.service.ts:307`, `bulkUpdateStatus` utilise bien
+      `Promise.allSettled(taskIds.map(...))`, pas de boucle
+      séquentielle — le correctif SEC-097 lui-même n'a pas régressé, ce
+      n'était pas une réouverture de ce défaut, seulement une marge de
+      test trop stricte pour la contention réelle du runner GitHub
+      Actions partagé. Décision explicite du porteur (AskUserQuestion) :
+      élargir la marge ×4 → ×6 plutôt qu'ajouter un retry ou ne rien
+      faire — `server/test/taskBulkActions.test.ts` modifié en
+      conséquence, le principe prouvé (lot concurrent ~1x, jamais proche
+      de ~10x séquentiel) reste inchangé, seul le bruit absorbé change.
+      Pas de nouvel ID ouvert pour ce point (même critère de résolution
+      que SEC-097, pas une classe de défaut distincte).
+
   - id: SEC-098
     titre: "Les mutations de commentaire, d'item de checklist et de reunion (create/update/delete) n'invalident aucun tag de cache Redis, alors que getProjectSummary/getClientSummary ecrivent sous tag:project/tag:client — incoherent avec le reste du module qui invalide systematiquement (impact utilisateur reel non confirme, voir correction du constat ci-dessous)"
     perimetre: "4.2 Gestion de projet — server/src/services/comment.service.ts, server/src/services/taskChecklist.service.ts, server/src/services/projectMeeting.service.ts ; consommateur cache : server/src/services/summary.service.ts + summary.repository.ts#getProjectSummary/#getClientSummary"
