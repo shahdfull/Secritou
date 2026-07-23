@@ -736,7 +736,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: majeur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu au premier push vers origin/main qui déclenche le workflow
       ci.yml et le voit passer au vert (jobs "client" et "server", incluant
@@ -833,6 +833,22 @@ anomalies:
       commentés. Champ `statut:` remis à `en_cours` pour refléter l'état
       réel du code et l'état déjà conclu par la note elle-même — pas une
       réouverture sur nouveau constat, une correction de cohérence interne.
+
+      RÉSOLU (session du 2026-07-23, audit CI SEC-212) : `.github/
+      workflows/ci.yml` relu en entier au début de cette session — le
+      déclencheur est désormais `on: workflow_dispatch: / pull_request: /
+      push: branches: [main]`, `push`/`pull_request` ne sont plus
+      commentés (réactivés entre les sessions du 2026-07-21 et
+      celle-ci, hors de portée de cette session — changement déjà en
+      place, pas une action de cette session). Critère satisfait de
+      façon décisive : plusieurs runs CI réels et verts sur `main`
+      observés directement dans cette même session (rapportés par le
+      porteur après chaque push, pas déduits) — jobs `server` et `e2e`
+      confirmés verts sur les commits `0627ac0` (2 runs consécutifs,
+      SEC-212) et sur les corrections suivantes (SEC-214, SEC-200/201).
+      SEC-007/008/009/011/012, nommés comme précondition par le critère
+      textuel, restent tous `resolu` depuis les sessions antérieures et
+      n'ont jamais été touchés depuis. `resolu`.
 
   - id: SEC-011
     titre: "Fenêtre de grâce de 30 s sur les refresh tokens révoqués, introduite sans décision documentée"
@@ -13237,7 +13253,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: majeur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `npm run test:coverage --workspace=server` sort
       avec le code 0 sur une installation fraîche (`npm ci` puis la
@@ -13293,13 +13309,22 @@ anomalies:
       pas encore confirmé ce commit précis — conformément à la règle du
       dépôt.
 
+      RÉSOLU (session du 2026-07-23, audit CI SEC-212) : `c8` et les
+      seuils `60/70/40/60` toujours en place (`server/package.json`,
+      relu directement), inchangés depuis. Job `server` de la CI observé
+      vert à plusieurs reprises dans cette même session (commits
+      `fea20ac`, `2d1c4eb`, `0627ac0` — rapportés directement par le
+      porteur après chaque push), chacun exécutant précisément `npm run
+      test:coverage --workspace=server` sur une installation `npm ci`
+      fraîche du runner GitHub Actions. Critère satisfait. `resolu`.
+
   - id: SEC-195
     titre: "Le garde `{ skip: !dbAvailable }` (ou `!schemaLoaded`), qu'il soit posé sur `describe(...)` OU sur chaque `test(...)` individuel, est structurellement peu fiable dans server/test/*.ts : l'option `skip` est TOUJOURS évaluée de façon SYNCHRONE au moment de l'enregistrement de describe/test, avant que le `before()` asynchrone correspondant (qui assigne réellement `dbAvailable`) n'ait pu s'exécuter — contrairement à ce que cette entrée affirmait initialement, déplacer `skip` du `describe` vers chaque `test()` individuel NE corrige RIEN : `test(name, { skip: !flag }, fn)` a exactement le même défaut de timing que `describe(name, { skip: !flag }, fn)`, seul un check FAIT DANS LE CORPS du test (via le paramètre `t: TestContext` et `t.skip(msg)`) s'exécute après que before() a résolu"
     perimetre: "server/test/*.ts — 63 fichiers corrigés dans cette passe (grep sur `SEC-195:` pour la liste exacte, à jour) : archivedProjectTaskVisibility, authCookieAndLogoutReuse, authPhoneRoundTrip, checkInvoiceFollowup, clientApproveEmailPortalUrl, clientInviteResend, clientPortalActivationBackfill, commissionCreationExclusivity, commissionService, contactConvertToLeadScope, creditNoteApply, creditNoteCumulativeAmount, creditNoteNumberConcurrency, depositRateSingleSource, documentCreateHttp, documentScopeManager, documentSignContract, errorEnvelope.http, executiveMetricsActiveProjectsParallel, executiveMetricsCriticalCountUnbounded, executiveMetricsProjectRisks, freelancerSeesOwnDeliverable, idor, invoiceAuditLog, invoiceCreateFromProposal, invoiceNumberingGapless, invoicePaymentInviteFailure, invoiceScopeManager, lead.repository, leadCreateConcurrency, leadCreateScope, leadDuplicateEmail, leadListExcludesNotes, leadService, leadsKanbanMaxPageSize, managerScopeIdorFixes, markOverdueInvoicesAuditLog, metricAnomalyAndCommissionBatching, portalActivationOnPayment, projectClientApproveBalanceInvoice, projectClientApproveConcurrency, projectCreateArchiveRestore, projectDetailIncludesTasks, projectStatusInFilter, projectTemplateIdempotencyAndFreelancerFields, proposal.service, proposalAcceptCascade, proposalAcceptCascadeConcurrency, proposalAcceptRbacHttp, proposalCreationScope, proposalListOrderBy, proposalScopeAfterCreation, proposalScopeSendUpdateAddSection, proposalWriteScopeRefusal, reportsPageSortOrder, schemaIndexCleanupAndTimeEntryFk, searchScope, serviceRequestService, taskCompletedAtBackfill, taskPrioritySort, taskUpdateScopeRefusal, userDeleteFinancialHistory, userProfilePhone.http"
     regle_violee: null
     classe: "garde_skip_evalue_avant_before_async"
     gravite: majeur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand les 63 fichiers listés ci-dessus utilisent
       exclusivement le pattern : `describe(...)` SANS option `skip`, et
@@ -13359,6 +13384,19 @@ anomalies:
       décrit ici. `npm run typecheck` et `npm run lint` verts côté
       server après correction. Reste à committer et confirmer un run CI
       vert sur ce commit avant de passer ce statut à `resolu`.
+
+      RÉSOLU (session du 2026-07-23, audit CI SEC-212) : grep exhaustif
+      relancé sur `server/test/*.ts`, exclusion des lignes commentaires
+      — zéro occurrence réelle de `{ skip: !dbAvailable` ou `{ skip:
+      !schemaLoaded` en dehors des commentaires explicatifs SEC-195
+      eux-mêmes (qui citent le motif interdit dans leur texte). Vérifié
+      sur un fichier représentatif
+      (`authCookieAndLogoutReuse.test.ts`) : `describe(...)` sans
+      option `skip`, chaque `test(name, async (t) => {...})` accepte
+      bien `t`. Job `server` de la CI observé vert à plusieurs reprises
+      dans cette même session, exécutant l'intégralité de ces 63+
+      fichiers via `test/run-all.test.ts` sans aucun skip fantôme.
+      Critère satisfait. `resolu`.
 
   - id: SEC-196
     titre: "managerPermissionRepository.findUserNamesByProfileId (server/src/repositories/managerPermission.repository.ts) est du code mort : aucun appelant nulle part dans le dépôt (src/ ni test/, ni client/) — remplacée par findManagersByProfileId (mêmes lignes du même fichier, mêmes données + le userId en plus) sans jamais être nettoyée"
