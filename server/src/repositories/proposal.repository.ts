@@ -3,6 +3,9 @@ import { Prisma } from "@prisma/client";
 import type { Proposal, ProposalStatus } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildOrderBy } from "../utils/listQuery.js";
+import { proposalListSelect } from "../utils/prismaSelects.js";
+
+export type ProposalListItem = Omit<Proposal, "description"> & { client: { name: string }; invoice: { id: string } | null };
 
 // SEC-103: options.orderBy comes straight from req.query.orderBy (an arbitrary client-supplied
 // string, only type-checked, never validated against real column names) — interpolating it
@@ -18,7 +21,7 @@ export const proposalRepository = {
       search?: string;
       serviceId?: string | null;
     }
-  ): Promise<PaginatedResult<Proposal & { client: { name: string } }>> {
+  ): Promise<PaginatedResult<ProposalListItem>> {
     const where: Prisma.ProposalWhereInput = {};
     if (options.clientId) where.clientId = options.clientId;
     if (options.status) where.status = options.status;
@@ -59,10 +62,7 @@ export const proposalRepository = {
         skip,
         take: options.pageSize,
         orderBy: buildOrderBy(options.orderBy, options.orderDir || "desc", SORTABLE_FIELDS, "createdAt"),
-        include: {
-          client: { select: { name: true } },
-          invoice: { select: { id: true } },
-        },
+        select: proposalListSelect,
       }),
       prismaRead.proposal.count({ where }),
     ]);
@@ -70,6 +70,11 @@ export const proposalRepository = {
     return { data, total, page: options.page, pageSize: options.pageSize };
   },
 
+  // SEC-203: unlike findAll above, this method is intentionally NOT restricted to a list-only
+  // select. ProposalsClientPage.tsx (client portal) calls /proposals/my — backed by this method —
+  // for both the list AND the detail-in-place dialog (setSelected(p) reuses the list item
+  // directly, no separate findById round-trip); description and sections[].content are genuinely
+  // rendered from this same response. Narrowing this select would break the detail dialog.
   async findAllByClientId(
     clientId: string,
     options: { page: number; pageSize: number; status?: ProposalStatus }

@@ -14167,6 +14167,35 @@ anomalies:
       `en_cours`, à trancher/corriger dans une passe dédiée comme le
       second volet de SEC-171 lui-même.
 
+      CORRECTIF POUSSÉ, EN ATTENTE DE CI (2026-07-23) : correctif appliqué
+      sur `documentRepository
+      .findAll` et `proposalRepository.findAll` (nouveaux
+      `documentListSelect`/`proposalListSelect`, server/src/utils/
+      prismaSelects.ts) excluant `description` du payload de liste ;
+      `findById` inchangé sur les deux repositories, continue de
+      retourner la ligne complète. Prémisse infirmée pour
+      `proposalRepository.findAllByClientId` : contrairement à
+      `documentRepository.findAll`/`proposalRepository.findAll`, cette
+      méthode ne sert PAS que l'affichage liste — `ProposalsClientPage
+      .tsx` (portail client) appelle `/proposals/my` (backée par cette
+      méthode) une seule fois et réutilise l'objet de liste tel quel
+      pour le dialogue détail (`setSelected(p)`, pas de second appel
+      `findById`) ; `selected.description` et `selected.sections[].
+      content` y sont réellement affichés (lignes 173-177). Restreindre
+      son `select` aurait cassé ce dialogue détail — laissée intacte,
+      avec un commentaire explicite dans le code expliquant pourquoi
+      elle diffère de `findAll`. Preuve : `server/test/
+      documentProposalListExcludesDescription.test.ts` (importe et
+      appelle réellement `documentService.getAll/getById` et
+      `proposalService.getAll/getById`, pas une réimplémentation) —
+      crée un Document et une Proposal avec un `description` de 5000
+      caractères, confirme son absence totale (`"description" in
+      found === false`) dans les deux réponses de liste, et sa présence
+      intégrale dans les deux réponses détail. `npm run typecheck` et
+      `npm run lint` verts sur server (0 warning). Non exécuté contre
+      une vraie base au moment de ce commit : Docker local
+      indisponible — poussé sans confirmation locale, la CI fera foi.
+
   - id: SEC-204
     titre: "3 lacunes d'accessibilité sur des composants transverses à fort réemploi : SortableTableHead.tsx (colonne triable de toutes les listes, LeadsPage + TasksListView) rendait le tri sur un <div onClick> sans role/tabIndex/gestionnaire clavier ni nom accessible ; SearchInput.tsx (5 réemplois) et le champ de recherche globale GlobalSearch.tsx (présent sur chaque page via le header) n'exposaient qu'un placeholder comme seul indice, jamais lu de façon fiable par tous les lecteurs d'écran et disparaissant dès qu'une valeur est saisie"
     perimetre: "client/src/components/common/SortableTableHead.tsx ; client/src/components/shared/crud/SearchInput.tsx ; client/src/components/common/GlobalSearch.tsx"

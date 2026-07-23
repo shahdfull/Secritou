@@ -2,6 +2,9 @@ import { prisma } from "../config/prisma.js";
 import { Prisma } from "@prisma/client";
 import type { Document, DocumentType, DocumentAccessLevel, Role } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
+import { documentListSelect } from "../utils/prismaSelects.js";
+
+export type DocumentListItem = Omit<Document, "description"> & { client: { name: string } | null };
 
 export function visibleAccessLevels(role: Role): DocumentAccessLevel[] {
   switch (role) {
@@ -31,7 +34,7 @@ export const documentRepository = {
       viewerServiceId?: string | null;
       viewerUserId?: string | null;
     }
-  ): Promise<PaginatedResult<Document & { client: { name: string } | null }>> {
+  ): Promise<PaginatedResult<DocumentListItem>> {
     const where: Prisma.DocumentWhereInput = {};
     if (options.clientId) where.clientId = options.clientId;
     if (options.projectId) where.projectId = options.projectId;
@@ -77,7 +80,7 @@ export const documentRepository = {
         skip,
         take: options.pageSize,
         orderBy: { [options.orderBy || "createdAt"]: options.orderDir || "desc" },
-        include: { client: { select: { name: true } } },
+        select: documentListSelect,
       }),
       prisma.document.count({ where }),
     ]);
