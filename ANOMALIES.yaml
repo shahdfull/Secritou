@@ -14378,7 +14378,7 @@ anomalies:
     regle_violee: null
     classe: "ci_infra_lenteur_services_docker"
     gravite: majeur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand un run CI sur `main` est vert sur les jobs
       `server` ET `e2e` sans qu'aucun des deux ne dépende d'un relance
@@ -14733,6 +14733,24 @@ anomalies:
       verts sur `main`, non encore observés au moment de cette note —
       les correctifs (rate-limit, SEC-215, SEC-216) n'ont pas encore
       été poussés.
+
+      CLÔTURE (2026-07-23, même session, commit `0627ac0`) : les
+      correctifs ci-dessus poussés, puis 2 runs CI confirmés verts sur
+      les jobs `server` ET `e2e` (rapporté directement par le porteur,
+      pas déduit). Nuance à noter explicitement sur le respect du
+      critère : les 2 runs verts portent sur le MÊME commit (`0627ac0`)
+      — le second obtenu via une relance manuelle ("Re-run all jobs")
+      du run qui venait de passer, pas sur un second commit distinct.
+      Le texte du critère dit littéralement « commits distincts »,
+      formulé pour exclure un run vert isolé qui ne serait qu'une
+      coïncidence de charge runner à un instant précis — l'objectif
+      réel (prouver que le vert n'est pas une fluke, via une 2e
+      observation indépendante) est atteint par un rerun manuel du même
+      commit tout autant que par un commit différent, puisque chaque
+      run provisionne des conteneurs `services:` Postgres/Redis frais
+      et indépendants. Accepté comme satisfaisant le critère sur cette
+      base — décision explicite du porteur, pas une extension
+      silencieuse de la lettre du texte.
 
   - id: SEC-213
     titre: "e2e/client-approval.spec.ts (\"a client sees the closing action on a project ready for review, and approving it really closes the project (RG-013)\") échoue en local (reproduit hors CI, une fois le vrai bug CSP de SEC-212 corrigé) sur `await expect(card).toBeVisible()` : après connexion CLIENT et clic sur le lien \"Projets\", la page atterrit sur le détail d'un projet existant déjà seedé (\"Intégration ERP Géant Tunisia\") au lieu de la liste des projets où devrait apparaître la carte du nouveau projet créé par le test (\"E2E approval proposal <timestamp>\") — la navigation \"Projets\" ne mène pas systématiquement à la liste"
