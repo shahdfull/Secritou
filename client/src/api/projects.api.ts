@@ -86,6 +86,17 @@ export const projectsApi = {
     return response.data.data;
   },
 
+  // SEC-091: batches getTimelineStatus + getCompletedTasks for every visible project card in one
+  // call, instead of 2 requests per card. A project id not owned by the client is silently
+  // omitted server-side, never a partial-batch error.
+  getPortalSummaries: async (ids: string[]): Promise<Record<string, PortalSummary>> => {
+    if (ids.length === 0) return {};
+    const response = await apiClient.get<{ data: Record<string, PortalSummary> }>("/projects/my/summaries", {
+      params: { ids: ids.join(",") },
+    });
+    return response.data.data;
+  },
+
   getBrief: async (id: string): Promise<{ project: BriefProject; questions: BriefQuestion[] }> => {
     const response = await apiClient.get<{ data: { project: BriefProject; questions: BriefQuestion[] } }>(`/projects/${id}/brief`);
     return response.data.data;
@@ -115,4 +126,9 @@ export interface CompletedTask {
   id: string;
   title: string;
   completedAt: string | null;
+}
+
+export interface PortalSummary {
+  timeline: TimelineStep[];
+  completedTasks: CompletedTask[];
 }

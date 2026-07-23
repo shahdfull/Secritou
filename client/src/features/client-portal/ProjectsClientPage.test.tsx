@@ -1,9 +1,13 @@
-// SEC-116: ProjectsClientPage mounted ProjectTimeline (which polls every 30s) unconditionally
-// for every project card — up to 100 cards per client (pageSize: 100), so the total polling cost
-// scaled linearly with both active clients and projects per client, with no cap. This test
-// renders the real page with several projects, mocks IntersectionObserver to control which cards
-// are "visible", and proves the timeline's real API call (getTimelineStatus) only fires for a
-// card once it becomes visible — not for every card up front.
+// SEC-116: ProjectsClientPage mounted a per-card timeline poller unconditionally for every
+// project card — up to 100 cards per client (pageSize: 100), so the total polling cost scaled
+// linearly with both active clients and projects per client, with no cap. This test renders the
+// real page with several projects, mocks IntersectionObserver to control which cards are
+// "visible", and proves the batched summaries call only fires for ids whose card has become
+// visible — not for every card up front.
+//
+// SEC-091: getTimelineStatus/getCompletedTasks (2 requests per card) were replaced by a single
+// batched GET /projects/my/summaries?ids=... call for every currently-visible card, instead of a
+// separate pair of requests per card.
 
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -52,8 +56,8 @@ beforeEach(() => {
 
 const { ProjectsClientPage } = await import("./ProjectsClientPage");
 
-describe("ProjectsClientPage — lazy-mounted timelines (SEC-116)", () => {
-  test("does not call getTimelineStatus for any project before it becomes visible", async () => {
+describe("ProjectsClientPage — lazy-mounted + batched summaries (SEC-116 / SEC-091)", () => {
+  test("does not call /projects/my/summaries for any project before its card becomes visible", async () => {
     getMock.mockImplementation((url: string) => {
       if (url === "/projects/my") {
         return Promise.resolve({
@@ -66,8 +70,7 @@ describe("ProjectsClientPage — lazy-mounted timelines (SEC-116)", () => {
           },
         });
       }
-      if (url.includes("/completed-tasks")) return Promise.resolve({ data: { data: [] } });
-      if (url.includes("/timeline-status")) return Promise.resolve({ data: { data: [] } });
+      if (url === "/projects/my/summaries") return Promise.resolve({ data: { data: {} } });
       return Promise.resolve({ data: { data: [] } });
     });
 
@@ -79,18 +82,32 @@ describe("ProjectsClientPage — lazy-mounted timelines (SEC-116)", () => {
       expect(observedElements.length).toBe(2);
     });
 
-    expect(getMock).not.toHaveBeenCalledWith(expect.stringContaining("/timeline-status"));
+    expect(getMock).not.toHaveBeenCalledWith("/projects/my/summaries", expect.anything());
   });
 
-  test("calls getTimelineStatus for a project once its card becomes visible", async () => {
+  test("batches both visible cards into a single /projects/my/summaries call, not one call per card", async () => {
     getMock.mockImplementation((url: string) => {
       if (url === "/projects/my") {
         return Promise.resolve({
-          data: { data: [{ id: "project-1", name: "Site vitrine", status: "IN_PROGRESS", progress: 40 }], total: 1 },
+          data: {
+            data: [
+              { id: "project-1", name: "Site vitrine", status: "IN_PROGRESS", progress: 40 },
+              { id: "project-2", name: "Application mobile", status: "PLANNING", progress: 0 },
+            ],
+            total: 2,
+          },
         });
       }
-      if (url.includes("/completed-tasks")) return Promise.resolve({ data: { data: [] } });
-      if (url.includes("/timeline-status")) return Promise.resolve({ data: { data: [] } });
+      if (url === "/projects/my/summaries") {
+        return Promise.resolve({
+          data: {
+            data: {
+              "project-1": { timeline: [], completedTasks: [] },
+              "project-2": { timeline: [], completedTasks: [] },
+            },
+          },
+        });
+      }
       return Promise.resolve({ data: { data: [] } });
     });
 
@@ -98,13 +115,17 @@ describe("ProjectsClientPage — lazy-mounted timelines (SEC-116)", () => {
 
     await screen.findByText("Site vitrine");
     await vi.waitFor(() => {
-      expect(observedElements.length).toBe(1);
+      expect(observedElements.length).toBe(2);
     });
 
     makeIntersecting(observedElements[0].element);
+    makeIntersecting(observedElements[1].element);
 
     await vi.waitFor(() => {
-      expect(getMock).toHaveBeenCalledWith("/projects/project-1/timeline-status");
+      expect(getMock).toHaveBeenCalledWith("/projects/my/summaries", { params: { ids: "project-1,project-2" } });
     });
+
+    const summariesCalls = getMock.mock.calls.filter(([url]) => url === "/projects/my/summaries");
+    expect(summariesCalls.length).toBe(1);
   });
 });

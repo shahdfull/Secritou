@@ -1,30 +1,10 @@
 // Mobile-responsive: updated 2026-06-29
 import { useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Clock, Lock } from "lucide-react";
 import { formatDistanceToNowStrict } from "date-fns";
-import { projectsApi, TimelineStep } from "@/api/projects.api";
+import { TimelineStep } from "@/api/projects.api";
 import { formatDate } from "@/utils/format";
 import { announce } from "@/lib/a11yAnnounce";
-import { getServerErrorMessage, getServerRequestId } from "@/utils/apiError";
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
-
-export function useProjectTimeline(projectId: string) {
-  return useQuery({
-    queryKey: ["project-timeline", projectId],
-    queryFn: () => projectsApi.getTimelineStatus(projectId),
-    // SEC-091: was 30s — each visible project card polls this independently (N cards = N
-    // concurrent pollers), and a project's timeline step rarely changes within a couple of
-    // minutes, so 30s bought little freshness for the added request volume. CompletedTasksList
-    // (the other query on the same card) has no polling at all, only staleTime — kept that way,
-    // per the SEC-061 decision to keep the two endpoints separate rather than merge them.
-    refetchInterval: 120_000,
-    staleTime: 10_000,
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Step component
@@ -96,8 +76,10 @@ function TimelineStepItem({ step, isLast }: { step: TimelineStep; isLast: boolea
 // Main component
 // ---------------------------------------------------------------------------
 
-export function ProjectTimeline({ projectId }: { projectId: string }) {
-  const { data: steps, isLoading, isError, dataUpdatedAt, error } = useProjectTimeline(projectId);
+// SEC-091: no longer fetches its own data — steps/isLoading/dataUpdatedAt come from the parent's
+// single batched usePortalSummaries call (ProjectsClientPage.tsx), which covers every visible
+// card in one request instead of one poller per card.
+export function ProjectTimeline({ steps, isLoading, dataUpdatedAt }: { steps: TimelineStep[] | undefined; isLoading: boolean; dataUpdatedAt: number | undefined }) {
   const previousSignatureRef = useRef<string | null>(null);
 
   const freshnessLabel = dataUpdatedAt
@@ -129,14 +111,8 @@ export function ProjectTimeline({ projectId }: { projectId: string }) {
     );
   }
 
-  if (isError || !steps) {
-    const message = getServerErrorMessage(error) ?? "Impossible de charger la timeline.";
-    const requestId = getServerRequestId(error);
-    return (
-      <p className="text-sm text-muted-foreground">
-        {requestId ? `${message} (réf. ${requestId})` : message}
-      </p>
-    );
+  if (!steps) {
+    return <p className="text-sm text-muted-foreground">Impossible de charger la timeline.</p>;
   }
 
   const doneCount = steps.filter((s) => s.status === "done").length;

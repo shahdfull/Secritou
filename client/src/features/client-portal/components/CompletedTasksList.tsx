@@ -6,11 +6,12 @@
 // confidentialité interne du reste du module Task n'est pas remise en cause).
 import { CheckCircle2 } from "lucide-react";
 import { formatDate } from "@/utils/format";
-import { useProjectCompletedTasks } from "../hooks/useProjectCompletedTasks";
+import type { CompletedTask } from "@/api/projects.api";
 
-export function CompletedTasksList({ projectId }: { projectId: string }) {
-  const { data: tasks, isLoading, isError } = useProjectCompletedTasks(projectId);
-
+// SEC-091: no longer fetches its own data — tasks/isLoading come from the parent's single batched
+// usePortalSummaries call (ProjectsClientPage.tsx), which covers every visible card in one
+// request instead of one independent query per card.
+export function CompletedTasksList({ tasks, isLoading }: { tasks: CompletedTask[] | undefined; isLoading: boolean }) {
   if (isLoading) {
     return (
       <div className="space-y-2 animate-pulse">
@@ -19,10 +20,6 @@ export function CompletedTasksList({ projectId }: { projectId: string }) {
         ))}
       </div>
     );
-  }
-
-  if (isError) {
-    return <p className="text-sm text-muted-foreground">Impossible de charger les livrables terminés.</p>;
   }
 
   if (!tasks || tasks.length === 0) {

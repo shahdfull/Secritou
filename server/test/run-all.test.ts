@@ -129,3 +129,4 @@ import "./invoiceTimbreFiscalNoOverpay.test.ts";
 import "./taskListExcludesDescription.test.ts";
 import "./taskUpdateRateLimit.test.ts";
 import "./documentProposalListExcludesDescription.test.ts";
+import "./projectPortalSummaries.test.ts";

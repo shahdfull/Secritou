@@ -580,4 +580,31 @@ export const projectService = {
       completedAt: (t.completedAt ?? t.updatedAt).toISOString(),
     }));
   },
+
+  // SEC-091: ProjectsClientPage.tsx used to fire getTimelineStatus + getCompletedTasksForClient
+  // separately for every visible project card (2×N requests for N cards). Both stay logically
+  // distinct (SEC-061 decision: synthetic 7-step summary vs real completed-task rows) — this
+  // batches the SAME two calls for every id in one round trip instead of merging their shape.
+  // CLIENT-only: reuses getTimelineStatus's CLIENT branch directly (clientId scoping), not a
+  // reimplementation. Promise.allSettled per id (not Promise.all): a stale/foreign project id in
+  // the batch 404s only that entry (silently dropped from the response) instead of failing every
+  // other legitimately-owned card in the same request.
+  async getPortalSummaries(
+    ids: string[],
+    clientId: string | undefined
+  ): Promise<Record<string, { timeline: TimelineStep[]; completedTasks: { id: string; title: string; completedAt: string | null }[] }>> {
+    const outcomes = await Promise.allSettled(
+      ids.map(async (id) => {
+        const [timeline, completedTasks] = await Promise.all([
+          this.getTimelineStatus(id, "CLIENT", clientId),
+          this.getCompletedTasksForClient(id, clientId),
+        ]);
+        return [id, { timeline, completedTasks }] as const;
+      })
+    );
+    const entries = outcomes
+      .filter((o): o is PromiseFulfilledResult<readonly [string, { timeline: TimelineStep[]; completedTasks: { id: string; title: string; completedAt: string | null }[] }]> => o.status === "fulfilled")
+      .map((o) => o.value);
+    return Object.fromEntries(entries);
+  },
 };

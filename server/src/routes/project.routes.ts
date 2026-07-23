@@ -1,12 +1,12 @@
 import { Router } from "express";
-import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, archiveProject, unarchiveProject, getDeletedProjects, restoreProject, getMyProjects, getTimelineStatus, getCompletedTasks, getBrief, submitBrief, clientApproveProject, receiveAiSpecs } from "../controllers/project.controller.js";
+import { getAllProjects, getProjectById, createProject, updateProject, deleteProject, archiveProject, unarchiveProject, getDeletedProjects, restoreProject, getMyProjects, getTimelineStatus, getCompletedTasks, getPortalSummaries, getBrief, submitBrief, clientApproveProject, receiveAiSpecs } from "../controllers/project.controller.js";
 import { getHealthBoard } from "../controllers/healthBoard.controller.js";
 import { createTimeEntry, listTimeEntries, getTimeSummary, getMyTimeSummary } from "../controllers/timeEntry.controller.js";
 import { listProjectMeetings, createProjectMeeting, updateProjectMeeting, deleteProjectMeeting, getMeetingSchedule, updateMeetingSchedule } from "../controllers/projectMeeting.controller.js";
 import { createProjectMeetingSchema, updateProjectMeetingSchema, deleteProjectMeetingSchema, updateMeetingScheduleSchema } from "../validators/projectMeeting.validator.js";
 import { applyTemplateToProject } from "../controllers/projectTemplate.controller.js";
 import { validate } from "../middlewares/validate.middleware.js";
-import { createProjectSchema, updateProjectSchema } from "../validators/project.validator.js";
+import { createProjectSchema, updateProjectSchema, getPortalSummariesSchema } from "../validators/project.validator.js";
 import { createTimeEntrySchema } from "../validators/timeEntry.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize, requirePermission, requireActivatedPortal } from "../middlewares/rbac.middleware.js";
@@ -206,6 +206,45 @@ router.get("/:id/timeline-status", authenticate, authorize("ADMIN", "MANAGER", "
 // synthétique ci-dessus — CLIENT seul, mêmes conditions de visibilité que "/my" (portail continu,
 // pas gated par requireActivatedPortal, cohérent avec la timeline déjà non gated).
 router.get("/:id/completed-tasks", authenticate, authorize("CLIENT"), getCompletedTasks);
+
+/**
+ * @swagger
+ * /projects/my/summaries:
+ *   get:
+ *     summary: Batched timeline + completed-tasks summaries for multiple client projects
+ *     tags: [Projects]
+ *     security:
+ *       - bearerAuth: []
+ *     description: >
+ *       CLIENT only, scoped to req.user.clientId. Batches /:id/timeline-status +
+ *       /:id/completed-tasks for every id in one call (SEC-091) — ProjectsClientPage.tsx used to
+ *       fire both separately for every visible project card. An id not owned by the caller (or
+ *       nonexistent) is silently omitted from the response rather than failing the whole batch.
+ *     parameters:
+ *       - in: query
+ *         name: ids
+ *         required: true
+ *         schema: { type: string }
+ *         description: Comma-separated project UUIDs, up to 100.
+ *     responses:
+ *       200:
+ *         description: Map of projectId to { timeline, completedTasks }
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       422:
+ *         $ref: '#/components/responses/UnprocessableEntity'
+ */
+// Static path — must be registered before GET /:id below to avoid being swallowed as a param.
+router.get("/my/summaries", authenticate, authorize("CLIENT"), validate(getPortalSummariesSchema), getPortalSummaries);
 
 /**
  * @swagger

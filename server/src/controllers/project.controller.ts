@@ -234,3 +234,17 @@ export const getCompletedTasks: RequestHandler = async (req, res, next) => {
     next(error);
   }
 };
+
+// SEC-091: batches getTimelineStatus + getCompletedTasksForClient for every project card visible
+// on ProjectsClientPage.tsx in one request, instead of 2 requests per card. CLIENT-only, same
+// clientId scoping as /my and /:id/completed-tasks above.
+export const getPortalSummaries: RequestHandler = async (req, res, next) => {
+  try {
+    const clientId = req.user?.clientId as string | undefined;
+    const ids = req.query.ids as unknown as string[];
+    const summaries = await projectService.getPortalSummaries(ids, clientId);
+    res.json({ data: summaries });
+  } catch (error) {
+    next(error);
+  }
+};

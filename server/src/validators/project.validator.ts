@@ -20,3 +20,16 @@ export const updateProjectSchema = z.object({
     id: z.string(),
   }),
 });
+
+// SEC-091: batched CLIENT portal summaries (timeline + completed tasks) for multiple project
+// cards in one call. Capped at 100 — matches /projects/my's own pageSize cap (a client can never
+// have more visible cards than that in a single page load).
+export const getPortalSummariesSchema = z.object({
+  query: z.object({
+    ids: z
+      .string()
+      .min(1)
+      .transform((raw) => raw.split(",").map((s) => s.trim()).filter(Boolean))
+      .pipe(z.array(z.string().uuid()).min(1).max(100)),
+  }),
+});

@@ -6626,7 +6626,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Sera résolu par la consolidation des requêtes par carte (batch
       côté serveur ou désactivation du polling au-delà d'un certain
@@ -6677,6 +6677,75 @@ anomalies:
       dans le temps de l'une des deux est réduite d'un facteur 4.
       `npx tsc --noEmit` (client) vert. Laissé `en_cours` plutôt que
       `resolu` : correctif non encore committé.
+
+      RÉSOLU (session du 2026-07-23, sur demande explicite du porteur
+      de traiter ce dernier point) : décision explicite du porteur
+      (AskUserQuestion) — batcher les 2 endpoints en 1 seul appel HTTP
+      plutôt que documenter comme non prioritaire ou plafonner le
+      nombre de pollers. Les 2 endpoints restent logiquement distincts
+      (décision SEC-061 non rouverte) — seul le TRANSPORT est groupé,
+      pas la donnée elle-même.
+
+      Côté serveur : nouvelle méthode
+      `projectService.getPortalSummaries(ids, clientId)`
+      (project.service.ts) qui appelle en interne les DEUX méthodes
+      déjà existantes (`getTimelineStatus`, `getCompletedTasksForClient`)
+      pour chaque id, via `Promise.allSettled` (pas `Promise.all`) — un
+      id appartenant à un autre client ou inexistant est silencieusement
+      omis du résultat plutôt que de faire échouer tout le lot (même
+      propriété de sécurité que les 2 endpoints d'origine, qui 404ent
+      chacun individuellement). Nouvelle route CLIENT-only
+      `GET /projects/my/summaries?ids=...` (project.routes.ts),
+      validée par un nouveau schéma Zod (`getPortalSummariesSchema`,
+      project.validator.ts — jusqu'à 100 ids, plafond identique à
+      `/projects/my`).
+
+      Côté client : point important vérifié AVANT d'implémenter — un
+      batch naïf demandant TOUS les projectId dès le chargement de la
+      page aurait cassé la garantie déjà testée sous SEC-116 (montage
+      paresseux via IntersectionObserver, aucune requête tant qu'une
+      carte n'est pas visible). Résolu en conciliant les deux : chaque
+      carte continue de signaler sa propre visibilité au parent
+      (`LazyProjectCard`, ex-`LazyProjectTimeline`, renommé car il
+      enveloppe maintenant 2 enfants) ; le parent
+      (`ProjectsClientPage.tsx`) accumule les ids devenus visibles dans
+      un état `visibleIds`, et un seul hook `usePortalSummaries`
+      (nouveau fichier `hooks/usePortalSummaries.ts`) bat ces ids en un
+      seul appel — jamais plus qu'un appel pour l'ensemble des cartes
+      déjà visibles à un instant donné, jamais un appel pour une carte
+      hors écran. `ProjectTimeline.tsx` et `CompletedTasksList.tsx` ne
+      font plus leur propre requête réseau : ils reçoivent
+      `steps`/`tasks`/`isLoading` en props depuis le résultat batché du
+      parent. Le hook `useProjectCompletedTasks.ts` (devenu mort) est
+      supprimé. Cadence de polling inchangée (120s, déjà élargie depuis
+      30s dans une passe antérieure de ce même correctif), maintenant
+      partagée par tous les cards visibles au lieu d'un poller par
+      carte.
+
+      Preuve par test réel : `server/test/projectPortalSummaries.test.ts`
+      (nouveau fichier) — appelle le vrai
+      `projectService.getPortalSummaries` contre une vraie base,
+      confirme le batch multi-projets ET la propriété de sécurité
+      (un projet d'un autre client est omis, pas une erreur qui casse
+      tout le lot). `client/src/features/client-portal/
+      ProjectsClientPage.test.tsx` (réécrit) : confirme qu'aucun appel
+      `/projects/my/summaries` ne part avant qu'une carte devienne
+      visible (préserve SEC-116), puis qu'un seul appel groupé part
+      pour 2 cartes devenues visibles (pas 2 appels séparés) —
+      `getMock.mock.calls.filter(...).length === 1`, pas une assertion
+      de surface. `client/src/features/client-portal/components/
+      CompletedTasksList.test.tsx` (réécrit) : composant testé en
+      isolation via ses nouvelles props, sans mock réseau (il n'en fait
+      plus). `npx tsc --noEmit` et `npm run lint --workspace=server`/
+      `--workspace=client` vérifiés propres (11 warnings côté client,
+      au lieu des 12 exceptions documentées — `ProjectTimeline.tsx` a
+      perdu son export `useProjectTimeline`, une des 12 occurrences
+      react-refresh disparaît naturellement, pas une régression). Suite
+      complète client (`npm run test --workspace=client`) : 125/125
+      vertes en local. Non exécuté contre une vraie base au moment de
+      ce commit pour le nouveau test serveur : Docker local
+      indisponible — poussé sans confirmation locale, la CI fera foi.
+      Décision consignée dans REFERENTIEL.md §7.
 
   - id: SEC-092
     titre: "projectMeetingRepository.findDueForReminder ne filtre ni deletedAt ni status COMPLETED — un projet supprime ou termine avec une cadence de reunion active continuerait de generer des rappels"

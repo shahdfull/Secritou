@@ -20,15 +20,22 @@ import { PROJECT_STATUS_LABELS_FR } from "@secritou/shared";
 import { getProjectStatusBadgeClass } from "@/utils/statusColors";
 import { ProjectTimeline } from "./components/ProjectTimeline";
 import { CompletedTasksList } from "./components/CompletedTasksList";
+import { usePortalSummaries } from "./hooks/usePortalSummaries";
 import { announce } from "@/lib/a11yAnnounce";
 
-// SEC-116: ProjectTimeline polls every 30s (useProjectTimeline) and used to be mounted
-// unconditionally for every card in the grid — up to 100 projects per client (pageSize: 100
-// above), so the total polling cost scaled with (active clients) × (projects per client). Once a
-// timeline becomes visible it stays mounted (no unmount-on-scroll-away): that would otherwise
-// discard useful React Query cache and refetch again the next time it scrolls back into view,
-// trading one cost for another instead of removing it.
-function LazyProjectTimeline({ projectId }: { projectId: string }) {
+// SEC-116: used to poll every 30s per card and mount unconditionally for every card in the grid —
+// up to 100 projects per client (pageSize: 100 above), so the total cost scaled with (active
+// clients) × (projects per client). Once a card becomes visible it stays "visible" (no
+// unmount-on-scroll-away): that would otherwise discard useful React Query cache and refetch
+// again the next time it scrolls back into view, trading one cost for another instead of
+// removing it.
+//
+// SEC-091: previously each visible card mounted its OWN ProjectTimeline + CompletedTasksList,
+// each firing its own request (2×N requests for N visible cards, each on its own poller). Now
+// this component only reports "I am visible" to the parent (onVisible), which batches every
+// visible id into a single usePortalSummaries call — same lazy-mount guarantee as before (nothing
+// fetched for an off-screen card), but one shared request instead of 2 per card.
+function LazyProjectCard({ projectId, onVisible, children }: { projectId: string; onVisible: (id: string) => void; children: React.ReactNode }) {
   const [isVisible, setIsVisible] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -40,15 +47,16 @@ function LazyProjectTimeline({ projectId }: { projectId: string }) {
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
           setIsVisible(true);
+          onVisible(projectId);
         }
       },
       { rootMargin: "200px" }
     );
     observer.observe(element);
     return () => observer.disconnect();
-  }, [isVisible]);
+  }, [isVisible, projectId, onVisible]);
 
-  return <div ref={containerRef}>{isVisible && <ProjectTimeline projectId={projectId} />}</div>;
+  return <div ref={containerRef}>{isVisible && children}</div>;
 }
 
 interface ClientProject {
@@ -168,6 +176,14 @@ export function ProjectsClientPage() {
   const { data: projectsResult, isLoading, isError } = useMyProjects();
   const projects = (projectsResult?.data ?? []) as ClientProject[];
 
+  // SEC-091: grows as cards become visible (LazyProjectCard#onVisible below) — usePortalSummaries
+  // only ever requests ids that are actually in this set, preserving SEC-116's lazy-mount
+  // guarantee (nothing fetched for an off-screen card) while batching every visible id into one
+  // request instead of firing one pair of requests per card.
+  const [visibleIds, setVisibleIds] = useState<string[]>([]);
+  const markVisible = (id: string) => setVisibleIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  const { data: summaries, isLoading: summariesLoading, dataUpdatedAt: summariesUpdatedAt } = usePortalSummaries(visibleIds);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
@@ -216,9 +232,17 @@ export function ProjectsClientPage() {
                   </div>
                 </div>
 
-                <LazyProjectTimeline projectId={project.id} />
-
-                <CompletedTasksList projectId={project.id} />
+                <LazyProjectCard projectId={project.id} onVisible={markVisible}>
+                  <ProjectTimeline
+                    steps={summaries?.[project.id]?.timeline}
+                    isLoading={summariesLoading && !summaries?.[project.id]}
+                    dataUpdatedAt={summariesUpdatedAt || undefined}
+                  />
+                  <CompletedTasksList
+                    tasks={summaries?.[project.id]?.completedTasks}
+                    isLoading={summariesLoading && !summaries?.[project.id]}
+                  />
+                </LazyProjectCard>
 
                 {isApproved && (
                   <div className="mt-4 rounded-lg bg-green-50 border border-green-200 px-4 py-2 text-sm text-green-700 font-medium text-center">
