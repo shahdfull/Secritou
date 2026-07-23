@@ -1687,28 +1687,29 @@ IMPLÉMENTÉ. `verifie: test` (`server/test/creditNoteNumberConcurrency.test.ts`
 SEC-151, appelle réellement `creditNoteService.create` en concurrence
 stricte via `Promise.allSettled`).
 
-**RG-024 — Timbre fiscal affiché mais non comptable (ÉCART).**
-Le PDF de facture d'acompte affiche un « Net à payer » égal au montant
-TTC stocké plus un timbre fiscal forfaitaire de 0.6 TND
-(`TIMBRE_FISCAL`, barème à confirmer avec un comptable). *Module : 4.4.*
-Statut : **ÉCART**. `verifie: test` (négatif — l'absence de prise en
-compte est ce qui est vérifié) : `TIMBRE_FISCAL`
-(`server/src/services/documentGenerator.service.ts:10`) n'est stocké
-sur aucun champ d'`Invoice` et n'est lu nulle part par
-`invoiceService.addPayment`, qui compare tout paiement au seul `Invoice.
-amount` (TTC sans timbre). Vérifié par exécution réelle du scénario
-complet en dev (génération d'un vrai PDF via `generateInvoicePDF`,
-téléchargement depuis MinIO, extraction du texte réel, comparaison à
-l'`Invoice` stocké) : les lignes Montant HT/TVA/Montant TTC concordent
-exactement avec le stockage, seule la ligne « Net à payer » (441.34)
-diverge de `Invoice.amount` (440.74) de exactement 0.6 TND. Conséquence
-concrète : un client qui règle fidèlement le montant écrit sur son PDF
-déclenche systématiquement la branche de trop-perçu de RG-022
-(création d'un `CreditNote` de 0.6 TND) sur chaque facture émise avec
-régime TVA — voir SEC-198 pour le détail complet et le critère de
-résolution (stocker le timbre comme champ réel d'`Invoice`, ou décision
-explicite du porteur documentant qu'il reste volontairement hors du
-champ `amount`).
+**RG-024 — Timbre fiscal inclus dans le montant réellement dû (IMPLÉMENTÉ).**
+Le timbre fiscal forfaitaire tunisien (0.6 TND, `TIMBRE_FISCAL`,
+`server/src/utils/vat.ts`, barème confirmé) est stocké sur
+`Invoice.timbreFiscal` et inclus dans `Invoice.amount` pour toute
+facture DEPOSIT/BALANCE — le PDF affiche un « Net à payer » identique
+au montant qu'`invoiceService.addPayment` compare réellement, un
+client qui règle ce montant ne déclenche donc plus jamais de
+trop-perçu automatique (RG-022). *Module : 4.4.* Statut :
+**IMPLÉMENTÉ**. `verifie: test`
+(`server/test/invoiceTimbreFiscalNoOverpay.test.ts`, 2 cas, appelle
+réellement `proposalService.acceptWithCascade`/`invoiceService.
+addPayment` — pas une réimplémentation) : le premier cas vérifie que
+`Invoice.timbreFiscal` est bien renseigné et que `amount` l'inclut
+au-delà du TTC ; le second paie exactement `Invoice.amount` (le « Net
+à payer » réel) et vérifie `creditNote === null` et `overpaidBy === 0`.
+Écart historique documenté sous SEC-198 (voir ANOMALIES.yaml pour le
+détail du bug original et du correctif : migration
+`20260723120000_invoice_timbre_fiscal`, factures STANDARD non
+concernées — seuls les chemins DEPOSIT/BALANCE affichaient un timbre).
+Factures DEPOSIT/BALANCE déjà existantes avant ce correctif :
+`timbreFiscal` reste `NULL`, `amount` inchangé — aucun retraitement
+rétroactif (une facture déjà payée/réconciliée ne doit pas voir son
+montant stocké changer après coup).
 
 ---
 
@@ -1864,3 +1865,4 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-20** | **Décision rétroactivement écrite ici (existait seulement dans la note SEC-010 jusqu'à ce jour, en écart avec la règle « toute décision s'écrit dans §7 dans la même passe ») : ne PAS réactiver le déclenchement automatique `push`/`pull_request` de `.github/workflows/ci.yml`, ni le déclencher manuellement, à ce moment-là. `ci.yml` restait donc en `workflow_dispatch` seul.** | **AskUserQuestion, session du 2026-07-20 : le porteur a choisi de laisser SEC-010 `en_cours` plutôt que de réactiver le trigger ou de déclencher manuellement le workflow (citée mot pour mot dans la note SEC-010 : « SEC-010 reste `en_cours` en l'état »).** |
 | **2026-07-22** | **Décision du 2026-07-20 ci-dessus RÉVOQUÉE : les déclencheurs `pull_request`/`push` de `.github/workflows/ci.yml` sont réactivés (décommentés). Le premier push vers `origin/main` qui en résulte doit être vu vert par la CI avant que SEC-010 (et tout autre `en_cours` dont le critère dépend d'une CI verte) ne passe `resolu`.** | **Confirmation explicite du porteur du projet, AskUserQuestion, session du 2026-07-22 : choix « Tout faire dans cet ordre, y compris réactiver le trigger CI » parmi 3 options proposées, en réponse directe à la question posant que la décision du 2026-07-20 devait être explicitement révoquée pour procéder.** |
 | **2026-07-22** | **SEC-176 (rate limiting) — décision explicite sur les 7 derniers fichiers cités par son périmètre (`analytics`, `dashboard`, `search`, `service`, `summary`, `clientPortal.routes.ts`, plus le 7e non nommé explicitement par la demande) : AUCUN n'a besoin de `sensitiveWriteRateLimit` — vérifié fichier par fichier par lecture directe intégrale, confirmé par `grep -nE "\.(post|put|patch|delete)\("` sur chacun des 6 fichiers nommés : zéro résultat sur les 6. Ces 6 fichiers ne contiennent QUE des routes `GET` (lecture pure), donc le critère de résolution de SEC-176 (« chaque route d'écriture authentifiée POST/PUT/PATCH/DELETE ») ne s'applique littéralement à aucune route de ces fichiers — ce n'est pas une dérogation à motiver (aucune route à exempter), c'est une non-applicabilité du critère lui-même, vérifiée et tracée plutôt que supposée.** | **Demande explicite du porteur de trancher les 7 fichiers restants du périmètre SEC-176 (rate limiting), un par un, par ajout du middleware ou dérogation motivée — jamais par silence. Vérification fichier par fichier avant toute décision : aucun n'avait de route d'écriture à protéger.** |
+| **2026-07-23** | **RG-024 (timbre fiscal) — le montant 0.6 TND est confirmé (barème en vigueur validé, plus « à confirmer avec un comptable »), et le timbre est désormais stocké comme champ réel (`Invoice.timbreFiscal`), inclus dans `Invoice.amount` dès la création des factures DEPOSIT/BALANCE — plutôt que documenté comme écart volontaire. Voir SEC-198 pour le détail technique complet.** | **AskUserQuestion, session du 2026-07-23 : choix « Stocker le timbre comme champ réel sur Invoice (Recommandé) » parmi 2 options, puis confirmation explicite que 0.6 TND est la valeur validée (pas seulement plausible) en réponse à une question dédiée avant d'écrire la migration Prisma.** |

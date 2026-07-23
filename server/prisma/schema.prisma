@@ -1283,6 +1283,10 @@ model Invoice {
   amountHT           Decimal?          @db.Decimal(14, 3)
   tvaRate            Decimal?          @db.Decimal(5, 4)
   tvaAmount          Decimal?          @db.Decimal(14, 3)
+  // RG-024 / SEC-198: flat Tunisian stamp duty (TIMBRE_FISCAL, vat.ts), included in `amount` for
+  // DEPOSIT/BALANCE invoices — set only by createDepositInvoiceTx/createBalanceInvoiceTx, null
+  // for STANDARD invoices (never shown a timbre line on their PDF).
+  timbreFiscal       Decimal?          @db.Decimal(14, 3)
   currency           String            @default("TND") @db.VarChar(10)
   amountPaid         Decimal           @default(0) @db.Decimal(14, 3)
   status             InvoiceStatus     @default(DRAFT)

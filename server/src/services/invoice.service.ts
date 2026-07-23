@@ -12,7 +12,7 @@ import { creditNoteService } from "./creditNote.service.js";
 import type { ServiceScope } from "../utils/serviceScope.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
-import { computeVat, roundMoney } from "../utils/vat.js";
+import { computeVat, roundMoney, TIMBRE_FISCAL } from "../utils/vat.js";
 import { commissionService } from "./commission.service.js";
 import { notifyN8n } from "../utils/webhook.js";
 import { clientService } from "./client.service.js";
@@ -503,7 +503,9 @@ export const invoiceService = {
   },
 
   // `amountHT` is the deposit/balance HT slice (already fraction-of-proposal, e.g. proposal.amount * 0.3).
-  // VAT is computed on that slice; `amount` stores the TTC total actually due.
+  // VAT is computed on that slice; `amount` stores the total actually due, INCLUDING the flat
+  // timbre fiscal (RG-024 / SEC-198) — so a client paying exactly `amount` never overpays and
+  // never trips addPayment's overpaidBy branch.
   async createDepositInvoiceTx(
     tx: TxClient,
     args: { title: string; description?: string; amountHT: number; currency: string; clientId: string; projectId?: string; proposalId: string; dueInDays?: number }
@@ -514,7 +516,7 @@ export const invoiceService = {
     const vat = computeVat(args.amountHT);
     const number = await nextInvoiceNumber(tx, currentInvoicePrefix());
 
-    return tx.invoice.create({ data: { number, title: args.title, description: args.description, amount: vat.amountTTC, amountHT: vat.amountHT, tvaRate: vat.tvaRate, tvaAmount: vat.tvaAmount, currency: args.currency, status: "DRAFT", invoiceType: "DEPOSIT", dueDate, clientId: args.clientId, projectId: args.projectId, proposalId: args.proposalId } });
+    return tx.invoice.create({ data: { number, title: args.title, description: args.description, amount: roundMoney(vat.amountTTC + TIMBRE_FISCAL), amountHT: vat.amountHT, tvaRate: vat.tvaRate, tvaAmount: vat.tvaAmount, timbreFiscal: TIMBRE_FISCAL, currency: args.currency, status: "DRAFT", invoiceType: "DEPOSIT", dueDate, clientId: args.clientId, projectId: args.projectId, proposalId: args.proposalId } });
   },
 
   async createBalanceInvoiceTx(
@@ -527,6 +529,6 @@ export const invoiceService = {
     const vat = computeVat(args.amountHT);
     const number = await nextInvoiceNumber(tx, currentInvoicePrefix());
 
-    return tx.invoice.create({ data: { number, title: args.title, description: args.description, amount: vat.amountTTC, amountHT: vat.amountHT, tvaRate: vat.tvaRate, tvaAmount: vat.tvaAmount, currency: args.currency, status: "DRAFT", invoiceType: "BALANCE", dueDate, clientId: args.clientId, projectId: args.projectId, proposalId: args.proposalId ?? undefined } });
+    return tx.invoice.create({ data: { number, title: args.title, description: args.description, amount: roundMoney(vat.amountTTC + TIMBRE_FISCAL), amountHT: vat.amountHT, tvaRate: vat.tvaRate, tvaAmount: vat.tvaAmount, timbreFiscal: TIMBRE_FISCAL, currency: args.currency, status: "DRAFT", invoiceType: "BALANCE", dueDate, clientId: args.clientId, projectId: args.projectId, proposalId: args.proposalId ?? undefined } });
   },
 };

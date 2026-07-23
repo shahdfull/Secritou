@@ -13508,6 +13508,8 @@ anomalies:
     classe: "affichage_desynchronise_du_stockage"
     gravite: majeur
     statut: en_cours
+    # décision porteur : stocker le timbre comme champ réel — voir note ci-dessous et
+    # REFERENTIEL.md §7 (2026-07-23) / RG-024.
     critere_de_resolution: >
       C'est résolu quand le montant qu'un client est invité à payer (le
       PDF de facture) et le montant que `invoiceService.addPayment`
@@ -13563,6 +13565,58 @@ anomalies:
       remarqué car jamais testé bout-en-bout jusqu'ici (aucun test
       n'appelle `generateInvoicePDF` et ne compare son contenu réel au
       stockage — confirmé par grep `generateInvoicePDF` sur `server/test/`).
+
+      DÉCISION DU PORTEUR (2026-07-23, AskUserQuestion) : stocker le
+      timbre comme champ réel sur `Invoice` (option recommandée),
+      valeur 0.6 TND confirmée comme le barème réellement en vigueur
+      (plus « à confirmer avec un comptable ») — voir REFERENTIEL.md §7
+      et RG-024.
+
+      CORRIGÉ (même session) :
+      1) `TIMBRE_FISCAL` déplacé de `documentGenerator.service.ts`
+      (constante locale au fichier) vers `server/src/utils/vat.ts`
+      (single source of truth fiscale du dépôt, déjà `TVA_RATE`/
+      `DEPOSIT_RATE`).
+      2) Migration `20260723120000_invoice_timbre_fiscal` :
+      `Invoice.timbreFiscal Decimal? @db.Decimal(14,3)`. Factures
+      DEPOSIT/BALANCE déjà existantes laissées `NULL` volontairement —
+      un retraitement rétroactif de `amount` changerait un montant
+      stocké sur des lignes potentiellement déjà payées/réconciliées.
+      3) `invoice.service.ts#createDepositInvoiceTx` et
+      `#createBalanceInvoiceTx` (les 2 seuls chemins dont le PDF est
+      réellement généré via `generateInvoicePDF`, vérifié par grep sur
+      chaque `kind: "invoice"` enfilé — `proposal.service.ts` ligne 528
+      et `project.service.ts` ligne 416) : `amount` inclut désormais
+      `roundMoney(vat.amountTTC + TIMBRE_FISCAL)`, `timbreFiscal` stocké
+      à part. `createFromProposal` (facture STANDARD, jamais affichée
+      avec timbre) et `invoiceService.create` (facture manuelle, montant
+      fourni par l'appelant) volontairement NON touchés — hors du
+      périmètre du bug observé, décision explicite du porteur
+      (AskUserQuestion) de ne pas étendre par cohérence spéculative.
+      4) `documentGenerator.service.ts#generateInvoicePDF` : ne recalcule
+      plus « Net à payer » = `amount + TIMBRE_FISCAL` (double-comptage
+      désormais que `amount` l'inclut déjà) — lit `invoice.timbreFiscal`,
+      affiche `amount` tel quel comme Net à payer, et déduit un « Montant
+      TTC » (`amount - timbreFiscal`) pour le détail HT/TVA/TTC.
+      5) `invoiceService.addPayment` : AUCUN changement — comparait déjà
+      `Invoice.amount` seul ; c'était le bon comportement, le défaut
+      était uniquement l'écart entre ce que `amount` contenait et ce que
+      le PDF affichait.
+      Test réel ajouté : `server/test/invoiceTimbreFiscalNoOverpay.test.ts`
+      (2 cas) — appelle le vrai `proposalService.acceptWithCascade` puis
+      `invoiceService.addPayment` avec exactement `Invoice.amount` (le
+      « Net à payer » réel), vérifie `timbreFiscal` stocké correctement
+      et `creditNote === null`/`overpaidBy === 0` sur ce paiement exact.
+      `npm run typecheck`/`npm run lint` --workspace=server vérifiés
+      propres. Grep exhaustif des tests existants pour tout appel à
+      `createDepositInvoiceTx`/`createBalanceInvoiceTx`/tout assert sur
+      `Invoice.amount` en dur (pas seulement `amountHT`) : aucun trouvé
+      — pas de régression attendue sur la suite existante. Non exécuté
+      contre une vraie base au moment de ce commit : Docker local
+      toujours indisponible (incident signalé sous SEC-200/201, non
+      résolu) — poussé sans confirmation locale, la CI fera foi. Statut
+      laissé `en_cours` : ni exécuté localement ni observé vert en CI au
+      moment de cette note.
 
   - id: SEC-199
     titre: "Traçabilité AuditLog incomplète sur le cycle facture→paiement→avoir : invoiceService.create n'écrit AUCUNE entrée AuditLog (la création même d'une facture n'est pas tracée), et l'avoir automatique créé par addPayment lors d'un surpaiement (createCreditNoteTx, partagée avec creditNoteService.create) n'a pas sa propre entrée AuditLog — seul le log invoice.payment.add mentionne overpaidBy en passant, sans jamais tracer explicitement l'id/numéro du CreditNote créé"

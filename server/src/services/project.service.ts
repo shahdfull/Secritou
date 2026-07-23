@@ -409,7 +409,7 @@ export const projectService = {
     void (async () => {
       if (result.balanceInvoiceId) {
         try {
-          const inv = await prismaRead.invoice.findUnique({ where: { id: result.balanceInvoiceId }, select: { id: true, number: true, amount: true, amountHT: true, tvaRate: true, tvaAmount: true, currency: true, dueDate: true } });
+          const inv = await prismaRead.invoice.findUnique({ where: { id: result.balanceInvoiceId }, select: { id: true, number: true, amount: true, amountHT: true, tvaRate: true, tvaAmount: true, timbreFiscal: true, currency: true, dueDate: true } });
           if (inv) {
             await enqueueDocumentGeneration([
               {
@@ -421,6 +421,7 @@ export const projectService = {
                   amountHT: inv.amountHT != null ? Number(inv.amountHT) : null,
                   tvaRate: inv.tvaRate != null ? Number(inv.tvaRate) : null,
                   tvaAmount: inv.tvaAmount != null ? Number(inv.tvaAmount) : null,
+                  timbreFiscal: inv.timbreFiscal != null ? Number(inv.timbreFiscal) : null,
                   currency: inv.currency ?? "TND",
                   dueDate: inv.dueDate,
                 },

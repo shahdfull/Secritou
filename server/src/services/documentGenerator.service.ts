@@ -6,9 +6,6 @@ import { COMPANY_ID } from "../config/constants.js";
 import type { Document, DocumentType } from "@prisma/client";
 import { computeVat, roundMoney, TVA_RATE, DEPOSIT_RATE } from "../utils/vat.js";
 
-// Timbre fiscal: flat Tunisian stamp duty applied per invoice (barème en vigueur — à confirmer avec un comptable).
-const TIMBRE_FISCAL = 0.6;
-
 // Minimal shapes: only the fields each generator needs, not full Prisma model types.
 // This decouples the generator from query shape changes and avoids circular imports.
 // Exported so the BullMQ job payload (jobs/queues.ts) and its processor can reuse them.
@@ -50,6 +47,7 @@ export type GeneratorInvoice = {
   amountHT?: number | string | null;
   tvaRate?: number | string | null;
   tvaAmount?: number | string | null;
+  timbreFiscal?: number | string | null;
   currency?: string | null;
   dueDate?: Date | null;
 };
@@ -482,8 +480,13 @@ export const documentGeneratorService = {
       };
 
       const cur = invoice.currency ?? "TND";
-      const ttc = invoice.amount != null ? Number(invoice.amount) : 0;
-      const netAPayer = roundMoney(ttc + TIMBRE_FISCAL);
+      // RG-024 / SEC-198: invoice.amount already INCLUDES timbreFiscal (createDepositInvoiceTx/
+      // createBalanceInvoiceTx) — it's the real total addPayment compares against, so a client
+      // paying exactly the PDF's "Net à payer" never overpays. "Montant TTC" here is the
+      // pre-timbre subtotal, shown for the breakdown only.
+      const netAPayer = invoice.amount != null ? Number(invoice.amount) : 0;
+      const timbre = invoice.timbreFiscal != null ? Number(invoice.timbreFiscal) : 0;
+      const ttc = roundMoney(netAPayer - timbre);
       if (invoice.amountHT != null && invoice.tvaAmount != null) {
         const tvaRatePct = invoice.tvaRate != null ? Number(invoice.tvaRate) * 100 : 19;
         row("Montant HT", `${fmtMoney(Number(invoice.amountHT))} ${cur}`);
@@ -492,7 +495,7 @@ export const documentGeneratorService = {
       } else {
         row("Montant TTC", `${fmtMoney(ttc)} ${cur}`, true);
       }
-      row("Timbre fiscal", `${fmtMoney(TIMBRE_FISCAL)} ${cur}`);
+      if (timbre > 0) row("Timbre fiscal", `${fmtMoney(timbre)} ${cur}`);
       row("Net à payer", `${fmtMoney(netAPayer)} ${cur}`, true);
       doc.moveDown(1);
 

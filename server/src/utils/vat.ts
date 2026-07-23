@@ -8,6 +8,13 @@ export const TVA_RATE = 0.19;
 // would silently desync the quote PDF's promised split from the actual deposit/balance invoices.
 export const DEPOSIT_RATE = 0.3;
 
+// RG-024 / SEC-198: flat Tunisian stamp duty (barème confirmé) applied to deposit and balance
+// invoices. Previously a constant local to documentGenerator.service.ts, added to the PDF's "Net
+// à payer" but never stored on Invoice.amount nor checked by invoiceService.addPayment (which
+// compares a payment only to the stored amount) — a client paying exactly the PDF's stated total
+// always overpaid by this amount, triggering an automatic CreditNote on every VAT invoice.
+export const TIMBRE_FISCAL = 0.6;
+
 // TND is denominated in millimes (3 decimal places) — round to 3, not 2.
 export function roundMoney(n: number): number {
   return Math.round(n * 1000) / 1000;
