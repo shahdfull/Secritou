@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-216
+dernier_id: SEC-217
 
 anomalies:
   - id: SEC-001
@@ -15000,4 +15000,55 @@ anomalies:
       verte (`test:coverage`, exit code 0, 0 test en échec) après les 2
       correctifs combinés. `npm run typecheck`/`npm run lint`
       --workspace=server vérifiés propres.
+
+  - id: SEC-217
+    titre: ".github/workflows/backup.yml (\"Daily DB Backup\") échoue systématiquement (cron quotidien 01:00 UTC) : `SSH_HOST`/`SSH_USER`/`SSH_PRIVATE_KEY`/`BACKUP_ENV_PATH` sont vides à l'exécution (`ssh \"@\"` littéral dans le log, `usage: ssh...`, exit code 255) — aucun secret n'est configuré dans l'environnement GitHub \"production\" du dépôt, et REFERENTIEL.md §7 (décision datée 2026-07-16) confirme qu'aucun serveur de production n'existe pour l'instant : ce n'est pas une config manquante à corriger, c'est un workflow prématuré vu l'état réel du projet"
+    perimetre: ".github/workflows/backup.yml — infrastructure CI/déploiement, pas le code applicatif"
+    regle_violee: null
+    classe: "ci_workflow_infra_inexistante"
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      C'est résolu quand le job ne s'exécute plus automatiquement sans
+      pouvoir jamais réussir (cron désactivé tant qu'aucun serveur de
+      production n'existe), tout en restant déclenchable manuellement
+      (`workflow_dispatch` conservé) pour le jour où un serveur de
+      production existera et où les secrets `SSH_HOST`/`SSH_USER`/
+      `SSH_PRIVATE_KEY`/`BACKUP_ENV_PATH` seront réellement configurés
+      dans l'environnement GitHub "production" du dépôt.
+    detecte_le: "2026-07-23"
+    source: manuel
+    confiance: certain
+    note: >
+      Log CI collé directement par le porteur : chaque interpolation de
+      secret (`${{ secrets.SSH_PRIVATE_KEY }}`, `${{ secrets.SSH_USER
+      }}@${{ secrets.SSH_HOST }}`, `${{ secrets.BACKUP_ENV_PATH }}`)
+      résout en chaîne vide dans la commande exécutée (`ssh -i
+      /tmp/deploy_key "@" "source  && ..."`), confirmant qu'aucun des 4
+      secrets requis n'est défini dans l'environnement GitHub
+      "production" référencé par `environment: production` (ligne 12 du
+      workflow) — pas un bug du script `backup-db.sh` lui-même, jamais
+      atteint. Avant de proposer un correctif de configuration,
+      REFERENTIEL.md §7 relu : entrée datée 2026-07-16 déjà présente,
+      citant une vérification directe demandée par le porteur («
+      Confirmé : aucun workflow de déploiement... n'existe... Un push
+      vers `origin/main` ne déclenche donc aucun déploiement ») —
+      confirme qu'il n'y a jamais eu de serveur de production
+      configuré pour ce projet (cohérent avec CLAUDE.md : agence en
+      lancement, 0 client actif). Le porteur, interrogé directement, a
+      confirmé ne pas savoir avec certitude si un serveur existe —
+      traité par prudence comme absent plutôt que de deviner des
+      identifiants SSH inexistants.
+
+      Corrigé : le déclencheur `schedule` (cron quotidien) retiré de
+      `backup.yml`, `workflow_dispatch` conservé — le job ne peut plus
+      échouer silencieusement chaque jour sans espoir de succès, mais
+      reste disponible en un clic le jour où un vrai serveur de
+      production et ses secrets existeront. Aucun secret créé ni
+      deviné (contraire à CLAUDE.md « aucune clé API en dur… toujours
+      via variables d'environnement » et à l'interdiction d'inférer une
+      décision du porteur) : la configuration des 4 secrets manquants
+      reste une action manuelle du porteur sur GitHub (Settings >
+      Environments > production), hors de portée de cette session.
+      YAML de `backup.yml` revalidé après édition (`js-yaml`).
 

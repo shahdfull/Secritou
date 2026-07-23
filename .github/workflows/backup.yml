@@ -1,9 +1,11 @@
 name: Daily DB Backup
 
 on:
-  schedule:
-    # 01:00 UTC every day (03:00 Tunisia time)
-    - cron: "0 1 * * *"
+  # SEC-217: no production server exists yet (REFERENTIEL.md §7, decision dated 2026-07-16 —
+  # no deployment workflow, no production environment). The daily cron below fails every run
+  # since SSH_HOST/SSH_USER/SSH_PRIVATE_KEY/BACKUP_ENV_PATH are unset in the "production"
+  # GitHub Environment, with nothing to point them at yet. Cron disabled until a real production
+  # host exists; workflow_dispatch kept so it can still be run manually/re-enabled once it does.
   workflow_dispatch: {}
 
 jobs:
