@@ -11713,7 +11713,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `getLeads` porte un `select` explicite excluant
       `notes` (chargé séparément par `findById` quand la fiche complète est
@@ -11813,8 +11813,12 @@ anomalies:
       ne pas avoir ce défaut du tout (prémisse fausse), Task corrigé.
       Non exécuté contre une vraie base au moment de ce commit : Docker
       local indisponible — poussé sans confirmation locale, la CI fera
-      foi. Statut laissé `en_cours` : ni exécuté localement ni observé
-      vert en CI au moment de cette note.
+      foi.
+
+      RÉSOLU (2026-07-23) : run CI confirmé vert par l'utilisateur
+      (« its green ») sur le commit `f51e7a0`. `git merge-base
+      --is-ancestor 6c7f73a f51e7a0` confirme que le commit du correctif
+      Task (`6c7f73a`) est bien un ancêtre de ce commit vert.
 
   - id: SEC-172
     titre: "Migration 20260711204823_client_portal_activated_at ajoute Client.portalActivatedAt (nullable) sans aucun backfill — le seul chemin qui le renseigne est invoice.service.ts#addPayment sur un NOUVEL évènement de paiement (where: portalActivatedAt: null), qui ne se redéclenche jamais pour une facture DEPOSIT déjà PAID avant cette migration : un client dont l'acompte était déjà payé avant le 2026-07-11 resterait verrouillé hors de son portail indéfiniment"
@@ -12139,9 +12143,8 @@ anomalies:
     regle_violee: null
     classe: "rate_limiting_couverture_incomplete"
     gravite: mineur
-    statut: en_cours
-    # dernier risque connu (PUT /tasks/:id vs Kanban) corrige — voir note ci-dessous, statut en
-    # attente de confirmation CI.
+    statut: resolu
+    # dernier risque connu (PUT /tasks/:id vs Kanban) corrige — voir note ci-dessous.
     critere_de_resolution: >
       C'est résolu quand chaque route d'écriture authentifiée (POST/PUT/
       PATCH/DELETE) sur ces 20 fichiers applique un rate limiter (au
@@ -12266,6 +12269,12 @@ anomalies:
       Statut laissé `en_cours` : dernier risque connu levé, mais aucun
       des correctifs de cette entrée (celui-ci ni les précédents) n'a
       encore été confirmé vert par un run CI sur ce commit exact.
+
+      RÉSOLU (2026-07-23) : run CI confirmé vert par l'utilisateur
+      (« its green ») sur le commit `f51e7a0`. `git merge-base
+      --is-ancestor 126cde3 f51e7a0` confirme que le commit du dernier
+      correctif (`frequentInteractionRateLimit`, `126cde3`) est bien un
+      ancêtre de ce commit vert.
 
   - id: SEC-177
     titre: "projectService.clientApprove : le preread (status !== REVIEW, clientApprovedAt déjà posé) tourne hors transaction et n'est jamais re-vérifié dans le $transaction — contrairement aux gardes tâches ouvertes/acompte/approbations qui, elles, sont explicitement re-vérifiées via tx (commentaire ligne 341-344) — deux appels concurrents (double-clic, retry réseau) sur le même projet REVIEW peuvent tous deux passer le preread et écraser clientApprovedAt/clientApprovedById avec un second horodatage"
@@ -14120,7 +14129,7 @@ anomalies:
     regle_violee: null
     classe: "liste_paginee_sans_select_restrictif"
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `documentRepository.findAll` et
       `proposalRepository.findAll`/`findAllByClientId` portent un `select`
@@ -14214,13 +14223,18 @@ anomalies:
       une vraie base au moment de ce commit : Docker local
       indisponible — poussé sans confirmation locale, la CI fera foi.
 
+      RÉSOLU (2026-07-23) : run CI confirmé vert par l'utilisateur
+      (« its green ») sur le commit `f51e7a0`. `git merge-base
+      --is-ancestor bd48e7e f51e7a0` confirme que le commit du correctif
+      (`bd48e7e`) est bien un ancêtre de ce commit vert.
+
   - id: SEC-204
     titre: "3 lacunes d'accessibilité sur des composants transverses à fort réemploi : SortableTableHead.tsx (colonne triable de toutes les listes, LeadsPage + TasksListView) rendait le tri sur un <div onClick> sans role/tabIndex/gestionnaire clavier ni nom accessible ; SearchInput.tsx (5 réemplois) et le champ de recherche globale GlobalSearch.tsx (présent sur chaque page via le header) n'exposaient qu'un placeholder comme seul indice, jamais lu de façon fiable par tous les lecteurs d'écran et disparaissant dès qu'une valeur est saisie"
     perimetre: "client/src/components/common/SortableTableHead.tsx ; client/src/components/shared/crud/SearchInput.tsx ; client/src/components/common/GlobalSearch.tsx"
     regle_violee: null
     classe: "composant_transverse_accessibilite_manquante"
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand un utilisateur clavier seul peut activer le tri
       d'une colonne (Tab puis Entrée/Espace) et entendre son état
@@ -14333,9 +14347,12 @@ anomalies:
       117/118 avant, +7/8 issus de cette session — SEC-171/SEC-176 et
       SEC-204 combinés). `npm run typecheck`/`npm run lint --workspace=
       client` verts (12 warnings, tous déjà dans l'exception documentée,
-      aucun nouveau). Laissé `en_cours` : le commit portant ces tests
-      n'a pas encore de run CI GitHub Actions confirmé vert — passera
-      `resolu` dès confirmation.
+      aucun nouveau).
+
+      RÉSOLU (2026-07-23) : run CI confirmé vert par l'utilisateur
+      (« its green ») sur le commit `f51e7a0`. `git merge-base
+      --is-ancestor fd0dc84 f51e7a0` confirme que le commit portant ces
+      tests (`fd0dc84`) est bien un ancêtre de ce commit vert.
 
   - id: SEC-205
     titre: "LeadDetailDialog.tsx : useLead ne déstructure jamais isLoading — pendant que la fiche détaillée (avec les propositions liées) est en cours de chargement, current retombe sur la prop lead issue de la liste, qui ne porte jamais proposals, et la section affiche « aucune proposition liée » alors que le lead en a peut-être réellement, juste pas encore chargées (faux état vide, pas seulement un indicateur de chargement manquant)"
