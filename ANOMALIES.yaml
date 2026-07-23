@@ -13300,7 +13300,7 @@ anomalies:
     regle_violee: null
     classe: "limite_prisma_index_partiel_non_representable"
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `npx prisma migrate diff --from-migrations
       ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma
@@ -13373,6 +13373,16 @@ anomalies:
       jamais commité). `resolu` NON déclaré : le correctif est commité
       localement mais pas encore vu vert par la CI elle-même sur ce commit
       précis. Reste `en_cours` jusqu'à confirmation du run CI réel.
+
+      RÉSOLU (session du 2026-07-23, audit CI SEC-212) : confirmé par
+      lecture directe que `ci.yml` (lignes 133-151) et `schema.prisma`
+      (commentaires SEC-193 sur `Invoice`/`Proposal`) portent toujours
+      exactement le correctif décrit ci-dessus. Commits `4a068bf`/
+      `9a41073` (le correctif) sont des ancêtres directs de `fea20ac`,
+      confirmé vert (job `server`, qui exécute cette étape "Schema
+      drift check" avant `test:coverage` dans le même job — donc déjà
+      passée avec succès) à de nombreuses reprises dans cette même
+      session. `resolu`.
 
   - id: SEC-194
     titre: "npm run test:coverage --workspace=server (job \"server\" de ci.yml) n'a probablement jamais pu réussir depuis son introduction : (1) le binaire c8 qu'il appelle en dur n'était déclaré nulle part dans server/package.json (ni dependencies ni devDependencies), échec immédiat \"c8: not found\" sur toute installation fraîche (npm ci) ; (2) une fois c8 installé, la couverture réelle mesurée (64.46% lignes/statements, 72.59% branches, 42.91% fonctions) est très en dessous des seuils exigés par le script (85/80/85/85), jamais atteints"
@@ -13531,7 +13541,7 @@ anomalies:
     regle_violee: null
     classe: "code_mort_apres_remplacement"
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `findUserNamesByProfileId` est supprimée du
       dépôt (repository et tout commentaire qui la référence) — vérifié
@@ -13568,13 +13578,20 @@ anomalies:
       déclaré : commité localement, pas encore confirmé vert par un run
       CI réel sur ce commit précis — conformément à la règle du dépôt.
 
+      RÉSOLU (session du 2026-07-23, audit CI) : `grep -rn
+      "findUserNamesByProfileId" server/src client/src` confirme zéro
+      occurrence restante. `git merge-base --is-ancestor 623677d
+      fea20ac` confirme que ce commit est un ancêtre direct de
+      `fea20ac`, déjà vu vert (job `server`) à plusieurs reprises dans
+      cette session. `resolu`.
+
   - id: SEC-197
     titre: "permissionProfileService.delete : fenêtre TOCTOU mineure entre la suppression réelle du profil (permissionProfileRepository.delete, ligne 146) et l'invalidation du cache des managers affectés (cacheDel, lignes 148-151) — un resolvePermissions concurrent exécuté dans cet intervalle lirait encore l'ancien cache valide (les permissions de l'ancien profil), alors que le profil n'existe déjà plus en base"
     perimetre: "server/src/services/managerPermission.service.ts#permissionProfileService.delete (lignes 125-171)"
     regle_violee: null
     classe: "toctou_invalidation_cache_apres_suppression"
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Sera résolu soit en inversant l'ordre (invalider le cache avant ou
       dans la même opération atomique que la suppression réelle), soit
@@ -13627,6 +13644,19 @@ anomalies:
       d'intégration réel de SEC-114 qui exerce précisément ce chemin.
       `resolu` NON déclaré : commité localement, pas encore confirmé
       vert par un run CI réel sur ce commit précis.
+
+      RÉSOLU (session du 2026-07-23, audit CI) : le test réel exigé par
+      le critère de résolution existe déjà et le satisfait précisément
+      (`server/test/permissionProfileDelete.test.ts:202-255`) — 20
+      itérations, `Promise.allSettled` faisant courir un
+      `resolvePermissions` concurrent contre `permissionProfileService.
+      delete({ force: true })` réel, vérifie qu'aucune lecture
+      concurrente ne relève d'erreur et que l'état final ne reflète
+      jamais un cache repeuplé pendant la course. `git merge-base
+      --is-ancestor e3e67ff fea20ac` confirme que ce commit est un
+      ancêtre direct de `fea20ac`, déjà vu vert (job `server`,
+      exécutant ce test précis) à plusieurs reprises dans cette
+      session. `resolu`.
 
   - id: SEC-198
     titre: "documentGeneratorService.generateInvoicePDF affiche un « Net à payer » = Invoice.amount (TTC stocké) + TIMBRE_FISCAL (0.6 TND, constante locale au fichier) — TIMBRE_FISCAL n'est jamais stocké sur Invoice ni pris en compte par invoiceService.addPayment, qui compare tout paiement reçu à Invoice.amount seul : un client qui paie exactement le montant écrit sur son PDF (le « Net à payer ») sur-paie systématiquement de 0.6 TND par facture, créé automatiquement en avoir (CreditNote) via le mécanisme overpaidBy d'addPayment"
