@@ -127,3 +127,4 @@ import "./executiveMetricsCriticalCountUnbounded.test.ts";
 import "./proposalInvoiceListEnvelopeFlat.http.test.ts";
 import "./invoiceTimbreFiscalNoOverpay.test.ts";
 import "./taskListExcludesDescription.test.ts";
+import "./taskUpdateRateLimit.test.ts";

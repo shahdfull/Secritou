@@ -4,8 +4,8 @@
 //
 // This test imports and calls the real authDenylist (revokeAccessToken/isAccessTokenRevoked) and
 // the real authenticate middleware — not a reimplementation — against a real Redis connection
-// (same instance cacheService.ts/BullMQ use). Requires Redis reachable; skipped if not (CI's
-// "server" job declares no redis service today — see SEC-174 note in ANOMALIES.yaml).
+// (same instance cacheService.ts/BullMQ use). Requires Redis reachable; skipped if not (the
+// server job's Redis service, ci.yml, keeps this from ever skipping in CI).
 
 import test, { describe, before, after } from "node:test";
 import assert from "node:assert/strict";

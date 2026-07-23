@@ -11977,7 +11977,7 @@ anomalies:
     regle_violee: null
     classe: "revocation_session_differee"
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Sera résolu soit par une décision explicite du porteur documentant la
       fenêtre de 15 minutes comme un risque accepté (à écrire dans
@@ -12027,6 +12027,42 @@ anomalies:
       vérifié plus avant" reste également non vérifié dans cette passe
       (hors périmètre de ce constat précis, à traiter séparément si
       confirmé).
+
+      PRÉMISSE INFIRMÉE (session du 2026-07-23, audit CI) : le porteur a
+      choisi l'option « implémenter une vraie révocation » — avant
+      d'écrire le moindre code, lecture directe du mécanisme existant :
+      un dispositif de révocation EXISTE DÉJÀ et fonctionne, contrairement
+      à l'affirmation d'origine du titre (« purement stateless, aucune
+      vérification, aucune liste de révocation »). Confirmé ligne par
+      ligne : `auth.middleware.ts#authenticate` appelle
+      `authDenylist.isAccessTokenRevoked({ sub, jti })` à CHAQUE requête
+      authentifiée (pas une vérification DB, mais une vérification Redis
+      réelle, avec TTL aligné sur l'expiration du token) ;
+      `user.service.ts#updateUser` (sur changement de rôle réel) ET
+      `#deleteUser` appellent tous deux `authDenylist.revokeAccessToken({
+      sub: id })`, invalidant immédiatement tout token déjà émis pour cet
+      utilisateur — pas d'attente de l'expiration naturelle de 15 min.
+      Couverture de test déjà en place et réelle (pas un vide comblé
+      cette session) : `server/test/authDenylist.test.ts` (3 cas, contre
+      un vrai Redis, appelle le vrai `authenticate` — un token accepté
+      AVANT révocation, rejeté 401 APRÈS, sans affecter un autre
+      utilisateur non révoqué) et `server/test/user.service.test.ts`
+      (mock ciblé sur `authDenylist.revokeAccessToken` pour prouver que
+      `updateUser`/`deleteUser` l'appellent bien, avec `sub` correct).
+      `authDenylist.test.ts` porte déjà sa propre référence SEC-174 dans
+      son en-tête — ce mécanisme a donc été construit et testé pour
+      répondre précisément à ce constat, dans une session antérieure à
+      celle qui l'a laissé `en_cours` par erreur de champ (même classe
+      que SEC-161/SEC-162/SEC-010, incohérence de champ pas un fait
+      nouveau). Le job `server` de la CI déclare bien un service Redis
+      (confirmé ligne 51 de `ci.yml`) — le commentaire dans
+      `authDenylist.test.ts` inquiet que « CI's server job declares no
+      redis service today » est lui-même une trace obsolète, le test
+      tourne réellement (pas seulement `t.skip`) sur chaque run vert
+      observé dans cette session. Aucun `tokenVersion`/`revokedAt`
+      supplémentaire ajouté : dupliquerait un mécanisme déjà fonctionnel,
+      testé, et moins coûteux (Redis, pas une lecture DB sur chaque
+      requête). `resolu`.
 
   - id: SEC-175
     titre: "ANOMALIES.yaml incohérent avec lui-même : SEC-122 porte statut: resolu / gravite: bloquant alors que son correctif est commité (4caab78) et prouvé par un test réel (documentScopeManager.test.ts, qui importe et appelle documentService.getById), et que SEC-137 (entrée postérieure, toujours ouverte) le cite déjà comme « résolu » dans sa propre note"
@@ -12086,6 +12122,8 @@ anomalies:
     classe: "rate_limiting_couverture_incomplete"
     gravite: mineur
     statut: en_cours
+    # dernier risque connu (PUT /tasks/:id vs Kanban) corrige — voir note ci-dessous, statut en
+    # attente de confirmation CI.
     critere_de_resolution: >
       C'est résolu quand chaque route d'écriture authentifiée (POST/PUT/
       PATCH/DELETE) sur ces 20 fichiers applique un rate limiter (au
@@ -12182,6 +12220,34 @@ anomalies:
       sur `task.routes.ts` (paragraphe précédent) n'est toujours pas levé,
       et aucun des correctifs de cette entrée n'a encore été confirmé
       vert par un run CI réel.
+
+      RISQUE UX LEVÉ (session du 2026-07-23, décision explicite du
+      porteur entre 2 options — limite dédiée plus large vs risque
+      accepté documenté, le porteur a choisi la limite dédiée) :
+      confirmé par lecture directe que `PUT /tasks/:id` sert bien le
+      drag-and-drop Kanban (`client/src/features/tasks/
+      TasksKanban.tsx`, `updateTask` appelé un par un par carte
+      déplacée, pas via `bulk/status`) — le risque identifié à la
+      session précédente était réel, pas hypothétique. Corrigé : nouvelle
+      limite dédiée `frequentInteractionRateLimit` (60/min, même ordre de
+      grandeur qu'`analyticsEventRateLimit`, déjà pensée pour un usage
+      légitime haute-fréquence) dans `rateLimit.middleware.ts`, appliquée
+      UNIQUEMENT à `PUT /tasks/:id` — les autres routes d'écriture de
+      `task.routes.ts` (POST, DELETE, commentaires, checklist, bulk)
+      gardent `sensitiveWriteRateLimit` (10/min) inchangé. Preuve par
+      test réel (`server/test/taskUpdateRateLimit.test.ts`, nouveau
+      fichier) : appelle le vrai `PUT /tasks/:id` via `supertest` contre
+      l'app Express réelle, lit le header `RateLimit-Limit` réel de la
+      réponse (60, pas 10) ; second cas de contrôle sur `POST
+      /tasks/:id/comments` confirmant que cette route voisine du même
+      fichier garde bien 10 — preuve que le changement est ciblé, pas une
+      régression accidentelle sur tout le fichier. `npm run typecheck`/
+      `npm run lint` --workspace=server vérifiés propres. Non exécuté
+      contre une vraie base au moment de ce commit : Docker local
+      indisponible — poussé sans confirmation locale, la CI fera foi.
+      Statut laissé `en_cours` : dernier risque connu levé, mais aucun
+      des correctifs de cette entrée (celui-ci ni les précédents) n'a
+      encore été confirmé vert par un run CI sur ce commit exact.
 
   - id: SEC-177
     titre: "projectService.clientApprove : le preread (status !== REVIEW, clientApprovedAt déjà posé) tourne hors transaction et n'est jamais re-vérifié dans le $transaction — contrairement aux gardes tâches ouvertes/acompte/approbations qui, elles, sont explicitement re-vérifiées via tx (commentaire ligne 341-344) — deux appels concurrents (double-clic, retry réseau) sur le même projet REVIEW peuvent tous deux passer le preread et écraser clientApprovedAt/clientApprovedById avec un second horodatage"

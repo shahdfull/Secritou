@@ -58,6 +58,21 @@ export const sensitiveWriteRateLimit = rateLimit({
   message: { message: "Too many requests, please slow down" },
 });
 
+// SEC-176: PUT /tasks/:id also serves the Kanban drag-and-drop status change (TasksKanban.tsx —
+// one call per card moved, not batched through bulk/status). sensitiveWriteRateLimit's 10/min
+// was applied here mechanically along with 19 other route files and never re-evaluated: a user
+// actively reorganizing a busy board can plausibly exceed 10 drags/minute, which would 429 a
+// legitimate action, not abuse. Sized like analyticsEventRateLimit (60/min) — generous enough
+// for real interactive use, still bounded against a scripted flood.
+export const frequentInteractionRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  limit: env.E2E_RELAXED_RATE_LIMITS ? 200 : 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: rateLimitKeyGenerator,
+  message: { message: "Too many requests, please slow down" },
+});
+
 // Public application form: tighter than sensitiveWriteRateLimit (10/min) since
 // a genuine candidate submits at most once; 3/hour still allows a retry after
 // a mistake without leaving room for a spam bot.

@@ -7,7 +7,7 @@ import { createTaskSchema, updateTaskSchema, getFreelancerAvailabilitySchema, ad
 import { createChecklistItemSchema, updateChecklistItemSchema, deleteChecklistItemSchema } from "../validators/taskChecklist.validator.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize, requirePermission } from "../middlewares/rbac.middleware.js";
-import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
+import { sensitiveWriteRateLimit, frequentInteractionRateLimit } from "../middlewares/rateLimit.middleware.js";
 const router = Router();
 
 // Apply auth middleware to all task routes
@@ -21,7 +21,10 @@ router.get("/", authorize("ADMIN", "MANAGER", "FREELANCER"), requirePermission("
 router.get("/availability", authorize("ADMIN", "MANAGER"), requirePermission("tasks", "read"), validate(getFreelancerAvailabilitySchema), getFreelancerAvailability);
 router.get("/:id", authorize("ADMIN", "MANAGER", "FREELANCER"), requirePermission("tasks", "read"), getTaskById);
 router.post("/", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER"), requirePermission("tasks", "create"), validate(createTaskSchema), createTask);
-router.put("/:id", sensitiveWriteRateLimit, authorize("ADMIN", "MANAGER", "FREELANCER"), requirePermission("tasks", "update"), validate(updateTaskSchema), updateTask);
+// SEC-176: frequentInteractionRateLimit (60/min), not sensitiveWriteRateLimit (10/min) — this
+// route also serves the Kanban drag-and-drop status change (TasksKanban.tsx, one call per card
+// moved), where a real user actively reorganizing a board can plausibly exceed 10/min.
+router.put("/:id", frequentInteractionRateLimit, authorize("ADMIN", "MANAGER", "FREELANCER"), requirePermission("tasks", "update"), validate(updateTaskSchema), updateTask);
 // MANAGER can delete (unlike project deletion, which is ADMIN-only): a task is
 // pole-scoped, lower-impact than the project it belongs to, and already gated by
 // assertProjectInScope in task.service.ts.
