@@ -13507,7 +13507,7 @@ anomalies:
     regle_violee: null
     classe: "affichage_desynchronise_du_stockage"
     gravite: majeur
-    statut: en_cours
+    statut: resolu
     # décision porteur : stocker le timbre comme champ réel — voir note ci-dessous et
     # REFERENTIEL.md §7 (2026-07-23) / RG-024.
     critere_de_resolution: >
@@ -13617,6 +13617,10 @@ anomalies:
       résolu) — poussé sans confirmation locale, la CI fera foi. Statut
       laissé `en_cours` : ni exécuté localement ni observé vert en CI au
       moment de cette note.
+
+      CLÔTURE (2026-07-23, même session, commit `8cab25a`) : run CI
+      confirmé vert (rapporté directement par le porteur) — critère
+      satisfait. `resolu`.
 
   - id: SEC-199
     titre: "Traçabilité AuditLog incomplète sur le cycle facture→paiement→avoir : invoiceService.create n'écrit AUCUNE entrée AuditLog (la création même d'une facture n'est pas tracée), et l'avoir automatique créé par addPayment lors d'un surpaiement (createCreditNoteTx, partagée avec creditNoteService.create) n'a pas sa propre entrée AuditLog — seul le log invoice.payment.add mentionne overpaidBy en passant, sans jamais tracer explicitement l'id/numéro du CreditNote créé"
