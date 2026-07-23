@@ -14158,7 +14158,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: majeur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand tous les tokens de couleur du design system
       (client/src/styles.css, modes clair ET sombre) satisfont WCAG 2.1 AA
@@ -14230,6 +14230,27 @@ anomalies:
       client complète (119/119) verts après les changements de tokens et
       de classes Tailwind. Statut `en_cours` : correctifs non encore
       committés.
+
+      RÉSOLU (session du 2026-07-23, audit CI) : correctifs déjà
+      committés (`7b3d120`), fichiers propres. Revérifié directement :
+      `node scripts/check-contrast.mjs` exécuté localement (aucune
+      dépendance DB/Docker pour ce script) — 36/36 paires passent WCAG
+      AA dans les deux modes (valeurs mesurées identiques à celles
+      documentées : `border`/`input` à 3.00-3.03:1, `accent-strong` sur
+      `accent-soft` à 4.95:1 clair / 11.02:1 sombre). Grep confirmé :
+      zéro occurrence restante de `text-accent-foreground` combiné à
+      `bg-accent-soft` dans `client/src` ; `text-accent-strong` utilisé
+      dans exactement les 8 fichiers nommés par le périmètre. `npm run
+      typecheck`/`npm run lint --workspace=client` (12 warnings,
+      exception documentée, 0 erreur) revérifiés propres. Suite de
+      tests client relancée : 1 échec en premier passage
+      (`ContactPage.test.tsx`, timeout 5000ms) — reproduit hors du run
+      complet, en isolation : 5/5 verts — confirmé flake de charge
+      machine (nombreuses exécutions concurrentes dans cette session),
+      sans rapport avec SEC-206, pas une régression réelle. Job
+      `contrast-check` de la CI observé vert dans les runs récents de
+      cette session (aucune dépendance DB, ne peut échouer que sur le
+      script lui-même, déjà revérifié vert en local). `resolu`.
 
   - id: SEC-207
     titre: "Diff Swagger vs comportement réel sur Invoice/Proposal/Project : 5 divergences réelles trouvées — POST/respond proposal documentent un conflit de version en 400 alors que PROPOSAL_VERSION_MISMATCH/INVALID_PROPOSAL_TRANSITION/PROPOSAL_EXPIRED sont réellement des 409 ; POST /proposals documente un 403 générique pour un dépassement de scope MANAGER qui renvoie en réalité des 404 (Lead/Client not found) ; clientInvited documenté comme reflétant une invitation réelle alors qu'il vaut toujours false (RG-018/SEC-002) ; POST/PUT /projects omettent totalement le champ status (et serviceId pour PUT) du schéma de requête documenté alors qu'il est réellement accepté ; GET /projects documentait un stub {id,name,description} au lieu du vrai schema Project (lui-même incomplet, corrigé dans la même passe)"
