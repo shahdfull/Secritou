@@ -124,9 +124,10 @@ export const invoiceService = {
   // RG-012: number is always generated via nextInvoiceNumber (InvoiceCounter, sequential,
   // gapless per month) — never accepted as caller input, which would bypass the counter
   // entirely (SEC-031).
-  async create(data: { title: string; description?: string; amount: number; currency?: string; dueDate?: Date; pdfUrl?: string; clientId: string; projectId?: string; proposalId?: string }) {
+  async create(data: { title: string; description?: string; amount: number; currency?: string; dueDate?: Date; pdfUrl?: string; clientId: string; projectId?: string; proposalId?: string }, actorId?: string, actorRole?: string) {
     const created = await createInvoiceWithGeneratedNumber(data);
     await invalidateFinanceCaches();
+    void auditLogService.record({ actorId, actorRole, action: "invoice.create", entityType: "Invoice", entityId: created.id, after: { amount: created.amount, clientId: created.clientId } });
     return created;
   },
 
@@ -288,8 +289,23 @@ export const invoiceService = {
       action: "invoice.payment.add",
       entityType: "Invoice",
       entityId: id,
-      after: { amount: data.amount, method: data.method, paymentId: result.payment.id, overpaidBy: result.overpaidBy || undefined },
+      after: { amount: data.amount, method: data.method, paymentId: result.payment.id, overpaidBy: result.overpaidBy || undefined, creditNoteId: result.creditNote?.id },
     });
+
+    // SEC-199: createCreditNoteTx (shared with creditNoteService.create's manual path) has no
+    // audit log of its own — only the caller logs, and the manual path already does (its own
+    // "creditNote.create" entry). This automatic path previously only mentioned overpaidBy on
+    // the invoice.payment.add entry above, with no entry whose entityId is the CreditNote
+    // itself, making it impossible to look up this credit note's audit trail directly.
+    if (result.creditNote) {
+      void auditLogService.record({
+        actorId: recordedById,
+        action: "creditNote.create",
+        entityType: "CreditNote",
+        entityId: result.creditNote.id,
+        after: { number: result.creditNote.number, amount: result.overpaidBy, invoiceId: id, reason: "Automatic overpayment credit" },
+      });
+    }
 
     let portalInviteFailed = false;
     const invoiceMeta = await invoiceRepository.findById(id);

@@ -52,7 +52,7 @@ export const getInvoiceById = async (req: Request, res: Response) => {
 };
 
 export const createInvoice = async (req: Request, res: Response) => {
-  const invoice = await invoiceService.create(req.body);
+  const invoice = await invoiceService.create(req.body, req.user?.sub, req.user?.role);
   res.status(201).json({ data: invoice });
 };
 

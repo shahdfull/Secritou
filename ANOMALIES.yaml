@@ -13629,6 +13629,7 @@ anomalies:
     classe: "auditlog_couverture_incomplete_cycle_financier"
     gravite: majeur
     statut: en_cours
+    # correctif ecrit et pousse — voir note ci-dessous pour la vérification CI en attente.
     critere_de_resolution: >
       C'est résolu quand un scénario réel création-facture → envoi →
       paiement-avec-surpaiement → application-d'avoir produit une entrée
@@ -13686,6 +13687,48 @@ anomalies:
       facture, création d'avoir) — exactement le type de défaut que la
       demande du porteur visait à débusquer en relisant les entrées
       réelles plutôt que le code seul.
+
+      CORRIGÉ (session du 2026-07-23), strictement dans le périmètre
+      des 2 lacunes nommées par le critère de résolution — la note
+      d'origine mentionne 11 méthodes de mutation sans audit au total
+      dans `invoice.service.ts`, non étendues ici (décision à trancher
+      séparément si le porteur veut couvrir chaque mutation, pas
+      seulement les 2 nommées) :
+      1) `invoiceService.create` accepte désormais `actorId`/
+      `actorRole` (motif identique à `send`/`cancel`/`delete`/
+      `restore`, déjà existants) et écrit `action: "invoice.create"`.
+      Contrôleur (`invoice.controller.ts#createInvoice`) mis à jour
+      pour transmettre `req.user?.sub`/`req.user?.role`.
+      2) `invoiceService.addPayment` : après le log
+      `invoice.payment.add` existant (désormais enrichi d'un
+      `creditNoteId` en plus d'`overpaidBy`), un second log dédié
+      `action: "creditNote.create"`, `entityType: "CreditNote"`,
+      `entityId: result.creditNote.id` est écrit si un `CreditNote`
+      automatique a été créé — même `action`/forme que le chemin
+      manuel (`creditNoteService.create`), pour que les deux origines
+      d'un `CreditNote` (automatique vs manuel) soient recherchables
+      de façon identique dans `AuditLog`. `createCreditNoteTx`
+      lui-même reste sans log propre (fonction bas-niveau partagée,
+      dans une transaction) — chaque appelant logge après coup,
+      cohérent avec le motif déjà établi pour le chemin manuel.
+      Tests réels ajoutés dans `server/test/invoiceAuditLog.test.ts`
+      (fichier existant, SEC-152, déjà câblé dans `run-all.test.ts`) :
+      2 nouveaux cas — `invoiceService.create` relit une vraie ligne
+      `AuditLog` par `entityType`/`entityId`/`action` ; le scénario de
+      surpaiement relit à la fois l'entrée `invoice.payment.add`
+      (vérifie son `creditNoteId`) ET l'entrée `creditNote.create`
+      dédiée créée automatiquement — exactement le scénario du critère
+      de résolution. `npm run typecheck`/`npm run lint`
+      --workspace=server vérifiés propres. Grep confirmé : aucun test
+      existant n'asserte sur un compte total de lignes `AuditLog`
+      (aucune régression de comptage attendue), les 3 appelants
+      existants de `invoiceService.create` sans `actorId`/`actorRole`
+      restent valides (paramètres optionnels, log écrit avec
+      `actorId: undefined`, comportement fire-and-forget inchangé).
+      Non exécuté contre une vraie base au moment de ce commit : Docker
+      local toujours indisponible — poussé sans confirmation locale, la
+      CI fera foi. Statut laissé `en_cours` : ni exécuté localement ni
+      observé vert en CI au moment de cette note.
 
   - id: SEC-200
     titre: "proposalsApi.getProposals désimbrique une couche de trop : le contrôleur renvoie l'enveloppe de pagination à plat ({ data, total, page, pageSize }), mais le client lit response.data.data — la liste des propositions n'apparaît donc JAMAIS dans l'UI (aucune recherche, aucune pagination, table toujours vide)"

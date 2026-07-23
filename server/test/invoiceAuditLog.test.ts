@@ -166,4 +166,55 @@ describe("Invoice and CreditNote mutations write to AuditLog (SEC-152)", () => {
     assert.equal(entry!.actorId, actorId);
     assert.equal((entry!.after as { appliedToInvoiceId?: string })?.appliedToInvoiceId, targetInvoice.id);
   });
+
+  // SEC-199: invoiceService.create previously wrote no AuditLog entry at all — the creation of
+  // an invoice, a real financial mutation, was untraceable.
+  test("invoiceService.create writes an invoice.create AuditLog entry", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
+    const client = await prisma.client.create({ data: { name: "sec199 client A" } });
+    createdClientIds.push(client.id);
+
+    const invoice = await invoiceService.create(
+      { title: "SEC-199 invoice", amount: 250, currency: "TND", clientId: client.id },
+      actorId,
+      "ADMIN"
+    );
+    createdInvoiceIds.push(invoice.id);
+
+    const entry = await findAuditLogFor("Invoice", invoice.id, "invoice.create");
+    assert.ok(entry, "invoiceService.create must write an AuditLog entry");
+    createdAuditLogIds.push(entry!.id);
+    assert.equal(entry!.actorId, actorId);
+    assert.equal(entry!.actorRole, "ADMIN");
+  });
+
+  // SEC-199: the CreditNote automatically created by addPayment on an overpayment (via
+  // createCreditNoteTx, shared with creditNoteService.create's manual path) previously had no
+  // AuditLog entry of its own — only invoice.payment.add mentioned overpaidBy in passing, with
+  // no entry whose entityId is the CreditNote itself.
+  test("an automatic overpayment CreditNote (created by addPayment) gets its own creditNote.create AuditLog entry", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
+    const client = await prisma.client.create({ data: { name: "sec199 client B" } });
+    createdClientIds.push(client.id);
+    const invoice = await prisma.invoice.create({
+      data: { number: `SEC-199-OVERPAY-${Date.now()}`, title: "Invoice", amount: 100, currency: "TND", status: "SENT", clientId: client.id, invoiceType: "STANDARD" },
+    });
+    createdInvoiceIds.push(invoice.id);
+
+    // Overpays by 50 — must trigger the automatic CreditNote path in addPayment.
+    const result = await invoiceService.addPayment(invoice.id, { amount: 150 }, actorId);
+    assert.ok(result.creditNote, "an overpayment must create a CreditNote");
+    createdCreditNoteIds.push(result.creditNote!.id);
+
+    const paymentEntry = await findAuditLogFor("Invoice", invoice.id, "invoice.payment.add");
+    assert.ok(paymentEntry);
+    createdAuditLogIds.push(paymentEntry!.id);
+    assert.equal((paymentEntry!.after as { creditNoteId?: string })?.creditNoteId, result.creditNote!.id, "invoice.payment.add's own entry must also reference the CreditNote it created");
+
+    const creditNoteEntry = await findAuditLogFor("CreditNote", result.creditNote!.id, "creditNote.create");
+    assert.ok(creditNoteEntry, "the automatically-created CreditNote must have its own AuditLog entry, not just a mention on the payment's entry");
+    createdAuditLogIds.push(creditNoteEntry!.id);
+    assert.equal(creditNoteEntry!.actorId, actorId);
+    assert.equal((creditNoteEntry!.after as { number?: string })?.number, result.creditNote!.number);
+  });
 });
