@@ -14659,6 +14659,43 @@ anomalies:
       ce correctif CSP n'a pas encore été poussé au moment de cette
       note.
 
+      Correction du correctif (2026-07-22, même session) : le run
+      déclenché par `206d8ad` a échoué à l'IDENTIQUE des runs
+      précédents (mêmes 4 tests, même symptôme `/login`, même 429 sur
+      un retry) — le correctif `VITE_E2E` n'avait aucun effet. Cause :
+      `VITE_E2E=true` avait été ajouté au bloc `webServer` de
+      `playwright.config.ts`, mais le job `e2e` de `ci.yml` positionne
+      `PLAYWRIGHT_SKIP_WEB_SERVER: "true"` — ce qui désactive
+      entièrement ce bloc `webServer` et son usage de `VITE_E2E`. Le
+      vrai process preview utilisé par CI est démarré manuellement par
+      une étape distincte, `- name: "Start client preview" / run: npm
+      run preview --workspace=client > client-preview.log 2>&1 &`
+      (ligne ~339 avant ce correctif), totalement indépendante de
+      `playwright.config.ts`. Le premier correctif ciblait donc un
+      chemin d'invocation qui n'est jamais emprunté par la CI —
+      confirmé par un premier repro local erroné : lancé via le
+      `webServer` intégré de Playwright (`npx playwright test` sans
+      `PLAYWRIGHT_SKIP_WEB_SERVER`), donc pas représentatif du vrai
+      pipeline CI, ce qui a fait paraître le correctif efficace alors
+      qu'il ne l'était pas sur le chemin réel.
+
+      Correctif ajouté (`VITE_E2E=true` préfixé directement sur la
+      commande de l'étape "Start client preview" dans `ci.yml`, pas
+      dans `playwright.config.ts`). Revérifié en local avec le chemin
+      D'INVOCATION EXACT de la CI cette fois (containers Docker frais,
+      migration + seed, serveur démarré, client buildé, PUIS `VITE_E2E=
+      true npm run preview --workspace=client &` en arrière-plan comme
+      le fait la CI — pas le `webServer` de Playwright — et `npx
+      playwright test` lancé avec `PLAYWRIGHT_SKIP_WEB_SERVER=true`,
+      identique au job) : `curl -sI` confirme la CSP permissive servie ;
+      `login.spec.ts` (3/3) et `proposal-cascade.spec.ts` passent tous
+      les 4, à froid (9.2s). YAML revalidé (`js-yaml`). Statut toujours
+      `en_cours` : ce correctif n'a pas encore été poussé/observé en CI
+      au moment de cette note — leçon retenue : un repro local doit
+      emprunter le même chemin d'invocation que la CI (variables d'env,
+      étapes manuelles vs config par défaut de l'outil), pas seulement
+      reproduire le symptôme final.
+
   - id: SEC-213
     titre: "e2e/client-approval.spec.ts (\"a client sees the closing action on a project ready for review, and approving it really closes the project (RG-013)\") échoue en local (reproduit hors CI, une fois le vrai bug CSP de SEC-212 corrigé) sur `await expect(card).toBeVisible()` : après connexion CLIENT et clic sur le lien \"Projets\", la page atterrit sur le détail d'un projet existant déjà seedé (\"Intégration ERP Géant Tunisia\") au lieu de la liste des projets où devrait apparaître la carte du nouveau projet créé par le test (\"E2E approval proposal <timestamp>\") — la navigation \"Projets\" ne mène pas systématiquement à la liste"
     perimetre: "e2e/client-approval.spec.ts, client/src (page/route \"Projets\" du portail CLIENT)"
