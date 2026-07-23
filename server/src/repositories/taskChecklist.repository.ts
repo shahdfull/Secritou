@@ -65,14 +65,22 @@ export const taskChecklistRepository = {
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
       );
 
-    for (let remainingRetries = 8; ; remainingRetries--) {
+    // SEC-077 (session 2026-07-23): a flat 0-20ms jitter over 8 attempts was too thin for 5-way
+    // concurrent createItem calls racing near the cap under real CI load — several callers could
+    // exhaust all 8 retries while still colliding, leaking the raw P2034 to the caller instead of
+    // the retry eventually succeeding or (if truly past the cap) hitting CHECKLIST_LIMIT_REACHED.
+    // Exponential backoff spreads retries out further on each pass, and more attempts gives more
+    // total time for 5 racers to serialize against each other.
+    for (let remainingRetries = 12; ; remainingRetries--) {
       try {
         return await attempt();
       } catch (err) {
         if (err instanceof HttpError) throw err;
         const isSerializationConflict = err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2034";
         if (!isSerializationConflict || remainingRetries === 0) throw err;
-        await new Promise((resolve) => setTimeout(resolve, Math.random() * 20));
+        const attemptNumber = 12 - remainingRetries;
+        const backoffMs = Math.min(200, 10 * 2 ** attemptNumber) * Math.random();
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
       }
     }
   },

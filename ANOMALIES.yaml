@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-213
+dernier_id: SEC-214
 
 anomalies:
   - id: SEC-001
@@ -14696,6 +14696,17 @@ anomalies:
       étapes manuelles vs config par défaut de l'outil), pas seulement
       reproduire le symptôme final.
 
+      Confirmation `server` (2026-07-23, même session, commit
+      `428c059`) : run CI lu en entier — la couverture passe désormais
+      les 4 seuils (statements 65.06% ≥ 60%, branches 73.69% ≥ 70%,
+      functions 44.86% ≥ 40%, lines 65.06% ≥ 60%), confirmant que le
+      seed corrige bien la vraie cause. Un seul test restait rouge
+      (`SEC-077`, `taskChecklist.test.ts`) — investigué et corrigé
+      séparément sous un nouvel ID, `SEC-214` (retry insuffisant sous
+      contention réelle, distinct de l'infra CI Postgres/Redis/seed
+      couverte par SEC-212 lui-même). Le job `e2e` reste à confirmer
+      vert sur le prochain run avec le correctif `VITE_E2E` ci-dessus.
+
   - id: SEC-213
     titre: "e2e/client-approval.spec.ts (\"a client sees the closing action on a project ready for review, and approving it really closes the project (RG-013)\") échoue en local (reproduit hors CI, une fois le vrai bug CSP de SEC-212 corrigé) sur `await expect(card).toBeVisible()` : après connexion CLIENT et clic sur le lien \"Projets\", la page atterrit sur le détail d'un projet existant déjà seedé (\"Intégration ERP Géant Tunisia\") au lieu de la liste des projets où devrait apparaître la carte du nouveau projet créé par le test (\"E2E approval proposal <timestamp>\") — la navigation \"Projets\" ne mène pas systématiquement à la liste"
     perimetre: "e2e/client-approval.spec.ts, client/src (page/route \"Projets\" du portail CLIENT)"
@@ -14739,4 +14750,62 @@ anomalies:
       prudence plutôt que d'inventer une cause. Hors périmètre de la
       session SEC-212 (infrastructure CI Postgres/Redis) : symptôme
       purement applicatif/frontend, aucune anomalie de service Docker.
+
+  - id: SEC-214
+    titre: "taskChecklistRepository.create (server/src/repositories/taskChecklist.repository.ts) ne retry que sur le code Prisma P2034 avec un budget de 8 tentatives et un jitter plat 0-20ms — sous 5 créations concurrentes réelles proches du plafond en CI, ce budget peut s'épuiser avant que les 5 appelants aient fini de se sérialiser, laissant fuiter l'erreur Prisma brute vers l'appelant au lieu du HttpError CHECKLIST_LIMIT_REACHED attendu par le test SEC-077 (server/test/taskChecklist.test.ts)"
+    perimetre: "4.3 Gestion des tâches — server/src/repositories/taskChecklist.repository.ts#create"
+    regle_violee: null
+    classe: "checklist-position-concurrence"
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand `server/test/taskChecklist.test.ts` (test SEC-077,
+      5 créations concurrentes proches du plafond de 100) passe de
+      façon stable sur au moins 5 exécutions consécutives contre un
+      vrai Postgres (pas un mock) — vérifié directement, pas déduit
+      d'un seul run vert isolé qui pourrait n'être qu'une coïncidence
+      de charge.
+    detecte_le: "2026-07-23"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert en corrigeant SEC-212 : une fois le job `server`
+      débloqué (seed) et la couverture repassée au-dessus des seuils,
+      un seul test restait rouge — log CI lu directement :
+      `AssertionError: a losing create must be rejected specifically
+      for the cap, not an unrelated error`, avec en amont plusieurs
+      lignes `prisma:error ... Transaction failed due to a write
+      conflict or a deadlock. Please retry your transaction` sur
+      `tx.taskChecklistItem.create()`. Distinct de SEC-077 (déjà
+      `resolu`, même `classe`) : SEC-077 a fermé la fenêtre de course
+      sur l'ATOMICITÉ du comptage plafond/position (un seul `count()`
+      dans la transaction) ; ce constat porte sur la ROBUSTESSE du
+      retry autour de cette même transaction sous charge réelle —
+      critère de résolution distinct (stabilité sous contention réelle,
+      pas seulement correction du calcul), donc ID séparé plutôt que
+      réouverture de SEC-077 (CLAUDE.md « un ID = un critère de
+      résolution »).
+
+      Lu directement `taskChecklist.repository.ts#create` (lignes
+      48-78 avant correctif) : la boucle de retry ne considère comme
+      rejouable que `err.code === "P2034"` (le code Prisma documenté
+      pour un conflit de sérialisation OU un deadlock), avec 8
+      tentatives et un backoff `Math.random() * 20` (0-20ms plat, pas
+      exponentiel). Sous 5 appelants concurrents réels contre un
+      Postgres CI (pas un mock), ce budget peut s'épuiser avant que
+      tous se soient sérialisés, laissant l'erreur Prisma brute
+      remonter à l'appelant (ligne `if (!isSerializationConflict ||
+      remainingRetries === 0) throw err;`) au lieu du HttpError attendu
+      — exactement le symptôme observé en CI, pas un défaut du test.
+
+      Corrigé (même session) : budget porté à 12 tentatives, backoff
+      exponentiel plafonné (`Math.min(200, 10 * 2 ** attemptNumber) *
+      Math.random()`, jusqu'à ~200ms par palier) au lieu du jitter plat
+      précédent — étale davantage les tentatives sur la durée totale
+      disponible pour 5 racers. `npm run typecheck`/`npm run lint`
+      --workspace=server vérifiés propres. Vérifié directement contre
+      un vrai Postgres (conteneur Docker frais, migré, seedé) : le test
+      SEC-077 exécuté isolément (`--test-name-pattern=SEC-077`) 5 fois
+      de suite, toutes vertes (112-195ms chacune) — pas un seul run
+      isolé.
 
