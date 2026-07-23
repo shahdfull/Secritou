@@ -13597,7 +13597,7 @@ anomalies:
     regle_violee: null
     classe: "client_desimbrication_enveloppe_pagination_incorrecte"
     gravite: bloquant
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand un utilisateur réel ouvrant /app/commercial voit la
       liste des propositions existantes s'afficher (au moins une ligne pour
@@ -13653,13 +13653,17 @@ anomalies:
       encore observé au moment de cette note (règle CLAUDE.md : commité
       ET vert en CI, jamais l'un sans l'autre).
 
+      CLÔTURE (2026-07-23, même session, commit `e397d85`) : run CI
+      confirmé vert (rapporté directement par le porteur) — critère
+      satisfait (commité ET vert en CI). `resolu`.
+
   - id: SEC-201
     titre: "invoicesApi.getInvoices et invoicesApi.getTrash désimbriquent une couche de trop : les contrôleurs renvoient l'enveloppe de pagination à plat ({ data, total, page, pageSize }), mais le client lit response.data.data — les pages Factures et Corbeille des factures n'affichent donc JAMAIS de résultats"
     perimetre: "client/src/api/invoices.api.ts#getInvoices (ligne 71-75) et #getTrash (ligne 128-137) ; server/src/controllers/invoice.controller.ts#getInvoices (ligne 30-41, res.json(result) flat) et #getDeletedInvoices (ligne 43-47, idem)"
     regle_violee: null
     classe: "client_desimbrication_enveloppe_pagination_incorrecte"
     gravite: bloquant
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand un utilisateur réel ouvrant /app/invoices (ou sa
       corbeille) voit la liste des factures existantes s'afficher (au moins
@@ -13707,6 +13711,10 @@ anomalies:
       n'empêche une dernière passe de couverture complète — signalé tel
       quel. Statut laissé `en_cours` : commité mais pas encore observé
       vert en CI au moment de cette note.
+
+      CLÔTURE (2026-07-23, même session, commit `e397d85`) : run CI
+      confirmé vert (rapporté directement par le porteur) — critère
+      satisfait (commité ET vert en CI). `resolu`.
 
   - id: SEC-202
     titre: "clientApprove (RG-013) échoue TOUJOURS avec DUPLICATE_ENTRY (P2002) dès qu'un projet a une facture d'acompte : createBalanceInvoiceTx reçoit le même proposalId que la facture DEPOSIT déjà créée pour cette proposition, or Invoice.proposalId est @unique globalement (une seule facture par proposition, tous types confondus) — la clôture cliente ne peut donc jamais aboutir sur un projet issu d'une proposition acceptée (le chemin nominal du module)"
