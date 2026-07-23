@@ -13634,6 +13634,25 @@ anomalies:
       pas committé ET vert en CI sur ce commit exact (règle CLAUDE.md : un
       correctif dans un working tree non commité ne vaut jamais `resolu`).
 
+      Test réel ajouté (2026-07-23, même session) :
+      `server/test/proposalInvoiceListEnvelopeFlat.http.test.ts` — appelle
+      le vrai contrôleur via `supertest` (`GET /api/v1/proposals`) et
+      vérifie explicitement `res.body.data` est un tableau direct
+      contenant la proposition fraîchement créée, pas un
+      `res.body.data.data` imbriqué — verrouille la forme exacte à
+      laquelle `proposalsApi.getProposals` fait confiance côté client,
+      conformément au critère de résolution écrit ci-dessus. Câblé dans
+      `test/run-all.test.ts`. Vérifié vert en local à plusieurs reprises
+      (3/3 assertions passent, `npm run typecheck`/`npm run lint`
+      --workspace=server propres) avant qu'un incident Docker local
+      (moteur arrêté accidentellement en nettoyant des connexions
+      résiduelles d'une session de débogage précédente) n'empêche une
+      dernière passe de couverture complète — non lié au code de ce
+      correctif, signalé tel quel plutôt que masqué. Statut laissé
+      `en_cours` : le correctif est commité mais son run CI n'est pas
+      encore observé au moment de cette note (règle CLAUDE.md : commité
+      ET vert en CI, jamais l'un sans l'autre).
+
   - id: SEC-201
     titre: "invoicesApi.getInvoices et invoicesApi.getTrash désimbriquent une couche de trop : les contrôleurs renvoient l'enveloppe de pagination à plat ({ data, total, page, pageSize }), mais le client lit response.data.data — les pages Factures et Corbeille des factures n'affichent donc JAMAIS de résultats"
     perimetre: "client/src/api/invoices.api.ts#getInvoices (ligne 71-75) et #getTrash (ligne 128-137) ; server/src/controllers/invoice.controller.ts#getInvoices (ligne 30-41, res.json(result) flat) et #getDeletedInvoices (ligne 43-47, idem)"
@@ -13673,6 +13692,21 @@ anomalies:
       fonctions retournent maintenant directement `response.data`. Statut
       `en_cours` tant que ce correctif n'est pas committé ET vert en CI sur
       ce commit exact.
+
+      Test réel ajouté (2026-07-23, même session), même fichier que
+      SEC-200 : `server/test/proposalInvoiceListEnvelopeFlat.http.test.ts`
+      couvre aussi `GET /api/v1/invoices` (avec `search` scopé à la
+      facture créée par le test, pour ne jamais dépendre de l'ordre de
+      pagination par défaut face aux autres factures créées par le reste
+      de la suite dans le même run) et `GET /api/v1/invoices/trash` —
+      vérifie `res.body.data` comme tableau direct dans les deux cas, pas
+      `res.body.data.data`. Vérifié vert en local (3/3 assertions du
+      fichier passent, y compris les 2 concernant SEC-201) avant qu'un
+      incident Docker local (moteur arrêté par erreur pendant un
+      nettoyage de connexions résiduelles, sans lien avec ce correctif)
+      n'empêche une dernière passe de couverture complète — signalé tel
+      quel. Statut laissé `en_cours` : commité mais pas encore observé
+      vert en CI au moment de cette note.
 
   - id: SEC-202
     titre: "clientApprove (RG-013) échoue TOUJOURS avec DUPLICATE_ENTRY (P2002) dès qu'un projet a une facture d'acompte : createBalanceInvoiceTx reçoit le même proposalId que la facture DEPOSIT déjà créée pour cette proposition, or Invoice.proposalId est @unique globalement (une seule facture par proposition, tous types confondus) — la clôture cliente ne peut donc jamais aboutir sur un projet issu d'une proposition acceptée (le chemin nominal du module)"
