@@ -3,7 +3,7 @@ import { prisma, prismaRead } from "../config/prisma.js";
 import type { TaskStatus, Role, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildTextSearchFilter } from "../utils/listQuery.js";
-import { taskWithRelationsSelect } from "../utils/prismaSelects.js";
+import { taskWithRelationsSelect, taskListSelect } from "../utils/prismaSelects.js";
 import { HttpError } from "../utils/httpError.js";
 
 // priority added (SEC-047): TasksListView.tsx already renders a clickable "priority" sort header
@@ -14,6 +14,7 @@ import { HttpError } from "../utils/httpError.js";
 const SORTABLE_FIELDS = ["title", "status", "priority", "dueDate", "createdAt"];
 
 type TaskWithRelations = Prisma.TaskGetPayload<{ select: typeof taskWithRelationsSelect }>;
+type TaskListItem = Prisma.TaskGetPayload<{ select: typeof taskListSelect }>;
 
 function buildWhere(
   userId: string,
@@ -73,13 +74,13 @@ export const taskRepository = {
     projectId?: string,
     userServiceId?: string | null,
     taskFilters?: { assigneeId?: string; overdue?: boolean }
-  ): Promise<PaginatedResult<TaskWithRelations>> {
+  ): Promise<PaginatedResult<TaskListItem>> {
     const where = buildWhere(userId, userRole, options, projectId, userServiceId, taskFilters);
     const skip = (options.page - 1) * options.pageSize;
     const orderBy = buildOrderBy(options.orderBy, options.orderDir);
 
     const [data, total] = await Promise.all([
-      prismaRead.task.findMany({ where, select: taskWithRelationsSelect, orderBy, skip, take: options.pageSize }),
+      prismaRead.task.findMany({ where, select: taskListSelect, orderBy, skip, take: options.pageSize }),
       prismaRead.task.count({ where }),
     ]);
 

@@ -11028,7 +11028,7 @@ anomalies:
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Sera résolu quand la requête `activeProjects` est intégrée au
       `Promise.all` principal (parallélisée avec les 26 autres au lieu de
@@ -11116,13 +11116,22 @@ anomalies:
       verts sur ce commit. Fix et tests produits par mes propres appels
       d'outils dans cette session.
 
+      CHAMP `statut` CORRIGÉ (session du 2026-07-23, audit CI) :
+      confirmé par lecture directe du code que le correctif décrit
+      ci-dessus (agrégation SQL, `take: 50`/`take: 500`) est bien en
+      place, et que `server/test/executiveMetricsCriticalCountUnbounded.test.ts`
+      existe et est câblé dans `run-all.test.ts` — le champ `statut`
+      était resté `en_cours` malgré une note qui concluait déjà
+      « RÉSOLU », incohérence de champ pas un fait nouveau (même classe
+      que SEC-175/SEC-010). `resolu`.
+
   - id: SEC-162
     titre: "EntityTable.tsx (table générique avec virtualisation via useVirtualTable) n'est importé nulle part dans le dépôt — code mort — pendant qu'au moins 14 pages de liste (DocumentsPage, InvoicesPage, LeadsPage, ProposalsPage, CommissionsPage, ApprovalsPage, ApplicationsPage, ClientDetailPage, ClientDashboardPage, BookingAdminPage, AdminOnboardingPage, PermissionsGrid, SearchConsoleTab, SeoReportPage) réimplémentent chacune leur propre <TableRow>.map() sans aucune virtualisation"
     perimetre: "frontend transverse — client/src/components/shared/crud/EntityTable.tsx, client/src/hooks/shared/useVirtualTable.ts, et les 14 fichiers listés dans le titre"
     regle_violee: null
     classe: null
     gravite: mineur
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Sera résolu par une décision explicite du porteur : soit migrer
       progressivement les pages de liste les plus volumineuses vers
@@ -11196,6 +11205,13 @@ anomalies:
       `.map()` direct — confirmé non problématique tant qu'elles restent
       paginées côté serveur à un plafond raisonnable (couvert par
       SEC-053/SEC-088/SEC-118/SEC-156).
+
+      CHAMP `statut` CORRIGÉ (session du 2026-07-23, audit CI) :
+      confirmé par recherche directe (`EntityTable.tsx`/
+      `useVirtualTable.ts` introuvables dans `client/src`) que la
+      suppression décrite ci-dessus est bien effective — le champ
+      `statut` était resté `en_cours` malgré une note qui concluait
+      déjà « RÉSOLU », incohérence de champ. `resolu`.
 
   - id: SEC-164
     titre: "Migration 20260625230000_remove_commented_approval_status réécrit silencieusement l'historique : UPDATE \"ApprovalTimeline\" SET \"status\" = 'PENDING' WHERE \"status\"::text = 'COMMENTED' falsifie toute ligne d'audit historique qui valait réellement COMMENTED au moment des faits — ApprovalTimeline est un journal d'audit (mêmes rôle que ProposalHistory), pas un état courant qu'on peut réécrire"
@@ -11736,6 +11752,51 @@ anomalies:
       honnêtement ce reste à faire. `npx tsc --noEmit` et
       `npm run lint --workspace=server` verts. Fix et test produits par
       mes propres appels d'outils dans cette session.
+
+      SECOND VOLET TRAITÉ (session du 2026-07-23) — verdicts opposés
+      sur Project et Task, la prémisse d'origine était fausse pour l'un
+      des deux :
+      Project : PRÉMISSE INFIRMÉE. `client/src/features/projects/
+      ProjectsPage.tsx:141` affiche bien
+      `{project.description || t("common.noDescription")}` sur CHAQUE
+      carte de la vue liste — contrairement à l'affirmation initiale
+      de l'audit ("les cartes n'affichent que titre/statut/assigné/
+      échéance", en réalité vraie pour Task mais pas pour Project).
+      `description` retirée de `projectListSelect` casserait donc un
+      affichage réel : non touché. `projectListSelect` reste par
+      ailleurs partagé entre liste (`findAll`) ET détail (`findById`,
+      via spread `{ ...projectListSelect, client:..., tasks:... }`) —
+      un second facteur de risque distinct de la simple présence de
+      `description` en vue liste, confirmé mais non traité (aucune
+      raison de le faire puisque `description` doit rester dans les
+      deux vues de toute façon).
+      Task : prémisse confirmée exacte (`grep` sur
+      `client/src/features/tasks` : `TaskDetailDrawer.tsx` seul
+      consommateur de `task.description`, aucun Kanban/liste ne
+      l'affiche). Corrigé : nouveau `taskListSelect`
+      (`server/src/utils/prismaSelects.ts`) sans `description`, utilisé
+      uniquement par `taskRepository.findAll` — `taskWithRelationsSelect`
+      (avec `description`) inchangé pour `findById`/`create`/`update`/
+      `delete`, dont les appelants (ex. juste après une mutation)
+      attendent la tâche complète en retour. Preuve par test réel
+      (`server/test/taskListExcludesDescription.test.ts`, nouveau
+      fichier, même motif que `leadListExcludesNotes.test.ts`) : crée
+      une tâche avec une `description` de 5000 caractères, confirme son
+      absence totale (`"description" in found` === false) du résultat
+      de `taskService.getAllTasks`, et sa présence intégrale via
+      `taskService.getTaskById`. `npx tsc --noEmit` et
+      `npm run lint --workspace=server` vérifiés propres ; aucun test
+      existant n'asserte sur `description` dans un résultat de liste de
+      tâches (grep confirmé), aucun test client cassé (le type `Task`
+      côté client est indépendant du select Prisma serveur).
+      Le critère de résolution, lu à la lettre, exigeait de traiter
+      Project ET Task — traité au sens réel de l'intention (ne pas
+      sur-fetcher un champ jamais affiché en liste) : Project s'avère
+      ne pas avoir ce défaut du tout (prémisse fausse), Task corrigé.
+      Non exécuté contre une vraie base au moment de ce commit : Docker
+      local indisponible — poussé sans confirmation locale, la CI fera
+      foi. Statut laissé `en_cours` : ni exécuté localement ni observé
+      vert en CI au moment de cette note.
 
   - id: SEC-172
     titre: "Migration 20260711204823_client_portal_activated_at ajoute Client.portalActivatedAt (nullable) sans aucun backfill — le seul chemin qui le renseigne est invoice.service.ts#addPayment sur un NOUVEL évènement de paiement (where: portalActivatedAt: null), qui ne se redéclenche jamais pour une facture DEPOSIT déjà PAID avant cette migration : un client dont l'acompte était déjà payé avant le 2026-07-11 resterait verrouillé hors de son portail indéfiniment"
