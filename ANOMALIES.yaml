@@ -13628,8 +13628,7 @@ anomalies:
     regle_violee: null
     classe: "auditlog_couverture_incomplete_cycle_financier"
     gravite: majeur
-    statut: en_cours
-    # correctif ecrit et pousse — voir note ci-dessous pour la vérification CI en attente.
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand un scénario réel création-facture → envoi →
       paiement-avec-surpaiement → application-d'avoir produit une entrée
@@ -13729,6 +13728,10 @@ anomalies:
       local toujours indisponible — poussé sans confirmation locale, la
       CI fera foi. Statut laissé `en_cours` : ni exécuté localement ni
       observé vert en CI au moment de cette note.
+
+      CLÔTURE (2026-07-23, même session, commit `56d7c4d`) : run CI
+      confirmé vert (rapporté directement par le porteur) — critère
+      satisfait. `resolu`.
 
   - id: SEC-200
     titre: "proposalsApi.getProposals désimbrique une couche de trop : le contrôleur renvoie l'enveloppe de pagination à plat ({ data, total, page, pageSize }), mais le client lit response.data.data — la liste des propositions n'apparaît donc JAMAIS dans l'UI (aucune recherche, aucune pagination, table toujours vide)"
