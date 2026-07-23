@@ -80,16 +80,21 @@ export const clientService = {
   // SEC-154: a client whose invitation email never arrived (SMTP down at invite time) was
   // permanently stuck — this always 409'd once the User row existed, with no ADMIN-facing way
   // to get them a fresh invite short of the client guessing they should try forgot-password.
-  // `lastLoginAt: null` means the account has never actually been used — the original temp
-  // password was never consumed, so it's safe to reissue rather than a real re-invite of an
-  // active account.
+  // `lastLoginAt: null` alone was meant to mean "never actually used" — but that field is never
+  // set by anything except a real login, so any account provisioned outside the normal
+  // invite-email flow (a pre-seeded/imported account with a directly-set, already-known,
+  // already-working password) also reads as `lastLoginAt: null` despite being genuinely active.
+  // Discovered when this reset client3@example.tn's seeded password mid-e2e-run: also require
+  // `mustChangePassword` still true — set only by this same reissue path (and register/
+  // resetPassword's own temp-password flows), so it stays false for an account whose current
+  // password was ever deliberately set as "real", even if it never happened to log in yet.
   async inviteClientUser(clientId: string, email: string, name: string) {
     const client = await clientRepository.findById(clientId);
     if (!client) throw new HttpError(404, "Client not found");
 
     const existing = await userRepository.findByClientId(clientId);
     if (existing.length > 0) {
-      const neverLoggedIn = existing.find((u) => u.lastLoginAt === null);
+      const neverLoggedIn = existing.find((u) => u.lastLoginAt === null && u.mustChangePassword);
       if (!neverLoggedIn) throw new HttpError(409, "Client already has a portal account");
 
       const tempPassword = crypto.randomBytes(16).toString("base64url").slice(0, 16);

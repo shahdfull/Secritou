@@ -333,7 +333,12 @@ jobs:
         run: npm run prisma:seed --workspace=server
       - run: npm run build --workspace=client
       - name: Start server
-        run: npm run dev --workspace=server > server.log 2>&1 &
+        # SEC-212 follow-up: the e2e suite's sequential writes across specs (proposal/invoice/
+        # project mutations) can exceed sensitiveWriteRateLimit (10/min, a real production
+        # security control) well before the suite finishes — E2E_RELAXED_RATE_LIMITS raises the
+        # ceiling for this server process only (enforced at boot to never be settable in
+        # production, see server/src/config/env.ts).
+        run: E2E_RELAXED_RATE_LIMITS=true npm run dev --workspace=server > server.log 2>&1 &
       - name: Wait for server
         run: npx wait-on http://localhost:5000/api/v1/health -t 60000
       - name: Start client preview

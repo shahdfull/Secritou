@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-214
+dernier_id: SEC-216
 
 anomalies:
   - id: SEC-001
@@ -14707,13 +14707,40 @@ anomalies:
       couverte par SEC-212 lui-même). Le job `e2e` reste à confirmer
       vert sur le prochain run avec le correctif `VITE_E2E` ci-dessus.
 
+      `e2e` : sur le run suivant (commit `428c059`), `login.spec.ts`
+      passe 3/3 (confirme le correctif CSP), mais 2 autres tests
+      échouent pour des causes distinctes et sans rapport avec SEC-212 :
+      `client-approval.spec.ts` sur SEC-213 (voir sa note — cause
+      réelle : SEC-215, recherche clients cassée côté serveur) et
+      `proposal-cascade.spec.ts` sur un 429 en cascade causé par le
+      volume d'écritures de `client-approval.spec.ts` épuisant
+      `sensitiveWriteRateLimit` (10/min, un vrai contrôle de sécurité
+      prod) avant même que le test suivant ne démarre son propre appel
+      dans la même fenêtre de 60s. Corrigé sans affaiblir la limite de
+      prod : nouvelle variable `E2E_RELAXED_RATE_LIMITS` (validée dans
+      `config/env.ts`, avec un garde-fou qui lève une exception si
+      `NODE_ENV=production`), positionnée uniquement par l'étape "Start
+      server" du job `e2e` dans `ci.yml` — porte `sensitiveWriteRateLimit`
+      à 200/min pour ce process serveur précis, jamais en production ni
+      en `npm run dev` local. Vérifié directement (header
+      `RateLimit-Limit` à 200 après activation, contre 10 sans).
+
+      Une fois SEC-215/SEC-216 corrigés (voir leurs notes), suite e2e
+      complète revérifiée en local à 2 reprises consécutives, sans
+      re-seed entre les deux : 5/5 verts les deux fois (13.4-14.3s
+      chacune). Statut toujours `en_cours` pour SEC-212 lui-même : le
+      critère de résolution exige 2 runs CI (pas locaux) consécutifs
+      verts sur `main`, non encore observés au moment de cette note —
+      les correctifs (rate-limit, SEC-215, SEC-216) n'ont pas encore
+      été poussés.
+
   - id: SEC-213
     titre: "e2e/client-approval.spec.ts (\"a client sees the closing action on a project ready for review, and approving it really closes the project (RG-013)\") échoue en local (reproduit hors CI, une fois le vrai bug CSP de SEC-212 corrigé) sur `await expect(card).toBeVisible()` : après connexion CLIENT et clic sur le lien \"Projets\", la page atterrit sur le détail d'un projet existant déjà seedé (\"Intégration ERP Géant Tunisia\") au lieu de la liste des projets où devrait apparaître la carte du nouveau projet créé par le test (\"E2E approval proposal <timestamp>\") — la navigation \"Projets\" ne mène pas systématiquement à la liste"
     perimetre: "e2e/client-approval.spec.ts, client/src (page/route \"Projets\" du portail CLIENT)"
     regle_violee: null
     classe: "e2e_navigation_liste_vs_detail"
     gravite: mineur
-    statut: "[À CONFIRMER — non trié]"
+    statut: resolu
     critere_de_resolution: >
       C'est résolu quand `e2e/client-approval.spec.ts` passe de façon
       stable (observé sur au moins 2 exécutions locales consécutives,
@@ -14750,6 +14777,85 @@ anomalies:
       prudence plutôt que d'inventer une cause. Hors périmètre de la
       session SEC-212 (infrastructure CI Postgres/Redis) : symptôme
       purement applicatif/frontend, aucune anomalie de service Docker.
+
+      Cause réelle trouvée (2026-07-23, même session) : l'hypothèse de
+      routing/liste ci-dessus était FAUSSE — `ProjectsClientPage.tsx`
+      est bien une vraie liste (`.map()` sur `projects`, `pageSize:
+      100`), pas une redirection vers un détail. Le contenu `4/7
+      étapes` vu dans la capture DOM appartenait à `ProjectTimeline`,
+      un composant rendu À L'INTÉRIEUR de la seule carte affichée — pas
+      une page de détail séparée. Diagnostiqué en reproduisant l'exacte
+      séquence d'appels API du test (`node -e` direct, mêmes endpoints
+      dans le même ordre) contre des conteneurs Docker frais : `GET
+      /clients?search=Géant&pageSize=1` retournait **"Vermeg Digital"**
+      en premier résultat, pas "Géant Tunisia" — le nouveau projet du
+      test était donc créé pour le mauvais client (Vermeg Digital), pas
+      pour Géant Tunisia (le client réel de `client3@example.tn`), d'où
+      son absence de la liste du bon client. Cause racine : voir
+      SEC-215 (`GET /clients?search=`, ouvert séparément — un ID
+      distinct malgré la découverte conjointe, le critère de résolution
+      porte sur le filtre de recherche serveur, pas sur la navigation
+      e2e). Corrigé en même temps que SEC-215 (le fix serveur suffit,
+      aucun changement propre à ce test) — revérifié en local, 2 runs
+      consécutifs verts (`client-approval.spec.ts` à 4.6s puis 3.7s),
+      sans re-seed entre les deux.
+
+  - id: SEC-215
+    titre: "server/src/repositories/client.repository.ts#findAll construit son `where` mais n'applique jamais `options.search` — GET /clients?search=<texte> retourne la liste complète non filtrée triée par date de création, quel que soit le texte cherché, pour tout ADMIN/MANAGER utilisant la recherche clients"
+    perimetre: "server/src/repositories/client.repository.ts#findAll"
+    regle_violee: null
+    classe: "recherche-serveur-non-appliquee"
+    gravite: majeur
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand `GET /clients?search=<texte>` ne retourne que les
+      clients dont `name` ou `email` contient réellement `<texte>`
+      (insensible à la casse), vérifié directement contre une base
+      réelle avec au moins 2 clients dont un seul correspond au texte
+      cherché — pas déduit de la seule lecture du code.
+    detecte_le: "2026-07-23"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert en investiguant SEC-213 (voir sa note pour la
+      chronologie complète) : `client-approval.spec.ts` cherche
+      `?search=Géant&pageSize=1` en attendant "Géant Tunisia", mais
+      recevait "Vermeg Digital" — un nom sans rapport. Vérifié en
+      direct (`curl`/`fetch` contre un serveur réel, conteneurs Docker
+      frais migrés+seedés) : `?search=Géant` retournait 4 clients
+      (Vermeg Digital, Monoprix Tunisia, Géant Tunisia, Carrefour
+      Tunisia) dans le même ordre que `GET /clients` sans aucun
+      paramètre — la liste complète non filtrée, triée par
+      `createdAt`. Lu directement `client.repository.ts#findAll`
+      (avant correctif) : construit `where = { deletedAt: null, ... }`
+      puis ajoute conditionnellement `archivedAt`/`projects.some`
+      (scope MANAGER), mais n'appelle JAMAIS `buildTextSearchFilter`
+      ni n'ajoute `options.search` au `where` d'aucune façon — le
+      paramètre `search` de la requête est silencieusement ignoré tout
+      du long. Comparé aux repositories analogues qui font tous ce
+      même appel correctement : `lead.repository.ts`,
+      `project.repository.ts`, `serviceRequest.repository.ts`,
+      `task.repository.ts` (tous via `buildTextSearchFilter`, motif
+      confirmé par grep). Bug produit réel, pas seulement un artefact
+      e2e : toute page ADMIN/MANAGER avec une barre de recherche
+      clients est cassée en production, retourne toujours la liste
+      complète (tronquée par pagination) au lieu du sous-ensemble
+      cherché — gravité `majeur` (fonctionnalité visible et utilisée
+      silencieusement non-opérante, pas de fuite de données puisque
+      chaque résultat individuel reste correctement scope-vérifié par
+      ailleurs, seul le FILTRAGE est absent).
+
+      Corrigé : ajoute `...buildTextSearchFilter(options.search,
+      ["name", "email"])` au `where` de `findAll`, même motif que les
+      autres repositories (`name`/`email` — les deux champs texte du
+      modèle `Client`, cohérent avec `SORTABLE_FIELDS` existant qui
+      inclut déjà `email`). `npm run typecheck`/`npm run lint`
+      --workspace=server vérifiés propres. Vérifié directement contre
+      un vrai Postgres : `?search=Géant` ne retourne plus que "Géant
+      Tunisia" après correctif. Suite serveur complète (77 fichiers,
+      `test:coverage`) revérifiée verte après ce changement — aucune
+      régression sur les tests existants de `client.repository.ts`/
+      `client.service.ts`.
 
   - id: SEC-214
     titre: "taskChecklistRepository.create (server/src/repositories/taskChecklist.repository.ts) ne retry que sur le code Prisma P2034 avec un budget de 8 tentatives et un jitter plat 0-20ms — sous 5 créations concurrentes réelles proches du plafond en CI, ce budget peut s'épuiser avant que les 5 appelants aient fini de se sérialiser, laissant fuiter l'erreur Prisma brute vers l'appelant au lieu du HttpError CHECKLIST_LIMIT_REACHED attendu par le test SEC-077 (server/test/taskChecklist.test.ts)"
@@ -14808,4 +14914,72 @@ anomalies:
       SEC-077 exécuté isolément (`--test-name-pattern=SEC-077`) 5 fois
       de suite, toutes vertes (112-195ms chacune) — pas un seul run
       isolé.
+
+  - id: SEC-216
+    titre: "clientService.inviteClientUser (server/src/services/client.service.ts) réinitialise le mot de passe de tout utilisateur CLIENT dont lastLoginAt est null, quel que soit son état réel — un compte provisionné directement (mot de passe déjà connu/fonctionnel, jamais passé par le flux d'invitation email) n'a jamais lastLoginAt renseigné avant son tout premier vrai login, donc se fait silencieusement réinitialiser au prochain déclenchement du flux d'invitation pour son client (ex. un second paiement d'acompte sur un second projet)"
+    perimetre: "server/src/services/client.service.ts#inviteClientUser ; server/prisma/seed.ts (données de seed concernées)"
+    regle_violee: null
+    classe: "reinitialisation-mdp-silencieuse"
+    gravite: majeur
+    statut: resolu
+    critere_de_resolution: >
+      Résolu quand un utilisateur CLIENT dont le mot de passe a été
+      déjà réellement défini (pas un mot de passe temporaire jamais
+      consommé) ne voit plus jamais ce mot de passe changé par un appel
+      à `inviteClientUser` déclenché automatiquement (paiement
+      d'acompte) — vérifié en payant un second acompte pour un client
+      déjà actif et en confirmant que son mot de passe existant reste
+      valide après coup, pas seulement en relisant le code.
+    detecte_le: "2026-07-23"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert en investiguant SEC-213 : le mot de passe seedé de
+      `client3@example.tn` (`client123`) a cessé de fonctionner (401
+      réel, vérifié par `bcrypt.compare` direct en base) après
+      l'exécution locale de `client-approval.spec.ts`, qui paie un
+      second acompte pour le même client (Géant Tunisia) déjà activé
+      par un projet seedé antérieur. Tracé dans les logs Prisma du
+      serveur (`prisma:query`) : `UPDATE "User" SET "passwordHash" =
+      $1, "mustChangePassword" = $2 ...` déclenché juste après une
+      tentative d'envoi d'email d'invitation à `client3@example.tn` —
+      exactement la signature de `inviteClientUser`. Cause trouvée en
+      lisant `invoice.service.ts` : le paiement déclenche
+      `justActivatedPortal` (vrai seulement si `Client.
+      portalActivatedAt` passe de `null` à une date DANS la même
+      transaction) qui appelle `inviteClientUser` ; celui-ci définit
+      `neverLoggedIn = existing.find(u => u.lastLoginAt === null)` —
+      mais `seed.ts` ne renseignait `lastLoginAt` pour AUCUN
+      utilisateur, et ne renseignait pas non plus
+      `Client.portalActivatedAt` (voir SEC-213/SEC-215 pour la
+      chronologie complète) : chaque client seedé démarrait donc
+      « jamais activé », rendant sa toute première mise à jour de
+      facture-avec-paiement en session de test un déclencheur légitime
+      de `justActivatedPortal`, qui retombait ensuite sur un compte
+      utilisateur déjà réel et fonctionnel comme s'il s'agissait d'une
+      invitation jamais consommée.
+
+      Double correctif (même session) :
+      1) `seed.ts` : les 4 comptes CLIENT (`client1`-`client4`)
+      reçoivent désormais `lastLoginAt: <maintenant>` à la création, et
+      les 4 `Client` associés reçoivent `portalActivatedAt: <maintenant>`
+      — cohérent avec l'intention documentée du seed (mots de passe
+      `client123` connus, distribués, prêts à l'emploi, pas des
+      invitations en attente). Corrige la cause immédiate observée par
+      les 2 tests e2e concernés.
+      2) `client.service.ts#inviteClientUser` (défense en profondeur,
+      décision explicite du porteur d'élargir la correction au-delà du
+      seed) : la condition `neverLoggedIn` exige maintenant aussi
+      `u.mustChangePassword === true`, un champ qui ne devient vrai que
+      via ce même flux de (ré)invitation ou les flux de mot de passe
+      temporaire équivalents (`register`, `resetPassword`) — jamais
+      pour un compte dont le mot de passe courant a été délibérément
+      défini comme définitif. Ne change rien pour le cas légitime de
+      SEC-154 (relance d'une invitation jamais consommée, où
+      `mustChangePassword` est justement resté `true`) : les 3 tests de
+      `clientInviteResend.test.ts` (SEC-154) revérifiés verts après ce
+      changement, sans modification. Suite serveur complète revérifiée
+      verte (`test:coverage`, exit code 0, 0 test en échec) après les 2
+      correctifs combinés. `npm run typecheck`/`npm run lint`
+      --workspace=server vérifiés propres.
 

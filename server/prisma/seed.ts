@@ -127,12 +127,19 @@ async function main() {
     create: { email: 'manager2@secritou.tn', name: 'Karim Jebali', passwordHash: mgrHash, role: Role.MANAGER, serviceId: svc['Technologie'] },
   });
 
-  // Client users (will be linked to Client records below)
+  // Client users (will be linked to Client records below). lastLoginAt is set at creation —
+  // these accounts are seeded with a known, documented password (client123) as if already
+  // claimed/active, not as a pending invitation. Without this, clientService.inviteClientUser's
+  // "never logged in" check (lastLoginAt === null) treats them as an abandoned invite and
+  // silently resets their password the next time anything re-triggers the invite flow for their
+  // client (e.g. a second deposit payment) — a real account lockout, discovered when the e2e
+  // suite's own client-approval.spec.ts tripped exactly this path against client3@example.tn.
+  const now = new Date();
   const rawClientUsers = await Promise.all([
-    prisma.user.upsert({ where: { email: 'client1@example.tn' }, update: {}, create: { email: 'client1@example.tn', name: 'Fatma Khelifi',     passwordHash: clientHash, role: Role.CLIENT } }),
-    prisma.user.upsert({ where: { email: 'client2@example.tn' }, update: {}, create: { email: 'client2@example.tn', name: 'Mohamed Trabelsi',  passwordHash: clientHash, role: Role.CLIENT } }),
-    prisma.user.upsert({ where: { email: 'client3@example.tn' }, update: {}, create: { email: 'client3@example.tn', name: 'Nadia Gharbi',      passwordHash: clientHash, role: Role.CLIENT } }),
-    prisma.user.upsert({ where: { email: 'client4@example.tn' }, update: {}, create: { email: 'client4@example.tn', name: 'Bilel Hammami',     passwordHash: clientHash, role: Role.CLIENT } }),
+    prisma.user.upsert({ where: { email: 'client1@example.tn' }, update: {}, create: { email: 'client1@example.tn', name: 'Fatma Khelifi',     passwordHash: clientHash, role: Role.CLIENT, lastLoginAt: now } }),
+    prisma.user.upsert({ where: { email: 'client2@example.tn' }, update: {}, create: { email: 'client2@example.tn', name: 'Mohamed Trabelsi',  passwordHash: clientHash, role: Role.CLIENT, lastLoginAt: now } }),
+    prisma.user.upsert({ where: { email: 'client3@example.tn' }, update: {}, create: { email: 'client3@example.tn', name: 'Nadia Gharbi',      passwordHash: clientHash, role: Role.CLIENT, lastLoginAt: now } }),
+    prisma.user.upsert({ where: { email: 'client4@example.tn' }, update: {}, create: { email: 'client4@example.tn', name: 'Bilel Hammami',     passwordHash: clientHash, role: Role.CLIENT, lastLoginAt: now } }),
   ]);
 
   const [freelancer1, freelancer2, freelancer3, freelancer4] = await Promise.all([
@@ -145,9 +152,16 @@ async function main() {
   console.log('✅ Users created');
 
   // ── Clients ───────────────────────────────────────────────────────────────
+  // portalActivatedAt set at creation, matching the paired user's lastLoginAt above: these
+  // clients are seeded as already-onboarded (a documented, working portal login), not as
+  // freshly-proposed leads whose deposit hasn't been paid yet. Left null here, the FIRST deposit
+  // payment recorded against any of them in a real session (e.g. a second project for the same
+  // client) trips invoice.service.ts's justActivatedPortal path and re-invites — resetting the
+  // seeded user's password — exactly the RG-018 "first activation" flow, just misfiring on an
+  // account that was never actually new.
   const upsertClient = async (name: string, email: string, phone: string, userId: string) => {
     let client = await prisma.client.findFirst({ where: { email } });
-    if (!client) client = await prisma.client.create({ data: { name, email, phone } });
+    if (!client) client = await prisma.client.create({ data: { name, email, phone, portalActivatedAt: new Date() } });
     // Link user → client (both directions)
     await prisma.user.update({ where: { id: userId }, data: { clientId: client.id } });
     await prisma.client.update({ where: { id: client.id }, data: {} }); // touch

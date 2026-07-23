@@ -2,7 +2,7 @@
 import { prisma, prismaRead } from "../config/prisma.js";
 import type { Client, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
-import { buildOrderBy } from "../utils/listQuery.js";
+import { buildOrderBy, buildTextSearchFilter } from "../utils/listQuery.js";
 import { projectBriefSelect } from "../utils/prismaSelects.js";
 
 const SORTABLE_FIELDS = ["name", "email", "phone", "createdAt"];
@@ -54,7 +54,10 @@ export const clientRepository = {
   async findAll(
     options: ListQueryOptions & { includeArchived?: boolean; serviceId?: string | null }
   ): Promise<PaginatedResult<ClientListItem>> {
-    const where: Record<string, unknown> = { deletedAt: null };
+    const where: Record<string, unknown> = {
+      deletedAt: null,
+      ...buildTextSearchFilter(options.search, ["name", "email"]),
+    };
     if (!options.includeArchived) where.archivedAt = null;
     // MANAGER scope: a client is visible only if it has at least one project in the manager's service
     if (options.serviceId !== undefined) {

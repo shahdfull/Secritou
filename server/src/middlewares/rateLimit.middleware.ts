@@ -1,5 +1,6 @@
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import type { Request } from "express";
+import { env } from "../config/env.js";
 
 export const rateLimitKeyGenerator = (req: Request) =>
   `${ipKeyGenerator(req.ip ?? "unknown")}:${req.user?.sub ?? "anonymous"}`;
@@ -42,9 +43,15 @@ export const aiRateLimit = rateLimit({
   message: { message: "Too many AI requests, please slow down" },
 });
 
+// SEC-212 e2e follow-up: a full e2e run sequentially fires far more sensitive-write calls
+// (proposal create/send/accept, invoice send/pay, project status updates) across several spec
+// files than any real user would in the same 60s window — one spec's writes alone could exhaust
+// 10/min before the next spec even starts its own. E2E_RELAXED_RATE_LIMITS (set only by the e2e
+// CI job, never in production — enforced at boot in config/env.ts) raises the ceiling for this
+// case without touching the real 10/min limit that actually matters in production.
 export const sensitiveWriteRateLimit = rateLimit({
   windowMs: 60 * 1000,
-  limit: 10,
+  limit: env.E2E_RELAXED_RATE_LIMITS ? 200 : 10,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: rateLimitKeyGenerator,

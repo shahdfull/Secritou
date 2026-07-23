@@ -44,6 +44,17 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => v === "true" || v === "1"),
+  // Set only by .github/workflows/ci.yml's e2e job's "Start server" step — a full e2e run
+  // sequentially fires far more sensitive-write calls (proposal create/send/accept, invoice
+  // send/pay, project status updates) across several spec files than any single real user would
+  // in the same window, tripping sensitiveWriteRateLimit (10/min) well before the suite finishes.
+  // Never set in a real deployment or in local `npm run dev` — this widens a real security
+  // control, so it must be an explicit, narrow opt-in, not inferred from NODE_ENV=development
+  // (which e2e also runs under, but so does every local dev server).
+  E2E_RELAXED_RATE_LIMITS: z
+    .string()
+    .optional()
+    .transform((v) => v === "true" || v === "1"),
   JOBS_ENABLED: z
     .string()
     .optional()
@@ -106,6 +117,12 @@ if (
 ) {
   throw new Error(
     "JWT_ACCESS_SECRET/JWT_REFRESH_SECRET are set to known placeholder values. Generate unique secrets before running in production."
+  );
+}
+
+if (env.NODE_ENV === "production" && env.E2E_RELAXED_RATE_LIMITS) {
+  throw new Error(
+    "E2E_RELAXED_RATE_LIMITS must never be set in production — it widens sensitiveWriteRateLimit/authRateLimit for the e2e CI suite only."
   );
 }
 
