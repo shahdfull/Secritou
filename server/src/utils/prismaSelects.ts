@@ -112,7 +112,7 @@ export const proposalListSelect = {
   projectId: true,
   serviceRequestId: true,
   leadId: true,
-  invoice: { select: { id: true } },
+  invoice: { select: { id: true, documents: { select: { id: true }, take: 1 } } },
   createdAt: true,
   updatedAt: true,
 } as const;

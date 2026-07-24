@@ -1882,7 +1882,12 @@
     },
     "invoiceButton": "Facture",
     "projectButton": "Projet",
-    "byUser": "Par : {{name}}"
+    "byUser": "Par : {{name}}",
+    "viewInvoice": "Voir la facture",
+    "invoicePreview": "Aperçu de la facture",
+    "invoicePdfUnavailable": "Le PDF de la facture n'est pas encore disponible",
+    "loadingPdf": "Chargement du PDF...",
+    "download": "Télécharger"
   },
   "approvals": {
     "title": "Approbations",

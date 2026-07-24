@@ -1882,7 +1882,12 @@
     },
     "invoiceButton": "Invoice",
     "projectButton": "Project",
-    "byUser": "By: {{name}}"
+    "byUser": "By: {{name}}",
+    "viewInvoice": "View invoice",
+    "invoicePreview": "Invoice preview",
+    "invoicePdfUnavailable": "The invoice PDF isn't available yet",
+    "loadingPdf": "Loading PDF...",
+    "download": "Download"
   },
   "approvals": {
     "title": "Approvals",

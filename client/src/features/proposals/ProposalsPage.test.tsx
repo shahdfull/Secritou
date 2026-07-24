@@ -24,6 +24,16 @@ vi.mock("@/hooks/useLeads", () => ({
   useLeads: () => ({ data: { data: [] } }),
 }));
 
+// react-pdf's Document/Page load pdf.js, which requires DOMMatrix/canvas APIs
+// jsdom doesn't provide — not part of what this suite tests (invoice PDF
+// rendering itself isn't exercised here), so it's stubbed out like any other
+// unrelated dependency.
+vi.mock("react-pdf", () => ({
+  Document: () => null,
+  Page: () => null,
+  pdfjs: { GlobalWorkerOptions: { workerSrc: "" } },
+}));
+
 let mockProposals: Proposal[] = [];
 const acceptMutateMock = vi.fn();
 const sendMutateMock = vi.fn();

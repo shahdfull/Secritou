@@ -3,7 +3,16 @@ import { formatDate } from "@/utils/format";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { Document, Page, pdfjs } from "react-pdf";
+import "react-pdf/dist/Page/AnnotationLayer.css";
+import "react-pdf/dist/Page/TextLayer.css";
+
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url
+).toString();
 import type { Proposal } from "@/api/proposals.api";
+import { documentsApi } from "@/api/documents.api";
 import {
   useProposals,
   useProposal,
@@ -51,6 +60,7 @@ import {
   Loader2,
   Clock,
   Trash2,
+  Download,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -87,6 +97,28 @@ export function ProposalsPage() {
   // Generate invoice dialog
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [invoiceProposal, setInvoiceProposal] = useState<Proposal | null>(null);
+
+  // Invoice PDF preview
+  const [invoicePdfUrl, setInvoicePdfUrl] = useState<string | null>(null);
+  const [invoicePdfLoading, setInvoicePdfLoading] = useState(false);
+  const [numPages, setNumPages] = useState<number>(0);
+
+  const handleViewInvoice = async (proposal: Proposal) => {
+    const documentId = proposal.invoice?.documents?.[0]?.id;
+    if (!documentId) {
+      toast.error(t("proposals.invoicePdfUnavailable"));
+      return;
+    }
+    setInvoicePdfLoading(true);
+    try {
+      const { url } = await documentsApi.getDownloadUrl(documentId);
+      setInvoicePdfUrl(url);
+    } catch {
+      toast.error(t("toasts.pdfLoadError"));
+    } finally {
+      setInvoicePdfLoading(false);
+    }
+  };
 
   // Timeline (history) dialog
   const [timelineProposalId, setTimelineProposalId] = useState<string | null>(null);
@@ -299,17 +331,32 @@ export function ProposalsPage() {
                       {/* Quick-action buttons for ACCEPTED proposals */}
                       {proposal.status === "ACCEPTED" && (
                         <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2 text-xs gap-1"
-                            onClick={() => openInvoiceDialog(proposal)}
-                            disabled={!!proposal.invoice}
-                            title={proposal.invoice ? t("proposals.invoiceAlreadyCreated") : undefined}
-                          >
-                            <Receipt className="h-3.5 w-3.5" />
-                            {t("proposals.invoiceButton")}
-                          </Button>
+                          {proposal.invoice ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs gap-1"
+                              onClick={() => handleViewInvoice(proposal)}
+                              disabled={invoicePdfLoading}
+                            >
+                              {invoicePdfLoading ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Receipt className="h-3.5 w-3.5" />
+                              )}
+                              {t("proposals.viewInvoice")}
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs gap-1"
+                              onClick={() => openInvoiceDialog(proposal)}
+                            >
+                              <Receipt className="h-3.5 w-3.5" />
+                              {t("proposals.invoiceButton")}
+                            </Button>
+                          )}
                           {proposal.linkedProject && (
                             <Button
                               size="sm"
@@ -345,9 +392,15 @@ export function ProposalsPage() {
                         )}
                         {proposal.status === "ACCEPTED" && (
                           <>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:bg-blue-50" title={proposal.invoice ? t("proposals.invoiceAlreadyCreated") : t("proposals.generateInvoice")} onClick={() => openInvoiceDialog(proposal)} disabled={!!proposal.invoice}>
-                              <Receipt className="h-3.5 w-3.5" />
-                            </Button>
+                            {proposal.invoice ? (
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:bg-blue-50" title={t("proposals.viewInvoice")} onClick={() => handleViewInvoice(proposal)} disabled={invoicePdfLoading}>
+                                <Receipt className="h-3.5 w-3.5" />
+                              </Button>
+                            ) : (
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:bg-blue-50" title={t("proposals.generateInvoice")} onClick={() => openInvoiceDialog(proposal)}>
+                                <Receipt className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
                             {proposal.linkedProject && (
                               <Button variant="ghost" size="icon" className="h-7 w-7 text-purple-600 hover:bg-purple-50" title={t("proposals.viewProject")} onClick={() => navigate(`/app/projects/${proposal.linkedProject!.id}`)}>
                                 <ExternalLink className="h-3.5 w-3.5" />
@@ -553,6 +606,35 @@ export function ProposalsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTimelineProposalId(null)}>
+              {t("common.close")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invoice PDF Preview Dialog */}
+      <Dialog open={!!invoicePdfUrl} onOpenChange={() => setInvoicePdfUrl(null)}>
+        <DialogContent className="max-w-3xl h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>{t("proposals.invoicePreview")}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto flex flex-col items-center bg-muted/30 rounded p-2">
+            <Document
+              file={invoicePdfUrl}
+              onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+              onLoadError={() => toast.error(t("toasts.pdfLoadError"))}
+              loading={<p className="text-sm text-muted-foreground mt-10">{t("proposals.loadingPdf")}</p>}
+            >
+              {Array.from({ length: numPages }, (_, i) => (
+                <Page key={i + 1} pageNumber={i + 1} width={700} className="mb-2 shadow" />
+              ))}
+            </Document>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => window.open(invoicePdfUrl!, "_blank")}>
+              <Download className="mr-2 h-4 w-4" /> {t("proposals.download")}
+            </Button>
+            <Button variant="ghost" onClick={() => setInvoicePdfUrl(null)}>
               {t("common.close")}
             </Button>
           </DialogFooter>
