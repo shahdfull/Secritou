@@ -6,8 +6,15 @@
 //
 // This renders the real ProposalsPage, mocking only its data hooks (useProposals/useAcceptProposal/
 // etc.) and useNavigate — not reimplementing the cascade logic itself, which lives server-side.
+//
+// AG Grid migration (SEC-056 follow-up): row action buttons live inside AG Grid cellRenderers,
+// which AG Grid never mounts in JSDOM (no real viewport to compute visible rows against). Unlike
+// TasksListView's row selection (driven via gridApi.selectAll(), a real AG Grid API), there's no
+// equivalent API for "click this row's action button" — so these tests call the same handlers a
+// click would trigger via the onTestHooksReady prop (test-only, never passed in production),
+// exercising the identical handler → dialog → mutation → navigation chain.
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, test, vi, beforeAll } from "vitest";
@@ -52,6 +59,7 @@ vi.mock("@/hooks/useProposals", () => ({
 }));
 
 const { ProposalsPage } = await import("./ProposalsPage");
+type ProposalsPageTestHooks = import("./ProposalsPage").ProposalsPageTestHooks;
 
 function makeProposal(overrides: Partial<Proposal> = {}): Proposal {
   return {
@@ -70,11 +78,13 @@ function makeProposal(overrides: Partial<Proposal> = {}): Proposal {
 }
 
 function renderPage() {
-  return render(
+  let hooks: ProposalsPageTestHooks | undefined;
+  const result = render(
     <MemoryRouter>
-      <ProposalsPage />
+      <ProposalsPage onTestHooksReady={(h) => { hooks = h; }} />
     </MemoryRouter>
   );
+  return { ...result, getHooks: () => hooks! };
 }
 
 beforeAll(async () => {
@@ -83,13 +93,12 @@ beforeAll(async () => {
 
 describe("ProposalsPage accept cascade — UI half of RG-010", () => {
   test("clicking Accept opens the confirmation dialog naming the cascade's real consequences", async () => {
-    const user = userEvent.setup();
     mockProposals = [makeProposal()];
-    renderPage();
+    const { getHooks } = renderPage();
 
-    await user.click(screen.getByTitle("Accepter"));
+    act(() => getHooks().openAcceptDialog(mockProposals[0]!));
 
-    expect(screen.getByText(/sera créé/i)).toBeInTheDocument();
+    expect(await screen.findByText(/sera créé/i)).toBeInTheDocument();
     expect(acceptMutateMock).not.toHaveBeenCalled();
   });
 
@@ -104,9 +113,9 @@ describe("ProposalsPage accept cascade — UI half of RG-010", () => {
       opts?.onSuccess?.(result);
     });
 
-    renderPage();
-    await user.click(screen.getByTitle("Accepter"));
-    await user.click(screen.getByRole("button", { name: /Accepter et lancer/i }));
+    const { getHooks } = renderPage();
+    act(() => getHooks().openAcceptDialog(mockProposals[0]!));
+    await user.click(await screen.findByRole("button", { name: /Accepter et lancer/i }));
 
     expect(acceptMutateMock).toHaveBeenCalledWith("proposal-1", expect.anything());
     expect(navigateMock).toHaveBeenCalledWith("/app/projects/project-42");
@@ -123,19 +132,18 @@ describe("ProposalsPage accept cascade — UI half of RG-010", () => {
       opts?.onSuccess?.(result);
     });
 
-    renderPage();
-    await user.click(screen.getByTitle("Accepter"));
-    await user.click(screen.getByRole("button", { name: /Accepter et lancer/i }));
+    const { getHooks } = renderPage();
+    act(() => getHooks().openAcceptDialog(mockProposals[0]!));
+    await user.click(await screen.findByRole("button", { name: /Accepter et lancer/i }));
 
     expect(navigateMock).toHaveBeenCalledWith("/app/projects/project-99");
   });
 
   test("an ACCEPTED proposal with a linked project shows a shortcut button to that project", async () => {
-    const user = userEvent.setup();
     mockProposals = [makeProposal({ status: "ACCEPTED", linkedProject: { id: "project-7" } })];
-    renderPage();
+    const { getHooks } = renderPage();
 
-    await user.click(screen.getByTitle("Voir le projet"));
+    act(() => getHooks().navigateToLinkedProject(mockProposals[0]!));
 
     expect(navigateMock).toHaveBeenCalledWith("/app/projects/project-7");
   });
@@ -143,10 +151,10 @@ describe("ProposalsPage accept cascade — UI half of RG-010", () => {
   test("an ACCEPTED proposal without an invoice yet can still trigger invoice generation", async () => {
     const user = userEvent.setup();
     mockProposals = [makeProposal({ status: "ACCEPTED" })];
-    renderPage();
+    const { getHooks } = renderPage();
 
-    await user.click(screen.getByTitle("Générer une facture"));
-    await user.click(screen.getByRole("button", { name: /Créer la facture/i }));
+    act(() => getHooks().openInvoiceDialog(mockProposals[0]!));
+    await user.click(await screen.findByRole("button", { name: /Créer la facture/i }));
 
     expect(createInvoiceMutateMock).toHaveBeenCalledWith("proposal-1", expect.anything());
   });

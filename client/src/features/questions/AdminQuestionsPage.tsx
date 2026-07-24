@@ -1,8 +1,17 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { formatDate, formatDateTime } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Send } from "lucide-react";
+import { AgGridReact } from "ag-grid-react";
+import {
+  ModuleRegistry,
+  AllCommunityModule,
+  themeQuartz,
+  type ColDef,
+  type ICellRendererParams,
+  type RowClickedEvent,
+} from "ag-grid-community";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,20 +24,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   useAllQuestions,
   useQuestion,
   useAddQuestionMessage,
   useUpdateQuestionStatus,
 } from "@/hooks/useCustomQuestions";
-import type { CustomQuestionStatus } from "@/api/customQuestions.api";
+import type { CustomQuestion, CustomQuestionStatus } from "@/api/customQuestions.api";
+
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
+const gridTheme = themeQuartz.withParams({
+  accentColor: "#0f766e",
+  headerBackgroundColor: "#f8fafc",
+  headerTextColor: "#334155",
+  rowHoverColor: "#f1f5f9",
+  borderColor: "#e2e8f0",
+  fontFamily: "inherit",
+});
 
 const STATUSES: CustomQuestionStatus[] = ["OPEN", "ANSWERED", "CLOSED"];
 
@@ -180,6 +193,47 @@ function QuestionsTable() {
 
   const questions = data?.data ?? [];
 
+  const userRenderer = useCallback((params: ICellRendererParams<CustomQuestion>) => {
+    const user = params.data?.user;
+    if (!user) return <span className="text-muted-foreground">:</span>;
+    return (
+      <div className="flex h-full flex-col justify-center text-muted-foreground">
+        <span>{user.name}</span>
+        <span className="text-xs">{user.email}</span>
+      </div>
+    );
+  }, []);
+
+  const statusRenderer = useCallback(
+    (params: ICellRendererParams<CustomQuestion>) => {
+      const q = params.data;
+      if (!q) return null;
+      return (
+        <div className="flex h-full items-center">
+          <Badge className={statusColor(q.status)}>{t(`questions.status.${q.status}`)}</Badge>
+        </div>
+      );
+    },
+    [t]
+  );
+
+  const columnDefs = useMemo<ColDef<CustomQuestion>[]>(
+    () => [
+      { headerName: t("questions.admin.subject", "Sujet"), field: "subject", flex: 2, cellClass: "font-medium text-ink" },
+      { headerName: t("questions.admin.user", "Utilisateur"), cellRenderer: userRenderer, flex: 1 },
+      { headerName: t("questions.admin.status", "Statut"), cellRenderer: statusRenderer, flex: 1 },
+      { headerName: t("questions.admin.date", "Date"), valueFormatter: (p) => formatDate(p.data!.updatedAt), field: "updatedAt", flex: 1, cellClass: "text-muted-foreground" },
+    ],
+    [t, userRenderer, statusRenderer]
+  );
+
+  const handleRowClicked = useCallback(
+    (event: RowClickedEvent<CustomQuestion>) => {
+      if (event.data) navigate(`/app/questions/${event.data.id}`);
+    },
+    [navigate]
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
@@ -203,51 +257,18 @@ function QuestionsTable() {
         <CardContent className="p-0">
           {isLoading ? (
             <Spinner />
-          ) : questions.length === 0 ? (
-            <p className="p-8 text-center text-muted-foreground">
-              {t("questions.admin.empty", "Aucune question.")}
-            </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("questions.admin.subject", "Sujet")}</TableHead>
-                  <TableHead>{t("questions.admin.user", "Utilisateur")}</TableHead>
-                  <TableHead>{t("questions.admin.status", "Statut")}</TableHead>
-                  <TableHead>{t("questions.admin.date", "Date")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {questions.map((q) => (
-                  <TableRow
-                    key={q.id}
-                    className="cursor-pointer"
-                    onClick={() => navigate(`/app/questions/${q.id}`)}
-                  >
-                    <TableCell className="font-medium text-ink">{q.subject}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {q.user ? (
-                        <span>
-                          {q.user.name}
-                          <br />
-                          <span className="text-xs">{q.user.email}</span>
-                        </span>
-                      ) : (
-                        ":"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={statusColor(q.status)}>
-                        {t(`questions.status.${q.status}`)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatDate(q.updatedAt)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div style={{ height: 500 }}>
+              <AgGridReact<CustomQuestion>
+                theme={gridTheme}
+                rowData={questions}
+                columnDefs={columnDefs}
+                onRowClicked={handleRowClicked}
+                rowStyle={{ cursor: "pointer" }}
+                suppressCellFocus
+                overlayNoRowsTemplate={t("questions.admin.empty", "Aucune question.")}
+              />
+            </div>
           )}
         </CardContent>
       </Card>

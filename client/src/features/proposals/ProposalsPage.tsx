@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { formatDate } from "@/utils/format";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -22,14 +22,14 @@ import {
   useRejectProposal,
   useCreateInvoiceFromProposal,
 } from "@/hooks/useProposals";
+import { AgGridReact } from "ag-grid-react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  ModuleRegistry,
+  AllCommunityModule,
+  themeQuartz,
+  type ColDef,
+  type ICellRendererParams,
+} from "ag-grid-community";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -68,10 +68,38 @@ import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { useListParams } from "@/hooks/useListParams";
 import { useLeads } from "@/hooks/useLeads";
 
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
+const gridTheme = themeQuartz.withParams({
+  accentColor: "#0f766e",
+  headerBackgroundColor: "#f8fafc",
+  headerTextColor: "#334155",
+  rowHoverColor: "#f1f5f9",
+  borderColor: "#e2e8f0",
+  fontFamily: "inherit",
+});
+
 const ALL_STATUSES_VALUE = "__all__";
 const ALL_LEADS_VALUE = "__all__";
 
-export function ProposalsPage() {
+// Test-only surface: AG Grid's row action buttons live inside cellRenderers, which AG Grid never
+// mounts in JSDOM (no real viewport to compute visible rows against — same constraint already
+// hit for TasksListView's rows, but here there's no equivalent "selectAll()" API since these are
+// individual per-row action buttons, not row selection). Tests call these directly instead of
+// clicking a DOM button, exercising the exact same handler → dialog → mutation chain a real click
+// would trigger. Never passed in production (ProposalsPage is only ever rendered via a route).
+export interface ProposalsPageTestHooks {
+  openAcceptDialog: (proposal: Proposal) => void;
+  openInvoiceDialog: (proposal: Proposal) => void;
+  navigateToLinkedProject: (proposal: Proposal) => void;
+}
+
+interface ProposalsPageProps {
+  onTestHooksReady?: (hooks: ProposalsPageTestHooks) => void;
+}
+
+export function ProposalsPage({ onTestHooksReady }: ProposalsPageProps = {}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { page, pageSize, search, status, updateParams } = useListParams(10);
@@ -103,22 +131,25 @@ export function ProposalsPage() {
   const [invoicePdfLoading, setInvoicePdfLoading] = useState(false);
   const [numPages, setNumPages] = useState<number>(0);
 
-  const handleViewInvoice = async (proposal: Proposal) => {
-    const documentId = proposal.invoice?.documents?.[0]?.id;
-    if (!documentId) {
-      toast.error(t("proposals.invoicePdfUnavailable"));
-      return;
-    }
-    setInvoicePdfLoading(true);
-    try {
-      const { url } = await documentsApi.getDownloadUrl(documentId);
-      setInvoicePdfUrl(url);
-    } catch {
-      toast.error(t("toasts.pdfLoadError"));
-    } finally {
-      setInvoicePdfLoading(false);
-    }
-  };
+  const handleViewInvoice = useCallback(
+    async (proposal: Proposal) => {
+      const documentId = proposal.invoice?.documents?.[0]?.id;
+      if (!documentId) {
+        toast.error(t("proposals.invoicePdfUnavailable"));
+        return;
+      }
+      setInvoicePdfLoading(true);
+      try {
+        const { url } = await documentsApi.getDownloadUrl(documentId);
+        setInvoicePdfUrl(url);
+      } catch {
+        toast.error(t("toasts.pdfLoadError"));
+      } finally {
+        setInvoicePdfLoading(false);
+      }
+    },
+    [t]
+  );
 
   // Timeline (history) dialog
   const [timelineProposalId, setTimelineProposalId] = useState<string | null>(null);
@@ -200,6 +231,17 @@ export function ProposalsPage() {
     });
   };
 
+  const navigateToLinkedProject = useCallback(
+    (proposal: Proposal) => {
+      if (proposal.linkedProject) navigate(`/app/projects/${proposal.linkedProject.id}`);
+    },
+    [navigate]
+  );
+
+  useEffect(() => {
+    onTestHooksReady?.({ openAcceptDialog, openInvoiceDialog, navigateToLinkedProject });
+  }, [onTestHooksReady, navigateToLinkedProject]);
+
   // --- Status color ---
   const getStatusColor = (s: string) => {
     switch (s) {
@@ -214,6 +256,151 @@ export function ProposalsPage() {
   };
 
   const isActing = createInvoiceMutation.isPending;
+
+  const leadRenderer = useCallback((params: ICellRendererParams<Proposal>) => {
+    const proposal = params.data;
+    if (!proposal) return null;
+    return (
+      <div className="flex h-full items-center">
+        {proposal.lead ? (
+          <Badge variant="outline">{proposal.lead.name}</Badge>
+        ) : (
+          <span className="text-muted-foreground">:</span>
+        )}
+      </div>
+    );
+  }, []);
+
+  const statusRenderer = useCallback(
+    (params: ICellRendererParams<Proposal>) => {
+      const proposal = params.data;
+      if (!proposal) return null;
+      return (
+        <div className="flex h-full flex-col justify-center gap-1 py-1">
+          <Badge className={getStatusColor(proposal.status) + " w-fit"}>
+            {t(`proposals.statuses.${proposal.status.toLowerCase()}`)}
+          </Badge>
+          {proposal.invoice && (
+            <Badge className="bg-green-100 text-green-800 w-fit">
+              <Receipt className="h-3 w-3 mr-1" />
+              {t("proposals.invoiced")}
+            </Badge>
+          )}
+        </div>
+      );
+    },
+    [t]
+  );
+
+  const actionsRenderer = useCallback(
+    (params: ICellRendererParams<Proposal>) => {
+      const proposal = params.data;
+      if (!proposal) return null;
+      return (
+        <div className="flex h-full items-center justify-end gap-1">
+          {proposal.status === "ACCEPTED" && (
+            <>
+              {proposal.invoice ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2 text-xs gap-1"
+                  onClick={() => handleViewInvoice(proposal)}
+                  disabled={invoicePdfLoading}
+                >
+                  {invoicePdfLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Receipt className="h-3.5 w-3.5" />
+                  )}
+                  {t("proposals.viewInvoice")}
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2 text-xs gap-1"
+                  onClick={() => openInvoiceDialog(proposal)}
+                >
+                  <Receipt className="h-3.5 w-3.5" />
+                  {t("proposals.invoiceButton")}
+                </Button>
+              )}
+              {proposal.linkedProject && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2 text-xs gap-1"
+                  onClick={() => navigate(`/app/projects/${proposal.linkedProject!.id}`)}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  {t("proposals.projectButton")}
+                </Button>
+              )}
+            </>
+          )}
+
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("proposals.viewTimeline")} onClick={() => setTimelineProposalId(proposal.id)}>
+              <Clock className="h-3.5 w-3.5" />
+            </Button>
+            {proposal.status === "DRAFT" && (
+              <Button variant="ghost" size="icon" className="h-7 w-7" title={t("proposals.send")} onClick={() => sendMutation.mutate(proposal.id)} disabled={sendMutation.isPending}>
+                <Send className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {(proposal.status === "SENT" || proposal.status === "VIEWED") && (
+              <>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600 hover:bg-green-50" title={t("proposals.accept")} onClick={() => openAcceptDialog(proposal)} disabled={acceptMutation.isPending}>
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:bg-red-50" title={t("proposals.reject")} onClick={() => openRejectDialog(proposal)} disabled={rejectMutation.isPending}>
+                  <XCircle className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            )}
+            {proposal.status === "ACCEPTED" && (
+              <>
+                {proposal.invoice ? (
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:bg-blue-50" title={t("proposals.viewInvoice")} onClick={() => handleViewInvoice(proposal)} disabled={invoicePdfLoading}>
+                    <Receipt className="h-3.5 w-3.5" />
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:bg-blue-50" title={t("proposals.generateInvoice")} onClick={() => openInvoiceDialog(proposal)}>
+                    <Receipt className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                {proposal.linkedProject && (
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-purple-600 hover:bg-purple-50" title={t("proposals.viewProject")} onClick={() => navigate(`/app/projects/${proposal.linkedProject!.id}`)}>
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </>
+            )}
+            {proposal.status === "DRAFT" && (
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("proposals.delete")} onClick={() => openDeleteDialog(proposal)} disabled={deleteMutation.isPending}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+        </div>
+      );
+    },
+    [t, navigate, invoicePdfLoading, handleViewInvoice, sendMutation, acceptMutation.isPending, rejectMutation.isPending, deleteMutation.isPending]
+  );
+
+  const columnDefs = useMemo<ColDef<Proposal>[]>(
+    () => [
+      { headerName: t("proposals.proposalTitle"), field: "title", flex: 2, cellClass: "font-medium" },
+      { headerName: t("proposals.client"), valueGetter: (p) => p.data?.client?.name, flex: 1 },
+      { headerName: t("proposals.sourceLead"), cellRenderer: leadRenderer, flex: 1 },
+      { headerName: t("proposals.amount"), valueFormatter: (p) => `${p.data!.amount} ${p.data!.currency}`, field: "amount", flex: 1 },
+      { headerName: t("proposals.date"), valueFormatter: (p) => formatDate(p.data!.createdAt), field: "createdAt", flex: 1 },
+      { headerName: t("proposals.status"), cellRenderer: statusRenderer, flex: 1, autoHeight: true },
+      { headerName: t("proposals.actions"), cellRenderer: actionsRenderer, width: 320, sortable: false, resizable: false },
+    ],
+    [t, leadRenderer, statusRenderer, actionsRenderer]
+  );
 
   return (
     <section className="space-y-6">
@@ -271,156 +458,16 @@ export function ProposalsPage() {
         </Select>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("proposals.proposalTitle")}</TableHead>
-              <TableHead>{t("proposals.client")}</TableHead>
-              <TableHead>{t("proposals.sourceLead")}</TableHead>
-              <TableHead>{t("proposals.amount")}</TableHead>
-              <TableHead>{t("proposals.date")}</TableHead>
-              <TableHead>{t("proposals.status")}</TableHead>
-              <TableHead className="text-right">{t("proposals.actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-10">
-                  {t("common.loading")}
-                </TableCell>
-              </TableRow>
-            ) : proposals.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-10">
-                  {t("proposals.empty")}
-                </TableCell>
-              </TableRow>
-            ) : (
-              proposals.map((proposal: Proposal) => (
-                <TableRow key={proposal.id}>
-                  <TableCell className="font-medium">{proposal.title}</TableCell>
-                  <TableCell>{proposal.client?.name}</TableCell>
-                  <TableCell>
-                    {proposal.lead ? (
-                      <Badge variant="outline">{proposal.lead.name}</Badge>
-                    ) : (
-                      <span className="text-muted-foreground">:</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {proposal.amount} {proposal.currency}
-                  </TableCell>
-                  <TableCell>{formatDate(proposal.createdAt)}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <Badge className={getStatusColor(proposal.status)}>
-                        {t(`proposals.statuses.${proposal.status.toLowerCase()}`)}
-                      </Badge>
-                      {proposal.invoice && (
-                        <Badge className="bg-green-100 text-green-800 w-fit">
-                          <Receipt className="h-3 w-3 mr-1" />
-                          {t("proposals.invoiced")}
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      {/* Quick-action buttons for ACCEPTED proposals */}
-                      {proposal.status === "ACCEPTED" && (
-                        <>
-                          {proposal.invoice ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2 text-xs gap-1"
-                              onClick={() => handleViewInvoice(proposal)}
-                              disabled={invoicePdfLoading}
-                            >
-                              {invoicePdfLoading ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Receipt className="h-3.5 w-3.5" />
-                              )}
-                              {t("proposals.viewInvoice")}
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2 text-xs gap-1"
-                              onClick={() => openInvoiceDialog(proposal)}
-                            >
-                              <Receipt className="h-3.5 w-3.5" />
-                              {t("proposals.invoiceButton")}
-                            </Button>
-                          )}
-                          {proposal.linkedProject && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2 text-xs gap-1"
-                              onClick={() => navigate(`/app/projects/${proposal.linkedProject!.id}`)}
-                            >
-                              <ExternalLink className="h-3.5 w-3.5" />
-                              {t("proposals.projectButton")}
-                            </Button>
-                          )}
-                        </>
-                      )}
-
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" title={t("proposals.viewTimeline")} onClick={() => setTimelineProposalId(proposal.id)}>
-                          <Clock className="h-3.5 w-3.5" />
-                        </Button>
-                        {proposal.status === "DRAFT" && (
-                          <Button variant="ghost" size="icon" className="h-7 w-7" title={t("proposals.send")} onClick={() => sendMutation.mutate(proposal.id)} disabled={sendMutation.isPending}>
-                            <Send className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                        {(proposal.status === "SENT" || proposal.status === "VIEWED") && (
-                          <>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600 hover:bg-green-50" title={t("proposals.accept")} onClick={() => openAcceptDialog(proposal)} disabled={acceptMutation.isPending}>
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:bg-red-50" title={t("proposals.reject")} onClick={() => openRejectDialog(proposal)} disabled={rejectMutation.isPending}>
-                              <XCircle className="h-3.5 w-3.5" />
-                            </Button>
-                          </>
-                        )}
-                        {proposal.status === "ACCEPTED" && (
-                          <>
-                            {proposal.invoice ? (
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:bg-blue-50" title={t("proposals.viewInvoice")} onClick={() => handleViewInvoice(proposal)} disabled={invoicePdfLoading}>
-                                <Receipt className="h-3.5 w-3.5" />
-                              </Button>
-                            ) : (
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:bg-blue-50" title={t("proposals.generateInvoice")} onClick={() => openInvoiceDialog(proposal)}>
-                                <Receipt className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                            {proposal.linkedProject && (
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-purple-600 hover:bg-purple-50" title={t("proposals.viewProject")} onClick={() => navigate(`/app/projects/${proposal.linkedProject!.id}`)}>
-                                <ExternalLink className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                          </>
-                        )}
-                        {proposal.status === "DRAFT" && (
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("proposals.delete")} onClick={() => openDeleteDialog(proposal)} disabled={deleteMutation.isPending}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+      <div className="border rounded-lg overflow-hidden" style={{ height: 500 }}>
+        <AgGridReact<Proposal>
+          theme={gridTheme}
+          rowData={proposals}
+          columnDefs={columnDefs}
+          loading={isLoading}
+          suppressCellFocus
+          overlayLoadingTemplate={t("common.loading")}
+          overlayNoRowsTemplate={t("proposals.empty")}
+        />
       </div>
 
       {proposalsResult &&

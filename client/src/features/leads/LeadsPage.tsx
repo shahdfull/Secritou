@@ -6,14 +6,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { AgGridReact } from "ag-grid-react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  ModuleRegistry,
+  AllCommunityModule,
+  themeQuartz,
+  type ColDef,
+  type ICellRendererParams,
+  type SortChangedEvent,
+} from "ag-grid-community";
 import {
   Dialog,
   DialogContent,
@@ -67,7 +68,6 @@ import {
 import type { Lead, CreateLeadInput, UpdateLeadInput } from "@/types/lead";
 import { LeadDetailDialog } from "./LeadDetailDialog";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
-import { SortableTableHead } from "@/components/common/SortableTableHead";
 import { useListParams } from "@/hooks/useListParams";
 import {
   createLeadSchema,
@@ -82,6 +82,27 @@ import { usePermission } from "@/hooks/usePermission";
 import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialog";
 import { ConfirmActionDialog } from "@/components/shared/crud/ConfirmActionDialog";
 import { toast } from "sonner";
+
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
+const gridTheme = themeQuartz.withParams({
+  accentColor: "#0f766e",
+  headerBackgroundColor: "#f8fafc",
+  headerTextColor: "#334155",
+  rowHoverColor: "#f1f5f9",
+  borderColor: "#e2e8f0",
+  fontFamily: "inherit",
+});
+
+// Mêmes noms de colonnes que côté serveur (lead.repository.ts) — pas de tri client, AG Grid
+// n'émet que l'intention de tri (comme dans TasksListView.tsx).
+const AG_FIELD_TO_SORT_COLUMN: Record<string, string> = {
+  name: "name",
+  email: "email",
+  source: "source",
+  status: "status",
+};
 
 const STATUS_OPTIONS = ["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "WON", "LOST"] as const;
 const SOURCE_OPTIONS = ["Site web", "LinkedIn", "Recommandation", "Email", "Appel entrant", "Autre"] as const;
@@ -281,29 +302,123 @@ export function LeadsPage() {
     }
   };
 
-  const getSourceLabel = (source: string) => {
-    const labels: Record<string, string> = {
-      "Site web": t('leadsPage.sources.website'),
-      LinkedIn: t('leadsPage.sources.linkedin'),
-      Recommandation: t('leadsPage.sources.referral'),
-      Email: t('leadsPage.sources.email'),
-      "Appel entrant": t('leadsPage.sources.inboundCall'),
-      Autre: t('leadsPage.sources.other'),
-    };
-    return labels[source] || source;
-  };
+  const getSourceLabel = useCallback(
+    (source: string) => {
+      const labels: Record<string, string> = {
+        "Site web": t('leadsPage.sources.website'),
+        LinkedIn: t('leadsPage.sources.linkedin'),
+        Recommandation: t('leadsPage.sources.referral'),
+        Email: t('leadsPage.sources.email'),
+        "Appel entrant": t('leadsPage.sources.inboundCall'),
+        Autre: t('leadsPage.sources.other'),
+      };
+      return labels[source] || source;
+    },
+    [t]
+  );
 
-  const getStatusLabel = (status: string) => {
-    const labels: Record<string, string> = {
-      NEW: t('leadsPage.status.new'),
-      CONTACTED: t('leadsPage.status.contacted'),
-      QUALIFIED: t('leadsPage.status.qualified'),
-      PROPOSAL: t('leadsPage.status.proposal'),
-      WON: t('leadsPage.status.won'),
-      LOST: t('leadsPage.status.lost'),
-    };
-    return labels[status] || status;
-  };
+  const getStatusLabel = useCallback(
+    (status: string) => {
+      const labels: Record<string, string> = {
+        NEW: t('leadsPage.status.new'),
+        CONTACTED: t('leadsPage.status.contacted'),
+        QUALIFIED: t('leadsPage.status.qualified'),
+        PROPOSAL: t('leadsPage.status.proposal'),
+        WON: t('leadsPage.status.won'),
+        LOST: t('leadsPage.status.lost'),
+      };
+      return labels[status] || status;
+    },
+    [t]
+  );
+
+  const sortForField = useCallback(
+    (field: string): "asc" | "desc" | null => {
+      const activeColumn = orderBy ?? "createdAt";
+      return AG_FIELD_TO_SORT_COLUMN[field] === activeColumn ? orderDir : null;
+    },
+    [orderBy, orderDir]
+  );
+
+  const handleSortChanged = useCallback(
+    (event: SortChangedEvent<Lead>) => {
+      const sortedCol = event.api.getColumnState().find((c) => c.sort);
+      if (!sortedCol) return;
+      const column = AG_FIELD_TO_SORT_COLUMN[sortedCol.colId];
+      if (column) setSort(column, orderBy ?? "createdAt", orderDir);
+    },
+    [setSort, orderBy, orderDir]
+  );
+
+  const sourceRenderer = useCallback(
+    (params: ICellRendererParams<Lead>) => {
+      const lead = params.data;
+      if (!lead) return null;
+      if (!lead.source) return <span>-</span>;
+      return (
+        <div className="flex h-full items-center">
+          <Badge className={getSourceBadgeClass(lead.source)}>{getSourceLabel(lead.source)}</Badge>
+        </div>
+      );
+    },
+    [getSourceLabel]
+  );
+
+  const statusRenderer = useCallback(
+    (params: ICellRendererParams<Lead>) => {
+      const lead = params.data;
+      if (!lead) return null;
+      return (
+        <div className="flex h-full items-center">
+          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadgeClass(lead.status)}`}>
+            {getStatusLabel(lead.status)}
+          </span>
+        </div>
+      );
+    },
+    [getStatusLabel]
+  );
+
+  const actionsRenderer = useCallback(
+    (params: ICellRendererParams<Lead>) => {
+      const lead = params.data;
+      if (!lead) return null;
+      return (
+        <div className="flex h-full items-center justify-end gap-1">
+          <Button variant="ghost" size="icon" className="h-7 w-7" title={t('common.details')} onClick={() => setDetailLead(lead)}>
+            <Eye className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" title={t('common.edit')} onClick={() => handleEdit(lead)}>
+            <Edit className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" title={t('leadsPage.convertToClient')} onClick={() => handleConvert(lead)} disabled={isConverting || lead.status !== "WON" || !!lead.convertedClient}>
+            <UserCheck className="h-3.5 w-3.5" />
+          </Button>
+          {lead.status === "LOST" && !lead.convertedClient && (
+            <Button variant="ghost" size="icon" className="h-7 w-7" title={t('leadsPage.reopenLead')} onClick={() => handleReopen(lead)} disabled={isReopening}>
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t('common.delete')} onClick={() => handleDelete(lead)} disabled={isDeleting || !!lead.convertedClient}>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      );
+    },
+    [t, handleEdit, handleConvert, handleReopen, handleDelete, isConverting, isReopening, isDeleting]
+  );
+
+  const columnDefs = useMemo<ColDef<Lead>[]>(
+    () => [
+      { headerName: t('common.name'), field: "name", flex: 1, sortable: true, sort: sortForField("name"), comparator: () => 0, cellClass: "font-medium" },
+      { headerName: t('common.email'), valueGetter: (p) => p.data?.email || "-", flex: 1, sortable: true, sort: sortForField("email"), comparator: () => 0, colId: "email" },
+      { headerName: t('common.phone'), valueGetter: (p) => p.data?.phone || "-", flex: 1 },
+      { headerName: t('leadsPage.sourceLabel'), cellRenderer: sourceRenderer, flex: 1, sortable: true, sort: sortForField("source"), comparator: () => 0, colId: "source" },
+      { headerName: t('common.status'), cellRenderer: statusRenderer, flex: 1, sortable: true, sort: sortForField("status"), comparator: () => 0, colId: "status" },
+      { headerName: t('common.actions'), cellRenderer: actionsRenderer, width: 190, sortable: false, resizable: false },
+    ],
+    [t, sortForField, sourceRenderer, statusRenderer, actionsRenderer]
+  );
 
   if (isLoading) {
     return (
@@ -483,90 +598,16 @@ export function LeadsPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <SortableTableHead
-                    column="name"
-                    label={t('common.name')}
-                    sortBy={orderBy ?? "createdAt"}
-                    sortOrder={orderDir}
-                    onSort={(col) => setSort(col, orderBy ?? "createdAt", orderDir)}
-                  />
-                  <SortableTableHead
-                    column="email"
-                    label={t('common.email')}
-                    sortBy={orderBy ?? "createdAt"}
-                    sortOrder={orderDir}
-                    onSort={(col) => setSort(col, orderBy ?? "createdAt", orderDir)}
-                  />
-                  <TableHead>{t('common.phone')}</TableHead>
-                  <SortableTableHead
-                    column="source"
-                    label={t('leadsPage.sourceLabel')}
-                    sortBy={orderBy ?? "createdAt"}
-                    sortOrder={orderDir}
-                    onSort={(col) => setSort(col, orderBy ?? "createdAt", orderDir)}
-                  />
-                  <SortableTableHead
-                    column="status"
-                    label={t('common.status')}
-                    sortBy={orderBy ?? "createdAt"}
-                    sortOrder={orderDir}
-                    onSort={(col) => setSort(col, orderBy ?? "createdAt", orderDir)}
-                  />
-                  <TableHead className="text-right">{t('common.actions')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredLeads.map((lead) => (
-                  <TableRow key={lead.id}>
-                    <TableCell className="font-medium">{lead.name}</TableCell>
-                    <TableCell>{lead.email || "-"}</TableCell>
-                    <TableCell>{lead.phone || "-"}</TableCell>
-                    <TableCell>
-                      {lead.source ? (
-                        <Badge className={getSourceBadgeClass(lead.source)}>
-                          {getSourceLabel(lead.source)}
-                        </Badge>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadgeClass(
-                          lead.status
-                        )}`}
-                      >
-                        {getStatusLabel(lead.status)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" title={t('common.details')} onClick={() => setDetailLead(lead)}>
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" title={t('common.edit')} onClick={() => handleEdit(lead)}>
-                          <Edit className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" title={t('leadsPage.convertToClient')} onClick={() => handleConvert(lead)} disabled={isConverting || lead.status !== "WON" || !!lead.convertedClient}>
-                          <UserCheck className="h-3.5 w-3.5" />
-                        </Button>
-                        {lead.status === "LOST" && !lead.convertedClient && (
-                          <Button variant="ghost" size="icon" className="h-7 w-7" title={t('leadsPage.reopenLead')} onClick={() => handleReopen(lead)} disabled={isReopening}>
-                            <RefreshCw className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t('common.delete')} onClick={() => handleDelete(lead)} disabled={isDeleting || !!lead.convertedClient}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <div style={{ height: 500 }}>
+            <AgGridReact<Lead>
+              theme={gridTheme}
+              rowData={filteredLeads}
+              columnDefs={columnDefs}
+              onSortChanged={handleSortChanged}
+              suppressCellFocus
+              overlayNoRowsTemplate={t('leadsPage.empty', 'Aucun prospect.')}
+            />
+          </div>
           <DataTablePagination
             page={page}
             pageSize={pageSize}
