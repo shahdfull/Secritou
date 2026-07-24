@@ -1,6 +1,13 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { formatNumber } from "@/utils/format";
-import { useClient, useDeleteClient, useArchiveClient, useInviteClientUser } from "@/hooks/useClients";
+import {
+  useClient,
+  useDeleteClient,
+  useArchiveClient,
+  useInviteClientUser,
+  useGdprExportClient,
+  useGdprEraseClient,
+} from "@/hooks/useClients";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -8,7 +15,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SearchConsoleTab } from "./components/SearchConsoleTab";
 import { useClientOnboardingByClientId, useCreateClientOnboarding } from "@/hooks/useClientOnboarding";
 import { useProposals } from "@/hooks/useProposals";
+import type { Proposal } from "@/api/proposals.api";
 import { useInvoices } from "@/hooks/useInvoices";
+import type { Invoice } from "@/api/invoices.api";
 import {
   Dialog,
   DialogContent,
@@ -17,8 +26,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, Trash2, Archive, Plus, Download, Star, ExternalLink, Mail, CheckCircle2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { Loader2, Trash2, Archive, Plus, Download, Star, ExternalLink, Mail, CheckCircle2, ShieldOff } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { documentsApi, type Document } from "@/api/documents.api";
 import { useTranslation } from "react-i18next";
@@ -43,14 +52,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import { AgGridReact } from "ag-grid-react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  ModuleRegistry,
+  AllCommunityModule,
+  themeQuartz,
+  type ColDef,
+  type ICellRendererParams,
+} from "ag-grid-community";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -92,6 +101,18 @@ const INVOICE_STATUS_COLORS: Record<string, string> = {
   CANCELLED: "bg-gray-100 text-gray-500",
 };
 
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
+const gridTheme = themeQuartz.withParams({
+  accentColor: "#0f766e",
+  headerBackgroundColor: "#f8fafc",
+  headerTextColor: "#334155",
+  rowHoverColor: "#f1f5f9",
+  borderColor: "#e2e8f0",
+  fontFamily: "inherit",
+});
+
 export function ClientDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
@@ -102,8 +123,11 @@ export function ClientDetailPage() {
   const { data: client, isLoading } = useClient(id ?? "");
   const { mutate: deleteClient, isPending: isDeleting } = useDeleteClient();
   const { mutate: archiveClient, isPending: isArchiving } = useArchiveClient();
+  const { mutate: gdprExportClient, isPending: isGdprExporting } = useGdprExportClient();
+  const { mutate: gdprEraseClient, isPending: isGdprErasing } = useGdprEraseClient();
   const inviteClientUser = useInviteClientUser(id ?? "");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [gdprEraseDialogOpen, setGdprEraseDialogOpen] = useState(false);
   const [addDocumentDialogOpen, setAddDocumentDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -191,6 +215,21 @@ export function ClientDetailPage() {
     }
   };
 
+  const handleGdprExport = () => {
+    if (id) gdprExportClient(id);
+  };
+
+  const handleGdprErase = () => {
+    if (id) {
+      gdprEraseClient(id, {
+        onSuccess: (result) => {
+          setGdprEraseDialogOpen(false);
+          if (result.mode === "deleted") navigate("/app/crm");
+        },
+      });
+    }
+  };
+
   const portalUser = client?.users?.[0];
 
   function openInviteDialog() {
@@ -230,14 +269,129 @@ export function ClientDetailPage() {
     });
   };
 
-  const getDocumentTypeLabel = (doc: Document) => {
-    switch (doc.type) {
-      case "INVOICE": return t("clientsPage.detail.typeInvoice");
-      case "CONTRACT": return t("clientsPage.detail.typeContract");
-      case "OTHER": return t("clientsPage.detail.typeOther");
-      default: return "Document";
-    }
-  };
+  const getDocumentTypeLabel = useCallback(
+    (doc: Document) => {
+      switch (doc.type) {
+        case "INVOICE": return t("clientsPage.detail.typeInvoice");
+        case "CONTRACT": return t("clientsPage.detail.typeContract");
+        case "OTHER": return t("clientsPage.detail.typeOther");
+        default: return "Document";
+      }
+    },
+    [t]
+  );
+
+  const proposalStatusRenderer = useCallback((params: ICellRendererParams<Proposal>) => {
+    const p = params.data;
+    if (!p) return null;
+    return (
+      <div className="flex h-full items-center">
+        <Badge className={PROPOSAL_STATUS_COLORS[p.status] ?? "bg-gray-100 text-gray-800"}>{p.status}</Badge>
+      </div>
+    );
+  }, []);
+
+  const proposalColumnDefs = useMemo<ColDef<Proposal>[]>(
+    () => [
+      { headerName: t("common.title"), field: "title", flex: 1, cellClass: "font-medium" },
+      { headerName: t("invoices.amount"), valueGetter: (p) => (p.data?.amount != null ? `${p.data.amount} ${p.data.currency}` : ":"), flex: 1 },
+      { headerName: t("applications.date"), valueFormatter: (p) => format(new Date(p.data!.createdAt), "dd/MM/yyyy", { locale: fr }), field: "createdAt", flex: 1 },
+      { headerName: t("common.status"), cellRenderer: proposalStatusRenderer, flex: 1 },
+    ],
+    [t, proposalStatusRenderer]
+  );
+
+  const invoiceStatusRenderer = useCallback((params: ICellRendererParams<Invoice>) => {
+    const inv = params.data;
+    if (!inv) return null;
+    return (
+      <div className="flex h-full items-center">
+        <Badge className={INVOICE_STATUS_COLORS[inv.status] ?? "bg-gray-100 text-gray-800"}>{inv.status}</Badge>
+      </div>
+    );
+  }, []);
+
+  const invoiceColumnDefs = useMemo<ColDef<Invoice>[]>(
+    () => [
+      { headerName: t("clientsPage.detail.number"), field: "number", flex: 1, cellClass: "font-mono text-sm" },
+      { headerName: t("common.title"), field: "title", flex: 1, cellClass: "font-medium" },
+      { headerName: t("invoices.amount"), valueFormatter: (p) => `${p.data!.amount} ${p.data!.currency}`, field: "amount", flex: 1 },
+      { headerName: t("clientsPage.detail.dueDate"), valueFormatter: (p) => (p.data?.dueDate ? format(new Date(p.data.dueDate), "dd/MM/yyyy", { locale: fr }) : ":"), field: "dueDate", flex: 1 },
+      { headerName: t("common.status"), cellRenderer: invoiceStatusRenderer, flex: 1 },
+    ],
+    [t, invoiceStatusRenderer]
+  );
+
+  const documentTypeRenderer = useCallback(
+    (params: ICellRendererParams<Document>) => {
+      const doc = params.data;
+      if (!doc) return null;
+      return (
+        <div className="flex h-full items-center">
+          <Badge variant="outline">{getDocumentTypeLabel(doc)}</Badge>
+        </div>
+      );
+    },
+    [getDocumentTypeLabel]
+  );
+
+  const documentActionRenderer = useCallback(
+    (params: ICellRendererParams<Document>) => {
+      const doc = params.data;
+      if (!doc) return null;
+      return (
+        <div className="flex h-full items-center justify-end">
+          <Button variant="ghost" size="sm" onClick={() => downloadDocumentMutation.mutate(doc.id)}>
+            <Download className="h-4 w-4 mr-2" />
+            {t("clientsPage.detail.download")}
+          </Button>
+        </div>
+      );
+    },
+    [t, downloadDocumentMutation]
+  );
+
+  const documentColumnDefs = useMemo<ColDef<Document>[]>(
+    () => [
+      { headerName: t("common.name"), field: "name", flex: 1, cellClass: "font-medium" },
+      { headerName: t("documents.type"), cellRenderer: documentTypeRenderer, flex: 1 },
+      { headerName: t("applications.date"), valueFormatter: (p) => format(new Date(p.data!.createdAt), "dd/MM/yyyy", { locale: fr }), field: "createdAt", flex: 1 },
+      { headerName: t("clientsPage.detail.action"), cellRenderer: documentActionRenderer, width: 160, sortable: false, resizable: false },
+    ],
+    [t, documentTypeRenderer, documentActionRenderer]
+  );
+
+  const creditNoteAppliedRenderer = useCallback(
+    (params: ICellRendererParams<CreditNote>) => {
+      const cn = params.data;
+      if (!cn) return null;
+      return (
+        <div className="flex h-full items-center">
+          {cn.appliedAt ? (
+            <Badge className="bg-green-100 text-green-800">
+              {t("clientsPage.detail.creditNotes.appliedOn", { date: format(new Date(cn.appliedAt), "dd/MM/yyyy", { locale: fr }) })}
+            </Badge>
+          ) : (
+            <Badge className="bg-yellow-100 text-yellow-800">{t("clientsPage.detail.creditNotes.available")}</Badge>
+          )}
+        </div>
+      );
+    },
+    [t]
+  );
+
+  const creditNoteColumnDefs = useMemo<ColDef<CreditNote>[]>(
+    () => [
+      { headerName: t("clientsPage.detail.creditNotes.number"), field: "number", flex: 1, cellClass: "font-mono text-sm" },
+      { headerName: t("clientsPage.detail.creditNotes.amount"), valueFormatter: (p) => `${formatNumber(Number(p.data!.amount), { minimumFractionDigits: 2 })} TND`, field: "amount", flex: 1, cellClass: "font-semibold text-emerald-600" },
+      { headerName: t("clientsPage.detail.creditNotes.reason"), field: "reason", flex: 1, tooltipField: "reason" },
+      { headerName: t("clientsPage.detail.creditNotes.originInvoice"), valueGetter: (p) => p.data?.invoice?.number || "-", flex: 1, cellClass: "font-mono text-sm" },
+      { headerName: t("clientsPage.detail.creditNotes.appliedInvoice"), valueGetter: (p) => p.data?.appliedToInvoice?.number || "-", flex: 1, cellClass: "font-mono text-sm" },
+      { headerName: t("clientsPage.detail.creditNotes.applicationStatus"), cellRenderer: creditNoteAppliedRenderer, flex: 1 },
+      { headerName: t("clientsPage.detail.creditNotes.issueDate"), valueFormatter: (p) => format(new Date(p.data!.createdAt), "dd/MM/yyyy", { locale: fr }), field: "createdAt", flex: 1 },
+    ],
+    [t, creditNoteAppliedRenderer]
+  );
 
   if (isLoading) {
     return (
@@ -295,6 +449,14 @@ export function ClientDetailPage() {
           <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
             <Trash2 className="h-4 w-4 mr-2" />
             {t("clientsPage.detail.delete")}
+          </Button>
+          <Button variant="outline" onClick={handleGdprExport} disabled={isGdprExporting}>
+            {isGdprExporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+            {t("clientsPage.detail.gdprExport")}
+          </Button>
+          <Button variant="destructive" onClick={() => setGdprEraseDialogOpen(true)}>
+            <ShieldOff className="h-4 w-4 mr-2" />
+            {t("clientsPage.detail.gdprErase")}
           </Button>
         </div>
       </div>
@@ -390,30 +552,14 @@ export function ClientDetailPage() {
               ) : proposals.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-6">{t("clientsPage.detail.noProposals")}</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("common.title")}</TableHead>
-                      <TableHead>{t("invoices.amount")}</TableHead>
-                      <TableHead>{t("applications.date")}</TableHead>
-                      <TableHead>{t("common.status")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {proposals.map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-medium">{p.title}</TableCell>
-                        <TableCell>{p.amount != null ? `${p.amount} ${p.currency}` : ":"}</TableCell>
-                        <TableCell>{format(new Date(p.createdAt), "dd/MM/yyyy", { locale: fr })}</TableCell>
-                        <TableCell>
-                          <Badge className={PROPOSAL_STATUS_COLORS[p.status] ?? "bg-gray-100 text-gray-800"}>
-                            {p.status}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <div style={{ height: 350 }}>
+                  <AgGridReact<Proposal>
+                    theme={gridTheme}
+                    rowData={proposals}
+                    columnDefs={proposalColumnDefs}
+                    suppressCellFocus
+                  />
+                </div>
               )}
             </CardContent>
           </Card>
@@ -435,34 +581,14 @@ export function ClientDetailPage() {
               ) : invoices.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-6">{t("clientsPage.detail.noInvoices")}</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("clientsPage.detail.number")}</TableHead>
-                      <TableHead>{t("common.title")}</TableHead>
-                      <TableHead>{t("invoices.amount")}</TableHead>
-                      <TableHead>{t("clientsPage.detail.dueDate")}</TableHead>
-                      <TableHead>{t("common.status")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {invoices.map((inv) => (
-                      <TableRow key={inv.id}>
-                        <TableCell className="font-mono text-sm">{inv.number}</TableCell>
-                        <TableCell className="font-medium">{inv.title}</TableCell>
-                        <TableCell>{inv.amount} {inv.currency}</TableCell>
-                        <TableCell>
-                          {inv.dueDate ? format(new Date(inv.dueDate), "dd/MM/yyyy", { locale: fr }) : ":"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={INVOICE_STATUS_COLORS[inv.status] ?? "bg-gray-100 text-gray-800"}>
-                            {inv.status}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <div style={{ height: 350 }}>
+                  <AgGridReact<Invoice>
+                    theme={gridTheme}
+                    rowData={invoices}
+                    columnDefs={invoiceColumnDefs}
+                    suppressCellFocus
+                  />
+                </div>
               )}
             </CardContent>
           </Card>
@@ -590,35 +716,14 @@ export function ClientDetailPage() {
             </CardHeader>
             <CardContent>
               {documents && documents.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("common.name")}</TableHead>
-                      <TableHead>{t("documents.type")}</TableHead>
-                      <TableHead>{t("applications.date")}</TableHead>
-                      <TableHead className="text-right">{t("clientsPage.detail.action")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {documents.map((doc: Document) => (
-                      <TableRow key={doc.id}>
-                        <TableCell className="font-medium">{doc.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{getDocumentTypeLabel(doc)}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          {format(new Date(doc.createdAt), "dd/MM/yyyy", { locale: fr })}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" onClick={() => downloadDocumentMutation.mutate(doc.id)}>
-                            <Download className="h-4 w-4 mr-2" />
-                            {t("clientsPage.detail.download")}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <div style={{ height: 350 }}>
+                  <AgGridReact<Document>
+                    theme={gridTheme}
+                    rowData={documents}
+                    columnDefs={documentColumnDefs}
+                    suppressCellFocus
+                  />
+                </div>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-6">{t("clientsPage.detail.noDocuments")}</p>
               )}
@@ -644,44 +749,14 @@ export function ClientDetailPage() {
               ) : creditNotes.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-6">{t("clientsPage.detail.creditNotes.empty")}</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("clientsPage.detail.creditNotes.number")}</TableHead>
-                      <TableHead>{t("clientsPage.detail.creditNotes.amount")}</TableHead>
-                      <TableHead>{t("clientsPage.detail.creditNotes.reason")}</TableHead>
-                      <TableHead>{t("clientsPage.detail.creditNotes.originInvoice")}</TableHead>
-                      <TableHead>{t("clientsPage.detail.creditNotes.appliedInvoice")}</TableHead>
-                      <TableHead>{t("clientsPage.detail.creditNotes.applicationStatus")}</TableHead>
-                      <TableHead>{t("clientsPage.detail.creditNotes.issueDate")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {creditNotes.map((cn) => (
-                      <TableRow key={cn.id}>
-                        <TableCell className="font-mono text-sm">{cn.number}</TableCell>
-                        <TableCell className="font-semibold text-emerald-600">
-                          {formatNumber(Number(cn.amount), { minimumFractionDigits: 2 })} TND
-                        </TableCell>
-                        <TableCell className="max-w-xs truncate" title={cn.reason}>{cn.reason}</TableCell>
-                        <TableCell className="font-mono text-sm">{cn.invoice?.number || "-"}</TableCell>
-                        <TableCell className="font-mono text-sm">{cn.appliedToInvoice?.number || "-"}</TableCell>
-                        <TableCell>
-                          {cn.appliedAt ? (
-                            <Badge className="bg-green-100 text-green-800">
-                              {t("clientsPage.detail.creditNotes.appliedOn", { date: format(new Date(cn.appliedAt), "dd/MM/yyyy", { locale: fr }) })}
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-yellow-100 text-yellow-800">
-                              {t("clientsPage.detail.creditNotes.available")}
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>{format(new Date(cn.createdAt), "dd/MM/yyyy", { locale: fr })}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <div style={{ height: 350 }}>
+                  <AgGridReact<CreditNote>
+                    theme={gridTheme}
+                    rowData={creditNotes}
+                    columnDefs={creditNoteColumnDefs}
+                    suppressCellFocus
+                  />
+                </div>
               )}
             </CardContent>
           </Card>
@@ -822,6 +897,25 @@ export function ClientDetailPage() {
             <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
               {isDeleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {t("common.delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* GDPR erase dialog (RG-025) */}
+      <Dialog open={gdprEraseDialogOpen} onOpenChange={setGdprEraseDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("clientsPage.detail.gdprErase")}</DialogTitle>
+            <DialogDescription>
+              {t("clientsPage.detail.gdprEraseDesc")}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGdprEraseDialogOpen(false)}>{t("common.cancel")}</Button>
+            <Button variant="destructive" onClick={handleGdprErase} disabled={isGdprErasing}>
+              {isGdprErasing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {t("clientsPage.detail.gdprErase")}
             </Button>
           </DialogFooter>
         </DialogContent>
