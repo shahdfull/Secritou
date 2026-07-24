@@ -4,6 +4,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { AxiosError } from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -326,49 +334,43 @@ export function ClientsPage() {
           )}
         </div>
       ) : (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredClients.map((client) => (
-          <Card
-            key={client.id}
-            className="hover:shadow-md transition-shadow"
-          >
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-lg">
-                    <Link
-                      to={`/app/clients/${client.id}`}
-                      className="hover:underline"
-                    >
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("common.name")}</TableHead>
+                <TableHead>{t("clientsPage.emailLabel")}</TableHead>
+                <TableHead>{t("clientsPage.phoneLabel")}</TableHead>
+                <TableHead className="text-right">{t("common.actions")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredClients.map((client) => (
+                <TableRow key={client.id}>
+                  <TableCell className="font-medium">
+                    <Link to={`/app/clients/${client.id}`} className="hover:underline">
                       {client.name}
                     </Link>
-                  </CardTitle>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="h-7 w-7" title={t("common.edit")} onClick={(e) => { e.stopPropagation(); handleEdit(client); }}>
-                    <Edit className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("common.delete")} onClick={(e) => { e.stopPropagation(); handleDelete(client); }} disabled={isDeleting}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {client.email && (
-                <div className="text-sm text-muted-foreground">
-                  <span className="font-medium">{t("clientsPage.emailLabel")}:</span> {client.email}
-                </div>
-              )}
-              {client.phone && (
-                <div className="text-sm text-muted-foreground">
-                  <span className="font-medium">{t("clientsPage.phoneLabel")}:</span> {client.phone}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                  </TableCell>
+                  <TableCell>{client.email || "-"}</TableCell>
+                  <TableCell>{client.phone || "-"}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title={t("common.edit")} onClick={(e) => { e.stopPropagation(); handleEdit(client); }}>
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("common.delete")} onClick={(e) => { e.stopPropagation(); handleDelete(client); }} disabled={isDeleting}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
       )}
 
       <DataTablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} />
