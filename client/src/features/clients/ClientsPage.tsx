@@ -4,14 +4,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AgGridReact } from "ag-grid-react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  ModuleRegistry,
+  AllCommunityModule,
+  themeQuartz,
+  type ColDef,
+  type ICellRendererParams,
+} from "ag-grid-community";
 import { AxiosError } from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,6 +72,18 @@ import { useListParams } from "@/hooks/useListParams";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { useCrudDialogState } from "@/hooks/shared/useCrudDialogState";
 import { usePermission } from "@/hooks/usePermission";
+
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
+const gridTheme = themeQuartz.withParams({
+  accentColor: "#0f766e",
+  headerBackgroundColor: "#f8fafc",
+  headerTextColor: "#334155",
+  rowHoverColor: "#f1f5f9",
+  borderColor: "#e2e8f0",
+  fontFamily: "inherit",
+});
 
 export function ClientsPage() {
   const { t } = useTranslation();
@@ -179,7 +191,43 @@ export function ClientsPage() {
     });
   }, [deleteTarget, deleteClient, t]);
 
+  const nameRenderer = useCallback((params: ICellRendererParams<Client>) => {
+    const client = params.data;
+    if (!client) return null;
+    return (
+      <Link to={`/app/clients/${client.id}`} className="hover:underline flex h-full items-center">
+        {client.name}
+      </Link>
+    );
+  }, []);
 
+  const actionsRenderer = useCallback(
+    (params: ICellRendererParams<Client>) => {
+      const client = params.data;
+      if (!client) return null;
+      return (
+        <div className="flex h-full items-center justify-end gap-1">
+          <Button variant="ghost" size="icon" className="h-7 w-7" title={t("common.edit")} onClick={(e) => { e.stopPropagation(); handleEdit(client); }}>
+            <Edit className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("common.delete")} onClick={(e) => { e.stopPropagation(); handleDelete(client); }} disabled={isDeleting}>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      );
+    },
+    [t, handleEdit, handleDelete, isDeleting]
+  );
+
+  const columnDefs = useMemo<ColDef<Client>[]>(
+    () => [
+      { headerName: t("common.name"), cellRenderer: nameRenderer, flex: 1, cellClass: "font-medium" },
+      { headerName: t("clientsPage.emailLabel"), valueGetter: (p) => p.data?.email || "-", flex: 1 },
+      { headerName: t("clientsPage.phoneLabel"), valueGetter: (p) => p.data?.phone || "-", flex: 1 },
+      { headerName: t("common.actions"), cellRenderer: actionsRenderer, width: 100, sortable: false, resizable: false },
+    ],
+    [t, nameRenderer, actionsRenderer]
+  );
 
   if (clientsLoading) {
     return (
@@ -335,40 +383,14 @@ export function ClientsPage() {
         </div>
       ) : (
       <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("common.name")}</TableHead>
-                <TableHead>{t("clientsPage.emailLabel")}</TableHead>
-                <TableHead>{t("clientsPage.phoneLabel")}</TableHead>
-                <TableHead className="text-right">{t("common.actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredClients.map((client) => (
-                <TableRow key={client.id}>
-                  <TableCell className="font-medium">
-                    <Link to={`/app/clients/${client.id}`} className="hover:underline">
-                      {client.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{client.email || "-"}</TableCell>
-                  <TableCell>{client.phone || "-"}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" title={t("common.edit")} onClick={(e) => { e.stopPropagation(); handleEdit(client); }}>
-                        <Edit className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("common.delete")} onClick={(e) => { e.stopPropagation(); handleDelete(client); }} disabled={isDeleting}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <CardContent className="p-0" style={{ height: 500 }}>
+          <AgGridReact<Client>
+            theme={gridTheme}
+            rowData={filteredClients}
+            columnDefs={columnDefs}
+            suppressCellFocus
+            overlayNoRowsTemplate={t("clientsPage.empty", "Aucun client.")}
+          />
         </CardContent>
       </Card>
       )}

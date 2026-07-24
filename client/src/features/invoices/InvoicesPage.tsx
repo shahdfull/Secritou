@@ -1,6 +1,14 @@
-import { useState, useMemo } from "react";
+import { useCallback, useState, useMemo } from "react";
 import { formatDate, formatNumber } from "@/utils/format";
 import { useTranslation } from "react-i18next";
+import { AgGridReact } from "ag-grid-react";
+import {
+  ModuleRegistry,
+  AllCommunityModule,
+  themeQuartz,
+  type ColDef,
+  type ICellRendererParams,
+} from "ag-grid-community";
 import type { Invoice } from "@/api/invoices.api";
 
 type CreditNote = {
@@ -21,14 +29,6 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AddPaymentDialog } from "./components/AddPaymentDialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -51,6 +51,18 @@ import {
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { useListParams } from "@/hooks/useListParams";
 import { CreateInvoiceDialog } from "./components/CreateInvoiceDialog";
+
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
+const gridTheme = themeQuartz.withParams({
+  accentColor: "#0f766e",
+  headerBackgroundColor: "#f8fafc",
+  headerTextColor: "#334155",
+  rowHoverColor: "#f1f5f9",
+  borderColor: "#e2e8f0",
+  fontFamily: "inherit",
+});
 
 const ALL_STATUSES_VALUE = "__all__";
 
@@ -127,6 +139,140 @@ export function InvoicesPage() {
     }
   };
 
+  // The daily job flips SENT/PARTIAL to OVERDUE; between runs the dashboard already counts them
+  // as overdue at read time, so the list derives the same status to stay consistent.
+  const effectiveStatus = useCallback((invoice: Invoice) => {
+    return ["SENT", "PARTIAL"].includes(invoice.status) &&
+      invoice.dueDate &&
+      new Date(invoice.dueDate) < new Date()
+      ? "OVERDUE"
+      : invoice.status;
+  }, []);
+
+  const invoiceStatusRenderer = useCallback(
+    (params: ICellRendererParams<Invoice>) => {
+      const invoice = params.data;
+      if (!invoice) return null;
+      const status = effectiveStatus(invoice);
+      return (
+        <div className="flex h-full items-center">
+          <Badge className={getStatusColor(status)}>{t(`invoices.statuses.${status.toLowerCase()}`)}</Badge>
+        </div>
+      );
+    },
+    [t, effectiveStatus]
+  );
+
+  const invoiceActionsRenderer = useCallback(
+    (params: ICellRendererParams<Invoice>) => {
+      const invoice = params.data;
+      if (!invoice) return null;
+      return (
+        <div className="flex h-full items-center justify-end gap-1">
+          {invoice.status === "DRAFT" && (
+            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("invoices.send")} onClick={() => sendMutation.mutate(invoice.id)} disabled={sendMutation.isPending}>
+              <Send className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {["SENT", "PARTIAL", "OVERDUE"].includes(invoice.status) && (
+            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("invoices.addPayment.title")} onClick={() => { setSelectedInvoice(invoice); setPaymentDialogOpen(true); }}>
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {["SENT", "PARTIAL", "OVERDUE"].includes(invoice.status) && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              title={invoice.reminderPaused ? t("invoices.resumeReminders") : t("invoices.pauseReminders")}
+              onClick={() => reminderPausedMutation.mutate({ id: invoice.id, reminderPaused: !invoice.reminderPaused })}
+              disabled={reminderPausedMutation.isPending}
+            >
+              {invoice.reminderPaused ? <BellOff className="h-3.5 w-3.5 text-muted-foreground" /> : <Bell className="h-3.5 w-3.5" />}
+            </Button>
+          )}
+          {!["PAID", "CANCELLED"].includes(invoice.status) && (
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:bg-amber-50" title={t("invoices.cancel", "Annuler")} onClick={() => cancelMutation.mutate(invoice.id)} disabled={cancelMutation.isPending}>
+              <Ban className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+      );
+    },
+    [t, sendMutation, reminderPausedMutation, cancelMutation]
+  );
+
+  const invoiceColumnDefs = useMemo<ColDef<Invoice>[]>(
+    () => [
+      { headerName: t("invoices.number"), field: "number", flex: 1, cellClass: "font-medium" },
+      { headerName: t("invoices.client"), valueGetter: (p) => p.data?.client?.name, flex: 1 },
+      { headerName: t("invoices.amount"), valueFormatter: (p) => `${p.data!.currency} ${p.data!.amount}`, field: "amount", flex: 1 },
+      { headerName: t("invoices.amountPaid"), valueFormatter: (p) => `${p.data!.currency} ${p.data!.amountPaid}`, field: "amountPaid", flex: 1 },
+      { headerName: t("invoices.dueDate"), valueFormatter: (p) => (p.data?.dueDate ? formatDate(p.data.dueDate) : "-"), field: "dueDate", flex: 1 },
+      { headerName: t("invoices.status"), cellRenderer: invoiceStatusRenderer, flex: 1 },
+      { headerName: t("invoices.actions"), cellRenderer: invoiceActionsRenderer, width: 160, sortable: false, resizable: false },
+    ],
+    [t, invoiceStatusRenderer, invoiceActionsRenderer]
+  );
+
+  const creditNoteAppliedRenderer = useCallback(
+    (params: ICellRendererParams<CreditNote>) => {
+      const cn = params.data;
+      if (!cn) return null;
+      return (
+        <div className="flex h-full items-center">
+          {cn.appliedAt ? (
+            <Badge className="bg-primary-soft text-primary-strong">
+              {t("invoices.creditNotes.applied", { date: format(new Date(cn.appliedAt), "dd/MM/yyyy", { locale: fr }) })}
+            </Badge>
+          ) : (
+            <Badge className="bg-accent-soft text-accent-strong">{t("invoices.creditNotes.available")}</Badge>
+          )}
+        </div>
+      );
+    },
+    [t]
+  );
+
+  const creditNoteColumnDefs = useMemo<ColDef<CreditNote>[]>(
+    () => [
+      { headerName: t("invoices.creditNotes.number"), field: "number", flex: 1, cellClass: "font-mono text-sm" },
+      { headerName: t("invoices.client"), valueGetter: (p) => p.data?.client?.name, flex: 1 },
+      { headerName: t("invoices.amount"), valueFormatter: (p) => `${formatNumber(Number(p.data!.amount), { minimumFractionDigits: 2 })} TND`, field: "amount", flex: 1, cellClass: "font-semibold text-emerald-600" },
+      { headerName: t("invoices.creditNotes.reason"), field: "reason", flex: 1, tooltipField: "reason" },
+      { headerName: t("invoices.creditNotes.sourceInvoice"), valueGetter: (p) => p.data?.invoice?.number || "-", flex: 1, cellClass: "font-mono text-sm" },
+      { headerName: t("invoices.creditNotes.appliedInvoice"), valueGetter: (p) => p.data?.appliedToInvoice?.number || "-", flex: 1, cellClass: "font-mono text-sm" },
+      { headerName: t("invoices.creditNotes.applicationStatus"), cellRenderer: creditNoteAppliedRenderer, flex: 1 },
+      { headerName: t("invoices.creditNotes.issueDate"), valueFormatter: (p) => format(new Date(p.data!.createdAt), "dd/MM/yyyy", { locale: fr }), field: "createdAt", flex: 1 },
+    ],
+    [t, creditNoteAppliedRenderer]
+  );
+
+  const trashActionsRenderer = useCallback(
+    (params: ICellRendererParams<Invoice>) => {
+      const invoice = params.data;
+      if (!invoice) return null;
+      return (
+        <div className="flex h-full items-center justify-end">
+          <Button variant="secondary" size="sm" onClick={() => restoreMutation.mutate(invoice.id)} disabled={restoreMutation.isPending}>
+            {t("common.restore")}
+          </Button>
+        </div>
+      );
+    },
+    [t, restoreMutation]
+  );
+
+  const trashColumnDefs = useMemo<ColDef<Invoice>[]>(
+    () => [
+      { headerName: t("invoices.number"), field: "number", flex: 1, cellClass: "font-medium" },
+      { headerName: t("invoices.client"), valueGetter: (p) => p.data?.client?.name, flex: 1 },
+      { headerName: t("invoices.amount"), valueFormatter: (p) => `${p.data!.currency} ${p.data!.amount}`, field: "amount", flex: 1 },
+      { headerName: t("invoices.actions"), cellRenderer: trashActionsRenderer, width: 120, sortable: false, resizable: false },
+    ],
+    [t, trashActionsRenderer]
+  );
+
   return (
     <section className="space-y-6">
       <div className="flex items-center justify-between mb-6">
@@ -181,102 +327,16 @@ export function InvoicesPage() {
             </Select>
           </div>
 
-          <div className="border rounded-lg overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("invoices.number")}</TableHead>
-                  <TableHead>{t("invoices.client")}</TableHead>
-                  <TableHead>{t("invoices.amount")}</TableHead>
-                  <TableHead>{t("invoices.amountPaid")}</TableHead>
-                  <TableHead>{t("invoices.dueDate")}</TableHead>
-                  <TableHead>{t("invoices.status")}</TableHead>
-                  <TableHead className="text-right">{t("invoices.actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-10">
-                      {t("common.loading")}
-                    </TableCell>
-                  </TableRow>
-                ) : invoices.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-10">
-                      {t("invoices.empty")}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  invoices.map((invoice) => (
-                    <TableRow key={invoice.id}>
-                      <TableCell className="font-medium">{invoice.number}</TableCell>
-                      <TableCell>{invoice.client?.name}</TableCell>
-                      <TableCell>
-                        {invoice.currency} {invoice.amount}
-                      </TableCell>
-                      <TableCell>
-                        {invoice.currency} {invoice.amountPaid}
-                      </TableCell>
-                      <TableCell>
-                        {invoice.dueDate
-                          ? formatDate(invoice.dueDate)
-                          : "-"}
-                      </TableCell>
-                      <TableCell>
-                        {(() => {
-                          // The daily job flips SENT/PARTIAL to OVERDUE; between runs the
-                          // dashboard already counts them as overdue at read time, so the
-                          // list derives the same status to stay consistent.
-                          const effectiveStatus =
-                            ["SENT", "PARTIAL"].includes(invoice.status) &&
-                            invoice.dueDate &&
-                            new Date(invoice.dueDate) < new Date()
-                              ? "OVERDUE"
-                              : invoice.status;
-                          return (
-                            <Badge className={getStatusColor(effectiveStatus)}>
-                              {t(`invoices.statuses.${effectiveStatus.toLowerCase()}`)}
-                            </Badge>
-                          );
-                        })()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center gap-1">
-                          {invoice.status === "DRAFT" && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("invoices.send")} onClick={() => sendMutation.mutate(invoice.id)} disabled={sendMutation.isPending}>
-                              <Send className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                          {["SENT", "PARTIAL", "OVERDUE"].includes(invoice.status) && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("invoices.addPayment.title")} onClick={() => { setSelectedInvoice(invoice); setPaymentDialogOpen(true); }}>
-                              <Plus className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                          {["SENT", "PARTIAL", "OVERDUE"].includes(invoice.status) && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              title={invoice.reminderPaused ? t("invoices.resumeReminders") : t("invoices.pauseReminders")}
-                              onClick={() => reminderPausedMutation.mutate({ id: invoice.id, reminderPaused: !invoice.reminderPaused })}
-                              disabled={reminderPausedMutation.isPending}
-                            >
-                              {invoice.reminderPaused ? <BellOff className="h-3.5 w-3.5 text-muted-foreground" /> : <Bell className="h-3.5 w-3.5" />}
-                            </Button>
-                          )}
-                          {!["PAID", "CANCELLED"].includes(invoice.status) && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:bg-amber-50" title={t("invoices.cancel", "Annuler")} onClick={() => cancelMutation.mutate(invoice.id)} disabled={cancelMutation.isPending}>
-                              <Ban className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+          <div className="border rounded-lg overflow-hidden" style={{ height: 500 }}>
+            <AgGridReact<Invoice>
+              theme={gridTheme}
+              rowData={invoices}
+              columnDefs={invoiceColumnDefs}
+              loading={isLoading}
+              suppressCellFocus
+              overlayLoadingTemplate={t("common.loading")}
+              overlayNoRowsTemplate={t("invoices.empty")}
+            />
           </div>
 
           {invoicesResult && Number.isFinite(invoicesResult.total) && (
@@ -290,61 +350,16 @@ export function InvoicesPage() {
         </TabsContent>
 
         <TabsContent value="credit-notes" className="space-y-4">
-          <div className="border rounded-lg overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("invoices.creditNotes.number")}</TableHead>
-                  <TableHead>{t("invoices.client")}</TableHead>
-                  <TableHead>{t("invoices.amount")}</TableHead>
-                  <TableHead>{t("invoices.creditNotes.reason")}</TableHead>
-                  <TableHead>{t("invoices.creditNotes.sourceInvoice")}</TableHead>
-                  <TableHead>{t("invoices.creditNotes.appliedInvoice")}</TableHead>
-                  <TableHead>{t("invoices.creditNotes.applicationStatus")}</TableHead>
-                  <TableHead>{t("invoices.creditNotes.issueDate")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {creditNotesLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-10">
-                      {t("invoices.creditNotes.loading")}
-                    </TableCell>
-                  </TableRow>
-                ) : creditNotes.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-10">
-                      {t("invoices.creditNotes.empty")}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  creditNotes.map((cn) => (
-                    <TableRow key={cn.id}>
-                      <TableCell className="font-mono text-sm">{cn.number}</TableCell>
-                      <TableCell>{cn.client?.name}</TableCell>
-                      <TableCell className="font-semibold text-emerald-600">
-                        {formatNumber(Number(cn.amount), { minimumFractionDigits: 2 })} TND
-                      </TableCell>
-                      <TableCell className="max-w-xs truncate" title={cn.reason}>{cn.reason}</TableCell>
-                      <TableCell className="font-mono text-sm">{cn.invoice?.number || "-"}</TableCell>
-                      <TableCell className="font-mono text-sm">{cn.appliedToInvoice?.number || "-"}</TableCell>
-                      <TableCell>
-                        {cn.appliedAt ? (
-                          <Badge className="bg-primary-soft text-primary-strong">
-                            {t("invoices.creditNotes.applied", { date: format(new Date(cn.appliedAt), "dd/MM/yyyy", { locale: fr }) })}
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-accent-soft text-accent-strong">
-                            {t("invoices.creditNotes.available")}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>{format(new Date(cn.createdAt), "dd/MM/yyyy", { locale: fr })}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+          <div className="border rounded-lg overflow-hidden" style={{ height: 500 }}>
+            <AgGridReact<CreditNote>
+              theme={gridTheme}
+              rowData={creditNotes}
+              columnDefs={creditNoteColumnDefs}
+              loading={creditNotesLoading}
+              suppressCellFocus
+              overlayLoadingTemplate={t("invoices.creditNotes.loading")}
+              overlayNoRowsTemplate={t("invoices.creditNotes.empty")}
+            />
           </div>
         </TabsContent>
 
@@ -356,37 +371,16 @@ export function InvoicesPage() {
                 <p className="text-sm text-muted-foreground">{t("invoices.trashDesc")}</p>
               </div>
             </div>
-            <div className="border rounded-lg overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("invoices.number")}</TableHead>
-                    <TableHead>{t("invoices.client")}</TableHead>
-                    <TableHead>{t("invoices.amount")}</TableHead>
-                    <TableHead className="text-right">{t("invoices.actions")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {trashLoading ? (
-                    <TableRow><TableCell colSpan={4} className="text-center py-10">{t("common.loading")}</TableCell></TableRow>
-                  ) : trashedInvoices.length === 0 ? (
-                    <TableRow><TableCell colSpan={4} className="text-center py-10">{t("invoices.emptyTrash")}</TableCell></TableRow>
-                  ) : (
-                    trashedInvoices.map((invoice) => (
-                      <TableRow key={invoice.id}>
-                        <TableCell className="font-medium">{invoice.number}</TableCell>
-                        <TableCell>{invoice.client?.name}</TableCell>
-                        <TableCell>{invoice.currency} {invoice.amount}</TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="secondary" size="sm" onClick={() => restoreMutation.mutate(invoice.id)} disabled={restoreMutation.isPending}>
-                            {t("common.restore")}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+            <div className="border rounded-lg overflow-hidden" style={{ height: 500 }}>
+              <AgGridReact<Invoice>
+                theme={gridTheme}
+                rowData={trashedInvoices}
+                columnDefs={trashColumnDefs}
+                loading={trashLoading}
+                suppressCellFocus
+                overlayLoadingTemplate={t("common.loading")}
+                overlayNoRowsTemplate={t("invoices.emptyTrash")}
+              />
             </div>
           </div>
         </TabsContent>
