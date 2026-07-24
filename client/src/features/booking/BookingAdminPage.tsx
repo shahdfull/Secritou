@@ -16,7 +16,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AgGridReact } from "ag-grid-react";
+import {
+  ModuleRegistry,
+  AllCommunityModule,
+  themeQuartz,
+  type ColDef,
+  type ICellRendererParams,
+} from "ag-grid-community";
 import {
   cancelAdminBooking,
   createBookingSlot,
@@ -45,6 +52,18 @@ const recurringSchema = z.object({
 
 type SlotFormValues = z.infer<typeof slotSchema>;
 type RecurringFormValues = z.infer<typeof recurringSchema>;
+
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
+const gridTheme = themeQuartz.withParams({
+  accentColor: "#0f766e",
+  headerBackgroundColor: "#f8fafc",
+  headerTextColor: "#334155",
+  rowHoverColor: "#f1f5f9",
+  borderColor: "#e2e8f0",
+  fontFamily: "inherit",
+});
 
 export function BookingAdminPage() {
   const { t } = useTranslation();
@@ -142,25 +161,133 @@ export function BookingAdminPage() {
     }
   });
 
-  const handleDeleteSlot = async (slot: BookingSlotRecord) => {
-    try {
-      await deleteBookingSlot(slot.id);
-      toast.success(t("booking.admin.slotDeleted", "Slot deleted."));
-      await loadData();
-    } catch {
-      toast.error(t("booking.admin.slotDeleteFailed", "Unable to delete the slot."));
-    }
-  };
+  const handleDeleteSlot = useCallback(
+    async (slot: BookingSlotRecord) => {
+      try {
+        await deleteBookingSlot(slot.id);
+        toast.success(t("booking.admin.slotDeleted", "Slot deleted."));
+        await loadData();
+      } catch {
+        toast.error(t("booking.admin.slotDeleteFailed", "Unable to delete the slot."));
+      }
+    },
+    [t, loadData]
+  );
 
-  const handleCancelBooking = async (booking: BookingRecord) => {
-    try {
-      await cancelAdminBooking(booking.id);
-      toast.success(t("booking.admin.bookingCancelled", "Booking cancelled."));
-      await loadData();
-    } catch {
-      toast.error(t("booking.admin.bookingCancelFailed", "Unable to cancel the booking."));
-    }
-  };
+  const handleCancelBooking = useCallback(
+    async (booking: BookingRecord) => {
+      try {
+        await cancelAdminBooking(booking.id);
+        toast.success(t("booking.admin.bookingCancelled", "Booking cancelled."));
+        await loadData();
+      } catch {
+        toast.error(t("booking.admin.bookingCancelFailed", "Unable to cancel the booking."));
+      }
+    },
+    [t, loadData]
+  );
+
+  const slotStatusRenderer = useCallback(
+    (params: ICellRendererParams<BookingSlotRecord>) => {
+      const slot = params.data;
+      if (!slot) return null;
+      return (
+        <div className="flex h-full items-center">
+          <Badge className={slot.isBooked ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800"}>
+            {slot.isBooked ? t("booking.admin.booked", "Booked") : t("booking.admin.open", "Open")}
+          </Badge>
+        </div>
+      );
+    },
+    [t]
+  );
+
+  const slotActionsRenderer = useCallback(
+    (params: ICellRendererParams<BookingSlotRecord>) => {
+      const slot = params.data;
+      if (!slot) return null;
+      return (
+        <div className="flex h-full items-center justify-end">
+          <Button variant="ghost" size="icon" onClick={() => handleDeleteSlot(slot)} disabled={slot.isBooked} title={t("booking.admin.deleteSlot", "Delete slot")}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      );
+    },
+    [t, handleDeleteSlot]
+  );
+
+  const slotColumnDefs = useMemo<ColDef<BookingSlotRecord>[]>(
+    () => [
+      {
+        headerName: t("booking.admin.slot", "Slot"),
+        flex: 2,
+        cellRenderer: (params: ICellRendererParams<BookingSlotRecord>) => {
+          const slot = params.data;
+          if (!slot) return null;
+          return (
+            <div className="flex h-full flex-col justify-center">
+              <p className="font-medium text-ink">{formatDateTime(slot.startTime)}</p>
+              <p className="text-xs text-muted-foreground">{formatDateTime(slot.endTime)}</p>
+            </div>
+          );
+        },
+      },
+      { headerName: t("booking.admin.status", "Status"), cellRenderer: slotStatusRenderer, flex: 1 },
+      { headerName: t("booking.admin.actions", "Actions"), cellRenderer: slotActionsRenderer, width: 100, sortable: false, resizable: false },
+    ],
+    [t, slotStatusRenderer, slotActionsRenderer]
+  );
+
+  const bookingActionsRenderer = useCallback(
+    (params: ICellRendererParams<BookingRecord>) => {
+      const booking = params.data;
+      if (!booking) return null;
+      return (
+        <div className="flex h-full items-center justify-end">
+          <Button variant="ghost" size="icon" onClick={() => handleCancelBooking(booking)} title={t("booking.admin.cancelBooking", "Cancel booking")}>
+            <XCircle className="h-4 w-4" />
+          </Button>
+        </div>
+      );
+    },
+    [t, handleCancelBooking]
+  );
+
+  const bookingColumnDefs = useMemo<ColDef<BookingRecord>[]>(
+    () => [
+      {
+        headerName: t("booking.admin.customer", "Customer"),
+        flex: 1,
+        cellRenderer: (params: ICellRendererParams<BookingRecord>) => {
+          const booking = params.data;
+          if (!booking) return null;
+          return (
+            <div className="flex h-full flex-col justify-center">
+              <p className="font-medium text-ink">{booking.name}</p>
+              <p className="text-xs text-muted-foreground">{booking.email}</p>
+            </div>
+          );
+        },
+      },
+      {
+        headerName: t("booking.admin.slot", "Slot"),
+        flex: 1,
+        cellRenderer: (params: ICellRendererParams<BookingRecord>) => {
+          const booking = params.data;
+          if (!booking) return null;
+          return (
+            <div className="flex h-full flex-col justify-center">
+              <p className="text-sm text-ink">{formatDateTime(booking.slot.startTime)}</p>
+              <p className="text-xs text-muted-foreground">{formatDateTime(booking.slot.endTime)}</p>
+            </div>
+          );
+        },
+      },
+      { headerName: t("booking.admin.actions", "Actions"), cellRenderer: bookingActionsRenderer, width: 100, sortable: false, resizable: false },
+    ],
+    [t, bookingActionsRenderer]
+  );
 
   const jumpToToday = () => {
     const today = new Date();
@@ -338,78 +465,27 @@ export function BookingAdminPage() {
             <CardContent className="p-0">
               <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "slots" | "bookings")}> 
                 <TabsContent value="slots" className="mt-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t("booking.admin.slot", "Slot")}</TableHead>
-                        <TableHead>{t("booking.admin.status", "Status")}</TableHead>
-                        <TableHead className="text-right">{t("booking.admin.actions", "Actions")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(loading ? [] : selectedDaySlots).map((slot) => (
-                        <TableRow key={slot.id}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium text-ink">{formatDateTime(slot.startTime)}</p>
-                              <p className="text-xs text-muted-foreground">{formatDateTime(slot.endTime)}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={slot.isBooked ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800"}>{slot.isBooked ? t("booking.admin.booked", "Booked") : t("booking.admin.open", "Open")}</Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteSlot(slot)} disabled={slot.isBooked} title={t("booking.admin.deleteSlot", "Delete slot")}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {!loading && selectedDaySlots.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={3} className="py-8 text-center text-muted-foreground">{t("booking.admin.noSlots", "No slots for this day.")}</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
+                  <div style={{ height: 400 }}>
+                    <AgGridReact<BookingSlotRecord>
+                      theme={gridTheme}
+                      rowData={loading ? [] : selectedDaySlots}
+                      columnDefs={slotColumnDefs}
+                      suppressCellFocus
+                      overlayNoRowsTemplate={t("booking.admin.noSlots", "No slots for this day.")}
+                    />
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="bookings" className="mt-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t("booking.admin.customer", "Customer")}</TableHead>
-                        <TableHead>{t("booking.admin.slot", "Slot")}</TableHead>
-                        <TableHead className="text-right">{t("booking.admin.actions", "Actions")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(loading ? [] : selectedDayBookings).map((booking) => (
-                        <TableRow key={booking.id}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium text-ink">{booking.name}</p>
-                              <p className="text-xs text-muted-foreground">{booking.email}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <p className="text-sm text-ink">{formatDateTime(booking.slot.startTime)}</p>
-                            <p className="text-xs text-muted-foreground">{formatDateTime(booking.slot.endTime)}</p>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" onClick={() => handleCancelBooking(booking)} title={t("booking.admin.cancelBooking", "Cancel booking")}>
-                              <XCircle className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {!loading && selectedDayBookings.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={3} className="py-8 text-center text-muted-foreground">{t("booking.admin.noBookings", "No bookings for this day.")}</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
+                  <div style={{ height: 400 }}>
+                    <AgGridReact<BookingRecord>
+                      theme={gridTheme}
+                      rowData={loading ? [] : selectedDayBookings}
+                      columnDefs={bookingColumnDefs}
+                      suppressCellFocus
+                      overlayNoRowsTemplate={t("booking.admin.noBookings", "No bookings for this day.")}
+                    />
+                  </div>
                 </TabsContent>
               </Tabs>
             </CardContent>

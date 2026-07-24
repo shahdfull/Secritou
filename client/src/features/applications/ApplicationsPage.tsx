@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useCallback, useState, useMemo } from "react";
 import { formatDate } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 import { Document, Page, pdfjs } from "react-pdf";
@@ -16,14 +16,14 @@ import {
   useRejectFreelancerApplication,
   useAcceptFreelancerApplication,
 } from "@/hooks/useFreelancerApplications";
+import { AgGridReact } from "ag-grid-react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  ModuleRegistry,
+  AllCommunityModule,
+  themeQuartz,
+  type ColDef,
+  type ICellRendererParams,
+} from "ag-grid-community";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -70,6 +70,18 @@ import {
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { useListParams } from "@/hooks/useListParams";
 import { toast } from "sonner";
+
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
+const gridTheme = themeQuartz.withParams({
+  accentColor: "#0f766e",
+  headerBackgroundColor: "#f8fafc",
+  headerTextColor: "#334155",
+  rowHoverColor: "#f1f5f9",
+  borderColor: "#e2e8f0",
+  fontFamily: "inherit",
+});
 
 const ALL_STATUSES_VALUE = "__all__";
 
@@ -154,24 +166,27 @@ export function ApplicationsPage() {
     return password;
   };
 
-  const openRejectDialog = (application: FreelancerApplication) => {
+  const openRejectDialog = useCallback((application: FreelancerApplication) => {
     setSelectedApplication(application);
     setRejectDialogOpen(true);
-  };
+  }, []);
 
-  const openAcceptDialog = (application: FreelancerApplication) => {
-    setSelectedApplication(application);
-    acceptForm.reset({
-      firstName: application.firstName,
-      lastName: application.lastName,
-      email: application.email,
-      phone: application.phone,
-      role: "FREELANCER",
-      username: `${application.firstName.toLowerCase()}${application.lastName.toLowerCase()}`,
-      password: generatePassword(),
-    });
-    setAcceptDialogOpen(true);
-  };
+  const openAcceptDialog = useCallback(
+    (application: FreelancerApplication) => {
+      setSelectedApplication(application);
+      acceptForm.reset({
+        firstName: application.firstName,
+        lastName: application.lastName,
+        email: application.email,
+        phone: application.phone,
+        role: "FREELANCER",
+        username: `${application.firstName.toLowerCase()}${application.lastName.toLowerCase()}`,
+        password: generatePassword(),
+      });
+      setAcceptDialogOpen(true);
+    },
+    [acceptForm]
+  );
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -189,6 +204,131 @@ export function ApplicationsPage() {
       return "bg-gray-100 text-gray-800";
     }
   };
+
+  const pendingActionsRenderer = useCallback(
+    (params: ICellRendererParams<FreelancerApplication>) => {
+      const app = params.data;
+      if (!app) return null;
+      return (
+        <div className="flex h-full items-center justify-end gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 px-2 text-xs gap-1"
+            onClick={() => {
+              if (app.cvUrl) {
+                setPdfPreviewUrl(app.cvUrl);
+                setPreviewType("cv");
+              }
+            }}
+          >
+            <Eye className="h-3.5 w-3.5" />
+            {t("applications.cv")}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 px-2 text-xs gap-1"
+            onClick={() => {
+              if (app.portfolioUrl) {
+                setPdfPreviewUrl(app.portfolioUrl);
+                setPreviewType("portfolio");
+              }
+            }}
+          >
+            <Eye className="h-3.5 w-3.5" />
+            {t("applications.portfolio")}
+          </Button>
+          {app.aiSummary && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs gap-1 text-violet-600 hover:bg-violet-50"
+              onClick={() => setAiSummaryApplication(app)}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {t("applications.aiSummary")}
+            </Button>
+          )}
+        </div>
+      );
+    },
+    [t]
+  );
+
+  const pendingColumnDefs = useMemo<ColDef<FreelancerApplication>[]>(
+    () => [
+      { headerName: t("applications.name"), valueGetter: (p) => `${p.data?.firstName} ${p.data?.lastName}`, flex: 1, cellClass: "font-medium" },
+      { headerName: t("applications.email"), field: "email", flex: 1 },
+      { headerName: t("applications.position"), field: "position", flex: 1 },
+      { headerName: t("applications.date"), valueFormatter: (p) => formatDate(p.data!.createdAt), field: "createdAt", flex: 1 },
+      { headerName: t("applications.actions"), cellRenderer: pendingActionsRenderer, width: 260, sortable: false, resizable: false },
+    ],
+    [t, pendingActionsRenderer]
+  );
+
+  const statusRenderer = useCallback(
+    (params: ICellRendererParams<FreelancerApplication>) => {
+      const app = params.data;
+      if (!app) return null;
+      return (
+        <div className="flex h-full items-center">
+          <Badge className={getStatusColor(app.status)}>{t(`applications.statuses.${app.status.toLowerCase()}`)}</Badge>
+        </div>
+      );
+    },
+    [t]
+  );
+
+  const actionsRenderer = useCallback(
+    (params: ICellRendererParams<FreelancerApplication>) => {
+      const app = params.data;
+      if (!app) return null;
+      return (
+        <div className="flex h-full items-center justify-end gap-1">
+          {app.cvUrl && (
+            <Button variant="ghost" size="icon" className="h-7 w-7" title={`${t("applications.view")} CV`} onClick={() => { setPdfPreviewUrl(app.cvUrl); setPreviewType("cv"); }}>
+              <Eye className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {app.portfolioUrl && (
+            <Button variant="ghost" size="icon" className="h-7 w-7" title={`${t("applications.view")} Portfolio`} onClick={() => { setPdfPreviewUrl(app.portfolioUrl); setPreviewType("portfolio"); }}>
+              <FileText className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {app.aiSummary && (
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-violet-600 hover:bg-violet-50" title={t("applications.aiSummary")} onClick={() => setAiSummaryApplication(app)}>
+              <Sparkles className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {app.status === "PENDING" && (
+            <>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600 hover:bg-green-50" title={t("applications.accept")} onClick={() => openAcceptDialog(app)}>
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:bg-red-50" title={t("applications.reject")} onClick={() => openRejectDialog(app)}>
+                <XCircle className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          )}
+        </div>
+      );
+    },
+    [t, openAcceptDialog, openRejectDialog]
+  );
+
+  const columnDefs = useMemo<ColDef<FreelancerApplication>[]>(
+    () => [
+      { headerName: t("applications.name"), valueGetter: (p) => `${p.data?.firstName} ${p.data?.lastName}`, flex: 1, cellClass: "font-medium" },
+      { headerName: t("applications.email"), field: "email", flex: 1 },
+      { headerName: t("applications.phone"), valueGetter: (p) => p.data?.phone || "-", flex: 1 },
+      { headerName: t("applications.position"), field: "position", flex: 1 },
+      { headerName: t("applications.date"), valueFormatter: (p) => formatDate(p.data!.createdAt), field: "createdAt", flex: 1 },
+      { headerName: t("applications.status"), cellRenderer: statusRenderer, flex: 1 },
+      { headerName: t("applications.actions"), cellRenderer: actionsRenderer, width: 190, sortable: false, resizable: false },
+    ],
+    [t, statusRenderer, actionsRenderer]
+  );
 
   return (
     <section className="space-y-6">
@@ -209,72 +349,14 @@ export function ApplicationsPage() {
               {t("applications.newApplications", { count: pendingUnassigned.length })}
             </span>
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("applications.name")}</TableHead>
-                <TableHead>{t("applications.email")}</TableHead>
-                <TableHead>{t("applications.position")}</TableHead>
-                <TableHead>{t("applications.date")}</TableHead>
-                <TableHead className="text-right">{t("applications.actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pendingUnassigned.map((app) => (
-                <TableRow key={app.id}>
-                  <TableCell className="font-medium">
-                    {app.firstName} {app.lastName}
-                  </TableCell>
-                  <TableCell>{app.email}</TableCell>
-                  <TableCell>{app.position}</TableCell>
-                  <TableCell>{formatDate(app.createdAt)}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 px-2 text-xs gap-1"
-                        onClick={() => {
-                          if (app.cvUrl) {
-                            setPdfPreviewUrl(app.cvUrl);
-                            setPreviewType("cv");
-                          }
-                        }}
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        {t("applications.cv")}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 px-2 text-xs gap-1"
-                        onClick={() => {
-                          if (app.portfolioUrl) {
-                            setPdfPreviewUrl(app.portfolioUrl);
-                            setPreviewType("portfolio");
-                          }
-                        }}
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        {t("applications.portfolio")}
-                      </Button>
-                      {app.aiSummary && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 px-2 text-xs gap-1 text-violet-600 hover:bg-violet-50"
-                          onClick={() => setAiSummaryApplication(app)}
-                        >
-                          <Sparkles className="h-3.5 w-3.5" />
-                          {t("applications.aiSummary")}
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <div style={{ height: Math.min(300, 60 + pendingUnassigned.length * 42) }}>
+            <AgGridReact<FreelancerApplication>
+              theme={gridTheme}
+              rowData={pendingUnassigned}
+              columnDefs={pendingColumnDefs}
+              suppressCellFocus
+            />
+          </div>
         </div>
       )}
 
@@ -309,85 +391,16 @@ export function ApplicationsPage() {
         </Select>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("applications.name")}</TableHead>
-              <TableHead>{t("applications.email")}</TableHead>
-              <TableHead>{t("applications.phone")}</TableHead>
-              <TableHead>{t("applications.position")}</TableHead>
-              <TableHead>{t("applications.date")}</TableHead>
-              <TableHead>{t("applications.status")}</TableHead>
-              <TableHead className="text-right">
-                {t("applications.actions")}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-10">
-                {t("common.loading")}
-              </TableCell>
-              </TableRow>
-            ) : applications.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-10">
-                  {t("applications.empty")}
-                </TableCell>
-              </TableRow>
-            ) : (
-              applications.map((app) => (
-                <TableRow key={app.id}>
-                  <TableCell className="font-medium">
-                    {app.firstName} {app.lastName}
-                  </TableCell>
-                  <TableCell>{app.email}</TableCell>
-                  <TableCell>{app.phone || "-"}</TableCell>
-                  <TableCell>{app.position}</TableCell>
-                  <TableCell>
-                    {formatDate(app.createdAt)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(app.status)}>
-                      {t(`applications.statuses.${app.status.toLowerCase()}`)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center gap-1">
-                      {app.cvUrl && (
-                        <Button variant="ghost" size="icon" className="h-7 w-7" title={`${t("applications.view")} CV`} onClick={() => { setPdfPreviewUrl(app.cvUrl); setPreviewType("cv"); }}>
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                      {app.portfolioUrl && (
-                        <Button variant="ghost" size="icon" className="h-7 w-7" title={`${t("applications.view")} Portfolio`} onClick={() => { setPdfPreviewUrl(app.portfolioUrl); setPreviewType("portfolio"); }}>
-                          <FileText className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                      {app.aiSummary && (
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-violet-600 hover:bg-violet-50" title={t("applications.aiSummary")} onClick={() => setAiSummaryApplication(app)}>
-                          <Sparkles className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                      {app.status === "PENDING" && (
-                        <>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600 hover:bg-green-50" title={t("applications.accept")} onClick={() => openAcceptDialog(app)}>
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:bg-red-50" title={t("applications.reject")} onClick={() => openRejectDialog(app)}>
-                            <XCircle className="h-3.5 w-3.5" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+      <div className="border rounded-lg overflow-hidden" style={{ height: 500 }}>
+        <AgGridReact<FreelancerApplication>
+          theme={gridTheme}
+          rowData={applications}
+          columnDefs={columnDefs}
+          loading={isLoading}
+          suppressCellFocus
+          overlayLoadingTemplate={t("common.loading")}
+          overlayNoRowsTemplate={t("applications.empty")}
+        />
       </div>
 
       {applicationsResult && Number.isFinite(applicationsResult.total) && (

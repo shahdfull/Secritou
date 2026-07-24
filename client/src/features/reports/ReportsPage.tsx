@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import { useTranslation } from "react-i18next";
 import { formatNumber } from "@/utils/format";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,10 +8,11 @@ import { useLeads } from "@/hooks/useLeads";
 import { useProjects } from "@/hooks/useProjects";
 import { useInvoices } from "@/hooks/useInvoices";
 import { FileText, FileSpreadsheet, Loader2, Users, Briefcase, TrendingUp } from "lucide-react";
-import { Table, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AgGridReact } from "ag-grid-react";
+import { ModuleRegistry, AllCommunityModule, themeQuartz, type ColDef } from "ag-grid-community";
 import type { Lead } from "@/types/lead";
 import type { Project } from "@/types/project";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import type { Invoice } from "@/api/invoices.api";
 
 const formatStatus = (status: string, lang: string = "fr"): string => {
   const statusMapFr: Record<string, string> = {
@@ -65,6 +66,18 @@ const formatStatus = (status: string, lang: string = "fr"): string => {
   const statusMap = lang === "en" ? statusMapEn : statusMapFr;
   return statusMap[status] || status;
 };
+
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
+const gridTheme = themeQuartz.withParams({
+  accentColor: "#0f766e",
+  headerBackgroundColor: "#f8fafc",
+  headerTextColor: "#334155",
+  rowHoverColor: "#f1f5f9",
+  borderColor: "#e2e8f0",
+  fontFamily: "inherit",
+});
 
 export function ReportsPage() {
   const { i18n } = useTranslation();
@@ -164,11 +177,35 @@ export function ReportsPage() {
     });
   }, [filteredLeads, filteredProjects, startExportTransition]);
 
-  const leadsScrollRef = useRef<HTMLDivElement | null>(null);
-  const projectsScrollRef = useRef<HTMLDivElement | null>(null);
+  const leadColumnDefs = useMemo<ColDef<Lead>[]>(
+    () => [
+      { headerName: "Nom", field: "name", flex: 1, cellClass: "truncate" },
+      { headerName: "Statut", valueFormatter: (p) => formatStatus(p.data!.status, i18n.language), field: "status", flex: 1 },
+    ],
+    [i18n.language]
+  );
 
-  const leadsVirtualizer = useVirtualizer({ count: filteredLeads.length, getScrollElement: () => leadsScrollRef.current, estimateSize: () => 44, overscan: 8 });
-  const projectsVirtualizer = useVirtualizer({ count: filteredProjects.length, getScrollElement: () => projectsScrollRef.current, estimateSize: () => 44, overscan: 8 });
+  const projectColumnDefs = useMemo<ColDef<Project>[]>(
+    () => [
+      { headerName: "Nom", field: "name", flex: 1, cellClass: "truncate" },
+      { headerName: "Statut", valueFormatter: (p) => formatStatus(p.data!.status, i18n.language), field: "status", flex: 1 },
+    ],
+    [i18n.language]
+  );
+
+  const invoiceColumnDefs = useMemo<ColDef<Invoice>[]>(
+    () => [
+      { headerName: "Facture", valueGetter: (p) => `${p.data?.number} : ${p.data?.title}`, flex: 2, cellClass: "text-sm truncate" },
+      {
+        headerName: "Montant",
+        valueFormatter: (p) => `${formatNumber(p.data!.status === "PAID" ? Number(p.data!.amount) : Number(p.data!.amountPaid))} TND`,
+        field: "amount",
+        flex: 1,
+        cellClass: "text-sm font-medium text-green-600",
+      },
+    ],
+    []
+  );
 
   if (isLoading) {
     return (
@@ -212,38 +249,13 @@ export function ReportsPage() {
             <CardDescription className="text-sm text-muted-foreground">Taux de conversion</CardDescription>
           </CardContent>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nom</TableHead>
-                  <TableHead>Statut</TableHead>
-                </TableRow>
-              </TableHeader>
-            </Table>
-            <div ref={leadsScrollRef} className="max-h-64 overflow-auto border-t">
-              <div style={{ height: leadsVirtualizer.getTotalSize(), position: "relative" }}>
-                {leadsVirtualizer.getVirtualItems().map((virtualRow) => {
-                  const lead = filteredLeads[virtualRow.index] as Lead | undefined;
-                  if (!lead) return null;
-                  return (
-                    <div
-                      key={lead.id}
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        height: virtualRow.size,
-                        transform: `translateY(${virtualRow.start}px)`,
-                      }}
-                      className="grid grid-cols-2 px-4 items-center border-b h-11"
-                    >
-                      <div className="truncate">{lead.name}</div>
-                      <div className="truncate">{formatStatus(lead.status, i18n.language)}</div>
-                    </div>
-                  );
-                })}
-              </div>
+            <div style={{ height: 300 }}>
+              <AgGridReact<Lead>
+                theme={gridTheme}
+                rowData={filteredLeads}
+                columnDefs={leadColumnDefs}
+                suppressCellFocus
+              />
             </div>
           </CardContent>
         </Card>
@@ -261,38 +273,13 @@ export function ReportsPage() {
             <CardDescription className="text-sm text-muted-foreground">Taux de completion</CardDescription>
           </CardContent>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nom</TableHead>
-                  <TableHead>Statut</TableHead>
-                </TableRow>
-              </TableHeader>
-            </Table>
-            <div ref={projectsScrollRef} className="max-h-64 overflow-auto border-t">
-              <div style={{ height: projectsVirtualizer.getTotalSize(), position: "relative" }}>
-                {projectsVirtualizer.getVirtualItems().map((virtualRow) => {
-                  const project = filteredProjects[virtualRow.index] as Project | undefined;
-                  if (!project) return null;
-                  return (
-                    <div
-                      key={project.id}
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        height: virtualRow.size,
-                        transform: `translateY(${virtualRow.start}px)`,
-                      }}
-                      className="grid grid-cols-2 px-4 items-center border-b h-11"
-                    >
-                      <div className="truncate">{project.name}</div>
-                      <div className="truncate">{formatStatus(project.status, i18n.language)}</div>
-                    </div>
-                  );
-                })}
-              </div>
+            <div style={{ height: 300 }}>
+              <AgGridReact<Project>
+                theme={gridTheme}
+                rowData={filteredProjects}
+                columnDefs={projectColumnDefs}
+                suppressCellFocus
+              />
             </div>
           </CardContent>
         </Card>
@@ -314,27 +301,14 @@ export function ReportsPage() {
             </CardDescription>
           </CardContent>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Facture</TableHead>
-                  <TableHead>Montant</TableHead>
-                </TableRow>
-              </TableHeader>
-            </Table>
-            <div className="max-h-64 overflow-auto border-t">
-              {filteredInvoices.length === 0 ? (
-                <p className="text-sm text-muted-foreground px-4 py-3">Aucune facture encaissée sur la période.</p>
-              ) : (
-                filteredInvoices.map((inv) => (
-                  <div key={inv.id} className="grid grid-cols-2 px-4 items-center border-b h-11">
-                    <div className="truncate text-sm">{inv.number} : {inv.title}</div>
-                    <div className="text-sm font-medium text-green-600">
-                      {formatNumber(inv.status === "PAID" ? Number(inv.amount) : Number(inv.amountPaid))} TND
-                    </div>
-                  </div>
-                ))
-              )}
+            <div style={{ height: 300 }}>
+              <AgGridReact<Invoice>
+                theme={gridTheme}
+                rowData={filteredInvoices}
+                columnDefs={invoiceColumnDefs}
+                suppressCellFocus
+                overlayNoRowsTemplate="Aucune facture encaissée sur la période."
+              />
             </div>
           </CardContent>
         </Card>
