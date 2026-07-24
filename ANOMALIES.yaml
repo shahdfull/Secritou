@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-218
+dernier_id: SEC-226
 
 anomalies:
   - id: SEC-001
@@ -15732,4 +15732,241 @@ anomalies:
       confirmé vert par l'utilisateur sur le commit `e6fcb7c` (« green »),
       incluant `client-approval.spec.ts` — le test précédemment en
       échec reproductible passe désormais de façon stable.
+
+  - id: SEC-219
+    titre: "monitoring/alerts.yml#CacheHitRateLow référence les métriques cache_hits_total/cache_misses_total, qui n'existent nulle part dans le code — les vraies métriques sont redis_cache_hits_total/redis_cache_misses_total (server/src/observability/metrics.ts) — l'alerte ne peut jamais évaluer de données réelles et ne se déclenchera donc jamais, silencieusement"
+    perimetre: "monitoring/alerts.yml (règle CacheHitRateLow, ligne 15) ; server/src/observability/metrics.ts (lignes 117/124, noms réels des métriques)"
+    regle_violee: null
+    classe: "alerte_metrique_orpheline"
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand l'expression PromQL de la règle `CacheHitRateLow`
+      référence les noms de métriques réellement exposés par l'application
+      (`redis_cache_hits_total`/`redis_cache_misses_total`), prouvé par une
+      requête de cette expression exécutée contre un Prometheus réel
+      (ou le endpoint `/metrics` de l'application) qui retourne des séries
+      non vides — pas seulement une relecture textuelle des deux fichiers.
+    detecte_le: "2026-07-24"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Découvert lors d'un balayage frais de la catégorie D (Fiabilité
+      opérationnelle) demandé explicitement par l'utilisateur avant
+      d'accepter un score. Vérifié par grep direct : `grep -rn
+      "cache_hits_total\|cache_misses_total" server/src` ne retourne que
+      les déclarations `redis_cache_hits_total`/`redis_cache_misses_total`
+      dans `metrics.ts` — aucune métrique nommée exactement
+      `cache_hits_total`/`cache_misses_total` n'existe dans le code.
+      Distinct de SEC-159 (même fichier de métriques, mais SEC-159 porte
+      sur l'absence de label par préfixe de clé sur les vraies métriques
+      `redis_cache_*`, pas sur un nom de métrique inexistant référencé par
+      une règle d'alerte) — classe différente, critère de résolution
+      différent. Non exécuté contre un Prometheus réel dans cette session
+      (aucune instance disponible) ; la non-existence du nom de métrique
+      dans le code source est cependant suffisante pour établir que la
+      règle ne peut structurellement jamais matcher de série réelle.
+
+      CORRECTIF ÉCRIT (session du 2026-07-24) : `monitoring/alerts.yml`
+      ligne 15 renommé en `redis_cache_hits_total`/`redis_cache_misses_total`.
+      Reste `en_cours`, pas `resolu` : le correctif n'est pas commité, et
+      n'a pas été vérifié contre un Prometheus réel (aucune instance
+      disponible dans cette session) — seule la cohérence textuelle avec
+      les noms déclarés dans `metrics.ts` a été confirmée.
+
+  - id: SEC-220
+    titre: "gdprService (RG-025) ne couvre pas les Lead non convertis — exportClient/eraseClient ne traitent que les Leads déjà rattachés à un Client via convertedClientId, un prospect jamais converti (ex. statut LOST) n'a aucun chemin d'export/effacement RGPD"
+    perimetre: "server/src/services/gdpr.service.ts (exportClient/eraseClient) ; server/src/repositories/lead.repository.ts"
+    regle_violee: "RG-025"
+    classe: "perimetre_rgpd_incomplet"
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand un Lead non converti (convertedClientId null) peut
+      être exporté et effacé via gdprService.exportLead/eraseLead, prouvé par
+      un test qui importe et appelle le vrai service (server/test/
+      gdprErasure.test.ts) sur un Lead créé sans convertedClientId — pas
+      seulement pour les Leads déjà convertis, seul cas couvert par
+      eraseClient jusqu'ici.
+    detecte_le: "2026-07-24"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Constaté en répondant à "autre chose à ajouter ?" juste après avoir
+      livré RG-025 (Client+User) dans cette même session — pas un audit
+      formel, mais un écart trouvé pendant le travail, enregistré
+      immédiatement par obligation CLAUDE.md. Un Lead contient les mêmes
+      champs PII qu'un Client (name/email/phone/notes) et suit le même
+      cycle de vie (source: contact.service.ts ou saisie manuelle),
+      indépendamment de toute conversion.
+
+  - id: SEC-221
+    titre: "ContactRequest (soumissions du formulaire de contact public) hors périmètre RGPD — en amont de Lead (Lead.sourceContactId), aucun chemin d'export/effacement dédié"
+    perimetre: "server/src/services/gdpr.service.ts ; server/src/services/contact.service.ts (aucun repository dédié, prisma.contactRequest.* appelé directement)"
+    regle_violee: "RG-025"
+    classe: "perimetre_rgpd_incomplet"
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand un ContactRequest jamais converti en Lead peut être
+      exporté et effacé via gdprService.exportContactRequest/
+      eraseContactRequest, prouvé par un test qui appelle le vrai service sur
+      un ContactRequest créé sans conversion.
+    detecte_le: "2026-07-24"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Même contexte de découverte que SEC-220. ContactRequest.email n'est
+      pas @unique (contrairement à Client/User) — un visiteur peut soumettre
+      le formulaire plusieurs fois ; l'effacement doit cibler la ligne
+      précise (id), pas une recherche par email.
+
+  - id: SEC-222
+    titre: "gdprService.exportClient n'inclut que les métadonnées des documents (id/type/createdAt), jamais le contenu réel — la portabilité RGPD (art. 20) suppose l'accès au contenu, pas seulement la preuve qu'un document existe"
+    perimetre: "server/src/services/gdpr.service.ts (exportClient, champ documents) ; server/src/services/document.service.ts#getDownloadUrl (pattern d'URL signée existant, réutilisable)"
+    regle_violee: "RG-025"
+    classe: "rgpd_export_incomplet"
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand chaque document du bundle exportClient ayant un
+      fileKey porte une URL de téléchargement signée (réutilisant
+      getSignedReadUrl de upload.service.ts, même mécanisme que
+      document.service.ts#getDownloadUrl), prouvé par un test réel qui crée
+      un Document avec fileKey et vérifie un champ downloadUrl non-null dans
+      le bundle retourné.
+    detecte_le: "2026-07-24"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Même contexte de découverte que SEC-220/SEC-221. URL signée à durée
+      limitée (3600s, même TTL que getDownloadUrl), pas d'exposition
+      permanente d'un lien public.
+
+  - id: SEC-223
+    titre: "AuditLog.before/after conserve indéfiniment un snapshot PII pré-anonymisation (name/email) même après un GDPR_CLIENT_ANONYMIZED/GDPR_USER_ANONYMIZED — non documenté dans REFERENTIEL.md ni le README au moment où RG-025 a été écrit"
+    perimetre: "server/src/services/auditLog.service.ts ; gdprService.eraseClient/eraseUser (argument before: {name, email, ...} passé à auditLogService.record) ; REFERENTIEL.md RG-025 ; README.md § Data protection notes"
+    regle_violee: "RG-025"
+    classe: "retention_pii_non_documentee"
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand REFERENTIEL.md (RG-025) et le README (§ Data
+      protection notes) énoncent explicitement, en une phrase vérifiable par
+      simple lecture, que les snapshots AuditLog.before/after d'une
+      anonymisation RGPD conservent le nom/email pré-anonymisation
+      indéfiniment (traçabilité append-only prioritaire sur l'effacement
+      pour ce champ précis) — ce n'est pas un correctif de code : l'AuditLog
+      append-only est une décision produit déjà actée, seul le silence sur
+      cette conséquence est l'écart.
+    detecte_le: "2026-07-24"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Même contexte de découverte que SEC-220. Ne sera jamais "resolu" par
+      un correctif de code — seule une relecture des deux fichiers après
+      édition peut confirmer la résolution ; reste en_cours tant que
+      l'édition documentaire n'est pas commitée (même règle de preuve par
+      commit que pour tout autre correctif, cf CLAUDE.md).
+
+  - id: SEC-224
+    titre: "Aucun self-service RGPD — toutes les routes /gdpr/* exigent authorize(\"ADMIN\"), un utilisateur CLIENT (portail) ou FREELANCER ne peut pas exporter/effacer ses propres données sans passer par un administrateur"
+    perimetre: "server/src/routes/gdpr.routes.ts (routes existantes, toutes authorize(\"ADMIN\"))"
+    regle_violee: "RG-025"
+    classe: "perimetre_rgpd_incomplet"
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand un utilisateur authentifié non-ADMIN peut appeler
+      GET /gdpr/me/export et POST /gdpr/me/erase pour ses propres données
+      (identité tirée de req.user.sub, jamais d'un paramètre d'URL),
+      prouvé par un test réel appelant le vrai service avec un acteur
+      CLIENT ou FREELANCER, sans rôle ADMIN.
+    detecte_le: "2026-07-24"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Même contexte de découverte que SEC-220. Le garde-fou LAST_ADMIN déjà
+      présent dans eraseUser s'applique tel quel au self-service (aucune
+      duplication de logique) — seul un nouveau chemin de routage/scoping
+      est nécessaire, pas une nouvelle règle métier.
+
+  - id: SEC-225
+    titre: "Rate limiting RGPD incohérent — sensitiveWriteRateLimit protège les routes POST .../erase mais aucune limite n'est posée sur les routes GET .../export, alors qu'un export complet (surtout avec URLs signées de documents, SEC-222) est l'opération la plus coûteuse des deux"
+    perimetre: "server/src/routes/gdpr.routes.ts (routes GET .../export)"
+    regle_violee: "RG-025"
+    classe: "rate_limit_incoherent"
+    gravite: mineur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand chaque route GET .../export applique le même
+      middleware sensitiveWriteRateLimit que la route POST .../erase
+      correspondante, vérifié par lecture directe de gdpr.routes.ts (une
+      règle négative de type "toute route export est limitée" — au sens de
+      CLAUDE.md, un grep confirmant la présence du middleware sur chacune
+      des routes listées suffit ici car il n'y a pas de chemin alternatif
+      possible pour appeler ces handlers, contrairement à une règle
+      d'autorisation).
+    detecte_le: "2026-07-24"
+    source: audit_llm
+    confiance: certain
+    note: >
+      Même contexte de découverte que SEC-220. Réutilise sensitiveWriteRateLimit
+      tel quel plutôt que de créer un nouveau palier de rate limit non
+      demandé par l'utilisateur.
+
+  - id: SEC-226
+    titre: "Migration CMS incomplète — HowItWorks/FAQ/SocialProof lisent désormais cmsJson(...) sur SiteContent au lieu de t(...) sur i18n, mais server/prisma/seed.ts n'a jamais été mis à jour pour copier ce contenu en base : les 3 sections retombent sur des défauts vides (title:\"\", body:\"\") en landing page alors que le texte FR/EN complet existe toujours dans translation.json, jamais lu"
+    perimetre: "client/src/features/landing/components/{HowItWorks,FAQ,SocialProof}.tsx ; server/prisma/seed.ts (sections HOW_IT_WORKS, FAQ, SOCIAL_PROOF absentes) ; client/src/i18n/locales/{fr,en}/translation.json (home.howItWorks.steps, home.faq.questions, home.socialProof.testimonials — contenu intact, orphelin)"
+    regle_violee: null
+    classe: "migration_cms_seed_manquant"
+    gravite: majeur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand un visiteur non connecté qui charge la landing
+      page en FR et en EN voit les 4 étapes HowItWorks, les 5 questions FAQ
+      et les 5 témoignages SocialProof affichés avec un texte non-vide,
+      identique au contenu actuellement présent dans translation.json,
+      prouvé par un test e2e (ou a minima un appel direct à
+      GET /site-content/public?locale=fr puis =en) qui lit les clés
+      howItWorks.steps / faq.items / socialProof.testimonials et vérifie
+      qu'elles sont non-vides pour les deux locales — pas seulement que le
+      seed script s'exécute sans erreur.
+    detecte_le: "2026-07-24"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert en répondant à une question de l'utilisateur sur des
+      champs vides visibles sur un screenshot de la landing page (pas un
+      audit formel du périmètre REFERENTIEL.md §4). Vérifié par lecture
+      directe : SocialProof.tsx:10, FAQ.tsx:17-23, HowItWorks.tsx:7-12
+      définissent des DEFAULT_* vides ; grep exhaustif de
+      server/prisma/seed.ts confirme l'absence totale des clés
+      howItWorks.*, faq.items, socialProof.testimonials (seules HERO,
+      SERVICES/packs, CONTACT, SEO sont seedées) ; git log -p sur
+      HowItWorks.tsx montre le commit de migration i18n→CMS qui a
+      remplacé t("home.howItWorks.steps.N.title") par
+      cmsJson("howItWorks.steps", DEFAULT_STEPS) sans ajouter de seed
+      correspondant. Le contenu n'a pas été supprimé du dépôt — il est
+      simplement devenu inatteignable par le composant. Note distincte :
+      FAQ.tsx attend un shape {question, answer} alors que translation.json
+      utilise {q, a} pour home.faq.questions — toute correction doit
+      harmoniser le shape, pas seulement copier les valeurs telles quelles.
+
+      Correctif appliqué (même session, non commité) : 30 nouvelles entrées
+      SiteContent ajoutées à server/prisma/seed.ts (howItWorks.subtitle/
+      title/steps, faq.subtitle/title/description/customQuestionCta/items,
+      socialProof.trustedBy/testimonials, FR+EN), texte repris tel quel de
+      translation.json, shape FAQ harmonisé en {question, answer}. Seed
+      exécuté contre la base dev (`npm run prisma:seed`) : 98 entrées
+      bilingues au total (log de sortie). Vérifié par lecture directe en
+      base (script ad hoc via PrismaClient, supprimé après usage) :
+      howItWorks.steps/faq.items/socialProof.testimonials présents en fr
+      ET en, tous non-vides (4/5/5 items). npx tsc --noEmit et npx eslint
+      sur seed.ts : aucune erreur ni warning. Reste `en_cours` tant que ce
+      changement n'est pas commité et vert en CI (règle du critère de
+      résolution par commit, cf CLAUDE.md) — pas encore vérifié par e2e
+      contre GET /site-content/public (le serveur applicatif n'a pas été
+      démarré dans cette session, seule la base a été inspectée
+      directement).
 

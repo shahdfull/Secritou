@@ -929,7 +929,7 @@ async function main() {
     locale: string;
     value: string;
     type: 'TEXT' | 'RICHTEXT' | 'IMAGE' | 'BOOLEAN';
-    section: 'HERO' | 'SERVICES' | 'ABOUT' | 'TESTIMONIALS' | 'CONTACT' | 'SEO';
+    section: 'HERO' | 'SERVICES' | 'ABOUT' | 'TESTIMONIALS' | 'CONTACT' | 'SEO' | 'HOW_IT_WORKS' | 'FAQ' | 'SOCIAL_PROOF';
     label: string;
   };
 
@@ -1027,6 +1027,69 @@ async function main() {
     { locale:'fr', key:'packs.items.2.price',     section:'SERVICES', type:'TEXT',    label:'Pack 3 prix',                  value:'Sur devis' },
     { locale:'fr', key:'packs.items.2.description', section:'SERVICES', type:'TEXT',  label:'Pack 3 description',           value:'Engagements sur mesure pour projets ambitieux et transformation digitale complète.' },
     { locale:'fr', key:'packs.items.2.features',  section:'SERVICES', type:'RICHTEXT',label:'Pack 3 fonctionnalités (une par ligne)', value:'Chantiers illimités\nChef de projet dédié\nSupport prioritaire 24/7\nPrésentation CODIR mensuelle\nStack complet IA & automatisation' },
+
+    // ── HOW IT WORKS — EN ──────────────────────────────────────────────────
+    { locale:'en', key:'howItWorks.subtitle',     section:'HOW_IT_WORKS', type:'TEXT', label:'How it works subtitle', value:'How it works' },
+    { locale:'en', key:'howItWorks.title',        section:'HOW_IT_WORKS', type:'TEXT', label:'How it works title',    value:'A clear path from chaos to compounding growth.' },
+    { locale:'en', key:'howItWorks.steps',        section:'HOW_IT_WORKS', type:'JSON', label:'How it works steps (JSON)', value: JSON.stringify([
+      { title: 'Business Assessment',   body: "We dig into your goals, your numbers and your blockers no fluff, no generic audit deck." },
+      { title: 'Strategy Design',       body: "A custom action plan with priorities, owners, timelines and the KPIs we'll move." },
+      { title: 'Execution',             body: 'We deploy the right experts strategy, marketing, tech, AI coordinated as one team.' },
+      { title: 'Performance Tracking',  body: 'Live dashboards, monthly reviews, continuous optimization measurable progress, always.' },
+    ]) },
+    // ── HOW IT WORKS — FR ──────────────────────────────────────────────────
+    { locale:'fr', key:'howItWorks.subtitle',     section:'HOW_IT_WORKS', type:'TEXT', label:'Sous-titre comment ça marche', value:'Comment ça marche' },
+    { locale:'fr', key:'howItWorks.title',        section:'HOW_IT_WORKS', type:'TEXT', label:'Titre comment ça marche',      value:'Un chemin clair du chaos à la croissance composée.' },
+    { locale:'fr', key:'howItWorks.steps',        section:'HOW_IT_WORKS', type:'JSON', label:'Étapes comment ça marche (JSON)', value: JSON.stringify([
+      { title: 'Évaluation commerciale',  body: "Nous creusons dans vos objectifs, vos chiffres et vos blocages sans fioritures, pas de deck d'audit générique." },
+      { title: 'Conception de stratégie', body: "Un plan d'action personnalisé avec des priorités, des responsables, des délais et les KPI que nous allons faire évoluer." },
+      { title: 'Exécution',               body: 'Nous déployons les bons experts stratégie, marketing, tech, IA coordonnés en une seule équipe.' },
+      { title: 'Suivi de performance',    body: 'Tableaux de bord en direct, revues mensuelles, optimisation continue progrès mesurable, toujours.' },
+    ]) },
+
+    // ── FAQ — EN ───────────────────────────────────────────────────────────
+    { locale:'en', key:'faq.subtitle',            section:'FAQ', type:'TEXT', label:'FAQ subtitle', value:'FAQ' },
+    { locale:'en', key:'faq.title',               section:'FAQ', type:'TEXT', label:'FAQ title',    value:'Questions, answered.' },
+    { locale:'en', key:'faq.description',         section:'FAQ', type:'TEXT', label:'FAQ description', value:"Still unsure? Book a free 30-minute consultation and we'll talk through your situation : no pitch, no obligation." },
+    { locale:'en', key:'faq.customQuestionCta',   section:'FAQ', type:'TEXT', label:'FAQ custom question CTA', value:'Ask a custom question' },
+    { locale:'en', key:'faq.items',               section:'FAQ', type:'JSON', label:'FAQ items (JSON)', value: JSON.stringify([
+      { question: 'What types of businesses do you support?', answer: 'SMEs, startuppers and shops & brands across industries : retail, professional services, healthcare, education and digital-first brands. If you have revenue and ambition, we can probably help.' },
+      { question: 'Can I choose only one service?', answer: 'Yes. You can engage us for a single workstream : say, KPI dashboards or paid acquisition : or as your end-to-end growth partner. We adapt to your scope, not the other way around.' },
+      { question: 'Do you work with startups?', answer: 'Absolutely. We work with early-stage teams that need to move fast without rebuilding the foundations every quarter. We bring the structure most startups skip.' },
+      { question: 'Do you offer custom solutions?', answer: "Every engagement is built around your specific goals. We don't sell templated retainers : we co-design a plan, with KPIs and milestones we agree on upfront." },
+      { question: 'Can you help automate my business?', answer: 'Yes. From AI assistants to workflow automation and internal tools, automation is one of our core practices. We start by finding the highest-leverage processes and remove busywork from there.' },
+    ]) },
+    // ── FAQ — FR ───────────────────────────────────────────────────────────
+    { locale:'fr', key:'faq.subtitle',            section:'FAQ', type:'TEXT', label:'Sous-titre FAQ', value:'FAQ' },
+    { locale:'fr', key:'faq.title',               section:'FAQ', type:'TEXT', label:'Titre FAQ',      value:'Questions, réponses.' },
+    { locale:'fr', key:'faq.description',         section:'FAQ', type:'TEXT', label:'Description FAQ', value:"Toujours incertain ? Réservez une consultation gratuite de 30 minutes et nous discuterons de votre situation : pas de pitch, pas d'obligation." },
+    { locale:'fr', key:'faq.customQuestionCta',   section:'FAQ', type:'TEXT', label:'CTA question personnalisée', value:'Poser une question personnalisée' },
+    { locale:'fr', key:'faq.items',               section:'FAQ', type:'JSON', label:'Questions FAQ (JSON)', value: JSON.stringify([
+      { question: "Quels types d'entreprises prenez-vous en charge ?", answer: "Les PME, les startuppers et les commerces & marques dans tous les secteurs : commerce de détail, services professionnels, santé, éducation et marques numériques. Si vous avez des revenus et de l'ambition, nous pouvons probablement vous aider." },
+      { question: 'Puis-je choisir seulement un service ?', answer: "Oui. Vous pouvez nous engager pour un seul flux de travail : disons, les tableaux de bord KPI ou l'acquisition payante : ou comme votre partenaire de croissance de bout en bout. Nous nous adaptons à votre périmètre, pas l'inverse." },
+      { question: 'Travaillez-vous avec les startups ?', answer: "Absolument. Nous travaillons avec des équipes en démarrage qui ont besoin d'avancer vite sans reconstruire les fondations chaque trimestre. Nous apportons la structure que la plupart des startups négligent." },
+      { question: 'Proposez-vous des solutions personnalisées ?', answer: "Chaque engagement est construit autour de vos objectifs spécifiques. Nous ne vendons pas de forfaits modèles : nous co-concevons un plan, avec des KPI et des jalons sur lesquels nous nous accordons d'avance." },
+      { question: 'Pouvez-vous aider à automatiser mon entreprise ?', answer: "Oui. Des assistants IA à l'automatisation des flux de travail et aux outils internes, l'automatisation est l'une de nos pratiques fondamentales. Nous commençons par trouver les processus à plus fort impact et éliminons le travail fastidieux à partir de là." },
+    ]) },
+
+    // ── SOCIAL PROOF — EN ──────────────────────────────────────────────────
+    { locale:'en', key:'socialProof.trustedBy',   section:'SOCIAL_PROOF', type:'TEXT', label:'Social proof — trusted by heading', value:'Trusted by' },
+    { locale:'en', key:'socialProof.testimonials', section:'SOCIAL_PROOF', type:'JSON', label:'Testimonials (JSON)', value: JSON.stringify([
+      { quote: 'Secritou helped us bring order to our growth. In just a few months, our decisions became clearer and our operations much smoother.', author: 'Nadia Ben Salah', role: 'Founder, Brand Boutique' },
+      { quote: 'We finally have real visibility on our KPIs. The dashboards save us hours every week and our meetings actually became useful.', author: 'Karim Trabelsi', role: 'CEO, Industrial SME' },
+      { quote: 'The automation they set up removed a huge amount of manual work. The team can finally focus on what truly matters.', author: 'Ines Khelifi', role: 'Head of Operations' },
+      { quote: 'Our digital presence moved to a whole new level. More content, more leads, and above all a coherent strategy.', author: 'Mehdi Gharbi', role: 'Founder, e-commerce brand' },
+      { quote: 'A partner who understands the business, not just a vendor. They brought the structure we needed to scale.', author: 'Sarra Bouazizi', role: 'Co-founder, SaaS startup' },
+    ]) },
+    // ── SOCIAL PROOF — FR ──────────────────────────────────────────────────
+    { locale:'fr', key:'socialProof.trustedBy',   section:'SOCIAL_PROOF', type:'TEXT', label:'Titre "ils nous font confiance"', value:'Ils nous font confiance' },
+    { locale:'fr', key:'socialProof.testimonials', section:'SOCIAL_PROOF', type:'JSON', label:'Témoignages (JSON)', value: JSON.stringify([
+      { quote: "Secritou nous a aidés à remettre de l'ordre dans notre croissance. En quelques mois, nos décisions sont devenues plus claires et notre organisation beaucoup plus fluide.", author: 'Nadia Ben Salah', role: 'Fondatrice, Boutique de marque' },
+      { quote: 'On a enfin une vraie visibilité sur nos KPI. Les tableaux de bord nous font gagner des heures chaque semaine et nos réunions sont devenues utiles.', author: 'Karim Trabelsi', role: 'CEO, PME industrielle' },
+      { quote: "L'automatisation mise en place a éliminé un travail manuel énorme. L'équipe se concentre enfin sur ce qui compte vraiment.", author: 'Ines Khelifi', role: 'Directrice des opérations' },
+      { quote: 'Notre présence digitale a complètement changé de niveau. Plus de contenu, plus de leads, et surtout une stratégie cohérente.', author: 'Mehdi Gharbi', role: 'Fondateur, marque e-commerce' },
+      { quote: 'Un partenaire qui comprend le business, pas juste un prestataire. Ils ont apporté la structure qui nous manquait pour passer à l\'échelle.', author: 'Sarra Bouazizi', role: 'Co-fondatrice, startup SaaS' },
+    ]) },
   ];
 
   let siteContentCreated = 0;
