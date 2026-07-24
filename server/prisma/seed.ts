@@ -18,6 +18,7 @@ import {
 } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { COMPANY_ID } from '../src/config/constants.js';
+import { documentGeneratorService } from '../src/services/documentGenerator.service.js';
 
 const prisma = new PrismaClient();
 
@@ -464,6 +465,7 @@ async function main() {
       ]},
     }});
     await prisma.payment.create({ data: { invoiceId: inv1.id, amount: 9500, method: 'Virement bancaire', reference: 'VIR-2025-1110', paidAt: new Date('2025-11-10'), recordedById: admin.id } });
+    await documentGeneratorService.generateInvoicePDF(inv1, project1, carrefour, admin.id);
 
     const inv2 = await prisma.invoice.create({ data: {
       number: 'INV-2026-002', title: 'Acompte 2/3 — Refonte e-commerce Carrefour', invoiceType: 'STANDARD',
@@ -476,6 +478,7 @@ async function main() {
       ]},
     }});
     await prisma.payment.create({ data: { invoiceId: inv2.id, amount: 9500, method: 'Virement bancaire', reference: 'VIR-2026-0215', paidAt: new Date('2026-02-15'), recordedById: admin.id } });
+    await documentGeneratorService.generateInvoicePDF(inv2, project1, carrefour, admin.id);
 
     const inv3 = await prisma.invoice.create({ data: {
       number: 'INV-2026-003', title: 'Solde final — Refonte e-commerce Carrefour', invoiceType: 'BALANCE',
@@ -488,6 +491,7 @@ async function main() {
       ]},
     }});
     await prisma.payment.create({ data: { invoiceId: inv3.id, amount: 9500, method: 'Virement bancaire', reference: 'VIR-2026-0505', paidAt: new Date('2026-05-05'), recordedById: admin.id } });
+    await documentGeneratorService.generateInvoicePDF(inv3, project1, carrefour, admin.id);
 
     // Project 2 (IN_PROGRESS) — acompte payé, deuxième tranche en attente
     const inv4 = await prisma.invoice.create({ data: {
@@ -501,8 +505,9 @@ async function main() {
       ]},
     }});
     await prisma.payment.create({ data: { invoiceId: inv4.id, amount: 9000, method: 'Chèque', reference: 'CHQ-20260203', paidAt: new Date('2026-02-03'), recordedById: admin.id } });
+    await documentGeneratorService.generateInvoicePDF(inv4, project2, monoprix, admin.id);
 
-    await prisma.invoice.create({ data: {
+    const inv5 = await prisma.invoice.create({ data: {
       number: 'INV-2026-005', title: 'Acompte 2/2 — App Mobile Monoprix (dev)', invoiceType: 'STANDARD',
       amount: 9000, currency: 'TND', status: InvoiceStatus.SENT,
       sentAt: new Date('2026-05-01'), dueDate: new Date('2026-05-31'),
@@ -511,6 +516,7 @@ async function main() {
         { description: 'Développement modules : auth, scan, wallet, notifs', quantity: 1, unitPrice: 9000, total: 9000 },
       ]},
     }});
+    await documentGeneratorService.generateInvoicePDF(inv5, project2, monoprix, admin.id);
 
     // Project 3 (REVIEW) — première tranche payée, solde en retard
     const inv6 = await prisma.invoice.create({ data: {
@@ -524,8 +530,9 @@ async function main() {
       ]},
     }});
     await prisma.payment.create({ data: { invoiceId: inv6.id, amount: 17500, method: 'Virement bancaire', reference: 'VIR-2025-1220', paidAt: new Date('2025-12-20'), recordedById: admin.id } });
+    await documentGeneratorService.generateInvoicePDF(inv6, project3, geant, admin.id);
 
-    await prisma.invoice.create({ data: {
+    const inv7 = await prisma.invoice.create({ data: {
       number: 'INV-2026-007', title: 'Solde mission audit ERP — Géant Tunisia', invoiceType: 'BALANCE',
       amount: 17500, currency: 'TND', status: InvoiceStatus.OVERDUE,
       sentAt: new Date('2026-03-15'), dueDate: new Date('2026-04-15'),
@@ -534,6 +541,7 @@ async function main() {
         { description: 'Analyse des gaps SAP, plan de migration, rapport final (20j)', quantity: 20, unitPrice: 875, total: 17500 },
       ]},
     }});
+    await documentGeneratorService.generateInvoicePDF(inv7, project3, geant, admin.id);
 
     console.log('✅ Invoices (7) + payments (5)');
 
