@@ -1,6 +1,14 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
+import { AgGridReact } from "ag-grid-react";
+import {
+  ModuleRegistry,
+  AllCommunityModule,
+  themeQuartz,
+  type ColDef,
+  type ICellRendererParams,
+} from "ag-grid-community";
 import { formatDate } from "@/utils/format";
 import {
   useCommissions,
@@ -9,17 +17,10 @@ import {
   useMyCommissions,
   useMyCommissionsOwedSummary,
 } from "@/hooks/useCommissions";
+import type { Commission } from "@/api/commissions.api";
 import { useListParams } from "@/hooks/useListParams";
 import { usersApi } from "@/api/users.api";
 import { useAuthStore } from "@/store/auth.store";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +33,18 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2 } from "lucide-react";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
+
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
+const gridTheme = themeQuartz.withParams({
+  accentColor: "#0f766e",
+  headerBackgroundColor: "#f8fafc",
+  headerTextColor: "#334155",
+  rowHoverColor: "#f1f5f9",
+  borderColor: "#e2e8f0",
+  fontFamily: "inherit",
+});
 
 const ALL_STATUSES_VALUE = "__all__";
 
@@ -72,6 +85,70 @@ export function CommissionsPage() {
     () => Array.isArray(commissionsResult?.data) ? commissionsResult.data : [],
     [commissionsResult?.data]
   );
+
+  const statusRenderer = useCallback(
+    (params: ICellRendererParams<Commission>) => {
+      const c = params.data;
+      if (!c) return null;
+      return (
+        <div className="flex h-full items-center">
+          <Badge className={c.status === "PAID" ? "bg-green-100 text-green-800" : "bg-accent-soft text-accent-strong"}>
+            {t(`commissions.statuses.${c.status.toLowerCase()}`)}
+          </Badge>
+          {c.status === "PAID" && c.paidAt && (
+            <span className="ml-2 text-xs text-muted-foreground">{formatDate(c.paidAt)}</span>
+          )}
+        </div>
+      );
+    },
+    [t]
+  );
+
+  const actionsRenderer = useCallback(
+    (params: ICellRendererParams<Commission>) => {
+      const c = params.data;
+      if (!c || c.status !== "PENDING") return null;
+      return (
+        <div className="flex h-full items-center justify-end">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-green-600 hover:bg-green-50"
+            title={t("commissions.markPaid", "Marquer comme payée")}
+            onClick={() => markPaidMutation.mutate(c.id)}
+            disabled={markPaidMutation.isPending}
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      );
+    },
+    [t, markPaidMutation]
+  );
+
+  const columnDefs = useMemo<ColDef<Commission>[]>(() => {
+    const cols: ColDef<Commission>[] = [];
+    if (!isManager) {
+      cols.push({
+        headerName: t("commissions.partner", "Associé"),
+        valueGetter: (p) => p.data?.partner?.name ?? p.data?.partnerId.slice(0, 8),
+        flex: 1,
+        cellClass: "font-medium",
+      });
+    }
+    cols.push(
+      { headerName: t("commissions.project", "Projet"), valueGetter: (p) => p.data?.project?.name ?? p.data?.projectId.slice(0, 8), flex: 1 },
+      { headerName: t("commissions.invoice", "Facture"), valueGetter: (p) => p.data?.invoice?.number ?? p.data?.invoiceId.slice(0, 8), flex: 1 },
+      { headerName: t("commissions.basis", "Montant encaissé"), valueFormatter: (p) => p.data!.basis.toLocaleString("fr-FR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }), field: "basis", flex: 1 },
+      { headerName: t("commissions.rate", "Taux"), valueFormatter: (p) => `${p.data!.ratePct}%`, field: "ratePct", width: 100 },
+      { headerName: t("commissions.amount", "Montant dû"), valueFormatter: (p) => p.data!.amount.toLocaleString("fr-FR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }), field: "amount", flex: 1, cellClass: "font-medium" },
+      { headerName: t("commissions.status", "Statut"), cellRenderer: statusRenderer, flex: 1 }
+    );
+    if (!isManager) {
+      cols.push({ headerName: t("commissions.actions", "Actions"), cellRenderer: actionsRenderer, width: 90, sortable: false, resizable: false });
+    }
+    return cols;
+  }, [t, isManager, statusRenderer, actionsRenderer]);
 
   return (
     <section className="space-y-6">
@@ -127,67 +204,16 @@ export function CommissionsPage() {
         </Select>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {!isManager && <TableHead>{t("commissions.partner", "Associé")}</TableHead>}
-              <TableHead>{t("commissions.project", "Projet")}</TableHead>
-              <TableHead>{t("commissions.invoice", "Facture")}</TableHead>
-              <TableHead>{t("commissions.basis", "Montant encaissé")}</TableHead>
-              <TableHead>{t("commissions.rate", "Taux")}</TableHead>
-              <TableHead>{t("commissions.amount", "Montant dû")}</TableHead>
-              <TableHead>{t("commissions.status", "Statut")}</TableHead>
-              {!isManager && <TableHead className="text-right">{t("commissions.actions", "Actions")}</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={isManager ? 6 : 8} className="text-center py-10">{t("common.loading")}</TableCell>
-              </TableRow>
-            ) : commissions.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={isManager ? 6 : 8} className="text-center py-10">{t("commissions.empty", "Aucune commission pour le moment.")}</TableCell>
-              </TableRow>
-            ) : (
-              commissions.map((c) => (
-                <TableRow key={c.id}>
-                  {!isManager && <TableCell className="font-medium">{c.partner?.name ?? c.partnerId.slice(0, 8)}</TableCell>}
-                  <TableCell>{c.project?.name ?? c.projectId.slice(0, 8)}</TableCell>
-                  <TableCell>{c.invoice?.number ?? c.invoiceId.slice(0, 8)}</TableCell>
-                  <TableCell>{c.basis.toLocaleString("fr-FR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</TableCell>
-                  <TableCell>{c.ratePct}%</TableCell>
-                  <TableCell className="font-medium">{c.amount.toLocaleString("fr-FR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</TableCell>
-                  <TableCell>
-                    <Badge className={c.status === "PAID" ? "bg-green-100 text-green-800" : "bg-accent-soft text-accent-strong"}>
-                      {t(`commissions.statuses.${c.status.toLowerCase()}`)}
-                    </Badge>
-                    {c.status === "PAID" && c.paidAt && (
-                      <span className="ml-2 text-xs text-muted-foreground">{formatDate(c.paidAt)}</span>
-                    )}
-                  </TableCell>
-                  {!isManager && (
-                    <TableCell className="text-right">
-                      {c.status === "PENDING" && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-green-600 hover:bg-green-50"
-                          title={t("commissions.markPaid", "Marquer comme payée")}
-                          onClick={() => markPaidMutation.mutate(c.id)}
-                          disabled={markPaidMutation.isPending}
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+      <div className="border rounded-lg overflow-hidden" style={{ height: 500 }}>
+        <AgGridReact<Commission>
+          theme={gridTheme}
+          rowData={commissions}
+          columnDefs={columnDefs}
+          loading={isLoading}
+          suppressCellFocus
+          overlayLoadingTemplate={t("common.loading")}
+          overlayNoRowsTemplate={t("commissions.empty", "Aucune commission pour le moment.")}
+        />
       </div>
 
       {commissionsResult && Number.isFinite(commissionsResult.total) && (

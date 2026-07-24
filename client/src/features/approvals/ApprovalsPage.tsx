@@ -1,6 +1,14 @@
-import { useState, useMemo } from "react";
+import { useCallback, useState, useMemo } from "react";
 import { formatDate } from "@/utils/format";
 import { useTranslation } from "react-i18next";
+import { AgGridReact } from "ag-grid-react";
+import {
+  ModuleRegistry,
+  AllCommunityModule,
+  themeQuartz,
+  type ColDef,
+  type ICellRendererParams,
+} from "ag-grid-community";
 import type { Approval } from "@/api/approvals.api";
 import {
   useApprovals,
@@ -13,14 +21,6 @@ import {
 } from "@/hooks/useApprovals";
 import { FileUploadField } from "@/components/common/FileUploadField";
 import type { UploadResult } from "@/api/upload.api";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -55,6 +55,18 @@ import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { useListParams } from "@/hooks/useListParams";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
+const gridTheme = themeQuartz.withParams({
+  accentColor: "#0f766e",
+  headerBackgroundColor: "#f8fafc",
+  headerTextColor: "#334155",
+  rowHoverColor: "#f1f5f9",
+  borderColor: "#e2e8f0",
+  fontFamily: "inherit",
+});
 
 const ALL_STATUSES_VALUE = "__all__";
 
@@ -141,6 +153,69 @@ export function ApprovalsPage() {
     }
   };
 
+  const statusRenderer = useCallback(
+    (params: ICellRendererParams<Approval>) => {
+      const approval = params.data;
+      if (!approval) return null;
+      return (
+        <div className="flex h-full items-center">
+          <Badge className={getStatusColor(approval.status)}>
+            {t(`approvals.statuses.${approval.status.toLowerCase()}`)}
+          </Badge>
+        </div>
+      );
+    },
+    [t]
+  );
+
+  const actionsRenderer = useCallback(
+    (params: ICellRendererParams<Approval>) => {
+      const approval = params.data;
+      if (!approval) return null;
+      return (
+        <div className="flex h-full items-center justify-end gap-1">
+          <Button variant="ghost" size="icon" className="h-7 w-7" title={t("approvals.view")} onClick={() => window.open(`/approvals/${approval.id}`, "_blank")}>
+            <Eye className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" title={t("approvals.viewTimeline")} onClick={() => setTimelineApproval(approval)}>
+            <Clock className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" title={t("approvals.attachments")} onClick={() => setAttachmentsApproval(approval)}>
+            <Paperclip className="h-3.5 w-3.5" />
+          </Button>
+          {approval.status === "PENDING" && (
+            <>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600 hover:bg-green-50" title={t("approvals.approve")} onClick={() => openDialog("approve", approval)} disabled={approveMutation.isPending}>
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:bg-red-50" title={t("approvals.reject")} onClick={() => openDialog("reject", approval)} disabled={rejectMutation.isPending}>
+                <XCircle className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7" title={t("approvals.comment")} onClick={() => openDialog("comment", approval)} disabled={commentMutation.isPending}>
+                <MessageSquare className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("approvals.delete")} onClick={() => deleteMutation.mutate(approval.id)} disabled={deleteMutation.isPending}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          )}
+        </div>
+      );
+    },
+    [t, approveMutation.isPending, rejectMutation.isPending, commentMutation.isPending, deleteMutation]
+  );
+
+  const columnDefs = useMemo<ColDef<Approval>[]>(
+    () => [
+      { headerName: t("approvals.approvalTitle"), field: "title", flex: 2, cellClass: "font-medium" },
+      { headerName: t("approvals.client"), valueGetter: (p) => p.data?.client?.name, flex: 1 },
+      { headerName: t("approvals.dueDate"), valueFormatter: (p) => (p.data?.dueDate ? formatDate(p.data.dueDate) : "-"), field: "dueDate", flex: 1 },
+      { headerName: t("approvals.status"), cellRenderer: statusRenderer, flex: 1 },
+      { headerName: t("approvals.actions"), cellRenderer: actionsRenderer, width: 220, sortable: false, resizable: false },
+    ],
+    [t, statusRenderer, actionsRenderer]
+  );
+
   return (
     <section className="space-y-6">
       <div className="flex items-center justify-between mb-6">
@@ -186,83 +261,16 @@ export function ApprovalsPage() {
         </Select>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("approvals.approvalTitle")}</TableHead>
-              <TableHead>{t("approvals.client")}</TableHead>
-              <TableHead>{t("approvals.dueDate")}</TableHead>
-              <TableHead>{t("approvals.status")}</TableHead>
-              <TableHead className="text-right">
-                {t("approvals.actions")}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-10">
-                  {t("common.loading")}
-                </TableCell>
-              </TableRow>
-            ) : approvals.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-10">
-                  {t("approvals.empty")}
-                </TableCell>
-              </TableRow>
-            ) : (
-              approvals.map((approval) => (
-                <TableRow key={approval.id}>
-                  <TableCell className="font-medium">
-                    {approval.title}
-                  </TableCell>
-                  <TableCell>{approval.client?.name}</TableCell>
-                  <TableCell>
-                    {approval.dueDate
-                      ? formatDate(approval.dueDate)
-                      : "-"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(approval.status)}>
-                      {t(`approvals.statuses.${approval.status.toLowerCase()}`)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" title={t("approvals.view")} onClick={() => window.open(`/approvals/${approval.id}`, "_blank")}>
-                        <Eye className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" title={t("approvals.viewTimeline")} onClick={() => setTimelineApproval(approval)}>
-                        <Clock className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" title={t("approvals.attachments")} onClick={() => setAttachmentsApproval(approval)}>
-                        <Paperclip className="h-3.5 w-3.5" />
-                      </Button>
-                      {approval.status === "PENDING" && (
-                        <>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600 hover:bg-green-50" title={t("approvals.approve")} onClick={() => openDialog("approve", approval)} disabled={approveMutation.isPending}>
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:bg-red-50" title={t("approvals.reject")} onClick={() => openDialog("reject", approval)} disabled={rejectMutation.isPending}>
-                            <XCircle className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" title={t("approvals.comment")} onClick={() => openDialog("comment", approval)} disabled={commentMutation.isPending}>
-                            <MessageSquare className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("approvals.delete")} onClick={() => deleteMutation.mutate(approval.id)} disabled={deleteMutation.isPending}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+      <div className="border rounded-lg overflow-hidden" style={{ height: 500 }}>
+        <AgGridReact<Approval>
+          theme={gridTheme}
+          rowData={approvals}
+          columnDefs={columnDefs}
+          loading={isLoading}
+          suppressCellFocus
+          overlayLoadingTemplate={t("common.loading")}
+          overlayNoRowsTemplate={t("approvals.empty")}
+        />
       </div>
 
       {approvalsResult && Number.isFinite(approvalsResult.total) && (

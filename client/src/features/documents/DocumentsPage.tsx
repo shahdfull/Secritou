@@ -1,7 +1,15 @@
-import { useState, useRef, useMemo } from "react";
+import { useCallback, useState, useRef, useMemo } from "react";
 import { formatDate } from "@/utils/format";
 import { useAuthStore } from "@/store/auth.store";
 import { useTranslation } from "react-i18next";
+import { AgGridReact } from "ag-grid-react";
+import {
+  ModuleRegistry,
+  AllCommunityModule,
+  themeQuartz,
+  type ColDef,
+  type ICellRendererParams,
+} from "ag-grid-community";
 import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialog";
 import { toast } from "sonner";
 import type { Document } from "@/api/documents.api";
@@ -12,14 +20,6 @@ import {
   useDeleteDocument,
   useDownloadDocument,
 } from "@/hooks/useDocuments";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -60,6 +60,18 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type { UploadResult } from "@/api/upload.api";
 import type { DocumentType } from "@/api/documents.api";
+
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
+const gridTheme = themeQuartz.withParams({
+  accentColor: "#0f766e",
+  headerBackgroundColor: "#f8fafc",
+  headerTextColor: "#334155",
+  rowHoverColor: "#f1f5f9",
+  borderColor: "#e2e8f0",
+  fontFamily: "inherit",
+});
 
 const ALL_TYPES_VALUE = "__all__";
 
@@ -134,21 +146,24 @@ export function DocumentsPage() {
   const createMutation = useCreateDocument();
   const downloadMutation = useDownloadDocument();
 
-  const openDocument = (docId: string, mode: "view" | "download", filename: string) => {
-    downloadMutation.mutate(docId, {
-      onSuccess: ({ url }) => {
-        if (mode === "view") {
-          window.open(url, "_blank");
-        } else {
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = filename;
-          a.target = "_blank";
-          a.click();
-        }
-      },
-    });
-  };
+  const openDocument = useCallback(
+    (docId: string, mode: "view" | "download", filename: string) => {
+      downloadMutation.mutate(docId, {
+        onSuccess: ({ url }) => {
+          if (mode === "view") {
+            window.open(url, "_blank");
+          } else {
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = filename;
+            a.target = "_blank";
+            a.click();
+          }
+        },
+      });
+    },
+    [downloadMutation]
+  );
 
   const form = useForm<CreateDocForm>({
     resolver: zodResolver(docSchema),
@@ -188,6 +203,72 @@ export function DocumentsPage() {
       }
     );
   };
+
+  const typeRenderer = useCallback(
+    (params: ICellRendererParams<Document>) => {
+      const doc = params.data;
+      if (!doc) return null;
+      return (
+        <div className="flex h-full items-center">
+          <Badge variant="outline">{t(`documents.types.${doc.type?.toLowerCase() || 'other'}`)}</Badge>
+        </div>
+      );
+    },
+    [t]
+  );
+
+  const tagsRenderer = useCallback((params: ICellRendererParams<Document>) => {
+    const doc = params.data;
+    if (!doc) return null;
+    return (
+      <div className="flex h-full items-center flex-wrap gap-1">
+        {doc.tags.map((tag) => (
+          <Badge key={tag} variant="secondary">{tag}</Badge>
+        ))}
+      </div>
+    );
+  }, []);
+
+  const actionsRenderer = useCallback(
+    (params: ICellRendererParams<Document>) => {
+      const doc = params.data;
+      if (!doc) return null;
+      return (
+        <div className="flex h-full items-center justify-end gap-1">
+          <Button variant="ghost" size="icon" className="h-7 w-7" title={t("documents.view")} onClick={() => openDocument(doc.id, "view", doc.name)}>
+            <Eye className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" title={t("documents.download")} onClick={() => openDocument(doc.id, "download", doc.name)}>
+            <Download className="h-3.5 w-3.5" />
+          </Button>
+          {!isFreelancer && (
+            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("documents.accessLog")} onClick={() => setAccessLogDocId(doc.id)}>
+              <Clock className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {!isFreelancer && (
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("documents.delete")} onClick={() => setDeleteDocTarget(doc)}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+      );
+    },
+    [t, isFreelancer, openDocument]
+  );
+
+  const columnDefs = useMemo<ColDef<Document>[]>(
+    () => [
+      { headerName: t("documents.name"), field: "name", flex: 2, cellClass: "font-medium" },
+      { headerName: t("documents.client"), valueGetter: (p) => p.data?.client?.name || "-", flex: 1 },
+      { headerName: t("documents.type"), cellRenderer: typeRenderer, flex: 1 },
+      { headerName: t("documents.version"), field: "version", width: 100 },
+      { headerName: t("documents.tags"), cellRenderer: tagsRenderer, flex: 1 },
+      { headerName: t("documents.date"), valueFormatter: (p) => formatDate(p.data!.createdAt), field: "createdAt", flex: 1 },
+      { headerName: t("documents.actions"), cellRenderer: actionsRenderer, width: 160, sortable: false, resizable: false },
+    ],
+    [t, typeRenderer, tagsRenderer, actionsRenderer]
+  );
 
   return (
     <section className="space-y-6">
@@ -233,78 +314,16 @@ export function DocumentsPage() {
         </Select>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("documents.name")}</TableHead>
-              <TableHead>{t("documents.client")}</TableHead>
-              <TableHead>{t("documents.type")}</TableHead>
-              <TableHead>{t("documents.version")}</TableHead>
-              <TableHead>{t("documents.tags")}</TableHead>
-              <TableHead>{t("documents.date")}</TableHead>
-              <TableHead className="text-right">{t("documents.actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-10">
-                  {t("common.loading")}
-                </TableCell>
-              </TableRow>
-            ) : documents.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-10">
-                  {t("documents.empty")}
-                </TableCell>
-              </TableRow>
-            ) : (
-              documents.map((doc) => (
-                <TableRow key={doc.id}>
-                  <TableCell className="font-medium">{doc.name}</TableCell>
-                  <TableCell>{doc.client?.name || "-"}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {t(`documents.types.${doc.type?.toLowerCase() || 'other'}`)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{doc.version}</TableCell>
-                  <TableCell>
-                    {doc.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="mr-1">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </TableCell>
-                  <TableCell>
-                    {formatDate(doc.createdAt)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" title={t("documents.view")} onClick={() => openDocument(doc.id, "view", doc.name)}>
-                        <Eye className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" title={t("documents.download")} onClick={() => openDocument(doc.id, "download", doc.name)}>
-                        <Download className="h-3.5 w-3.5" />
-                      </Button>
-                      {!isFreelancer && (
-                        <Button variant="ghost" size="icon" className="h-7 w-7" title={t("documents.accessLog")} onClick={() => setAccessLogDocId(doc.id)}>
-                          <Clock className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                      {!isFreelancer && (
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("documents.delete")} onClick={() => setDeleteDocTarget(doc)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+      <div className="border rounded-lg overflow-hidden" style={{ height: 500 }}>
+        <AgGridReact<Document>
+          theme={gridTheme}
+          rowData={documents}
+          columnDefs={columnDefs}
+          loading={isLoading}
+          suppressCellFocus
+          overlayLoadingTemplate={t("common.loading")}
+          overlayNoRowsTemplate={t("documents.empty")}
+        />
       </div>
 
       {documentsResult && Number.isFinite(documentsResult.total) && (
