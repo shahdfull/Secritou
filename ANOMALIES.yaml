@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-226
+dernier_id: SEC-227
 
 anomalies:
   - id: SEC-001
@@ -15965,8 +15965,64 @@ anomalies:
       ET en, tous non-vides (4/5/5 items). npx tsc --noEmit et npx eslint
       sur seed.ts : aucune erreur ni warning. Reste `en_cours` tant que ce
       changement n'est pas commité et vert en CI (règle du critère de
-      résolution par commit, cf CLAUDE.md) — pas encore vérifié par e2e
-      contre GET /site-content/public (le serveur applicatif n'a pas été
-      démarré dans cette session, seule la base a été inspectée
-      directement).
+      résolution par commit, cf CLAUDE.md).
+
+      Vérification complémentaire (même session) : l'utilisateur a signalé
+      qu'un GET /site-content?locale=fr renvoyait 500 malgré la base
+      correctement seedée. Diagnostic : la logique isolée (requêtes Prisma
+      identiques à siteContent.service.ts#getFlat) fonctionnait hors du
+      process serveur — cause la plus probable, une connexion Prisma du
+      process npm run dev restée ouverte sur l'état pré-`prisma migrate
+      reset --force`. Après redémarrage du serveur par l'utilisateur,
+      `curl http://localhost:5000/api/v1/site-content?locale=fr` renvoie
+      200 avec howItWorks.steps/faq.items/socialProof.testimonials
+      non-vides en fr — critère de résolution satisfait par l'API réelle,
+      pas seulement par lecture directe en base. Reste `en_cours` (pas
+      `resolu`) : le changement n'est pas encore commité+vert en CI ; voir
+      aussi SEC-227 (même classe migration_cms_seed_manquant, périmètre
+      distinct — 3 autres sections découvertes après coup par
+      l'utilisateur sur un second screenshot).
+
+  - id: SEC-227
+    titre: "Même défaut que SEC-226 sur 3 sections supplémentaires — Problems/SolutionsTeaser/Differentiators lisent cmsJson(...) sur SiteContent (sections PROBLEMS/SOLUTIONS/DIFFERENTIATORS, déjà présentes dans l'enum SiteContentSection) mais aucune entrée seed correspondante n'existait, malgré un texte FR/EN complet toujours présent dans translation.json"
+    perimetre: "client/src/features/landing/components/{Problems,SolutionsTeaser,Differentiators}.tsx ; server/prisma/seed.ts (sections PROBLEMS, SOLUTIONS, DIFFERENTIATORS absentes avant correctif) ; client/src/i18n/locales/{fr,en}/translation.json (problems.items, solutionsTeaser.segments, differentiators.items — contenu intact, orphelin)"
+    regle_violee: null
+    classe: "migration_cms_seed_manquant"
+    gravite: majeur
+    statut: en_cours
+    critere_de_resolution: >
+      C'est résolu quand un visiteur non connecté qui charge la landing
+      page en FR et en EN voit les 4 cartes Problems, les 3 segments
+      SolutionsTeaser et les 3 cartes Differentiators affichés avec un
+      texte non-vide, prouvé par un appel réel à GET /site-content
+      ?locale=fr puis =en confirmant que problems.items, solutions.items
+      et differentiators.items sont non-vides pour les deux locales.
+    detecte_le: "2026-07-24"
+    source: manuel
+    confiance: certain
+    note: >
+      Même contexte de découverte que SEC-226 (screenshot utilisateur,
+      cette fois montrant Problems/SolutionsTeaser/Differentiators avec
+      icônes visibles mais titres/textes vides). Vérifié par lecture
+      directe : Problems.tsx:8-13, SolutionsTeaser.tsx:10-14,
+      Differentiators.tsx:8-12 définissent des DEFAULT_ITEMS avec
+      title/body/tag/needs vides (seule la valeur `icon` y est non-vide,
+      ce qui explique que les icônes s'affichent mais pas le texte) ;
+      texte réel confirmé présent en fr/en dans translation.json
+      (problems.*, solutionsTeaser.*, differentiators.*).
+
+      Correctif appliqué (même session, non commité) : 22 nouvelles
+      entrées SiteContent ajoutées à server/prisma/seed.ts
+      (problems.subtitle/title/description/items,
+      solutions.subtitle/title/exploreLabel/items,
+      differentiators.subtitle/title/items, FR+EN), icônes déduites des
+      DEFAULT_ITEMS existants (eye-off/workflow/globe/hourglass pour
+      Problems ; building/compass/store pour SolutionsTeaser ;
+      compass/line-chart/users pour Differentiators). Seed exécuté contre
+      la base dev : 120 entrées bilingues au total (98 + 22). Vérifié via
+      un GET http://localhost:5000/api/v1/site-content?locale=fr réel
+      (serveur applicatif démarré par l'utilisateur) : problems.items,
+      solutions.items, differentiators.items tous non-vides avec le
+      contenu attendu. npx tsc --noEmit et npx eslint sur seed.ts : aucune
+      erreur ni warning. Reste `en_cours` tant que non commité+vert en CI.
 

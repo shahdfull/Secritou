@@ -929,7 +929,7 @@ async function main() {
     locale: string;
     value: string;
     type: 'TEXT' | 'RICHTEXT' | 'IMAGE' | 'BOOLEAN';
-    section: 'HERO' | 'SERVICES' | 'ABOUT' | 'TESTIMONIALS' | 'CONTACT' | 'SEO' | 'HOW_IT_WORKS' | 'FAQ' | 'SOCIAL_PROOF';
+    section: 'HERO' | 'SERVICES' | 'ABOUT' | 'TESTIMONIALS' | 'CONTACT' | 'SEO' | 'HOW_IT_WORKS' | 'FAQ' | 'SOCIAL_PROOF' | 'PROBLEMS' | 'DIFFERENTIATORS' | 'SOLUTIONS';
     label: string;
   };
 
@@ -1089,6 +1089,63 @@ async function main() {
       { quote: "L'automatisation mise en place a éliminé un travail manuel énorme. L'équipe se concentre enfin sur ce qui compte vraiment.", author: 'Ines Khelifi', role: 'Directrice des opérations' },
       { quote: 'Notre présence digitale a complètement changé de niveau. Plus de contenu, plus de leads, et surtout une stratégie cohérente.', author: 'Mehdi Gharbi', role: 'Fondateur, marque e-commerce' },
       { quote: 'Un partenaire qui comprend le business, pas juste un prestataire. Ils ont apporté la structure qui nous manquait pour passer à l\'échelle.', author: 'Sarra Bouazizi', role: 'Co-fondatrice, startup SaaS' },
+    ]) },
+
+    // ── PROBLEMS — EN ──────────────────────────────────────────────────────
+    { locale:'en', key:'problems.subtitle',       section:'PROBLEMS', type:'TEXT', label:'Problems subtitle', value:'Common business challenges' },
+    { locale:'en', key:'problems.title',           section:'PROBLEMS', type:'TEXT', label:'Problems title',    value:'Sound familiar?' },
+    { locale:'en', key:'problems.description',     section:'PROBLEMS', type:'TEXT', label:'Problems description', value:"These are the four bottlenecks we see in nearly every growing business. None of them are solved by buying another tool." },
+    { locale:'en', key:'problems.items',           section:'PROBLEMS', type:'JSON', label:'Problems items (JSON)', value: JSON.stringify([
+      { icon: 'eye-off',    title: 'No visibility on performance',    body: 'Decisions are made on instinct because KPIs are scattered across spreadsheets and tools.' },
+      { icon: 'workflow',   title: 'Growth without direction',        body: 'Plenty of effort but no clear course : moving forward with no defined strategy or priorities.' },
+      { icon: 'globe',      title: 'Weak digital presence',           body: "An outdated website, inconsistent content and channels that don't convert." },
+      { icon: 'hourglass',  title: 'Time-consuming manual tasks',     body: 'Hours lost every week on reporting, follow-ups and admin that could be automated.' },
+    ]) },
+    // ── PROBLEMS — FR ──────────────────────────────────────────────────────
+    { locale:'fr', key:'problems.subtitle',       section:'PROBLEMS', type:'TEXT', label:'Sous-titre problèmes', value:'Défis courants des entreprises' },
+    { locale:'fr', key:'problems.title',           section:'PROBLEMS', type:'TEXT', label:'Titre problèmes',      value:'Ça vous dit quelque chose ?' },
+    { locale:'fr', key:'problems.description',     section:'PROBLEMS', type:'TEXT', label:'Description problèmes', value:"Ce sont les quatre blocages que nous voyons dans presque toutes les entreprises en croissance. Aucun d'entre eux ne se résout en achetant un autre outil." },
+    { locale:'fr', key:'problems.items',           section:'PROBLEMS', type:'JSON', label:'Problèmes (JSON)', value: JSON.stringify([
+      { icon: 'eye-off',    title: 'Pas de visibilité sur la performance',  body: "Les décisions sont prises sur l'instinct parce que les KPI sont éparpillés dans des feuilles de calcul et des outils." },
+      { icon: 'workflow',   title: 'Croissance sans direction',            body: 'Beaucoup d\'efforts mais pas de cap clair : on avance sans stratégie ni priorités définies.' },
+      { icon: 'globe',      title: 'Faible présence digitale',             body: 'Un site web obsolète, un contenu incohérent et des canaux qui ne convertissent pas.' },
+      { icon: 'hourglass',  title: 'Tâches manuelles chronophages',        body: "Des heures perdues chaque semaine sur le reporting, les suivis et l'administration qui pourraient être automatisés." },
+    ]) },
+
+    // ── SOLUTIONS (SolutionsTeaser) — EN ───────────────────────────────────
+    { locale:'en', key:'solutions.subtitle',       section:'SOLUTIONS', type:'TEXT', label:'Solutions teaser subtitle', value:'Built around who you are' },
+    { locale:'en', key:'solutions.title',          section:'SOLUTIONS', type:'TEXT', label:'Solutions teaser title',    value:'Solutions for every stage.' },
+    { locale:'en', key:'solutions.exploreLabel',   section:'SOLUTIONS', type:'TEXT', label:'Solutions teaser "Explore" label', value:'Explore' },
+    { locale:'en', key:'solutions.items',          section:'SOLUTIONS', type:'JSON', label:'Solutions segments (JSON)', value: JSON.stringify([
+      { icon: 'building', tag: 'For SMEs',           title: 'Run a tighter ship.',                        needs: ['Better management', 'Better KPIs', 'Better organization'], linkHref: '/contact' },
+      { icon: 'compass',  tag: 'For Startuppers',    title: 'Move faster, without burning out.',          needs: ['Growth', 'Automation', 'Visibility'], linkHref: '/contact' },
+      { icon: 'store',    tag: 'For Shops & Brands', title: 'Turn your shop into a brand that matters.',  needs: ['Sales growth', 'Brand development', 'Performance tracking'], linkHref: '/contact' },
+    ]) },
+    // ── SOLUTIONS (SolutionsTeaser) — FR ───────────────────────────────────
+    { locale:'fr', key:'solutions.subtitle',       section:'SOLUTIONS', type:'TEXT', label:'Sous-titre solutions', value:'Construit autour de qui vous êtes' },
+    { locale:'fr', key:'solutions.title',          section:'SOLUTIONS', type:'TEXT', label:'Titre solutions',      value:'Des solutions pour chaque étape.' },
+    { locale:'fr', key:'solutions.exploreLabel',   section:'SOLUTIONS', type:'TEXT', label:'Libellé "Explorer"',   value:'Explorer' },
+    { locale:'fr', key:'solutions.items',          section:'SOLUTIONS', type:'JSON', label:'Segments solutions (JSON)', value: JSON.stringify([
+      { icon: 'building', tag: 'Pour les PME',           title: 'Dirigez une entreprise plus efficace.',                needs: ['Meilleure gestion', 'Meilleurs KPI', 'Meilleure organisation'], linkHref: '/contact' },
+      { icon: 'compass',  tag: 'Pour les startuppers',   title: 'Avancez plus vite, sans vous épuiser.',                needs: ['Croissance', 'Automatisation', 'Visibilité'], linkHref: '/contact' },
+      { icon: 'store',    tag: 'Pour les Commerces & Marques', title: 'Transformez votre commerce en marque qui compte.', needs: ['Croissance des ventes', 'Développement de marque', 'Suivi de performance'], linkHref: '/contact' },
+    ]) },
+
+    // ── DIFFERENTIATORS — EN ───────────────────────────────────────────────
+    { locale:'en', key:'differentiators.subtitle', section:'DIFFERENTIATORS', type:'TEXT', label:'Differentiators subtitle', value:'What makes Secritou different' },
+    { locale:'en', key:'differentiators.title',    section:'DIFFERENTIATORS', type:'TEXT', label:'Differentiators title',    value:'More than a service provider.' },
+    { locale:'en', key:'differentiators.items',    section:'DIFFERENTIATORS', type:'JSON', label:'Differentiators items (JSON)', value: JSON.stringify([
+      { icon: 'compass',     title: 'Strategy First',        body: "We don't execute blindly. Every initiative starts with a clear thesis and a measurable outcome." },
+      { icon: 'line-chart',  title: 'Data Driven',            body: "Every decision is measured. If we can't track it, we don't ship it." },
+      { icon: 'users',       title: 'One Coordinated Team',   body: 'One partner instead of five vendors - strategy, marketing, tech and AI under one roof.' },
+    ]) },
+    // ── DIFFERENTIATORS — FR ───────────────────────────────────────────────
+    { locale:'fr', key:'differentiators.subtitle', section:'DIFFERENTIATORS', type:'TEXT', label:'Sous-titre différenciateurs', value:'Ce qui différencie Secritou' },
+    { locale:'fr', key:'differentiators.title',    section:'DIFFERENTIATORS', type:'TEXT', label:'Titre différenciateurs',      value:"Plus qu'un prestataire de services." },
+    { locale:'fr', key:'differentiators.items',    section:'DIFFERENTIATORS', type:'JSON', label:'Différenciateurs (JSON)', value: JSON.stringify([
+      { icon: 'compass',     title: "La stratégie d'abord",   body: "Nous n'exécutons pas à l'aveugle. Chaque initiative commence par une thèse claire et un résultat mesurable." },
+      { icon: 'line-chart',  title: 'Piloté par la donnée',   body: 'Chaque décision est mesurée. Si nous ne pouvons pas la suivre, nous ne la livrons pas.' },
+      { icon: 'users',       title: 'Une équipe coordonnée',  body: 'Un seul partenaire au lieu de cinq prestataires - stratégie, marketing, tech et IA sous le même toit.' },
     ]) },
   ];
 
