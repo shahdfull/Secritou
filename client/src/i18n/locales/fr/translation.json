@@ -1313,6 +1313,7 @@
     "allProjects": "Tous les projets",
     "filterByPriority": "Filtrer par priorité",
     "allPriorities": "Toutes les priorités",
+    "advancedFilters": "Filtres avancés",
     "overdueOnly": "En retard uniquement",
     "overdue": "En retard",
     "noTasksFound": "Aucune tâche.",

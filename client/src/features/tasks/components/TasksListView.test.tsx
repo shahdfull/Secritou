@@ -90,7 +90,11 @@ describe("TasksListView responsive split — SEC-056 (U2)", () => {
   });
 
   test("mobile card list shows the empty-state message when there are no tasks", () => {
-    renderList([]);
-    expect(screen.getByText("Aucune tâche.")).toBeInTheDocument();
+    const { container } = renderList([]);
+    // AG Grid's own overlayNoRowsTemplate (desktop side) also renders "Aucune tâche." — scope the
+    // assertion to the mobile container to avoid ambiguity between the two, same fix pattern as
+    // SEC-218 (scoping to the visible toast instead of matching a duplicate sr-only node).
+    const mobileContainer = container.querySelector(".sm\\:hidden");
+    expect(mobileContainer?.textContent).toContain("Aucune tâche.");
   });
 });

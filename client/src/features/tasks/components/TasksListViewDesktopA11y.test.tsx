@@ -2,25 +2,18 @@
 // an `aria-label` — the mobile card variant of this same file already had `aria-label` (SEC-056),
 // making the desktop variant inconsistent and its buttons unreliably named for screen readers.
 //
-// This renders the real TasksListView desktop table, mocking @tanstack/react-virtual (renders
-// zero rows in JSDOM otherwise — same limitation already hit for SEC-056/SEC-059/SEC-060,
-// isolated to this file rather than applied globally to TasksListView.test.tsx).
+// This renders the real TasksListView. The AG Grid migration (SEC-056 follow-up) replaced the
+// old @tanstack/react-virtual table body — AG Grid renders its actionsRenderer cell (with the
+// same aria-labeled buttons) even in JSDOM without a real viewport, so no virtualization mock is
+// needed here anymore.
 
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, test, vi, beforeAll } from "vitest";
+import { describe, expect, test, beforeAll } from "vitest";
 import type { ReactNode } from "react";
 import i18n from "@/i18n";
 import type { Task } from "@/types/task";
 import { TasksListView, type TasksFilters } from "./TasksListView";
-
-vi.mock("@tanstack/react-virtual", () => ({
-  useVirtualizer: ({ count }: { count: number }) => ({
-    getTotalSize: () => count * 56,
-    getVirtualItems: () =>
-      Array.from({ length: count }, (_, index) => ({ index, start: index * 56, size: 56 })),
-  }),
-}));
 
 beforeAll(async () => {
   await i18n.changeLanguage("fr");
