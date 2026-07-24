@@ -40,7 +40,6 @@ import {
 } from "@/components/ui/select";
 import {
 } from "@/components/ui/dropdown-menu";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
   Search,
@@ -50,8 +49,6 @@ import {
   Trash2,
   UserCheck,
   Loader2,
-  List,
-  KanbanSquare,
   Eye,
   RefreshCw,
   RotateCcw,
@@ -68,7 +65,6 @@ import {
   useReopenLead,
 } from "@/hooks/useLeads";
 import type { Lead, CreateLeadInput, UpdateLeadInput } from "@/types/lead";
-import { LeadsKanban } from "./LeadsKanban";
 import { LeadDetailDialog } from "./LeadDetailDialog";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { SortableTableHead } from "@/components/common/SortableTableHead";
@@ -96,7 +92,6 @@ export function LeadsPage() {
   const canCreate = usePermission("leads", "create");
   const [statusFilter, setStatusFilter] = useState<string>(ALL_STATUSES_VALUE);
   const [searchInput, setSearchInput] = useState("");
-  const [view, setView] = useState<"list" | "kanban">("list");
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
   const [includeArchived, setIncludeArchived] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null);
@@ -127,15 +122,15 @@ export function LeadsPage() {
   const listParams = useMemo(
     () => ({
       ...params,
-      pageSize: view === "kanban" ? 200 : pageSize,
-      page: view === "kanban" ? 1 : page,
+      pageSize,
+      page,
       orderBy: orderBy ?? "createdAt",
       orderDir,
       search,
       status: statusFilter === ALL_STATUSES_VALUE ? undefined : statusFilter,
       includeArchived,
     }),
-    [params, view, pageSize, page, orderBy, orderDir, search, statusFilter, includeArchived],
+    [params, pageSize, page, orderBy, orderDir, search, statusFilter, includeArchived],
   );
 
   const { data: leadsResult, isLoading } = useLeads(listParams);
@@ -485,22 +480,9 @@ export function LeadsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Tabs value={view} onValueChange={(v) => setView(v as "list" | "kanban")}>
-              <TabsList>
-                <TabsTrigger value="list" className="flex items-center gap-2">
-                  <List className="h-4 w-4" />
-                  {t('leadsPage.viewList')}
-                </TabsTrigger>
-                <TabsTrigger value="kanban" className="flex items-center gap-2">
-                  <KanbanSquare className="h-4 w-4" />
-                  {t('leadsPage.viewKanban')}
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {view === "list" ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -585,17 +567,12 @@ export function LeadsPage() {
                 ))}
               </TableBody>
             </Table>
-          ) : (
-            <LeadsKanban filteredLeads={filteredLeads} />
-          )}
-          {view === "list" && (
-            <DataTablePagination
-              page={page}
-              pageSize={pageSize}
-              total={total}
-              onPageChange={setPage}
-            />
-          )}
+          <DataTablePagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={setPage}
+          />
         </CardContent>
       </Card>
 
