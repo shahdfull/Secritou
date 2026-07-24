@@ -18,22 +18,8 @@ import {
   useDisconnectGsc,
   useClientMetrics,
 } from "@/hooks/useGscConnection";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { SeoMetricsGrid } from "@/components/shared/SeoMetricsGrid";
 import { formatDate } from "@/utils/format";
-
-const METRIC_LABELS: Record<string, string> = {
-  clicks: "Clics",
-  impressions: "Impressions",
-  ctr: "CTR (%)",
-  position: "Position moyenne",
-};
 
 export function SearchConsoleTab({ clientId }: { clientId: string }) {
   const { t } = useTranslation();
@@ -177,37 +163,15 @@ export function SearchConsoleTab({ clientId }: { clientId: string }) {
         )}
 
         {status?.connected && (
-          <div className="border rounded-lg overflow-hidden mt-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("integrations.gsc.period", "Période")}</TableHead>
-                  <TableHead>{t("integrations.gsc.metric", "Métrique")}</TableHead>
-                  <TableHead className="text-right">{t("integrations.gsc.value", "Valeur")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {metricsLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center py-8">{t("common.loading")}</TableCell>
-                  </TableRow>
-                ) : rows.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center py-8 text-sm text-muted-foreground">
-                      {t("integrations.gsc.noData", "Aucune donnée pour le moment — la première synchronisation a lieu dans la nuit suivant la connexion.")}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  rows.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>{formatDate(row.periodStart)}</TableCell>
-                      <TableCell>{METRIC_LABELS[row.metric] ?? row.metric}</TableCell>
-                      <TableCell className="text-right font-medium">{row.value}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+          <div className="mt-4">
+            <SeoMetricsGrid
+              rows={rows}
+              isLoading={metricsLoading}
+              emptyMessage={t(
+                "integrations.gsc.noData",
+                "Aucune donnée pour le moment — la première synchronisation a lieu dans la nuit suivant la connexion."
+              )}
+            />
           </div>
         )}
       </CardContent>

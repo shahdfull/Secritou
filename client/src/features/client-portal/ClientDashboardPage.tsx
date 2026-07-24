@@ -1,3 +1,4 @@
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useProjects } from "@/hooks/useProjects";
 import { useClientServiceRequests } from "@/hooks/useServiceRequests";
@@ -5,16 +6,35 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Briefcase, MessageSquare, FileText, Download, Wallet, CalendarClock, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { AgGridReact } from "ag-grid-react";
+import {
+  ModuleRegistry,
+  AllCommunityModule,
+  themeQuartz,
+  type ColDef,
+  type ICellRendererParams,
+} from "ag-grid-community";
 import { documentsApi, type Document } from "@/api/documents.api";
 import { clientPortalApi } from "@/api/clientPortal.api";
 import { useAuthStore } from "@/store/auth.store";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { formatNumber } from "@/utils/format";
+
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
+const gridTheme = themeQuartz.withParams({
+  accentColor: "#0f766e",
+  headerBackgroundColor: "#f8fafc",
+  headerTextColor: "#334155",
+  rowHoverColor: "#f1f5f9",
+  borderColor: "#e2e8f0",
+  fontFamily: "inherit",
+});
 
 export function ClientDashboardPage() {
   const { t } = useTranslation();
@@ -62,14 +82,53 @@ export function ClientDashboardPage() {
     },
   ];
 
-  const getDocumentTypeLabel = (doc: Document) => {
+  const getDocumentTypeLabel = useCallback((doc: Document) => {
     switch (doc.type) {
       case 'INVOICE': return 'Facture';
       case 'CONTRACT': return 'Contrat';
       case 'OTHER': return 'Autre';
       default: return 'Document';
     }
-  };
+  }, []);
+
+  const typeRenderer = useCallback(
+    (params: ICellRendererParams<Document>) => {
+      const doc = params.data;
+      if (!doc) return null;
+      return (
+        <div className="flex h-full items-center">
+          <Badge variant="outline">{getDocumentTypeLabel(doc)}</Badge>
+        </div>
+      );
+    },
+    [getDocumentTypeLabel]
+  );
+
+  const actionRenderer = useCallback(
+    (params: ICellRendererParams<Document>) => {
+      const doc = params.data;
+      if (!doc) return null;
+      return (
+        <div className="flex h-full items-center justify-end">
+          <Button variant="ghost" size="sm" onClick={() => downloadDocumentMutation.mutate(doc.id)}>
+            <Download className="h-4 w-4 mr-2" />
+            Télécharger
+          </Button>
+        </div>
+      );
+    },
+    [downloadDocumentMutation]
+  );
+
+  const documentColumnDefs = useMemo<ColDef<Document>[]>(
+    () => [
+      { headerName: "Nom", field: "name", flex: 2, cellClass: "font-medium" },
+      { headerName: "Type", cellRenderer: typeRenderer, flex: 1 },
+      { headerName: "Date", valueFormatter: (p) => format(new Date(p.data!.createdAt), "dd/MM/yyyy", { locale: fr }), field: "createdAt", flex: 1 },
+      { headerName: "Action", cellRenderer: actionRenderer, width: 160, sortable: false, resizable: false },
+    ],
+    [typeRenderer, actionRenderer]
+  );
 
   return (
     <div className="container-page max-w-6xl mx-auto py-8 space-y-8">
@@ -185,33 +244,14 @@ export function ClientDashboardPage() {
             <CardTitle>Mes documents</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nom</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {documents.map((doc: Document) => (
-                  <TableRow key={doc.id}>
-                    <TableCell className="font-medium">{doc.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{getDocumentTypeLabel(doc)}</Badge>
-                    </TableCell>
-                    <TableCell>{format(new Date(doc.createdAt), 'dd/MM/yyyy', { locale: fr })}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => downloadDocumentMutation.mutate(doc.id)}>
-                        <Download className="h-4 w-4 mr-2" />
-                        Télécharger
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div style={{ height: Math.min(400, 60 + documents.length * 42) }}>
+              <AgGridReact<Document>
+                theme={gridTheme}
+                rowData={documents}
+                columnDefs={documentColumnDefs}
+                suppressCellFocus
+              />
+            </div>
           </CardContent>
         </Card>
       )}

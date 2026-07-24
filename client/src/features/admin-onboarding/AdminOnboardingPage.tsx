@@ -1,7 +1,15 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { formatDate } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import { AgGridReact } from "ag-grid-react";
+import {
+  ModuleRegistry,
+  AllCommunityModule,
+  themeQuartz,
+  type ColDef,
+  type ICellRendererParams,
+} from "ag-grid-community";
 import {
   useClientOnboardings,
   useCreateClientOnboarding,
@@ -10,14 +18,6 @@ import type { ClientOnboarding, OnboardingStep } from "@secritou/shared";
 import { useProjects } from "@/hooks/useProjects";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import {
   Dialog,
@@ -37,6 +37,18 @@ import {
 } from "@/components/ui/select";
 import { Plus, Eye } from "lucide-react";
 import { useListParams } from "@/hooks/useListParams";
+
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
+const gridTheme = themeQuartz.withParams({
+  accentColor: "#0f766e",
+  headerBackgroundColor: "#f8fafc",
+  headerTextColor: "#334155",
+  rowHoverColor: "#f1f5f9",
+  borderColor: "#e2e8f0",
+  fontFamily: "inherit",
+});
 
 export function AdminOnboardingPage() {
   const { t } = useTranslation();
@@ -68,12 +80,61 @@ export function AdminOnboardingPage() {
     return Math.round((completed / onboarding.steps.length) * 100);
   };
 
-  const getOnboardingStatus = (steps: OnboardingStep[]) => {
-    if (steps.every((s) => s.status === "COMPLETED")) return t("onboarding.timeline.statuses.completed");
-    if (steps.some((s) => s.status === "REJECTED")) return t("onboarding.timeline.statuses.rejected");
-    if (steps.some((s) => s.status === "IN_PROGRESS" || s.status === "COMPLETED")) return t("onboarding.timeline.statuses.inProgress");
-    return t("onboarding.timeline.statuses.pending");
-  };
+  const getOnboardingStatus = useCallback(
+    (steps: OnboardingStep[]) => {
+      if (steps.every((s) => s.status === "COMPLETED")) return t("onboarding.timeline.statuses.completed");
+      if (steps.some((s) => s.status === "REJECTED")) return t("onboarding.timeline.statuses.rejected");
+      if (steps.some((s) => s.status === "IN_PROGRESS" || s.status === "COMPLETED")) return t("onboarding.timeline.statuses.inProgress");
+      return t("onboarding.timeline.statuses.pending");
+    },
+    [t]
+  );
+
+  const progressRenderer = useCallback(
+    (params: ICellRendererParams<ClientOnboarding>) => {
+      const onboarding = params.data;
+      if (!onboarding) return null;
+      const progress = calculateProgress(onboarding);
+      return (
+        <div className="flex h-full flex-col justify-center gap-1">
+          <div className="w-full bg-gray-200 rounded-full h-2.5">
+            <div className="bg-primary h-2.5 rounded-full" style={{ width: `${progress}%` }} />
+          </div>
+          <span className="text-xs text-muted-foreground">{progress}%</span>
+        </div>
+      );
+    },
+    []
+  );
+
+  const actionsRenderer = useCallback(
+    (params: ICellRendererParams<ClientOnboarding>) => {
+      const onboarding = params.data;
+      if (!onboarding) return null;
+      return (
+        <div className="flex h-full items-center justify-end">
+          <Button asChild variant="ghost" size="icon">
+            <Link to={`/app/client-onboarding/${onboarding.id}`}>
+              <Eye className="h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+      );
+    },
+    []
+  );
+
+  const columnDefs = useMemo<ColDef<ClientOnboarding>[]>(
+    () => [
+      { headerName: t("onboarding.admin.client"), valueGetter: (p) => p.data?.client.name, flex: 2, cellClass: "font-medium" },
+      { headerName: t("onboarding.admin.project"), valueGetter: (p) => p.data?.project?.name ?? "—", flex: 2 },
+      { headerName: t("onboarding.admin.status"), valueGetter: (p) => (p.data ? getOnboardingStatus(p.data.steps) : ""), flex: 1 },
+      { headerName: t("onboarding.admin.progress"), cellRenderer: progressRenderer, flex: 1 },
+      { headerName: t("onboarding.admin.createdAt"), valueFormatter: (p) => formatDate(p.data!.createdAt), field: "createdAt", flex: 1 },
+      { headerName: t("onboarding.admin.actions"), cellRenderer: actionsRenderer, width: 100, sortable: false, resizable: false },
+    ],
+    [t, progressRenderer, actionsRenderer, getOnboardingStatus]
+  );
 
   return (
     <section className="space-y-6">
@@ -134,69 +195,16 @@ export function AdminOnboardingPage() {
         className="mb-6 max-w-md"
       />
 
-      <div className="border rounded-lg overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("onboarding.admin.client")}</TableHead>
-              <TableHead>{t("onboarding.admin.project")}</TableHead>
-              <TableHead>{t("onboarding.admin.status")}</TableHead>
-              <TableHead>{t("onboarding.admin.progress")}</TableHead>
-              <TableHead>{t("onboarding.admin.createdAt")}</TableHead>
-              <TableHead className="text-right">{t("onboarding.admin.actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-10">
-                  Loading...
-                </TableCell>
-              </TableRow>
-            ) : onboardings?.data.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-10">
-                  {t("onboarding.admin.empty")}
-                </TableCell>
-              </TableRow>
-            ) : (
-              onboardings?.data.map((onboarding) => (
-                <TableRow key={onboarding.id}>
-                  <TableCell className="font-medium">
-                    {onboarding.client.name}
-                  </TableCell>
-                  <TableCell>{onboarding.project?.name ?? "—"}</TableCell>
-                  <TableCell>
-                    {getOnboardingStatus(onboarding.steps)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
-                      <div
-                        className="bg-primary h-2.5 rounded-full"
-                        style={{ width: `${calculateProgress(onboarding)}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-muted-foreground mt-1">
-                      {calculateProgress(onboarding)}%
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    {formatDate(onboarding.createdAt)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button asChild variant="ghost" size="icon">
-                      <Link
-                        to={`/app/client-onboarding/${onboarding.id}`}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+      <div className="border rounded-lg overflow-hidden" style={{ height: 500 }}>
+        <AgGridReact<ClientOnboarding>
+          theme={gridTheme}
+          rowData={onboardings?.data ?? []}
+          columnDefs={columnDefs}
+          loading={isLoading}
+          suppressCellFocus
+          overlayLoadingTemplate="Loading..."
+          overlayNoRowsTemplate={t("onboarding.admin.empty")}
+        />
       </div>
 
       {onboardings && (
