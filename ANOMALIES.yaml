@@ -42,7 +42,7 @@
 # REFERENTIEL.md ne peut référencer un ID qui n'existe pas dans ce fichier : les deux
 # fichiers se livrent dans la même session, jamais l'un sans l'autre (voir CLAUDE.md).
 
-dernier_id: SEC-227
+dernier_id: SEC-228
 
 anomalies:
   - id: SEC-001
@@ -16025,4 +16025,37 @@ anomalies:
       solutions.items, differentiators.items tous non-vides avec le
       contenu attendu. npx tsc --noEmit et npx eslint sur seed.ts : aucune
       erreur ni warning. Reste `en_cours` tant que non commité+vert en CI.
+
+  - id: SEC-228
+    titre: "server/test/taskAssigneeAndOverdueFilters.test.ts échoue systématiquement au niveau process (node:test rapporte pass 4/fail 1) alors que les 5 sous-tests individuels affichent tous ✔ dans les logs — suspicion de connexion Prisma non fermée (aucun prisma.$disconnect() dans le fichier), pas un défaut de logique métier"
+    perimetre: "server/test/taskAssigneeAndOverdueFilters.test.ts"
+    regle_violee: null
+    classe: "test_process_non_ferme"
+    gravite: mineur
+    statut: confirme
+    critere_de_resolution: >
+      C'est résolu quand `npx tsx --test test/taskAssigneeAndOverdueFilters
+      .test.ts` rapporte `fail 0` (pas seulement que les 5 sous-tests
+      individuels affichent ✔ dans le texte du log — c'est déjà le cas
+      aujourd'hui et n'empêche pas l'échec process), exécuté 3 fois de
+      suite sans échec pour exclure une flakiness résiduelle.
+    detecte_le: "2026-07-24"
+    source: manuel
+    confiance: certain
+    note: >
+      Découvert en vérifiant qu'un ajout de filtre `priority` (taskFilters,
+      buildWhere) ne cassait pas ce fichier de test existant. Confirmé
+      reproductible AVANT toute modification de cette session : `git
+      stash` puis ré-exécution sur le HEAD précédent (commit e19f3e0)
+      donne exactement le même résultat (pass 4/fail 1, même timing
+      ~40-44s) — donc ce n'est pas une régression introduite ici, c'est un
+      défaut préexistant non détecté jusqu'à présent. Les 5 `✔` dans les
+      logs (2 assigneeId + 2 overdue + 1 describe wrapper compté à part)
+      prouvent que les assertions elles-mêmes passent ; seul le process
+      node:test se termine en `fail`. Autres fichiers de test du dépôt
+      utilisant le même patron `before()`/`after()` sans
+      `prisma.$disconnect()` explicite n'ont pas été vérifiés un par un —
+      seul ce fichier a été reproduit. Non corrigé dans cette session
+      (hors périmètre de la tâche en cours, filtres tâches côté landing
+      Tasks).
 

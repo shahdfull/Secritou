@@ -12,6 +12,7 @@ export interface BulkActionResult {
 export interface TaskListFilters {
   assigneeId?: string;
   overdue?: boolean;
+  priority?: string;
 }
 
 export const tasksApi = {
@@ -26,6 +27,7 @@ export const tasksApi = {
         ...(projectId && { projectId }),
         ...(taskFilters?.assigneeId && { assigneeId: taskFilters.assigneeId }),
         ...(taskFilters?.overdue && { overdue: "true" }),
+        ...(taskFilters?.priority && { priority: taskFilters.priority }),
       },
     });
     return response.data;

@@ -47,6 +47,30 @@ export function TasksPage() {
       return next;
     });
   }, [setSearchParams]);
+  const setProjectIdFilter = useCallback(
+    (value: string | undefined) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set("projectId", value);
+        else next.delete("projectId");
+        return next;
+      });
+    },
+    [setSearchParams]
+  );
+
+  const priorityFilter = searchParams.get("priority") ?? undefined;
+  const setPriorityFilter = useCallback(
+    (value: string | undefined) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set("priority", value);
+        else next.delete("priority");
+        return next;
+      });
+    },
+    [setSearchParams]
+  );
 
   // SEC-056 (U1): assignee and "overdue only" filters, persisted in the URL the same way
   // projectId is above — not folded into useListParams, which is shared by every other list page
@@ -100,8 +124,8 @@ export function TasksPage() {
   );
 
   const taskFilters = useMemo(
-    () => ({ assigneeId: assigneeIdFilter, overdue: overdueFilter }),
-    [assigneeIdFilter, overdueFilter]
+    () => ({ assigneeId: assigneeIdFilter, overdue: overdueFilter, priority: priorityFilter }),
+    [assigneeIdFilter, overdueFilter, priorityFilter]
   );
 
   const actions = useTaskActions();
@@ -236,6 +260,11 @@ export function TasksPage() {
             assignableUsers,
             overdue: overdueFilter,
             onOverdueChange: setOverdueFilter,
+            projectId: projectIdFilter,
+            onProjectChange: setProjectIdFilter,
+            projectOptions: projects,
+            priority: priorityFilter,
+            onPriorityChange: setPriorityFilter,
           }}
           sort={{ orderBy, orderDir, onSort: handleSort }}
           pagination={{ page, pageSize, total, onPageChange: setPage }}

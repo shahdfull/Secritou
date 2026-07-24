@@ -21,12 +21,12 @@ import { SortableTableHead } from "@/components/common/SortableTableHead";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialog";
-import { Search, Edit, Trash2, Eye, X } from "lucide-react";
+import { Search, Edit, Trash2, Eye, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import type { Task, TaskStatus } from "@/types/task";
 import type { User } from "@/types/auth";
 import { useBulkUpdateTaskStatus, useBulkDeleteTasks } from "@/hooks/useTasks";
-import { getInitials, getStatusLabel, STATUS_OPTIONS, PRIORITY_BADGE } from "../taskUtils";
+import { getInitials, getStatusLabel, STATUS_OPTIONS, PRIORITY_OPTIONS, PRIORITY_BADGE } from "../taskUtils";
 
 const UNASSIGNED_FILTER_VALUE = "__all__";
 
@@ -41,6 +41,11 @@ export interface TasksFilters {
   assignableUsers: User[];
   overdue: boolean;
   onOverdueChange: (value: boolean) => void;
+  projectId: string | undefined;
+  onProjectChange: (value: string | undefined) => void;
+  projectOptions: { id: string; name: string }[];
+  priority: string | undefined;
+  onPriorityChange: (value: string | undefined) => void;
 }
 
 export interface TasksSort {
@@ -100,6 +105,11 @@ export function TasksListView({
     assignableUsers,
     overdue: overdueFilter,
     onOverdueChange,
+    projectId: projectFilter,
+    onProjectChange,
+    projectOptions,
+    priority: priorityFilter,
+    onPriorityChange,
   } = filters;
   const { orderBy, orderDir, onSort } = sort;
   const { page, pageSize, total, onPageChange } = pagination;
@@ -227,6 +237,40 @@ export function TasksListView({
               ))}
             </SelectContent>
           </Select>
+          <Select
+            value={projectFilter ?? UNASSIGNED_FILTER_VALUE}
+            onValueChange={(value) => onProjectChange(value === UNASSIGNED_FILTER_VALUE ? undefined : value)}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder={t("tasksPage.filterByProject")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={UNASSIGNED_FILTER_VALUE}>{t("tasksPage.allProjects")}</SelectItem>
+              {projectOptions.map((project) => (
+                <SelectItem key={project.id} value={project.id}>
+                  {project.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {!isFreelancer && (
+            <Select
+              value={priorityFilter ?? UNASSIGNED_FILTER_VALUE}
+              onValueChange={(value) => onPriorityChange(value === UNASSIGNED_FILTER_VALUE ? undefined : value)}
+            >
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder={t("tasksPage.filterByPriority")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={UNASSIGNED_FILTER_VALUE}>{t("tasksPage.allPriorities")}</SelectItem>
+                {PRIORITY_OPTIONS.map((priority) => (
+                  <SelectItem key={priority} value={priority}>
+                    {t("tasks.priorities." + priority, priority)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <div className="flex items-center gap-1.5 px-1">
             <Checkbox id="overdue-filter" checked={overdueFilter} onCheckedChange={(checked) => onOverdueChange(checked === true)} />
             <Label htmlFor="overdue-filter" className="text-sm font-normal cursor-pointer whitespace-nowrap">
@@ -343,8 +387,8 @@ export function TasksListView({
                             />
                           </div>
                         )}
-                        <div className="font-medium truncate pr-4">{task.title}</div>
-                        <div className="truncate pr-4">{projectName ?? "-"}</div>
+                        <div className="font-medium truncate pr-4" title={task.title}>{task.title}</div>
+                        <div className="truncate pr-4" title={projectName ?? undefined}>{projectName ?? "-"}</div>
                         <div>
                           <Badge className={getTaskStatusBadgeClass(task.status)}>
                             {getStatusLabel(task.status, t)}
@@ -370,7 +414,10 @@ export function TasksListView({
                             )}
                           </div>
                         )}
-                        <div className={dueDateColor}>
+                        <div className={dueDateColor + " flex items-center gap-1"}>
+                          {task.dueDate && isPast(new Date(task.dueDate)) && (
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-label={t("tasksPage.overdue", "En retard")} />
+                          )}
                           {task.dueDate ? format(new Date(task.dueDate), "dd MMM yyyy") : "-"}
                         </div>
                         {!isFreelancer && (
@@ -418,10 +465,10 @@ export function TasksListView({
             return (
               <div key={task.id} className="p-4 space-y-2">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="font-medium">{task.title}</span>
+                  <span className="font-medium" title={task.title}>{task.title}</span>
                   <Badge className={getTaskStatusBadgeClass(task.status)}>{getStatusLabel(task.status, t)}</Badge>
                 </div>
-                <p className="text-sm text-muted-foreground truncate">{projectName ?? "-"}</p>
+                <p className="text-sm text-muted-foreground truncate" title={projectName ?? undefined}>{projectName ?? "-"}</p>
                 <div className="flex items-center justify-between gap-2 text-sm">
                   {assignee ? (
                     <div className="flex items-center gap-2 min-w-0">
@@ -438,7 +485,10 @@ export function TasksListView({
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className={"text-sm " + dueDateColor}>
+                  <span className={"text-sm flex items-center gap-1 " + dueDateColor}>
+                    {task.dueDate && isPast(new Date(task.dueDate)) && (
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-label={t("tasksPage.overdue", "En retard")} />
+                    )}
                     {task.dueDate ? format(new Date(task.dueDate), "dd MMM yyyy") : "-"}
                   </span>
                   <div className="flex items-center gap-1">

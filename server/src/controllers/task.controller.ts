@@ -3,6 +3,8 @@ import type { RequestHandler } from "express";
 import { taskService } from "../services/task.service.js";
 import { parseListQuery } from "../utils/listQuery.js";
 import { buildServiceScope } from "../utils/serviceScope.js";
+import { TASK_PRIORITIES } from "@secritou/shared";
+import type { Priority } from "@prisma/client";
 
 export const getAllTasks: RequestHandler = async (req, res, next) => {
   try {
@@ -14,8 +16,12 @@ export const getAllTasks: RequestHandler = async (req, res, next) => {
     // projectId is already threaded through as its own argument rather than folded into options.
     const assigneeId = typeof req.query.assigneeId === "string" && req.query.assigneeId.trim() ? req.query.assigneeId.trim() : undefined;
     const overdue = req.query.overdue === "true";
+    const priority =
+      typeof req.query.priority === "string" && (TASK_PRIORITIES as readonly string[]).includes(req.query.priority)
+        ? (req.query.priority as Priority)
+        : undefined;
     const options = parseListQuery(req.query as Record<string, unknown>);
-    const result = await taskService.getAllTasks(projectId, userId, userRole, options, await buildServiceScope(req), { assigneeId, overdue });
+    const result = await taskService.getAllTasks(projectId, userId, userRole, options, await buildServiceScope(req), { assigneeId, overdue, priority });
     res.json(result);
   } catch (error) {
     next(error);

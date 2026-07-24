@@ -40,6 +40,11 @@ function makeFilters(overrides: Partial<TasksFilters> = {}): TasksFilters {
     assignableUsers: [],
     overdue: false,
     onOverdueChange: () => {},
+    projectId: undefined,
+    onProjectChange: () => {},
+    projectOptions: [],
+    priority: undefined,
+    onPriorityChange: () => {},
     ...overrides,
   };
 }

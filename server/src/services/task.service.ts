@@ -4,7 +4,7 @@ import { userRepository } from "../repositories/user.repository.js";
 import { enqueueNotification, enqueueNotifications } from "../jobs/queues.js";
 import type { CreateTaskDTO } from "../types/entities.js";
 import { HttpError } from "../utils/httpError.js";
-import type { Role, TaskStatus } from "@prisma/client";
+import type { Role, TaskStatus, Priority } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
@@ -81,7 +81,7 @@ export const taskService = {
     userRole: Role,
     options: ListQueryOptions,
     scope?: ServiceScope,
-    taskFilters?: { assigneeId?: string; overdue?: boolean }
+    taskFilters?: { assigneeId?: string; overdue?: boolean; priority?: Priority }
   ) {
     return taskRepository.findAll(userId, userRole, options, projectId, scope?.userServiceId, taskFilters);
   },

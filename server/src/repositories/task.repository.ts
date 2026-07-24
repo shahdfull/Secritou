@@ -1,6 +1,6 @@
 // Task Repository - Data access layer
 import { prisma, prismaRead } from "../config/prisma.js";
-import type { TaskStatus, Role, Prisma } from "@prisma/client";
+import type { TaskStatus, Role, Priority, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { buildTextSearchFilter } from "../utils/listQuery.js";
 import { taskWithRelationsSelect, taskListSelect } from "../utils/prismaSelects.js";
@@ -22,7 +22,7 @@ function buildWhere(
   options: ListQueryOptions,
   projectId?: string,
   userServiceId?: string | null,
-  taskFilters?: { assigneeId?: string; overdue?: boolean }
+  taskFilters?: { assigneeId?: string; overdue?: boolean; priority?: Priority }
 ) {
   // A MANAGER only sees tasks whose project belongs to their service (pole). "__none__"
   // guarantees no match when the manager has no service. archivedAt filtered alongside
@@ -50,6 +50,7 @@ function buildWhere(
     ...(projectId && { projectId }),
     ...statusFilter,
     ...overdueDateFilter,
+    ...(taskFilters?.priority && { priority: taskFilters.priority }),
     ...buildTextSearchFilter(options.search, ["title", "description"]),
   };
   if (userRole === "FREELANCER") {
@@ -73,7 +74,7 @@ export const taskRepository = {
     options: ListQueryOptions,
     projectId?: string,
     userServiceId?: string | null,
-    taskFilters?: { assigneeId?: string; overdue?: boolean }
+    taskFilters?: { assigneeId?: string; overdue?: boolean; priority?: Priority }
   ): Promise<PaginatedResult<TaskListItem>> {
     const where = buildWhere(userId, userRole, options, projectId, userServiceId, taskFilters);
     const skip = (options.page - 1) * options.pageSize;
