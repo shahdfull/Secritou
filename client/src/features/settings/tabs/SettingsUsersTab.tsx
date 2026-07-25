@@ -1,8 +1,15 @@
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatDate } from "@/utils/format";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { AgGridReact } from "ag-grid-react";
+import {
+  ModuleRegistry,
+  AllCommunityModule,
+  themeQuartz,
+  type ColDef,
+  type ICellRendererParams,
+} from "ag-grid-community";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { Loader2, UserPlus, Edit, Trash2, ShieldCheck, ChevronUp, Search, Settings2, Info } from "lucide-react";
+import { Loader2, UserPlus, Edit, Trash2, ShieldCheck, ShieldOff, Download, ChevronUp, Search, Settings2, Info } from "lucide-react";
 import { toast } from "sonner";
 import { permissionProfilesApi } from "@/api/permissionProfiles.api";
 import { managerPermissionsApi } from "@/api/managerPermissions.api";
@@ -27,6 +34,7 @@ import type { PermissionsMap, PermissionProfile } from "@/types/permissions";
 import { MODULES } from "@/types/permissions";
 import { PermissionsGrid } from "../PermissionsGrid";
 import { getServerErrorMessage, getServerRequestId } from "@/utils/apiError";
+import { useGdprExportUser, useGdprEraseUser } from "@/hooks/useUsers";
 
 type AppUser = {
   id: string;
@@ -48,6 +56,18 @@ function formatDuration(seconds: number | undefined): string {
   if (hours === 0) return `${minutes} min`;
   return `${hours}h ${minutes}min`;
 }
+
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
+const gridTheme = themeQuartz.withParams({
+  accentColor: "#0f766e",
+  headerBackgroundColor: "#f8fafc",
+  headerTextColor: "#334155",
+  rowHoverColor: "#f1f5f9",
+  borderColor: "#e2e8f0",
+  fontFamily: "inherit",
+});
 
 const EMPTY_PERMISSIONS = Object.fromEntries(
   MODULES.map((m) => [m, { read: false, create: false, update: false, delete: false }])
@@ -528,8 +548,11 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
   const [inviteForm, setInviteForm] = useState<{ name: string; email: string; role: "ADMIN" | "MANAGER" }>({ name: "", email: "", role: "MANAGER" });
   const [editingUser, setEditingUser] = useState<{ id: string; name: string; role: "ADMIN" | "MANAGER" | "CLIENT" | "FREELANCER" } | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<string | null>(null);
+  const [gdprEraseDialogOpen, setGdprEraseDialogOpen] = useState<string | null>(null);
   const [expandedPermissions, setExpandedPermissions] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const { mutate: gdprExportUser, isPending: gdprExporting } = useGdprExportUser();
+  const { mutate: gdprEraseUser, isPending: gdprErasing } = useGdprEraseUser();
 
   const filteredUsers = useMemo(() => {
     const staff = users?.filter((u) => u.role === "ADMIN" || u.role === "MANAGER") ?? [];
@@ -537,17 +560,6 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
     const q = search.trim().toLowerCase();
     return staff.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
   }, [users, search]);
-
-  const parentRef = useRef<HTMLDivElement | null>(null);
-  const rowVirtualizer = useVirtualizer({
-    count: filteredUsers.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 68,
-    overscan: 10,
-  });
-
-  const virtualItems = rowVirtualizer.getVirtualItems();
-  const totalSize = rowVirtualizer.getTotalSize();
 
   const handleInviteSubmit = useCallback(
     (e: React.FormEvent) => {
@@ -570,6 +582,230 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
   );
 
   const canDelete = useCallback((id: string) => id !== currentUserId, [currentUserId]);
+
+  const roleRenderer = useCallback((params: ICellRendererParams<AppUser>) => {
+    const u = params.data;
+    if (!u) return null;
+    return (
+      <div className="flex h-full items-center gap-1 flex-wrap">
+        <Badge className={getRoleColor(u.role)}>{u.role}</Badge>
+        {u.mustChangePassword && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700">
+                En attente
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>N&apos;a pas encore effectué sa première connexion</TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+    );
+  }, []);
+
+  const actionsRenderer = useCallback(
+    (params: ICellRendererParams<AppUser>) => {
+      const u = params.data;
+      if (!u) return null;
+      const isPermExpanded = expandedPermissions === u.id;
+      return (
+        <div className="flex h-full items-center justify-end gap-1">
+          {u.role === "MANAGER" ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              title="Configurer les permissions"
+              onClick={() => setExpandedPermissions(isPermExpanded ? null : u.id)}
+            >
+              <ShieldCheck className="h-4 w-4 text-blue-500" />
+            </Button>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button variant="ghost" size="icon" disabled className="opacity-30">
+                    <ShieldCheck className="h-4 w-4" />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>Les Admins ont automatiquement tous les droits</TooltipContent>
+            </Tooltip>
+          )}
+          <Dialog
+            open={editingUser?.id === u.id}
+            onOpenChange={(open) => setEditingUser(open ? { id: u.id, name: u.name, role: u.role } : null)}
+          >
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Edit className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Modifier l&apos;utilisateur</DialogTitle>
+              </DialogHeader>
+              {editingUser?.id === u.id && (
+                <form onSubmit={handleEditSubmit} className="space-y-4">
+                  <div>
+                    <Label htmlFor="edit-name">Nom</Label>
+                    <Input
+                      id="edit-name"
+                      value={editingUser.name}
+                      onChange={(e) => setEditingUser((s) => s ? { ...s, name: e.target.value } : s)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-role">Rôle</Label>
+                    <Select
+                      value={editingUser.role}
+                      onValueChange={(val) => setEditingUser((s) => s ? { ...s, role: val as "ADMIN" | "MANAGER" } : s)}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ADMIN">Admin</SelectItem>
+                        <SelectItem value="MANAGER">Manager</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" type="button" onClick={() => setEditingUser(null)}>Annuler</Button>
+                    <Button type="submit" disabled={updatingUser}>
+                      {updatingUser && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      Sauvegarder
+                    </Button>
+                  </DialogFooter>
+                </form>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          {!canDelete(u.id) && <div className="h-9 w-9" aria-hidden="true" />}
+          {canDelete(u.id) && (
+            <Dialog open={deleteDialogOpen === u.id} onOpenChange={(open) => setDeleteDialogOpen(open ? u.id : null)}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-red-600">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Supprimer l&apos;utilisateur</DialogTitle>
+                  <DialogDescription>Êtes-vous sûr de vouloir supprimer cet utilisateur ?</DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button variant="outline" type="button" onClick={() => setDeleteDialogOpen(null)}>Annuler</Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => { deleteUser(u.id); setDeleteDialogOpen(null); }}
+                    disabled={deletingUser}
+                  >
+                    {deletingUser && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Supprimer
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => gdprExportUser(u.id)}
+                disabled={gdprExporting}
+              >
+                {gdprExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Exporter les données personnelles (RGPD)</TooltipContent>
+          </Tooltip>
+          <Dialog open={gdprEraseDialogOpen === u.id} onOpenChange={(open) => setGdprEraseDialogOpen(open ? u.id : null)}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="text-red-600">
+                <ShieldOff className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Effacer les données personnelles (RGPD)</DialogTitle>
+                <DialogDescription>
+                  Si cet utilisateur n&apos;a aucun historique de commission ou de temps facturé, son
+                  compte sera supprimé définitivement. Sinon, son nom/email/téléphone seront
+                  anonymisés et ses sessions révoquées — l&apos;historique de commission/temps est
+                  conservé pour l&apos;obligation légale de rétention.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" type="button" onClick={() => setGdprEraseDialogOpen(null)}>Annuler</Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => gdprEraseUser(u.id, { onSuccess: () => setGdprEraseDialogOpen(null) })}
+                  disabled={gdprErasing}
+                >
+                  {gdprErasing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Effacer
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      );
+    },
+    [
+      expandedPermissions,
+      editingUser,
+      updatingUser,
+      handleEditSubmit,
+      canDelete,
+      deleteDialogOpen,
+      deletingUser,
+      deleteUser,
+      gdprExportUser,
+      gdprExporting,
+      gdprEraseDialogOpen,
+      gdprEraseUser,
+      gdprErasing,
+    ]
+  );
+
+  const columnDefs = useMemo<ColDef<AppUser>[]>(
+    () => [
+      { headerName: "Nom", field: "name", flex: 1.3, minWidth: 150, cellClass: "font-medium" },
+      { headerName: "Email", field: "email", flex: 1.8, minWidth: 200 },
+      { headerName: "Rôle", cellRenderer: roleRenderer, flex: 0.9, minWidth: 130 },
+      { headerName: "Créé le", valueFormatter: (p) => formatDate(p.data!.createdAt), field: "createdAt", flex: 0.9, minWidth: 110 },
+      {
+        headerName: "Dernière connexion",
+        valueFormatter: (p) => (p.data?.lastLoginAt ? formatDate(p.data.lastLoginAt) : "Jamais connecté"),
+        flex: 0.9,
+        minWidth: 150,
+        cellClass: "text-muted-foreground",
+      },
+      {
+        headerName: "Moy. jour",
+        valueFormatter: (p) => formatDuration(p.data?.connectedTimeAverages?.today),
+        flex: 0.8,
+        minWidth: 100,
+        cellClass: "text-muted-foreground",
+      },
+      {
+        headerName: "Moy. semaine",
+        valueFormatter: (p) => formatDuration(p.data?.connectedTimeAverages?.weekly),
+        flex: 0.8,
+        minWidth: 110,
+        cellClass: "text-muted-foreground",
+      },
+      {
+        headerName: "Moy. mois",
+        valueFormatter: (p) => formatDuration(p.data?.connectedTimeAverages?.monthly),
+        flex: 0.8,
+        minWidth: 100,
+        cellClass: "text-muted-foreground",
+      },
+      { headerName: "Actions", cellRenderer: actionsRenderer, width: 220, minWidth: 220, sortable: false, resizable: false },
+    ],
+    [roleRenderer, actionsRenderer]
+  );
 
   return (
     <TooltipProvider>
@@ -650,178 +886,18 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
         </div>
 
         <Card>
-          <CardContent className="p-0">
-            {loadingUsers ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : filteredUsers.length === 0 ? (
-              <div className="py-8 text-center text-sm text-muted-foreground">
-                {search ? "Aucun utilisateur ne correspond à cette recherche." : "Aucun Admin ou Manager pour le moment."}
-              </div>
-            ) : (
-              <div ref={parentRef} className="max-h-[520px] overflow-auto" style={{ scrollbarGutter: "stable" }}>
-                {/* Plain divs, not a native <table>, because the rows below are
-                    virtualized (position: absolute + translateY). <tr> ignores
-                    absolute positioning in real table layout — it silently
-                    breaks row placement (a phantom blank row, missing actions)
-                    instead of erroring, which is why this used to look fine in
-                    the editor but rendered wrong in the browser. */}
-                <div className="min-w-[1180px] grid grid-cols-[minmax(0,1.3fr)_minmax(0,1.8fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_auto] text-sm sticky top-0 bg-background z-10 border-b">
-                  <div className="h-10 px-2 flex items-center justify-center font-medium text-muted-foreground">Nom</div>
-                  <div className="h-10 px-2 flex items-center justify-center font-medium text-muted-foreground">Email</div>
-                  <div className="h-10 px-2 flex items-center justify-center font-medium text-muted-foreground">Rôle</div>
-                  <div className="h-10 px-2 flex items-center justify-center font-medium text-muted-foreground">Créé le</div>
-                  <div className="h-10 px-2 flex items-center justify-center font-medium text-muted-foreground">Dernière connexion</div>
-                  <div className="h-10 px-2 flex items-center justify-center font-medium text-muted-foreground">Moy. jour</div>
-                  <div className="h-10 px-2 flex items-center justify-center font-medium text-muted-foreground">Moy. semaine</div>
-                  <div className="h-10 px-2 flex items-center justify-center font-medium text-muted-foreground">Moy. mois</div>
-                  <div className="h-10 px-2 flex items-center justify-end font-medium text-muted-foreground">Actions</div>
-                </div>
-                <div style={{ height: `${totalSize}px`, position: "relative", minWidth: 1180 }}>
-                  {virtualItems.map((v) => {
-                    const u = filteredUsers[v.index];
-                    if (!u) return null;
-                    const isPermExpanded = expandedPermissions === u.id;
-                    return (
-                      <div
-                        key={u.id}
-                        className="min-w-[1180px] grid grid-cols-[minmax(0,1.3fr)_minmax(0,1.8fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_auto] items-center border-b text-sm hover:bg-muted/50 transition-colors"
-                        style={{
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          width: "100%",
-                          height: `${v.size}px`,
-                          transform: `translateY(${v.start}px)`,
-                        }}
-                      >
-                        <div className="px-2 py-2 flex justify-center text-center truncate">{u.name}</div>
-                        <div className="px-2 py-2 flex justify-center text-center truncate">{u.email}</div>
-                        <div className="px-2 py-2 flex flex-col items-center gap-1">
-                          <Badge className={getRoleColor(u.role)}>{u.role}</Badge>
-                          {u.mustChangePassword && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700">
-                                  En attente
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent>N'a pas encore effectué sa première connexion</TooltipContent>
-                            </Tooltip>
-                          )}
-                        </div>
-                        <div className="px-2 py-2 flex justify-center text-center">{formatDate(u.createdAt)}</div>
-                        <div className="px-2 py-2 flex justify-center text-center text-muted-foreground">
-                          {u.lastLoginAt ? formatDate(u.lastLoginAt) : "Jamais connecté"}
-                        </div>
-                        <div className="px-2 py-2 flex justify-center text-center text-muted-foreground">{formatDuration(u.connectedTimeAverages?.today)}</div>
-                        <div className="px-2 py-2 flex justify-center text-center text-muted-foreground">{formatDuration(u.connectedTimeAverages?.weekly)}</div>
-                        <div className="px-2 py-2 flex justify-center text-center text-muted-foreground">{formatDuration(u.connectedTimeAverages?.monthly)}</div>
-                        <div className="px-2 py-2 flex justify-end gap-1">
-                          {u.role === "MANAGER" ? (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              title="Configurer les permissions"
-                              onClick={() => setExpandedPermissions(isPermExpanded ? null : u.id)}
-                            >
-                              <ShieldCheck className="h-4 w-4 text-blue-500" />
-                            </Button>
-                          ) : (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span>
-                                  <Button variant="ghost" size="icon" disabled className="opacity-30">
-                                    <ShieldCheck className="h-4 w-4" />
-                                  </Button>
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent>Les Admins ont automatiquement tous les droits</TooltipContent>
-                            </Tooltip>
-                          )}
-                          <Dialog
-                            open={editingUser?.id === u.id}
-                            onOpenChange={(open) => setEditingUser(open ? { id: u.id, name: u.name, role: u.role } : null)}
-                          >
-                            <DialogTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Modifier l'utilisateur</DialogTitle>
-                              </DialogHeader>
-                              {editingUser?.id === u.id && (
-                                <form onSubmit={handleEditSubmit} className="space-y-4">
-                                  <div>
-                                    <Label htmlFor="edit-name">Nom</Label>
-                                    <Input
-                                      id="edit-name"
-                                      value={editingUser.name}
-                                      onChange={(e) => setEditingUser((s) => s ? { ...s, name: e.target.value } : s)}
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label htmlFor="edit-role">Rôle</Label>
-                                    <Select
-                                      value={editingUser.role}
-                                      onValueChange={(val) => setEditingUser((s) => s ? { ...s, role: val as "ADMIN" | "MANAGER" } : s)}
-                                    >
-                                      <SelectTrigger><SelectValue /></SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="ADMIN">Admin</SelectItem>
-                                        <SelectItem value="MANAGER">Manager</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <DialogFooter>
-                                    <Button variant="outline" type="button" onClick={() => setEditingUser(null)}>Annuler</Button>
-                                    <Button type="submit" disabled={updatingUser}>
-                                      {updatingUser && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                                      Sauvegarder
-                                    </Button>
-                                  </DialogFooter>
-                                </form>
-                              )}
-                            </DialogContent>
-                          </Dialog>
-
-                          {!canDelete(u.id) && <div className="h-9 w-9" aria-hidden="true" />}
-                          {canDelete(u.id) && (
-                            <Dialog open={deleteDialogOpen === u.id} onOpenChange={(open) => setDeleteDialogOpen(open ? u.id : null)}>
-                              <DialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-red-600">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Supprimer l'utilisateur</DialogTitle>
-                                  <DialogDescription>Êtes-vous sûr de vouloir supprimer cet utilisateur ?</DialogDescription>
-                                </DialogHeader>
-                                <DialogFooter>
-                                  <Button variant="outline" type="button" onClick={() => setDeleteDialogOpen(null)}>Annuler</Button>
-                                  <Button
-                                    variant="destructive"
-                                    onClick={() => { deleteUser(u.id); setDeleteDialogOpen(null); }}
-                                    disabled={deletingUser}
-                                  >
-                                    {deletingUser && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                                    Supprimer
-                                  </Button>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+          <CardContent className="p-0" style={{ height: 520 }}>
+            <AgGridReact<AppUser>
+              theme={gridTheme}
+              rowData={filteredUsers}
+              columnDefs={columnDefs}
+              loading={loadingUsers}
+              suppressCellFocus
+              overlayLoadingTemplate="Chargement..."
+              overlayNoRowsTemplate={
+                search ? "Aucun utilisateur ne correspond à cette recherche." : "Aucun Admin ou Manager pour le moment."
+              }
+            />
           </CardContent>
         </Card>
 

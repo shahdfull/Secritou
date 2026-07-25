@@ -103,6 +103,8 @@ import "./reportsPageSortOrder.test.ts";
 import "./taskUpdateScopeRefusal.test.ts";
 import "./proposalWriteScopeRefusal.test.ts";
 import "./userDeleteFinancialHistory.test.ts";
+import "./gdprErasure.test.ts";
+import "./gdprSelfServiceHttp.test.ts";
 import "./clientPortalActivationBackfill.test.ts";
 import "./creditNoteCumulativeAmount.test.ts";
 import "./depositRateSingleSource.test.ts";

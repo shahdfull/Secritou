@@ -394,11 +394,16 @@ export function LeadsPage() {
           <Button variant="ghost" size="icon" className="h-7 w-7" title={t('leadsPage.convertToClient')} onClick={() => handleConvert(lead)} disabled={isConverting || lead.status !== "WON" || !!lead.convertedClient}>
             <UserCheck className="h-3.5 w-3.5" />
           </Button>
-          {lead.status === "LOST" && !lead.convertedClient && (
-            <Button variant="ghost" size="icon" className="h-7 w-7" title={t('leadsPage.reopenLead')} onClick={() => handleReopen(lead)} disabled={isReopening}>
-              <RefreshCw className="h-3.5 w-3.5" />
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            title={lead.status === "LOST" && !lead.convertedClient ? t('leadsPage.reopenLead') : t('leadsPage.reopenUnavailable', "Disponible uniquement pour un lead perdu")}
+            onClick={() => handleReopen(lead)}
+            disabled={isReopening || lead.status !== "LOST" || !!lead.convertedClient}
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+          </Button>
           <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t('common.delete')} onClick={() => handleDelete(lead)} disabled={isDeleting || !!lead.convertedClient}>
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
@@ -415,7 +420,7 @@ export function LeadsPage() {
       { headerName: t('common.phone'), valueGetter: (p) => p.data?.phone || "-", flex: 1 },
       { headerName: t('leadsPage.sourceLabel'), cellRenderer: sourceRenderer, flex: 1, sortable: true, sort: sortForField("source"), comparator: () => 0, colId: "source" },
       { headerName: t('common.status'), cellRenderer: statusRenderer, flex: 1, sortable: true, sort: sortForField("status"), comparator: () => 0, colId: "status" },
-      { headerName: t('common.actions'), cellRenderer: actionsRenderer, width: 190, sortable: false, resizable: false },
+      { headerName: t('common.actions'), cellRenderer: actionsRenderer, width: 220, sortable: false, resizable: false },
     ],
     [t, sortForField, sourceRenderer, statusRenderer, actionsRenderer]
   );

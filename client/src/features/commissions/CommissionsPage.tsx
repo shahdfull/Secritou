@@ -91,12 +91,12 @@ export function CommissionsPage() {
       const c = params.data;
       if (!c) return null;
       return (
-        <div className="flex h-full items-center">
-          <Badge className={c.status === "PAID" ? "bg-green-100 text-green-800" : "bg-accent-soft text-accent-strong"}>
+        <div className="flex h-full items-center gap-2 min-w-0" title={c.status === "PAID" && c.paidAt ? formatDate(c.paidAt) : undefined}>
+          <Badge className={(c.status === "PAID" ? "bg-green-100 text-green-800" : "bg-accent-soft text-accent-strong") + " shrink-0"}>
             {t(`commissions.statuses.${c.status.toLowerCase()}`)}
           </Badge>
           {c.status === "PAID" && c.paidAt && (
-            <span className="ml-2 text-xs text-muted-foreground">{formatDate(c.paidAt)}</span>
+            <span className="text-xs text-muted-foreground truncate">{formatDate(c.paidAt)}</span>
           )}
         </div>
       );
@@ -107,16 +107,17 @@ export function CommissionsPage() {
   const actionsRenderer = useCallback(
     (params: ICellRendererParams<Commission>) => {
       const c = params.data;
-      if (!c || c.status !== "PENDING") return null;
+      if (!c) return null;
+      const isPending = c.status === "PENDING";
       return (
         <div className="flex h-full items-center justify-end">
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-green-600 hover:bg-green-50"
-            title={t("commissions.markPaid", "Marquer comme payée")}
+            className="h-7 w-7 text-green-600 hover:bg-green-50 disabled:text-muted-foreground"
+            title={isPending ? t("commissions.markPaid", "Marquer comme payée") : t("commissions.alreadyPaid", "Déjà payée")}
             onClick={() => markPaidMutation.mutate(c.id)}
-            disabled={markPaidMutation.isPending}
+            disabled={!isPending || markPaidMutation.isPending}
           >
             <CheckCircle2 className="h-3.5 w-3.5" />
           </Button>
@@ -142,7 +143,7 @@ export function CommissionsPage() {
       { headerName: t("commissions.basis", "Montant encaissé"), valueFormatter: (p) => p.data!.basis.toLocaleString("fr-FR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }), field: "basis", flex: 1 },
       { headerName: t("commissions.rate", "Taux"), valueFormatter: (p) => `${p.data!.ratePct}%`, field: "ratePct", width: 100 },
       { headerName: t("commissions.amount", "Montant dû"), valueFormatter: (p) => p.data!.amount.toLocaleString("fr-FR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }), field: "amount", flex: 1, cellClass: "font-medium" },
-      { headerName: t("commissions.status", "Statut"), cellRenderer: statusRenderer, flex: 1 }
+      { headerName: t("commissions.status", "Statut"), cellRenderer: statusRenderer, flex: 1.4, minWidth: 160 }
     );
     if (!isManager) {
       cols.push({ headerName: t("commissions.actions", "Actions"), cellRenderer: actionsRenderer, width: 90, sortable: false, resizable: false });

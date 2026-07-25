@@ -38,6 +38,7 @@ import { siteContentPublicRoutes, siteContentAdminRoutes } from "./siteContent.r
 import translationRoutes from "./translation.routes.js";
 import clientPortalRoutes from "./clientPortal.routes.js";
 import serviceRoutes from "./service.routes.js";
+import gdprRoutes from "./gdpr.routes.js";
 
 export const apiRoutes = Router();
 
@@ -218,3 +219,6 @@ apiRoutes.use("/portfolio", portfolioRoutes);
 apiRoutes.use("/site-content", siteContentPublicRoutes);
 apiRoutes.use("/admin/site-content", siteContentAdminRoutes);
 apiRoutes.use("/admin/translate", translationRoutes);
+
+// GDPR export/erasure routes (ADMIN only — see RG-025, REFERENTIEL.md §5)
+apiRoutes.use("/gdpr", gdprRoutes);

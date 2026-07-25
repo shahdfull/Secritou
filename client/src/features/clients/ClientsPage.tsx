@@ -21,6 +21,7 @@ import {
   Edit,
   Trash2,
   Loader2,
+  Eye,
 } from "lucide-react";
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
@@ -72,6 +73,7 @@ import { useListParams } from "@/hooks/useListParams";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 import { useCrudDialogState } from "@/hooks/shared/useCrudDialogState";
 import { usePermission } from "@/hooks/usePermission";
+import { ClientDetailDialog } from "./ClientDetailDialog";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -93,6 +95,7 @@ export function ClientsPage() {
   const [showTrash, setShowTrash] = useState(false);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
+  const [detailClient, setDetailClient] = useState<Client | null>(null);
 
   const {
     createDialogOpen,
@@ -169,6 +172,10 @@ export function ClientsPage() {
     setDeleteTarget(client);
   }, []);
 
+  const handleViewDetail = useCallback((client: Client) => {
+    setDetailClient(client);
+  }, []);
+
   const handleRestore = useCallback((client: Client) => {
     restoreClient(client.id);
   }, [restoreClient]);
@@ -207,6 +214,9 @@ export function ClientsPage() {
       if (!client) return null;
       return (
         <div className="flex h-full items-center justify-end gap-1">
+          <Button variant="ghost" size="icon" className="h-7 w-7" title={t("common.details")} onClick={(e) => { e.stopPropagation(); handleViewDetail(client); }}>
+            <Eye className="h-3.5 w-3.5" />
+          </Button>
           <Button variant="ghost" size="icon" className="h-7 w-7" title={t("common.edit")} onClick={(e) => { e.stopPropagation(); handleEdit(client); }}>
             <Edit className="h-3.5 w-3.5" />
           </Button>
@@ -216,7 +226,7 @@ export function ClientsPage() {
         </div>
       );
     },
-    [t, handleEdit, handleDelete, isDeleting]
+    [t, handleViewDetail, handleEdit, handleDelete, isDeleting]
   );
 
   const columnDefs = useMemo<ColDef<Client>[]>(
@@ -224,7 +234,7 @@ export function ClientsPage() {
       { headerName: t("common.name"), cellRenderer: nameRenderer, flex: 1, cellClass: "font-medium" },
       { headerName: t("clientsPage.emailLabel"), valueGetter: (p) => p.data?.email || "-", flex: 1 },
       { headerName: t("clientsPage.phoneLabel"), valueGetter: (p) => p.data?.phone || "-", flex: 1 },
-      { headerName: t("common.actions"), cellRenderer: actionsRenderer, width: 100, sortable: false, resizable: false },
+      { headerName: t("common.actions"), cellRenderer: actionsRenderer, width: 130, sortable: false, resizable: false },
     ],
     [t, nameRenderer, actionsRenderer]
   );
@@ -465,6 +475,12 @@ export function ClientsPage() {
         title={`${t("clientsPage.deleteTitle")} "${deleteTarget?.name}" ?`}
         description={t("clientsPage.deleteDescription")}
         isDeleting={isDeleting}
+      />
+
+      <ClientDetailDialog
+        client={detailClient}
+        open={!!detailClient}
+        onOpenChange={(open) => { if (!open) setDetailClient(null); }}
       />
     </div>
   );

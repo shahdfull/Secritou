@@ -12,7 +12,7 @@ groups:
         labels: { severity: warning }
         annotations: { summary: "P99 DB query > 1s" }
       - alert: CacheHitRateLow
-        expr: rate(cache_hits_total[10m]) / (rate(cache_hits_total[10m]) + rate(cache_misses_total[10m])) < 0.5
+        expr: rate(redis_cache_hits_total[10m]) / (rate(redis_cache_hits_total[10m]) + rate(redis_cache_misses_total[10m])) < 0.5
         for: 10m
         labels: { severity: warning }
         annotations: { summary: "Cache hit rate below 50%" }

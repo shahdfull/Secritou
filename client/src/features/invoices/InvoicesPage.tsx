@@ -167,35 +167,58 @@ export function InvoicesPage() {
     (params: ICellRendererParams<Invoice>) => {
       const invoice = params.data;
       if (!invoice) return null;
+      const canSend = invoice.status === "DRAFT";
+      const canAddPayment = ["SENT", "PARTIAL", "OVERDUE"].includes(invoice.status);
+      const canToggleReminder = ["SENT", "PARTIAL", "OVERDUE"].includes(invoice.status);
+      const canCancel = !["PAID", "CANCELLED"].includes(invoice.status);
       return (
         <div className="flex h-full items-center justify-end gap-1">
-          {invoice.status === "DRAFT" && (
-            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("invoices.send")} onClick={() => sendMutation.mutate(invoice.id)} disabled={sendMutation.isPending}>
-              <Send className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          {["SENT", "PARTIAL", "OVERDUE"].includes(invoice.status) && (
-            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("invoices.addPayment.title")} onClick={() => { setSelectedInvoice(invoice); setPaymentDialogOpen(true); }}>
-              <Plus className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          {["SENT", "PARTIAL", "OVERDUE"].includes(invoice.status) && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              title={invoice.reminderPaused ? t("invoices.resumeReminders") : t("invoices.pauseReminders")}
-              onClick={() => reminderPausedMutation.mutate({ id: invoice.id, reminderPaused: !invoice.reminderPaused })}
-              disabled={reminderPausedMutation.isPending}
-            >
-              {invoice.reminderPaused ? <BellOff className="h-3.5 w-3.5 text-muted-foreground" /> : <Bell className="h-3.5 w-3.5" />}
-            </Button>
-          )}
-          {!["PAID", "CANCELLED"].includes(invoice.status) && (
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:bg-amber-50" title={t("invoices.cancel", "Annuler")} onClick={() => cancelMutation.mutate(invoice.id)} disabled={cancelMutation.isPending}>
-              <Ban className="h-3.5 w-3.5" />
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            title={canSend ? t("invoices.send") : t("invoices.sendUnavailable", "Disponible uniquement pour les brouillons")}
+            onClick={() => sendMutation.mutate(invoice.id)}
+            disabled={!canSend || sendMutation.isPending}
+          >
+            <Send className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            title={canAddPayment ? t("invoices.addPayment.title") : t("invoices.addPaymentUnavailable", "Aucun paiement à ajouter sur cette facture")}
+            onClick={() => { setSelectedInvoice(invoice); setPaymentDialogOpen(true); }}
+            disabled={!canAddPayment}
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            title={
+              !canToggleReminder
+                ? t("invoices.reminderUnavailable", "Pas de relance sur cette facture")
+                : invoice.reminderPaused
+                  ? t("invoices.resumeReminders")
+                  : t("invoices.pauseReminders")
+            }
+            onClick={() => reminderPausedMutation.mutate({ id: invoice.id, reminderPaused: !invoice.reminderPaused })}
+            disabled={!canToggleReminder || reminderPausedMutation.isPending}
+          >
+            {invoice.reminderPaused ? <BellOff className="h-3.5 w-3.5 text-muted-foreground" /> : <Bell className="h-3.5 w-3.5" />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-amber-600 hover:bg-amber-50 disabled:text-muted-foreground"
+            title={canCancel ? t("invoices.cancel", "Annuler") : t("invoices.cancelUnavailable", "Cette facture ne peut plus être annulée")}
+            onClick={() => cancelMutation.mutate(invoice.id)}
+            disabled={!canCancel || cancelMutation.isPending}
+          >
+            <Ban className="h-3.5 w-3.5" />
+          </Button>
         </div>
       );
     },

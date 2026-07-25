@@ -1196,6 +1196,7 @@
     "createProjectDesc": "Ajoutez un nouveau projet à votre liste",
     "editProject": "Modifier le projet",
     "editProjectDesc": "Mettez à jour les informations du projet",
+    "deleteUnavailable": "Vous n'avez pas la permission de supprimer ce projet",
     "searchProjects": "Rechercher des projets...",
     "nameRequired": "Le nom est requis",
     "selectStatus": "Sélectionnez le statut",
@@ -1285,6 +1286,7 @@
     "reopenDesc": "Le lead repassera en statut actif et sera à nouveau visible dans le pipeline.",
     "reopenConfirm": "Rouvrir",
     "reopenLead": "Rouvrir le lead",
+    "reopenUnavailable": "Disponible uniquement pour un lead perdu",
     "showArchived": "Afficher les archivés",
     "markAsLostTitle": "Marquer comme perdu",
     "markAsLostDesc": "Indiquez la raison pour laquelle ce lead est perdu (optionnel).",
@@ -1357,6 +1359,8 @@
     "phonePlaceholder": "+1234567890",
     "emailLabel": "Email",
     "phoneLabel": "Téléphone",
+    "detailDesc": "Coordonnées du client",
+    "creditBalanceLabel": "Solde créditeur",
     "areYouSureDelete": "Êtes-vous sûr de vouloir supprimer {{name}} ?",
     "trashDesc": "Clients supprimés récupérables",
     "trashEmpty": "Aucun client dans la corbeille.",
@@ -1879,6 +1883,7 @@
     "invoiced": "Facturé",
     "invoiceAlreadyCreated": "Facture déjà créée",
     "generateInvoice": "Générer une facture",
+    "actionUnavailable": "Non disponible pour ce statut",
     "viewProject": "Voir le projet",
     "invoiceDialog": {
       "title": "Générer une facture",
@@ -2041,6 +2046,10 @@
     "emptyTrash": "Aucune facture supprimée.",
     "resumeReminders": "Réactiver les relances",
     "pauseReminders": "Désactiver les relances",
+    "sendUnavailable": "Disponible uniquement pour les brouillons",
+    "addPaymentUnavailable": "Aucun paiement à ajouter sur cette facture",
+    "reminderUnavailable": "Pas de relance sur cette facture",
+    "cancelUnavailable": "Cette facture ne peut plus être annulée",
     "cancelled": "Facture annulée",
     "restored": "Facture restaurée",
     "reminderPaused": "Relances suspendues",
@@ -2166,7 +2175,9 @@
     "download": "Télécharger",
     "uploadNewVersion": "Télécharger une nouvelle version",
     "delete": "Supprimer",
+    "deleteUnavailable": "Réservé aux administrateurs et managers",
     "accessLog": "Journal d'accès",
+    "accessLogUnavailable": "Réservé aux administrateurs et managers",
     "accessLogTitle": "Journal d'accès",
     "noAccessLog": "Aucun accès enregistré pour le moment.",
     "unknownUser": "Utilisateur inconnu",
@@ -2258,7 +2269,9 @@
       "NORMAL": "Normale",
       "HIGH": "Haute",
       "URGENT": "Urgente"
-    }
+    },
+    "editUnavailable": "Vous ne pouvez modifier que vos tâches assignées",
+    "deleteUnavailable": "Vous n'avez pas la permission de supprimer cette tâche"
   },
   "freelancerDashboard": {
     "greeting": "Bienvenue, {{name}} 👋",
@@ -2332,6 +2345,7 @@
     "actions": "Actions",
     "empty": "Aucune commission pour le moment.",
     "markPaid": "Marquer comme payée",
+    "alreadyPaid": "Déjà payée",
     "markedPaid": "Commission marquée comme payée",
     "splitsUpdated": "Répartition mise à jour"
   },

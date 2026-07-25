@@ -1,5 +1,5 @@
 // Mobile-responsive: updated 2026-06-29
-import { useState, useRef, useEffect } from "react";
+import { useCallback, useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   useAdminServiceRequests,
@@ -17,6 +17,15 @@ import type {
   ServiceRequestType,
   AdminListServiceRequestsParams,
 } from "@/types/serviceRequest";
+import { AgGridReact } from "ag-grid-react";
+import {
+  ModuleRegistry,
+  AllCommunityModule,
+  themeQuartz,
+  type ColDef,
+  type ICellRendererParams,
+  type SortChangedEvent,
+} from "ag-grid-community";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -58,12 +67,10 @@ import {
   Search,
   Trash2,
   Eye,
-  RefreshCw,
   MessageSquare,
   Clock,
   Lock,
   Globe,
-  ChevronLeft,
   ChevronRight,
   Loader2,
   File,
@@ -71,6 +78,27 @@ import {
 } from "lucide-react";
 import { useDebouncedValue } from "@/hooks/shared/useDebouncedValue";
 import { useAuthStore } from "@/store/auth.store";
+import { DataTablePagination } from "@/components/common/DataTablePagination";
+
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
+const gridTheme = themeQuartz.withParams({
+  accentColor: "#0f766e",
+  headerBackgroundColor: "#f8fafc",
+  headerTextColor: "#334155",
+  rowHoverColor: "#f1f5f9",
+  borderColor: "#e2e8f0",
+  fontFamily: "inherit",
+});
+
+// Mêmes noms de colonnes que côté serveur (serviceRequest.repository.ts#SORTABLE_FIELDS).
+const AG_FIELD_TO_SORT_COLUMN: Record<string, string> = {
+  title: "title",
+  status: "status",
+  priority: "priority",
+  createdAt: "createdAt",
+};
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -626,7 +654,6 @@ export function ServiceRequestsAdminPage() {
 
   const requests = data?.data ?? [];
   const total = data?.total ?? 0;
-  const totalPages = Math.ceil(total / (filters.pageSize ?? 20));
   const currentPage = filters.page ?? 1;
 
   const setFilter = <K extends keyof AdminListServiceRequestsParams>(
@@ -635,6 +662,104 @@ export function ServiceRequestsAdminPage() {
   ) => {
     setFilters((prev) => ({ ...prev, [key]: value, page: 1 }));
   };
+
+  const sortForField = useCallback(
+    (field: string): "asc" | "desc" | null => {
+      const activeColumn = filters.orderBy ?? "createdAt";
+      return AG_FIELD_TO_SORT_COLUMN[field] === activeColumn ? (filters.orderDir ?? "desc") : null;
+    },
+    [filters.orderBy, filters.orderDir]
+  );
+
+  const handleSortChanged = useCallback(
+    (event: SortChangedEvent<ServiceRequest>) => {
+      const sortedCol = event.api.getColumnState().find((c) => c.sort);
+      if (!sortedCol) return;
+      const column = AG_FIELD_TO_SORT_COLUMN[sortedCol.colId];
+      if (column) {
+        setFilters((prev) => ({ ...prev, orderBy: column, orderDir: sortedCol.sort === "desc" ? "desc" : "asc", page: 1 }));
+      }
+    },
+    []
+  );
+
+  const titleRenderer = useCallback((params: ICellRendererParams<ServiceRequest>) => {
+    const req = params.data;
+    if (!req) return null;
+    const isUnassignedNew = req.status === "NEW" && !req.assignedToId;
+    return (
+      <div className="flex h-full items-center gap-2 min-w-0">
+        {isUnassignedNew && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+              </TooltipTrigger>
+              <TooltipContent side="right" className="text-xs">
+                Demande non assignée
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        <span className="font-medium truncate">{req.title}</span>
+      </div>
+    );
+  }, []);
+
+  const statusRenderer = useCallback((params: ICellRendererParams<ServiceRequest>) => {
+    const req = params.data;
+    if (!req) return null;
+    return (
+      <div className="flex h-full items-center">
+        <Badge variant="outline" className={`text-xs ${statusBadgeClass(req.status)}`}>
+          {statusLabel(req.status)}
+        </Badge>
+      </div>
+    );
+  }, []);
+
+  const priorityRenderer = useCallback((params: ICellRendererParams<ServiceRequest>) => {
+    const req = params.data;
+    if (!req) return null;
+    return (
+      <div className="flex h-full items-center">
+        <Badge variant="outline" className={`text-xs ${priorityBadgeClass(req.priority)}`}>
+          {priorityLabel(req.priority)}
+        </Badge>
+      </div>
+    );
+  }, []);
+
+  const requestActionsRenderer = useCallback(
+    (params: ICellRendererParams<ServiceRequest>) => {
+      const req = params.data;
+      if (!req) return null;
+      return (
+        <div className="flex h-full items-center justify-end gap-1">
+          <Button variant="ghost" size="icon" className="h-7 w-7" title="Voir" onClick={(e) => { e.stopPropagation(); setSelectedId(req.id); }}>
+            <Eye className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title="Supprimer" onClick={(e) => { e.stopPropagation(); setDeleteTarget(req.id); }}>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      );
+    },
+    []
+  );
+
+  const columnDefs = useMemo<ColDef<ServiceRequest>[]>(
+    () => [
+      { headerName: "Demande", cellRenderer: titleRenderer, flex: 2, sortable: true, sort: sortForField("title"), comparator: () => 0, colId: "title" },
+      { headerName: "Client", valueGetter: (p) => p.data?.client?.name ?? "—", flex: 1 },
+      { headerName: "Statut", cellRenderer: statusRenderer, flex: 1, sortable: true, sort: sortForField("status"), comparator: () => 0, colId: "status" },
+      { headerName: "Priorité", cellRenderer: priorityRenderer, flex: 1, sortable: true, sort: sortForField("priority"), comparator: () => 0, colId: "priority" },
+      { headerName: "Assigné", valueGetter: (p) => p.data?.assignedTo?.name ?? "Non assigné", flex: 1, cellClass: "text-muted-foreground text-xs" },
+      { headerName: "Créée le", valueFormatter: (p) => new Date(p.data!.createdAt).toLocaleDateString("fr-FR"), field: "createdAt", flex: 1, sortable: true, sort: sortForField("createdAt"), comparator: () => 0 },
+      { headerName: "Actions", cellRenderer: requestActionsRenderer, width: 100, sortable: false, resizable: false },
+    ],
+    [titleRenderer, statusRenderer, priorityRenderer, requestActionsRenderer, sortForField]
+  );
 
   return (
     <div className="space-y-6">
@@ -737,134 +862,34 @@ export function ServiceRequestsAdminPage() {
       <div className="flex">
         {/* Table */}
         <div
-          className={`flex-1 overflow-auto transition-opacity ${
+          className={`flex-1 transition-opacity ${
             isPlaceholderData ? "opacity-60" : ""
           }`}
         >
-          {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : requests.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-              <RefreshCw className="h-10 w-10 mb-3 opacity-30" />
-              <p>Aucune demande trouvée</p>
-            </div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-background border-b">
-                <tr>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground w-1/3">
-                    Demande
-                  </th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Client</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Statut</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Priorité</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Assigné</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Créée le</th>
-                  <th className="w-12" />
-                </tr>
-              </thead>
-              <tbody>
-                {requests.map((req: ServiceRequest) => {
-                  const isUnassignedNew = req.status === "NEW" && !req.assignedToId;
-                  return (
-                    <tr
-                      key={req.id}
-                      className={`border-b hover:bg-muted/40 cursor-pointer transition-colors ${
-                        selectedId === req.id
-                          ? "bg-muted/60"
-                          : isUnassignedNew
-                          ? "bg-amber-50/60 hover:bg-amber-50"
-                          : ""
-                      }`}
-                      onClick={() => setSelectedId(req.id)}
-                    >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          {isUnassignedNew && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-                                </TooltipTrigger>
-                                <TooltipContent side="right" className="text-xs">
-                                  Demande non assignée
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                          <span className="font-medium line-clamp-1">{req.title}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {req.client?.name ?? "—"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge
-                          variant="outline"
-                          className={`text-xs ${statusBadgeClass(req.status)}`}
-                        >
-                          {statusLabel(req.status)}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge
-                          variant="outline"
-                          className={`text-xs ${priorityBadgeClass(req.priority)}`}
-                        >
-                          {priorityLabel(req.priority)}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs">
-                        {req.assignedTo?.name ?? <span className="italic">Non assigné</span>}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs">
-                        {new Date(req.createdAt).toLocaleDateString("fr-FR")}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setSelectedId(req.id); }}>
-                            <Eye className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); setDeleteTarget(req.id); }}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+          <div style={{ height: 500 }}>
+            <AgGridReact<ServiceRequest>
+              theme={gridTheme}
+              rowData={requests}
+              columnDefs={columnDefs}
+              loading={isLoading}
+              onSortChanged={handleSortChanged}
+              onRowClicked={(event) => event.data && setSelectedId(event.data.id)}
+              rowClass="cursor-pointer"
+              getRowClass={(params) =>
+                params.data?.status === "NEW" && !params.data.assignedToId ? "bg-amber-50/60" : undefined
+              }
+              suppressCellFocus
+              overlayLoadingTemplate="Chargement..."
+              overlayNoRowsTemplate="Aucune demande trouvée"
+            />
+          </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t">
-              <p className="text-sm text-muted-foreground">
-                Page {currentPage} sur {totalPages} : {total} résultat{total !== 1 ? "s" : ""}
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage <= 1}
-                  onClick={() => setFilters((p) => ({ ...p, page: (p.page ?? 1) - 1 }))}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setFilters((p) => ({ ...p, page: (p.page ?? 1) + 1 }))}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
+          <DataTablePagination
+            page={currentPage}
+            pageSize={filters.pageSize ?? 20}
+            total={total}
+            onPageChange={(newPage) => setFilters((p) => ({ ...p, page: newPage }))}
+          />
         </div>
 
         {/* Detail side panel */}

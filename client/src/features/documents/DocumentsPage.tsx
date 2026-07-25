@@ -241,16 +241,26 @@ export function DocumentsPage() {
           <Button variant="ghost" size="icon" className="h-7 w-7" title={t("documents.download")} onClick={() => openDocument(doc.id, "download", doc.name)}>
             <Download className="h-3.5 w-3.5" />
           </Button>
-          {!isFreelancer && (
-            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("documents.accessLog")} onClick={() => setAccessLogDocId(doc.id)}>
-              <Clock className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          {!isFreelancer && (
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("documents.delete")} onClick={() => setDeleteDocTarget(doc)}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            title={isFreelancer ? t("documents.accessLogUnavailable", "Réservé aux administrateurs et managers") : t("documents.accessLog")}
+            onClick={() => setAccessLogDocId(doc.id)}
+            disabled={isFreelancer}
+          >
+            <Clock className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50 disabled:text-muted-foreground"
+            title={isFreelancer ? t("documents.deleteUnavailable", "Réservé aux administrateurs et managers") : t("documents.delete")}
+            onClick={() => setDeleteDocTarget(doc)}
+            disabled={isFreelancer}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
         </div>
       );
     },

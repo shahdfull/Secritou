@@ -61,6 +61,7 @@ import {
   Clock,
   Trash2,
   Download,
+  Eye,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -296,92 +297,78 @@ export function ProposalsPage({ onTestHooksReady }: ProposalsPageProps = {}) {
     (params: ICellRendererParams<Proposal>) => {
       const proposal = params.data;
       if (!proposal) return null;
+      const canSend = proposal.status === "DRAFT";
+      const canRespond = proposal.status === "SENT" || proposal.status === "VIEWED";
+      const isAccepted = proposal.status === "ACCEPTED";
+      const canDelete = proposal.status === "DRAFT";
+      const statusGateTitle = t("proposals.actionUnavailable", "Non disponible pour ce statut");
       return (
-        <div className="flex h-full items-center justify-end gap-1">
-          {proposal.status === "ACCEPTED" && (
-            <>
-              {proposal.invoice ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 px-2 text-xs gap-1"
-                  onClick={() => handleViewInvoice(proposal)}
-                  disabled={invoicePdfLoading}
-                >
-                  {invoicePdfLoading ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Receipt className="h-3.5 w-3.5" />
-                  )}
-                  {t("proposals.viewInvoice")}
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 px-2 text-xs gap-1"
-                  onClick={() => openInvoiceDialog(proposal)}
-                >
-                  <Receipt className="h-3.5 w-3.5" />
-                  {t("proposals.invoiceButton")}
-                </Button>
-              )}
-              {proposal.linkedProject && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 px-2 text-xs gap-1"
-                  onClick={() => navigate(`/app/projects/${proposal.linkedProject!.id}`)}
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  {t("proposals.projectButton")}
-                </Button>
-              )}
-            </>
-          )}
-
-          <div className="flex items-center gap-1">
+        <div className="flex h-full items-center justify-end py-1">
+          <div className="flex flex-wrap items-center justify-end gap-1 max-w-full">
             <Button variant="ghost" size="icon" className="h-7 w-7" title={t("proposals.viewTimeline")} onClick={() => setTimelineProposalId(proposal.id)}>
               <Clock className="h-3.5 w-3.5" />
             </Button>
-            {proposal.status === "DRAFT" && (
-              <Button variant="ghost" size="icon" className="h-7 w-7" title={t("proposals.send")} onClick={() => sendMutation.mutate(proposal.id)} disabled={sendMutation.isPending}>
-                <Send className="h-3.5 w-3.5" />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              title={canSend ? t("proposals.send") : statusGateTitle}
+              onClick={() => sendMutation.mutate(proposal.id)}
+              disabled={!canSend || sendMutation.isPending}
+            >
+              <Send className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-green-600 hover:bg-green-50 disabled:text-muted-foreground"
+              title={canRespond ? t("proposals.accept") : statusGateTitle}
+              onClick={() => openAcceptDialog(proposal)}
+              disabled={!canRespond || acceptMutation.isPending}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-red-500 hover:bg-red-50 disabled:text-muted-foreground"
+              title={canRespond ? t("proposals.reject") : statusGateTitle}
+              onClick={() => openRejectDialog(proposal)}
+              disabled={!canRespond || rejectMutation.isPending}
+            >
+              <XCircle className="h-3.5 w-3.5" />
+            </Button>
+            {proposal.invoice ? (
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:bg-blue-50" title={t("proposals.viewInvoice")} onClick={() => handleViewInvoice(proposal)} disabled={invoicePdfLoading}>
+                {invoicePdfLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-blue-600 hover:bg-blue-50 disabled:text-muted-foreground"
+                title={isAccepted ? t("proposals.generateInvoice") : statusGateTitle}
+                onClick={() => openInvoiceDialog(proposal)}
+                disabled={!isAccepted}
+              >
+                <Receipt className="h-3.5 w-3.5" />
               </Button>
             )}
-            {(proposal.status === "SENT" || proposal.status === "VIEWED") && (
-              <>
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600 hover:bg-green-50" title={t("proposals.accept")} onClick={() => openAcceptDialog(proposal)} disabled={acceptMutation.isPending}>
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:bg-red-50" title={t("proposals.reject")} onClick={() => openRejectDialog(proposal)} disabled={rejectMutation.isPending}>
-                  <XCircle className="h-3.5 w-3.5" />
-                </Button>
-              </>
-            )}
-            {proposal.status === "ACCEPTED" && (
-              <>
-                {proposal.invoice ? (
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:bg-blue-50" title={t("proposals.viewInvoice")} onClick={() => handleViewInvoice(proposal)} disabled={invoicePdfLoading}>
-                    <Receipt className="h-3.5 w-3.5" />
-                  </Button>
-                ) : (
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:bg-blue-50" title={t("proposals.generateInvoice")} onClick={() => openInvoiceDialog(proposal)}>
-                    <Receipt className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-                {proposal.linkedProject && (
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-purple-600 hover:bg-purple-50" title={t("proposals.viewProject")} onClick={() => navigate(`/app/projects/${proposal.linkedProject!.id}`)}>
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-              </>
-            )}
-            {proposal.status === "DRAFT" && (
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("proposals.delete")} onClick={() => openDeleteDialog(proposal)} disabled={deleteMutation.isPending}>
-                <Trash2 className="h-3.5 w-3.5" />
+            {proposal.linkedProject && (
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-purple-600 hover:bg-purple-50" title={t("proposals.viewProject")} onClick={() => navigate(`/app/projects/${proposal.linkedProject!.id}`)}>
+                <ExternalLink className="h-3.5 w-3.5" />
               </Button>
             )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50 disabled:text-muted-foreground"
+              title={canDelete ? t("proposals.delete") : statusGateTitle}
+              onClick={() => openDeleteDialog(proposal)}
+              disabled={!canDelete || deleteMutation.isPending}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
           </div>
         </div>
       );
@@ -397,7 +384,7 @@ export function ProposalsPage({ onTestHooksReady }: ProposalsPageProps = {}) {
       { headerName: t("proposals.amount"), valueFormatter: (p) => `${p.data!.amount} ${p.data!.currency}`, field: "amount", flex: 1 },
       { headerName: t("proposals.date"), valueFormatter: (p) => formatDate(p.data!.createdAt), field: "createdAt", flex: 1 },
       { headerName: t("proposals.status"), cellRenderer: statusRenderer, flex: 1, autoHeight: true },
-      { headerName: t("proposals.actions"), cellRenderer: actionsRenderer, width: 320, sortable: false, resizable: false },
+      { headerName: t("proposals.actions"), cellRenderer: actionsRenderer, width: 260, sortable: false, resizable: false, autoHeight: true },
     ],
     [t, leadRenderer, statusRenderer, actionsRenderer]
   );

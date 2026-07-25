@@ -1711,6 +1711,106 @@ Factures DEPOSIT/BALANCE déjà existantes avant ce correctif :
 rétroactif (une facture déjà payée/réconciliée ne doit pas voir son
 montant stocké changer après coup).
 
+**RG-025 — Export et effacement RGPD (IMPLÉMENTÉ).**
+Sujets couverts, formant une seule chaîne d'identité :
+`ContactRequest` (soumission du formulaire de contact public) →
+`Lead` (non converti, ou converti — auquel cas il délègue) → `Client`
+(+ ses `Lead` convertis) ; et séparément `User` (couvre ADMIN/MANAGER/
+FREELANCER et les comptes portail CLIENT — un seul modèle dans ce
+schéma). Un appel à n'importe quel maillon de la chaîne
+`ContactRequest`→`Lead`→`Client` délègue au maillon suivant dès que la
+conversion existe (`eraseContactRequest`/`exportContactRequest`
+délèguent à `eraseLead`/`exportLead`, qui délèguent à
+`eraseClient`/`exportClient` si le lead est converti) — un seul état
+final possible, jamais deux traitements indépendants sur la même
+personne.
+
+Export : `GET /gdpr/clients/:id/export`, `GET /gdpr/leads/:id/export`,
+`GET /gdpr/contact-requests/:id/export`, `GET /gdpr/users/:id/export`
+(ADMIN uniquement, `sensitiveWriteRateLimit` — SEC-225) renvoient
+l'intégralité des champs personnels détenus. L'export `Client` inclut
+une URL de téléchargement signée (3600s, `getSignedReadUrl`, même
+mécanisme que `document.service.ts#getDownloadUrl`) pour chaque
+document ayant un `fileKey`, pas seulement ses métadonnées (SEC-222).
+
+Effacement (`POST .../erase`, ADMIN uniquement, `sensitiveWriteRateLimit`) :
+suppression réelle (`prisma.delete`) si le sujet n'a aucun
+enregistrement financier/commercial lié — réutilise exactement les
+gardes déjà en place pour Client/User
+(`clientRepository.countInvoices` / `userRepository.hasFinancialHistory`),
+étend le même principe à Lead (présence d'un `Proposal` lié ⇒ traité
+comme financier-adjacent, anonymisé plutôt que supprimé, même si
+`Proposal.leadId` est `onDelete: SetNull` et ne bloquerait pas
+techniquement la suppression — décision délibérée de garder la ligne
+Lead que le Proposal référence), plus une garde générique `P2003` en
+filet de sécurité pour toute relation `Restrict` non anticipée ; sinon
+anonymisation en place (nom/email/téléphone/bio/message écrasés par
+des valeurs non identifiantes, mot de passe invalidé, tokens d'accès
+révoqués côté User) — les factures et `AuditLog` ne sont jamais
+touchés, conservés pour l'obligation légale de rétention. Effacer un
+`Lead` non converti cascade sur son `ContactRequest` d'origine
+(`sourceContactId`, même identité) : supprimé s'il n'y a rien qui le
+retient, sinon anonymisé — jamais laissé intact avec les PII
+d'origine si le Lead, lui, a été traité.
+
+Self-service (SEC-224) : `GET /gdpr/me/export` et `POST /gdpr/me/erase`,
+accessibles à tout utilisateur authentifié quel que soit son rôle
+(pas de `authorize("ADMIN")`) — l'identité vient uniquement de
+`req.user.sub`, jamais d'un paramètre d'URL, donc ne peut jamais
+cibler un autre compte que le sien. Porte sur le `User` de l'appelant
+uniquement (pas sur un `Client` associé) : un utilisateur portail
+CLIENT exporte/efface son propre compte, pas la fiche `Client` de son
+entreprise — décision de scope délibérée pour éviter qu'un contact
+d'entreprise parmi plusieurs efface les données de tous. L'auto-
+effacement réutilise la même garde `LAST_ADMIN` que le chemin ADMIN.
+
+N'ajoute aucune colonne au schéma (pas de migration nécessaire) :
+l'anonymisation réécrit les champs PII existants plutôt que de poser
+un marqueur dédié. Chaque effacement écrit une entrée `AuditLog`
+(`GDPR_CLIENT_ERASED`/`GDPR_CLIENT_ANONYMIZED`/`GDPR_USER_ERASED`/
+`GDPR_USER_ANONYMIZED`/`GDPR_LEAD_ERASED`/`GDPR_LEAD_ANONYMIZED`/
+`GDPR_CONTACT_REQUEST_ERASED`/`GDPR_CONTACT_REQUEST_ANONYMIZED`).
+
+**Rétention PII dans `AuditLog` (SEC-223) :** les snapshots
+`AuditLog.before`/`after` capturés au moment d'un effacement RGPD
+conservent indéfiniment le nom/email pré-anonymisation — l'`AuditLog`
+est append-only par conception (voir CLAUDE.md) et n'est délibérément
+jamais réécrit par une anonymisation, y compris la sienne propre : la
+trace de « ce qui a été anonymisé et par qui » nécessite justement de
+garder cette valeur. Ce n'est pas un oubli, mais aucune politique de
+rétention/expiration séparée n'existe pour ce champ précis aujourd'hui —
+voir aussi README « Data protection notes ».
+
+*Module : transverse — 4.1 CRM (Client/Lead), 4.14 Authentification &
+Compte utilisateur.* Statut : **IMPLÉMENTÉ**.
+`verifie: test` (`server/test/gdprErasure.test.ts`, appelle réellement
+`gdprService.eraseClient`/`eraseUser`/`eraseLead`/`eraseContactRequest`/
+`exportClient`/`exportUser`/`exportLead`/`exportContactRequest` contre
+une base migrée — pas une réimplémentation) : couvre les branches
+suppression réelle vs anonymisation vs délégation sur les quatre
+sujets, le self-service, et une vérification de forme sur les exports
+(y compris l'URL signée SEC-222). Non exécuté en CI dans la session
+qui l'a écrit (pas d'accès Postgres/Redis dans cet environnement
+d'exécution). Contrairement au premier lot Client/User (session
+précédente, où `typecheck`/`lint` avaient pu être vérifiés verts
+directement), `npx tsc --noEmit -p .` et `npx eslint` n'ont dans
+*cette* session jamais terminé dans le temps imparti (~43s par appel
+outil, aucune exécution en arrière-plan possible d'un appel à
+l'autre) — non pas une erreur retournée, un blocage constaté et signalé
+tel quel, conformément à CLAUDE.md « Face à un blocage ». Relecture
+manuelle ligne à ligne effectuée à la place (types, imports, cohérence
+des schémas Prisma) mais ceci n'équivaut pas à `typecheck`/`lint`
+réels. `test:coverage` non lancé non plus. Les deux lots (Client/User
+et Lead/ContactRequest/self-service/URL signée) restent donc à
+confirmer par un run réel — `typecheck`, `lint` et `test:coverage` —
+avant de considérer ce `verifie: test` définitivement acquis au sens
+strict de CLAUDE.md (correctif non commité à l'écriture de cette
+entrée). Gaps enregistrés puis comblés dans cette même session :
+SEC-220 (Lead non converti), SEC-221 (ContactRequest), SEC-222 (URL
+signée), SEC-223 (documentation rétention AuditLog), SEC-224
+(self-service), SEC-225 (rate limit export) — voir ANOMALIES.yaml pour
+le détail de chaque écart, tous `en_cours` (correctif non commité).
+
 ---
 
 ## 6. Hors périmètre — liste unique (fusion de l'ancien §1/§6)
@@ -1868,3 +1968,5 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-23** | **RG-024 (timbre fiscal) — le montant 0.6 TND est confirmé (barème en vigueur validé, plus « à confirmer avec un comptable »), et le timbre est désormais stocké comme champ réel (`Invoice.timbreFiscal`), inclus dans `Invoice.amount` dès la création des factures DEPOSIT/BALANCE — plutôt que documenté comme écart volontaire. Voir SEC-198 pour le détail technique complet.** | **AskUserQuestion, session du 2026-07-23 : choix « Stocker le timbre comme champ réel sur Invoice (Recommandé) » parmi 2 options, puis confirmation explicite que 0.6 TND est la valeur validée (pas seulement plausible) en réponse à une question dédiée avant d'écrire la migration Prisma.** |
 | **2026-07-23** | **SEC-209 : `server/src/swagger-schemas.ts` (217 lignes, code mort — non importé par aucun fichier du dépôt, ne contribuait rien au spec Swagger réellement servi) est SUPPRIMÉ, plutôt qu'intégré dans `swagger.ts`.** | **AskUserQuestion, session du 2026-07-23 : choix « Supprimer le fichier (Recommandé) » parmi 3 options, après re-confirmation par `grep` qu'aucun fichier n'importe `swagger-schemas`.** |
 | **2026-07-23** | **SEC-091 (N+1 portail client) : les 2 requêtes/carte (timeline + tâches terminées) restent 2 endpoints logiquement distincts (décision SEC-061 non rouverte), mais sont désormais BATCHÉES en 1 seul appel HTTP (`GET /projects/my/summaries?ids=...`) pour toutes les cartes actuellement visibles, au lieu d'un appel par carte — sans revenir sur le montage paresseux (SEC-116) : le batch ne demande jamais un id dont la carte n'est pas encore visible.** | **AskUserQuestion, session du 2026-07-23 : choix « Batcher les 2 endpoints en 1 seul appel (Recommandé) » parmi 3 options, puis choix « Batcher uniquement les cartes déjà visibles (Recommandé) » face au risque identifié de rouvrir SEC-116 (le porteur a validé la conciliation lazy-mount + batch plutôt qu'un batch naïf de tout dès le chargement).** |
+| **2026-07-24** | **Nouvelle règle RG-025 (export/effacement RGPD) créée — périmètre couvrant `Client` (+ `Lead` convertis, même identité) ET `User` (ADMIN/MANAGER/FREELANCER/CLIENT-portail, un seul modèle). Absent de toute version antérieure de REFERENTIEL.md ; introduit sur demande explicite du porteur, pas déduit d'un besoin de code existant.** | **AskUserQuestion, session du 2026-07-24, question « Pour quels types de personnes veux-tu l'export/effacement RGPD en premier ? » (multi-sélection) : choix « Client / contact, Freelance, Utilisateur interne (Admin/Manager) » — les trois options proposées, aucune exclue.** |
+| **2026-07-24** | **Sémantique de l'effacement RG-025 tranchée : suppression réelle (`prisma.delete`) si le sujet n'a aucun enregistrement financier lié (réutilise `clientRepository.countInvoices` / `userRepository.hasFinancialHistory`, guards déjà en place) ; sinon anonymisation en place (PII écrasé, factures/AuditLog intacts) — pas de suppression partielle ni de nouvelle colonne de schéma.** | **AskUserQuestion, session du 2026-07-24, question « Que doit faire concrètement l'"effacement" vu que les factures doivent légalement être conservées ? » : choix « Suppression complète si aucune facture liée » parmi 3 options (l'option alternative « anonymiser systématiquement, ne jamais supprimer » n'a pas été retenue).** |

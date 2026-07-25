@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { clientsApi } from "../api/clients.api";
+import { gdprApi, type GdprEraseResult } from "../api/gdpr.api";
 import type { Client, CreateClientInput, UpdateClientInput } from "../types/client";
 import type { ListQueryParams, PaginatedResponse } from "../types/pagination";
 import { toast } from "sonner";
 import i18n from "@/i18n";
 import { queryKeys } from "@/lib/query-keys";
+import { downloadJson } from "@/utils/downloadJson";
 
 export function useClients(params: ListQueryParams & { includeArchived?: boolean } = {}) {
   return useQuery<PaginatedResponse<Client>>({
@@ -92,6 +94,32 @@ export function useArchiveClient() {
       queryClient.invalidateQueries({ queryKey: queryKeys.clients() });
       queryClient.invalidateQueries({ queryKey: queryKeys.client(data.id) });
       toast.success(i18n.t("toasts.clientArchived", "Client archivé"));
+    },
+  });
+}
+
+export function useGdprExportClient() {
+  return useMutation<unknown, Error, string>({
+    mutationFn: (id) => gdprApi.exportClient(id),
+    onSuccess: (data, id) => {
+      downloadJson(data, `client-${id}-rgpd-export.json`);
+      toast.success(i18n.t("toasts.gdprExported", "Export RGPD téléchargé"));
+    },
+  });
+}
+
+export function useGdprEraseClient() {
+  const queryClient = useQueryClient();
+
+  return useMutation<GdprEraseResult, Error, string>({
+    mutationFn: (id) => gdprApi.eraseClient(id),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.clients() });
+      toast.success(
+        result.mode === "deleted"
+          ? i18n.t("toasts.gdprClientDeleted", "Client supprimé (RGPD)")
+          : i18n.t("toasts.gdprClientAnonymized", "Données personnelles anonymisées (RGPD)")
+      );
     },
   });
 }

@@ -286,11 +286,15 @@ export function FreelancersPage() {
                   <CardTitle className="text-lg">{freelancer.user.name}</CardTitle>
                   <p className="text-sm text-muted-foreground">{freelancer.user.email}</p>
                 </Link>
-                {freelancer.userId === user?.id && (
-                  <Button variant="ghost" size="icon" onClick={() => handleEdit(freelancer)}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title={freelancer.userId === user?.id ? undefined : "Vous ne pouvez modifier que votre propre profil"}
+                  onClick={() => handleEdit(freelancer)}
+                  disabled={freelancer.userId !== user?.id}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">

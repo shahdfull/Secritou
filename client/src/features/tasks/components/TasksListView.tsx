@@ -315,21 +315,34 @@ export function TasksListView({
     (params: ICellRendererParams<TaskGridRow>) => {
       const task = params.data;
       if (!task) return null;
+      const canEdit = !isFreelancer || task.assigneeId === currentUserId;
       return (
         <div className="flex h-full items-center justify-end gap-1">
           <Button variant="ghost" size="icon" className="h-7 w-7" title="Voir" aria-label="Voir" onClick={() => onView(task)}>
             <Eye className="h-3.5 w-3.5" />
           </Button>
-          {(!isFreelancer || task.assigneeId === currentUserId) && (
-            <Button variant="ghost" size="icon" className="h-7 w-7" title={t("common.edit")} aria-label={t("common.edit")} onClick={() => onEdit(task)}>
-              <Edit className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          {canDelete && (
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" title={t("common.delete")} aria-label={t("common.delete")} onClick={() => onDelete(task)}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            title={canEdit ? t("common.edit") : t("tasks.editUnavailable", "Vous ne pouvez modifier que vos tâches assignées")}
+            aria-label={t("common.edit")}
+            onClick={() => onEdit(task)}
+            disabled={!canEdit}
+          >
+            <Edit className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50 disabled:text-muted-foreground"
+            title={canDelete ? t("common.delete") : t("tasks.deleteUnavailable", "Vous n'avez pas la permission de supprimer cette tâche")}
+            aria-label={t("common.delete")}
+            onClick={() => onDelete(task)}
+            disabled={!canDelete}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
         </div>
       );
     },
@@ -629,6 +642,7 @@ export function TasksListView({
             const projectName = projectNameById.get(task.projectId);
             const assignee = task.assigneeId ? userById.get(task.assigneeId) : undefined;
             const dueDateColor = task.dueDate && isPast(new Date(task.dueDate)) ? "text-red-600 font-medium" : "text-muted-foreground";
+            const canEditTask = !isFreelancer || task.assigneeId === currentUserId;
 
             return (
               <div key={task.id} className="p-4 space-y-2">
@@ -663,16 +677,28 @@ export function TasksListView({
                     <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Voir" onClick={() => onView(task)}>
                       <Eye className="h-4 w-4" />
                     </Button>
-                    {(!isFreelancer || task.assigneeId === currentUserId) && (
-                      <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={t("common.edit")} onClick={() => onEdit(task)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {canDelete && (
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50" aria-label={t("common.delete")} onClick={() => onDelete(task)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      title={canEditTask ? undefined : t("tasks.editUnavailable", "Vous ne pouvez modifier que vos tâches assignées")}
+                      aria-label={t("common.edit")}
+                      onClick={() => onEdit(task)}
+                      disabled={!canEditTask}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 disabled:text-muted-foreground"
+                      title={canDelete ? undefined : t("tasks.deleteUnavailable", "Vous n'avez pas la permission de supprimer cette tâche")}
+                      aria-label={t("common.delete")}
+                      onClick={() => onDelete(task)}
+                      disabled={!canDelete}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               </div>

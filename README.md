@@ -297,7 +297,22 @@ The OpenAPI 3.1 spec is served at `http://localhost:5000/openapi.json`.
 - Signed download URLs for documents are short-lived and minted on demand by the API.
 - Document downloads and signatures are logged in `DocumentAccessLog` for operational traceability.
 - Client brief answers are collected to prepare the project brief, scope the mission, and produce the associated project documents.
-- Deletions are not a full GDPR erasure workflow: `Client` and `Lead` support archival/deletion states, but historical financial and audit records remain subject to legal retention and operational integrity requirements.
+- RGPD export/erasure (RG-025, `server/src/services/gdpr.service.ts`, `/api/gdpr/*`) covers Client
+  (+ its converted Leads), unconverted Lead, ContactRequest, and User (ADMIN/MANAGER/FREELANCER/
+  CLIENT-portal) — one entry point at any point in the Client←Lead←ContactRequest chain reaches
+  the same end state. Erasure hard-deletes when no financial/proposal record is linked, otherwise
+  anonymizes name/email/phone in place: invoices, commissions, time entries, and audit records are
+  kept for legal retention and operational integrity. ADMIN can act on any subject; any
+  authenticated user can additionally self-serve their own data via `GET /gdpr/me/export` and
+  `POST /gdpr/me/erase`, with no ADMIN role required.
+- **AuditLog PII retention (SEC-223):** `AuditLog.before`/`after` snapshots are append-only by
+  design (see CLAUDE.md — audit trail is never rewritten). When a GDPR erasure anonymizes a
+  Client/User/Lead/ContactRequest, the `before` snapshot recorded at that moment (name, email)
+  intentionally still contains the pre-anonymization values — this is the record of *what was
+  anonymized and by whom*, and erasing it would defeat its own purpose. It is **not** touched by
+  any anonymization pass and has no separate retention/expiry policy in this codebase today. This
+  is a deliberate trade-off (traceability over completeness of erasure for this one field), not an
+  oversight — flagged here explicitly rather than left implicit.
 
 ### Subprocessors
 The repository uses the following subprocessors / third-party services in practice:

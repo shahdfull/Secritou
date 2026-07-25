@@ -1196,6 +1196,7 @@
     "createProjectDesc": "Add a new project to your list",
     "editProject": "Edit Project",
     "editProjectDesc": "Update project information",
+    "deleteUnavailable": "You don't have permission to delete this project",
     "searchProjects": "Search projects...",
     "nameRequired": "Name is required",
     "selectStatus": "Select status",
@@ -1285,6 +1286,7 @@
     "reopenDesc": "The lead will return to active status and be visible again in the pipeline.",
     "reopenConfirm": "Reopen",
     "reopenLead": "Reopen lead",
+    "reopenUnavailable": "Only available for a lost lead",
     "showArchived": "Show archived",
     "markAsLostTitle": "Mark as lost",
     "markAsLostDesc": "Indicate why this lead is lost (optional).",
@@ -1357,6 +1359,8 @@
     "phonePlaceholder": "+1234567890",
     "emailLabel": "Email",
     "phoneLabel": "Phone",
+    "detailDesc": "Client contact details",
+    "creditBalanceLabel": "Credit balance",
     "areYouSureDelete": "Are you sure you want to delete {{name}}?",
     "trashDesc": "Recoverable deleted clients",
     "trashEmpty": "No clients in the trash.",
@@ -1879,6 +1883,7 @@
     "invoiced": "Invoiced",
     "invoiceAlreadyCreated": "Invoice already created",
     "generateInvoice": "Generate an invoice",
+    "actionUnavailable": "Not available for this status",
     "viewProject": "View project",
     "invoiceDialog": {
       "title": "Generate an invoice",
@@ -2041,6 +2046,10 @@
     "emptyTrash": "No deleted invoices.",
     "resumeReminders": "Resume reminders",
     "pauseReminders": "Pause reminders",
+    "sendUnavailable": "Only available for drafts",
+    "addPaymentUnavailable": "No payment to add on this invoice",
+    "reminderUnavailable": "No reminder for this invoice",
+    "cancelUnavailable": "This invoice can no longer be cancelled",
     "cancelled": "Invoice cancelled",
     "restored": "Invoice restored",
     "reminderPaused": "Reminders paused",
@@ -2166,7 +2175,9 @@
     "download": "Download",
     "uploadNewVersion": "Upload New Version",
     "delete": "Delete",
+    "deleteUnavailable": "Reserved for administrators and managers",
     "accessLog": "Access log",
+    "accessLogUnavailable": "Reserved for administrators and managers",
     "accessLogTitle": "Access log",
     "noAccessLog": "No access recorded yet.",
     "unknownUser": "Unknown user",
@@ -2258,7 +2269,9 @@
       "NORMAL": "Normal",
       "HIGH": "High",
       "URGENT": "Urgent"
-    }
+    },
+    "editUnavailable": "You can only edit tasks assigned to you",
+    "deleteUnavailable": "You don't have permission to delete this task"
   },
   "freelancerDashboard": {
     "greeting": "Welcome, {{name}} 👋",
@@ -2332,6 +2345,7 @@
     "actions": "Actions",
     "empty": "No commissions yet.",
     "markPaid": "Mark as paid",
+    "alreadyPaid": "Already paid",
     "markedPaid": "Commission marked as paid",
     "splitsUpdated": "Split updated"
   },
