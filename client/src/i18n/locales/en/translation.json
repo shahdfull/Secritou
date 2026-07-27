@@ -18,6 +18,8 @@
     "signUp": "Sign up",
     "email": "Email",
     "password": "Password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "forgotPassword": "Forgot password?",
     "resetPassword": "Reset password",
     "createAccount": "Create account",
@@ -36,6 +38,9 @@
     "passwordResetLinkSent": "Password reset link sent to your email",
     "invalidCredentials": "Invalid email or password.",
     "tooManyAttempts": "Too many attempts. Try again in a few minutes.",
+    "forgotPasswordFailed": "Unable to send the reset link. Please try again.",
+    "resetPasswordFailed": "This reset link is invalid or has expired.",
+    "changePasswordFailed": "Current password is incorrect, or the update failed.",
     "checkYourEmail": "Check your email",
     "passwordResetSent": "If an account exists for that email, we've sent a link to reset your password.",
     "backToLogin": "Back to sign in",
@@ -55,10 +60,14 @@
     "setNewPasswordInstructions": "Enter your new password.",
     "newPassword": "New password",
     "confirmPassword": "Confirm password",
+    "confirmNewPassword": "Confirm new password",
     "resetting": "Resetting...",
     "changePassword": "Change password",
     "changePasswordRequired": "You must change your password before continuing.",
-    "passwordChanged": "Password changed successfully"
+    "changePasswordDescription": "Enter your current password, then choose a new password.",
+    "passwordChanged": "Password changed successfully",
+    "currentPassword": "Current password",
+    "changing": "Changing..."
   },
   "services": {
     "title": "One partner : Multiple growth solutions",
@@ -177,6 +186,7 @@
     "pleaseEnterMessage": "Please add a little more context (at least 20 characters).",
     "invalidPhone": "Please enter a valid phone number.",
     "unableToSend": "Unable to send your message.",
+    "networkError": "Couldn't reach our server. Check your internet connection and try again.",
     "budgets": {
       "lessThan1000": "< 1 000 DT",
       "1000To5000": "1 000–5 000 DT",
@@ -223,6 +233,10 @@
       "open": "Open",
       "deleteSlot": "Delete slot",
       "cancelBooking": "Cancel booking",
+      "cancelBookingConfirmTitle": "Cancel this booking?",
+      "cancelBookingConfirmDescription": "Cancel {{name}}'s booking for the {{slot}} slot?",
+      "deleteSlotConfirmTitle": "Delete this slot?",
+      "deleteSlotConfirmDescription": "Delete the {{slot}} slot? This action cannot be undone.",
       "noSlots": "No slots for this day.",
       "noBookings": "No bookings for this day.",
       "slotCreated": "Slot created.",
@@ -246,6 +260,14 @@
     }
   },
   "home": {
+    "onThisPage": {
+      "label": "On this page",
+      "services": "Services",
+      "packs": "Packs",
+      "solutions": "Solutions",
+      "howItWorks": "How it works",
+      "faq": "FAQ"
+    },
     "hero": {
       "tagline": "Management · Marketing · Technology",
       "title": {
@@ -595,7 +617,11 @@
     "leadsByStatus": "Leads by status",
     "leadsByStatusDesc": "Lead breakdown by status",
     "projectsByStatus": "Project breakdown",
-    "projectsByStatusDesc": "Project status"
+    "projectsByStatusDesc": "Project status",
+    "workload": {
+      "activeTasks": "Active tasks",
+      "declaredHours": "Declared hours"
+    }
   },
   "forecast": {
     "title": "Revenue Forecast",
@@ -647,7 +673,12 @@
     "selectPeriod": "Select a period"
   },
   "questions": {
-    "title": "My questions",
+      "title": "My questions",
+      "subtitle": "Ask the team a new question.",
+      "newQuestion": "New question",
+      "newQuestionDesc": "Describe your need and send it to the team.",
+      "subject": "Subject",
+      "message": "Your message",
     "empty": "You haven't asked any question yet.",
     "askFirst": "Ask my first question",
     "notFound": "Question not found.",
@@ -690,7 +721,57 @@
     },
     "messageCount": "{{count}} message(s)"
   },
+  "serviceRequestsAdmin": {
+    "statuses": {
+      "NEW": "New",
+      "IN_REVIEW": "In Review",
+      "IN_PROGRESS": "In Progress",
+      "WAITING_CLIENT": "Waiting on Client",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled"
+    },
+    "priorities": {
+      "LOW": "Low",
+      "NORMAL": "Normal",
+      "HIGH": "High",
+      "URGENT": "Urgent"
+    },
+    "types": {
+      "SUPPORT": "Support",
+      "NEW_PROJECT": "New Project"
+    }
+  },
+  "reportsPage": {
+    "exportPdfError": "PDF export failed. Please try again.",
+    "exportExcelError": "Excel export failed. Please try again.",
+    "statuses": {
+      "NEW": "New",
+      "CONTACTED": "Contacted",
+      "QUALIFIED": "Qualified",
+      "PROPOSAL": "Proposal",
+      "WON": "Won",
+      "LOST": "Lost",
+      "PLANNING": "Planning",
+      "IN_PROGRESS": "In Progress",
+      "IN_REVIEW": "In Review",
+      "COMPLETED": "Completed",
+      "ON_HOLD": "On Hold",
+      "CANCELLED": "Cancelled",
+      "OPEN": "Open",
+      "ASSIGNED": "Assigned",
+      "ACTIVE": "Active",
+      "COMPLETED_MISSION": "Completed",
+      "CLOSED": "Closed",
+      "REVIEW": "Review"
+    }
+  },
   "common": {
+    "periods": {
+      "last7Days": "Last 7 days",
+      "last30Days": "Last 30 days",
+      "last90Days": "Last 90 days",
+      "last12Months": "Last 12 months"
+    },
     "loading": "Loading...",
     "save": "Save",
     "send": "Send",
@@ -753,6 +834,52 @@
       "nameDesc": "Name Z→A"
     },
     "startDate": "Start date"
+  },
+  "settings": {
+    "profile": {
+      "title": "Profile",
+      "subtitle": "Your account information",
+      "saveChanges": "Save changes",
+      "nameRequired": "Name is required"
+    },
+    "appearance": {
+      "title": "Appearance",
+      "subtitle": "Customize your app's look and feel",
+      "darkMode": "Dark mode",
+      "darkModeDesc": "Switch between light and dark theme",
+      "language": "Language",
+      "languageDesc": "Select your preferred language",
+      "languagePlaceholder": "Select language",
+      "languages": {
+        "fr": "Français",
+        "en": "English"
+      },
+      "platformColor": "Platform color",
+      "platformColorDesc": "Customize the platform's primary brand color"
+    }
+  },
+  "privacyPage": {
+    "brand": "Secritou",
+    "title": "Privacy Policy",
+    "lastUpdated": "Last updated: July 2026",
+    "whoWeAreTitle": "Who we are",
+    "whoWeAreBody": "Secritou is a digital services agency based in Tunis, Tunisia. Our site is available at secritou.tn.",
+    "dataCollectedTitle": "Data collected",
+    "dataCollectedIntro": "We only collect the data you voluntarily submit to us:",
+    "dataCollectedContact": "Via the contact form: name, email, phone number, company, message.",
+    "dataCollectedAnalytics": "Via our self-hosted audience analytics tool: anonymized browsing data (page viewed, referrer), without persistent identifiers or cross-visit profiling.",
+    "noSensitiveData": "We do not collect sensitive data and we never resell your information to third parties.",
+    "purposeTitle": "Purpose of processing",
+    "purposeContact": "Respond to your contact and quote requests.",
+    "purposeImprove": "Improve the user experience of our site (analytics).",
+    "retentionTitle": "Retention period",
+    "retentionBody": "Your contact data is kept for the time needed to process your request, and for a maximum of 3 years from the last contact.",
+    "rightsTitle": "Your rights",
+    "rightsBody": "In accordance with Tunisian law no. 2004-63 of 27 July 2004 on the protection of personal data, you have the right to access, rectify and delete your data. To exercise these rights, contact us at contact@secritou.tn.",
+    "cookiesTitle": "Cookies",
+    "cookiesBody": "Our audience measurement tool is self-hosted and does not place any cookie: a temporary session identifier is generated in memory on each visit and is never retained beyond the current session (no tracking from one visit to another). This data does not collect any personally identifiable information.",
+    "contactTitle": "Contact",
+    "contactBody": "For any question regarding this policy: contact@secritou.tn"
   },
   "search": {
     "placeholder": "Search leads, clients, projects...",
@@ -891,7 +1018,10 @@
     "placeholder": "Write your message...",
     "send": "Send",
     "errors": {
-      "unavailable": "Unable to contact the AI assistant. Please check the API key."
+      "unavailable": "Unable to contact the AI assistant. Please check the API key.",
+      "appError": "Something went wrong while processing your message. Please try again.",
+      "localHistoryLost": "Your local chat history could not be recovered.",
+      "deleteFailed": "Unable to delete this conversation. Please try again."
     },
     "float": {
       "open": "AI Assistant (Ctrl+J)",
@@ -1180,17 +1310,20 @@
     "industry": "Industry",
     "challenge": "Challenge",
     "outcome": "Outcome",
-    "metricLabel": "90 days"
+    "metricLabel": "90 days",
+    "illustrativeNotice": "Illustrative examples representative of targeted outcomes, as no active client exists to date."
   },
   "notFound": {
     "title": "Page not found",
     "description": "The page you're looking for doesn't exist or has been moved.",
-    "goHome": "Go back home"
+    "goHome": "Go back home",
+    "suggestions": "You might be looking for"
   },
   "projectsPage": {
     "title": "Projects",
     "subtitle": "Manage your client projects",
     "noNewProjectButtonNotice": "A project is created from an accepted proposal — there's no direct \"create\" button here.",
+    "clientSelectorTruncatedNotice": "Only the first {{shown}} of {{total}} clients are loaded in the filter — a more recent client may not be found.",
     "newProject": "New Project",
     "createProject": "Create Project",
     "createProjectDesc": "Add a new project to your list",
@@ -1272,6 +1405,8 @@
       "other": "Other"
     },
     "noEmail": "No email",
+    "createFailed": "Unable to create this lead. Please try again.",
+    "updateFailed": "Unable to update this lead. Please try again.",
     "deleteFailed": "Unable to delete this lead.",
     "convertSuccess": "{{name}} has been converted to a client.",
     "convertFailed": "Unable to convert this lead.",
@@ -1414,6 +1549,8 @@
       "inviteToPortalBtn": "Invite to portal",
       "clientSuccess": "Client Success",
       "archive": "Archive",
+      "archiveClientTitle": "Archive this client?",
+      "archiveClientDesc": "The client \"{{name}}\" will disappear from the active client list and its service. Its invoices, proposals and documents remain kept and viewable via its record through a direct link.",
       "delete": "Delete",
       "gdprExport": "Export (GDPR)",
       "gdprErase": "Erase (GDPR)",
@@ -1442,7 +1579,9 @@
     "errors": {
       "hasProjects": "This client has active projects. Archive them first.",
       "hasInvoices": "This client has open invoices. Close them first.",
-      "deleteFailed": "Deletion failed. Please try again."
+      "deleteFailed": "Deletion failed. Please try again.",
+      "createFailed": "Unable to create this client. Please try again.",
+      "updateFailed": "Unable to update this client. Please try again."
     }
   },
   "settings": {
@@ -1455,6 +1594,8 @@
     "company": "Company",
     "users": "Users",
     "requests": "Join requests",
+    "siteContent": "Showcase site",
+    "freelancerProfile": "My profile",
     "appearance": "Appearance"
   },
   "settingsPage": {
@@ -1574,12 +1715,34 @@
       "requests": "My Requests",
       "profile": "My Profile"
     },
+    "profile": {
+      "roles": {
+        "ADMIN": "Administrator",
+        "MANAGER": "Manager",
+        "CLIENT": "Client",
+        "FREELANCER": "Freelancer"
+      }
+    },
     "dashboard": {
       "title": "Dashboard",
       "stats": {
         "projects": "Projects",
-        "requests": "Requests"
-      }
+        "requests": "Requests",
+        "documents": "Documents"
+      },
+      "outstandingBalance": "Outstanding Balance",
+      "nextDueInvoice": "Next Due Date",
+      "projectProgress": "Project Progress",
+      "myDocuments": "My Documents",
+      "noDocuments": "No documents yet.",
+      "documentTypes": {
+        "invoice": "Invoice",
+        "contract": "Contract",
+        "other": "Other",
+        "default": "Document"
+      },
+      "download": "Download",
+      "openSection": "open section"
     },
     "projects": {
       "title": "My Projects",
@@ -1608,6 +1771,8 @@
       "sending": "Sending...",
       "createdOn": "Created on",
       "viewProposal": "View proposal",
+      "createSuccess": "Your request has been sent.",
+      "createFailed": "Sending your request failed. Your information was kept, you can try again.",
       "statuses": {
         "new": "New",
         "inReview": "In Review",
@@ -1641,10 +1806,31 @@
     },
     "invoices": {
       "title": "My Invoices",
+      "tabs": {
+        "invoices": "My invoices",
+        "creditNotes": "My credit notes"
+      },
       "empty": "No invoices at the moment.",
       "issuedOn": "Issued on",
       "dueDate": "Due",
       "paidSuffix": "paid",
+      "invoicesLoadFailed": "Could not load your invoices.",
+      "creditNotesLoadFailed": "Could not load your credit notes.",
+      "creditBalanceLoadFailed": "Could not load your credit balance.",
+      "itemsDetail": "Service details",
+      "paymentsHistory": "Payment history",
+      "paymentBy": "Payment by",
+      "reference": "Ref",
+      "creditBalanceTitle": "My credit balance",
+      "creditBalanceSubtitle": "Credit applicable to your upcoming invoices.",
+      "creditNotesEmpty": "You have no credit notes available.",
+      "creditNoteIssuedOn": "Credit note issued on",
+      "creditNoteReason": "Reason",
+      "creditNoteReasonFallback": "Not specified",
+      "creditNoteOriginInvoice": "Original invoice",
+      "creditNoteAppliedToInvoice": "Applied to invoice",
+      "creditNoteApplied": "Applied",
+      "creditNoteAvailable": "Available",
       "statuses": {
         "DRAFT": "Draft",
         "SENT": "Sent",
@@ -1664,6 +1850,7 @@
       "confirmReject": "Confirm rejection",
       "versionMismatch": "This proposal was updated since you opened it. Please review the latest version.",
       "responseFailed": "Could not save your response. Please try again.",
+      "amountToBeDefined": "Amount to be defined",
       "statuses": {
         "DRAFT": "Draft",
         "SENT": "Sent",
@@ -1672,6 +1859,17 @@
         "REJECTED": "Rejected",
         "EXPIRED": "Expired"
       }
+    },
+    "seo": {
+      "notEnabled": "SEO tracking is not yet enabled for your account. Contact your project manager to activate it.",
+      "techError": "Unable to load the SEO status right now.",
+      "metricsError": "Unable to load the SEO metrics right now."
+    },
+    "onboarding": {
+      "emptyTitle": "No onboarding found",
+      "emptyBody": "Onboarding appears when your project is ready to go through scoping, contract and production steps.",
+      "viewProjects": "View my projects",
+      "viewRequests": "View my requests"
     }
   },
   "onboarding": {
@@ -1710,7 +1908,12 @@
       "viewContract": "View Contract",
       "downloadContract": "Download Contract",
       "signContract": "Sign Contract",
-      "status": "Status"
+      "status": "Status",
+      "statuses": {
+        "PENDING": "Awaiting signature",
+        "SIGNED": "Signed"
+      },
+      "notReady": "The contract isn't available yet. We'll let you know as soon as it's ready to sign."
     },
     "payment": {
       "title": "Payment",
@@ -1719,12 +1922,19 @@
       "amountPaid": "Amount Paid",
       "deadline": "Deadline",
       "status": "Status",
-      "payNow": "Pay Now"
+      "payNow": "Pay Now",
+      "statuses": {
+        "UNPAID": "Unpaid",
+        "PARTIAL": "Partially paid",
+        "PAID": "Paid"
+      },
+      "notReady": "There's nothing to pay yet. We'll let you know as soon as a request is issued."
     },
     "questionnaire": {
       "title": "Questionnaire",
       "subtitle": "Fill out the questionnaire to help us understand your needs.",
       "saveDraft": "Save Draft",
+      "draftRestored": "Your questionnaire draft has been restored.",
       "submit": "Submit Questionnaire",
       "serviceType": "Service Type",
       "services": {
@@ -1750,7 +1960,8 @@
         "kpis": "KPIs",
         "tools": "Tools",
         "dataSources": "Data Sources"
-      }
+      },
+      "notReady": "The questionnaire isn't available yet for this step."
     },
     "specifications": {
       "title": "Specifications",
@@ -1763,7 +1974,13 @@
       "feedback": "Change Requests",
       "status": "Status",
       "approve": "Approve",
-      "requestChanges": "Request Changes"
+      "requestChanges": "Request Changes",
+      "statuses": {
+        "PENDING": "Awaiting approval",
+        "APPROVED": "Approved",
+        "REJECTED": "Changes requested"
+      },
+      "notReady": "The specifications aren't ready yet. They'll show up here once drafted."
     },
     "kickoff": {
       "title": "Kickoff Meeting",
@@ -1771,7 +1988,8 @@
       "meetingDate": "Meeting Date",
       "participants": "Participants",
       "meetingLink": "Meeting Link",
-      "joinMeeting": "Join Meeting"
+      "joinMeeting": "Join Meeting",
+      "notReady": "No kickoff meeting has been scheduled yet."
     },
     "production": {
       "title": "Production",
@@ -1780,7 +1998,8 @@
       "design": "Design",
       "development": "Development",
       "testing": "Testing",
-      "deployment": "Deployment"
+      "deployment": "Deployment",
+      "notReady": "Production tracking will start once the project kicks off."
     },
     "delivery": {
       "title": "Delivery",
@@ -1789,7 +2008,8 @@
       "documentation": "Documentation",
       "accessDetails": "Access Details",
       "userGuides": "User Guides",
-      "download": "Download"
+      "download": "Download",
+      "notReady": "Deliverables aren't available yet. They'll appear here once the project is delivered."
     },
     "admin": {
       "title": "Onboardings",
@@ -1807,7 +2027,10 @@
       "edit": "Edit",
       "delete": "Delete"
     },
-    "notFound": "No onboarding found for this project."
+    "notFound": "No onboarding found for this project.",
+    "stepUpdateError": "Couldn't update this step. Please try again.",
+    "contractUpdateError": "Couldn't sign the contract. Please try again.",
+    "questionnaireUpdateError": "Couldn't save the questionnaire. Please try again."
   },
   "proposals": {
     "title": "Proposals",
@@ -1861,12 +2084,14 @@
     "sourceLead": "Source lead",
     "filterByLead": "Filter by lead",
     "allLeads": "All leads",
+    "leadSelectorTruncatedNotice": "Only the first {{shown}} of {{total}} leads are offered in the filter — a more recent lead may not be found.",
     "fromLead": {
       "title": "Create a proposal",
       "description": "New proposal for lead {{name}}",
       "defaultTitle": "Proposal for {{name}}",
       "targetClient": "Target client",
       "selectClient": "Select a client",
+      "clientSelectorTruncatedNotice": "Only the first {{shown}} of {{total}} clients are offered — a more recent client may not be found.",
       "create": "Create a proposal",
       "linkedProposals": "Linked proposals",
       "noProposals": "No proposals linked to this lead"
@@ -2016,7 +2241,8 @@
       "empty": "No credit notes available.",
       "applied": "Applied on {{date}}",
       "available": "Available",
-      "appliedInvoice": "Credit note applied to invoice"
+      "appliedInvoice": "Credit note applied to invoice",
+      "noNewCreditNoteButtonNotice": "The button above creates an invoice, not a credit note. A credit note is usually created automatically from an overpayment or an invoice cancellation."
     },
     "deleteTitle": "Delete invoice \"{{number}}\"?",
     "deleteDesc": "This action is irreversible. The draft invoice will be permanently deleted.",
@@ -2027,6 +2253,7 @@
       "description": "Create a new invoice for a client",
       "clientLabel": "Client",
       "clientPlaceholder": "Select a client",
+      "clientSelectorTruncatedNotice": "Only the first {{shown}} of {{total}} clients are offered — a more recent client may not be found.",
       "titleLabel": "Title",
       "titlePlaceholder": "Invoice title",
       "amountLabel": "Amount",
@@ -2059,6 +2286,8 @@
     "title": "Client Success",
     "subtitle": "Track client success metrics, objectives, and timeline.",
     "score": "Success Score",
+    "notCalculated": "Not calculated",
+    "recalculating": "Recalculating…",
     "objectives": "Objectives",
     "metrics": "Metrics",
     "recommendations": "Recommendations",
@@ -2106,7 +2335,8 @@
     "submit": "Submit",
     "cancel": "Cancel",
     "infoOnlyAdmins": "Only managers and admins can rate freelancers.",
-    "ratingsLoadError": "Could not load ratings."
+    "ratingsLoadError": "Could not load ratings.",
+    "addRatingFailed": "Unable to save this rating. Please try again."
   },
   "errors": {
     "tabLoadFailed": "This section failed to load. Please try again.",
@@ -2169,6 +2399,14 @@
     "namePlaceholder": "Q3 Contract : Acme Corp",
     "tagsPlaceholder": "legal, signed, 2024",
     "accessLevel": "Access Level",
+    "accessLevels": {
+      "adminOnly": "Admin only",
+      "adminFreelancer": "Admin + Freelancer",
+      "clientAdmin": "Client + Admin",
+      "all": "All"
+    },
+    "confirmDeleteTitle": "Delete \"{{name}}\"?",
+    "confirmDeleteDescription": "This action cannot be undone. The document will be permanently deleted.",
     "date": "Date",
     "actions": "Actions",
     "view": "View",

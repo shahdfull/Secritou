@@ -18,6 +18,8 @@
     "signUp": "S'inscrire",
     "email": "Email",
     "password": "Mot de passe",
+    "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe",
     "forgotPassword": "Mot de passe oublié ?",
     "resetPassword": "Réinitialiser le mot de passe",
     "createAccount": "Créer un compte",
@@ -36,6 +38,9 @@
     "passwordResetLinkSent": "Lien de réinitialisation du mot de passe envoyé à votre email",
     "invalidCredentials": "Email ou mot de passe incorrect.",
     "tooManyAttempts": "Trop de tentatives. Réessayez dans quelques minutes.",
+    "forgotPasswordFailed": "Impossible d'envoyer le lien de réinitialisation. Veuillez réessayer.",
+    "resetPasswordFailed": "Ce lien de réinitialisation est invalide ou expiré.",
+    "changePasswordFailed": "Le mot de passe actuel est incorrect ou la mise à jour a échoué.",
     "checkYourEmail": "Vérifiez votre email",
     "passwordResetSent": "Si un compte existe pour cet email, nous vous avons envoyé un lien pour réinitialiser votre mot de passe.",
     "backToLogin": "Retour à la connexion",
@@ -55,10 +60,14 @@
     "setNewPasswordInstructions": "Entrez votre nouveau mot de passe.",
     "newPassword": "Nouveau mot de passe",
     "confirmPassword": "Confirmer le nouveau mot de passe",
+    "confirmNewPassword": "Confirmer le nouveau mot de passe",
     "resetting": "Réinitialisation...",
     "changePassword": "Changer de mot de passe",
     "changePasswordRequired": "Vous devez changer votre mot de passe avant de continuer.",
-    "passwordChanged": "Mot de passe changé avec succès"
+    "changePasswordDescription": "Saisissez votre mot de passe actuel puis choisissez un nouveau mot de passe.",
+    "passwordChanged": "Mot de passe changé avec succès",
+    "currentPassword": "Mot de passe actuel",
+    "changing": "Modification en cours..."
   },
   "services": {
     "title": "Un partenaire : Plusieurs solutions de croissance",
@@ -177,6 +186,7 @@
     "pleaseEnterMessage": "Veuillez ajouter un peu plus de contexte (au moins 20 caractères).",
     "invalidPhone": "Veuillez saisir un numéro de téléphone valide.",
     "unableToSend": "Impossible d'envoyer votre message.",
+    "networkError": "Impossible de vous connecter. Vérifiez votre connexion internet et réessayez.",
     "budgets": {
       "lessThan1000": "< 1 000 DT",
       "1000To5000": "1 000–5 000 DT",
@@ -223,6 +233,10 @@
       "open": "Libre",
       "deleteSlot": "Supprimer le créneau",
       "cancelBooking": "Annuler la réservation",
+      "cancelBookingConfirmTitle": "Annuler cette réservation ?",
+      "cancelBookingConfirmDescription": "Annuler la réservation de {{name}} pour le créneau du {{slot}} ?",
+      "deleteSlotConfirmTitle": "Supprimer ce créneau ?",
+      "deleteSlotConfirmDescription": "Supprimer le créneau du {{slot}} ? Cette action est irréversible.",
       "noSlots": "Aucun créneau pour ce jour.",
       "noBookings": "Aucune réservation pour ce jour.",
       "slotCreated": "Créneau créé.",
@@ -246,6 +260,14 @@
     }
   },
   "home": {
+    "onThisPage": {
+      "label": "Sur cette page",
+      "services": "Services",
+      "packs": "Offres",
+      "solutions": "Solutions",
+      "howItWorks": "Comment ça marche",
+      "faq": "FAQ"
+    },
     "hero": {
       "tagline": "Management · Marketing · Technologie",
       "title": {
@@ -595,7 +617,11 @@
     "leadsByStatus": "Leads par statut",
     "leadsByStatusDesc": "Répartition des leads par statut",
     "projectsByStatus": "Répartition des projets",
-    "projectsByStatusDesc": "État des projets"
+    "projectsByStatusDesc": "État des projets",
+    "workload": {
+      "activeTasks": "Tâches actives",
+      "declaredHours": "Heures déclarées"
+    }
   },
   "forecast": {
     "title": "Prévisionnel de revenus",
@@ -647,7 +673,12 @@
     "selectPeriod": "Sélectionner une période"
   },
   "questions": {
-    "title": "Mes questions",
+      "title": "Mes questions",
+      "subtitle": "Posez une nouvelle question à l’équipe.",
+      "newQuestion": "Nouvelle question",
+      "newQuestionDesc": "Décrivez votre besoin et envoyez-le à l’équipe.",
+      "subject": "Sujet",
+      "message": "Votre message",
     "empty": "Vous n'avez pas encore posé de question.",
     "askFirst": "Poser ma première question",
     "notFound": "Question introuvable.",
@@ -690,7 +721,57 @@
     },
     "messageCount": "{{count}} message(s)"
   },
+  "serviceRequestsAdmin": {
+    "statuses": {
+      "NEW": "Nouveau",
+      "IN_REVIEW": "En révision",
+      "IN_PROGRESS": "En cours",
+      "WAITING_CLIENT": "Attente client",
+      "COMPLETED": "Terminé",
+      "CANCELLED": "Annulé"
+    },
+    "priorities": {
+      "LOW": "Faible",
+      "NORMAL": "Normal",
+      "HIGH": "Élevée",
+      "URGENT": "Urgent"
+    },
+    "types": {
+      "SUPPORT": "Support",
+      "NEW_PROJECT": "Nouveau projet"
+    }
+  },
+  "reportsPage": {
+    "exportPdfError": "Échec de l'export PDF. Veuillez réessayer.",
+    "exportExcelError": "Échec de l'export Excel. Veuillez réessayer.",
+    "statuses": {
+      "NEW": "Nouveau",
+      "CONTACTED": "Contacté",
+      "QUALIFIED": "Qualifié",
+      "PROPOSAL": "Proposition",
+      "WON": "Gagné",
+      "LOST": "Perdu",
+      "PLANNING": "Planification",
+      "IN_PROGRESS": "En cours",
+      "IN_REVIEW": "En révision",
+      "COMPLETED": "Complété",
+      "ON_HOLD": "En attente",
+      "CANCELLED": "Annulé",
+      "OPEN": "Ouvert",
+      "ASSIGNED": "Assigné",
+      "ACTIVE": "Actif",
+      "COMPLETED_MISSION": "Complété",
+      "CLOSED": "Fermé",
+      "REVIEW": "Révision"
+    }
+  },
   "common": {
+    "periods": {
+      "last7Days": "7 derniers jours",
+      "last30Days": "30 derniers jours",
+      "last90Days": "90 derniers jours",
+      "last12Months": "12 derniers mois"
+    },
     "loading": "Chargement...",
     "save": "Enregistrer",
     "send": "Envoyer",
@@ -753,6 +834,52 @@
       "nameDesc": "Nom Z→A"
     },
     "startDate": "Date de début"
+  },
+  "settings": {
+    "profile": {
+      "title": "Profil",
+      "subtitle": "Informations de votre compte",
+      "saveChanges": "Enregistrer les modifications",
+      "nameRequired": "Le nom est requis"
+    },
+    "appearance": {
+      "title": "Apparence",
+      "subtitle": "Personnalisez l'apparence de votre application",
+      "darkMode": "Mode sombre",
+      "darkModeDesc": "Basculer entre les thèmes clair et sombre",
+      "language": "Langue",
+      "languageDesc": "Choisissez la langue que vous préférez",
+      "languagePlaceholder": "Sélectionner la langue",
+      "languages": {
+        "fr": "Français",
+        "en": "English"
+      },
+      "platformColor": "Couleur de la plateforme",
+      "platformColorDesc": "Personnalisez la couleur principale de la marque"
+    }
+  },
+  "privacyPage": {
+    "brand": "Secritou",
+    "title": "Politique de confidentialité",
+    "lastUpdated": "Dernière mise à jour : juillet 2026",
+    "whoWeAreTitle": "Qui sommes-nous ?",
+    "whoWeAreBody": "Secritou est une agence de services digitaux basée à Tunis, Tunisie. Notre site est accessible à l'adresse secritou.tn.",
+    "dataCollectedTitle": "Données collectées",
+    "dataCollectedIntro": "Nous collectons uniquement les données que vous nous transmettez volontairement :",
+    "dataCollectedContact": "Via le formulaire de contact : nom, email, téléphone, entreprise, message.",
+    "dataCollectedAnalytics": "Via notre outil d'analyse d'audience auto-hébergé : données de navigation anonymisées (page consultée, référent), sans identifiant persistant ni profilage entre visites.",
+    "noSensitiveData": "Nous ne collectons aucune donnée sensible et nous ne revendons jamais vos informations à des tiers.",
+    "purposeTitle": "Finalité du traitement",
+    "purposeContact": "Répondre à vos demandes de contact et de devis.",
+    "purposeImprove": "Améliorer l'expérience utilisateur de notre site (analytics).",
+    "retentionTitle": "Durée de conservation",
+    "retentionBody": "Vos données de contact sont conservées le temps nécessaire au traitement de votre demande, et au maximum 3 ans à compter du dernier contact.",
+    "rightsTitle": "Vos droits",
+    "rightsBody": "Conformément à la loi tunisienne n° 2004-63 du 27 juillet 2004 portant sur la protection des données à caractère personnel, vous disposez d'un droit d'accès, de rectification et de suppression de vos données. Pour exercer ces droits, contactez-nous à contact@secritou.tn.",
+    "cookiesTitle": "Cookies",
+    "cookiesBody": "Notre outil de mesure d'audience est auto-hébergé et ne dépose aucun cookie : un identifiant de session temporaire est généré en mémoire à chaque visite et n'est jamais conservé au-delà de la session en cours (pas de suivi d'un visiteur d'une visite à l'autre). Ces données ne collectent aucune donnée personnelle identifiable.",
+    "contactTitle": "Contact",
+    "contactBody": "Pour toute question relative à cette politique : contact@secritou.tn"
   },
   "search": {
     "placeholder": "Rechercher les leads, clients, projets...",
@@ -891,7 +1018,10 @@
     "placeholder": "Écrivez votre message...",
     "send": "Envoyer",
     "errors": {
-      "unavailable": "Impossible de contacter l'assistant IA. Veuillez vérifier la clé API."
+      "unavailable": "Impossible de contacter l'assistant IA. Veuillez vérifier la clé API.",
+      "appError": "Une erreur est survenue lors du traitement de votre message. Veuillez réessayer.",
+      "localHistoryLost": "Votre historique de discussion local n'a pas pu être récupéré.",
+      "deleteFailed": "Impossible de supprimer cette conversation. Veuillez réessayer."
     },
     "float": {
       "open": "Assistant IA (Ctrl+J)",
@@ -1180,17 +1310,20 @@
     "industry": "Secteur",
     "challenge": "Défi",
     "outcome": "Résultat",
-    "metricLabel": "Sur 90 jours"
+    "metricLabel": "Sur 90 jours",
+    "illustrativeNotice": "Exemples illustratifs représentatifs des résultats visés, en l'absence de client actif à ce jour."
   },
   "notFound": {
     "title": "Page non trouvée",
     "description": "La page que vous recherchez n'existe pas ou a été déplacée.",
-    "goHome": "Retour à l'accueil"
+    "goHome": "Retour à l'accueil",
+    "suggestions": "Vous cherchiez peut-être"
   },
   "projectsPage": {
     "title": "Projets",
     "subtitle": "Gérez vos projets clients",
     "noNewProjectButtonNotice": "Un projet naît de l'acceptation d'une proposition — il n'y a pas de bouton de création directe ici.",
+    "clientSelectorTruncatedNotice": "Seuls les {{shown}} premiers clients sur {{total}} sont chargés dans le filtre — un client plus récent peut être introuvable.",
     "newProject": "Nouveau projet",
     "createProject": "Créer un projet",
     "createProjectDesc": "Ajoutez un nouveau projet à votre liste",
@@ -1272,6 +1405,8 @@
       "other": "Autre"
     },
     "noEmail": "Aucun email",
+    "createFailed": "Impossible de créer ce lead. Veuillez réessayer.",
+    "updateFailed": "Impossible de mettre à jour ce lead. Veuillez réessayer.",
     "deleteFailed": "Impossible de supprimer ce lead.",
     "convertSuccess": "{{name}} a été converti en client.",
     "convertFailed": "Impossible de convertir ce lead.",
@@ -1414,6 +1549,8 @@
       "inviteToPortalBtn": "Inviter au portail",
       "clientSuccess": "Client Success",
       "archive": "Archiver",
+      "archiveClientTitle": "Archiver ce client ?",
+      "archiveClientDesc": "Le client « {{name}} » disparaîtra de la liste des clients actifs et de son pôle. Ses factures, propositions et documents restent conservés et consultables via sa fiche en lien direct.",
       "delete": "Supprimer",
       "gdprExport": "Exporter (RGPD)",
       "gdprErase": "Effacer (RGPD)",
@@ -1442,7 +1579,9 @@
     "errors": {
       "hasProjects": "Ce client a des projets actifs. Archivez-les d'abord.",
       "hasInvoices": "Ce client a des factures en cours. Clôturez-les d'abord.",
-      "deleteFailed": "La suppression a échoué. Veuillez réessayer."
+      "deleteFailed": "La suppression a échoué. Veuillez réessayer.",
+      "createFailed": "Impossible de créer ce client. Veuillez réessayer.",
+      "updateFailed": "Impossible de mettre à jour ce client. Veuillez réessayer."
     }
   },
   "settings": {
@@ -1455,6 +1594,8 @@
     "company": "Entreprise",
     "users": "Utilisateurs",
     "requests": "Demandes d'adhésion",
+    "siteContent": "Site vitrine",
+    "freelancerProfile": "Mon profil",
     "appearance": "Apparence"
   },
   "settingsPage": {
@@ -1574,12 +1715,34 @@
       "requests": "Mes demandes",
       "profile": "Mon profil"
     },
+    "profile": {
+      "roles": {
+        "ADMIN": "Administrateur",
+        "MANAGER": "Manager",
+        "CLIENT": "Client",
+        "FREELANCER": "Freelance"
+      }
+    },
     "dashboard": {
       "title": "Tableau de bord",
       "stats": {
         "projects": "Projets",
-        "requests": "Demandes"
-      }
+        "requests": "Demandes",
+        "documents": "Documents"
+      },
+      "outstandingBalance": "Solde dû",
+      "nextDueInvoice": "Prochaine échéance",
+      "projectProgress": "Avancement du projet",
+      "myDocuments": "Mes documents",
+      "noDocuments": "Aucun document pour le moment.",
+      "documentTypes": {
+        "invoice": "Facture",
+        "contract": "Contrat",
+        "other": "Autre",
+        "default": "Document"
+      },
+      "download": "Télécharger",
+      "openSection": "ouvrir la section"
     },
     "projects": {
       "title": "Mes Projets",
@@ -1608,6 +1771,8 @@
       "sending": "Envoi en cours...",
       "createdOn": "Créée le",
       "viewProposal": "Voir la proposition",
+      "createSuccess": "Votre demande a bien été envoyée.",
+      "createFailed": "L'envoi de votre demande a échoué. Vos informations ont été conservées, vous pouvez réessayer.",
       "statuses": {
         "new": "Nouveau",
         "inReview": "En revue",
@@ -1641,10 +1806,31 @@
     },
     "invoices": {
       "title": "Mes Factures",
+      "tabs": {
+        "invoices": "Mes factures",
+        "creditNotes": "Mes avoirs"
+      },
       "empty": "Aucune facture pour le moment.",
       "issuedOn": "Émise le",
       "dueDate": "Échéance",
       "paidSuffix": "réglé",
+      "invoicesLoadFailed": "Impossible de charger vos factures.",
+      "creditNotesLoadFailed": "Impossible de charger vos avoirs.",
+      "creditBalanceLoadFailed": "Impossible de charger votre solde d'avoirs.",
+      "itemsDetail": "Détails des prestations",
+      "paymentsHistory": "Historique des paiements",
+      "paymentBy": "Paiement par",
+      "reference": "Réf",
+      "creditBalanceTitle": "Mon solde d'avoirs",
+      "creditBalanceSubtitle": "Avoirs applicables sur vos prochaines factures.",
+      "creditNotesEmpty": "Vous n'avez aucun avoir disponible.",
+      "creditNoteIssuedOn": "Avoir émis le",
+      "creditNoteReason": "Motif",
+      "creditNoteReasonFallback": "Non renseigné",
+      "creditNoteOriginInvoice": "Facture d'origine",
+      "creditNoteAppliedToInvoice": "Appliqué sur la facture",
+      "creditNoteApplied": "Appliqué",
+      "creditNoteAvailable": "Disponible",
       "statuses": {
         "DRAFT": "Brouillon",
         "SENT": "Envoyée",
@@ -1664,6 +1850,7 @@
       "confirmReject": "Confirmer le refus",
       "versionMismatch": "Cette proposition a été modifiée depuis son ouverture. Veuillez relire la dernière version.",
       "responseFailed": "Impossible d'enregistrer votre réponse. Veuillez réessayer.",
+      "amountToBeDefined": "Montant à définir",
       "statuses": {
         "DRAFT": "Brouillon",
         "SENT": "Envoyée",
@@ -1672,6 +1859,17 @@
         "REJECTED": "Refusée",
         "EXPIRED": "Expirée"
       }
+    },
+    "seo": {
+      "notEnabled": "Le suivi SEO n'est pas encore activé pour votre compte. Contactez votre chargé de projet pour l'activer.",
+      "techError": "Impossible de charger l'état SEO pour le moment.",
+      "metricsError": "Impossible de charger les métriques SEO pour le moment."
+    },
+    "onboarding": {
+      "emptyTitle": "Aucun onboarding trouvé",
+      "emptyBody": "L'onboarding apparaît lorsque votre projet est prêt à suivre les étapes de cadrage, de contrat et de production.",
+      "viewProjects": "Voir mes projets",
+      "viewRequests": "Voir mes demandes"
     }
   },
   "onboarding": {
@@ -1710,7 +1908,12 @@
       "viewContract": "Voir le contrat",
       "downloadContract": "Télécharger le contrat",
       "signContract": "Signer le contrat",
-      "status": "Statut"
+      "status": "Statut",
+      "statuses": {
+        "PENDING": "En attente de signature",
+        "SIGNED": "Signé"
+      },
+      "notReady": "Le contrat n'est pas encore disponible. Nous vous préviendrons dès qu'il sera prêt à signer."
     },
     "payment": {
       "title": "Paiement",
@@ -1719,12 +1922,19 @@
       "amountPaid": "Montant payé",
       "deadline": "Date limite",
       "status": "Statut",
-      "payNow": "Payer maintenant"
+      "payNow": "Payer maintenant",
+      "statuses": {
+        "UNPAID": "Non payé",
+        "PARTIAL": "Partiellement payé",
+        "PAID": "Payé"
+      },
+      "notReady": "Aucun paiement à effectuer pour le moment. Nous vous préviendrons dès qu'une demande sera émise."
     },
     "questionnaire": {
       "title": "Questionnaire",
       "subtitle": "Remplissez le questionnaire pour nous aider à comprendre vos besoins.",
       "saveDraft": "Sauvegarder brouillon",
+      "draftRestored": "Votre brouillon du questionnaire a été restauré.",
       "submit": "Soumettre le questionnaire",
       "serviceType": "Type de service",
       "services": {
@@ -1750,7 +1960,8 @@
         "kpis": "KPI",
         "tools": "Outils",
         "dataSources": "Sources de données"
-      }
+      },
+      "notReady": "Le questionnaire n'est pas encore disponible pour cette étape."
     },
     "specifications": {
       "title": "Cahier des charges",
@@ -1763,7 +1974,13 @@
       "feedback": "Demandes de modifications",
       "status": "Statut",
       "approve": "Approuver",
-      "requestChanges": "Demander des modifications"
+      "requestChanges": "Demander des modifications",
+      "statuses": {
+        "PENDING": "En attente d'approbation",
+        "APPROVED": "Approuvé",
+        "REJECTED": "Modifications demandées"
+      },
+      "notReady": "Le cahier des charges n'est pas encore prêt. Il sera disponible ici dès qu'il aura été rédigé."
     },
     "kickoff": {
       "title": "Réunion Kickoff",
@@ -1771,7 +1988,8 @@
       "meetingDate": "Date de la réunion",
       "participants": "Participants",
       "meetingLink": "Lien de réunion",
-      "joinMeeting": "Rejoindre la réunion"
+      "joinMeeting": "Rejoindre la réunion",
+      "notReady": "Aucune réunion de lancement n'est encore planifiée."
     },
     "production": {
       "title": "Production",
@@ -1780,7 +1998,8 @@
       "design": "Design",
       "development": "Développement",
       "testing": "Tests",
-      "deployment": "Déploiement"
+      "deployment": "Déploiement",
+      "notReady": "Le suivi de production démarrera dès le lancement du projet."
     },
     "delivery": {
       "title": "Livraison",
@@ -1789,7 +2008,8 @@
       "documentation": "Documentation",
       "accessDetails": "Accès",
       "userGuides": "Guides utilisateur",
-      "download": "Télécharger"
+      "download": "Télécharger",
+      "notReady": "Les livrables ne sont pas encore disponibles. Ils apparaîtront ici une fois le projet livré."
     },
     "admin": {
       "title": "Onboardings",
@@ -1807,7 +2027,10 @@
       "edit": "Modifier",
       "delete": "Supprimer"
     },
-    "notFound": "Aucun onboarding trouvé pour ce projet."
+    "notFound": "Aucun onboarding trouvé pour ce projet.",
+    "stepUpdateError": "Impossible de mettre à jour cette étape. Veuillez réessayer.",
+    "contractUpdateError": "Impossible de signer le contrat. Veuillez réessayer.",
+    "questionnaireUpdateError": "Impossible d'enregistrer le questionnaire. Veuillez réessayer."
   },
   "proposals": {
     "title": "Propositions",
@@ -1861,12 +2084,14 @@
     "sourceLead": "Lead source",
     "filterByLead": "Filtrer par lead",
     "allLeads": "Tous les leads",
+    "leadSelectorTruncatedNotice": "Seuls les {{shown}} premiers leads sur {{total}} sont proposés dans le filtre — un lead plus récent peut être introuvable.",
     "fromLead": {
       "title": "Créer une proposition",
       "description": "Nouvelle proposition pour le lead {{name}}",
       "defaultTitle": "Proposition pour {{name}}",
       "targetClient": "Client associé",
       "selectClient": "Sélectionner un client",
+      "clientSelectorTruncatedNotice": "Seuls les {{shown}} premiers clients sur {{total}} sont proposés — un client plus récent peut être introuvable.",
       "create": "Créer une proposition",
       "linkedProposals": "Propositions liées",
       "noProposals": "Aucune proposition liée à ce lead"
@@ -2016,7 +2241,8 @@
       "empty": "Aucun avoir disponible.",
       "applied": "Appliqué le {{date}}",
       "available": "Disponible",
-      "appliedInvoice": "Avoir appliqué à la facture"
+      "appliedInvoice": "Avoir appliqué à la facture",
+      "noNewCreditNoteButtonNotice": "Le bouton ci-dessus crée une facture, pas un avoir. Un avoir naît généralement automatiquement d'un surpaiement ou d'une annulation de facture."
     },
     "deleteTitle": "Supprimer la facture « {{number}} » ?",
     "deleteDesc": "Cette action est irréversible. La facture brouillon sera définitivement supprimée.",
@@ -2027,6 +2253,7 @@
       "description": "Créez une nouvelle facture pour un client",
       "clientLabel": "Client",
       "clientPlaceholder": "Sélectionnez un client",
+      "clientSelectorTruncatedNotice": "Seuls les {{shown}} premiers clients sur {{total}} sont proposés — un client plus récent peut être introuvable.",
       "titleLabel": "Titre",
       "titlePlaceholder": "Titre de la facture",
       "amountLabel": "Montant",
@@ -2059,6 +2286,8 @@
     "title": "Succès Client",
     "subtitle": "Suivez les métriques, objectifs et timeline de succès des clients.",
     "score": "Score de succès",
+    "notCalculated": "Non calculé",
+    "recalculating": "Recalcul en cours…",
     "objectives": "Objectifs",
     "metrics": "Métriques",
     "recommendations": "Recommandations",
@@ -2106,7 +2335,8 @@
     "submit": "Envoyer",
     "cancel": "Annuler",
     "infoOnlyAdmins": "Seuls les managers et les administrateurs peuvent évaluer les freelancers.",
-    "ratingsLoadError": "Impossible de charger les avis."
+    "ratingsLoadError": "Impossible de charger les avis.",
+    "addRatingFailed": "Impossible d'enregistrer cette évaluation. Veuillez réessayer."
   },
   "errors": {
     "tabLoadFailed": "Cette section n'a pas pu se charger. Veuillez réessayer.",
@@ -2169,6 +2399,14 @@
     "namePlaceholder": "Contrat T3 : Acme Corp",
     "tagsPlaceholder": "légal, signé, 2024",
     "accessLevel": "Niveau d'accès",
+    "accessLevels": {
+      "adminOnly": "Admin uniquement",
+      "adminFreelancer": "Admin + Freelance",
+      "clientAdmin": "Client + Admin",
+      "all": "Tous"
+    },
+    "confirmDeleteTitle": "Supprimer « {{name}} » ?",
+    "confirmDeleteDescription": "Cette action est irréversible. Le document sera définitivement supprimé.",
     "date": "Date",
     "actions": "Actions",
     "view": "Voir",
