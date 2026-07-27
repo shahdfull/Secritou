@@ -1,0 +1,59 @@
+# Registre des anomalies — Secritou
+#
+# Ce fichier fait partie du registre éclaté (voir CLAUDE.md § « Procédure
+# d'audit obligatoire »). Schéma identique à l'ancien ANOMALIES.yaml
+# (archivé) : id, titre, perimetre, regle_violee, classe, gravite, statut,
+# critere_de_resolution, detecte_le, source, confiance, note.
+# Ne jamais reformuler un titre existant — citer l'ID.
+#
+# Périmètre : 4.12 Contenu du site public
+# 3 anomalie(s)
+
+anomalies:
+  - id: SEC-021
+    titre: Les 4 CTA « Nous contacter » de la section services publique envoient un serviceType invalide (rejeté par le serveur)
+    perimetre: site public (landing) — client/src/features/landing/components/Services.tsx, client/src/features/landing/pages/ContactPage.tsx
+    regle_violee: null
+    classe: vocabulaire_pole_incoherent
+    gravite: majeur
+    statut: resolu
+    critere_de_resolution: |
+      C'est résolu quand un visiteur qui clique « Nous contacter » depuis n'importe laquelle des 4 cartes de service de la page d'accueil arrive sur /contact avec le bon pôle canonique pré-sélectionné dans le formulaire (visible ET valide, pas seulement visible), et que la soumission du formulaire réussit sans erreur de validation côté serveur — vérifié pour les 4 cartes, pas seulement une.
+    detecte_le: '2026-07-17'
+    source: audit_llm
+    confiance: certain
+    note: |
+      Trouvé en investiguant la cause racine de 4 tests ContactPage.test.tsx dans SEC-013 (même session) — classé sous la même `classe` que SEC-001 (vocabulaire des pôles incohérent) car c'est la même famille de défaut (noms anglais pré-migration survivant dans le code), mais un ID distinct car le critère de résolution porte sur un flux utilisateur concret différent (clic CTA → formulaire pré-rempli → soumission), pas sur la cohérence documentaire. `client/src/features/landing/components/Services.tsx` (lignes 18, 30, 42, 54, avant correction) définissait les 4 CTA avec `serviceType: "Business Performance"` / `"Digital Growth"` / `"Technology Solutions"` / `"AI & Automation"` — un commentaire en tête de fichier affirmait explicitement que ces valeurs devaient correspondre à `server/src/validators/contact.validator.ts`. Ce n'est plus le cas depuis la migration de vocabulaire des pôles : le validateur serveur (et `ContactPage.tsx` côté client) utilisent `CONTACT_SERVICE_TYPES` (shared/src/constants/contactForm.ts) — `["Management & Performance", "Croissance digitale", "Technologie", "IA & Automatisation", "Other"]`, aucun recoupement avec les 4 valeurs de Services.tsx. Conséquence réelle pour un visiteur : clic sur n'importe laquelle des 4 cartes → navigation vers /contact avec un `serviceType` invalide en `location.state` → `ContactPage.tsx` régresse sur son propre défaut par défaut (voir SEC-013) → même si le visiteur re-sélectionne manuellement un pôle correct dans le `<select>`, ou si le blocage client était contourné, le serveur rejetterait quand même la requête (même `CONTACT_SERVICE_TYPES` partagé côté validateur) — chemin de conversion commerciale publique cassé pour 100% des clics CTA service, pas un cas limite.
+      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-17 (même passe que SEC-013) : les 4 littéraux recopiés à la main remplacés par `CONTACT_SERVICE_TYPES[0..3]`, importé directement de `@secritou/shared` (déjà utilisé ailleurs dans ce même fichier de features, ex. ContactPage.tsx) — élimine la classe de défaut plutôt que de corriger seulement les 4 valeurs actuelles (une future modification de l'ordre/contenu de CONTACT_SERVICE_TYPES ne pourra plus désynchroniser silencieusement Services.tsx). `npm run typecheck --workspace client` vert (0 erreur). Vérifié indirectement par les 4 tests ContactPage.test.tsx désormais verts (le chemin `selectedService` par défaut de ContactPage.tsx a été corrigé dans la même passe, voir SEC-013) — pas de test dédié écrit spécifiquement pour Services.tsx lui-même (aucun test n'existait pour ce composant avant cette session, en créer un irait au-delà du périmètre de ce correctif).
+      Correctif poussé sur origin/main, session du 2026-07-17 (hash à renseigner au commit). `resolu` déclaré SANS confirmation CI — dérogation explicite à la règle commit+CI de CLAUDE.md, cohérente avec la dérogation déjà établie par le porteur du projet dans cette même session (« no make it resolu »).
+  - id: SEC-226
+    titre: 'Migration CMS incomplète — HowItWorks/FAQ/SocialProof lisent désormais cmsJson(...) sur SiteContent au lieu de t(...) sur i18n, mais server/prisma/seed.ts n''a jamais été mis à jour pour copier ce contenu en base : les 3 sections retombent sur des défauts vides (title:"", body:"") en landing page alors que le texte FR/EN complet existe toujours dans translation.json, jamais lu'
+    perimetre: client/src/features/landing/components/{HowItWorks,FAQ,SocialProof}.tsx ; server/prisma/seed.ts (sections HOW_IT_WORKS, FAQ, SOCIAL_PROOF absentes) ; client/src/i18n/locales/{fr,en}/translation.json (home.howItWorks.steps, home.faq.questions, home.socialProof.testimonials — contenu intact, orphelin)
+    regle_violee: null
+    classe: migration_cms_seed_manquant
+    gravite: majeur
+    statut: en_cours
+    critere_de_resolution: |
+      C'est résolu quand un visiteur non connecté qui charge la landing page en FR et en EN voit les 4 étapes HowItWorks, les 5 questions FAQ et les 5 témoignages SocialProof affichés avec un texte non-vide, identique au contenu actuellement présent dans translation.json, prouvé par un test e2e (ou a minima un appel direct à GET /site-content/public?locale=fr puis =en) qui lit les clés howItWorks.steps / faq.items / socialProof.testimonials et vérifie qu'elles sont non-vides pour les deux locales — pas seulement que le seed script s'exécute sans erreur.
+    detecte_le: '2026-07-24'
+    source: manuel
+    confiance: certain
+    note: |
+      Découvert en répondant à une question de l'utilisateur sur des champs vides visibles sur un screenshot de la landing page (pas un audit formel du périmètre REFERENTIEL.md §4). Vérifié par lecture directe : SocialProof.tsx:10, FAQ.tsx:17-23, HowItWorks.tsx:7-12 définissent des DEFAULT_* vides ; grep exhaustif de server/prisma/seed.ts confirme l'absence totale des clés howItWorks.*, faq.items, socialProof.testimonials (seules HERO, SERVICES/packs, CONTACT, SEO sont seedées) ; git log -p sur HowItWorks.tsx montre le commit de migration i18n→CMS qui a remplacé t("home.howItWorks.steps.N.title") par cmsJson("howItWorks.steps", DEFAULT_STEPS) sans ajouter de seed correspondant. Le contenu n'a pas été supprimé du dépôt — il est simplement devenu inatteignable par le composant. Note distincte : FAQ.tsx attend un shape {question, answer} alors que translation.json utilise {q, a} pour home.faq.questions — toute correction doit harmoniser le shape, pas seulement copier les valeurs telles quelles.
+      Correctif appliqué (même session, non commité) : 30 nouvelles entrées SiteContent ajoutées à server/prisma/seed.ts (howItWorks.subtitle/ title/steps, faq.subtitle/title/description/customQuestionCta/items, socialProof.trustedBy/testimonials, FR+EN), texte repris tel quel de translation.json, shape FAQ harmonisé en {question, answer}. Seed exécuté contre la base dev (`npm run prisma:seed`) : 98 entrées bilingues au total (log de sortie). Vérifié par lecture directe en base (script ad hoc via PrismaClient, supprimé après usage) : howItWorks.steps/faq.items/socialProof.testimonials présents en fr ET en, tous non-vides (4/5/5 items). npx tsc --noEmit et npx eslint sur seed.ts : aucune erreur ni warning. Reste `en_cours` tant que ce changement n'est pas commité et vert en CI (règle du critère de résolution par commit, cf CLAUDE.md).
+      Vérification complémentaire (même session) : l'utilisateur a signalé qu'un GET /site-content?locale=fr renvoyait 500 malgré la base correctement seedée. Diagnostic : la logique isolée (requêtes Prisma identiques à siteContent.service.ts#getFlat) fonctionnait hors du process serveur — cause la plus probable, une connexion Prisma du process npm run dev restée ouverte sur l'état pré-`prisma migrate reset --force`. Après redémarrage du serveur par l'utilisateur, `curl http://localhost:5000/api/v1/site-content?locale=fr` renvoie 200 avec howItWorks.steps/faq.items/socialProof.testimonials non-vides en fr — critère de résolution satisfait par l'API réelle, pas seulement par lecture directe en base. Reste `en_cours` (pas `resolu`) : le changement n'est pas encore commité+vert en CI ; voir aussi SEC-227 (même classe migration_cms_seed_manquant, périmètre distinct — 3 autres sections découvertes après coup par l'utilisateur sur un second screenshot).
+  - id: SEC-227
+    titre: Même défaut que SEC-226 sur 3 sections supplémentaires — Problems/SolutionsTeaser/Differentiators lisent cmsJson(...) sur SiteContent (sections PROBLEMS/SOLUTIONS/DIFFERENTIATORS, déjà présentes dans l'enum SiteContentSection) mais aucune entrée seed correspondante n'existait, malgré un texte FR/EN complet toujours présent dans translation.json
+    perimetre: client/src/features/landing/components/{Problems,SolutionsTeaser,Differentiators}.tsx ; server/prisma/seed.ts (sections PROBLEMS, SOLUTIONS, DIFFERENTIATORS absentes avant correctif) ; client/src/i18n/locales/{fr,en}/translation.json (problems.items, solutionsTeaser.segments, differentiators.items — contenu intact, orphelin)
+    regle_violee: null
+    classe: migration_cms_seed_manquant
+    gravite: majeur
+    statut: en_cours
+    critere_de_resolution: |
+      C'est résolu quand un visiteur non connecté qui charge la landing page en FR et en EN voit les 4 cartes Problems, les 3 segments SolutionsTeaser et les 3 cartes Differentiators affichés avec un texte non-vide, prouvé par un appel réel à GET /site-content ?locale=fr puis =en confirmant que problems.items, solutions.items et differentiators.items sont non-vides pour les deux locales.
+    detecte_le: '2026-07-24'
+    source: manuel
+    confiance: certain
+    note: |
+      Même contexte de découverte que SEC-226 (screenshot utilisateur, cette fois montrant Problems/SolutionsTeaser/Differentiators avec icônes visibles mais titres/textes vides). Vérifié par lecture directe : Problems.tsx:8-13, SolutionsTeaser.tsx:10-14, Differentiators.tsx:8-12 définissent des DEFAULT_ITEMS avec title/body/tag/needs vides (seule la valeur `icon` y est non-vide, ce qui explique que les icônes s'affichent mais pas le texte) ; texte réel confirmé présent en fr/en dans translation.json (problems.*, solutionsTeaser.*, differentiators.*).
+      Correctif appliqué (même session, non commité) : 22 nouvelles entrées SiteContent ajoutées à server/prisma/seed.ts (problems.subtitle/title/description/items, solutions.subtitle/title/exploreLabel/items, differentiators.subtitle/title/items, FR+EN), icônes déduites des DEFAULT_ITEMS existants (eye-off/workflow/globe/hourglass pour Problems ; building/compass/store pour SolutionsTeaser ; compass/line-chart/users pour Differentiators). Seed exécuté contre la base dev : 120 entrées bilingues au total (98 + 22). Vérifié via un GET http://localhost:5000/api/v1/site-content?locale=fr réel (serveur applicatif démarré par l'utilisateur) : problems.items, solutions.items, differentiators.items tous non-vides avec le contenu attendu. npx tsc --noEmit et npx eslint sur seed.ts : aucune erreur ni warning. Reste `en_cours` tant que non commité+vert en CI.

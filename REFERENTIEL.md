@@ -12,14 +12,14 @@
 
 En cas de conflit entre documents, l'ordre ci-dessous fait foi — un document
 `dérivé` ou `historique` qui contredit REFERENTIEL.md est une anomalie à
-enregistrer dans ANOMALIES.yaml, pas un arbitrage à trancher à la volée
-(voir CLAUDE.md).
+enregistrer dans `anomalies/_index.yaml` + `anomalies/<perimetre>.yaml`, pas
+un arbitrage à trancher à la volée (voir CLAUDE.md).
 
 | Document | Rôle | Statut | Qui l'emporte en cas de conflit |
 |---|---|---|---|
 | REFERENTIEL.md | Description du SI cible, règles métier, statuts vérifiés | **source de vérité** | Ce document |
 | CLAUDE.md | Règles opérationnelles pour l'assistant, résumé de REFERENTIEL.md | dérivé | REFERENTIEL.md |
-| ANOMALIES.yaml | Registre des écarts entre REFERENTIEL.md et le code/les autres documents | dérivé | REFERENTIEL.md (les anomalies décrivent des écarts, n'en créent pas) |
+| `anomalies/_index.yaml` + `anomalies/<perimetre>.yaml` | Registre éclaté des écarts entre REFERENTIEL.md et le code/les autres documents (ANOMALIES.yaml, 16 177 lignes, éclaté le 2026-07-27) | dérivé | REFERENTIEL.md (les anomalies décrivent des écarts, n'en créent pas) |
 | EXPLORATION.md | Couverture de la lecture de code ayant produit REFERENTIEL.md | dérivé | REFERENTIEL.md |
 | PISTES.md | Affirmations non vérifiées extraites de documents `historique`, à trancher plus tard sur le code | dérivé, aucune valeur probante seule | REFERENTIEL.md |
 | README.md | Présentation du projet (public/onboarding dev) | **historique** — contient des affirmations non vérifiées (ex. « multi-tenant », middleware `tenant` inexistant, voir SEC-004) | REFERENTIEL.md |
@@ -1810,6 +1810,48 @@ SEC-220 (Lead non converti), SEC-221 (ContactRequest), SEC-222 (URL
 signée), SEC-223 (documentation rétention AuditLog), SEC-224
 (self-service), SEC-225 (rate limit export) — voir ANOMALIES.yaml pour
 le détail de chaque écart, tous `en_cours` (correctif non commité).
+
+---
+
+**RG-026 — Niveaux de confirmation UX avant action utilisateur.**
+Toute action déclenchée depuis l'UI porte l'un des trois niveaux de
+confirmation suivants, choisi selon sa réversibilité et son enjeu, et non
+laissé à l'appréciation de chaque écran :
+
+- **Niveau 0 — Aucune confirmation.** Actions réversibles sans conséquence
+  pour un tiers (navigation, filtres, édition de brouillon local).
+- **Niveau 1 — Confirmation simple.** Actions destructrices mais
+  rattrapables ou sans impact financier direct (suppression d'une entité
+  interne, retrait d'un filtre). Implémentation : `ConfirmDeleteDialog`
+  (`client/src/components/shared/crud/ConfirmDeleteDialog.tsx`) ou
+  `AlertDialog` (`client/src/components/ui/alert-dialog.tsx`).
+- **Niveau 2 — Confirmation renforcée.** Actions irréversibles et/ou à
+  enjeu financier ou d'engagement contractuel envers un tiers (client,
+  associé). Le dialogue doit : rappeler l'entité concernée nommément
+  (montant, client, créneau...), expliciter le caractère irréversible, et
+  exiger une action volontaire distincte du simple clic « Confirmer »
+  (ex. case à cocher obligatoire). Modèle de référence dans le code :
+  changement de statut/archivage de `ProjectDetailPage.tsx`
+  (`client/src/features/projects/ProjectDetailPage.tsx`) et dialogue
+  d'approbation de `ProjectsClientPage.tsx`
+  (`client/src/features/client-portal/ProjectsClientPage.tsx`).
+
+**Actions classées Niveau 2** (liste fermée, à mettre à jour ici en premier
+si une nouvelle action de cette classe est ajoutée au produit) :
+envoi de facture, annulation de facture (`InvoicesPage.tsx`) ; marquage
+d'une commission comme payée (`CommissionsPage.tsx`) ; annulation d'une
+réservation client (`BookingAdminPage.tsx`) ; transition d'une demande de
+service vers « Annulée » (`ServiceRequestsAdminPage.tsx`) ; acceptation
+d'une proposition commerciale (`ProposalsClientPage.tsx`) ; approbation
+client (`ApprovalsClientPage.tsx`) ; signature de contrat en onboarding
+(`ClientOnboardingPage.tsx`).
+
+*Module : transverse — UI/UX, tous modules à écran.* Statut :
+**PRÉVU. `verifie: code_direct`** (règle nouvellement définie cette
+session à la demande explicite de l'utilisateur, sur la base de l'audit
+ergonomique du 25 juillet 2026 ; les 7 actions listées ci-dessus ne sont
+pas encore protégées au niveau 2 dans le code au moment de la rédaction de
+cette règle — à traiter action par action, voir to-do de suivi).
 
 ---
 

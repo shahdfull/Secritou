@@ -1,0 +1,42 @@
+# Registre des anomalies — Secritou
+#
+# Ce fichier fait partie du registre éclaté (voir CLAUDE.md § « Procédure
+# d'audit obligatoire »). Schéma identique à l'ancien ANOMALIES.yaml
+# (archivé) : id, titre, perimetre, regle_violee, classe, gravite, statut,
+# critere_de_resolution, detecte_le, source, confiance, note.
+# Ne jamais reformuler un titre existant — citer l'ID.
+#
+# Périmètre : 4.7 Freelances
+# 2 anomalie(s)
+
+anomalies:
+  - id: SEC-018
+    titre: rating.controller.ts restreint via req.user!.id au lieu de req.user!.sub
+    perimetre: 4.7 Freelances
+    regle_violee: null
+    classe: null
+    gravite: mineur
+    statut: rejete
+    critere_de_resolution: |
+      C'est résolu quand rating.controller.ts (méthode getRatingsByFreelancerId ou équivalent) utilise le même champ que le reste du code (`req.user!.sub`, cohérent avec JwtPayload dans client/src/types/auth.ts et le reste des controllers), vérifié par un test d'intégration confirmant qu'un FREELANCER authentifié voit bien ses propres notes (pas de régression silencieuse si le champ actuel se révèle en réalité fonctionnel).
+    detecte_le: '2026-07-17'
+    source: audit_llm
+    confiance: certain
+    note: |
+      Constat incident (AUDIT_GRID.md, session du 2026-07-17) : rating.controller.ts restreint la lecture des notes d'un FREELANCER à ses propres notes via `req.user!.id`, alors que le reste du code (confirmé par les audits 4.14 antérieurs) utilise `req.user!.sub` (champ du JwtPayload). `confiance: a_confirmer` d'origine — pas vérifié si `id` existe réellement comme alias sur ce type ou si c'est un bug silencieux qui romprait le scoping.
+      REJETÉ (vérification directe, session du 2026-07-17) : faux positif. `server/src/types/auth.ts:4-5` — `JwtPayload` porte à la fois `id` et `sub`, ce ne sont pas des noms concurrents dont un seul existerait. `server/src/services/auth.service.ts:44-45` (`signAccessToken`) — les deux champs sont signés avec exactement la même valeur (`id: user.id, sub: user.id`) à l'émission du token. `req.user!.id` et `req.user!.sub` sont donc strictement équivalents au runtime pour tout token émis par ce chemin — aucune divergence de scoping possible, juste une incohérence de convention de nommage entre fichiers, pas un bug fonctionnel. Rejeté plutôt que fermé en `resolu` : rien n'a été corrigé, le constat d'origine était simplement faux à la vérification.
+  - id: SEC-178
+    titre: Rating n'a ni champ projectId ni contrainte @@unique/garde applicative sur (freelancerId, ratedByUserId) — un même évaluateur peut soumettre un nombre illimité de notes pour le même freelance, chacune recalculant la moyenne (ratingService.updateFreelancerRatingAverage), sans lien traçable vers le projet ayant déclenché la demande d'évaluation
+    perimetre: 4.7 Marketplace freelance — schema.prisma#Rating (lignes 741-752) ; server/src/services/rating.service.ts
+    regle_violee: null
+    classe: contrainte_unicite_manquante
+    gravite: mineur
+    statut: resolu
+    critere_de_resolution: |
+      Sera résolu soit par l'ajout d'un champ `projectId` sur `Rating` (le déclencheur documenté est une demande d'évaluation par projet complété — voir la note positive existante sur ce flux) assorti d'une contrainte `@@unique([projectId, freelancerId, ratedByUserId])`, soit par une décision explicite du porteur documentant qu'une note libre et illimitée par évaluateur est le comportement voulu (à écrire dans REFERENTIEL.md §7) — dans les deux cas la décision doit être écrite, pas laissée implicite.
+    detecte_le: '2026-07-21'
+    source: audit_llm
+    confiance: certain
+    note: |
+      Audit DB (item 7, types/contraintes), passe complémentaire. Vérifié par lecture directe : `schema.prisma:741-752` (`model Rating`) ne porte que `id, score, comment, freelancerId, ratedByUserId, createdAt` — aucun `projectId`, aucun `@@unique`, seul un `@@index([freelancerId])`. `rating.service.ts:23` (`prisma.rating.create({ data: { score, comment, freelancerId, ratedByUserId } })`) ne fait précéder la création d'aucune vérification d'existence d'une note récente du même évaluateur pour le même freelance — ni contrainte DB, ni garde applicative. Impact : un manager qui rate deux fois le même freelance (double-clic, ou volontairement pour influencer sa moyenne) voit les deux notes comptées dans `updateFreelancerRatingAverage`, sans qu'aucune des deux couches (schéma, service) ne le prévienne ou ne le bloque. Gravité `mineur` : nécessite un compte MANAGER/ADMIN déjà authentifié (pas de surface anonyme), impact réputationnel/moyenne plutôt que perte de données. Non vérifié dans cette passe : si un flux applicatif (frontend) limite déjà l'accès au formulaire de notation à une fois par demande d'évaluation générée — seul le service/schéma a été vérifié, pas le composant React appelant.
+      INVESTIGATION COMPLÉMENTAIRE (session en cours), statut inchangé : vérifié que `POST /freelancers/:freelancerId` (seule route de création, `rating.routes.ts:11`) n'accepte AUCUN `projectId` dans son body (`addRatingSchema` vérifié, `rating.controller.ts:27-32`) — il n'existe donc aujourd'hui aucun plumbing partiel à étendre, la route ne reçoit même pas l'information nécessaire pour la relier à un projet précis. Ajouter `projectId` exigerait donc un changement cross-cutting (route + validator + frontend, pas seulement le schéma) sur la base d'une hypothèse produit non confirmée (quel écran déclenche réellement une notation, et transmet-il déjà l'identifiant du projet complété ?) — au-delà d'un simple ajout de contrainte DB. Laissé `ouvert`, décision porteur toujours requise pour les deux options du critère de résolution ; aucune décision inférée.

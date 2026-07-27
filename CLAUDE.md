@@ -42,16 +42,30 @@ seul.
 
 ## Procédure d'audit obligatoire
 
-1. Lire `ANOMALIES.yaml` en entier AVANT de commencer tout audit.
+Le registre des anomalies est éclaté depuis le 2026-07-27 (16 177 lignes
+devenues trop lourdes à lire en entier à chaque audit) : `anomalies/_index.yaml`
+(léger, un résumé par anomalie) + `anomalies/<perimetre>.yaml` (détail complet,
+un fichier par périmètre de REFERENTIEL.md §4, plus `anomalies/transverse.yaml`
+pour ce qui n'appartient à aucun module §4 — CI/infra, RGPD, documentation,
+i18n global, design system, observabilité).
+
+1. Lire `anomalies/_index.yaml` en entier AVANT de commencer tout audit
+   (léger — id, perimetre, statut, gravite, classe).
 2. Auditer UN périmètre nommé (un module de REFERENTIEL.md §4, ex. "4.5
    Rémunération des associés") contre les sections correspondantes du
    référentiel — ne pas mélanger plusieurs périmètres dans une même passe.
+   Lire uniquement `anomalies/<perimetre>.yaml` du périmètre ciblé (pas les
+   autres fichiers de détail) pour le détail complet des anomalies déjà
+   connues sur ce périmètre.
 3. Pour chaque constat :
-   - s'il correspond à un ID déjà ouvert dans ANOMALIES.yaml, ne pas le
-     reformuler — citer l'ID existant tel quel ;
+   - s'il correspond à un ID déjà ouvert (visible dans `_index.yaml`), ne
+     pas le reformuler — citer l'ID existant tel quel ;
    - sinon, créer un nouvel ID (`SEC-0xx`, prochain numéro après
-     `dernier_id`) en justifiant en une phrase pourquoi ce n'est pas un
-     doublon d'un ID existant.
+     `dernier_id` dans `anomalies/_index.yaml`) en justifiant en une phrase
+     pourquoi ce n'est pas un doublon d'un ID existant. L'ajouter à la fois
+     dans `_index.yaml` (champs légers) et dans le fichier de détail du
+     périmètre concerné (tous les champs) — les deux fichiers se livrent
+     ensemble, jamais l'un sans l'autre.
 4. Toujours lister dans le rendu les fichiers réellement lus pendant l'audit
    (chemins exacts), pas une estimation.
 
@@ -74,15 +88,16 @@ constat — comparer les critères de résolution.
 
 Tout écart constaté hors d'un audit formel — pendant une exploration, en
 répondant à une question, par une lecture incidente — doit être enregistré
-dans `ANOMALIES.yaml` **dans la même session**, pas différé. Un constat qui
-n'existe que dans la conversation n'existe pas : il sera redécouvert plus
-tard sous une formulation différente, ce qui crée exactement le doublon que
-ce dispositif doit empêcher.
+dans `anomalies/_index.yaml` + `anomalies/<perimetre>.yaml` **dans la même
+session**, pas différé. Un constat qui n'existe que dans la conversation
+n'existe pas : il sera redécouvert plus tard sous une formulation
+différente, ce qui crée exactement le doublon que ce dispositif doit
+empêcher.
 
-## Cohérence obligatoire REFERENTIEL.md ↔ ANOMALIES.yaml
+## Cohérence obligatoire REFERENTIEL.md ↔ anomalies/*.yaml
 
 `REFERENTIEL.md` ne peut référencer un ID d'anomalie (`SEC-xxx`) qui
-n'existe pas dans `ANOMALIES.yaml`. Les deux fichiers se livrent dans la
+n'existe pas dans `anomalies/_index.yaml`. Les deux se livrent dans la
 même session, jamais l'un sans l'autre — ne jamais livrer une version de
 REFERENTIEL.md qui cite un ID non encore créé.
 
