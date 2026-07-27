@@ -4,14 +4,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AgGridReact } from "ag-grid-react";
 import {
   ModuleRegistry,
   AllCommunityModule,
-  themeQuartz,
   type ColDef,
   type ICellRendererParams,
 } from "ag-grid-community";
+import { gridTheme } from "@/lib/agGridTheme";
 import { AxiosError } from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,16 +78,6 @@ import { ClientDetailDialog } from "./ClientDetailDialog";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-// Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
-const gridTheme = themeQuartz.withParams({
-  accentColor: "#0f766e",
-  headerBackgroundColor: "#f8fafc",
-  headerTextColor: "#334155",
-  rowHoverColor: "#f1f5f9",
-  borderColor: "#e2e8f0",
-  fontFamily: "inherit",
-});
-
 export function ClientsPage() {
   const { t } = useTranslation();
   const canCreate = usePermission("clients", "create");
@@ -108,7 +99,11 @@ export function ClientsPage() {
   } = useCrudDialogState<Client>();
 
   const { page, pageSize, orderBy, orderDir, params, setPage, updateParams } = useListParams(12);
-  const { data: clientsResult, isLoading: clientsLoading } = useClients({ ...params, includeArchived });
+  const { data: clientsResult, isLoading: clientsLoading } = useClients({
+    ...params,
+    includeArchived,
+    search: deferredSearchQuery.trim() || undefined,
+  });
   const clients = useMemo(() => clientsResult?.data ?? [], [clientsResult?.data]);
   const total = clientsResult?.total ?? 0;
   const { mutate: createClient, isPending: isCreating } = useCreateClient();
@@ -117,16 +112,6 @@ export function ClientsPage() {
   const { mutate: restoreClient, isPending: isRestoring } = useRestoreClient();
   const { data: trashResult, isLoading: trashLoading } = useClientTrash({ ...params, includeArchived });
 
-  const filteredClients = useMemo(() => {
-    const q = deferredSearchQuery.trim().toLowerCase();
-    if (!q) return clients;
-    return clients.filter((client) => {
-      return (
-        client.name.toLowerCase().includes(q) ||
-        (client.email?.toLowerCase().includes(q) ?? false)
-      );
-    });
-  }, [clients, deferredSearchQuery]);
   const trashedClients = trashResult?.data ?? [];
 
   const createForm = useForm<CreateClientForm>({
@@ -148,8 +133,11 @@ export function ClientsPage() {
         closeCreateDialog();
         createForm.reset();
       },
+      onError: () => {
+        toast.error(t("clientsPage.errors.createFailed"));
+      },
     });
-  }, [createClient, createForm, closeCreateDialog]);
+  }, [createClient, createForm, closeCreateDialog, t]);
 
   const handleEdit = useCallback((client: Client) => {
     openEditDialog(client);
@@ -164,9 +152,12 @@ export function ClientsPage() {
         onSuccess: () => {
           closeEditDialog();
         },
+        onError: () => {
+          toast.error(t("clientsPage.errors.updateFailed"));
+        },
       }
     );
-  }, [editingClient, updateClient, closeEditDialog]);
+  }, [editingClient, updateClient, closeEditDialog, t]);
 
   const handleDelete = useCallback((client: Client) => {
     setDeleteTarget(client);
@@ -241,8 +232,20 @@ export function ClientsPage() {
 
   if (clientsLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-32" />
+            <Skeleton className="h-4 w-56" />
+          </div>
+          <Skeleton className="h-9 w-36 rounded-md" />
+        </div>
+        <Skeleton className="h-9 w-full max-w-sm" />
+        <div className="space-y-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-11 w-full rounded-lg" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -329,7 +332,10 @@ export function ClientsPage() {
             type="search"
             placeholder={t("clientsPage.searchClients")}
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(1);
+            }}
             className="pl-10"
           />
         </div>
@@ -396,7 +402,7 @@ export function ClientsPage() {
         <CardContent className="p-0" style={{ height: 500 }}>
           <AgGridReact<Client>
             theme={gridTheme}
-            rowData={filteredClients}
+            rowData={clients}
             columnDefs={columnDefs}
             suppressCellFocus
             overlayNoRowsTemplate={t("clientsPage.empty", "Aucun client.")}

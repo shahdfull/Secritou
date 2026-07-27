@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -52,6 +53,9 @@ export function FreelancerDetailPage() {
       setRatingDialogOpen(false);
       setNewScore(5);
       setNewComment("");
+    },
+    onError: () => {
+      toast.error(t("freelancers.addRatingFailed", "Impossible d'ajouter la notation."));
     },
   });
 
@@ -169,7 +173,7 @@ export function FreelancerDetailPage() {
               <div key={rating.id} className="space-y-1 border-b last:border-0 pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    {rating.ratedByUser?.name || "Anonymous"}
+                    {rating.ratedByUser?.name || t("common.anonymous")}
                   </div>
                   <div className="flex gap-0.5">
                     {[...Array(5)].map((_, i) => (

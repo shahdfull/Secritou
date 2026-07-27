@@ -111,6 +111,11 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                       ))}
                     </SelectContent>
                   </Select>
+                  {(clientsResult?.total ?? 0) > 100 && (
+                    <p className="text-xs text-amber-700">
+                      {t("invoices.createDialog.clientSelectorTruncatedNotice", { shown: 100, total: clientsResult?.total ?? 0 })}
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { formatNumber } from "@/utils/format";
+import { formatCurrency } from "@/utils/format";
 import { formatDate } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 import { useClientProfitability } from "@/hooks/useClientProfitability";
 import type { ClientProfitabilityItem, ClientHealthStatus } from "@/api/clientProfitability.api";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import {
@@ -43,15 +43,15 @@ function ClientDetailModal({
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Revenus encaissés</p>
-              <p className="font-semibold text-ink">{formatNumber(client.totalRevenue)} TND</p>
+              <p className="font-semibold text-ink">{formatCurrency(client.totalRevenue)}</p>
             </div>
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">En attente</p>
-              <p className="font-semibold text-ink">{formatNumber(client.pendingRevenue)} TND</p>
+              <p className="font-semibold text-ink">{formatCurrency(client.pendingRevenue)}</p>
             </div>
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Coût freelance (temps)</p>
-              <p className="font-semibold text-ink">{formatNumber(client.totalCost)} TND</p>
+              <p className="font-semibold text-ink">{formatCurrency(client.totalCost)}</p>
             </div>
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Projets</p>
@@ -80,7 +80,7 @@ function ClientDetailModal({
 
 export function ClientProfitabilityPage() {
   const { t } = useTranslation();
-  const { data, isLoading } = useClientProfitability();
+  const { data, isLoading, isError } = useClientProfitability();
   const [selected, setSelected] = useState<ClientProfitabilityItem | null>(null);
 
   if (isLoading) {
@@ -122,10 +122,18 @@ export function ClientProfitabilityPage() {
                   <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Coût freelance</th>
                   <th className="text-center px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Projets</th>
                   <th className="text-center px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Santé</th>
+                  <th className="w-8 px-2 py-3" aria-hidden="true" />
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => {
+                {isError && (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-10 text-center text-destructive text-sm">
+                      {t("errors.loadFailed")}
+                    </td>
+                  </tr>
+                )}
+                {!isError && items.map((item) => {
                   const health = HEALTH_CONFIG[item.healthStatus];
                   return (
                     <tr
@@ -135,15 +143,15 @@ export function ClientProfitabilityPage() {
                     >
                       <td className="px-5 py-3 font-medium text-ink">{item.clientName}</td>
                       <td className="px-5 py-3 text-right font-semibold text-ink tabular-nums">
-                        {formatNumber(item.totalRevenue)} TND
+                        {formatCurrency(item.totalRevenue)}
                       </td>
                       <td className="px-5 py-3 text-right text-muted-foreground tabular-nums">
                         {item.pendingRevenue > 0
-                          ? `${formatNumber(item.pendingRevenue)} TND`
+                          ? formatCurrency(item.pendingRevenue)
                           : "—"}
                       </td>
                       <td className="px-5 py-3 text-right text-muted-foreground tabular-nums">
-                        {item.totalCost > 0 ? `${formatNumber(item.totalCost)} TND` : "—"}
+                        {item.totalCost > 0 ? formatCurrency(item.totalCost) : "—"}
                       </td>
                       <td className="px-5 py-3 text-center text-muted-foreground">
                         {item.completedProjects}/{item.totalProjects}
@@ -151,12 +159,15 @@ export function ClientProfitabilityPage() {
                       <td className="px-5 py-3 text-center">
                         <Badge className={`${health.className} text-xs`}>{health.label}</Badge>
                       </td>
+                      <td className="px-2 py-3 text-muted-foreground/60">
+                        <ChevronRight className="h-4 w-4" />
+                      </td>
                     </tr>
                   );
                 })}
-                {items.length === 0 && (
+                {!isError && items.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-5 py-10 text-center text-muted-foreground text-sm">
+                    <td colSpan={6} className="px-5 py-10 text-center text-muted-foreground text-sm">
                       Aucun client trouvé.
                     </td>
                   </tr>

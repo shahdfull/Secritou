@@ -20,7 +20,7 @@ const gridTheme = themeQuartz.withParams({
 const METRIC_LABELS: Record<string, string> = {
   clicks: "Clics",
   impressions: "Impressions",
-  ctr: "CTR (%)",
+  ctr: "Taux de clic (CTR, %)",
   position: "Position moyenne",
 };
 

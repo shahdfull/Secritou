@@ -431,10 +431,10 @@ export function DocumentsPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="ADMIN_ONLY">Admin only</SelectItem>
-                          <SelectItem value="ADMIN_FREELANCER">Admin + Freelancer</SelectItem>
-                          <SelectItem value="CLIENT_ADMIN">Client + Admin</SelectItem>
-                          <SelectItem value="ALL">All</SelectItem>
+                          <SelectItem value="ADMIN_ONLY">{t("documents.accessLevels.adminOnly")}</SelectItem>
+                          <SelectItem value="ADMIN_FREELANCER">{t("documents.accessLevels.adminFreelancer")}</SelectItem>
+                          <SelectItem value="CLIENT_ADMIN">{t("documents.accessLevels.clientAdmin")}</SelectItem>
+                          <SelectItem value="ALL">{t("documents.accessLevels.all")}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -537,12 +537,12 @@ export function DocumentsPage() {
         onConfirm={() => {
           if (!deleteDocTarget) return;
           deleteMutation.mutate(deleteDocTarget.id, {
-            onSuccess: () => { setDeleteDocTarget(null); toast.success("Document supprimé."); },
-            onError: () => { toast.error("Erreur lors de la suppression."); setDeleteDocTarget(null); },
+            onSuccess: () => { setDeleteDocTarget(null); toast.success(t("documents.deleted")); },
+            onError: () => { toast.error(t("documents.deleteError")); setDeleteDocTarget(null); },
           });
         }}
-        title={`Supprimer "${deleteDocTarget?.name}" ?`}
-        description="Cette action est irréversible. Le document sera définitivement supprimé."
+        title={t("documents.confirmDeleteTitle", { name: deleteDocTarget?.name })}
+        description={t("documents.confirmDeleteDescription")}
         isDeleting={deleteMutation.isPending}
       />
     </section>

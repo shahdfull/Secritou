@@ -398,6 +398,12 @@ export function ProposalsPage({ onTestHooksReady }: ProposalsPageProps = {}) {
         </div>
       </div>
 
+      {(leadsResult?.total ?? 0) > 200 && (
+        <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 mb-4">
+          {t("proposals.leadSelectorTruncatedNotice", { shown: 200, total: leadsResult?.total ?? 0 })}
+        </p>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <Input
           placeholder={t("proposals.search")}

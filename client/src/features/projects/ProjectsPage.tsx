@@ -4,6 +4,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { TFunction } from "i18next";
 import { AxiosError } from "axios";
 import { getProjectStatusBadgeClass } from "@/utils/statusColors";
@@ -314,8 +315,18 @@ export function ProjectsPage() {
 
   if (projectsLoading || clientsLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-32" />
+          <Skeleton className="h-4 w-56" />
+        </div>
+        <Skeleton className="h-9 w-72 rounded-md" />
+        <Skeleton className="h-9 w-full max-w-md" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full rounded-2xl" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -344,6 +355,11 @@ export function ProjectsPage() {
         </TabsList>
         
         <TabsContent value="projects" className="space-y-6 mt-6">
+          {(clientsResult?.total ?? 0) > 100 && (
+            <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+              {t("projectsPage.clientSelectorTruncatedNotice", { shown: 100, total: clientsResult?.total ?? 0 })}
+            </p>
+          )}
           {/* Search & Sort */}
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative max-w-md flex-1">

@@ -127,6 +127,11 @@ export function CreateProposalFromLeadDialog({
                 ))}
               </SelectContent>
             </Select>
+            {(clientsResult?.total ?? 0) > 200 && (
+              <p className="text-xs text-amber-700">
+                {t("proposals.fromLead.clientSelectorTruncatedNotice", { shown: 200, total: clientsResult?.total ?? 0 })}
+              </p>
+            )}
           </div>
 
           <div className="space-y-1.5">

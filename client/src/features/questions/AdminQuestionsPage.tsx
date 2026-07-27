@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { formatDate, formatDateTime } from "@/utils/format";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Send } from "lucide-react";
 import { AgGridReact } from "ag-grid-react";
 import {
@@ -50,7 +50,10 @@ function statusColor(status: CustomQuestionStatus): string {
     case "ANSWERED":
       return "bg-green-100 text-green-800";
     case "CLOSED":
-      return "bg-blue-100 text-blue-800";
+      // Neutral, distinct from OPEN's gray-100 but not blue: blue is used
+      // elsewhere in the app (STATUS_BADGE_CLASSES) to mean "in progress",
+      // which would be misleading for a closed/finished thread.
+      return "bg-slate-200 text-slate-700";
     default:
       return "bg-gray-100 text-gray-800";
   }
@@ -161,7 +164,7 @@ function AdminThread({ id }: { id: string }) {
             );
           })}
 
-          {!isClosed && (
+          {!isClosed ? (
             <form onSubmit={handleSend} className="space-y-3 border-t border-border pt-4">
               <Textarea
                 value={reply}
@@ -176,6 +179,10 @@ function AdminThread({ id }: { id: string }) {
                 </Button>
               </div>
             </form>
+          ) : (
+            <p className="border-t border-border pt-4 text-sm text-muted-foreground">
+              {t("questions.thread.closed")}
+            </p>
           )}
         </CardContent>
       </Card>
@@ -186,7 +193,19 @@ function AdminThread({ id }: { id: string }) {
 function QuestionsTable() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const statusFilter = searchParams.get("status") ?? "ALL";
+  const setStatusFilter = (value: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value === "ALL") {
+        next.delete("status");
+      } else {
+        next.set("status", value);
+      }
+      return next;
+    });
+  };
   const { data, isLoading } = useAllQuestions(
     statusFilter === "ALL" ? undefined : statusFilter
   );

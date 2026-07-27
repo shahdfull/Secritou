@@ -16,7 +16,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { formatMonthKey } from "@/utils/format";
+import { formatMonthKey, formatCurrency } from "@/utils/format";
 
 type LeadsByMonthItem = { month: string; count: number };
 type RevenueByMonthItem = { month: string; revenue: number };
@@ -96,7 +96,7 @@ export const AnalyticsCharts = memo(function AnalyticsCharts({
                       border: "1px solid hsl(var(--border))",
                     }}
                     labelFormatter={(key: string) => formatMonthKey(key)}
-                    formatter={(value: number) => [`${value} TND`, t("analytics.revenueTooltipLabel")]}
+                    formatter={(value: number) => [formatCurrency(value), t("analytics.revenueTooltipLabel")]}
                   />
                   <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} />
                 </BarChart>

@@ -10,11 +10,11 @@ import { AgGridReact } from "ag-grid-react";
 import {
   ModuleRegistry,
   AllCommunityModule,
-  themeQuartz,
   type ColDef,
   type ICellRendererParams,
   type SortChangedEvent,
 } from "ag-grid-community";
+import { gridTheme } from "@/lib/agGridTheme";
 import {
   Dialog,
   DialogContent,
@@ -84,16 +84,6 @@ import { ConfirmActionDialog } from "@/components/shared/crud/ConfirmActionDialo
 import { toast } from "sonner";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
-
-// Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
-const gridTheme = themeQuartz.withParams({
-  accentColor: "#0f766e",
-  headerBackgroundColor: "#f8fafc",
-  headerTextColor: "#334155",
-  rowHoverColor: "#f1f5f9",
-  borderColor: "#e2e8f0",
-  fontFamily: "inherit",
-});
 
 // Mêmes noms de colonnes que côté serveur (lead.repository.ts) — pas de tri client, AG Grid
 // n'émet que l'intention de tri (comme dans TasksListView.tsx).
@@ -193,8 +183,11 @@ export function LeadsPage() {
         closeCreateDialog();
         createForm.reset();
       },
+      onError: () => {
+        toast.error(t("leadsPage.createFailed"));
+      },
     });
-  }, [createForm, createLead, closeCreateDialog]);
+  }, [createForm, createLead, closeCreateDialog, t]);
 
   const handleEdit = useCallback((lead: Lead) => {
     openEditDialog(lead);
@@ -209,9 +202,12 @@ export function LeadsPage() {
         onSuccess: () => {
           closeEditDialog();
         },
+        onError: () => {
+          toast.error(t("leadsPage.updateFailed"));
+        },
       }
     );
-  }, [editingLead, updateLead, closeEditDialog]);
+  }, [editingLead, updateLead, closeEditDialog, t]);
 
   const handleDelete = useCallback((lead: Lead) => {
     setDeleteTarget(lead);

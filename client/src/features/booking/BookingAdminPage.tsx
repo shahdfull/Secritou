@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -75,6 +76,8 @@ export function BookingAdminPage() {
   const [loading, setLoading] = useState(true);
   const [slotDialogOpen, setSlotDialogOpen] = useState(false);
   const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<BookingRecord | null>(null);
+  const [deleteSlotTarget, setDeleteSlotTarget] = useState<BookingSlotRecord | null>(null);
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>([1, 2, 3, 4, 5]);
 
   const slotForm = useForm<SlotFormValues>({
@@ -101,7 +104,7 @@ export function BookingAdminPage() {
       setSlots(slotData);
       setBookings(bookingData);
     } catch {
-      toast.error(t("booking.admin.loadFailed", "Unable to load bookings."));
+      toast.error(t("booking.admin.loadFailed", "Impossible de charger les réservations."));
     } finally {
       setLoading(false);
     }
@@ -132,12 +135,12 @@ export function BookingAdminPage() {
   const handleCreateSlot = slotForm.handleSubmit(async (values) => {
     try {
       await createBookingSlot(values);
-      toast.success(t("booking.admin.slotCreated", "Slot created."));
+      toast.success(t("booking.admin.slotCreated", "Créneau créé."));
       setSlotDialogOpen(false);
       slotForm.reset();
       await loadData();
     } catch {
-      toast.error(t("booking.admin.slotCreateFailed", "Unable to create the slot."));
+      toast.error(t("booking.admin.slotCreateFailed", "Impossible de créer le créneau."));
     }
   });
 
@@ -152,12 +155,12 @@ export function BookingAdminPage() {
         weekdaysOnly: values.weekdaysOnly,
         daysOfWeek: values.weekdaysOnly ? [1, 2, 3, 4, 5] : daysOfWeek,
       });
-      toast.success(t("booking.admin.recurringCreated", "Recurring slots created."));
+      toast.success(t("booking.admin.recurringCreated", "Créneaux récurrents créés."));
       setRecurringDialogOpen(false);
       recurringForm.reset();
       await loadData();
     } catch {
-      toast.error(t("booking.admin.recurringFailed", "Unable to generate slots."));
+      toast.error(t("booking.admin.recurringFailed", "Impossible de générer les créneaux."));
     }
   });
 
@@ -165,10 +168,10 @@ export function BookingAdminPage() {
     async (slot: BookingSlotRecord) => {
       try {
         await deleteBookingSlot(slot.id);
-        toast.success(t("booking.admin.slotDeleted", "Slot deleted."));
+        toast.success(t("booking.admin.slotDeleted", "Créneau supprimé."));
         await loadData();
       } catch {
-        toast.error(t("booking.admin.slotDeleteFailed", "Unable to delete the slot."));
+        toast.error(t("booking.admin.slotDeleteFailed", "Impossible de supprimer le créneau."));
       }
     },
     [t, loadData]
@@ -178,10 +181,10 @@ export function BookingAdminPage() {
     async (booking: BookingRecord) => {
       try {
         await cancelAdminBooking(booking.id);
-        toast.success(t("booking.admin.bookingCancelled", "Booking cancelled."));
+        toast.success(t("booking.admin.bookingCancelled", "Réservation annulée."));
         await loadData();
       } catch {
-        toast.error(t("booking.admin.bookingCancelFailed", "Unable to cancel the booking."));
+        toast.error(t("booking.admin.bookingCancelFailed", "Impossible d'annuler la réservation."));
       }
     },
     [t, loadData]
@@ -194,7 +197,7 @@ export function BookingAdminPage() {
       return (
         <div className="flex h-full items-center">
           <Badge className={slot.isBooked ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800"}>
-            {slot.isBooked ? t("booking.admin.booked", "Booked") : t("booking.admin.open", "Open")}
+            {slot.isBooked ? t("booking.admin.booked", "Réservé") : t("booking.admin.open", "Libre")}
           </Badge>
         </div>
       );
@@ -208,19 +211,19 @@ export function BookingAdminPage() {
       if (!slot) return null;
       return (
         <div className="flex h-full items-center justify-end">
-          <Button variant="ghost" size="icon" onClick={() => handleDeleteSlot(slot)} disabled={slot.isBooked} title={t("booking.admin.deleteSlot", "Delete slot")}>
+          <Button variant="ghost" size="icon" onClick={() => setDeleteSlotTarget(slot)} disabled={slot.isBooked} title={t("booking.admin.deleteSlot", "Supprimer le créneau")}>
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       );
     },
-    [t, handleDeleteSlot]
+    [t]
   );
 
   const slotColumnDefs = useMemo<ColDef<BookingSlotRecord>[]>(
     () => [
       {
-        headerName: t("booking.admin.slot", "Slot"),
+        headerName: t("booking.admin.slot", "Créneau"),
         flex: 2,
         cellRenderer: (params: ICellRendererParams<BookingSlotRecord>) => {
           const slot = params.data;
@@ -233,7 +236,7 @@ export function BookingAdminPage() {
           );
         },
       },
-      { headerName: t("booking.admin.status", "Status"), cellRenderer: slotStatusRenderer, flex: 1 },
+      { headerName: t("booking.admin.status", "Statut"), cellRenderer: slotStatusRenderer, flex: 1 },
       { headerName: t("booking.admin.actions", "Actions"), cellRenderer: slotActionsRenderer, width: 100, sortable: false, resizable: false },
     ],
     [t, slotStatusRenderer, slotActionsRenderer]
@@ -245,19 +248,19 @@ export function BookingAdminPage() {
       if (!booking) return null;
       return (
         <div className="flex h-full items-center justify-end">
-          <Button variant="ghost" size="icon" onClick={() => handleCancelBooking(booking)} title={t("booking.admin.cancelBooking", "Cancel booking")}>
+          <Button variant="ghost" size="icon" onClick={() => setCancelTarget(booking)} title={t("booking.admin.cancelBooking", "Annuler la réservation")}>
             <XCircle className="h-4 w-4" />
           </Button>
         </div>
       );
     },
-    [t, handleCancelBooking]
+    [t]
   );
 
   const bookingColumnDefs = useMemo<ColDef<BookingRecord>[]>(
     () => [
       {
-        headerName: t("booking.admin.customer", "Customer"),
+        headerName: t("booking.admin.customer", "Client"),
         flex: 1,
         cellRenderer: (params: ICellRendererParams<BookingRecord>) => {
           const booking = params.data;
@@ -271,7 +274,7 @@ export function BookingAdminPage() {
         },
       },
       {
-        headerName: t("booking.admin.slot", "Slot"),
+        headerName: t("booking.admin.slot", "Créneau"),
         flex: 1,
         cellRenderer: (params: ICellRendererParams<BookingRecord>) => {
           const booking = params.data;
@@ -307,83 +310,83 @@ export function BookingAdminPage() {
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl space-y-3">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-              {t("booking.admin.title", "Booking calendar")}
+              {t("booking.admin.title", "Calendrier de réservation")}
             </p>
             <h1 className="font-display text-3xl font-bold text-ink sm:text-4xl">
-              {t("booking.admin.subtitle", "Manage open slots and bookings for the public contact page.")}
+              {t("booking.admin.subtitle", "Gérez les créneaux ouverts et les réservations pour la page Contact.")}
             </h1>
             <p className="text-sm text-muted-foreground">
-              {t("booking.admin.heroBody", "Create availability, inspect the day view, and cancel bookings without leaving the page.")}
+              {t("booking.admin.heroBody", "Créez des disponibilités, consultez la vue du jour et annulez des rendez-vous sans quitter la page.")}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={jumpToToday}>
-              {t("booking.admin.today", "Today")}
+              {t("booking.admin.today", "Aujourd'hui")}
             </Button>
             <Button variant="outline" onClick={jumpToNext7Days}>
-              {t("booking.admin.next7Days", "Next 7 days")}
+              {t("booking.admin.next7Days", "7 prochains jours")}
             </Button>
           <Dialog open={slotDialogOpen} onOpenChange={setSlotDialogOpen}>
             <DialogTrigger asChild>
-              <Button><Plus className="mr-2 h-4 w-4" />{t("booking.admin.addSlot", "Add slot")}</Button>
+              <Button><Plus className="mr-2 h-4 w-4" />{t("booking.admin.addSlot", "Ajouter un créneau")}</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>{t("booking.admin.addSlot", "Add slot")}</DialogTitle>
-                <DialogDescription>{t("booking.admin.addSlotDesc", "Create a single availability slot.")}</DialogDescription>
+                <DialogTitle>{t("booking.admin.addSlot", "Ajouter un créneau")}</DialogTitle>
+                <DialogDescription>{t("booking.admin.addSlotDesc", "Créer un créneau de disponibilité unique.")}</DialogDescription>
               </DialogHeader>
               <form className="space-y-4" onSubmit={handleCreateSlot}>
                 <div className="space-y-2">
-                  <Label htmlFor="startTime">{t("booking.admin.startTime", "Start time")}</Label>
+                  <Label htmlFor="startTime">{t("booking.admin.startTime", "Heure de début")}</Label>
                   <Input id="startTime" type="datetime-local" {...slotForm.register("startTime")} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="endTime">{t("booking.admin.endTime", "End time")}</Label>
+                  <Label htmlFor="endTime">{t("booking.admin.endTime", "Heure de fin")}</Label>
                   <Input id="endTime" type="datetime-local" {...slotForm.register("endTime")} />
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => setSlotDialogOpen(false)}>{t("common.cancel", "Cancel")}</Button>
-                  <Button type="submit">{t("booking.admin.save", "Save")}</Button>
+                  <Button type="submit">{t("booking.admin.save", "Enregistrer")}</Button>
                 </div>
               </form>
             </DialogContent>
           </Dialog>
           <Dialog open={recurringDialogOpen} onOpenChange={setRecurringDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline"><RefreshCw className="mr-2 h-4 w-4" />{t("booking.admin.generateRecurring", "Generate recurring slots")}</Button>
+              <Button variant="outline"><RefreshCw className="mr-2 h-4 w-4" />{t("booking.admin.generateRecurring", "Générer des créneaux récurrents")}</Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-2xl">
               <DialogHeader>
-                <DialogTitle>{t("booking.admin.generateRecurring", "Generate recurring slots")}</DialogTitle>
-                <DialogDescription>{t("booking.admin.generateRecurringDesc", "Create a date range, weekdays only, with a fixed time window and interval.")}</DialogDescription>
+                <DialogTitle>{t("booking.admin.generateRecurring", "Générer des créneaux récurrents")}</DialogTitle>
+                <DialogDescription>{t("booking.admin.generateRecurringDesc", "Créer une plage de dates, jours ouvrés uniquement, avec une fenêtre horaire et un intervalle fixe.")}</DialogDescription>
               </DialogHeader>
               <form className="grid gap-4 sm:grid-cols-2" onSubmit={handleCreateRecurring}>
                 <div className="space-y-2">
-                  <Label htmlFor="startDate">{t("booking.admin.startDate", "Start date")}</Label>
+                  <Label htmlFor="startDate">{t("booking.admin.startDate", "Date de début")}</Label>
                   <Input id="startDate" type="date" {...recurringForm.register("startDate")} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="endDate">{t("booking.admin.endDate", "End date")}</Label>
+                  <Label htmlFor="endDate">{t("booking.admin.endDate", "Date de fin")}</Label>
                   <Input id="endDate" type="date" {...recurringForm.register("endDate")} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="dayStart">{t("booking.admin.dayStart", "Day start")}</Label>
+                  <Label htmlFor="dayStart">{t("booking.admin.dayStart", "Début de journée")}</Label>
                   <Input id="dayStart" type="time" {...recurringForm.register("dayStart")} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="dayEnd">{t("booking.admin.dayEnd", "Day end")}</Label>
+                  <Label htmlFor="dayEnd">{t("booking.admin.dayEnd", "Fin de journée")}</Label>
                   <Input id="dayEnd" type="time" {...recurringForm.register("dayEnd")} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="intervalMinutes">{t("booking.admin.intervalMinutes", "Interval minutes")}</Label>
+                  <Label htmlFor="intervalMinutes">{t("booking.admin.intervalMinutes", "Intervalle (minutes)")}</Label>
                   <Input id="intervalMinutes" type="number" min={15} step={15} {...recurringForm.register("intervalMinutes")} />
                 </div>
                 <div className="flex items-center gap-2 pt-7">
                   <Checkbox checked={recurringForm.watch("weekdaysOnly")} onCheckedChange={(checked) => recurringForm.setValue("weekdaysOnly", Boolean(checked))} />
-                  <Label>{t("booking.admin.weekdaysOnly", "Weekdays only")}</Label>
+                  <Label>{t("booking.admin.weekdaysOnly", "Jours ouvrés uniquement")}</Label>
                 </div>
                 <div className="sm:col-span-2 space-y-2">
-                  <Label>{t("booking.admin.daysOfWeek", "Days of week")}</Label>
+                  <Label>{t("booking.admin.daysOfWeek", "Jours de la semaine")}</Label>
                   <div className="flex flex-wrap gap-2">
                     {[0, 1, 2, 3, 4, 5, 6].map((day) => {
                       const active = daysOfWeek.includes(day);
@@ -397,7 +400,7 @@ export function BookingAdminPage() {
                 </div>
                 <div className="sm:col-span-2 flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => setRecurringDialogOpen(false)}>{t("common.cancel", "Cancel")}</Button>
-                  <Button type="submit">{t("booking.admin.generate", "Generate")}</Button>
+                  <Button type="submit">{t("booking.admin.generate", "Générer")}</Button>
                 </div>
               </form>
             </DialogContent>
@@ -407,32 +410,85 @@ export function BookingAdminPage() {
 
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-border bg-card/80 p-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{t("booking.admin.statOpen", "Open")}</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{t("booking.admin.statOpen", "Disponible")}</p>
             <p className="mt-1 text-2xl font-bold text-ink">{openSlotsCount}</p>
           </div>
           <div className="rounded-2xl border border-border bg-card/80 p-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{t("booking.admin.statBooked", "Booked")}</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{t("booking.admin.statBooked", "Réservé")}</p>
             <p className="mt-1 text-2xl font-bold text-ink">{bookedCount}</p>
           </div>
           <div className="rounded-2xl border border-border bg-card/80 p-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{t("booking.admin.statWeek", "Next 7 days")}</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{t("booking.admin.statWeek", "7 prochains jours")}</p>
             <p className="mt-1 text-2xl font-bold text-ink">{upcomingWeekSlots}</p>
           </div>
         </div>
       </div>
 
+      <AlertDialog open={!!cancelTarget} onOpenChange={(open) => !open && setCancelTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("booking.admin.cancelBookingConfirmTitle", "Annuler cette réservation ?")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {cancelTarget ? t("booking.admin.cancelBookingConfirmDescription", { defaultValue: "Annuler la réservation de {{name}} pour le créneau du {{slot}} ?", name: cancelTarget.name, slot: formatDateTime(cancelTarget.slot.startTime) }) : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { if (!cancelTarget) return; handleCancelBooking(cancelTarget); setCancelTarget(null); }}>
+              {t("common.confirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteSlotTarget} onOpenChange={(open) => !open && setDeleteSlotTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("booking.admin.deleteSlotConfirmTitle", "Supprimer ce créneau ?")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteSlotTarget
+                ? t("booking.admin.deleteSlotConfirmDescription", {
+                    defaultValue: "Supprimer le créneau du {{slot}} ? Cette action est irréversible.",
+                    slot: formatDateTime(deleteSlotTarget.startTime),
+                  })
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (!deleteSlotTarget) return;
+                void handleDeleteSlot(deleteSlotTarget);
+                setDeleteSlotTarget(null);
+              }}
+            >
+              {t("common.confirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <Card className="rounded-3xl border border-border shadow-soft">
           <CardHeader className="flex flex-row items-center justify-between gap-3 pb-3">
             <div>
-              <CardTitle>{t("booking.admin.calendar", "Calendar")}</CardTitle>
-              <p className="text-sm text-muted-foreground">{t("booking.admin.calendarHint", "Days with availability are highlighted.")}</p>
+              <CardTitle>{t("booking.admin.calendar", "Calendrier")}</CardTitle>
+              <p className="text-sm text-muted-foreground">{t("booking.admin.calendarHint", "Les jours avec des créneaux sont mis en évidence.")}</p>
             </div>
             <Badge className="bg-primary/10 text-primary">{format(selectedDate, "PPP")}</Badge>
           </CardHeader>
           <CardContent className="space-y-4 p-4 pt-0">
             {loading ? (
-              <Skeleton className="h-[380px] rounded-2xl" />
+              <div className="space-y-4">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Skeleton className="h-20 rounded-2xl" />
+                  <Skeleton className="h-20 rounded-2xl" />
+                  <Skeleton className="h-20 rounded-2xl" />
+                </div>
+                <Skeleton className="h-[260px] rounded-2xl" />
+              </div>
             ) : (
               <UiCalendar
                 mode="single"
@@ -451,13 +507,13 @@ export function BookingAdminPage() {
             <CardHeader className="pb-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <CardTitle>{t("booking.admin.dayView", "Day view")}</CardTitle>
+                  <CardTitle>{t("booking.admin.dayView", "Vue du jour")}</CardTitle>
                   <p className="text-sm text-muted-foreground">{format(selectedDate, "EEEE, d MMMM")}</p>
                 </div>
                 <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "slots" | "bookings")}>
                   <TabsList>
-                    <TabsTrigger value="slots">{t("booking.admin.upcomingSlots", "Slots")}</TabsTrigger>
-                    <TabsTrigger value="bookings">{t("booking.admin.bookings", "Bookings")}</TabsTrigger>
+                    <TabsTrigger value="slots">{t("booking.admin.upcomingSlots", "Créneaux à venir")}</TabsTrigger>
+                    <TabsTrigger value="bookings">{t("booking.admin.bookings", "Réservations")}</TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
@@ -470,8 +526,9 @@ export function BookingAdminPage() {
                       theme={gridTheme}
                       rowData={loading ? [] : selectedDaySlots}
                       columnDefs={slotColumnDefs}
+                      loading={loading}
                       suppressCellFocus
-                      overlayNoRowsTemplate={t("booking.admin.noSlots", "No slots for this day.")}
+                      overlayNoRowsTemplate={t("booking.admin.noSlots", "Aucun créneau pour ce jour.")}
                     />
                   </div>
                 </TabsContent>
@@ -482,8 +539,9 @@ export function BookingAdminPage() {
                       theme={gridTheme}
                       rowData={loading ? [] : selectedDayBookings}
                       columnDefs={bookingColumnDefs}
+                      loading={loading}
                       suppressCellFocus
-                      overlayNoRowsTemplate={t("booking.admin.noBookings", "No bookings for this day.")}
+                      overlayNoRowsTemplate={t("booking.admin.noBookings", "Aucune réservation pour ce jour.")}
                     />
                   </div>
                 </TabsContent>

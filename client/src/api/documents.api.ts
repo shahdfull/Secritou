@@ -34,6 +34,7 @@ export interface Document {
   accessLevel: "ADMIN_ONLY" | "ADMIN_FREELANCER" | "CLIENT_ADMIN" | "ALL";
   clientId?: string;
   projectId?: string;
+  project?: { id: string; name: string } | null;
   taskId?: string;
   uploadedById: string;
   signedAt?: string;

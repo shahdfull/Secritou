@@ -39,6 +39,7 @@ import { useCreateLead } from "@/hooks/useLeads";
 import { useMe } from "@/hooks/useAuth";
 import { DateFilter, DateRange } from "@/components/DateFilter";
 import { PoleSelect } from "@/components/common/PoleSelect";
+import { StatGrid } from "@/components/common/StatGrid";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +53,7 @@ import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { RiskItem } from "@/types/executiveMetrics";
+import { toast } from "sonner";
 
 const DashboardCharts = lazy(() =>
   import("./DashboardCharts").then((m) => ({ default: m.DashboardCharts }))
@@ -422,6 +424,9 @@ export function DashboardPage() {
           setLeadEmail("");
           navigate("/app/crm");
         },
+        onError: () => {
+          toast.error(t("dashboard.createLeadFailed", "Impossible de créer le lead."));
+        },
       }
     );
   };
@@ -465,8 +470,31 @@ export function DashboardPage() {
 
   if (summaryLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      <div className="space-y-6">
+        <div className="flex items-start justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <Skeleton className="h-8 w-36 rounded-md" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="rounded-2xl border border-border shadow-none">
+              <CardContent className="pt-5 pb-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-9 w-9 rounded-xl" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+                <Skeleton className="h-8 w-16" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Skeleton className="h-64 w-full rounded-2xl" />
+          <Skeleton className="h-64 w-full rounded-2xl" />
+        </div>
       </div>
     );
   }
@@ -606,28 +634,14 @@ export function DashboardPage() {
       {isAdminOrManager ? (
         <ExecutiveSummary />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: t("dashboard.totalLeads"), value: totalLeads, icon: UserPlus },
-            { label: t("dashboard.activeClients"), value: activeClients, icon: Users },
-            { label: t("dashboard.ongoingProjects"), value: ongoingProjects, icon: FolderOpen },
-            { label: t("dashboard.completedTasks"), value: completedTasks, icon: CheckSquare },
-          ].map(({ label, value, icon: Icon }) => (
-            <Card key={label} className="rounded-2xl border border-border shadow-none">
-              <CardHeader className="flex flex-row items-start justify-between pb-3 pt-5 px-5">
-                <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">
-                  {label}
-                </p>
-                <div className="h-8 w-8 rounded-xl bg-primary-soft/40 flex items-center justify-center shrink-0">
-                  <Icon className="h-4 w-4 text-primary" />
-                </div>
-              </CardHeader>
-              <CardContent className="px-5 pb-5">
-                <p className="text-3xl font-bold text-ink">{value}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <StatGrid
+          items={[
+            { label: t("dashboard.totalLeads"), icon: UserPlus, content: <p className="text-3xl font-bold text-ink">{totalLeads}</p> },
+            { label: t("dashboard.activeClients"), icon: Users, content: <p className="text-3xl font-bold text-ink">{activeClients}</p> },
+            { label: t("dashboard.ongoingProjects"), icon: FolderOpen, content: <p className="text-3xl font-bold text-ink">{ongoingProjects}</p> },
+            { label: t("dashboard.completedTasks"), icon: CheckSquare, content: <p className="text-3xl font-bold text-ink">{completedTasks}</p> },
+          ]}
+        />
       )}
 
       {/* ── See more: trend charts, per-project health — collapsed by default ── */}
@@ -644,32 +658,26 @@ export function DashboardPage() {
           <div className="space-y-8 mt-6">
 
             {/* Leads overview chart */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                { label: t("dashboard.totalLeads"), value: totalLeads, icon: UserPlus },
-                { label: t("dashboard.activeClients"), value: activeClients, icon: Users },
-                { label: t("dashboard.ongoingProjects"), value: ongoingProjects, icon: FolderOpen },
-                { label: t("dashboard.completedTasks"), value: completedTasks, icon: CheckSquare },
-              ].map(({ label, value, icon: Icon }) => (
-                <Card key={label} className="rounded-2xl border border-border shadow-none">
-                  <CardHeader className="flex flex-row items-start justify-between pb-3 pt-5 px-5">
-                    <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">
-                      {label}
-                    </p>
-                    <div className="h-8 w-8 rounded-xl bg-primary-soft/40 flex items-center justify-center shrink-0">
-                      <Icon className="h-4 w-4 text-primary" />
-                    </div>
-                  </CardHeader>
-                  <CardContent className="px-5 pb-5">
+            <StatGrid
+              items={[
+                { label: t("dashboard.totalLeads"), icon: UserPlus, value: totalLeads },
+                { label: t("dashboard.activeClients"), icon: Users, value: activeClients },
+                { label: t("dashboard.ongoingProjects"), icon: FolderOpen, value: ongoingProjects },
+                { label: t("dashboard.completedTasks"), icon: CheckSquare, value: completedTasks },
+              ].map(({ label, icon, value }) => ({
+                label,
+                icon,
+                content: (
+                  <>
                     <p className="text-3xl font-bold text-ink">{value}</p>
                     <div className="flex items-center gap-2 mt-2">
                       <div className="h-1.5 w-16 rounded-full bg-muted" />
                       <span className="text-xs text-muted-foreground">{t("dashboard.fromLastMonth")}</span>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                  </>
+                ),
+              }))}
+            />
 
             <Suspense
               fallback={
@@ -694,8 +702,8 @@ export function DashboardPage() {
                 <DateFilter value={dateRange} onChange={setDateRange} />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
+              <StatGrid
+                items={[
                   {
                     label: t("dashboard.leadConversion"),
                     icon: TrendingUp,
@@ -724,38 +732,29 @@ export function DashboardPage() {
                     growth: taskGrowth,
                     sub: overdueCount > 0 ? `${overdueCount} ${t("dashboard.overdueCount")}` : t("dashboard.noOverdue"),
                   },
-                ].map(({ label, icon: Icon, value, growth, sub }) => (
-                  <Card key={label} className="rounded-2xl border border-border shadow-none">
-                    <CardHeader className="flex flex-row items-start justify-between pb-3 pt-5 px-5">
-                      <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">
-                        {label}
-                      </p>
-                      <div className="h-8 w-8 rounded-xl bg-primary-soft/40 flex items-center justify-center shrink-0">
-                        <Icon className="h-4 w-4 text-primary" />
+                ].map(({ label, icon, value, growth, sub }) => ({
+                  label,
+                  icon,
+                  content:
+                    analyticsLoading || value === null ? (
+                      <div className="space-y-2">
+                        <Skeleton className="h-8 w-20" />
+                        <Skeleton className="h-3 w-28" />
                       </div>
-                    </CardHeader>
-                    <CardContent className="px-5 pb-5">
-                      {analyticsLoading || value === null ? (
-                        <div className="space-y-2">
-                          <Skeleton className="h-8 w-20" />
-                          <Skeleton className="h-3 w-28" />
+                    ) : (
+                      <>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-3xl font-bold text-ink">{value}</span>
+                          <span className={`flex items-center text-xs font-medium ${growth.isPositive ? "text-green-600" : "text-muted-foreground"}`}>
+                            {growth.isPositive ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+                            {growth.value}
+                          </span>
                         </div>
-                      ) : (
-                        <>
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-ink">{value}</span>
-                            <span className={`flex items-center text-xs font-medium ${growth.isPositive ? "text-green-600" : "text-muted-foreground"}`}>
-                              {growth.isPositive ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
-                              {growth.value}
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">{sub}</p>
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                        <p className="text-xs text-muted-foreground mt-1">{sub}</p>
+                      </>
+                    ),
+                }))}
+              />
 
               <Suspense
                 fallback={

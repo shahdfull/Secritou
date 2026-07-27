@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useTranslation } from "react-i18next";
-import { formatNumber } from "@/utils/format";
+import { toast } from "sonner";
+import { formatCurrency } from "@/utils/format";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DateFilter, DateRange } from "@/components/DateFilter";
@@ -13,59 +14,10 @@ import { ModuleRegistry, AllCommunityModule, themeQuartz, type ColDef } from "ag
 import type { Lead } from "@/types/lead";
 import type { Project } from "@/types/project";
 import type { Invoice } from "@/api/invoices.api";
+import type { TFunction } from "i18next";
 
-const formatStatus = (status: string, lang: string = "fr"): string => {
-  const statusMapFr: Record<string, string> = {
-    // Lead statuses
-    NEW: "Nouveau",
-    CONTACTED: "Contacté",
-    QUALIFIED: "Qualifié",
-    PROPOSAL: "Proposition",
-    WON: "Gagné",
-    LOST: "Perdu",
-    // Project statuses
-    PLANNING: "Planification",
-    IN_PROGRESS: "En cours",
-    IN_REVIEW: "En révision",
-    COMPLETED: "Complété",
-    ON_HOLD: "En attente",
-    CANCELLED: "Annulé",
-    // Mission statuses
-    OPEN: "Ouvert",
-    ASSIGNED: "Assigné",
-    ACTIVE: "Actif",
-    COMPLETED_MISSION: "Complété",
-    CLOSED: "Fermé",
-    REVIEW: "Révision",
-  };
-
-  const statusMapEn: Record<string, string> = {
-    // Lead statuses
-    NEW: "New",
-    CONTACTED: "Contacted",
-    QUALIFIED: "Qualified",
-    PROPOSAL: "Proposal",
-    WON: "Won",
-    LOST: "Lost",
-    // Project statuses
-    PLANNING: "Planning",
-    IN_PROGRESS: "In Progress",
-    IN_REVIEW: "In Review",
-    COMPLETED: "Completed",
-    ON_HOLD: "On Hold",
-    CANCELLED: "Cancelled",
-    // Mission statuses
-    OPEN: "Open",
-    ASSIGNED: "Assigned",
-    ACTIVE: "Active",
-    COMPLETED_MISSION: "Completed",
-    CLOSED: "Closed",
-    REVIEW: "Review",
-  };
-
-  const statusMap = lang === "en" ? statusMapEn : statusMapFr;
-  return statusMap[status] || status;
-};
+const formatStatus = (status: string, t: TFunction): string =>
+  t(`reportsPage.statuses.${status}`, status);
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -80,7 +32,7 @@ const gridTheme = themeQuartz.withParams({
 });
 
 export function ReportsPage() {
-  const { i18n } = useTranslation();
+  const { t } = useTranslation();
   const [dateRange, setDateRange] = useState<DateRange>(() => {
     const today = new Date();
     const thirtyDaysAgo = new Date(today);
@@ -158,39 +110,47 @@ export function ReportsPage() {
 
   const exportToPDF = useCallback(() => {
     startExportTransition(async () => {
-      const { exportReportsPdf } = await import("./exportPdf");
-      await exportReportsPdf({
-        dateRange,
-        leads: filteredLeads,
-        projects: filteredProjects,
-      });
+      try {
+        const { exportReportsPdf } = await import("./exportPdf");
+        await exportReportsPdf({
+          dateRange,
+          leads: filteredLeads,
+          projects: filteredProjects,
+        });
+      } catch {
+        toast.error(t("reportsPage.exportPdfError", "Échec de l'export PDF. Veuillez réessayer."));
+      }
     });
-  }, [dateRange, filteredLeads, filteredProjects, startExportTransition]);
+  }, [dateRange, filteredLeads, filteredProjects, startExportTransition, t]);
 
   const exportToExcel = useCallback(() => {
     startExportTransition(async () => {
-      const { exportReportsExcel } = await import("./exportExcel");
-      await exportReportsExcel({
-        leads: filteredLeads,
-        projects: filteredProjects,
-      });
+      try {
+        const { exportReportsExcel } = await import("./exportExcel");
+        await exportReportsExcel({
+          leads: filteredLeads,
+          projects: filteredProjects,
+        });
+      } catch {
+        toast.error(t("reportsPage.exportExcelError", "Échec de l'export Excel. Veuillez réessayer."));
+      }
     });
-  }, [filteredLeads, filteredProjects, startExportTransition]);
+  }, [filteredLeads, filteredProjects, startExportTransition, t]);
 
   const leadColumnDefs = useMemo<ColDef<Lead>[]>(
     () => [
       { headerName: "Nom", field: "name", flex: 1, cellClass: "truncate" },
-      { headerName: "Statut", valueFormatter: (p) => formatStatus(p.data!.status, i18n.language), field: "status", flex: 1 },
+      { headerName: "Statut", valueFormatter: (p) => formatStatus(p.data!.status, t), field: "status", flex: 1 },
     ],
-    [i18n.language]
+    [t]
   );
 
   const projectColumnDefs = useMemo<ColDef<Project>[]>(
     () => [
       { headerName: "Nom", field: "name", flex: 1, cellClass: "truncate" },
-      { headerName: "Statut", valueFormatter: (p) => formatStatus(p.data!.status, i18n.language), field: "status", flex: 1 },
+      { headerName: "Statut", valueFormatter: (p) => formatStatus(p.data!.status, t), field: "status", flex: 1 },
     ],
-    [i18n.language]
+    [t]
   );
 
   const invoiceColumnDefs = useMemo<ColDef<Invoice>[]>(
@@ -198,10 +158,10 @@ export function ReportsPage() {
       { headerName: "Facture", valueGetter: (p) => `${p.data?.number} : ${p.data?.title}`, flex: 2, cellClass: "text-sm truncate" },
       {
         headerName: "Montant",
-        valueFormatter: (p) => `${formatNumber(p.data!.status === "PAID" ? Number(p.data!.amount) : Number(p.data!.amountPaid))} TND`,
+        valueFormatter: (p) => formatCurrency(p.data!.status === "PAID" ? Number(p.data!.amount) : Number(p.data!.amountPaid)),
         field: "amount",
         flex: 1,
-        cellClass: "text-sm font-medium text-green-600",
+        cellClass: "text-sm font-medium text-ink",
       },
     ],
     []
@@ -292,8 +252,8 @@ export function ReportsPage() {
           <CardContent>
             <div className="flex justify-between items-center mb-4">
               <div className="text-2xl font-bold">{filteredInvoices.length}</div>
-              <div className="text-3xl font-bold text-green-600">
-                {formatNumber(totalRevenue, { minimumFractionDigits: 0 })} TND
+              <div className="text-3xl font-bold text-ink">
+                {formatCurrency(totalRevenue)}
               </div>
             </div>
             <CardDescription className="text-sm text-muted-foreground">

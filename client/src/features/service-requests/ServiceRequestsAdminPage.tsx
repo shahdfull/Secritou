@@ -1,6 +1,8 @@
 // Mobile-responsive: updated 2026-06-29
 import { useCallback, useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import {
   useAdminServiceRequests,
   useAdminServiceRequest,
@@ -102,31 +104,36 @@ const AG_FIELD_TO_SORT_COLUMN: Record<string, string> = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const STATUS_OPTIONS: { value: ServiceRequestStatus; label: string }[] = [
-  { value: "NEW", label: "Nouveau" },
-  { value: "IN_REVIEW", label: "En révision" },
-  { value: "IN_PROGRESS", label: "En cours" },
-  { value: "WAITING_CLIENT", label: "Attente client" },
-  { value: "COMPLETED", label: "Terminé" },
-  { value: "CANCELLED", label: "Annulé" },
-];
+function getStatusOptions(t: TFunction): { value: ServiceRequestStatus; label: string }[] {
+  return [
+    { value: "NEW", label: t("serviceRequestsAdmin.statuses.NEW") },
+    { value: "IN_REVIEW", label: t("serviceRequestsAdmin.statuses.IN_REVIEW") },
+    { value: "IN_PROGRESS", label: t("serviceRequestsAdmin.statuses.IN_PROGRESS") },
+    { value: "WAITING_CLIENT", label: t("serviceRequestsAdmin.statuses.WAITING_CLIENT") },
+    { value: "COMPLETED", label: t("serviceRequestsAdmin.statuses.COMPLETED") },
+    { value: "CANCELLED", label: t("serviceRequestsAdmin.statuses.CANCELLED") },
+  ];
+}
 
-const PRIORITY_OPTIONS: { value: ServiceRequestPriority; label: string }[] = [
-  { value: "LOW", label: "Faible" },
-  { value: "NORMAL", label: "Normal" },
-  { value: "HIGH", label: "Élevée" },
-  { value: "URGENT", label: "Urgent" },
-];
+function getPriorityOptions(t: TFunction): { value: ServiceRequestPriority; label: string }[] {
+  return [
+    { value: "LOW", label: t("serviceRequestsAdmin.priorities.LOW") },
+    { value: "NORMAL", label: t("serviceRequestsAdmin.priorities.NORMAL") },
+    { value: "HIGH", label: t("serviceRequestsAdmin.priorities.HIGH") },
+    { value: "URGENT", label: t("serviceRequestsAdmin.priorities.URGENT") },
+  ];
+}
 
-const TYPE_OPTIONS: { value: ServiceRequestType; label: string }[] = [
-  { value: "SUPPORT", label: "Support" },
-  { value: "NEW_PROJECT", label: "Nouveau projet" },
-];
+function getTypeOptions(t: TFunction): { value: ServiceRequestType; label: string }[] {
+  return [
+    { value: "SUPPORT", label: t("serviceRequestsAdmin.types.SUPPORT") },
+    { value: "NEW_PROJECT", label: t("serviceRequestsAdmin.types.NEW_PROJECT") },
+  ];
+}
 
-const TYPE_LABELS: Record<string, string> = {
-  SUPPORT: "Support",
-  NEW_PROJECT: "Nouveau projet",
-};
+function typeLabel(type: string, t: TFunction): string {
+  return t(`serviceRequestsAdmin.types.${type}`, type);
+}
 
 // Allowed transitions per status
 const NEXT_STATUSES: Record<ServiceRequestStatus, ServiceRequestStatus[]> = {
@@ -180,12 +187,12 @@ function priorityBadgeClass(priority: string): string {
   }
 }
 
-function statusLabel(status: ServiceRequestStatus): string {
-  return STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status;
+function statusLabel(status: ServiceRequestStatus, t: TFunction): string {
+  return t(`serviceRequestsAdmin.statuses.${status}`, status);
 }
 
-function priorityLabel(priority: string): string {
-  return PRIORITY_OPTIONS.find((o) => o.value === priority)?.label ?? priority;
+function priorityLabel(priority: string, t: TFunction): string {
+  return t(`serviceRequestsAdmin.priorities.${priority}`, priority);
 }
 
 function formatDate(iso: string): string {
@@ -283,12 +290,14 @@ function ServiceRequestDetail({
   onClose: () => void;
 }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { data: request, isLoading } = useAdminServiceRequest(id);
   const updateMutation = useAdminUpdateServiceRequest(id);
   const addComment = useAddComment(id);
   const deleteComment = useDeleteComment(id);
   const createProposal = useCreateProposal();
   const user = useAuthStore((s) => s.user);
+  const [statusTarget, setStatusTarget] = useState<ServiceRequestStatus | null>(null);
 
   const [commentBody, setCommentBody] = useState("");
   const [isInternal, setIsInternal] = useState(false);
@@ -347,6 +356,10 @@ function ServiceRequestDetail({
   };
 
   const handleStatusChange = (status: ServiceRequestStatus) => {
+    if (status === "CANCELLED") {
+      setStatusTarget(status);
+      return;
+    }
     updateMutation.mutate({ status });
   };
 
@@ -387,10 +400,10 @@ function ServiceRequestDetail({
           {/* Status + Priority + Type row */}
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline" className={statusBadgeClass(request.status)}>
-              {statusLabel(request.status)}
+              {statusLabel(request.status, t)}
             </Badge>
             <Badge variant="outline" className={priorityBadgeClass(request.priority)}>
-              {priorityLabel(request.priority)}
+              {priorityLabel(request.priority, t)}
             </Badge>
             <TooltipProvider>
               <Tooltip>
@@ -400,7 +413,7 @@ function ServiceRequestDetail({
                     className="bg-slate-50 text-slate-600 border-slate-200 gap-1 cursor-default"
                   >
                     <Lock className="h-3 w-3" />
-                    {TYPE_LABELS[request.type] ?? request.type}
+                    {typeLabel(request.type, t)}
                   </Badge>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="text-xs max-w-48 text-center">
@@ -469,7 +482,7 @@ function ServiceRequestDetail({
                     disabled={updateMutation.isPending}
                     onClick={() => handleStatusChange(s)}
                   >
-                    {statusLabel(s)}
+                    {statusLabel(s, t)}
                   </Button>
                 ))}
               </div>
@@ -488,7 +501,7 @@ function ServiceRequestDetail({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PRIORITY_OPTIONS.map((o) => (
+                {getPriorityOptions(t).map((o) => (
                   <SelectItem key={o.value} value={o.value} className="text-xs">
                     {o.label}
                   </SelectItem>
@@ -626,6 +639,30 @@ function ServiceRequestDetail({
         onConfirm={handleConfirmCreateProposal}
         isPending={createProposal.isPending || updateMutation.isPending}
       />
+
+      <AlertDialog open={statusTarget === "CANCELLED"} onOpenChange={(open) => !open && setStatusTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer l’annulation de cette demande ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette transition est terminale et ne pourra pas être annulée ensuite. Vérifiez bien
+              la demande avant de confirmer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setStatusTarget(null)}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                updateMutation.mutate({ status: "CANCELLED" });
+                setStatusTarget(null);
+              }}
+            >
+              Confirmer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
@@ -633,6 +670,7 @@ function ServiceRequestDetail({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function ServiceRequestsAdminPage() {
+  const { t } = useTranslation();
   const [filters, setFilters] = useState<AdminListServiceRequestsParams>({
     page: 1,
     pageSize: 20,
@@ -712,11 +750,11 @@ export function ServiceRequestsAdminPage() {
     return (
       <div className="flex h-full items-center">
         <Badge variant="outline" className={`text-xs ${statusBadgeClass(req.status)}`}>
-          {statusLabel(req.status)}
+          {statusLabel(req.status, t)}
         </Badge>
       </div>
     );
-  }, []);
+  }, [t]);
 
   const priorityRenderer = useCallback((params: ICellRendererParams<ServiceRequest>) => {
     const req = params.data;
@@ -724,11 +762,11 @@ export function ServiceRequestsAdminPage() {
     return (
       <div className="flex h-full items-center">
         <Badge variant="outline" className={`text-xs ${priorityBadgeClass(req.priority)}`}>
-          {priorityLabel(req.priority)}
+          {priorityLabel(req.priority, t)}
         </Badge>
       </div>
     );
-  }, []);
+  }, [t]);
 
   const requestActionsRenderer = useCallback(
     (params: ICellRendererParams<ServiceRequest>) => {
@@ -797,7 +835,7 @@ export function ServiceRequestsAdminPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Tous les statuts</SelectItem>
-              {STATUS_OPTIONS.map((o) => (
+              {getStatusOptions(t).map((o) => (
                 <SelectItem key={o.value} value={o.value}>
                   {o.label}
                 </SelectItem>
@@ -816,7 +854,7 @@ export function ServiceRequestsAdminPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Toutes priorités</SelectItem>
-              {PRIORITY_OPTIONS.map((o) => (
+              {getPriorityOptions(t).map((o) => (
                 <SelectItem key={o.value} value={o.value}>
                   {o.label}
                 </SelectItem>
@@ -835,7 +873,7 @@ export function ServiceRequestsAdminPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Tous les types</SelectItem>
-              {TYPE_OPTIONS.map((o) => (
+              {getTypeOptions(t).map((o) => (
                 <SelectItem key={o.value} value={o.value}>
                   {o.label}
                 </SelectItem>
@@ -943,6 +981,7 @@ export function ServiceRequestsAdminPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
     </div>
   );
 }

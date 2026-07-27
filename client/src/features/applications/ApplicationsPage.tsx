@@ -140,6 +140,9 @@ export function ApplicationsPage() {
           setRejectDialogOpen(false);
           rejectForm.reset();
         },
+        onError: () => {
+          toast.error(t("applications.rejectError"));
+        },
       }
     );
   };
@@ -152,6 +155,9 @@ export function ApplicationsPage() {
         onSuccess: () => {
           setAcceptDialogOpen(false);
           acceptForm.reset();
+        },
+        onError: () => {
+          toast.error(t("applications.acceptError"));
         },
       }
     );

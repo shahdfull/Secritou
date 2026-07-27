@@ -127,6 +127,7 @@ export function ClientDetailPage() {
   const { mutate: gdprEraseClient, isPending: isGdprErasing } = useGdprEraseClient();
   const inviteClientUser = useInviteClientUser(id ?? "");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [gdprEraseDialogOpen, setGdprEraseDialogOpen] = useState(false);
   const [addDocumentDialogOpen, setAddDocumentDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
@@ -200,8 +201,12 @@ export function ClientDetailPage() {
           const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
           if (code === "CLIENT_HAS_INVOICES") {
             toast.error(t("clientsPage.detail.deleteBlockedHasInvoices"));
-            setDeleteDialogOpen(false);
+          } else if (code === "CLIENT_HAS_PROJECTS") {
+            toast.error(t("clientsPage.errors.hasProjects"));
+          } else {
+            toast.error(t("clientsPage.errors.deleteFailed", "Une erreur est survenue."));
           }
+          setDeleteDialogOpen(false);
         },
       });
     }
@@ -210,7 +215,10 @@ export function ClientDetailPage() {
   const handleArchive = () => {
     if (id) {
       archiveClient(id, {
-        onSuccess: () => navigate("/app/crm"),
+        onSuccess: () => {
+          setArchiveDialogOpen(false);
+          navigate("/app/crm");
+        },
       });
     }
   };
@@ -442,7 +450,7 @@ export function ClientDetailPage() {
             <Star className="h-4 w-4 mr-2" />
             {t("clientsPage.detail.clientSuccess")}
           </Button>
-          <Button variant="outline" onClick={handleArchive} disabled={isArchiving}>
+          <Button variant="outline" onClick={() => setArchiveDialogOpen(true)} disabled={isArchiving}>
             {isArchiving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Archive className="h-4 w-4 mr-2" />}
             {t("clientsPage.detail.archive")}
           </Button>
@@ -878,6 +886,26 @@ export function ClientDetailPage() {
               {inviteClientUser.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               <Mail className="h-4 w-4 mr-2" />
               {t("clientsPage.detail.sendInvitation")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Archive client dialog */}
+      <Dialog open={archiveDialogOpen} onOpenChange={setArchiveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("clientsPage.detail.archiveClientTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("clientsPage.detail.archiveClientDesc", { name: client.name })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setArchiveDialogOpen(false)}>{t("common.cancel")}</Button>
+            <Button onClick={handleArchive} disabled={isArchiving}>
+              {isArchiving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <Archive className="h-4 w-4 mr-2" />
+              {t("clientsPage.detail.archive")}
             </Button>
           </DialogFooter>
         </DialogContent>

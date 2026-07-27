@@ -9,7 +9,7 @@ import {
   type ColDef,
   type ICellRendererParams,
 } from "ag-grid-community";
-import { formatDate } from "@/utils/format";
+import { formatDate, formatCurrency } from "@/utils/format";
 import {
   useCommissions,
   useCommissionsOwedSummary,
@@ -33,6 +33,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2 } from "lucide-react";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useState } from "react";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -53,6 +55,7 @@ export function CommissionsPage() {
   const { page, pageSize, status, updateParams } = useListParams(10);
   const role = useAuthStore((state) => state.user?.role);
   const isManager = role === "MANAGER";
+  const [paidTarget, setPaidTarget] = useState<Commission | null>(null);
 
   // MANAGER sees only their own commissions (server enforces this regardless — see
   // /commissions/my — but we also swap the query so we don't fetch data they can't have).
@@ -116,7 +119,7 @@ export function CommissionsPage() {
             size="icon"
             className="h-7 w-7 text-green-600 hover:bg-green-50 disabled:text-muted-foreground"
             title={isPending ? t("commissions.markPaid", "Marquer comme payée") : t("commissions.alreadyPaid", "Déjà payée")}
-            onClick={() => markPaidMutation.mutate(c.id)}
+            onClick={() => setPaidTarget(c)}
             disabled={!isPending || markPaidMutation.isPending}
           >
             <CheckCircle2 className="h-3.5 w-3.5" />
@@ -140,9 +143,9 @@ export function CommissionsPage() {
     cols.push(
       { headerName: t("commissions.project", "Projet"), valueGetter: (p) => p.data?.project?.name ?? p.data?.projectId.slice(0, 8), flex: 1 },
       { headerName: t("commissions.invoice", "Facture"), valueGetter: (p) => p.data?.invoice?.number ?? p.data?.invoiceId.slice(0, 8), flex: 1 },
-      { headerName: t("commissions.basis", "Montant encaissé"), valueFormatter: (p) => p.data!.basis.toLocaleString("fr-FR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }), field: "basis", flex: 1 },
+      { headerName: t("commissions.basis", "Montant encaissé"), valueFormatter: (p) => formatCurrency(p.data!.basis), field: "basis", flex: 1 },
       { headerName: t("commissions.rate", "Taux"), valueFormatter: (p) => `${p.data!.ratePct}%`, field: "ratePct", width: 100 },
-      { headerName: t("commissions.amount", "Montant dû"), valueFormatter: (p) => p.data!.amount.toLocaleString("fr-FR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }), field: "amount", flex: 1, cellClass: "font-medium" },
+      { headerName: t("commissions.amount", "Montant dû"), valueFormatter: (p) => formatCurrency(p.data!.amount), field: "amount", flex: 1, cellClass: "font-medium" },
       { headerName: t("commissions.status", "Statut"), cellRenderer: statusRenderer, flex: 1.4, minWidth: 160 }
     );
     if (!isManager) {
@@ -162,6 +165,9 @@ export function CommissionsPage() {
             ? t("commissions.mySubtitle", "Ce qui vous est dû, calculé au paiement encaissé sur vos projets.")
             : t("commissions.subtitle", "Ce qui est dû à chaque associé, calculé au paiement encaissé sur chaque projet.")}
         </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          {t("commissions.noManualCreationNotice", "Une commission naît automatiquement d'un paiement encaissé — il n'y a pas de création manuelle ici.")}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -178,10 +184,10 @@ export function CommissionsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-1">
-                <p className="text-2xl font-bold text-ink">{row.pending.toLocaleString("fr-FR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</p>
+                <p className="text-2xl font-bold text-ink">{formatCurrency(row.pending)}</p>
                 <p className="text-xs text-muted-foreground">{t("commissions.pendingLabel", "à verser")}</p>
                 <p className="text-sm text-muted-foreground">
-                  {t("commissions.paidLabel", "déjà versé")} : {row.paid.toLocaleString("fr-FR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
+                  {t("commissions.paidLabel", "déjà versé")} : {formatCurrency(row.paid)}
                 </p>
               </CardContent>
             </Card>
@@ -217,6 +223,13 @@ export function CommissionsPage() {
         />
       </div>
 
+      <p className="text-xs text-muted-foreground">
+        {t(
+          "commissions.correctionHint",
+          "En cas d’erreur sur une commission déjà versée, demandez une correction avant tout nouveau marquage."
+        )}
+      </p>
+
       {commissionsResult && Number.isFinite(commissionsResult.total) && (
         <DataTablePagination
           page={commissionsResult.page}
@@ -225,6 +238,35 @@ export function CommissionsPage() {
           onPageChange={(newPage) => updateParams({ page: newPage })}
         />
       )}
+
+      <AlertDialog open={!!paidTarget} onOpenChange={(open) => !open && setPaidTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("commissions.confirmMarkPaidTitle", "Confirmer le paiement de cette commission ?")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                "commissions.confirmMarkPaidDesc",
+                "Cette action valide le paiement pour cette ligne. Si le montant est incorrect, corrigez-le avant confirmation."
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPaidTarget(null)}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-green-600 text-white hover:bg-green-700"
+              onClick={() => {
+                if (!paidTarget) return;
+                markPaidMutation.mutate(paidTarget.id);
+                setPaidTarget(null);
+              }}
+            >
+              {t("common.confirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

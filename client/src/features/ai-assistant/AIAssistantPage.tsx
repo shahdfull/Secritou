@@ -13,7 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialog";
 import { toast } from "sonner";
+import { AxiosError } from "axios";
 import { useTranslation } from "react-i18next";
 import {
   useAiConversations,
@@ -25,6 +27,16 @@ import {
 } from "@/hooks/useAiConversations";
 import type { AiMessage } from "@/api/aiConversations.api";
 import { cn } from "@/lib/utils";
+
+// No response reached us at all (network down) or the server itself is failing
+// (5xx, e.g. the LLM backend is unreachable) -> "service unavailable". Anything
+// else (4xx: bad persona, validation, permissions...) is an application error
+// the user can't fix by simply retrying later.
+function isServiceUnavailableError(error: unknown): boolean {
+  if (!(error instanceof AxiosError)) return true;
+  if (!error.response) return true;
+  return error.response.status >= 500;
+}
 
 // ── Legacy ChatMessage type (kept for compact/controlled mode compatibility) ──
 export interface ChatMessage {
@@ -76,8 +88,8 @@ function CompactChat({
         const { reply } = await addMutation.mutateAsync({ id: activeId, message: trimmed });
         onMessagesChange([...messages, userMsg, { role: "assistant", content: reply.content }]);
       }
-    } catch {
-      toast.error(t("aiAssistant.errors.unavailable"));
+    } catch (error) {
+      toast.error(isServiceUnavailableError(error) ? t("aiAssistant.errors.unavailable") : t("aiAssistant.errors.appError"));
       onMessagesChange(messages);
     } finally {
       setIsLoading(false);
@@ -148,6 +160,7 @@ function FullChat() {
       });
     } catch {
       localStorage.removeItem("ai_chat_history");
+      toast.error(t("aiAssistant.errors.localHistoryLost", "Votre historique de discussion local n'a pas pu être récupéré."));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -168,8 +181,8 @@ function FullChat() {
       } else {
         await addMutation.mutateAsync({ id: activeId, message: trimmed });
       }
-    } catch {
-      toast.error(t("aiAssistant.errors.unavailable"));
+    } catch (error) {
+      toast.error(isServiceUnavailableError(error) ? t("aiAssistant.errors.unavailable") : t("aiAssistant.errors.appError"));
     } finally {
       setIsLoading(false);
     }
@@ -177,10 +190,21 @@ function FullChat() {
 
   const handleNew = () => setActiveId(null);
 
-  const handleDelete = (id: string) => {
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
+  const requestDelete = (id: string) => setDeleteTargetId(id);
+
+  const handleConfirmDelete = () => {
+    if (!deleteTargetId) return;
+    const id = deleteTargetId;
     deleteMutation.mutate(id, {
       onSuccess: () => {
         if (activeId === id) setActiveId(null);
+        setDeleteTargetId(null);
+      },
+      onError: () => {
+        toast.error(t("aiAssistant.errors.deleteFailed"));
+        setDeleteTargetId(null);
       },
     });
   };
@@ -188,6 +212,7 @@ function FullChat() {
   const messages: AiMessage[] = activeConv?.messages ?? [];
 
   return (
+    <>
     <div className="flex h-chat-safe gap-4">
       {/* Sidebar */}
       <aside
@@ -223,8 +248,8 @@ function FullChat() {
                   <MessageSquare className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   <span className="flex-1 truncate">{conv.title}</span>
                   <button
-                    className="hidden group-hover:flex h-5 w-5 items-center justify-center rounded hover:bg-destructive/10 hover:text-destructive"
-                    onClick={(e) => { e.stopPropagation(); handleDelete(conv.id); }}
+                    className="flex h-5 w-5 items-center justify-center rounded opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={(e) => { e.stopPropagation(); requestDelete(conv.id); }}
                     title="Supprimer"
                   >
                     <Trash2 className="h-3 w-3" />
@@ -261,7 +286,7 @@ function FullChat() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleDelete(activeId)}
+                onClick={() => requestDelete(activeId)}
                 className="gap-2 text-destructive hover:text-destructive"
               >
                 <Trash2 className="h-4 w-4" />
@@ -304,6 +329,18 @@ function FullChat() {
         </Card>
       </div>
     </div>
+    <ConfirmDeleteDialog
+      open={deleteTargetId !== null}
+      onOpenChange={(open) => { if (!open) setDeleteTargetId(null); }}
+      onConfirm={handleConfirmDelete}
+      isDeleting={deleteMutation.isPending}
+      title={t("aiAssistant.deleteConversationTitle", "Supprimer cette conversation ?")}
+      description={t(
+        "aiAssistant.deleteConversationDesc",
+        "Cette action est irréversible. La conversation et tous ses messages seront définitivement supprimés."
+      )}
+    />
+    </>
   );
 }
 

@@ -11,9 +11,11 @@ import {
 } from "@/hooks/useClientOnboarding";
 import type { OnboardingStep } from "@secritou/shared";
 import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { formatCurrency } from "@/utils/format";
 import {
   Select,
   SelectContent,
@@ -21,6 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { getOnboardingStatusBadgeClass } from "@/utils/statusColors";
 import {
   CheckCircle2,
   Circle,
@@ -32,6 +36,13 @@ import {
   LineChart,
   Download,
 } from "lucide-react";
+import { toast } from "sonner";
+
+const QUESTIONNAIRE_DRAFT_PREFIX = "client-onboarding-questionnaire-draft";
+
+function getQuestionnaireDraftKey(questionnaireId: string) {
+  return `${QUESTIONNAIRE_DRAFT_PREFIX}:${questionnaireId}`;
+}
 
 export function QuestionnaireStep({
   step,
@@ -42,8 +53,41 @@ export function QuestionnaireStep({
   updateQuestionnaire: ReturnType<typeof useUpdateQuestionnaire>;
   t: TFunction;
 }) {
+  const questionnaireId = step.questionnaire?.id;
+  const draftKey = questionnaireId ? getQuestionnaireDraftKey(questionnaireId) : null;
+
   const [serviceType, setServiceType] = useState(step.questionnaire?.serviceType || "");
   const [fields, setFields] = useState<Record<string, string>>({});
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  // Same pattern as ClientBriefPage.tsx: best-effort localStorage autosave, restored
+  // transparently on return — a multi-field questionnaire (up to 4 dynamic fields per
+  // service type, on top of the type selector) can be lost to a tab close or network blip
+  // between explicit "Save Draft" clicks.
+  useEffect(() => {
+    if (!draftKey || !step.questionnaire?.isDraft || draftRestored) return;
+    try {
+      const raw = window.localStorage.getItem(draftKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { serviceType?: string; fields?: Record<string, string> };
+      if (typeof parsed.serviceType === "string") setServiceType(parsed.serviceType);
+      if (parsed.fields && typeof parsed.fields === "object") setFields(parsed.fields);
+      setDraftRestored(true);
+      toast.info(t("onboarding.questionnaire.draftRestored"));
+    } catch {
+      window.localStorage.removeItem(draftKey);
+    }
+  }, [draftKey, draftRestored, step.questionnaire?.isDraft, t]);
+
+  useEffect(() => {
+    if (!draftKey || !step.questionnaire?.isDraft) return;
+    if (!serviceType && Object.keys(fields).length === 0) return;
+    try {
+      window.localStorage.setItem(draftKey, JSON.stringify({ serviceType, fields }));
+    } catch {
+      // Best effort only.
+    }
+  }, [draftKey, fields, serviceType, step.questionnaire?.isDraft]);
 
   const handleSave = (isDraft: boolean) => {
     // step.questionnaire is guaranteed non-null here: this form only renders past the
@@ -52,13 +96,20 @@ export function QuestionnaireStep({
     // references/pages, etc.) must be nested under `data` — that's the only key the server
     // persists (clientOnboarding.repository.ts#updateQuestionnaire writes serviceType/isDraft/
     // data.data). Spreading `fields` at the top level silently discarded every answer.
-    updateQuestionnaire.mutate({
-      questionnaireId: step.questionnaire!.id,
-      data: { serviceType, data: fields, isDraft },
-    });
+    updateQuestionnaire.mutate(
+      {
+        questionnaireId: step.questionnaire!.id,
+        data: { serviceType, data: fields, isDraft },
+      },
+      {
+        onSuccess: () => {
+          if (!isDraft && draftKey) window.localStorage.removeItem(draftKey);
+        },
+      }
+    );
   };
 
-  if (!step.questionnaire) return <p>{t("onboarding.admin.createOnboarding")}</p>;
+  if (!step.questionnaire) return <p className="text-muted-foreground">{t("onboarding.questionnaire.notReady")}</p>;
 
   return (
     <div className="space-y-4">
@@ -144,6 +195,7 @@ export function ClientOnboardingPage() {
   const { t } = useTranslation();
   const { onboardingId } = useParams<{ onboardingId: string }>();
   const [activeStep, setActiveStep] = useState<string | null>(null);
+  const [contractTarget, setContractTarget] = useState<{ contractId: string } | null>(null);
 
   const { data: onboarding, isLoading } = useClientOnboarding(
     onboardingId || ""
@@ -187,6 +239,21 @@ export function ClientOnboardingPage() {
         return <Download className={`h-6 w-6 ${color}`} />;
       default:
         return <Circle className="h-6 w-6 text-gray-300" />;
+    }
+  };
+
+  // Maps the raw OnboardingStepStatus enum to the existing camelCase i18n keys
+  // under onboarding.timeline.statuses (same convention as AdminOnboardingPage).
+  const stepStatusI18nKey = (status: string) => {
+    switch (status) {
+      case "COMPLETED":
+        return "onboarding.timeline.statuses.completed";
+      case "REJECTED":
+        return "onboarding.timeline.statuses.rejected";
+      case "IN_PROGRESS":
+        return "onboarding.timeline.statuses.inProgress";
+      default:
+        return "onboarding.timeline.statuses.pending";
     }
   };
 
@@ -276,7 +343,9 @@ export function ClientOnboardingPage() {
               <div className="space-y-2">
                 <p>
                   <strong>{t("onboarding.contract.status")}: </strong>
-                  {contract.status}
+                  <Badge className={getOnboardingStatusBadgeClass(contract.status)}>
+                    {t(`onboarding.contract.statuses.${contract.status}`, contract.status)}
+                  </Badge>
                 </p>
                 {contract.contractUrl && (
                   <Link
@@ -291,12 +360,7 @@ export function ClientOnboardingPage() {
 
                 {contract.status !== "SIGNED" && (
                   <Button
-                    onClick={() => {
-                      updateContract.mutate({
-                        contractId: contract.id,
-                        data: { status: "SIGNED" },
-                      });
-                    }}
+                    onClick={() => setContractTarget({ contractId: contract.id })}
                     disabled={updateContract.isPending}
                   >
                     {t("onboarding.contract.signContract")}
@@ -304,7 +368,7 @@ export function ClientOnboardingPage() {
                 )}
               </div>
             ) : (
-              <p>{t("onboarding.admin.createOnboarding")}</p>
+              <p className="text-muted-foreground">{t("onboarding.contract.notReady")}</p>
             )}
           </div>
         );
@@ -320,19 +384,21 @@ export function ClientOnboardingPage() {
               <div className="space-y-2">
                 <p>
                   <strong>{t("onboarding.payment.amount")}: </strong>
-                  {step.payment.amount ? `$${step.payment.amount}` : "-"}
+                  {step.payment.amount ? formatCurrency(step.payment.amount, "TND") : "-"}
                 </p>
                 <p>
                   <strong>{t("onboarding.payment.amountPaid")}: </strong>
-                  {step.payment.amountPaid ? `$${step.payment.amountPaid}` : "-"}
+                  {step.payment.amountPaid ? formatCurrency(step.payment.amountPaid, "TND") : "-"}
                 </p>
                 <p>
                   <strong>{t("onboarding.payment.status")}: </strong>
-                  {step.payment.status}
+                  <Badge className={getOnboardingStatusBadgeClass(step.payment.status)}>
+                    {t(`onboarding.payment.statuses.${step.payment.status}`, step.payment.status)}
+                  </Badge>
                 </p>
               </div>
             ) : (
-              <p>{t("onboarding.admin.createOnboarding")}</p>
+              <p className="text-muted-foreground">{t("onboarding.payment.notReady")}</p>
             )}
           </div>
         );
@@ -364,11 +430,13 @@ export function ClientOnboardingPage() {
                 </p>
                 <p>
                   <strong>{t("onboarding.specifications.status")}: </strong>
-                  {step.specifications.approvalStatus}
+                  <Badge className={getOnboardingStatusBadgeClass(step.specifications.approvalStatus)}>
+                    {t(`onboarding.specifications.statuses.${step.specifications.approvalStatus}`, step.specifications.approvalStatus)}
+                  </Badge>
                 </p>
               </div>
             ) : (
-              <p>{t("onboarding.admin.createOnboarding")}</p>
+              <p className="text-muted-foreground">{t("onboarding.specifications.notReady")}</p>
             )}
           </div>
         );
@@ -398,7 +466,7 @@ export function ClientOnboardingPage() {
                 )}
               </div>
             ) : (
-              <p>{t("onboarding.admin.createOnboarding")}</p>
+              <p className="text-muted-foreground">{t("onboarding.kickoff.notReady")}</p>
             )}
           </div>
         );
@@ -453,7 +521,7 @@ export function ClientOnboardingPage() {
                 </Card>
               </div>
             ) : (
-              <p>{t("onboarding.admin.createOnboarding")}</p>
+              <p className="text-muted-foreground">{t("onboarding.production.notReady")}</p>
             )}
           </div>
         );
@@ -482,7 +550,7 @@ export function ClientOnboardingPage() {
                 )}
               </div>
             ) : (
-              <p>{t("onboarding.admin.createOnboarding")}</p>
+              <p className="text-muted-foreground">{t("onboarding.delivery.notReady")}</p>
             )}
           </div>
         );
@@ -531,9 +599,9 @@ export function ClientOnboardingPage() {
                 </div>
                 <div>
                   <p className="font-medium">{getStepLabel(step.stepType)}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {step.status}
-                  </p>
+                  <Badge className={`${getOnboardingStatusBadgeClass(step.status)} mt-0.5`}>
+                    {t(stepStatusI18nKey(step.status))}
+                  </Badge>
                 </div>
               </div>
             ))}
@@ -551,6 +619,37 @@ export function ClientOnboardingPage() {
           </Card>
         </div>
       </div>
+
+      <AlertDialog open={!!contractTarget} onOpenChange={(open) => !open && setContractTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("onboarding.contract.confirmSignTitle", "Confirmer la signature du contrat ?")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                "onboarding.contract.confirmSignDesc",
+                "Cette signature valide l’accord de départ et peut engager des étapes contractuelles irréversibles. Vérifiez le contrat avant de confirmer."
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!contractTarget) return;
+                updateContract.mutate({
+                  contractId: contractTarget.contractId,
+                  data: { status: "SIGNED" },
+                });
+                setContractTarget(null);
+              }}
+            >
+              {t("common.confirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }
