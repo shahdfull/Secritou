@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2, ArrowLeft, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { projectsApi, BriefQuestion } from "@/api/projects.api";
@@ -174,7 +173,7 @@ export function ClientBriefPage() {
   const qc = useQueryClient();
   const draftKey = useMemo(() => getDraftStorageKey(projectId), [projectId]);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["client-brief", projectId],
     queryFn: () => projectsApi.getBrief(projectId),
     staleTime: 30_000,
@@ -199,6 +198,7 @@ export function ClientBriefPage() {
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [step, setStep] = useState(0);
   const [draftRestored, setDraftRestored] = useState(false);
+  const [showValidation, setShowValidation] = useState(false);
 
   useEffect(() => {
     if (!projectId || !data || data.project.briefCompleted || draftRestored) return;
@@ -247,11 +247,17 @@ export function ClientBriefPage() {
   }
 
   if (isError || !data) {
+    const requestId = getServerRequestId(error);
     return (
       <div className="max-w-2xl mx-auto py-20 text-center space-y-3">
         <p className="text-muted-foreground">Impossible de charger le questionnaire.</p>
+        <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1.5">
+          Réessayer
+        </Button>
         <p className="text-xs text-muted-foreground">
-          Si le problème persiste, contactez le support avec la référence affichée dans le message d'erreur.
+          {requestId
+            ? `Si le problème persiste, contactez le support avec la référence ${requestId}.`
+            : "Si le problème persiste, contactez le support."}
         </p>
         <p className="text-xs text-muted-foreground">
           Ces réponses servent uniquement à préparer le cadrage du projet et les livrables associés pour le pôle concerné.
@@ -270,19 +276,38 @@ export function ClientBriefPage() {
   const currentSection = sections[step] ?? [];
   const isLastStep = step === totalSteps - 1;
 
-  const currentSectionValid = currentSection.every((q) => {
+  const isQuestionValid = (q: BriefQuestion) => {
     if (!q.required) return true;
     const val = displayAnswers[q.key];
     if (val === undefined || val === null || val === "") return false;
     if (Array.isArray(val) && val.length === 0) return false;
     return true;
-  });
+  };
+
+  const currentSectionValid = currentSection.every(isQuestionValid);
 
   const handleChange = (key: string, value: unknown) => {
     setAnswers((prev) => ({ ...prev, [key]: value }));
   };
 
+  const goToStep = (next: number) => {
+    setStep(next);
+    setShowValidation(false);
+  };
+
+  const handleNext = () => {
+    if (!currentSectionValid) {
+      setShowValidation(true);
+      return;
+    }
+    goToStep(step + 1);
+  };
+
   const handleSubmit = () => {
+    if (!currentSectionValid) {
+      setShowValidation(true);
+      return;
+    }
     submitMutation.mutate({ ...answers });
   };
 
@@ -371,33 +396,42 @@ export function ClientBriefPage() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center justify-between">
-            <span>Questions {step * SECTION_SIZE + 1}–{Math.min((step + 1) * SECTION_SIZE, questions.length)}</span>
-            <Badge variant="outline">{project.serviceType ?? "WEB"}</Badge>
+          <CardTitle className="text-base">
+            Questions {step * SECTION_SIZE + 1}–{Math.min((step + 1) * SECTION_SIZE, questions.length)}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {currentSection.map((q) => (
-            <div key={q.key} className="space-y-2">
-              <label className="text-sm font-medium">
-                {q.label}
-                {q.required && <span className="text-destructive ml-1">*</span>}
-              </label>
-              <QuestionField
-                question={q}
-                value={answers[q.key]}
-                onChange={(v) => handleChange(q.key, v)}
-                readOnly={false}
-              />
-            </div>
-          ))}
+          {currentSection.map((q) => {
+            const missing = showValidation && !isQuestionValid(q);
+            return (
+              <div key={q.key} className="space-y-2">
+                <label className="text-sm font-medium">
+                  {q.label}
+                  {q.required && <span className="text-destructive ml-1">*</span>}
+                </label>
+                <div className={missing ? "rounded-lg ring-2 ring-destructive/60 p-2 -m-2" : undefined}>
+                  <QuestionField
+                    question={q}
+                    value={answers[q.key]}
+                    onChange={(v) => handleChange(q.key, v)}
+                    readOnly={false}
+                  />
+                </div>
+                {missing && (
+                  <p role="alert" className="text-xs font-medium text-destructive">
+                    Ce champ est requis.
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </CardContent>
       </Card>
 
       <div className="flex justify-between">
         <Button
           variant="outline"
-          onClick={() => setStep((s) => s - 1)}
+          onClick={() => goToStep(step - 1)}
           disabled={step === 0}
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
@@ -407,7 +441,7 @@ export function ClientBriefPage() {
         {isLastStep ? (
           <Button
             onClick={handleSubmit}
-            disabled={!currentSectionValid || submitMutation.isPending}
+            disabled={submitMutation.isPending}
           >
             {submitMutation.isPending ? (
               <><Loader2 className="h-4 w-4 animate-spin mr-2" />Envoi en cours…</>
@@ -416,10 +450,7 @@ export function ClientBriefPage() {
             )}
           </Button>
         ) : (
-          <Button
-            onClick={() => setStep((s) => s + 1)}
-            disabled={!currentSectionValid}
-          >
+          <Button onClick={handleNext}>
             Suivant
             <ArrowRight className="h-4 w-4 ml-1" />
           </Button>

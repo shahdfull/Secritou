@@ -23,6 +23,7 @@ import {
 } from "../api/clientOnboarding.api";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { getServerErrorMessage } from "../utils/apiError";
 
 export function useClientOnboardings(params?: {
   page?: number;
@@ -110,6 +111,7 @@ export function useDeleteClientOnboarding() {
 
 export function useUpdateOnboardingStep() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation<OnboardingStep, Error, { stepId: string; data: UpdateStepPayload }>({
     mutationFn: ({ stepId, data }) => clientOnboardingApi.updateStep(stepId, data),
@@ -118,11 +120,15 @@ export function useUpdateOnboardingStep() {
       queryClient.invalidateQueries({ queryKey: ["clientOnboarding"] });
       queryClient.invalidateQueries({ queryKey: ["clientOnboardingByProject"] });
     },
+    onError: (error) => {
+      toast.error(getServerErrorMessage(error) || t("onboarding.stepUpdateError"));
+    },
   });
 }
 
 export function useUpdateContract() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation<Contract, Error, { contractId: string; data: ContractPayload }>({
     mutationFn: ({ contractId, data }) =>
@@ -131,6 +137,9 @@ export function useUpdateContract() {
       queryClient.invalidateQueries({ queryKey: ["clientOnboardings"] });
       queryClient.invalidateQueries({ queryKey: ["clientOnboarding"] });
       queryClient.invalidateQueries({ queryKey: ["clientOnboardingByProject"] });
+    },
+    onError: (error) => {
+      toast.error(getServerErrorMessage(error) || t("onboarding.contractUpdateError"));
     },
   });
 }
@@ -151,6 +160,7 @@ export function useUpdatePayment() {
 
 export function useUpdateQuestionnaire() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation<Questionnaire, Error, { questionnaireId: string; data: QuestionnairePayload }>({
     mutationFn: ({ questionnaireId, data }) =>
@@ -159,6 +169,9 @@ export function useUpdateQuestionnaire() {
       queryClient.invalidateQueries({ queryKey: ["clientOnboardings"] });
       queryClient.invalidateQueries({ queryKey: ["clientOnboarding"] });
       queryClient.invalidateQueries({ queryKey: ["clientOnboardingByProject"] });
+    },
+    onError: (error) => {
+      toast.error(getServerErrorMessage(error) || t("onboarding.questionnaireUpdateError"));
     },
   });
 }
