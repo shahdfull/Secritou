@@ -6,11 +6,21 @@ import { ArrowLeft, Send } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   useMyQuestions,
   useQuestion,
   useAddQuestionMessage,
+  useCreateQuestion,
 } from "@/hooks/useCustomQuestions";
 import type { CustomQuestionStatus } from "@/api/customQuestions.api";
 
@@ -45,7 +55,7 @@ function QuestionThread({ id }: { id: string }) {
     return (
       <Card className="rounded-3xl border border-border shadow-soft">
         <CardContent className="p-8 text-center text-muted-foreground">
-          {t("questions.notFound", "Question introuvable.")}
+          {t("questions.notFound")}
         </CardContent>
       </Card>
     );
@@ -67,7 +77,7 @@ function QuestionThread({ id }: { id: string }) {
         className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-ink"
       >
         <ArrowLeft className="h-4 w-4" />
-        {t("common.back", "Retour")}
+        {t("common.back")}
       </button>
 
       <Card className="rounded-3xl border border-border shadow-soft">
@@ -83,15 +93,10 @@ function QuestionThread({ id }: { id: string }) {
           {question.messages?.map((m) => {
             const fromStaff = m.authorRole === "ADMIN" || m.authorRole === "MANAGER";
             return (
-              <div
-                key={m.id}
-                className={`flex flex-col ${fromStaff ? "items-start" : "items-end"}`}
-              >
+              <div key={m.id} className={`flex flex-col ${fromStaff ? "items-start" : "items-end"}`}>
                 <div
                   className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${
-                    fromStaff
-                      ? "bg-surface-warm/60 text-ink"
-                      : "bg-primary text-primary-foreground"
+                    fromStaff ? "bg-surface-warm/60 text-ink" : "bg-primary text-primary-foreground"
                   }`}
                 >
                   <p className="mb-1 text-xs font-semibold opacity-80">
@@ -108,7 +113,7 @@ function QuestionThread({ id }: { id: string }) {
 
           {isClosed ? (
             <p className="pt-2 text-center text-sm text-muted-foreground">
-              {t("questions.thread.closed", "Cette conversation est clôturée.")}
+              {t("questions.thread.closed")}
             </p>
           ) : (
             <form onSubmit={handleSend} className="space-y-3 border-t border-border pt-4">
@@ -135,6 +140,10 @@ function QuestionThread({ id }: { id: string }) {
 function QuestionsList() {
   const { t } = useTranslation();
   const { data, isLoading } = useMyQuestions();
+  const { mutate: createQuestion, isPending } = useCreateQuestion();
+  const [open, setOpen] = useState(false);
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
 
   if (isLoading) return <Spinner />;
 
@@ -142,6 +151,11 @@ function QuestionsList() {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">{t("questions.subtitle")}</p>
+        <Button onClick={() => setOpen(true)}>{t("questions.newQuestion")}</Button>
+      </div>
+
       {questions.length === 0 ? (
         <Card className="rounded-3xl border border-border shadow-soft">
           <CardContent className="p-8 text-center">
@@ -155,26 +169,52 @@ function QuestionsList() {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
                   <CardTitle className="text-lg font-bold text-ink">{q.subject}</CardTitle>
-                  <Badge className={statusColor(q.status)}>
-                    {t(`questions.status.${q.status}`)}
-                  </Badge>
+                  <Badge className={statusColor(q.status)}>{t(`questions.status.${q.status}`)}</Badge>
                 </div>
               </CardHeader>
               <CardContent>
-                {q.messages?.[0] && (
-                  <p className="line-clamp-2 text-sm text-muted-foreground">
-                    {q.messages[0].content}
-                  </p>
-                )}
+                {q.messages?.[0] && <p className="line-clamp-2 text-sm text-muted-foreground">{q.messages[0].content}</p>}
                 <p className="mt-3 text-xs text-muted-foreground">
-                  {formatDate(q.updatedAt)} ·{" "}
-                  {t("questions.messageCount", { count: q._count?.messages ?? 0 })}
+                  {formatDate(q.updatedAt)} · {t("questions.messageCount", { count: q._count?.messages ?? 0 })}
                 </p>
               </CardContent>
             </Card>
           </Link>
         ))
       )}
+
+      <Dialog open={open} onOpenChange={(v) => !v && setOpen(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("questions.newQuestion")}</DialogTitle>
+            <DialogDescription>{t("questions.newQuestionDesc")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t("questions.subject")} />
+            <Textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={5} placeholder={t("questions.message")} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
+            <Button
+              disabled={isPending || !subject.trim() || !message.trim()}
+              onClick={() =>
+                createQuestion(
+                  { subject: subject.trim(), message: message.trim() },
+                  {
+                    onSuccess: () => {
+                      setOpen(false);
+                      setSubject("");
+                      setMessage("");
+                    },
+                  }
+                )
+              }
+            >
+              {t("common.send")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -78,6 +78,7 @@ export const documentListSelect = {
   clientId: true,
   client: { select: { name: true } },
   projectId: true,
+  project: { select: projectBriefSelect },
   taskId: true,
   invoiceId: true,
   uploadedById: true,

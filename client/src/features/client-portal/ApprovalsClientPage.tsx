@@ -5,10 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import apiClient from "@/api/axios";
 import type { Approval as ApiApproval } from "@/api/approvals.api";
 import { getServerErrorMessage, getServerRequestId } from "@/utils/apiError";
+import { getApprovalStatusBadgeClass } from "@/utils/statusColors";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CheckCircle, XCircle, MessageSquare, ClipboardCheck, Clock, Loader2 } from "lucide-react";
@@ -16,13 +18,6 @@ import { toast } from "sonner";
 
 type Approval = ApiApproval & {
   attachments: { id: string; name: string; url: string }[];
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  PENDING: "bg-yellow-100 text-yellow-700",
-  APPROVED: "bg-green-100 text-green-700",
-  REJECTED: "bg-red-100 text-red-700",
-  COMMENTED: "bg-blue-100 text-blue-700",
 };
 
 type RespondAction = "approve" | "reject" | "comment";
@@ -34,6 +29,7 @@ export function ApprovalsClientPage() {
   const [timelineApproval, setTimelineApproval] = useState<Approval | null>(null);
   const [action, setAction] = useState<RespondAction>("comment");
   const [comment, setComment] = useState("");
+  const [approveConfirmed, setApproveConfirmed] = useState(false);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["my-approvals"],
@@ -81,6 +77,7 @@ export function ApprovalsClientPage() {
     setDialogApproval(a);
     setAction(act);
     setComment("");
+    setApproveConfirmed(false);
   };
 
   return (
@@ -108,7 +105,7 @@ export function ApprovalsClientPage() {
                 )}
               </p>
             </div>
-            <Badge className={STATUS_COLORS[a.status] ?? "bg-gray-100 text-gray-700"}>
+            <Badge className={getApprovalStatusBadgeClass(a.status)}>
               {t(`clientPortal.approvals.statuses.${a.status}`, a.status)}
             </Badge>
           </CardHeader>
@@ -179,7 +176,23 @@ export function ApprovalsClientPage() {
                 : t("clientPortal.approvals.dialogComment")}
               {" : "}{dialogApproval?.title}
             </DialogTitle>
+            {action === "approve" && (
+              <p className="text-sm text-muted-foreground">
+                {t(
+                  "clientPortal.approvals.confirmApproveDesc",
+                  "Cette approbation est irréversible et clôt la validation de cette demande. Vérifiez bien les pièces jointes et le contenu avant de confirmer."
+                )}
+              </p>
+            )}
           </DialogHeader>
+          {action === "approve" && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              {t(
+                "clientPortal.approvals.approveWarning",
+                "Une fois approuvée, cette décision ne pourra pas être annulée depuis ce portail."
+              )}
+            </div>
+          )}
           <Textarea
             placeholder={
               action === "approve"
@@ -193,6 +206,21 @@ export function ApprovalsClientPage() {
             rows={4}
             required={action === "comment"}
           />
+          {action === "approve" && (
+            <div className="flex items-start gap-3 pt-1">
+              <Checkbox
+                id="confirm-approve-approval"
+                checked={approveConfirmed}
+                onCheckedChange={(v) => setApproveConfirmed(!!v)}
+              />
+              <label htmlFor="confirm-approve-approval" className="text-sm leading-snug cursor-pointer">
+                {t(
+                  "clientPortal.approvals.approveCheckboxLabel",
+                  "Je confirme avoir vérifié le contenu et les pièces jointes de cette demande."
+                )}
+              </label>
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogApproval(null)}>{t("common.cancel")}</Button>
             <Button
@@ -207,7 +235,11 @@ export function ApprovalsClientPage() {
                 dialogApproval &&
                 respond.mutate({ id: dialogApproval.id, action, comment: comment || undefined })
               }
-              disabled={respond.isPending || (action === "comment" && !comment.trim())}
+              disabled={
+                respond.isPending ||
+                (action === "comment" && !comment.trim()) ||
+                (action === "approve" && !approveConfirmed)
+              }
             >
               {respond.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {t("common.confirm")}

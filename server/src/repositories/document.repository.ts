@@ -4,7 +4,10 @@ import type { Document, DocumentType, DocumentAccessLevel, Role } from "@prisma/
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
 import { documentListSelect } from "../utils/prismaSelects.js";
 
-export type DocumentListItem = Omit<Document, "description"> & { client: { name: string } | null };
+export type DocumentListItem = Omit<Document, "description"> & {
+  client: { name: string } | null;
+  project: { id: string; name: string; status: string } | null;
+};
 
 export function visibleAccessLevels(role: Role): DocumentAccessLevel[] {
   switch (role) {

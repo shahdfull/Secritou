@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { formatDate } from "@/utils/format";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,10 +15,12 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2, Download, FileText, CheckCircle2, ArrowRight } from "lucide-react";
+import { Loader2, Download, FileText, CheckCircle2, ArrowRight, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { documentsApi, Document, DocumentType } from "@/api/documents.api";
 import { announce } from "@/lib/a11yAnnounce";
+
+type PortalDocument = Document;
 
 const DOC_TYPE_LABELS: Record<DocumentType, string> = {
   WELCOME_LETTER: "Lettre de bienvenue",
@@ -69,7 +72,7 @@ function useSignDocument() {
   });
 }
 
-function DownloadButton({ doc }: { doc: Document }) {
+function DownloadButton({ doc }: { doc: PortalDocument }) {
   const [loading, setLoading] = useState(false);
 
   const handleDownload = async () => {
@@ -102,7 +105,7 @@ function SignContractDialog({
   open,
   onClose,
 }: {
-  doc: Document;
+  doc: PortalDocument;
   open: boolean;
   onClose: () => void;
 }) {
@@ -137,8 +140,8 @@ function SignContractDialog({
           <div className="rounded-lg bg-muted p-4 space-y-1">
             <p><span className="font-medium">Prestataire :</span> Secritou</p>
             <p><span className="font-medium">Document :</span> {doc.title}</p>
-            {doc.projectId && (
-              <p><span className="font-medium">Projet lié :</span> {doc.projectId}</p>
+            {(doc.project?.name || doc.projectId) && (
+              <p><span className="font-medium">Projet lié :</span> {doc.project?.name ?? doc.projectId}</p>
             )}
           </div>
           <p className="text-muted-foreground text-xs">
@@ -175,7 +178,7 @@ function SignContractDialog({
   );
 }
 
-function DocumentRow({ doc }: { doc: Document }) {
+function DocumentRow({ doc }: { doc: PortalDocument }) {
   const [signOpen, setSignOpen] = useState(false);
   const isSigned = !!doc.signedAt;
   const isContract = doc.type === "CONTRACT";
@@ -214,8 +217,11 @@ function DocumentRow({ doc }: { doc: Document }) {
 }
 
 export function DocumentsClientPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
-  const { data, isLoading, isError } = useClientDocuments();
+  const [searchParams] = useSearchParams();
+  const projectId = searchParams.get("projectId") ?? undefined;
+  const { data, isLoading, isError, refetch } = useClientDocuments(projectId);
 
   if (isLoading) {
     return (
@@ -227,13 +233,17 @@ export function DocumentsClientPage() {
 
   if (isError) {
     return (
-      <p className="text-muted-foreground text-center py-20">
-        Impossible de charger les documents.
-      </p>
+      <div className="flex flex-col items-center gap-3 py-20">
+        <p className="text-muted-foreground">{t("errors.loadFailed")}</p>
+        <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1.5">
+          <RefreshCw className="h-3.5 w-3.5" />
+          {t("common.retry")}
+        </Button>
+      </div>
     );
   }
 
-  const docs = data?.data ?? [];
+  const docs = (data?.data ?? []) as PortalDocument[];
   const loadedTotal = data?.data.length ?? 0;
   const totalAvailable = data?.total ?? loadedTotal;
   const grouped = new Map<DocumentType, Document[]>();
@@ -251,8 +261,9 @@ export function DocumentsClientPage() {
         <h1 className="text-2xl font-bold">Mes documents</h1>
         {loadedTotal > 0 && (
           <Badge variant="outline" className="text-base px-3 py-1">
-            {completed}/{loadedTotal} document{loadedTotal > 1 ? "s" : ""} complétés sur la page chargée
-            {totalAvailable > loadedTotal ? ` · ${totalAvailable} au total` : ""}
+            {totalAvailable > loadedTotal
+              ? `${completed}/${loadedTotal} document${loadedTotal > 1 ? "s" : ""} complétés (${totalAvailable} au total)`
+              : `${completed}/${loadedTotal} document${loadedTotal > 1 ? "s" : ""} complétés`}
           </Badge>
         )}
       </div>

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import apiClient from "@/api/axios";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { projectsApi } from "@/api/projects.api";
 import { Badge } from "@/components/ui/badge";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,11 +16,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { RefreshCw } from "lucide-react";
 import { PROJECT_STATUS_LABELS_FR } from "@secritou/shared";
 import { getProjectStatusBadgeClass } from "@/utils/statusColors";
+import { getServerErrorMessage, getServerRequestId } from "@/utils/apiError";
 import { ProjectTimeline } from "./components/ProjectTimeline";
 import { CompletedTasksList } from "./components/CompletedTasksList";
 import { usePortalSummaries } from "./hooks/usePortalSummaries";
+import { useMyProjects, type ClientProject } from "./hooks/useMyProjects";
 import { announce } from "@/lib/a11yAnnounce";
 
 // SEC-116: used to poll every 30s per card and mount unconditionally for every card in the grid —
@@ -59,31 +62,10 @@ function LazyProjectCard({ projectId, onVisible, children }: { projectId: string
   return <div ref={containerRef}>{isVisible && children}</div>;
 }
 
-interface ClientProject {
-  id: string;
-  name: string;
-  status: string;
-  progress?: number;
-  clientApprovedAt?: string | null;
-}
-
 const getStatusColor = getProjectStatusBadgeClass;
 
 function getStatusText(status: string) {
   return PROJECT_STATUS_LABELS_FR[status as keyof typeof PROJECT_STATUS_LABELS_FR] ?? status;
-}
-
-function useMyProjects() {
-  return useQuery({
-    queryKey: ["client-projects"],
-    queryFn: async () => {
-      const res = await apiClient.get<{ data: ClientProject[]; total: number }>("/projects/my", {
-        params: { page: 1, pageSize: 100 },
-      });
-      return res.data;
-    },
-    staleTime: 60_000,
-  });
 }
 
 interface ApproveDialogProps {
@@ -107,9 +89,9 @@ function ApproveDialog({ project, open, onClose }: ApproveDialogProps) {
       onClose();
     },
     onError: (err: unknown) => {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        "Une erreur est survenue.";
+      const message = getServerErrorMessage(err) ?? "Une erreur est survenue.";
+      const requestId = getServerRequestId(err);
+      const msg = requestId ? `${message} (ref. ${requestId})` : message;
       toast.error(msg);
       announce(msg);
     },
@@ -138,6 +120,13 @@ function ApproveDialog({ project, open, onClose }: ApproveDialogProps) {
             Une fois approuvé, le projet sera clôturé et votre{" "}
             <strong>facture de solde</strong> sera générée et disponible dans votre portail.
           </div>
+
+          <Link
+            to={`/client/documents?projectId=${project.id}`}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+          >
+            Voir les livrables de ce projet
+          </Link>
 
           <div className="flex items-start gap-3 pt-1">
             <Checkbox
@@ -173,7 +162,7 @@ function ApproveDialog({ project, open, onClose }: ApproveDialogProps) {
 export function ProjectsClientPage() {
   const { t } = useTranslation();
   const [approveTarget, setApproveTarget] = useState<ClientProject | null>(null);
-  const { data: projectsResult, isLoading, isError } = useMyProjects();
+  const { data: projectsResult, isLoading, isError, refetch } = useMyProjects();
   const projects = (projectsResult?.data ?? []) as ClientProject[];
 
   // SEC-091: grows as cards become visible (LazyProjectCard#onVisible below) — usePortalSummaries
@@ -194,7 +183,13 @@ export function ProjectsClientPage() {
 
   if (isError) {
     return (
-      <p className="text-muted-foreground text-center py-20">{t("errors.loadFailed")}</p>
+      <div className="flex flex-col items-center gap-3 py-20">
+        <p className="text-muted-foreground">{t("errors.loadFailed")}</p>
+        <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1.5">
+          <RefreshCw className="h-3.5 w-3.5" />
+          {t("common.retry")}
+        </Button>
+      </div>
     );
   }
 

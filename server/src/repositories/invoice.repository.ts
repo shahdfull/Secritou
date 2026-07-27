@@ -77,7 +77,7 @@ export const invoiceRepository = {
   async findAllByClientId(
     clientId: string,
     options: { page: number; pageSize: number; status?: InvoiceStatus }
-  ): Promise<PaginatedResult<Invoice & { client: { name: string } }>> {
+  ): Promise<PaginatedResult<Invoice & { client: { name: string }; documents: { id: string }[] }>> {
     const filters: Prisma.InvoiceWhereInput[] = [{ clientId, deletedAt: null }];
     const statusClause = statusFilterClause(options.status);
     if (statusClause) filters.push(statusClause);
@@ -93,6 +93,10 @@ export const invoiceRepository = {
           client: { select: { name: true } },
           items: true,
           payments: { orderBy: { paidAt: "desc" } },
+          // Exposes the generated PDF's Document id so the client can download it via the same
+          // signed-URL flow (documentsApi.getDownloadUrl) as everywhere else, instead of the raw
+          // pdfUrl field — same underlying file (see assertInvoicePdfNotGenerated's comment).
+          documents: { select: { id: true }, take: 1, orderBy: { createdAt: "desc" } },
         },
       }),
       prismaRead.invoice.count({ where }),

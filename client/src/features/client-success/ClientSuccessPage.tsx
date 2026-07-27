@@ -5,20 +5,35 @@ import { useClientSuccess, useCalculateClientSuccessScore } from "@/hooks/useCli
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
 export function ClientSuccessPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { clientId } = useParams<{ clientId: string }>();
-  const { data, isLoading, isError } = useClientSuccess(clientId!);
+  const { data, isLoading, isError, refetch, isRefetching } = useClientSuccess(clientId!);
   const calculateMutation = useCalculateClientSuccessScore();
 
   if (isLoading) {
     return (
       <section className="container-page py-8">
-        <div className="flex items-center justify-center h-96">
-          <p className="text-muted-foreground">{t("common.loading")}</p>
+        <div className="space-y-4">
+          <Skeleton className="h-9 w-56" />
+          <div className="grid gap-4 md:grid-cols-3">
+            <Skeleton className="h-32 rounded-2xl md:col-span-1" />
+          </div>
+          <div className="grid gap-4 md:grid-cols-4">
+            <Skeleton className="h-10 rounded-xl" />
+            <Skeleton className="h-10 rounded-xl" />
+            <Skeleton className="h-10 rounded-xl" />
+            <Skeleton className="h-10 rounded-xl" />
+          </div>
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-24 rounded-2xl" />
+            ))}
+          </div>
         </div>
       </section>
     );
@@ -27,8 +42,12 @@ export function ClientSuccessPage() {
   if (isError) {
     return (
       <section className="container-page py-8">
-        <div className="flex items-center justify-center h-96">
+        <div className="flex flex-col items-center justify-center gap-4 h-96">
           <p className="text-muted-foreground">{t("common.error")}</p>
+          <Button variant="outline" onClick={() => refetch()} disabled={isRefetching}>
+            {isRefetching && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {t("common.retry")}
+          </Button>
         </div>
       </section>
     );
@@ -51,6 +70,7 @@ export function ClientSuccessPage() {
           onClick={() => calculateMutation.mutate(clientId!)}
           disabled={calculateMutation.isPending}
         >
+          {calculateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {t("clientSuccess.calculateScore")}
         </Button>
       </div>
@@ -61,7 +81,21 @@ export function ClientSuccessPage() {
             <CardTitle>{t("clientSuccess.score")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-5xl font-bold">{data?.score || 0}</div>
+            {/* Backend never exposes a "calculated" flag, so we infer "never calculated"
+                from createdAt === updatedAt (the record hasn't been touched since it was
+                created with its default score of 0). Not perfect, but avoids showing a
+                bare "0" that reads as an actual (bad) score. */}
+            {data && data.createdAt !== data.updatedAt ? (
+              <div className={calculateMutation.isPending ? "opacity-50 transition-opacity" : "transition-opacity"}>
+                <span className="text-5xl font-bold">{data.score}</span>
+                <span className="text-lg text-muted-foreground">/100</span>
+              </div>
+            ) : (
+              <div className="text-lg text-muted-foreground">{t("clientSuccess.notCalculated")}</div>
+            )}
+            {calculateMutation.isPending && (
+              <p className="text-xs text-muted-foreground mt-1">{t("clientSuccess.recalculating")}</p>
+            )}
           </CardContent>
         </Card>
       </div>

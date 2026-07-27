@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -54,6 +55,7 @@ type PasswordForm = z.infer<typeof passwordSchema>;
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export function ClientProfilePage() {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
 
@@ -232,7 +234,9 @@ export function ClientProfilePage() {
               </div>
               <div>
                 <dt className="text-sm text-muted-foreground">Rôle</dt>
-                <dd className="font-medium capitalize">{user?.role?.toLowerCase() ?? ":"}</dd>
+                <dd className="font-medium">
+                  {user?.role ? t(`clientPortal.profile.roles.${user.role}`, user.role) : ":"}
+                </dd>
               </div>
             </dl>
           )}

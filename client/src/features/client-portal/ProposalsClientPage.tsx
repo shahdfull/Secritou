@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,8 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/utils/format";
+import { getProposalStatusBadgeClass } from "@/utils/statusColors";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import apiClient from "@/api/axios";
+import { getServerErrorMessage, getServerRequestId } from "@/utils/apiError";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -28,21 +31,13 @@ type Proposal = {
   sections: { id: string; title: string; content: string | null; orderIndex: number }[];
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  DRAFT: "bg-muted text-muted-foreground",
-  SENT: "bg-primary-soft text-primary-strong",
-  VIEWED: "bg-primary-soft text-primary-strong",
-  ACCEPTED: "bg-green-100 text-green-800",
-  REJECTED: "bg-red-100 text-red-700",
-  EXPIRED: "bg-accent-soft text-accent-strong",
-};
-
 export function ProposalsClientPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { id } = useParams<{ id?: string }>();
   const [selected, setSelected] = useState<Proposal | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [acceptTarget, setAcceptTarget] = useState<Proposal | null>(null);
   const [comment, setComment] = useState("");
 
   const { data, isLoading } = useQuery({
@@ -75,6 +70,7 @@ export function ProposalsClientPage() {
       queryClient.invalidateQueries({ queryKey: ["my-proposals"] });
       setSelected(null);
       setRejectDialogOpen(false);
+      setAcceptTarget(null);
       setComment("");
     },
     onError: (error: Error) => {
@@ -86,7 +82,9 @@ export function ProposalsClientPage() {
         toast.error(t("clientPortal.proposals.versionMismatch"));
         return;
       }
-      toast.error(t("clientPortal.proposals.responseFailed"));
+      const message = getServerErrorMessage(error) ?? t("clientPortal.proposals.responseFailed");
+      const requestId = getServerRequestId(error);
+      toast.error(requestId ? `${message} (ref. ${requestId})` : message);
     },
   });
 
@@ -126,7 +124,7 @@ export function ProposalsClientPage() {
                 {format(new Date(p.createdAt), "d MMMM yyyy", { locale: fr })}
               </p>
             </div>
-            <Badge className={STATUS_COLORS[p.status] ?? "bg-gray-100 text-gray-700"}>
+            <Badge className={getProposalStatusBadgeClass(p.status)}>
               {t(`clientPortal.proposals.statuses.${p.status}`, p.status)}
             </Badge>
           </CardHeader>
@@ -134,14 +132,14 @@ export function ProposalsClientPage() {
             <span className="text-xl font-semibold">
               {p.amount != null
                 ? formatCurrency(p.amount, p.currency)
-                : ":"}
+                : t("clientPortal.proposals.amountToBeDefined")}
             </span>
             {p.status === "SENT" || p.status === "VIEWED" ? (
               <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                 <Button
                   size="sm"
                   className="bg-ink hover:bg-ink/90 text-white rounded-full"
-                  onClick={() => respond.mutate({ id: p.id, action: "accept", expectedVersion: p.version })}
+                  onClick={() => setAcceptTarget(p)}
                   disabled={respond.isPending}
                 >
                   <CheckCircle className="h-4 w-4 mr-1" /> {t("clientPortal.proposals.accept")}
@@ -169,7 +167,7 @@ export function ProposalsClientPage() {
           </DialogHeader>
           {selected && (
             <div className="space-y-4">
-              <Badge className={STATUS_COLORS[selected.status]}>{t(`clientPortal.proposals.statuses.${selected.status}`, selected.status)}</Badge>
+              <Badge className={getProposalStatusBadgeClass(selected.status)}>{t(`clientPortal.proposals.statuses.${selected.status}`, selected.status)}</Badge>
               {selected.description && <p className="text-sm text-muted-foreground">{selected.description}</p>}
               {selected.sections.map((s) => (
                 <div key={s.id} className="border rounded-xl p-4">
@@ -181,6 +179,34 @@ export function ProposalsClientPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!acceptTarget} onOpenChange={(open) => !open && setAcceptTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("clientPortal.proposals.confirmAcceptTitle", "Confirmer l'acceptation de cette proposition ?")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                "clientPortal.proposals.confirmAcceptDesc",
+                "Cette décision valide le devis et peut déclencher les prochaines étapes du projet. Vérifiez bien le contenu avant de confirmer."
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-ink text-white hover:bg-ink/90"
+              onClick={() =>
+                acceptTarget &&
+                respond.mutate({ id: acceptTarget.id, action: "accept", expectedVersion: acceptTarget.version })
+              }
+            >
+              {t("common.confirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Reject dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={(o) => { if (!o) { setRejectDialogOpen(false); setComment(""); } }}>

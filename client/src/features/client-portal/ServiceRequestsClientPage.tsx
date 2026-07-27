@@ -9,25 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "NEW":
-      return "bg-blue-100 text-blue-800";
-    case "IN_REVIEW":
-      return "bg-purple-100 text-purple-800";
-    case "IN_PROGRESS":
-      return "bg-yellow-100 text-yellow-800";
-    case "WAITING_CLIENT":
-      return "bg-orange-100 text-orange-800";
-    case "COMPLETED":
-      return "bg-green-100 text-green-800";
-    case "CANCELLED":
-      return "bg-red-100 text-red-800";
-    default:
-      return "bg-gray-100 text-gray-800";
-  }
-};
+import { toast } from "sonner";
+import { getServiceRequestStatusBadgeClass } from "@/utils/statusColors";
 
 const getStatusText = (status: string, t: (key: string) => string) => {
   switch (status) {
@@ -59,10 +42,20 @@ export function ServiceRequestsClientPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createRequest({ title, description, type });
-    setTitle("");
-    setDescription("");
-    setType("SUPPORT");
+    createRequest(
+      { title, description, type },
+      {
+        onSuccess: () => {
+          toast.success(t("clientPortal.serviceRequests.createSuccess"));
+          setTitle("");
+          setDescription("");
+          setType("SUPPORT");
+        },
+        onError: () => {
+          toast.error(t("clientPortal.serviceRequests.createFailed"));
+        },
+      }
+    );
   };
 
   if (isLoading) {
@@ -141,7 +134,7 @@ export function ServiceRequestsClientPage() {
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <CardTitle className="text-xl font-bold text-ink">{request.title}</CardTitle>
-                    <Badge className={getStatusColor(request.status)}>
+                    <Badge className={getServiceRequestStatusBadgeClass(request.status)}>
                       {getStatusText(request.status, t)}
                     </Badge>
                   </div>
