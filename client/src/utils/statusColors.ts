@@ -25,6 +25,35 @@ export const LEAD_STATUS_CHART_COLOR: Record<string, string> = {
   LOST: "#d4908a",
 };
 
+const STATUS_BADGE_CLASSES: Record<string, string> = {
+  // Shared semantic colors:
+  // - neutral: draft / pending
+  // - info: sent / viewed / commented
+  // - success: accepted / approved / completed / paid
+  // - warning: in progress / partial / overdue / waiting
+  // - danger: rejected / cancelled / expired
+  DRAFT: "bg-muted text-muted-foreground",
+  NEW: "bg-blue-100 text-blue-800",
+  SENT: "bg-primary-soft text-primary-strong",
+  VIEWED: "bg-primary-soft text-primary-strong",
+  PENDING: "bg-yellow-100 text-yellow-700",
+  IN_REVIEW: "bg-purple-100 text-purple-800",
+  IN_PROGRESS: "bg-yellow-100 text-yellow-800",
+  WAITING_CLIENT: "bg-orange-100 text-orange-800",
+  COMMENTED: "bg-blue-100 text-blue-700",
+  ACCEPTED: "bg-green-100 text-green-800",
+  APPROVED: "bg-green-100 text-green-700",
+  REJECTED: "bg-red-100 text-red-700",
+  EXPIRED: "bg-accent-soft text-accent-strong",
+  PAID: "bg-green-100 text-green-700",
+  UNPAID: "bg-red-100 text-red-700",
+  PARTIAL: "bg-yellow-100 text-yellow-700",
+  OVERDUE: "bg-red-100 text-red-700",
+  CANCELLED: "bg-gray-100 text-gray-500 line-through",
+  COMPLETED: "bg-green-100 text-green-800",
+  SIGNED: "bg-green-100 text-green-700",
+};
+
 export function getLeadStatusBadgeClass(status: string): string {
   return LEAD_STATUS_BADGE[status] ?? "bg-gray-100 text-gray-800";
 }
@@ -57,4 +86,35 @@ export function getTaskStatusBadgeClass(status: string): string {
     default:
       return "bg-surface-warm text-ink/70";
   }
+}
+
+export function getProposalStatusBadgeClass(status: string): string {
+  return STATUS_BADGE_CLASSES[status] ?? "bg-gray-100 text-gray-700";
+}
+
+export function getInvoiceStatusBadgeClass(status: string): string {
+  return STATUS_BADGE_CLASSES[status] ?? "bg-gray-100 text-gray-700";
+}
+
+export function getServiceRequestStatusBadgeClass(status: string): string {
+  return STATUS_BADGE_CLASSES[status] ?? "bg-gray-100 text-gray-800";
+}
+
+export function getApprovalStatusBadgeClass(status: string): string {
+  return STATUS_BADGE_CLASSES[status] ?? "bg-gray-100 text-gray-700";
+}
+
+// Covers OnboardingStepStatus, ContractStatus, OnboardingPaymentStatus and
+// SpecApprovalStatus — they're distinct enums but share the same semantic
+// vocabulary (pending/in-progress/paid/approved/rejected/signed...), so one
+// palette lookup is enough rather than one map per enum.
+export function getOnboardingStatusBadgeClass(status: string): string {
+  return STATUS_BADGE_CLASSES[status] ?? "bg-gray-100 text-gray-700";
+}
+
+// CreditNote has no status enum server-side (applied/available is derived from
+// `appliedAt` being set), so it can't key off STATUS_BADGE_CLASSES like the others —
+// same semantic colors (green=resolved/applied, yellow=pending/available) applied directly.
+export function getCreditNoteBadgeClass(isApplied: boolean): string {
+  return isApplied ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700";
 }
