@@ -12,5 +12,32 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-000
-anomalies: []
+dernier_id: SEC-003
+anomalies:
+  - id: SEC-001
+    titre: >
+      GET /invoices/:id/credit-notes ne vérifie aucun scope de pôle pour
+      MANAGER — IDOR sur la liste des avoirs d'une facture hors pôle
+    perimetre: 4.4-facturation
+    statut: en_cours
+    gravite: moyenne
+    classe: idor-scope-manque
+
+  - id: SEC-002
+    titre: >
+      Le PDF d'une facture de solde (BALANCE) est généré avec le gabarit
+      "Facture d'acompte" / "Acompte 30 %" — affiché incohérent avec le
+      titre réel de la facture (RG-004b)
+    perimetre: 4.4-facturation
+    statut: en_cours
+    gravite: moyenne
+    classe: incoherence-affichage-stockage
+
+  - id: SEC-003
+    titre: >
+      invoiceService.update (ADMIN, modifie amount/title/dueDate/currency
+      sur une facture DRAFT) n'écrit aucune entrée AuditLog
+    perimetre: 4.4-facturation
+    statut: en_cours
+    gravite: moyenne
+    classe: audit-log-manquant

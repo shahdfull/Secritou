@@ -217,4 +217,28 @@ describe("Invoice and CreditNote mutations write to AuditLog (SEC-152)", () => {
     assert.equal(creditNoteEntry!.actorId, actorId);
     assert.equal((creditNoteEntry!.after as { number?: string })?.number, result.creditNote!.number);
   });
+
+  // SEC-001 (registre remis à zéro le 2026-07-27, session du 2026-07-27, audit 4.4) :
+  // invoiceService.update ne laissait aucune trace d'audit, contrairement à create/cancel/
+  // delete/restore/send/addPayment dans le même fichier — seule route ADMIN capable de modifier
+  // amount/title/dueDate/currency d'une facture DRAFT sans before/after.
+  test("invoiceService.update writes an invoice.update AuditLog entry with before/after amount", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
+    const client = await prisma.client.create({ data: { name: "sec003 client A" } });
+    createdClientIds.push(client.id);
+    const invoice = await prisma.invoice.create({
+      data: { number: `SEC-003-UPDATE-${Date.now()}`, title: "Invoice", amount: 100, currency: "TND", status: "DRAFT", clientId: client.id, invoiceType: "STANDARD" },
+    });
+    createdInvoiceIds.push(invoice.id);
+
+    await invoiceService.update(invoice.id, { amount: 250 }, undefined, actorId, "ADMIN");
+
+    const entry = await findAuditLogFor("Invoice", invoice.id, "invoice.update");
+    assert.ok(entry, "invoiceService.update must write an AuditLog entry");
+    createdAuditLogIds.push(entry!.id);
+    assert.equal(entry!.actorId, actorId);
+    assert.equal(entry!.actorRole, "ADMIN");
+    assert.equal((entry!.before as { amount?: number })?.amount, 100);
+    assert.equal((entry!.after as { amount?: number })?.amount, 250);
+  });
 });

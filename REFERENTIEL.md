@@ -1591,14 +1591,24 @@ directement, pas seulement supposé. Nouveau test
 Le portail client s'active (invitation du compte, `Client.portalActivatedAt`
 renseigné) uniquement lorsque la facture d'acompte passe au statut `PAID` —
 jamais à la simple acceptation de la proposition. *Module : 4.6, 4.4.*
-Statut : **ÉCART**. `verifie: document` — la règle elle-même provient de
-`Secritou_CahierDesCharges_Site.docx` §2/§4.2 (historique : « paiement de la
-1re tranche = ouverture de l'espace client »). **Le comportement réel
-observé dans le code (session précédente, `acceptWithCascade`, invitation
-envoyée à l'acceptation, avant tout paiement) diverge de cette règle — voir
-SEC-002 pour le détail du constat et sa provenance exacte (non revérifié
-directement sur le code de cette session, `confiance: a_confirmer` dans
-ANOMALIES.yaml).**
+Statut : **IMPLÉMENTÉ. `verifie: code_direct`** (session du 2026-07-27,
+audit 4.4) — corrigé depuis le dernier statut ÉCART. Lecture intégrale de
+`proposal.service.ts#acceptWithCascadeAttempt` : l'invitation du client a
+été retirée du chemin d'acceptation (commentaire explicite lignes 498-502
+citant « RG-018/SEC-002 » — référence à l'ancien identifiant du registre
+pré-reset du 2026-07-27, archivé sur `archive/anomalies-avant-reset`, pas
+au SEC-002 actuel du registre courant qui désigne une anomalie distincte ;
+retour de fonction ligne 567 fige
+`clientInvited: false`). Lecture intégrale de
+`invoice.service.ts#addPayment` (lignes 251-263, 313-334) : l'invitation
+n'est déclenchée que lorsque `newStatus === "PAID" && invoice.invoiceType
+=== "DEPOSIT"`, via `client.updateMany({ where: { portalActivatedAt: null
+} })` — `justActivatedPortal` ne passe à `true` que la première fois que
+`portalActivatedAt` passe de `null` à une date, puis `clientService
+.inviteClientUser` est appelé après le commit de la transaction. Aucun
+test dédié n'appelle ces deux fonctions pour asserter spécifiquement
+l'absence d'invitation à l'acceptation *et* sa présence au paiement dans
+le même scénario — `verifie: code_direct`, pas encore `verifie: test`.
 
 **RG-019 — Révocation de session sur changement de rôle uniquement.**
 `userService.updateUser` révoque toutes les sessions actives (tous les
@@ -1920,6 +1930,7 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-17** | **Correction perimetre_code de 4.1 CRM & Pipeline commercial : `contact.service.ts` ajouté — crée/met à jour des `Lead` réels (`sendContactMessage`, `convertToLead`), non listé jusqu'ici.** | **Constat direct, session du 2026-07-17, via AUDIT_GRID.md.** |
 | **2026-07-17** | **`AUDIT_GRID.md` créé à la racine du dépôt : grille CRUD exhaustive des 24 entités de §3, construite par grep + lecture directe (pas devinée), avec statut `verifie:` par opération. Sert de référence pour les futures passes d'audit module par module et a produit les 4 corrections perimetre_code ci-dessus. Commité séparément (`5c31f2e`), poussé sur `origin/main`.** | **Travail demandé par le porteur du projet, session du 2026-07-17 : générer une checklist CRUD de référence, sans corriger ni auditer un module en particulier.** |
 | **2026-07-17** | **SEC-018 rejeté : `req.user!.id` et `req.user!.sub` sont signés avec la même valeur à l'émission du token (`auth.service.ts:44-45`) — pas un bug, juste une incohérence de nommage sans conséquence fonctionnelle.** | **Vérification directe du porteur/session, 2026-07-17 : lecture de `JwtPayload` (les deux champs coexistent) et de `signAccessToken` (les deux reçoivent `user.id`).** |
+| **2026-07-27** | **RG-018 repassée d'ÉCART à IMPLÉMENTÉ (`verifie: code_direct`) : le comportement divergent constaté à l'origine (invitation envoyée à l'acceptation de la proposition) a été corrigé entre-temps — `acceptWithCascadeAttempt` ne crée plus d'invitation, celle-ci n'est déclenchée que par `invoice.service.ts#addPayment` au moment où la facture d'acompte passe réellement `PAID`. Confirmé par lecture intégrale des deux fonctions, pas par déduction.** | **Vérification directe demandée par le porteur du projet, session du 2026-07-27, audit 4.4 Facturation & Paiements — le statut ÉCART datait d'une session antérieure et n'avait jamais été revérifié sur le code actuel avant cette passe.** |
 | **2026-07-17** | **SEC-019 : les 4 méthodes repository orphelines (invoice/siteContent/aiConversation/freelancerApplication) supprimées — code mort confirmé par grep, zéro appelant, typecheck + 247/247 tests verts après suppression.** | **Décision implicite via la procédure du projet (suppression de code mort confirmé n'est pas un développement) — pas de décision produit distincte requise.** |
 | **2026-07-17** | **SEC-016 : migration `LeadArchive`/`ContactRequestArchive` créée sur décision du porteur (« créer la migration manquante »). Scope volontairement limité à Lead + ContactRequest — Document exclu (cascade DocumentAccessLog + versioning), Notification exclu par la même décision malgré l'absence de risque de cascade trouvé.** | **Réponse du porteur du projet, session du 2026-07-17, face au choix désactiver/créer/laisser tel quel pour le job `archiveColdData`.** |
 | **2026-07-17** | **`prisma migrate reset --force` exécuté sur la base de dev locale (secritou_db, localhost:5434) par le porteur du projet lui-même — bloqué pour l'assistant par le garde-fou anti-agent-IA de Prisma (consentement explicite requis, jamais contourné). A permis la vérification réelle de SEC-016/SEC-020 contre une base migrée plutôt qu'une simple lecture de code.** | **Consentement explicite du porteur du projet, session du 2026-07-17, après explication complète (commande exacte, motif, caractère irréversible, confirmation base non-production).** |

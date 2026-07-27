@@ -10,6 +10,9 @@ import type { InvoiceStatus } from "@prisma/client";
 import { notifyN8n } from "../utils/webhook.js";
 import { env } from "../config/env.js";
 import { auditLogService } from "./auditLog.service.js";
+import { invoiceRepository } from "../repositories/invoice.repository.js";
+import { assertInvoiceInScope } from "./invoice.service.js";
+import type { ServiceScope } from "../utils/serviceScope.js";
 
 // Transaction client type (matches the tx passed by prisma.$transaction on the extended client).
 type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
@@ -85,7 +88,11 @@ export const creditNoteService = {
     return creditNote;
   },
 
-  async listByInvoice(invoiceId: string) {
+  // SEC-001: MANAGER must be scoped to the invoice's pôle before its credit notes are listed —
+  // was the only :id-scoped invoice read in invoice.controller.ts that skipped this check.
+  async listByInvoice(invoiceId: string, scope?: ServiceScope) {
+    const invoice = await invoiceRepository.findById(invoiceId);
+    await assertInvoiceInScope(invoice, scope);
     return prisma.creditNote.findMany({ where: { invoiceId }, orderBy: { createdAt: "desc" } });
   },
 

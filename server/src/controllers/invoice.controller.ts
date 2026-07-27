@@ -57,7 +57,7 @@ export const createInvoice = async (req: Request, res: Response) => {
 };
 
 export const updateInvoice = async (req: Request, res: Response) => {
-  const invoice = await invoiceService.update(req.params.id as string, req.body, await buildServiceScope(req));
+  const invoice = await invoiceService.update(req.params.id as string, req.body, await buildServiceScope(req), req.user?.sub, req.user?.role);
   res.json({ data: invoice });
 };
 
@@ -122,7 +122,7 @@ export const createCreditNote = async (req: Request, res: Response) => {
 };
 
 export const getInvoiceCreditNotes = async (req: Request, res: Response) => {
-  const creditNotes = await creditNoteService.listByInvoice(req.params.id as string);
+  const creditNotes = await creditNoteService.listByInvoice(req.params.id as string, await buildServiceScope(req));
   res.json({ data: creditNotes });
 };
 

@@ -30,7 +30,7 @@ type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 // Invoices without a project are service-neutral and visible to every manager
 // (same rule as invoiceRepository.findAllByServiceId).
 // Throws 404 (not 403) to avoid leaking existence of out-of-scope invoices.
-async function assertInvoiceInScope(
+export async function assertInvoiceInScope(
   invoice: { projectId?: string | null } | null,
   scope?: ServiceScope
 ) {
@@ -131,7 +131,7 @@ export const invoiceService = {
     return created;
   },
 
-  async update(id: string, data: Prisma.InvoiceUncheckedUpdateInput, scope?: ServiceScope) {
+  async update(id: string, data: Prisma.InvoiceUncheckedUpdateInput, scope?: ServiceScope, actorId?: string, actorRole?: string) {
     const invoice = await invoiceRepository.findById(id);
     await assertInvoiceInScope(invoice, scope);
     assertInvoiceDraft(invoice!.status);
@@ -142,8 +142,21 @@ export const invoiceService = {
       const itemCount = await prisma.invoiceItem.count({ where: { invoiceId: id } });
       if (itemCount > 0) throw new HttpError(409, "This invoice's amount is derived from its line items and cannot be edited directly", "INVOICE_AMOUNT_DERIVED");
     }
+    // `amount` on the loaded invoice is a Prisma.Decimal, which doesn't serialize to JSON as a
+    // plain number — auditLogService.record casts before/after to Prisma.InputJsonValue as-is.
+    const changedFields = Object.keys(data) as (keyof typeof data)[];
+    const before = Object.fromEntries(
+      changedFields.map((field) => {
+        const value = invoice![field as keyof typeof invoice];
+        return [field, field === "amount" ? Number(value) : value];
+      })
+    );
     const updated = await invoiceRepository.update(id, data);
     await invalidateFinanceCaches();
+    // SEC-003: update() could change amount/title/dueDate/currency on a DRAFT invoice without
+    // leaving any trace, unlike every other mutation in this file (create/cancel/delete/restore/
+    // send/addPayment).
+    void auditLogService.record({ actorId, actorRole, action: "invoice.update", entityType: "Invoice", entityId: id, before, after: data });
     return updated;
   },
 

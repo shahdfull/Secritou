@@ -522,7 +522,7 @@ export const proposalService = {
 
       if (result.invoiceId) {
         const { prismaRead } = await import("../config/prisma.js");
-        const inv = await prismaRead.invoice.findUnique({ where: { id: result.invoiceId }, select: { id: true, number: true, amount: true, amountHT: true, tvaRate: true, tvaAmount: true, timbreFiscal: true, currency: true, dueDate: true } });
+        const inv = await prismaRead.invoice.findUnique({ where: { id: result.invoiceId }, select: { id: true, number: true, amount: true, amountHT: true, tvaRate: true, tvaAmount: true, timbreFiscal: true, currency: true, dueDate: true, invoiceType: true } });
         if (inv) {
           documentJobs.push({
             kind: "invoice",

@@ -7,7 +7,214 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : 4.4 Facturation & Paiements
-# 0 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
-# archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
+# 3 anomalie(s) — premier audit réel du registre remis à zéro le 2026-07-27,
+# session du 2026-07-27.
 
-anomalies: []
+anomalies:
+  - id: SEC-001
+    titre: >
+      GET /invoices/:id/credit-notes ne vérifie aucun scope de pôle pour
+      MANAGER — IDOR sur la liste des avoirs d'une facture hors pôle
+    perimetre: 4.4-facturation
+    regle_violee: >
+      Checklist de revue CLAUDE.md « scoping des routes Project/Task »,
+      appliquée par analogie à Invoice : un MANAGER doit être scopé à son
+      pôle sur toute route touchant une ressource financière, vérifié au
+      niveau service, jamais supposé.
+    classe: idor-scope-manque
+    gravite: moyenne
+    statut: en_cours
+    critere_de_resolution: >
+      creditNoteService.listByInvoice (ou son appelant
+      getInvoiceCreditNotes, server/src/controllers/invoice.controller.ts:
+      124-127) doit d'abord charger la facture via invoiceRepository.findById
+      et appeler assertInvoiceInScope(invoice, scope) — comme le fait déjà
+      chaque autre contrôleur d'invoice.controller.ts (getInvoiceById,
+      updateInvoice, sendInvoice, addPayment, addReminder, addInvoiceItem,
+      updateInvoiceItem, deleteInvoiceItem, addItemsFromTimeEntries) — avant
+      de renvoyer les avoirs. Un test d'intégration doit appeler réellement
+      getInvoiceCreditNotes/listByInvoice avec un MANAGER d'un pôle A contre
+      une facture dont le projet est en pôle B et attendre un 404, pas une
+      liste vide ni un 200 avec données.
+    correctif: >
+      Session du 2026-07-27 (même session que la détection) : scope déplacé
+      dans creditNoteService.listByInvoice(invoiceId, scope) — charge
+      l'invoice via invoiceRepository.findById puis appelle
+      assertInvoiceInScope (exportée depuis invoice.service.ts) avant de
+      lister les CreditNote. Contrôleur mis à jour pour passer
+      buildServiceScope(req). Test ajouté :
+      server/test/creditNoteListByInvoiceScope.test.ts (3 cas : pôle A
+      refusé 404 sur facture pôle B, pôle A identique autorisé, ADMIN non
+      restreint), câblé dans run-all.test.ts. `npx tsc --noEmit` et
+      `npm run lint` verts sur le correctif. **Le test lui-même n'a PAS pu
+      être exécuté dans cette session** : ni PostgreSQL (localhost:5434) ni
+      Redis (localhost:6379) ne sont accessibles dans cet environnement —
+      confirmé par un test isolé (connexion Prisma directe → ECONNREFUSED)
+      et par le blocage de `npm run test:unit` complet (jamais sorti de
+      l'import de jobs/queues.ts qui ouvre une connexion Redis réelle au
+      chargement du module). `statut: en_cours`, pas `resolu` : ni commité,
+      ni passé en CI, ni même exécuté localement avec succès — seule la
+      relecture du code et le typecheck garantissent sa cohérence
+      syntaxique, pas son comportement réel.
+    detecte_le: "2026-07-27"
+    source: >
+      Lecture directe de server/src/controllers/invoice.controller.ts (lignes
+      119-127) et server/src/routes/invoice.routes.ts (lignes 906-945) :
+      la route GET /invoices/:id/credit-notes est montée avec
+      authorize("ADMIN","MANAGER") + requirePermission("invoices","read"),
+      mais getInvoiceCreditNotes appelle directement
+      creditNoteService.listByInvoice(invoiceId) sans jamais construire ni
+      passer un ServiceScope — seule route de tout le fichier contrôleur
+      touchant une facture par :id à ne pas appeler buildServiceScope. Toutes
+      les autres routes ADMIN/MANAGER scopées sur une facture passent par
+      assertInvoiceInScope (server/src/services/invoice.service.ts:33-46,
+      qui renvoie 404 plutôt que 403 pour ne pas révéler l'existence d'une
+      facture hors scope). Confirmé par grep : aucun test dans server/test
+      ne couvre credit-notes/getInvoiceCreditNotes/listByInvoice.
+    confiance: haute
+    note: >
+      Le chemin ADMIN-only /:id/credit-note (création d'avoir) et
+      /:id/apply-credit ne sont pas concernés (ADMIN seul, pas de notion de
+      pôle). Seule la lecture GET /:id/credit-notes (ADMIN+MANAGER) est
+      affectée. Périmètre confirmé : server/src/controllers/invoice.controller.ts,
+      server/src/routes/invoice.routes.ts, server/src/services/creditNote.service.ts.
+
+  - id: SEC-002
+    titre: >
+      Le PDF d'une facture de solde (BALANCE) est généré avec le gabarit
+      "Facture d'acompte" / "Acompte 30 %" — affiché incohérent avec le
+      titre réel de la facture (RG-004b)
+    perimetre: 4.4-facturation
+    regle_violee: >
+      RG-004b (facture de solde à la validation client) — cohérence
+      affiché/stocké implicite : un document envoyé au client doit refléter
+      la nature réelle de la facture qu'il décrit.
+    classe: incoherence-affichage-stockage
+    gravite: moyenne
+    statut: en_cours
+    critere_de_resolution: >
+      Le client qui télécharge le PDF d'une facture dont
+      invoice.invoiceType === "BALANCE" doit lire un document intitulé
+      "Facture de solde" (pas "Facture d'acompte"), dont le corps décrit le
+      solde restant (pas "Acompte 30 % sur la prestation…"), et dont le
+      Document créé porte type: "INVOICE_BALANCE" (pas "INVOICE_DEPOSIT",
+      valeur déjà présente dans l'enum DocumentType, schema.prisma:1213,
+      mais jamais utilisée en pratique). generateInvoicePDF
+      (server/src/services/documentGenerator.service.ts:450-527) doit
+      brancher son texte et le type de Document sur invoice.invoiceType —
+      actuellement absent du type GeneratorInvoice (ligne 43-53), qui ne
+      porte pas ce champ. Un test doit générer le PDF d'une facture BALANCE
+      réelle (via project.service.ts#clientApprove, pas une réimplémentation)
+      et vérifier le contenu du buffer PDFKit ou, a minima, le
+      Document.type/title réellement écrit en base pour ce cas.
+    correctif: >
+      Session du 2026-07-27 (même session que la détection) :
+      invoiceType ajouté à GeneratorInvoice ; logique de sélection extraite
+      dans une fonction pure exportée invoicePdfWording(invoiceType,
+      projectName) (titre/texte/référence/Document.type/nom de fichier),
+      appelée par generateInvoicePDF. Les deux points d'enfilement
+      (project.service.ts clientApprove pour BALANCE, proposal.service.ts
+      acceptWithCascadeAttempt pour DEPOSIT) mis à jour pour sélectionner
+      invoiceType dans leur requête Prisma et le transmettre. Test réel
+      ajouté : server/test/invoicePdfWording.test.ts (3 cas : BALANCE,
+      DEPOSIT, valeur absente/STANDARD), câblé dans run-all.test.ts —
+      **exécuté avec succès dans cette session** (3/3 verts,
+      `npx tsx --test test/invoicePdfWording.test.ts`), fonction pure sans
+      dépendance DB/Redis/S3. `npx tsc --noEmit` et `npm run lint` verts.
+      `statut: en_cours`, pas `resolu` : correctif non commité, jamais vu
+      par la CI — le test unitaire de la fonction de sélection est vert,
+      mais aucune vérification de bout en bout (génération réelle du PDF
+      via generateInvoicePDF, qui nécessite un bucket S3 configuré,
+      indisponible dans cet environnement) n'a été faite sur le rendu
+      final du buffer PDFKit.
+    detecte_le: "2026-07-27"
+    source: >
+      Lecture directe de server/src/services/documentGenerator.service.ts
+      (generateInvoicePDF, lignes 450-527) : header(doc, "Facture
+      d'acompte") ligne 459, texte fixe "Acompte 30 % sur la prestation…"
+      ligne 471, et uploadAndCreate appelé avec type: "INVOICE_DEPOSIT",
+      filename: "facture-acompte-...", title: "Facture d'acompte : ..."
+      (lignes 518-526) — sans aucune condition sur invoice.invoiceType.
+      Confirmé que cette même fonction est le seul générateur de PDF
+      facture dans le dépôt (grep exhaustif sur generateInvoicePDF,
+      server/src) et qu'elle est appelée sans distinction pour les factures
+      BALANCE (server/src/services/project.service.ts:409-429,
+      clientApprove) et DEPOSIT (server/src/services/proposal.service.ts,
+      ligne 528, acceptWithCascade). Le titre stocké en base
+      (Invoice.title, ex. "Facture de solde : <projet>", visible côté
+      client dans InvoicesClientPage.tsx) reste correct — seul le PDF
+      téléchargeable (Document lié) affiche un intitulé et un contenu
+      contradictoires. Vérifié aussi côté client : grep "invoiceType" sur
+      client/src ne retourne aucun résultat, confirmant qu'aucune vue ne
+      compense cet écart.
+    confiance: haute
+    note: >
+      DocumentType.INVOICE_BALANCE existe dans schema.prisma (ligne 1213)
+      depuis l'introduction du modèle, ce qui suggère que la distinction
+      était prévue puis jamais câblée côté generateInvoicePDF — pas un
+      oubli de schéma, un oubli d'implémentation.
+
+  - id: SEC-003
+    titre: >
+      invoiceService.update (ADMIN, modifie amount/title/dueDate/currency
+      sur une facture DRAFT) n'écrit aucune entrée AuditLog
+    perimetre: 4.4-facturation
+    regle_violee: >
+      Cohérence de traçabilité attendue sur le flux argent (voir
+      auditLogService.record déjà appelé sur create/cancel/delete/restore/
+      send/addPayment dans le même fichier) — une modification du montant
+      d'une facture doit être traçable au même titre que sa création ou son
+      annulation.
+    classe: audit-log-manquant
+    gravite: moyenne
+    statut: en_cours
+    critere_de_resolution: >
+      invoiceService.update (server/src/services/invoice.service.ts:134-148)
+      doit appeler auditLogService.record({ actorId, actorRole,
+      action: "invoice.update", entityType: "Invoice", entityId: id,
+      before: {...champs modifiés avant...}, after: {...champs modifiés
+      après...} }) avant de renvoyer `updated` — même pattern que
+      invoice.cancel (ligne 166) qui capture before/after sur les champs
+      réellement changés. Un test doit appeler réellement
+      invoiceService.update sur une facture DRAFT dont amount est modifié
+      et vérifier qu'une ligne AuditLog avec entityType: "Invoice",
+      action: "invoice.update" existe après l'appel, avec before.amount
+      égal à l'ancien montant.
+    correctif: >
+      Session du 2026-07-27 (même session que la détection) : signature de
+      invoiceService.update étendue avec (actorId?, actorRole?) ; before
+      capturé depuis l'invoice chargée (avec coercion Number() sur
+      `amount`, un Prisma.Decimal qui ne sérialise pas correctement en JSON
+      sinon) pour les seuls champs présents dans `data` ; appel
+      auditLogService.record({ action: "invoice.update", ... }) ajouté
+      avant le retour, même pattern que cancel(). Contrôleur
+      (updateInvoice) mis à jour pour transmettre req.user?.sub/req.user?.role.
+      Test ajouté dans server/test/invoiceAuditLog.test.ts (fichier
+      existant SEC-152, même pattern before/after) : vérifie before.amount
+      et after.amount sur une facture DRAFT modifiée. `npx tsc --noEmit`
+      et `npm run lint` verts. **Le test lui-même n'a PAS pu être exécuté**
+      dans cette session : ni PostgreSQL (localhost:5434) ni Redis
+      (localhost:6379) ne sont accessibles dans cet environnement (voir
+      SEC-001 pour le diagnostic complet, identique). `statut: en_cours`,
+      pas `resolu`.
+    detecte_le: "2026-07-27"
+    source: >
+      Lecture intégrale de server/src/services/invoice.service.ts :
+      grep "auditLogService.record" dans ce fichier retourne 6
+      occurrences (create l.130, cancel l.166, delete l.175, restore l.182,
+      send l.191, addPayment l.287+301) mais aucune dans update
+      (lignes 134-148) ni dans setReminderPaused (lignes 150-156, jugé hors
+      périmètre financier direct — reminderPaused n'affecte aucun montant).
+      update() est la seule route ADMIN pouvant modifier amount/title/
+      dueDate/currency d'une facture existante (PUT /invoices/:id,
+      server/src/routes/invoice.routes.ts:428) sans laisser de trace
+      d'audit.
+    confiance: haute
+    note: >
+      update() est bloqué sur les factures dont l'amount est dérivé de
+      lignes (INVOICE_AMOUNT_DERIVED, ligne 141-144) et sur celles dont le
+      PDF est déjà généré (assertInvoicePdfNotGenerated, ligne 138-140) —
+      la fenêtre d'exploitation réelle est donc étroite (DRAFT, sans items,
+      sans PDF déjà émis) mais existe : une facture DRAFT créée via
+      POST /invoices (amount libre, sans items) peut être éditée ensuite
+      sans laisser de before/after en audit.

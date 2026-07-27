@@ -35,6 +35,9 @@
 # cellule par supposition.
 
 derniere_maj: "2026-07-27"
+# 4.4-facturation : A/B/G balayées le 2026-07-27 (premier audit réel du
+# nouveau registre) — C/D/E/F/H/I/J laissées à null, non vérifiées cette
+# passe.
 
 modules:
   "4.1-crm":
@@ -78,13 +81,13 @@ modules:
 
   "4.4-facturation":
     label: "4.4 Facturation & Paiements"
-    A: null
-    B: null
+    A: "2026-07-27"
+    B: "2026-07-27"
     C: null
     D: null
     E: null
     F: null
-    G: null
+    G: "2026-07-27"
     H: null
     I: null
     J: null

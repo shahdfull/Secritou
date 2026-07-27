@@ -50,7 +50,28 @@ export type GeneratorInvoice = {
   timbreFiscal?: number | string | null;
   currency?: string | null;
   dueDate?: Date | null;
+  // SEC-002: drives the PDF's title/body text and the generated Document's type below — without
+  // it generateInvoicePDF has no way to distinguish a BALANCE invoice from a DEPOSIT one.
+  invoiceType?: "STANDARD" | "DEPOSIT" | "BALANCE" | null;
 };
+
+// SEC-002: pure wording/type decision, extracted so it's independently testable without hitting
+// S3 (uploadFile, called by generateInvoicePDF below, requires a configured bucket) — a BALANCE
+// invoice used to render with the DEPOSIT gabarit unconditionally ("Facture d'acompte" / "Acompte
+// 30 %"), contradicting Invoice.title ("Facture de solde : ...") shown on the same client portal
+// page.
+export function invoicePdfWording(invoiceType: GeneratorInvoice["invoiceType"], projectName: string) {
+  const isBalance = invoiceType === "BALANCE";
+  return {
+    pdfTitle: isBalance ? "Facture de solde" : "Facture d'acompte",
+    detailLine: isBalance
+      ? `Solde restant (70 %) sur la prestation « ${projectName} »`
+      : `Acompte 30 % sur la prestation « ${projectName} »`,
+    referencePrefix: isBalance ? "FS" : "FA",
+    documentType: (isBalance ? "INVOICE_BALANCE" : "INVOICE_DEPOSIT") as DocumentType,
+    filenamePrefix: isBalance ? "facture-solde" : "facture-acompte",
+  };
+}
 
 // ---------------------------------------------------------------------------
 // PDF helpers
@@ -454,12 +475,18 @@ export const documentGeneratorService = {
     uploadedById: string
   ): Promise<Document> {
     const company = await prisma.company.findUnique({ where: { id: COMPANY_ID } });
+    // SEC-002: this generator used to be hardcoded for DEPOSIT invoices only, but is called
+    // unconditionally for BALANCE invoices too (project.service.ts#clientApprove) — a client
+    // downloading the PDF of their solde invoice used to see "Facture d'acompte" / "Acompte 30 %"
+    // instead of the correct wording, contradicting Invoice.title ("Facture de solde : ...")
+    // shown on the same page.
+    const { pdfTitle, detailLine, referencePrefix, documentType, filenamePrefix } = invoicePdfWording(invoice.invoiceType, project.name);
 
     const buffer = await buildPdf((doc) => {
-      header(doc, "Facture d'acompte");
+      header(doc, pdfTitle);
       if (company?.matriculeFiscal) field(doc, "Matricule fiscal", company.matriculeFiscal);
       if (company?.address) field(doc, "Adresse", company.address);
-      field(doc, "Référence", invoice.number ?? `FA-${invoice.id.slice(0, 8).toUpperCase()}`);
+      field(doc, "Référence", invoice.number ?? `${referencePrefix}-${invoice.id.slice(0, 8).toUpperCase()}`);
       field(doc, "Date d'émission", fmtDate(new Date()));
       field(doc, "Date limite de paiement", fmtDate(invoice.dueDate));
       doc.moveDown(0.5);
@@ -468,7 +495,7 @@ export const documentGeneratorService = {
       doc.moveDown(1);
 
       sectionTitle(doc, "Détail");
-      doc.text(`Acompte 30 % sur la prestation « ${project.name} »`).moveDown(0.5);
+      doc.text(detailLine).moveDown(0.5);
 
       const col1 = doc.page.margins.left;
       const col2 = doc.page.width - doc.page.margins.right - 120;
@@ -516,9 +543,9 @@ export const documentGeneratorService = {
     });
 
     return uploadAndCreate(buffer, {
-      type: "INVOICE_DEPOSIT",
-      filename: `facture-acompte-${project.id}`,
-      title: `Facture d'acompte : ${project.name}`,
+      type: documentType,
+      filename: `${filenamePrefix}-${project.id}`,
+      title: `${pdfTitle} : ${project.name}`,
       projectId: project.id,
       clientId: client.id,
       invoiceId: invoice.id,

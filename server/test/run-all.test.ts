@@ -132,3 +132,5 @@ import "./taskListExcludesDescription.test.ts";
 import "./taskUpdateRateLimit.test.ts";
 import "./documentProposalListExcludesDescription.test.ts";
 import "./projectPortalSummaries.test.ts";
+import "./creditNoteListByInvoiceScope.test.ts";
+import "./invoicePdfWording.test.ts";
