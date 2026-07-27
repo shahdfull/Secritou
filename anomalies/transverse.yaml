@@ -7,12 +7,13 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : Transverse (hors modules §4 — CI/infra, docs, RGPD, i18n global, design system, observabilité)
-# 43 anomalie(s)
+# 44 anomalie(s)
 
 anomalies:
   - id: SEC-004
     titre: README.md décrit une architecture multi-tenant inexistante
     perimetre: documentation projet — voir REFERENTIEL.md §0 « Documents du projet »
+    categorie: I
     regle_violee: null
     classe: null
     gravite: majeur
@@ -28,6 +29,7 @@ anomalies:
   - id: SEC-007
     titre: Le serveur ne compile pas (tsc --noEmit échoue)
     perimetre: transverse — toutes les entités/modules dont le statut IMPLÉMENTÉ s'appuie sur du code server/src
+    categorie: E
     regle_violee: null
     classe: typecheck_serveur_en_echec
     gravite: bloquant
@@ -43,6 +45,7 @@ anomalies:
   - id: SEC-008
     titre: La suite de tests serveur ne va pas à son terme (blocage après auth.service.test.ts)
     perimetre: transverse — 33 fichiers de test agrégés par server/test/run-all.test.ts
+    categorie: E
     regle_violee: null
     classe: null
     gravite: bloquant
@@ -58,6 +61,7 @@ anomalies:
   - id: SEC-010
     titre: Défaut de processus, pas d'outillage — la CI est correcte, le code ne l'atteignait pas
     perimetre: infrastructure — .github/workflows/ci.yml
+    categorie: D
     regle_violee: null
     classe: null
     gravite: majeur
@@ -78,6 +82,7 @@ anomalies:
   - id: SEC-012
     titre: Types maison substitués aux types d'entrée Prisma générés (15 repositories)
     perimetre: transverse — validateurs → controllers → services → repositories (pas repositories/** seul, voir correction ci-dessous)
+    categorie: B
     regle_violee: null
     classe: type_maison_substitue_au_type_prisma
     gravite: majeur
@@ -102,6 +107,7 @@ anomalies:
   - id: SEC-013
     titre: 6 tests client échouent, préexistants et hors périmètre 4.14
     perimetre: transverse — client/src/features/landing/pages/ContactPage.test.tsx, client/src/hooks/useFreelancerApplications.test.tsx, client/src/components/common/FileUploadField.test.tsx
+    categorie: E
     regle_violee: null
     classe: null
     gravite: majeur
@@ -119,6 +125,7 @@ anomalies:
   - id: SEC-016
     titre: Job archiveColdData référence des tables d'archive absentes du schéma Prisma
     perimetre: transverse — server/src/jobs/processors/maintenance.processor.ts, entités 3.4 Lead (résolu), Document/Notification (hors scope, voir note)
+    categorie: D
     regle_violee: null
     classe: null
     gravite: majeur
@@ -139,6 +146,7 @@ anomalies:
   - id: SEC-019
     titre: Méthodes repository orphelines (code mort) trouvées lors de la construction d'AUDIT_GRID.md
     perimetre: transverse — invoice.repository.ts, siteContent.repository.ts, aiConversation.repository.ts, freelancerApplication.repository.ts
+    categorie: B
     regle_violee: null
     classe: null
     gravite: mineur
@@ -155,6 +163,7 @@ anomalies:
   - id: SEC-020
     titre: 'ensureMonthlyPartitions échoue toujours : Postgres n''accepte aucun paramètre lié dans du DDL'
     perimetre: transverse — server/src/jobs/processors/maintenance.processor.ts
+    categorie: D
     regle_violee: null
     classe: null
     gravite: majeur
@@ -171,6 +180,7 @@ anomalies:
   - id: SEC-049
     titre: '165 warnings ESLint serveur (0 erreur) toleres de longue date : 124 no-explicit-any + 38 no-unused-vars + 3 prefer-const — dette de typage/proprete jamais nettoyee'
     perimetre: Tout le workspace server/ — regle transverse
+    categorie: E
     regle_violee: null
     classe: null
     gravite: mineur
@@ -188,6 +198,7 @@ anomalies:
   - id: SEC-057
     titre: Boutons d'action a icone seule (title mais pas d'aria-label systematique) ; aucune aide contextuelle n'explique l'absence du bouton Nouveau projet ; la cadence/prochaine reunion n'est visible que dans l'onglet Reunions, absente de la vue d'ensemble de la fiche projet
     perimetre: Transverse UI — boutons icone divers, client/src/features/projects/ProjectsPage.tsx, client/src/features/projects/ProjectDetailPage.tsx, client/src/types/project.ts
+    categorie: H
     regle_violee: null
     classe: null
     gravite: faible
@@ -208,6 +219,7 @@ anomalies:
   - id: SEC-104
     titre: Plusieurs schémas de base partagés (lead, client, et d'autres) laissent des champs texte libres sans borne de longueur — motif systémique, pas isolé au module Lead
     perimetre: transverse — shared/src/schemas/lead.schema.ts, shared/src/schemas/client.schema.ts (et au moins clientOnboarding.schema.ts, freelancer.schema.ts, project.schema.ts, task.schema.ts pour des champs analogues)
+    categorie: B
     regle_violee: null
     classe: schema_sans_borne_de_longueur
     gravite: mineur
@@ -224,6 +236,7 @@ anomalies:
   - id: SEC-110
     titre: 'Protection anti-rejeu des callbacks n8n partielle : la signature HMAC est vérifiée mais n''embarque ni timestamp ni nonce contrôlé, et le garde Redis est fail-open si Redis est indisponible — une signature capturée reste rejouable'
     perimetre: transverse — server/src/utils/webhook.ts, server/src/middlewares/verifyN8nWebhook.middleware.ts, endpoints PATCH /freelancer-applications/:id/ai-summary et PATCH /projects/:id/ai-specs
+    categorie: A
     regle_violee: null
     classe: null
     gravite: majeur
@@ -239,6 +252,7 @@ anomalies:
   - id: SEC-115
     titre: Migration 20260711183136_sync_schema_drift contient un ALTER INDEX ... RENAME TO ..., donc n'est pas strictement additive-only
     perimetre: server/prisma/migrations/20260711183136_sync_schema_drift/migration.sql
+    categorie: B
     regle_violee: null
     classe: null
     gravite: mineur
@@ -254,6 +268,7 @@ anomalies:
   - id: SEC-119
     titre: Les jobs de notification/email BullMQ n'ont pas de jobId déterministe — un retry après un crash post-effet-métier peut dupliquer un envoi (email ou notification en double)
     perimetre: transverse — server/src/jobs/queues.ts, server/src/jobs/processors/communication.processor.ts
+    categorie: D
     regle_violee: null
     classe: job_bullmq_sans_deduplication
     gravite: majeur
@@ -269,6 +284,7 @@ anomalies:
   - id: SEC-120
     titre: Les jobs de génération de documents (jusqu'à 7 par acceptation de proposition) n'ont pas de jobId déterministe — un retry peut régénérer un document déjà produit, aggravé par la non-idempotence de certains générateurs (SEC-110)
     perimetre: transverse — server/src/jobs/queues.ts, server/src/jobs/index.ts, server/src/jobs/processors/documents.processor.ts, server/src/services/proposal.service.ts
+    categorie: D
     regle_violee: null
     classe: job_bullmq_sans_deduplication
     gravite: majeur
@@ -284,6 +300,7 @@ anomalies:
   - id: SEC-132
     titre: searchScope.test.ts réimplémente localement allowedCategories()/managerServiceValue() au lieu d'appeler searchRepository.search — ne prouve le scoping pôle sur AUCUNE des 9 catégories réellement scopées dans le code (leads, clients, projects, tasks, proposals, invoices, serviceRequests, approvals, documents)
     perimetre: server/test/searchScope.test.ts ; server/src/repositories/search.repository.ts
+    categorie: E
     regle_violee: null
     classe: test_reimplemente_cible
     gravite: mineur
@@ -299,6 +316,7 @@ anomalies:
   - id: SEC-133
     titre: prismaReadWriteSeparation.test.ts ne vérifie la séparation prismaRead/prismaWrite que sur 2 repositories (project, task) sur les 30 qui utilisent réellement cette séparation — couverture proportionnellement très faible (2/30)
     perimetre: server/test/prismaReadWriteSeparation.test.ts ; server/src/repositories/*.ts
+    categorie: E
     regle_violee: null
     classe: null
     gravite: mineur
@@ -314,6 +332,7 @@ anomalies:
   - id: SEC-138
     titre: server/src/swagger.ts décrit la plateforme comme « Multi-tenant » — même défaut que SEC-004 (README.md), non corrigé dans ce fichier
     perimetre: documentation projet — server/src/swagger.ts
+    categorie: F
     regle_violee: null
     classe: null
     gravite: majeur
@@ -330,6 +349,7 @@ anomalies:
   - id: SEC-139
     titre: README.md documente l'URL du JSON OpenAPI comme /api-docs/json, alors que server/src/app.ts le sert sur /openapi.json
     perimetre: documentation projet — README.md, server/src/app.ts
+    categorie: F
     regle_violee: null
     classe: doc_openapi_desynchronisee_du_code_reel
     gravite: mineur
@@ -346,6 +366,7 @@ anomalies:
   - id: SEC-145
     titre: 'error.middleware.ts : ZodError sort sans l''enveloppe {error:{code,message}} que portent toutes les autres branches (P2002, Multer, HttpError, 500 générique), rendant le format d''erreur non uniforme pour un client API'
     perimetre: server/src/middlewares/error.middleware.ts
+    categorie: F
     regle_violee: null
     classe: null
     gravite: mineur
@@ -363,6 +384,7 @@ anomalies:
   - id: SEC-150
     titre: Le composant Swagger partagé BadRequest décrit un 400, alors que error.middleware.ts renvoie 422 VALIDATION_ERROR pour toute erreur Zod — 7 routes POST/PUT validées par validate(...) référencent ce composant et documentent donc le mauvais code de statut
     perimetre: server/src/swagger.ts, server/src/routes/{auth,client,invoice,project,proposal,approval}.routes.ts
+    categorie: F
     regle_violee: null
     classe: doc_openapi_desynchronisee_du_code_reel
     gravite: mineur
@@ -379,6 +401,7 @@ anomalies:
   - id: SEC-159
     titre: Les compteurs Prometheus redis_cache_hits_total/redis_cache_misses_total sont globaux (aucun label par préfixe de clé) — impossible de distinguer le taux de hit du cache manager_perms (TTL 5min) de celui du dashboard (TTL 60s) ou des summaries (TTL 120-300s) en observabilité de production
     perimetre: observabilité — server/src/cache/cacheService.ts, server/src/observability/collectors.ts, server/src/observability/metrics.ts
+    categorie: D
     regle_violee: null
     classe: observabilite_incomplete
     gravite: mineur
@@ -394,6 +417,7 @@ anomalies:
   - id: SEC-162
     titre: EntityTable.tsx (table générique avec virtualisation via useVirtualTable) n'est importé nulle part dans le dépôt — code mort — pendant qu'au moins 14 pages de liste (DocumentsPage, InvoicesPage, LeadsPage, ProposalsPage, CommissionsPage, ApprovalsPage, ApplicationsPage, ClientDetailPage, ClientDashboardPage, BookingAdminPage, AdminOnboardingPage, PermissionsGrid, SearchConsoleTab, SeoReportPage) réimplémentent chacune leur propre <TableRow>.map() sans aucune virtualisation
     perimetre: frontend transverse — client/src/components/shared/crud/EntityTable.tsx, client/src/hooks/shared/useVirtualTable.ts, et les 14 fichiers listés dans le titre
+    categorie: C
     regle_violee: null
     classe: null
     gravite: mineur
@@ -411,6 +435,7 @@ anomalies:
   - id: SEC-175
     titre: 'ANOMALIES.yaml incohérent avec lui-même : SEC-122 porte statut: resolu / gravite: bloquant alors que son correctif est commité (4caab78) et prouvé par un test réel (documentScopeManager.test.ts, qui importe et appelle documentService.getById), et que SEC-137 (entrée postérieure, toujours ouverte) le cite déjà comme « résolu » dans sa propre note'
     perimetre: ANOMALIES.yaml (intégrité du registre lui-même) — entrées SEC-122 et SEC-137
+    categorie: I
     regle_violee: null
     classe: incoherence_registre_anomalies
     gravite: mineur
@@ -426,6 +451,7 @@ anomalies:
   - id: SEC-176
     titre: 20 des 37 fichiers routes/*.ts n'appliquent aucun rate limiter (ni authRateLimit ni sensitiveWriteRateLimit ni autre) sur leurs routes POST/PUT/PATCH/DELETE authentifiées, alors que le middleware existe et est déjà utilisé ailleurs (invoice, client, freelancerApplication)
     perimetre: transverse — server/src/routes/{project,task,document,clientOnboarding,clientSuccess,permissionProfile,managerPermission,notification,analytics,dashboard,freelancer,portfolio,rating,search,service,serviceRequest,siteContent,summary,translation,clientPortal}.routes.ts
+    categorie: A
     regle_violee: null
     classe: rate_limiting_couverture_incomplete
     gravite: mineur
@@ -445,6 +471,7 @@ anomalies:
   - id: SEC-180
     titre: 'Le fallback 404 générique (app.ts, route inexistante) répond { message: "Route not found" } au lieu de l''enveloppe d''erreur uniforme { error: { code, message }, message, requestId } produite par error.middleware.ts pour absolument tous les autres cas (HttpError, ZodError, Prisma P2002, Multer) — seul point de sortie HTTP de l''API qui ne porte ni error.code ni requestId'
     perimetre: transverse — server/src/app.ts (lignes 134-136) ; server/src/middlewares/error.middleware.ts
+    categorie: F
     regle_violee: null
     classe: enveloppe_erreur_non_uniforme
     gravite: mineur
@@ -460,6 +487,7 @@ anomalies:
   - id: SEC-181
     titre: 'La convention de pagination (page/pageSize/orderBy/orderDir via parseListQuery) n''est pas uniforme : contact.controller.ts et customQuestion.controller.ts utilisent un paramètre `limit` au lieu de `pageSize`, tandis qu''aiConversation.controller.ts/projectMeeting.controller.ts/timeEntry.controller.ts réimplémentent leur propre parsing page/pageSize avec des plafonds et comportements de repli divergents (50, 100, ou aucun plafond visible) au lieu d''appeler parseListQuery'
     perimetre: transverse — server/src/controllers/{contact,customQuestion,aiConversation,projectMeeting,timeEntry}.controller.ts ; server/src/utils/listQuery.ts#parseListQuery
+    categorie: F
     regle_violee: null
     classe: convention_api_non_uniforme
     gravite: mineur
@@ -475,6 +503,7 @@ anomalies:
   - id: SEC-182
     titre: Les blocs @swagger des mutations métier critiques ne documentent que les codes structurels (401/403/404/422) et omettent systématiquement les codes 409 propres à la règle métier — POST /projects/{id}/client-approve promet 200/401/403/404 alors que le service expose au moins 6 codes distincts (PROJECT_ALREADY_APPROVED, PROJECT_ALREADY_COMPLETED, PROJECT_NOT_IN_REVIEW, DEPOSIT_UNPAID, PENDING_APPROVALS_REMAINING, OPEN_TASKS_REMAINING) qu'aucun client généré depuis le spec OpenAPI ne peut anticiper
     perimetre: transverse (fidélité documentation) — server/src/routes/project.routes.ts (client-approve, lignes 344-380) ; server/src/services/project.service.ts#clientApprove ; échantillon également relevé sur invoice.routes.ts (POST /:id/payments)
+    categorie: F
     regle_violee: null
     classe: swagger_codes_erreur_incomplets
     gravite: mineur
@@ -490,6 +519,7 @@ anomalies:
   - id: SEC-190
     titre: client/src/i18n/locales/fr/translation.json (et en/translation.json dans une moindre mesure) contient du texte mojibake en double ré-encodage (ex. « CrÃ©er une proposition » au lieu de « Créer une proposition », 755+ occurrences) — casse l'affichage FR réel dans l'UI (bouton, libellés) pour tout utilisateur français, la locale par défaut de ce projet
     perimetre: client/src/i18n/locales/fr/translation.json ; client/src/i18n/locales/en/translation.json
+    categorie: B
     regle_violee: null
     classe: mojibake_encodage_texte
     gravite: majeur
@@ -505,6 +535,7 @@ anomalies:
   - id: SEC-192
     titre: README.md documente une suite e2e Playwright (répertoire e2e/, commande npx playwright test) qui n'existe pas dans le dépôt — aucune dépendance playwright dans package.json/package-lock.json des 3 workspaces, aucun répertoire e2e/
     perimetre: documentation — README.md (section Project Structure ligne ~113, section Testing lignes ~321-329)
+    categorie: I
     regle_violee: null
     classe: documentation_decrivant_une_capacite_absente
     gravite: mineur
@@ -519,6 +550,7 @@ anomalies:
   - id: SEC-193
     titre: 'Le job "server" de .github/workflows/ci.yml échoue structurellement à l''étape "Schema drift check" (prisma migrate diff --from-migrations ... --to-schema-datamodel ...) : Invoice.[projectId,invoiceType] et Proposal.leadId sont déclarés comme index uniques TOTAUX dans schema.prisma (@@unique/@unique), mais les migrations réelles les créent en index uniques PARTIELS (WHERE invoiceType <> ''STANDARD'' ; WHERE leadId IS NOT NULL) — une forme que le DSL Prisma ne peut pas exprimer nativement, donc le diff les signale à tort comme absents à chaque exécution'
     perimetre: server/prisma/schema.prisma (modèles Invoice, Proposal) ; .github/workflows/ci.yml (job server, étape "Schema drift check") ; migrations 20260713120000_invoice_partial_unique, 20260625160000_add_lead_id_to_proposal
+    categorie: J
     regle_violee: null
     classe: limite_prisma_index_partiel_non_representable
     gravite: mineur
@@ -535,6 +567,7 @@ anomalies:
   - id: SEC-194
     titre: 'npm run test:coverage --workspace=server (job "server" de ci.yml) n''a probablement jamais pu réussir depuis son introduction : (1) le binaire c8 qu''il appelle en dur n''était déclaré nulle part dans server/package.json (ni dependencies ni devDependencies), échec immédiat "c8: not found" sur toute installation fraîche (npm ci) ; (2) une fois c8 installé, la couverture réelle mesurée (64.46% lignes/statements, 72.59% branches, 42.91% fonctions) est très en dessous des seuils exigés par le script (85/80/85/85), jamais atteints'
     perimetre: server/package.json (script test:coverage, devDependencies) ; .github/workflows/ci.yml (job server)
+    categorie: D
     regle_violee: null
     classe: null
     gravite: majeur
@@ -551,6 +584,7 @@ anomalies:
   - id: SEC-204
     titre: '3 lacunes d''accessibilité sur des composants transverses à fort réemploi : SortableTableHead.tsx (colonne triable de toutes les listes, LeadsPage + TasksListView) rendait le tri sur un <div onClick> sans role/tabIndex/gestionnaire clavier ni nom accessible ; SearchInput.tsx (5 réemplois) et le champ de recherche globale GlobalSearch.tsx (présent sur chaque page via le header) n''exposaient qu''un placeholder comme seul indice, jamais lu de façon fiable par tous les lecteurs d''écran et disparaissant dès qu''une valeur est saisie'
     perimetre: client/src/components/common/SortableTableHead.tsx ; client/src/components/shared/crud/SearchInput.tsx ; client/src/components/common/GlobalSearch.tsx
+    categorie: H
     regle_violee: null
     classe: composant_transverse_accessibilite_manquante
     gravite: mineur
@@ -569,6 +603,7 @@ anomalies:
   - id: SEC-206
     titre: '3 tokens du design system échouaient WCAG AA une fois réellement mesurés (conversion oklch -> sRGB puis ratio de contraste) : --border/--input quasi invisibles (~1.2-1.3:1 au lieu de 3:1 requis pour une limite non-texte, clair ET sombre) sur les champs de formulaire ; --accent-foreground réutilisé tel quel sur le badge bg-accent-soft en mode sombre alors qu''il est conçu pour du texte sombre sur --accent (encore clair en mode sombre), donnant 1.28:1 au lieu de 4.5:1 sur 8 fichiers de badges de statut'
     perimetre: client/src/styles.css (--border, --input, --accent-foreground/--accent-soft) ; 8 fichiers consommateurs du badge accent-soft (ApprovalsPage.tsx, ProposalsClientPage.tsx, CommissionsPage.tsx, DashboardCharts.tsx, DashboardPage.tsx, InvoicesPage.tsx ×2, ProposalsPage.tsx, ProductDashboard.tsx)
+    categorie: H
     regle_violee: null
     classe: null
     gravite: majeur
@@ -586,6 +621,7 @@ anomalies:
   - id: SEC-210
     titre: 'Régression réelle (pas seulement documentaire) : package.json racine avait perdu tout son bloc scripts (dev/build/typecheck/lint/prisma:generate/prisma:migrate) et sa devDependency concurrently dans le commit e3f5c3d (2026-06-17, "chore: commit remaining modified and untracked files") — npm run dev échouait réellement ("Missing script") alors que c''est la toute première commande citée par README.md §Getting Started étape 5 ; README.md lui-même contenait par ailleurs 7 autres dérives documentaires distinctes (comptes de tests obsolètes, intervalle de polling, Grafana/Alertmanager jamais implémentés, répertoires observability/ et tests/ inexistants à la racine, bloc de code de l''arborescence du projet jamais refermé, commande de test serveur npm run test --workspace server inexistante — le vrai script est test:unit)'
     perimetre: package.json (racine) ; README.md (sections Features, Tech Stack, Project Structure, Testing)
+    categorie: E
     regle_violee: null
     classe: null
     gravite: majeur
@@ -604,6 +640,7 @@ anomalies:
   - id: SEC-211
     titre: 'Le job e2e de .github/workflows/ci.yml appelle `npm run seed --workspace=server`, qui n''existe pas — server/package.json n''a que `prisma:seed` ("prisma db seed", qui invoque à son tour prisma.seed="tsx prisma/seed.ts" via la convention Prisma) ; le job e2e échoue systématiquement à l''étape "Run npm run seed --workspace=server" avec `npm error Missing script: "seed"`, avant même de pouvoir lancer les tests Playwright'
     perimetre: '.github/workflows/ci.yml (ligne 234, job e2e, étape de seed avant lancement du serveur dev) ; server/package.json (script réel : prisma:seed)'
+    categorie: D
     regle_violee: null
     classe: null
     gravite: majeur
@@ -619,6 +656,7 @@ anomalies:
   - id: SEC-212
     titre: Les jobs `server` et `e2e` de .github/workflows/ci.yml échouent de façon récurrente (au moins les 10 derniers runs sur main, du 2026-07-17 au 2026-07-22) sur des symptômes de lenteur/indisponibilité transitoire des conteneurs de service Postgres/Redis en CI — un ConnectionTimeoutError Redis explicite fait chuter la couverture de code sous les seuils (test:coverage) en faisant sauter un grand nombre de tests dépendants de la DB via leur garde dbAvailable ; côté e2e, les 2 tests de login.spec.ts échouent en restant bloqués sur /login malgré des identifiants seedés corrects — reproduit localement (build+preview identique à la CI) SANS échec (3/3 verts), ce qui exclut un défaut du code applicatif et pointe vers l'environnement CI lui-même (runner sous contention CPU/réseau au démarrage des conteneurs de service)
     perimetre: .github/workflows/ci.yml (jobs server et e2e, services postgres/redis) — infrastructure CI, pas le code applicatif
+    categorie: D
     regle_violee: null
     classe: ci_infra_lenteur_services_docker
     gravite: majeur
@@ -650,6 +688,7 @@ anomalies:
   - id: SEC-217
     titre: '.github/workflows/backup.yml ("Daily DB Backup") échoue systématiquement (cron quotidien 01:00 UTC) : `SSH_HOST`/`SSH_USER`/`SSH_PRIVATE_KEY`/`BACKUP_ENV_PATH` sont vides à l''exécution (`ssh "@"` littéral dans le log, `usage: ssh...`, exit code 255) — aucun secret n''est configuré dans l''environnement GitHub "production" du dépôt, et REFERENTIEL.md §7 (décision datée 2026-07-16) confirme qu''aucun serveur de production n''existe pour l''instant : ce n''est pas une config manquante à corriger, c''est un workflow prématuré vu l''état réel du projet'
     perimetre: .github/workflows/backup.yml — infrastructure CI/déploiement, pas le code applicatif
+    categorie: D
     regle_violee: null
     classe: ci_workflow_infra_inexistante
     gravite: mineur
@@ -665,6 +704,7 @@ anomalies:
   - id: SEC-219
     titre: monitoring/alerts.yml#CacheHitRateLow référence les métriques cache_hits_total/cache_misses_total, qui n'existent nulle part dans le code — les vraies métriques sont redis_cache_hits_total/redis_cache_misses_total (server/src/observability/metrics.ts) — l'alerte ne peut jamais évaluer de données réelles et ne se déclenchera donc jamais, silencieusement
     perimetre: monitoring/alerts.yml (règle CacheHitRateLow, ligne 15) ; server/src/observability/metrics.ts (lignes 117/124, noms réels des métriques)
+    categorie: D
     regle_violee: null
     classe: alerte_metrique_orpheline
     gravite: mineur
@@ -680,6 +720,7 @@ anomalies:
   - id: SEC-222
     titre: gdprService.exportClient n'inclut que les métadonnées des documents (id/type/createdAt), jamais le contenu réel — la portabilité RGPD (art. 20) suppose l'accès au contenu, pas seulement la preuve qu'un document existe
     perimetre: server/src/services/gdpr.service.ts (exportClient, champ documents) ; server/src/services/document.service.ts#getDownloadUrl (pattern d'URL signée existant, réutilisable)
+    categorie: A
     regle_violee: RG-025
     classe: rgpd_export_incomplet
     gravite: mineur
@@ -694,6 +735,7 @@ anomalies:
   - id: SEC-224
     titre: Aucun self-service RGPD — toutes les routes /gdpr/* exigent authorize("ADMIN"), un utilisateur CLIENT (portail) ou FREELANCER ne peut pas exporter/effacer ses propres données sans passer par un administrateur
     perimetre: server/src/routes/gdpr.routes.ts (routes existantes, toutes authorize("ADMIN"))
+    categorie: A
     regle_violee: RG-025
     classe: perimetre_rgpd_incomplet
     gravite: mineur
@@ -708,6 +750,7 @@ anomalies:
   - id: SEC-225
     titre: Rate limiting RGPD incohérent — sensitiveWriteRateLimit protège les routes POST .../erase mais aucune limite n'est posée sur les routes GET .../export, alors qu'un export complet (surtout avec URLs signées de documents, SEC-222) est l'opération la plus coûteuse des deux
     perimetre: server/src/routes/gdpr.routes.ts (routes GET .../export)
+    categorie: A
     regle_violee: RG-025
     classe: rate_limit_incoherent
     gravite: mineur
@@ -719,3 +762,18 @@ anomalies:
     confiance: certain
     note: |
       Même contexte de découverte que SEC-220. Réutilise sensitiveWriteRateLimit tel quel plutôt que de créer un nouveau palier de rate limit non demandé par l'utilisateur.
+  - id: SEC-234
+    titre: Le champ gravite du registre utilise 7 valeurs distinctes (majeur, mineur, bloquant, eleve, moyen, faible, info) alors que le schéma documenté en tête de fichier n'en liste que 3 (mineur | majeur | bloquant) — 32 anomalies (SEC-052 à SEC-087, SEC-179) portent une valeur hors énumération
+    perimetre: ANOMALIES.yaml / anomalies/*.yaml (intégrité du registre lui-même) — champ gravite
+    categorie: I
+    regle_violee: null
+    classe: incoherence_registre_anomalies
+    gravite: mineur
+    statut: ouvert
+    critere_de_resolution: |
+      C'est résolu quand chacune des 32 entrées concernées (eleve: SEC-052, SEC-081, SEC-082, SEC-083 ; moyen: SEC-053, SEC-054, SEC-056, SEC-060, SEC-064 à SEC-067, SEC-069, SEC-070, SEC-084 à SEC-087, SEC-179 ; faible: SEC-055, SEC-057, SEC-059, SEC-061, SEC-071 à SEC-077 ; info: SEC-058, SEC-062) porte une valeur `gravite` appartenant à l'énumération documentée (mineur | majeur | bloquant) — sans reformuler leur `titre`, conformément à l'interdiction de reformulation de CLAUDE.md.
+    detecte_le: '2026-07-27'
+    source: audit_llm
+    confiance: certain
+    note: |
+      Découvert incidemment en construisant le barème de pénalité de scripts/audit-score.mjs (Chantier 3, migration ANOMALIES.yaml → anomalies/*.yaml). Distribution réelle vérifiée par lecture directe de anomalies/_index.yaml : majeur=59, mineur=124, bloquant=18, eleve=4, moyen=15, faible=11, info=2 (total 233). Aucune des 233 entrées n'a de valeur absente des deux énumérations combinées — donc pas un défaut de saisie libre, mais l'usage cohérent d'une échelle à 7 niveaux jamais mise à jour dans le commentaire de schéma. Décision du porteur du projet (session du 2026-07-27) pour le calcul du score : mapper eleve→bloquant, moyen→majeur, faible→mineur, info→mineur pour le barème de pénalité — mapping appliqué uniquement dans scripts/audit-score.mjs, ne modifie aucune valeur `gravite` existante dans le registre. Cette entrée documente l'écart lui-même ; la mise à jour du schéma en tête de fichier (3 valeurs → 7, ou normalisation des 32 entrées vers les 3 valeurs documentées) reste une décision à trancher séparément avec le porteur, pas incluse ici.

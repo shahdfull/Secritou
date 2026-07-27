@@ -17,7 +17,8 @@
     "prisma:generate": "npm run prisma:generate --workspace server",
     "prisma:migrate": "npm run prisma:migrate --workspace server",
     "prisma:migrate:deploy": "npm run prisma:migrate:deploy --workspace server",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "audit:score": "node scripts/audit-score.mjs"
   },
   "dependencies": {
     "docx": "^9.7.1"

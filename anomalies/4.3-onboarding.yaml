@@ -13,6 +13,7 @@ anomalies:
   - id: SEC-001
     titre: Vocabulaire des pôles incohérent entre base, code et documentation
     perimetre: 4.3 Onboarding client (origine), systémique — voir note
+    categorie: I
     regle_violee: null
     classe: vocabulaire_pole_incoherent
     gravite: majeur
@@ -31,6 +32,7 @@ anomalies:
   - id: SEC-051
     titre: Le formulaire questionnaire du portail client (QuestionnaireStep) envoyait les reponses dynamiques (companyName/colors/references/pages, etc.) au top-level du payload au lieu de les envelopper sous data, alors que le serveur ne persiste que serviceType/isDraft/data.data — toutes les reponses etaient silencieusement perdues
     perimetre: 4.9 ClientOnboarding et sous-etapes — client/src/features/client-onboarding/ClientOnboardingPage.tsx, server/src/repositories/clientOnboarding.repository.ts
+    categorie: F
     regle_violee: null
     classe: null
     gravite: mineur
@@ -49,6 +51,7 @@ anomalies:
   - id: SEC-154
     titre: clientService.inviteClientUser refuse inconditionnellement (409) dès qu'un User existe pour le clientId, sans distinguer un compte déjà confirmé d'un compte créé mais dont l'email d'invitation a échoué (SMTP down) — aucune action ADMIN de renvoi, seul un forgot-password self-service du client (qui doit déjà savoir qu'un compte existe) reste possible
     perimetre: server/src/services/client.service.ts, server/src/services/invoice.service.ts (addPayment)
+    categorie: G
     regle_violee: null
     classe: null
     gravite: mineur
@@ -68,6 +71,7 @@ anomalies:
   - id: SEC-167
     titre: Trois colonnes portent à la fois une contrainte @unique/@@unique ET un @@index séparé sur exactement les mêmes colonnes (User.email, FreelancerApplication.email, Payment.idempotencyKey) — un index redondant qui n'apporte aucun bénéfice de requête (la contrainte unique crée déjà son propre index) mais double le coût d'écriture (INSERT/UPDATE) et l'espace disque sur ces colonnes
     perimetre: 'schema.prisma#User (lignes 200+203), #FreelancerApplication (lignes 891-892), #Payment (ligne 966+978)'
+    categorie: B
     regle_violee: null
     classe: null
     gravite: mineur

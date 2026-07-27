@@ -13,6 +13,7 @@ anomalies:
   - id: SEC-003
     titre: Documentation historique du fournisseur IA incohérente avec l'implémentation réelle
     perimetre: 4.11 Module IA (agent-service)
+    categorie: I
     regle_violee: RG-015
     classe: null
     gravite: mineur
@@ -27,6 +28,7 @@ anomalies:
   - id: SEC-029
     titre: 'RG-017 (Client sans accès aux outils d''exécution) : provenance déduction/conditionnelle, jamais vérifiée directement par test — aucun défaut trouvé, preuve manquante comblée'
     perimetre: 4.11 Module IA (agent-service, GELÉ) — server/src/services/agentOrchestrator.service.ts, server/src/routes/ai.routes.ts, server/src/routes/aiConversation.routes.ts
+    categorie: E
     regle_violee: RG-017
     classe: null
     gravite: mineur

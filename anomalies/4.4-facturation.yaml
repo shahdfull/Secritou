@@ -13,6 +13,7 @@ anomalies:
   - id: SEC-014
     titre: 'Relances facture hebdomadaires : paliers calculés sur createdAt au lieu de dueDate'
     perimetre: 4.4 Facturation & Paiements
+    categorie: G
     regle_violee: null
     classe: relance_facture_defectueuse
     gravite: majeur
@@ -30,6 +31,7 @@ anomalies:
   - id: SEC-015
     titre: Aucune relance échelonnée après passage d'une facture au statut OVERDUE
     perimetre: 4.4 Facturation & Paiements, transverse server/src/jobs/**
+    categorie: G
     regle_violee: null
     classe: relance_facture_defectueuse
     gravite: majeur
@@ -47,6 +49,7 @@ anomalies:
   - id: SEC-022
     titre: 'creditNoteService.applyCredit : le garde-fou anti-double-application ne se déclenche jamais (P2025 non catché)'
     perimetre: 4.4 Facturation & Paiements — server/src/services/creditNote.service.ts
+    categorie: G
     regle_violee: null
     classe: null
     gravite: majeur
@@ -66,6 +69,7 @@ anomalies:
   - id: SEC-027
     titre: 'RG-008 (déclenchement de la commission) : affirmation d''exclusivité jamais prouvée par test, seul le chemin nominal était vérifié'
     perimetre: 4.5 Rémunération des associés, 4.4 Facturation — server/src/services/commission.service.ts, server/src/services/invoice.service.ts
+    categorie: E
     regle_violee: RG-008
     classe: null
     gravite: majeur
@@ -95,6 +99,7 @@ anomalies:
   - id: SEC-031
     titre: POST /invoices acceptait un champ number manuel, contournant totalement le compteur InvoiceCounter et la garantie de numérotation sans trou
     perimetre: 4.4 Facturation — server/src/validators/invoice.validator.ts, server/src/services/invoice.service.ts
+    categorie: G
     regle_violee: RG-012
     classe: null
     gravite: majeur
@@ -115,6 +120,7 @@ anomalies:
   - id: SEC-137
     titre: documentScopeManager.test.ts (SEC-122) prouve le scope MANAGER cross-pôle sur Document mais pas sur Invoice, alors que assertInvoiceInScope existe et est appliqué uniformément dans invoice.service.ts — aucun test n'appelle le vrai service pour le prouver
     perimetre: server/src/services/invoice.service.ts ; server/test/documentScopeManager.test.ts
+    categorie: E
     regle_violee: null
     classe: test_scope_methode_non_couverte
     gravite: mineur
@@ -131,6 +137,7 @@ anomalies:
   - id: SEC-151
     titre: generateCreditNoteNumber (creditNote.service.ts) utilise CN-${Date.now()} sans retry sur collision — deux avoirs créés dans la même milliseconde violent la contrainte @unique de CreditNote.number et l'appelant reçoit une erreur Prisma brute (500) au lieu d'un numéro régénéré
     perimetre: server/src/services/creditNote.service.ts
+    categorie: B
     regle_violee: null
     classe: null
     gravite: mineur
@@ -148,6 +155,7 @@ anomalies:
   - id: SEC-152
     titre: invoice.service.ts et creditNote.service.ts n'écrivent jamais dans auditLogService, alors que ce mécanisme existe et est déjà utilisé par project/task/user.service.ts — aucune trace append-only des mutations de statut facture (SENT/PAID/CANCELLED) ni des avoirs émis/appliqués
     perimetre: server/src/services/invoice.service.ts, server/src/services/creditNote.service.ts, server/src/services/auditLog.service.ts
+    categorie: G
     regle_violee: null
     classe: null
     gravite: mineur
@@ -165,6 +173,7 @@ anomalies:
   - id: SEC-166
     titre: 'TimeEntry.billedInvoiceId (String?) n''est pas une vraie relation Prisma (pas de @relation vers Invoice) — aucune intégrité référentielle, aucun onDelete, aucun index dédié : un invoice.id copié à la main sans garantie qu''il existe ni qu''il reste cohérent'
     perimetre: schema.prisma#TimeEntry ; server/src/services/invoice.service.ts:452 (seul point d'écriture)
+    categorie: B
     regle_violee: null
     classe: null
     gravite: mineur
@@ -180,6 +189,7 @@ anomalies:
   - id: SEC-172
     titre: 'Migration 20260711204823_client_portal_activated_at ajoute Client.portalActivatedAt (nullable) sans aucun backfill — le seul chemin qui le renseigne est invoice.service.ts#addPayment sur un NOUVEL évènement de paiement (where: portalActivatedAt: null), qui ne se redéclenche jamais pour une facture DEPOSIT déjà PAID avant cette migration : un client dont l''acompte était déjà payé avant le 2026-07-11 resterait verrouillé hors de son portail indéfiniment'
     perimetre: server/prisma/migrations/20260711204823_client_portal_activated_at/migration.sql ; server/src/services/invoice.service.ts:250-259 ; server/src/middlewares/rbac.middleware.ts#requireActivatedPortal
+    categorie: B
     regle_violee: null
     classe: migration_champ_derive_sans_backfill
     gravite: majeur
@@ -200,6 +210,7 @@ anomalies:
   - id: SEC-184
     titre: creditNoteService.create ne vérifie le montant du nouvel avoir que contre invoice.amountPaid, jamais contre la somme des avoirs déjà émis sur la même facture — des avoirs cumulés peuvent dépasser ce que le client a réellement payé, créditant client.creditBalance au-delà du montant reçu
     perimetre: 4.4 Facturation — server/src/services/creditNote.service.ts#create (lignes 48-61)
+    categorie: G
     regle_violee: null
     classe: garde_montant_cumulatif_manquante
     gravite: bloquant
@@ -215,6 +226,7 @@ anomalies:
   - id: SEC-198
     titre: 'documentGeneratorService.generateInvoicePDF affiche un « Net à payer » = Invoice.amount (TTC stocké) + TIMBRE_FISCAL (0.6 TND, constante locale au fichier) — TIMBRE_FISCAL n''est jamais stocké sur Invoice ni pris en compte par invoiceService.addPayment, qui compare tout paiement reçu à Invoice.amount seul : un client qui paie exactement le montant écrit sur son PDF (le « Net à payer ») sur-paie systématiquement de 0.6 TND par facture, créé automatiquement en avoir (CreditNote) via le mécanisme overpaidBy d''addPayment'
     perimetre: server/src/services/documentGenerator.service.ts#generateInvoicePDF (TIMBRE_FISCAL, ligne 10, 486, 495-496) ; server/src/services/invoice.service.ts#addPayment (compare au TTC seul, jamais au timbre)
+    categorie: B
     regle_violee: null
     classe: affichage_desynchronise_du_stockage
     gravite: majeur
@@ -232,6 +244,7 @@ anomalies:
   - id: SEC-199
     titre: 'Traçabilité AuditLog incomplète sur le cycle facture→paiement→avoir : invoiceService.create n''écrit AUCUNE entrée AuditLog (la création même d''une facture n''est pas tracée), et l''avoir automatique créé par addPayment lors d''un surpaiement (createCreditNoteTx, partagée avec creditNoteService.create) n''a pas sa propre entrée AuditLog — seul le log invoice.payment.add mentionne overpaidBy en passant, sans jamais tracer explicitement l''id/numéro du CreditNote créé'
     perimetre: 'server/src/services/invoice.service.ts#create (aucun audit log) et #addPayment (crédit automatique non audité par lui-même) ; server/src/services/creditNote.service.ts#createCreditNoteTx (fonction partagée, auditée seulement côté appelant manuel)'
+    categorie: G
     regle_violee: null
     classe: auditlog_couverture_incomplete_cycle_financier
     gravite: majeur
@@ -248,6 +261,7 @@ anomalies:
   - id: SEC-201
     titre: 'invoicesApi.getInvoices et invoicesApi.getTrash désimbriquent une couche de trop : les contrôleurs renvoient l''enveloppe de pagination à plat ({ data, total, page, pageSize }), mais le client lit response.data.data — les pages Factures et Corbeille des factures n''affichent donc JAMAIS de résultats'
     perimetre: 'client/src/api/invoices.api.ts#getInvoices (ligne 71-75) et #getTrash (ligne 128-137) ; server/src/controllers/invoice.controller.ts#getInvoices (ligne 30-41, res.json(result) flat) et #getDeletedInvoices (ligne 43-47, idem)'
+    categorie: F
     regle_violee: null
     classe: client_desimbrication_enveloppe_pagination_incorrecte
     gravite: bloquant
@@ -264,6 +278,7 @@ anomalies:
   - id: SEC-202
     titre: 'clientApprove (RG-013) échoue TOUJOURS avec DUPLICATE_ENTRY (P2002) dès qu''un projet a une facture d''acompte : createBalanceInvoiceTx reçoit le même proposalId que la facture DEPOSIT déjà créée pour cette proposition, or Invoice.proposalId est @unique globalement (une seule facture par proposition, tous types confondus) — la clôture cliente ne peut donc jamais aboutir sur un projet issu d''une proposition acceptée (le chemin nominal du module)'
     perimetre: 'server/src/services/project.service.ts#clientApprove (appel à createBalanceInvoiceTx avec proposalId: preread.proposal.id) ; server/src/services/invoice.service.ts#createBalanceInvoiceTx (accepte et transmet ce proposalId à tx.invoice.create) ; server/prisma/schema.prisma#Invoice.proposalId (@unique, contrainte réelle en base)'
+    categorie: B
     regle_violee: RG-013
     classe: contrainte_unique_violee_cascade_metier
     gravite: bloquant
@@ -280,6 +295,7 @@ anomalies:
   - id: SEC-231
     titre: POST /invoices/:id/credit-note (server/src/routes/invoice.routes.ts, authorize("ADMIN"), createCreditNoteSchema { amount, reason }) n'a aucun point d'entrée dans le frontend — un ADMIN ne peut créer un avoir manuel que via un appel API direct, la tabulation « Avoirs » d'InvoicesPage.tsx est un grid en lecture seule sans bouton de création
     perimetre: 4.6 Facturation — server/src/routes/invoice.routes.ts (endpoint), client/src/features/invoices/InvoicesPage.tsx (tabulation Avoirs)
+    categorie: F
     regle_violee: null
     classe: endpoint_sans_ui
     gravite: mineur

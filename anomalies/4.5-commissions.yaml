@@ -13,6 +13,7 @@ anomalies:
   - id: SEC-170
     titre: 'commissionRepository.createManyTx crée les lignes Commission une par une dans une boucle for...of séquentielle au lieu d''un createMany groupé — délibéré (commentaire : createMany ne permet pas de retourner les lignes créées avec include), mais borné par le nombre d''associés (~3-4), pas par un volume métier croissant'
     perimetre: server/src/repositories/commission.repository.ts#createManyTx (lignes 41-55)
+    categorie: C
     regle_violee: null
     classe: n_plus_un_boucle_sequentielle
     gravite: mineur

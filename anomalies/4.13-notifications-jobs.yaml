@@ -13,6 +13,7 @@ anomalies:
   - id: SEC-128
     titre: Aucun test n'exerce le mécanisme anti-rejeu Redis de verifyN8nWebhook en situation dégradée ni le rejet d'une signature déjà vue — verifyN8nWebhook.test.ts ne teste que la fraîcheur temporelle (timestamp), jamais le rejeu effectif
     perimetre: server/test/verifyN8nWebhook.test.ts ; server/src/middlewares/verifyN8nWebhook.middleware.ts
+    categorie: E
     regle_violee: null
     classe: test_scenario_defense_manquant
     gravite: mineur
@@ -28,6 +29,7 @@ anomalies:
   - id: SEC-131
     titre: clientCompletedTasks.test.ts utilise setTimeout(10)/setTimeout(20) fixes pour forcer un écart d'horodatage entre deux écritures, au lieu d'un poll d'état borné — source de flakiness CI sous charge
     perimetre: server/test/clientCompletedTasks.test.ts
+    categorie: E
     regle_violee: null
     classe: test_delai_fixe_flaky
     gravite: mineur
@@ -43,6 +45,7 @@ anomalies:
   - id: SEC-144
     titre: Aucun bloc @swagger dans notification.routes.ts (GET /notifications, PATCH /:id/read, PATCH /read-all)
     perimetre: server/src/routes/notification.routes.ts
+    categorie: F
     regle_violee: null
     classe: doc_openapi_desynchronisee_du_code_reel
     gravite: mineur
@@ -59,6 +62,7 @@ anomalies:
   - id: SEC-146
     titre: 'notifyN8n : le payload sortant ({event, payload, sentAt}) et le contrat de callback entrant n''ont aucun champ de version — docs/n8n-events.md ne documente pas de politique de compatibilité pour l''évolution du schéma'
     perimetre: server/src/utils/webhook.ts, docs/n8n-events.md
+    categorie: F
     regle_violee: null
     classe: null
     gravite: mineur
@@ -76,6 +80,7 @@ anomalies:
   - id: SEC-153
     titre: 'notifyN8n (webhook.ts) : après échec des 2 tentatives, l''événement est définitivement perdu — seul un logger.warn trace l''abandon, aucune trace persistée ni rejouable (proposal.accepted, invoice.paid, document.contract_signed, etc.)'
     perimetre: server/src/utils/webhook.ts
+    categorie: D
     regle_violee: null
     classe: null
     gravite: mineur
@@ -93,6 +98,7 @@ anomalies:
   - id: SEC-158
     titre: README.md:294 décrit la génération des 7 PDFs après acceptation de proposition comme faite « using Promise.allSettled », alors que le code réel (depuis le correctif SEC-120) les enfile comme jobs BullMQ individuels (documentsQueue, jobId déterministe, concurrency:3) — la description d'architecture ne correspond plus au code
     perimetre: 'documentation — README.md ; code réel : server/src/services/proposal.service.ts#acceptWithCascadeAttempt, server/src/jobs/queues.ts#enqueueDocumentGeneration, server/src/jobs/index.ts (worker documents)'
+    categorie: I
     regle_violee: null
     classe: documentation_desynchronisee
     gravite: mineur
@@ -108,6 +114,7 @@ anomalies:
   - id: SEC-186
     titre: markOverdueInvoices (cron quotidien) fait passer des factures SENT/PARTIAL à OVERDUE via updateMany sans jamais appeler auditLogService.record — seule transition de statut parmi les 4 citées par le porteur (émise/payée/en retard/annulée) absente de la table AuditLog, alors que send/addPayment/cancel y sont tous journalisés
     perimetre: 4.4 Facturation — server/src/jobs/processors/maintenance.processor.ts#markOverdueInvoices (lignes 246-265)
+    categorie: G
     regle_violee: null
     classe: trace_audit_transition_statut_manquante
     gravite: mineur
@@ -123,6 +130,7 @@ anomalies:
   - id: SEC-191
     titre: 'userService.deleteUser appelle communicationQueue.getWaiting() SANS borne pour purger les notifications du user supprimé — hydrate chaque job en attente un par un (un HGETALL Redis par job) : avec un backlog réel (worker arrêté, ou file de dev accumulée à 42 054 jobs), la suppression d''un utilisateur gèle la requête HTTP pendant plusieurs minutes'
     perimetre: 4.0 Utilisateurs — server/src/services/user.service.ts#deleteUser ; server/src/jobs/queues.ts (communicationQueue)
+    categorie: C
     regle_violee: null
     classe: operation_non_bornee_chemin_requete
     gravite: majeur

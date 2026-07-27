@@ -6,1170 +6,1409 @@
 # critere_de_resolution, detecte_le, source, confiance, note.
 # Ne jamais reformuler un titre existant — citer l'ID.
 
-dernier_id: SEC-233
+dernier_id: SEC-234
 anomalies:
   - id: SEC-001
     perimetre: 4.3 Onboarding client (origine), systémique — voir note
+    categorie: I
     statut: resolu
     gravite: majeur
     classe: vocabulaire_pole_incoherent
   - id: SEC-002
     perimetre: 4.6 Portail client
+    categorie: G
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-003
     perimetre: 4.11 Module IA (agent-service)
+    categorie: I
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-004
     perimetre: documentation projet — voir REFERENTIEL.md §0 « Documents du projet »
+    categorie: I
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-005
     perimetre: 4.1 CRM & Pipeline commercial
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: type_frontend_desynchronise_du_schema_prisma
   - id: SEC-006
     perimetre: 4.14 Authentification & Compte utilisateur
+    categorie: F
     statut: resolu
     gravite: majeur
     classe: type_frontend_desynchronise_du_schema_prisma
   - id: SEC-007
     perimetre: transverse — toutes les entités/modules dont le statut IMPLÉMENTÉ s'appuie sur du code server/src
+    categorie: E
     statut: resolu
     gravite: bloquant
     classe: typecheck_serveur_en_echec
   - id: SEC-008
     perimetre: transverse — 33 fichiers de test agrégés par server/test/run-all.test.ts
+    categorie: E
     statut: resolu
     gravite: bloquant
     classe: null
   - id: SEC-009
     perimetre: 4.14 Authentification & Compte utilisateur
+    categorie: E
     statut: resolu
     gravite: bloquant
     classe: typecheck_serveur_en_echec
   - id: SEC-010
     perimetre: infrastructure — .github/workflows/ci.yml
+    categorie: D
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-011
     perimetre: 4.14 Authentification & Compte utilisateur — server/src/services/auth.service.ts
+    categorie: A
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-012
     perimetre: transverse — validateurs → controllers → services → repositories (pas repositories/** seul, voir correction ci-dessous)
+    categorie: B
     statut: resolu
     gravite: majeur
     classe: type_maison_substitue_au_type_prisma
   - id: SEC-013
     perimetre: transverse — client/src/features/landing/pages/ContactPage.test.tsx, client/src/hooks/useFreelancerApplications.test.tsx, client/src/components/common/FileUploadField.test.tsx
+    categorie: E
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-014
     perimetre: 4.4 Facturation & Paiements
+    categorie: G
     statut: resolu
     gravite: majeur
     classe: relance_facture_defectueuse
   - id: SEC-015
     perimetre: 4.4 Facturation & Paiements, transverse server/src/jobs/**
+    categorie: G
     statut: resolu
     gravite: majeur
     classe: relance_facture_defectueuse
   - id: SEC-016
     perimetre: transverse — server/src/jobs/processors/maintenance.processor.ts, entités 3.4 Lead (résolu), Document/Notification (hors scope, voir note)
+    categorie: D
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-017
     perimetre: 4.8 Analytics & Performance
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-018
     perimetre: 4.7 Freelances
+    categorie: A
     statut: rejete
     gravite: mineur
     classe: null
   - id: SEC-019
     perimetre: transverse — invoice.repository.ts, siteContent.repository.ts, aiConversation.repository.ts, freelancerApplication.repository.ts
+    categorie: B
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-020
     perimetre: transverse — server/src/jobs/processors/maintenance.processor.ts
+    categorie: D
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-021
     perimetre: site public (landing) — client/src/features/landing/components/Services.tsx, client/src/features/landing/pages/ContactPage.tsx
+    categorie: I
     statut: resolu
     gravite: majeur
     classe: vocabulaire_pole_incoherent
   - id: SEC-022
     perimetre: 4.4 Facturation & Paiements — server/src/services/creditNote.service.ts
+    categorie: G
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-023
     perimetre: 3.18 Document — server/src/services/document.service.ts
+    categorie: G
     statut: resolu
     gravite: bloquant
     classe: null
   - id: SEC-024
     perimetre: 4.8 Analytics & Performance — server/src/repositories/executiveMetrics.repository.ts
+    categorie: G
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-025
     perimetre: 4.10 RBAC & Permissions granulaires — client/src/types/permissions.ts, client/src/features/settings/PermissionsGrid.tsx
+    categorie: A
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-026
     perimetre: systémique — server/src/controllers/**, server/src/services/upload.service.ts, server/src/services/agentOrchestrator.service.ts, server/test/invoice.service.test.ts, client/src/api/axios.ts, client/src/features/projects/ProjectDetailPage.tsx
+    categorie: D
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-027
     perimetre: 4.5 Rémunération des associés, 4.4 Facturation — server/src/services/commission.service.ts, server/src/services/invoice.service.ts
+    categorie: E
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-028
     perimetre: 4.1 CRM & Pipeline commercial, 4.2 Gestion de projet — server/src/services/proposal.service.ts, server/src/controllers/proposal.controller.ts
+    categorie: A
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-029
     perimetre: 4.11 Module IA (agent-service, GELÉ) — server/src/services/agentOrchestrator.service.ts, server/src/routes/ai.routes.ts, server/src/routes/aiConversation.routes.ts
+    categorie: E
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-030
     perimetre: 4.4 Facturation, 4.2 Gestion de projet, 4.6 Portail client — server/src/services/project.service.ts (clientApprove)
+    categorie: E
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-031
     perimetre: 4.4 Facturation — server/src/validators/invoice.validator.ts, server/src/services/invoice.service.ts
+    categorie: G
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-032
     perimetre: 4.4 Facturation, 4.1 CRM & Pipeline commercial — server/src/validators/invoice.validator.ts, server/src/validators/proposal.validator.ts, shared/src/schemas/common.schema.ts
+    categorie: B
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-033
     perimetre: 4.2 Gestion de projet — server/src/repositories/project.repository.ts, client/src/features/projects/ProjectDetailPage.tsx
+    categorie: G
     statut: resolu
     gravite: bloquant
     classe: null
   - id: SEC-034
     perimetre: 4.2 Gestion de projet, 4.7 Freelances — client/src/features/projects/ProjectDetailPage.tsx, server/src/repositories/document.repository.ts
+    categorie: G
     statut: resolu
     gravite: bloquant
     classe: null
   - id: SEC-035
     perimetre: 4.2 Gestion de projet, 4.7 Freelances — client/src/features/projects/ProjectsPage.tsx, server/src/repositories/project.repository.ts
+    categorie: C
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-036
     perimetre: 4.2 Gestion de projet — server/src/services/projectMeeting.service.ts, server/src/services/projectTemplate.service.ts, server/src/services/project.service.ts, server/src/routes/project.routes.ts
+    categorie: A
     statut: resolu
     gravite: bloquant
     classe: scope_manager_manquant
   - id: SEC-037
     perimetre: 4.2 Gestion de projet, 4.6 Portail client — server/src/repositories/project.repository.ts, server/src/repositories/task.repository.ts, server/src/utils/projectProgress.ts, server/src/controllers/task.controller.ts, client/src/features/tasks/TasksKanban.tsx, client/src/features/tasks/TasksPage.tsx
+    categorie: B
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-038
     perimetre: 4.2 Gestion de projet, 4.7 Freelances — client/src/features/projects/ProjectsPage.tsx, client/src/hooks/useProjects.ts
+    categorie: H
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-039
     perimetre: 4.2 Gestion de projet, 4.1 CRM & Pipeline commercial — client/src/features/projects/ProjectsPage.tsx, server/src/validators/project.validator.ts, server/src/services/project.service.ts
+    categorie: G
     statut: resolu
     gravite: bloquant
     classe: null
   - id: SEC-040
     perimetre: 4.2 Gestion de projet — client/src/features/projects/ProjectDetailPage.tsx, server/src/routes/project.routes.ts, server/src/repositories/project.repository.ts
+    categorie: H
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-041
     perimetre: 4.2 Gestion de projet — server/src/services/task.service.ts, server/src/services/projectMeeting.service.ts, server/src/utils/serviceScope.ts, server/test/
+    categorie: E
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-042
     perimetre: 4.2 Gestion de projet — server/src/repositories/task.repository.ts, server/src/repositories/project.repository.ts, client/src/features/projects/ProjectDetailPage.tsx
+    categorie: H
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-043
     perimetre: 4.2 Gestion de projet — server/src/services/projectTemplate.service.ts, server/src/repositories/project.repository.ts, server/src/repositories/projectTemplate.repository.ts
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-044
     perimetre: 4.3 Gestion des taches — server/src/validators/task.validator.ts, server/src/validators/projectMeeting.validator.ts
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-045
     perimetre: 4.3 Gestion des taches — server/src/services/task.service.ts, server/src/routes/task.routes.ts
+    categorie: B
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-046
     perimetre: 4.2 Gestion de projet — server/src/routes/project.routes.ts, client/src/hooks/useProjects.ts, client/src/api/projects.api.ts
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-047
     perimetre: 4.3 Gestion des taches — server/prisma/schema.prisma, server/src/repositories/task.repository.ts, server/src/validators/task.validator.ts, shared/src/schemas/task.schema.ts
+    categorie: G
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-048
     perimetre: 4.2 Gestion de projet / 4.3 Gestion des taches — process de revue de code
+    categorie: G
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-049
     perimetre: Tout le workspace server/ — regle transverse
+    categorie: E
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-050
     perimetre: 4.11 Auth & comptes — server/src/repositories/auth.repository.ts, server/src/services/auth.service.ts, client/src/types/auth.ts
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-051
     perimetre: 4.9 ClientOnboarding et sous-etapes — client/src/features/client-onboarding/ClientOnboardingPage.tsx, server/src/repositories/clientOnboarding.repository.ts
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-052
     perimetre: 4.3 Gestion des taches — client/src/features/tasks/TasksPage.tsx, client/src/features/tasks/hooks/useTasksPageData.ts, client/src/hooks/useTasks.ts
+    categorie: F
     statut: resolu
     gravite: eleve
     classe: null
   - id: SEC-053
     perimetre: 4.3 Gestion des taches — client/src/features/tasks/hooks/useTasksPageData.ts
+    categorie: G
     statut: resolu
     gravite: moyen
     classe: null
   - id: SEC-054
     perimetre: 4.3 Gestion des taches — client/src/features/tasks/components/TaskCreateDialog.tsx, server/src/services/task.service.ts
+    categorie: F
     statut: resolu
     gravite: moyen
     classe: null
   - id: SEC-055
     perimetre: 4.2 Gestion de projet — client/src/features/projects/ProjectDetailPage.tsx, client/src/features/projects/ProjectMeetingsTab.tsx, client/src/hooks/useTaskActions ts (openCreateDialogForProject), client/src/hooks/useProjectMeetings.ts, client/src/api/projectMeetings.api.ts, server/src/routes/project.routes.ts, server/src/controllers/projectMeeting.controller.ts, server/src/services/projectMeeting.service.ts, server/src/repositories/projectMeeting.repository.ts, server/src/validators/projectMeeting.validator.ts
+    categorie: H
     statut: resolu
     gravite: faible
     classe: null
   - id: SEC-056
     perimetre: 4.3 Gestion des taches — client/src/features/tasks/TasksPage.tsx, client/src/features/tasks/components/TasksListView.tsx, client/src/features/tasks/hooks/useTasksPageData.ts, client/src/api/tasks.api.ts, client/src/hooks/useTasks.ts, server/src/controllers/task.controller.ts, server/src/services/task.service.ts, server/src/repositories/task.repository.ts
+    categorie: G
     statut: resolu
     gravite: moyen
     classe: null
   - id: SEC-057
     perimetre: Transverse UI — boutons icone divers, client/src/features/projects/ProjectsPage.tsx, client/src/features/projects/ProjectDetailPage.tsx, client/src/types/project.ts
+    categorie: H
     statut: resolu
     gravite: faible
     classe: null
   - id: SEC-058
     perimetre: 4.2 Gestion de projet — client/src/features/projects/ProjectDetailPage.tsx
+    categorie: H
     statut: resolu
     gravite: info
     classe: null
   - id: SEC-059
     perimetre: 4.3 Gestion des tâches — server/src/routes/task.routes.ts, server/src/controllers/comment.controller.ts, server/src/services/comment.service.ts, server/src/repositories/comment.repository.ts, server/src/validators/task.validator.ts, client/src/api/comments.api.ts, client/src/features/tasks/hooks/useTaskCommentMutation.ts, client/src/features/tasks/hooks/useTaskActions.ts, client/src/features/tasks/components/TaskDetailDrawer.tsx
+    categorie: G
     statut: resolu
     gravite: faible
     classe: null
   - id: SEC-060
     perimetre: 4.3 Gestion des tâches — server/prisma/schema.prisma (model Task), server/src/services/task.service.ts, server/src/services/comment.service.ts, client/src/types/task.ts, client/src/features/tasks/
+    categorie: G
     statut: resolu
     gravite: moyen
     classe: fonctionnalites-pm-standard-absentes
   - id: SEC-061
     perimetre: 4.2 Gestion de projet — client/src/features/client-portal/, server/src/controllers/project.controller.ts#getTimelineStatus, server/src/controllers/project.controller.ts#getCompletedTasks, server/src/services/project.service.ts, server/src/routes/project.routes.ts, client/src/api/projects.api.ts, client/src/features/client-portal/hooks/useProjectCompletedTasks.ts, client/src/features/client-portal/components/CompletedTasksList.tsx, client/src/features/client-portal/ProjectsClientPage.tsx
+    categorie: H
     statut: resolu
     gravite: faible
     classe: null
   - id: SEC-062
     perimetre: 4.2 Gestion de projet — server/src/services/project.service.ts#clientApprove, server/src/services/rating.service.ts
+    categorie: G
     statut: resolu
     gravite: info
     classe: null
   - id: SEC-063
     perimetre: 4.2 Gestion de projet — server/src/routes/document.routes.ts, server/src/services/document.service.ts, server/src/controllers/document.controller.ts, client/src/features/projects/ProjectDetailPage.tsx
+    categorie: H
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-064
     perimetre: 4.3 Gestion des tâches — server/prisma/schema.prisma (model Document, model Task), server/src/repositories/document.repository.ts, server/src/services/document.service.ts, server/src/controllers/document.controller.ts, shared/src/schemas/document.schema.ts, client/src/api/documents.api.ts, client/src/hooks/useDocuments.ts, client/src/features/tasks/components/TaskAttachments.tsx, client/src/features/tasks/components/TaskDetailDrawer.tsx
+    categorie: G
     statut: resolu
     gravite: moyen
     classe: fonctionnalites-pm-standard-absentes
   - id: SEC-065
     perimetre: 4.3 Gestion des tâches — server/src/utils/mentions.ts, server/src/services/comment.service.ts, client/src/features/tasks/components/MentionTextarea.tsx, client/src/features/tasks/components/TaskDetailDrawer.tsx, client/src/features/tasks/TasksPage.tsx
+    categorie: G
     statut: resolu
     gravite: moyen
     classe: fonctionnalites-pm-standard-absentes
   - id: SEC-066
     perimetre: 4.3 Gestion des tâches — server/src/services/task.service.ts, server/src/controllers/task.controller.ts, server/src/routes/task.routes.ts, server/src/validators/task.validator.ts, client/src/api/tasks.api.ts, client/src/hooks/useTasks.ts, client/src/features/tasks/components/TasksListView.tsx
+    categorie: G
     statut: resolu
     gravite: moyen
     classe: fonctionnalites-pm-standard-absentes
   - id: SEC-067
     perimetre: 4.3 Gestion des tâches — server/prisma/schema.prisma (model Task, model TaskChecklistItem), server/src/repositories/taskChecklist.repository.ts, server/src/services/taskChecklist.service.ts, server/src/controllers/taskChecklist.controller.ts, server/src/validators/taskChecklist.validator.ts, server/src/routes/task.routes.ts, client/src/api/taskChecklist.api.ts, client/src/features/tasks/hooks/useTaskChecklist.ts, client/src/features/tasks/components/TaskChecklist.tsx, client/src/features/tasks/components/TaskDetailDrawer.tsx
+    categorie: G
     statut: resolu
     gravite: moyen
     classe: fonctionnalites-pm-standard-absentes
   - id: SEC-068
     perimetre: 4.2/4.4 — shared/src/schemas/document.schema.ts, server/src/validators/document.validator.ts, server/src/middlewares/validate.middleware.ts, server/src/controllers/document.controller.ts, client/src/features/documents/DocumentsPage.tsx, client/src/features/projects/ProjectDetailPage.tsx
+    categorie: G
     statut: resolu
     gravite: bloquant
     classe: null
   - id: SEC-069
     perimetre: 4.3 Gestion des tâches — client/src/features/tasks/TasksPage.tsx, client/src/features/tasks/components/TasksCalendar.tsx
+    categorie: G
     statut: resolu
     gravite: moyen
     classe: fonctionnalites-pm-standard-absentes
   - id: SEC-070
     perimetre: 4.2 Gestion de projet — server/src/services/project.service.ts#getCompletedTasksForClient, client/src/features/client-portal/components/CompletedTasksList.tsx
+    categorie: G
     statut: resolu
     gravite: moyen
     classe: null
   - id: SEC-071
     perimetre: 4.3 Gestion des tâches — server/prisma/schema.prisma (model Comment), server/src/repositories/comment.repository.ts, client/src/features/tasks/components/TaskDetailDrawer.tsx
+    categorie: H
     statut: resolu
     gravite: faible
     classe: null
   - id: SEC-072
     perimetre: 4.3 Gestion des tâches — client/src/features/tasks/components/TaskAttachments.tsx
+    categorie: I
     statut: resolu
     gravite: faible
     classe: null
   - id: SEC-073
     perimetre: 4.2 Gestion de projet — server/src/services/projectTemplate.service.ts#applyToProject
+    categorie: H
     statut: resolu
     gravite: faible
     classe: null
   - id: SEC-074
     perimetre: 4.3 Gestion des tâches — server/src/services/taskChecklist.service.ts#createItem, server/prisma/schema.prisma (model TaskChecklistItem)
+    categorie: B
     statut: resolu
     gravite: faible
     classe: null
   - id: SEC-075
     perimetre: 4.3 Gestion des tâches — server/src/validators/taskChecklist.validator.ts, server/src/controllers/taskChecklist.controller.ts#getChecklistItems, server/src/repositories/taskChecklist.repository.ts#findByTaskId, client/src/features/tasks/components/TaskChecklist.tsx
+    categorie: C
     statut: resolu
     gravite: faible
     classe: null
   - id: SEC-076
     perimetre: 4.2 Gestion de projet — client/src/features/projects/ProjectMeetingsTab.tsx
+    categorie: C
     statut: resolu
     gravite: faible
     classe: null
   - id: SEC-077
     perimetre: 4.3 Gestion des tâches — server/src/services/taskChecklist.service.ts#createItem, server/src/repositories/taskChecklist.repository.ts#create
+    categorie: G
     statut: resolu
     gravite: faible
     classe: checklist-position-concurrence
   - id: SEC-078
     perimetre: 4.2 Gestion de projet — server/src/repositories/project.repository.ts, server/src/services/project.service.ts, server/src/routes/project.routes.ts, client/src/features/projects/ProjectDetailPage.tsx
+    categorie: G
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-079
     perimetre: 4.3 Gestion des tâches — client/src/features/tasks/hooks/useTaskActions.ts, client/src/hooks/useTasks.ts, server/src/validators/task.validator.ts
+    categorie: F
     statut: resolu
     gravite: bloquant
     classe: null
   - id: SEC-080
     perimetre: 4.3 Gestion des tâches — client/src/features/tasks/hooks/useTaskActions.ts, client/src/features/tasks/components/TaskEditDialog.tsx, server/src/services/task.service.ts
+    categorie: H
     statut: resolu
     gravite: bloquant
     classe: null
   - id: SEC-081
     perimetre: 4.2 Gestion de projet — server/src/services/project.service.ts#updateProject, client/src/features/projects/ProjectsPage.tsx
+    categorie: G
     statut: resolu
     gravite: eleve
     classe: null
   - id: SEC-082
     perimetre: 4.3 Gestion des tâches — client/src/features/tasks/components/TaskDetailDrawer.tsx, client/src/features/tasks/components/MentionTextarea.tsx
+    categorie: H
     statut: resolu
     gravite: eleve
     classe: null
   - id: SEC-083
     perimetre: 4.2 Gestion de projet — client/src/features/projects/ProjectsPage.tsx, server/src/routes/project.routes.ts
+    categorie: A
     statut: resolu
     gravite: eleve
     classe: null
   - id: SEC-084
     perimetre: 4.2 Gestion de projet — client/src/features/projects/ProjectsPage.tsx, server/src/services/project.service.ts#updateProject
+    categorie: G
     statut: resolu
     gravite: moyen
     classe: null
   - id: SEC-085
     perimetre: 4.2 Gestion de projet, 4.6 Portail client — server/src/services/project.service.ts#clientApprove, client/src/features/client-portal/ProjectsClientPage.tsx
+    categorie: F
     statut: resolu
     gravite: moyen
     classe: null
   - id: SEC-086
     perimetre: 4.2 Gestion de projet — server/src/repositories/project.repository.ts#findById, client/src/features/projects/ProjectDetailPage.tsx
+    categorie: A
     statut: resolu
     gravite: moyen
     classe: scope_manager_manquant
   - id: SEC-087
     perimetre: 4.3 Gestion des tâches — server/test/taskScope.test.ts, server/test/idor.test.ts
+    categorie: E
     statut: resolu
     gravite: moyen
     classe: null
   - id: SEC-088
     perimetre: 4.3 Gestion des tâches — client/src/features/tasks/hooks/useTasksPageData.ts
+    categorie: C
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-089
     perimetre: 4.3 Gestion des tâches — server/src/services/taskChecklist.service.ts, server/src/services/comment.service.ts, server/src/services/task.service.ts
+    categorie: G
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-090
     perimetre: 4.3 Gestion des tâches — server/src/repositories/task.repository.ts#create, server/src/types/entities.ts#CreateTaskDTO
+    categorie: B
     statut: resolu
     gravite: mineur
     classe: type_maison_substitue_au_type_prisma
   - id: SEC-091
     perimetre: 4.2 Gestion de projet, 4.6 Portail client — client/src/features/client-portal/ProjectsClientPage.tsx, client/src/features/client-portal/components/ProjectTimeline.tsx, client/src/features/client-portal/components/CompletedTasksList.tsx
+    categorie: C
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-092
     perimetre: 4.2 Gestion de projet — server/src/repositories/projectMeeting.repository.ts#findDueForReminder
+    categorie: G
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-093
     perimetre: 4.3 Gestion des tâches — client/src/features/tasks/TasksKanban.tsx#SortableTaskCard
+    categorie: H
     statut: resolu
     gravite: mineur
     classe: a11y_clavier_lecteur_ecran
   - id: SEC-094
     perimetre: 4.3 Gestion des tâches — client/src/features/tasks/components/TasksListView.tsx (branche `hidden sm:block`, lignes ~385-395)
+    categorie: H
     statut: resolu
     gravite: mineur
     classe: a11y_label_accessible_bouton_icone
   - id: SEC-095
     perimetre: 4.2/4.3 — client/src/features/projects/TimeTrackingTab.tsx, client/src/features/projects/ProjectMeetingsTab.tsx, client/src/features/tasks/components/TaskChecklist.tsx, client/src/features/tasks/components/TaskAttachments.tsx
+    categorie: H
     statut: resolu
     gravite: mineur
     classe: ux_erreur_serveur_non_remontee
   - id: SEC-096
     perimetre: 4.2/4.3 — client/src/features/projects/ProjectDetailPage.tsx (TASK_STATUS_COLOR, TASK_STATUS_LABELS), client/src/features/tasks/TasksKanban.tsx (STATUS_CONFIG)
+    categorie: H
     statut: resolu
     gravite: mineur
     classe: coherence_ui_couleurs_i18n
   - id: SEC-097
     perimetre: 4.2 Gestion de projet — server/src/services/task.service.ts#bulkUpdateStatus/#bulkDelete, client/src/features/tasks/components/TasksListView.tsx (selection jusqu'a la page entiere)
+    categorie: C
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-098
-    perimetre: "4.2 Gestion de projet — server/src/services/comment.service.ts, server/src/services/taskChecklist.service.ts, server/src/services/projectMeeting.service.ts ; consommateur cache : server/src/services/summary.service.ts + summary.repository.ts#getProjectSummary/#getClientSummary"
+    perimetre: '4.2 Gestion de projet — server/src/services/comment.service.ts, server/src/services/taskChecklist.service.ts, server/src/services/projectMeeting.service.ts ; consommateur cache : server/src/services/summary.service.ts + summary.repository.ts#getProjectSummary/#getClientSummary'
+    categorie: C
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-099
     perimetre: 4.1 CRM & Pipeline commercial — server/src/services/proposal.service.ts, server/src/repositories/proposal.repository.ts
+    categorie: A
     statut: resolu
     gravite: majeur
     classe: scoping_pole_manquant_ou_incorrect
   - id: SEC-100
     perimetre: 4.1 CRM & Pipeline commercial — server/test/lead.repository.test.ts, server/test/leadService.test.ts, server/test/proposal.service.test.ts
+    categorie: E
     statut: resolu
     gravite: mineur
     classe: test_reimplemente_companyid_fictif
   - id: SEC-101
     perimetre: 4.1 CRM & Pipeline commercial — client/src/features/leads/LeadsKanban.tsx, client/src/features/leads/LeadDetailDialog.tsx, server/src/services/proposal.service.ts
+    categorie: G
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-102
     perimetre: 4.1 CRM & Pipeline commercial — shared/src/schemas/lead.schema.ts, client/src/features/leads/LeadsPage.tsx, server/src/services/lead.service.ts, server/src/repositories/lead.repository.ts
+    categorie: A
     statut: resolu
     gravite: majeur
     classe: scoping_pole_manquant_ou_incorrect
   - id: SEC-103
     perimetre: 4.1 CRM & Pipeline commercial — server/src/repositories/proposal.repository.ts, server/src/utils/listQuery.ts
+    categorie: A
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-104
     perimetre: transverse — shared/src/schemas/lead.schema.ts, shared/src/schemas/client.schema.ts (et au moins clientOnboarding.schema.ts, freelancer.schema.ts, project.schema.ts, task.schema.ts pour des champs analogues)
+    categorie: B
     statut: resolu
     gravite: mineur
     classe: schema_sans_borne_de_longueur
   - id: SEC-105
     perimetre: 4.1 CRM & Pipeline commercial — server/src/validators/lead.validator.ts
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-106
     perimetre: 4.1 CRM & Pipeline commercial — client/src/features/clients/ClientsPage.tsx
+    categorie: A
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-107
     perimetre: 4.1 CRM & Pipeline commercial — client/src/features/leads/LeadsKanban.tsx
+    categorie: H
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-108
     perimetre: 4.1 CRM & Pipeline commercial — client/src/features/leads/LeadsKanban.tsx
+    categorie: B
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-109
     perimetre: 4.1 CRM & Pipeline commercial — server/test/proposalAcceptCascade.test.ts
+    categorie: E
     statut: resolu
     gravite: mineur
     classe: test_reimplemente_companyid_fictif
   - id: SEC-110
     perimetre: transverse — server/src/utils/webhook.ts, server/src/middlewares/verifyN8nWebhook.middleware.ts, endpoints PATCH /freelancer-applications/:id/ai-summary et PATCH /projects/:id/ai-specs
+    categorie: A
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-111
     perimetre: schema.prisma — model ServiceRequest ; server/src/repositories/serviceRequest.repository.ts
+    categorie: B
     statut: resolu
     gravite: mineur
     classe: index_manquant_colonne_filtree
   - id: SEC-112
     perimetre: schema.prisma — model Document ; server/src/repositories/document.repository.ts
+    categorie: B
     statut: resolu
     gravite: mineur
     classe: index_manquant_colonne_filtree
   - id: SEC-113
     perimetre: schema.prisma — model ManagerPermission ; server/src/repositories/managerPermission.repository.ts
+    categorie: B
     statut: resolu
     gravite: mineur
     classe: index_manquant_colonne_filtree
   - id: SEC-114
     perimetre: server/src/services/managerPermission.service.ts ; schema.prisma — relation ManagerPermission.profile
+    categorie: B
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-115
     perimetre: server/prisma/migrations/20260711183136_sync_schema_drift/migration.sql
+    categorie: B
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-116
     perimetre: 4.6 Portail client — client/src/features/client-portal/ProjectsClientPage.tsx, client/src/features/client-portal/components/ProjectTimeline.tsx
+    categorie: C
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-117
     perimetre: 4.6 Portail client — client/src/features/client-portal/components/ProjectTimeline.tsx
+    categorie: F
     statut: rejete
     gravite: mineur
     classe: null
   - id: SEC-118
     perimetre: 4.1 CRM & Pipeline commercial — client/src/features/leads/LeadsPage.tsx, server/src/utils/listQuery.ts, server/src/controllers/lead.controller.ts
+    categorie: C
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-119
     perimetre: transverse — server/src/jobs/queues.ts, server/src/jobs/processors/communication.processor.ts
+    categorie: D
     statut: resolu
     gravite: majeur
     classe: job_bullmq_sans_deduplication
   - id: SEC-120
     perimetre: transverse — server/src/jobs/queues.ts, server/src/jobs/index.ts, server/src/jobs/processors/documents.processor.ts, server/src/services/proposal.service.ts
+    categorie: D
     statut: resolu
     gravite: majeur
     classe: job_bullmq_sans_deduplication
   - id: SEC-121
     perimetre: server/src/services/managerPermission.service.ts, server/src/repositories/managerPermission.repository.ts
+    categorie: C
     statut: rejete
     gravite: mineur
     classe: null
   - id: SEC-122
     perimetre: 4.9 Documents — server/src/repositories/document.repository.ts ; server/src/services/document.service.ts ; server/src/controllers/document.controller.ts
+    categorie: A
     statut: resolu
     gravite: bloquant
     classe: scoping_pole_manquant_ou_incorrect
   - id: SEC-123
     perimetre: 4.1 CRM & Pipeline commercial — server/src/services/contact.service.ts#convertToLead ; server/src/controllers/contact.controller.ts#convertToLead
+    categorie: A
     statut: resolu
     gravite: majeur
     classe: scoping_pole_manquant_ou_incorrect
   - id: SEC-124
     perimetre: server/test/rbac.test.ts ; server/src/routes/proposal.routes.ts
+    categorie: E
     statut: resolu
     gravite: mineur
     classe: test_http_route_critique_manquant
   - id: SEC-125
     perimetre: server/test/proposalScopeAfterCreation.test.ts ; server/src/services/proposal.service.ts
+    categorie: E
     statut: resolu
     gravite: mineur
     classe: test_scope_methode_non_couverte
   - id: SEC-126
     perimetre: server/test/taskScope.test.ts ; server/src/services/task.service.ts#updateTask
+    categorie: E
     statut: resolu
     gravite: mineur
     classe: test_scope_methode_non_couverte
   - id: SEC-127
     perimetre: server/test/projectMeetingUpdateDelete.test.ts ; server/src/services/projectMeeting.service.ts
+    categorie: E
     statut: resolu
     gravite: mineur
     classe: test_scope_methode_non_couverte
   - id: SEC-128
     perimetre: server/test/verifyN8nWebhook.test.ts ; server/src/middlewares/verifyN8nWebhook.middleware.ts
+    categorie: E
     statut: resolu
     gravite: mineur
     classe: test_scenario_defense_manquant
   - id: SEC-129
     perimetre: server/test/auth.service.test.ts ; server/test/auth.middleware.test.ts ; server/src/utils/authCookies.ts
+    categorie: E
     statut: resolu
     gravite: mineur
     classe: test_http_route_critique_manquant
   - id: SEC-130
     perimetre: server/test/documentAccess.test.ts ; server/src/repositories/document.repository.ts
+    categorie: E
     statut: resolu
     gravite: mineur
     classe: test_helper_isole_non_cable
   - id: SEC-131
     perimetre: server/test/clientCompletedTasks.test.ts
+    categorie: E
     statut: resolu
     gravite: mineur
     classe: test_delai_fixe_flaky
   - id: SEC-132
     perimetre: server/test/searchScope.test.ts ; server/src/repositories/search.repository.ts
+    categorie: E
     statut: resolu
     gravite: mineur
     classe: test_reimplemente_cible
   - id: SEC-133
     perimetre: server/test/prismaReadWriteSeparation.test.ts ; server/src/repositories/*.ts
+    categorie: E
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-134
     perimetre: server/src/services/proposal.service.ts#acceptWithCascade ; server/test/proposalAcceptCascade.test.ts
+    categorie: E
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-135
     perimetre: server/src/repositories/client.repository.ts ; lead.repository.ts ; user.repository.ts ; comment.repository.ts#create
+    categorie: B
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-136
     perimetre: server/src/services/proposal.service.ts#acceptWithCascade
+    categorie: B
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-137
     perimetre: server/src/services/invoice.service.ts ; server/test/documentScopeManager.test.ts
+    categorie: E
     statut: resolu
     gravite: mineur
     classe: test_scope_methode_non_couverte
   - id: SEC-138
     perimetre: documentation projet — server/src/swagger.ts
+    categorie: F
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-139
     perimetre: documentation projet — README.md, server/src/app.ts
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: doc_openapi_desynchronisee_du_code_reel
   - id: SEC-140
     perimetre: server/src/routes/auth.routes.ts, server/src/controllers/auth.controller.ts
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: doc_openapi_desynchronisee_du_code_reel
   - id: SEC-141
     perimetre: server/src/routes/auth.routes.ts
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: doc_openapi_desynchronisee_du_code_reel
   - id: SEC-142
     perimetre: server/src/routes/user.routes.ts, server/src/routes/client.routes.ts, server/src/controllers/user.controller.ts, server/src/controllers/client.controller.ts
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: doc_openapi_desynchronisee_du_code_reel
   - id: SEC-143
     perimetre: server/src/routes/proposal.routes.ts, server/src/routes/invoice.routes.ts, server/src/routes/approval.routes.ts
+    categorie: F
     statut: resolu
     gravite: majeur
     classe: doc_openapi_desynchronisee_du_code_reel
   - id: SEC-144
     perimetre: server/src/routes/notification.routes.ts
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: doc_openapi_desynchronisee_du_code_reel
   - id: SEC-145
     perimetre: server/src/middlewares/error.middleware.ts
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-146
     perimetre: server/src/utils/webhook.ts, docs/n8n-events.md
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-147
     perimetre: server/src/routes/user.routes.ts, server/src/validators/user.validator.ts
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: doc_openapi_desynchronisee_du_code_reel
   - id: SEC-148
     perimetre: server/src/routes/project.routes.ts
+    categorie: F
     statut: resolu
     gravite: majeur
     classe: doc_openapi_desynchronisee_du_code_reel
   - id: SEC-149
     perimetre: server/src/controllers/auth.controller.ts, server/src/controllers/project.controller.ts, server/src/controllers/upload.controller.ts, server/src/controllers/siteContent.controller.ts, server/src/controllers/freelancerApplication.controller.ts
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-150
     perimetre: server/src/swagger.ts, server/src/routes/{auth,client,invoice,project,proposal,approval}.routes.ts
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: doc_openapi_desynchronisee_du_code_reel
   - id: SEC-151
     perimetre: server/src/services/creditNote.service.ts
+    categorie: B
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-152
     perimetre: server/src/services/invoice.service.ts, server/src/services/creditNote.service.ts, server/src/services/auditLog.service.ts
+    categorie: G
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-153
     perimetre: server/src/utils/webhook.ts
+    categorie: D
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-154
     perimetre: server/src/services/client.service.ts, server/src/services/invoice.service.ts (addPayment)
+    categorie: G
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-155
     perimetre: server/src/services/lead.service.ts, server/prisma/schema.prisma
+    categorie: H
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-163
     perimetre: client/src/features/client-portal/ClientBriefPage.tsx:254,257
+    categorie: B
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-156
     perimetre: 4.7 Rapports/Analytics — client/src/features/reports/ReportsPage.tsx, server/src/controllers/project.controller.ts#getAllProjects, server/src/controllers/invoice.controller.ts, server/src/utils/listQuery.ts, server/src/repositories/project.repository.ts, server/src/repositories/invoice.repository.ts
+    categorie: C
     statut: resolu
     gravite: majeur
     classe: pagination_plafond_silencieux
   - id: SEC-157
     perimetre: 4.1 CRM (pipeline leads) — client/src/features/leads/LeadsKanban.tsx, comparé à client/src/features/tasks/TasksKanban.tsx
+    categorie: C
     statut: resolu
     gravite: mineur
     classe: memoisation_liste_manquante
   - id: SEC-158
-    perimetre: "documentation — README.md ; code réel : server/src/services/proposal.service.ts#acceptWithCascadeAttempt, server/src/jobs/queues.ts#enqueueDocumentGeneration, server/src/jobs/index.ts (worker documents)"
+    perimetre: 'documentation — README.md ; code réel : server/src/services/proposal.service.ts#acceptWithCascadeAttempt, server/src/jobs/queues.ts#enqueueDocumentGeneration, server/src/jobs/index.ts (worker documents)'
+    categorie: I
     statut: resolu
     gravite: mineur
     classe: documentation_desynchronisee
   - id: SEC-159
     perimetre: observabilité — server/src/cache/cacheService.ts, server/src/observability/collectors.ts, server/src/observability/metrics.ts
+    categorie: D
     statut: resolu
     gravite: mineur
     classe: observabilite_incomplete
   - id: SEC-160
     perimetre: 4.8 Analytics & Performance — server/src/services/dashboard.service.ts#getSummary, server/src/services/analytics.service.ts#getSummary, server/src/repositories/analytics.repository.ts
+    categorie: C
     statut: resolu
     gravite: majeur
     classe: cache_manquant_chemin_frequent
   - id: SEC-161
     perimetre: 4.8 Analytics & Performance — server/src/repositories/executiveMetrics.repository.ts#getAll
+    categorie: C
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-162
     perimetre: frontend transverse — client/src/components/shared/crud/EntityTable.tsx, client/src/hooks/shared/useVirtualTable.ts, et les 14 fichiers listés dans le titre
+    categorie: C
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-164
     perimetre: server/prisma/migrations/20260625230000_remove_commented_approval_status/migration.sql ; schema.prisma#ApprovalTimeline
+    categorie: B
     statut: resolu
     gravite: bloquant
     classe: null
   - id: SEC-165
-    perimetre: "schema.prisma#Commission, #ProjectCommissionSplit, #TimeEntry (relations vers User) ; server/src/services/user.service.ts#deleteUser ; server/src/repositories/user.repository.ts#delete"
+    perimetre: 'schema.prisma#Commission, #ProjectCommissionSplit, #TimeEntry (relations vers User) ; server/src/services/user.service.ts#deleteUser ; server/src/repositories/user.repository.ts#delete'
+    categorie: B
     statut: resolu
     gravite: bloquant
     classe: null
   - id: SEC-166
     perimetre: schema.prisma#TimeEntry ; server/src/services/invoice.service.ts:452 (seul point d'écriture)
+    categorie: B
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-167
-    perimetre: "schema.prisma#User (lignes 200+203), #FreelancerApplication (lignes 891-892), #Payment (ligne 966+978)"
+    perimetre: 'schema.prisma#User (lignes 200+203), #FreelancerApplication (lignes 891-892), #Payment (ligne 966+978)'
+    categorie: B
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-168
     perimetre: server/src/services/project.service.ts#clientApprove (ligne ~441)
+    categorie: G
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-169
-    perimetre: "server/src/services/metricAnomaly.service.ts#detectClickAnomalies ; appelant : server/src/services/searchConsole.service.ts:154"
+    perimetre: 'server/src/services/metricAnomaly.service.ts#detectClickAnomalies ; appelant : server/src/services/searchConsole.service.ts:154'
+    categorie: C
     statut: resolu
     gravite: mineur
     classe: n_plus_un_boucle_sequentielle
   - id: SEC-170
     perimetre: server/src/repositories/commission.repository.ts#createManyTx (lignes 41-55)
+    categorie: C
     statut: resolu
     gravite: mineur
     classe: n_plus_un_boucle_sequentielle
   - id: SEC-171
     perimetre: server/src/repositories/lead.repository.ts#getLeads ; server/src/repositories/project.repository.ts (projectListSelect, ligne 37) ; server/src/utils/prismaSelects.ts (taskWithRelationsSelect)
+    categorie: A
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-172
     perimetre: server/prisma/migrations/20260711204823_client_portal_activated_at/migration.sql ; server/src/services/invoice.service.ts:250-259 ; server/src/middlewares/rbac.middleware.ts#requireActivatedPortal
+    categorie: B
     statut: resolu
     gravite: majeur
     classe: migration_champ_derive_sans_backfill
   - id: SEC-173
     perimetre: server/prisma/migrations/20260719200000_add_task_completedat_comment_editedat/migration.sql ; schema.prisma#Task (commentaire SEC-070)
+    categorie: B
     statut: resolu
     gravite: mineur
     classe: migration_champ_derive_sans_backfill
   - id: SEC-174
     perimetre: 4.0 Authentification/RBAC — server/src/middlewares/auth.middleware.ts#authenticate ; server/src/config/env.ts (JWT_ACCESS_EXPIRES_IN)
+    categorie: A
     statut: resolu
     gravite: mineur
     classe: revocation_session_differee
   - id: SEC-175
     perimetre: ANOMALIES.yaml (intégrité du registre lui-même) — entrées SEC-122 et SEC-137
+    categorie: I
     statut: resolu
     gravite: mineur
     classe: incoherence_registre_anomalies
   - id: SEC-176
     perimetre: transverse — server/src/routes/{project,task,document,clientOnboarding,clientSuccess,permissionProfile,managerPermission,notification,analytics,dashboard,freelancer,portfolio,rating,search,service,serviceRequest,siteContent,summary,translation,clientPortal}.routes.ts
+    categorie: A
     statut: resolu
     gravite: mineur
     classe: rate_limiting_couverture_incomplete
   - id: SEC-177
     perimetre: 4.2 Gestion de projet, 4.4 Facturation — server/src/services/project.service.ts#clientApprove (lignes 296-388)
+    categorie: A
     statut: resolu
     gravite: mineur
     classe: toctou_precheck_hors_transaction
   - id: SEC-178
     perimetre: 4.7 Marketplace freelance — schema.prisma#Rating (lignes 741-752) ; server/src/services/rating.service.ts
+    categorie: B
     statut: resolu
     gravite: mineur
     classe: contrainte_unicite_manquante
   - id: SEC-179
     perimetre: 4.4 Facturation, 4.1 CRM & Pipeline commercial — server/test/idor.test.ts ; server/src/repositories/invoice.repository.ts ; server/src/repositories/proposal.repository.ts
+    categorie: E
     statut: resolu
     gravite: moyen
     classe: test_reimplemente_companyid_fictif
   - id: SEC-180
     perimetre: transverse — server/src/app.ts (lignes 134-136) ; server/src/middlewares/error.middleware.ts
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: enveloppe_erreur_non_uniforme
   - id: SEC-181
     perimetre: transverse — server/src/controllers/{contact,customQuestion,aiConversation,projectMeeting,timeEntry}.controller.ts ; server/src/utils/listQuery.ts#parseListQuery
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: convention_api_non_uniforme
   - id: SEC-182
     perimetre: transverse (fidélité documentation) — server/src/routes/project.routes.ts (client-approve, lignes 344-380) ; server/src/services/project.service.ts#clientApprove ; échantillon également relevé sur invoice.routes.ts (POST /:id/payments)
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: swagger_codes_erreur_incomplets
   - id: SEC-183
     perimetre: 4.4 Facturation, 4.1 CRM & Pipeline commercial — server/src/services/project.service.ts:336 ; server/src/services/proposal.service.ts:466 ; server/src/services/documentGenerator.service.ts:399
+    categorie: B
     statut: resolu
     gravite: majeur
     classe: constante_metier_dupliquee_sans_source_unique
   - id: SEC-184
     perimetre: 4.4 Facturation — server/src/services/creditNote.service.ts#create (lignes 48-61)
+    categorie: G
     statut: resolu
     gravite: bloquant
     classe: garde_montant_cumulatif_manquante
   - id: SEC-185
     perimetre: 4.9 Documents — server/src/services/document.service.ts#signDocument ; server/src/controllers/document.controller.ts#signDocument
+    categorie: A
     statut: resolu
     gravite: majeur
     classe: preuve_signature_electronique_insuffisante
   - id: SEC-186
     perimetre: 4.4 Facturation — server/src/jobs/processors/maintenance.processor.ts#markOverdueInvoices (lignes 246-265)
+    categorie: G
     statut: resolu
     gravite: mineur
     classe: trace_audit_transition_statut_manquante
   - id: SEC-187
     perimetre: 4.1 CRM & Pipeline commercial — server/src/services/lead.service.ts#createLead (lignes 69-101) ; schema.prisma#Lead (ligne 268, 291)
+    categorie: A
     statut: resolu
     gravite: majeur
     classe: toctou_precheck_sans_contrainte_db_reelle
   - id: SEC-188
     perimetre: 4.4 Facturation, 4.6 Portail client — server/src/services/invoice.service.ts#addPayment (lignes 214-306)
+    categorie: D
     statut: resolu
     gravite: majeur
     classe: erreur_post_commit_masque_succes_transaction
   - id: SEC-189
     perimetre: documentation — README.md (tableau stack, ligne Auth) ; server/src/config/env.ts:13
+    categorie: I
     statut: resolu
     gravite: mineur
     classe: documentation_desynchronisee
   - id: SEC-190
     perimetre: client/src/i18n/locales/fr/translation.json ; client/src/i18n/locales/en/translation.json
+    categorie: B
     statut: resolu
     gravite: majeur
     classe: mojibake_encodage_texte
   - id: SEC-191
     perimetre: 4.0 Utilisateurs — server/src/services/user.service.ts#deleteUser ; server/src/jobs/queues.ts (communicationQueue)
+    categorie: C
     statut: resolu
     gravite: majeur
     classe: operation_non_bornee_chemin_requete
   - id: SEC-192
     perimetre: documentation — README.md (section Project Structure ligne ~113, section Testing lignes ~321-329)
+    categorie: I
     statut: resolu
     gravite: mineur
     classe: documentation_decrivant_une_capacite_absente
   - id: SEC-193
     perimetre: server/prisma/schema.prisma (modèles Invoice, Proposal) ; .github/workflows/ci.yml (job server, étape "Schema drift check") ; migrations 20260713120000_invoice_partial_unique, 20260625160000_add_lead_id_to_proposal
+    categorie: J
     statut: resolu
     gravite: mineur
     classe: limite_prisma_index_partiel_non_representable
   - id: SEC-194
     perimetre: server/package.json (script test:coverage, devDependencies) ; .github/workflows/ci.yml (job server)
+    categorie: D
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-195
-    perimetre: "server/test/*.ts — 63 fichiers corrigés dans cette passe (grep sur `SEC-195:` pour la liste exacte, à jour) : archivedProjectTaskVisibility, authCookieAndLogoutReuse, authPhoneRoundTrip, checkInvoiceFollowup, clientApproveEmailPortalUrl, clientInviteResend, clientPortalActivationBackfill, commissionCreationExclusivity, commissionService, contactConvertToLeadScope, creditNoteApply, creditNoteCumulativeAmount, creditNoteNumberConcurrency, depositRateSingleSource, documentCreateHttp, documentScopeManager, documentSignContract, errorEnvelope.http, executiveMetricsActiveProjectsParallel, executiveMetricsCriticalCountUnbounded, executiveMetricsProjectRisks, freelancerSeesOwnDeliverable, idor, invoiceAuditLog, invoiceCreateFromProposal, invoiceNumberingGapless, invoicePaymentInviteFailure, invoiceScopeManager, lead.repository, leadCreateConcurrency, leadCreateScope, leadDuplicateEmail, leadListExcludesNotes, leadService, leadsKanbanMaxPageSize, managerScopeIdorFixes, markOverdueInvoicesAuditLog, metricAnomalyAndCommissionBatching, portalActivationOnPayment, projectClientApproveBalanceInvoice, projectClientApproveConcurrency, projectCreateArchiveRestore, projectDetailIncludesTasks, projectStatusInFilter, projectTemplateIdempotencyAndFreelancerFields, proposal.service, proposalAcceptCascade, proposalAcceptCascadeConcurrency, proposalAcceptRbacHttp, proposalCreationScope, proposalListOrderBy, proposalScopeAfterCreation, proposalScopeSendUpdateAddSection, proposalWriteScopeRefusal, reportsPageSortOrder, schemaIndexCleanupAndTimeEntryFk, searchScope, serviceRequestService, taskCompletedAtBackfill, taskPrioritySort, taskUpdateScopeRefusal, userDeleteFinancialHistory, userProfilePhone.http"
+    perimetre: 'server/test/*.ts — 63 fichiers corrigés dans cette passe (grep sur `SEC-195:` pour la liste exacte, à jour) : archivedProjectTaskVisibility, authCookieAndLogoutReuse, authPhoneRoundTrip, checkInvoiceFollowup, clientApproveEmailPortalUrl, clientInviteResend, clientPortalActivationBackfill, commissionCreationExclusivity, commissionService, contactConvertToLeadScope, creditNoteApply, creditNoteCumulativeAmount, creditNoteNumberConcurrency, depositRateSingleSource, documentCreateHttp, documentScopeManager, documentSignContract, errorEnvelope.http, executiveMetricsActiveProjectsParallel, executiveMetricsCriticalCountUnbounded, executiveMetricsProjectRisks, freelancerSeesOwnDeliverable, idor, invoiceAuditLog, invoiceCreateFromProposal, invoiceNumberingGapless, invoicePaymentInviteFailure, invoiceScopeManager, lead.repository, leadCreateConcurrency, leadCreateScope, leadDuplicateEmail, leadListExcludesNotes, leadService, leadsKanbanMaxPageSize, managerScopeIdorFixes, markOverdueInvoicesAuditLog, metricAnomalyAndCommissionBatching, portalActivationOnPayment, projectClientApproveBalanceInvoice, projectClientApproveConcurrency, projectCreateArchiveRestore, projectDetailIncludesTasks, projectStatusInFilter, projectTemplateIdempotencyAndFreelancerFields, proposal.service, proposalAcceptCascade, proposalAcceptCascadeConcurrency, proposalAcceptRbacHttp, proposalCreationScope, proposalListOrderBy, proposalScopeAfterCreation, proposalScopeSendUpdateAddSection, proposalWriteScopeRefusal, reportsPageSortOrder, schemaIndexCleanupAndTimeEntryFk, searchScope, serviceRequestService, taskCompletedAtBackfill, taskPrioritySort, taskUpdateScopeRefusal, userDeleteFinancialHistory, userProfilePhone.http'
+    categorie: E
     statut: resolu
     gravite: majeur
     classe: garde_skip_evalue_avant_before_async
   - id: SEC-196
     perimetre: server/src/repositories/managerPermission.repository.ts (lignes 21-29)
+    categorie: B
     statut: resolu
     gravite: mineur
     classe: code_mort_apres_remplacement
   - id: SEC-197
     perimetre: server/src/services/managerPermission.service.ts#permissionProfileService.delete (lignes 125-171)
+    categorie: A
     statut: resolu
     gravite: mineur
     classe: toctou_invalidation_cache_apres_suppression
   - id: SEC-198
     perimetre: server/src/services/documentGenerator.service.ts#generateInvoicePDF (TIMBRE_FISCAL, ligne 10, 486, 495-496) ; server/src/services/invoice.service.ts#addPayment (compare au TTC seul, jamais au timbre)
+    categorie: B
     statut: resolu
     gravite: majeur
     classe: affichage_desynchronise_du_stockage
   - id: SEC-199
-    perimetre: "server/src/services/invoice.service.ts#create (aucun audit log) et #addPayment (crédit automatique non audité par lui-même) ; server/src/services/creditNote.service.ts#createCreditNoteTx (fonction partagée, auditée seulement côté appelant manuel)"
+    perimetre: 'server/src/services/invoice.service.ts#create (aucun audit log) et #addPayment (crédit automatique non audité par lui-même) ; server/src/services/creditNote.service.ts#createCreditNoteTx (fonction partagée, auditée seulement côté appelant manuel)'
+    categorie: G
     statut: resolu
     gravite: majeur
     classe: auditlog_couverture_incomplete_cycle_financier
   - id: SEC-200
     perimetre: client/src/api/proposals.api.ts#getProposals ; server/src/controllers/proposal.controller.ts#getProposals (res.json(result) où result = { data, total, page, pageSize })
+    categorie: F
     statut: resolu
     gravite: bloquant
     classe: client_desimbrication_enveloppe_pagination_incorrecte
   - id: SEC-201
-    perimetre: "client/src/api/invoices.api.ts#getInvoices (ligne 71-75) et #getTrash (ligne 128-137) ; server/src/controllers/invoice.controller.ts#getInvoices (ligne 30-41, res.json(result) flat) et #getDeletedInvoices (ligne 43-47, idem)"
+    perimetre: 'client/src/api/invoices.api.ts#getInvoices (ligne 71-75) et #getTrash (ligne 128-137) ; server/src/controllers/invoice.controller.ts#getInvoices (ligne 30-41, res.json(result) flat) et #getDeletedInvoices (ligne 43-47, idem)'
+    categorie: F
     statut: resolu
     gravite: bloquant
     classe: client_desimbrication_enveloppe_pagination_incorrecte
   - id: SEC-202
-    perimetre: "server/src/services/project.service.ts#clientApprove (appel à createBalanceInvoiceTx avec proposalId: preread.proposal.id) ; server/src/services/invoice.service.ts#createBalanceInvoiceTx (accepte et transmet ce proposalId à tx.invoice.create) ; server/prisma/schema.prisma#Invoice.proposalId (@unique, contrainte réelle en base)"
+    perimetre: 'server/src/services/project.service.ts#clientApprove (appel à createBalanceInvoiceTx avec proposalId: preread.proposal.id) ; server/src/services/invoice.service.ts#createBalanceInvoiceTx (accepte et transmet ce proposalId à tx.invoice.create) ; server/prisma/schema.prisma#Invoice.proposalId (@unique, contrainte réelle en base)'
+    categorie: B
     statut: resolu
     gravite: bloquant
     classe: contrainte_unique_violee_cascade_metier
   - id: SEC-203
-    perimetre: "server/src/repositories/document.repository.ts#findAll (ligne 75-83) ; server/src/repositories/proposal.repository.ts#findAll (ligne 57-67) et #findAllByClientId (ligne 81-91)"
+    perimetre: 'server/src/repositories/document.repository.ts#findAll (ligne 75-83) ; server/src/repositories/proposal.repository.ts#findAll (ligne 57-67) et #findAllByClientId (ligne 81-91)'
+    categorie: C
     statut: resolu
     gravite: mineur
     classe: liste_paginee_sans_select_restrictif
   - id: SEC-204
     perimetre: client/src/components/common/SortableTableHead.tsx ; client/src/components/shared/crud/SearchInput.tsx ; client/src/components/common/GlobalSearch.tsx
+    categorie: H
     statut: resolu
     gravite: mineur
     classe: composant_transverse_accessibilite_manquante
   - id: SEC-205
     perimetre: client/src/features/leads/LeadDetailDialog.tsx (ligne 42, avant correctif)
+    categorie: H
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-206
     perimetre: client/src/styles.css (--border, --input, --accent-foreground/--accent-soft) ; 8 fichiers consommateurs du badge accent-soft (ApprovalsPage.tsx, ProposalsClientPage.tsx, CommissionsPage.tsx, DashboardCharts.tsx, DashboardPage.tsx, InvoicesPage.tsx ×2, ProposalsPage.tsx, ProductDashboard.tsx)
+    categorie: H
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-207
     perimetre: server/src/routes/proposal.routes.ts, server/src/routes/project.routes.ts, server/src/swagger.ts#Project
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-208
     perimetre: server/src/validators/invoice.validator.ts ; server/src/validators/proposal.validator.ts ; shared/src/schemas/proposal.schema.ts (leadId ajouté)
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: validateur_zod_duplique_au_lieu_de_reutiliser_shared
   - id: SEC-209
     perimetre: server/src/swagger-schemas.ts
+    categorie: F
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-210
     perimetre: package.json (racine) ; README.md (sections Features, Tech Stack, Project Structure, Testing)
+    categorie: E
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-211
-    perimetre: ".github/workflows/ci.yml (ligne 234, job e2e, étape de seed avant lancement du serveur dev) ; server/package.json (script réel : prisma:seed)"
+    perimetre: '.github/workflows/ci.yml (ligne 234, job e2e, étape de seed avant lancement du serveur dev) ; server/package.json (script réel : prisma:seed)'
+    categorie: D
     statut: resolu
     gravite: majeur
     classe: null
   - id: SEC-212
     perimetre: .github/workflows/ci.yml (jobs server et e2e, services postgres/redis) — infrastructure CI, pas le code applicatif
+    categorie: D
     statut: resolu
     gravite: majeur
     classe: ci_infra_lenteur_services_docker
   - id: SEC-213
     perimetre: e2e/client-approval.spec.ts, client/src (page/route "Projets" du portail CLIENT)
+    categorie: H
     statut: resolu
     gravite: mineur
     classe: e2e_navigation_liste_vs_detail
   - id: SEC-215
     perimetre: server/src/repositories/client.repository.ts#findAll
+    categorie: G
     statut: resolu
     gravite: majeur
     classe: recherche-serveur-non-appliquee
   - id: SEC-214
     perimetre: 4.3 Gestion des tâches — server/src/repositories/taskChecklist.repository.ts#create
+    categorie: G
     statut: resolu
     gravite: mineur
     classe: checklist-position-concurrence
   - id: SEC-216
     perimetre: server/src/services/client.service.ts#inviteClientUser ; server/prisma/seed.ts (données de seed concernées)
+    categorie: G
     statut: resolu
     gravite: majeur
     classe: reinitialisation-mdp-silencieuse
   - id: SEC-217
     perimetre: .github/workflows/backup.yml — infrastructure CI/déploiement, pas le code applicatif
+    categorie: D
     statut: resolu
     gravite: mineur
     classe: ci_workflow_infra_inexistante
   - id: SEC-218
     perimetre: e2e/client-approval.spec.ts (ligne 114) ; client/src/features/client-portal/ProjectsClientPage.tsx (ligne 103, announce())
+    categorie: E
     statut: resolu
     gravite: mineur
     classe: null
   - id: SEC-219
     perimetre: monitoring/alerts.yml (règle CacheHitRateLow, ligne 15) ; server/src/observability/metrics.ts (lignes 117/124, noms réels des métriques)
+    categorie: D
     statut: en_cours
     gravite: mineur
     classe: alerte_metrique_orpheline
   - id: SEC-220
     perimetre: server/src/services/gdpr.service.ts (exportClient/eraseClient) ; server/src/repositories/lead.repository.ts
+    categorie: A
     statut: en_cours
     gravite: mineur
     classe: perimetre_rgpd_incomplet
   - id: SEC-221
     perimetre: server/src/services/gdpr.service.ts ; server/src/services/contact.service.ts (aucun repository dédié, prisma.contactRequest.* appelé directement)
+    categorie: A
     statut: en_cours
     gravite: mineur
     classe: perimetre_rgpd_incomplet
   - id: SEC-222
     perimetre: server/src/services/gdpr.service.ts (exportClient, champ documents) ; server/src/services/document.service.ts#getDownloadUrl (pattern d'URL signée existant, réutilisable)
+    categorie: A
     statut: en_cours
     gravite: mineur
     classe: rgpd_export_incomplet
   - id: SEC-223
-    perimetre: "server/src/services/auditLog.service.ts ; gdprService.eraseClient/eraseUser (argument before: {name, email, ...} passé à auditLogService.record) ; REFERENTIEL.md RG-025 ; README.md § Data protection notes"
+    perimetre: 'server/src/services/auditLog.service.ts ; gdprService.eraseClient/eraseUser (argument before: {name, email, ...} passé à auditLogService.record) ; REFERENTIEL.md RG-025 ; README.md § Data protection notes'
+    categorie: A
     statut: en_cours
     gravite: mineur
     classe: retention_pii_non_documentee
   - id: SEC-224
     perimetre: server/src/routes/gdpr.routes.ts (routes existantes, toutes authorize("ADMIN"))
+    categorie: A
     statut: en_cours
     gravite: mineur
     classe: perimetre_rgpd_incomplet
   - id: SEC-225
     perimetre: server/src/routes/gdpr.routes.ts (routes GET .../export)
+    categorie: A
     statut: en_cours
     gravite: mineur
     classe: rate_limit_incoherent
   - id: SEC-226
     perimetre: client/src/features/landing/components/{HowItWorks,FAQ,SocialProof}.tsx ; server/prisma/seed.ts (sections HOW_IT_WORKS, FAQ, SOCIAL_PROOF absentes) ; client/src/i18n/locales/{fr,en}/translation.json (home.howItWorks.steps, home.faq.questions, home.socialProof.testimonials — contenu intact, orphelin)
+    categorie: B
     statut: en_cours
     gravite: majeur
     classe: migration_cms_seed_manquant
   - id: SEC-227
     perimetre: client/src/features/landing/components/{Problems,SolutionsTeaser,Differentiators}.tsx ; server/prisma/seed.ts (sections PROBLEMS, SOLUTIONS, DIFFERENTIATORS absentes avant correctif) ; client/src/i18n/locales/{fr,en}/translation.json (problems.items, solutionsTeaser.segments, differentiators.items — contenu intact, orphelin)
+    categorie: B
     statut: en_cours
     gravite: majeur
     classe: migration_cms_seed_manquant
   - id: SEC-228
     perimetre: server/test/taskAssigneeAndOverdueFilters.test.ts
+    categorie: E
     statut: confirme
     gravite: mineur
     classe: test_process_non_ferme
   - id: SEC-229
     perimetre: 4.5 Brief client / ClientBriefPage.tsx
+    categorie: B
     statut: confirme
     gravite: mineur
     classe: champ_mort_fallback_trompeur
   - id: SEC-230
     perimetre: 4.3 Portail client / client/src/features/client-portal/ProjectsClientPage.tsx#ApproveDialog
+    categorie: H
     statut: en_cours
     gravite: mineur
     classe: ux_erreur_serveur_non_remontee
   - id: SEC-231
     perimetre: 4.6 Facturation — server/src/routes/invoice.routes.ts (endpoint), client/src/features/invoices/InvoicesPage.tsx (tabulation Avoirs)
+    categorie: F
     statut: ouvert
     gravite: mineur
     classe: endpoint_sans_ui
   - id: SEC-232
     perimetre: 4.1 CRM & Pipeline commercial — client/src/features/clients/ClientDetailPage.tsx, server/src/services/client.service.ts#deleteClient
+    categorie: H
     statut: ouvert
     gravite: mineur
     classe: code_erreur_frontend_sans_contrepartie_serveur
   - id: SEC-233
     perimetre: 4.1 CRM & Pipeline commercial — client/src/features/leads/CreateProposalFromLeadDialog.tsx, server/src/controllers/client.controller.ts#getClients, server/src/utils/listQuery.ts#parseListQuery
+    categorie: C
     statut: ouvert
     gravite: majeur
     classe: plafond_pagesize_serveur_non_aligne_appelant
+  - id: SEC-234
+    perimetre: ANOMALIES.yaml / anomalies/*.yaml (intégrité du registre lui-même) — champ gravite
+    categorie: I
+    statut: ouvert
+    gravite: mineur
+    classe: incoherence_registre_anomalies

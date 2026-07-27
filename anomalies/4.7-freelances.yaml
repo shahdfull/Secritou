@@ -13,6 +13,7 @@ anomalies:
   - id: SEC-018
     titre: rating.controller.ts restreint via req.user!.id au lieu de req.user!.sub
     perimetre: 4.7 Freelances
+    categorie: A
     regle_violee: null
     classe: null
     gravite: mineur
@@ -28,6 +29,7 @@ anomalies:
   - id: SEC-178
     titre: Rating n'a ni champ projectId ni contrainte @@unique/garde applicative sur (freelancerId, ratedByUserId) — un même évaluateur peut soumettre un nombre illimité de notes pour le même freelance, chacune recalculant la moyenne (ratingService.updateFreelancerRatingAverage), sans lien traçable vers le projet ayant déclenché la demande d'évaluation
     perimetre: 4.7 Marketplace freelance — schema.prisma#Rating (lignes 741-752) ; server/src/services/rating.service.ts
+    categorie: B
     regle_violee: null
     classe: contrainte_unicite_manquante
     gravite: mineur

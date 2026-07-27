@@ -13,6 +13,7 @@ anomalies:
   - id: SEC-005
     titre: Type frontend désynchronisé du schéma Prisma — champ mort (Lead.companyId)
     perimetre: 4.1 CRM & Pipeline commercial
+    categorie: F
     regle_violee: null
     classe: type_frontend_desynchronise_du_schema_prisma
     gravite: mineur
@@ -29,6 +30,7 @@ anomalies:
   - id: SEC-028
     titre: proposalService.create n'appliquait aucun scoping de pôle sur clientId/leadId/serviceRequestId — un Manager pouvait créer une proposition (donc plus tard un projet) sur un client/lead d'un autre pôle
     perimetre: 4.1 CRM & Pipeline commercial, 4.2 Gestion de projet — server/src/services/proposal.service.ts, server/src/controllers/proposal.controller.ts
+    categorie: A
     regle_violee: RG-002
     classe: null
     gravite: majeur
@@ -49,6 +51,7 @@ anomalies:
   - id: SEC-032
     titre: Le validateur currencyCode acceptait n'importe quelle devise à 3 lettres — aucune contrainte réelle à TND en écriture sur POST /invoices et POST /proposals
     perimetre: 4.4 Facturation, 4.1 CRM & Pipeline commercial — server/src/validators/invoice.validator.ts, server/src/validators/proposal.validator.ts, shared/src/schemas/common.schema.ts
+    categorie: B
     regle_violee: RG-001
     classe: null
     gravite: majeur
@@ -71,6 +74,7 @@ anomalies:
   - id: SEC-099
     titre: assertProposalInScope et proposalService.getAll scopent le MANAGER sur Proposal.projectId (relation avant, quasi toujours nulle) au lieu de linkedProject (le projet créé DEPUIS la proposition) — un MANAGER ne peut ni lister, ni lire, ni modifier, envoyer, accepter ou gérer les sections de ses propres propositions
     perimetre: 4.1 CRM & Pipeline commercial — server/src/services/proposal.service.ts, server/src/repositories/proposal.repository.ts
+    categorie: A
     regle_violee: RG-002
     classe: scoping_pole_manquant_ou_incorrect
     gravite: majeur
@@ -86,6 +90,7 @@ anomalies:
   - id: SEC-100
     titre: Tests CRM en réimplémentation locale sur un companyId fictif (lead.repository.test.ts, leadService.test.ts, proposal.service.test.ts) — vert trompeur, ne prouvent rien sur le vrai scoping/IDOR des leads et propositions
     perimetre: 4.1 CRM & Pipeline commercial — server/test/lead.repository.test.ts, server/test/leadService.test.ts, server/test/proposal.service.test.ts
+    categorie: E
     regle_violee: null
     classe: test_reimplemente_companyid_fictif
     gravite: mineur
@@ -103,6 +108,7 @@ anomalies:
   - id: SEC-101
     titre: 'Bouton « Créer une proposition » sur un lead : les 3 couches (Kanban, dialogue détail, serveur) se contredisent sur les statuts autorisés — échoue à 100% depuis le Kanban'
     perimetre: 4.1 CRM & Pipeline commercial — client/src/features/leads/LeadsKanban.tsx, client/src/features/leads/LeadDetailDialog.tsx, server/src/services/proposal.service.ts
+    categorie: G
     regle_violee: null
     classe: null
     gravite: majeur
@@ -118,6 +124,7 @@ anomalies:
   - id: SEC-102
     titre: Un lead créé manuellement (formulaire « Ajouter un lead ») n'a jamais serviceId ni assignedManagerId renseignés — invisible pour tout MANAGER, visible seulement par un ADMIN
     perimetre: 4.1 CRM & Pipeline commercial — shared/src/schemas/lead.schema.ts, client/src/features/leads/LeadsPage.tsx, server/src/services/lead.service.ts, server/src/repositories/lead.repository.ts
+    categorie: A
     regle_violee: RG-002
     classe: scoping_pole_manquant_ou_incorrect
     gravite: majeur
@@ -133,6 +140,7 @@ anomalies:
   - id: SEC-103
     titre: proposalRepository.findAll interpole options.orderBy directement dans la clause Prisma sans passer par la whitelist buildOrderBy/SORTABLE_FIELDS déjà utilisée par leadRepository — un nom de champ de tri invalide fait planter Prisma en 500 au lieu d'être ignoré
     perimetre: 4.1 CRM & Pipeline commercial — server/src/repositories/proposal.repository.ts, server/src/utils/listQuery.ts
+    categorie: A
     regle_violee: null
     classe: null
     gravite: mineur
@@ -148,6 +156,7 @@ anomalies:
   - id: SEC-105
     titre: updateLeadSchema valide params.id avec z.string() simple, alors que delete/convert/reopen (idParamSchema partagé) exigent z.string().uuid() — incohérence de rigueur sur le même paramètre
     perimetre: 4.1 CRM & Pipeline commercial — server/src/validators/lead.validator.ts
+    categorie: F
     regle_violee: null
     classe: null
     gravite: mineur
@@ -163,6 +172,7 @@ anomalies:
   - id: SEC-106
     titre: ClientsPage.tsx affiche toujours le bouton « Ajouter un client », même pour un utilisateur sans droit d'écriture — incohérent avec LeadsPage.tsx qui masque son équivalent via usePermission
     perimetre: 4.1 CRM & Pipeline commercial — client/src/features/clients/ClientsPage.tsx
+    categorie: A
     regle_violee: null
     classe: null
     gravite: mineur
@@ -179,6 +189,7 @@ anomalies:
   - id: SEC-107
     titre: La modale « Marquer comme perdu » de LeadsKanban.tsx a son titre, sa description, son placeholder et ses 2 boutons en français codé en dur — seul texte du fichier non traduit via react-i18next
     perimetre: 4.1 CRM & Pipeline commercial — client/src/features/leads/LeadsKanban.tsx
+    categorie: H
     regle_violee: null
     classe: null
     gravite: mineur
@@ -194,6 +205,7 @@ anomalies:
   - id: SEC-108
     titre: Colonnes du Kanban Leads à largeur fixe (min-w-[280px] max-w-[320px]) avec défilement horizontal uniquement — non pensé mobile-first
     perimetre: 4.1 CRM & Pipeline commercial — client/src/features/leads/LeadsKanban.tsx
+    categorie: B
     regle_violee: null
     classe: null
     gravite: mineur
@@ -209,6 +221,7 @@ anomalies:
   - id: SEC-109
     titre: proposalAcceptCascade.test.ts réimplémente acceptWithCascade localement avec un companyId fictif — même défaut que SEC-100, fichier hors de son périmètre déclaré
     perimetre: 4.1 CRM & Pipeline commercial — server/test/proposalAcceptCascade.test.ts
+    categorie: E
     regle_violee: null
     classe: test_reimplemente_companyid_fictif
     gravite: mineur
@@ -226,6 +239,7 @@ anomalies:
   - id: SEC-118
     titre: 'LeadsPage kanban envoie pageSize: 200, mais parseListQuery le plafonne silencieusement à 50 côté serveur — le pipeline Kanban est tronqué au-delà de 50 leads, sans aucune indication à l''utilisateur'
     perimetre: 4.1 CRM & Pipeline commercial — client/src/features/leads/LeadsPage.tsx, server/src/utils/listQuery.ts, server/src/controllers/lead.controller.ts
+    categorie: C
     regle_violee: null
     classe: null
     gravite: majeur
@@ -241,6 +255,7 @@ anomalies:
   - id: SEC-123
     titre: contactService.convertToLead accepte assignedManagerId et department en paramètres libres transmis tels quels par le controller, sans dériver ni vérifier le pôle de l'appelant — un manager peut convertir un ContactRequest en Lead assigné à un autre pôle
     perimetre: 4.1 CRM & Pipeline commercial — server/src/services/contact.service.ts#convertToLead ; server/src/controllers/contact.controller.ts#convertToLead
+    categorie: A
     regle_violee: RG-002
     classe: scoping_pole_manquant_ou_incorrect
     gravite: majeur
@@ -256,6 +271,7 @@ anomalies:
   - id: SEC-124
     titre: Aucun test HTTP n'exerce les routes RBAC/scope critiques (POST /proposals/:id/accept, DELETE /proposals/:id) avec un rôle refusé — rbac.test.ts ne teste que authorize() en isolation avec un req mocké, jamais une route réelle montée
     perimetre: server/test/rbac.test.ts ; server/src/routes/proposal.routes.ts
+    categorie: E
     regle_violee: null
     classe: test_http_route_critique_manquant
     gravite: mineur
@@ -273,6 +289,7 @@ anomalies:
   - id: SEC-125
     titre: proposalService.send, update et addSection ne sont jamais testés pour le cas MANAGER hors pôle malgré qu'ils appellent assertProposalInScope dans le code — proposalScopeAfterCreation.test.ts ne couvre que getById/getAll/update/acceptWithCascade
     perimetre: server/test/proposalScopeAfterCreation.test.ts ; server/src/services/proposal.service.ts
+    categorie: E
     regle_violee: null
     classe: test_scope_methode_non_couverte
     gravite: mineur
@@ -288,6 +305,7 @@ anomalies:
   - id: SEC-134
     titre: Aucun test ne prouve que deux appels concurrents à proposalService.acceptWithCascade sur la même proposition ne dupliquent jamais Project/Invoice — la garde d'idempotence (status === ACCEPTED) protège le cas séquentiel mais pas deux transactions concurrentes lisant toutes deux le statut avant que l'une ait commité
     perimetre: server/src/services/proposal.service.ts#acceptWithCascade ; server/test/proposalAcceptCascade.test.ts
+    categorie: E
     regle_violee: null
     classe: null
     gravite: mineur
@@ -304,6 +322,7 @@ anomalies:
   - id: SEC-135
     titre: '4 repositories (client, lead, user, comment#create) aliasent prismaRead sous le nom prisma et l''utilisent pour des écritures — même défaut racine déjà trouvé et corrigé sur project.repository.ts, jamais étendu à ces 4 fichiers : si DATABASE_READ_URL pointe un jour vers une vraie réplique en lecture seule, toute écriture sur Client/Lead/User/Comment échouerait'
     perimetre: server/src/repositories/client.repository.ts ; lead.repository.ts ; user.repository.ts ; comment.repository.ts#create
+    categorie: B
     regle_violee: null
     classe: null
     gravite: majeur
@@ -321,6 +340,7 @@ anomalies:
   - id: SEC-136
     titre: 'proposalService.acceptWithCascade : le fallback try/catch sur la collision P2002 (Project.proposalId / Invoice.proposalId uniques) ne peut jamais réussir dans la même transaction — Postgres bloque toute commande suivante (25P02) une fois la transaction en échec, donc le tx.project.findFirst/tx.invoice.findFirst de secours échoue systématiquement dans le cas réel qu''il est censé gérer'
     perimetre: server/src/services/proposal.service.ts#acceptWithCascade
+    categorie: B
     regle_violee: null
     classe: null
     gravite: majeur
@@ -337,6 +357,7 @@ anomalies:
   - id: SEC-143
     titre: Aucun bloc @swagger dans proposal.routes.ts, invoice.routes.ts et approval.routes.ts malgré ~48 routes actives, dont le flux commercial central (accept/reject/create-invoice) et les paiements/relances de facturation
     perimetre: server/src/routes/proposal.routes.ts, server/src/routes/invoice.routes.ts, server/src/routes/approval.routes.ts
+    categorie: F
     regle_violee: null
     classe: doc_openapi_desynchronisee_du_code_reel
     gravite: majeur
@@ -355,6 +376,7 @@ anomalies:
   - id: SEC-155
     titre: leadService.createLead (formulaire interne « Ajouter un lead ») n'a aucune vérification de doublon par email, contrairement au chemin du formulaire de contact public (contact.service.ts:27, find-or-create explicite) — deux managers créant un lead avec le même email produisent deux fiches distinctes sans erreur ni fusion
     perimetre: server/src/services/lead.service.ts, server/prisma/schema.prisma
+    categorie: H
     regle_violee: null
     classe: null
     gravite: mineur
@@ -376,6 +398,7 @@ anomalies:
   - id: SEC-157
     titre: LeadsKanban.tsx (SortableLeadCard, KanbanColumn internes) n'utilise pas React.memo, contrairement aux composants équivalents de TasksKanban.tsx (SortableTaskCard, KanbanColumn) qui le sont — jusqu'à 500 leads (LEADS_MAX_PAGE_SIZE) re-render sans mémoïsation à chaque changement d'état du parent (drag, refetch)
     perimetre: 4.1 CRM (pipeline leads) — client/src/features/leads/LeadsKanban.tsx, comparé à client/src/features/tasks/TasksKanban.tsx
+    categorie: C
     regle_violee: null
     classe: memoisation_liste_manquante
     gravite: mineur
@@ -392,6 +415,7 @@ anomalies:
   - id: SEC-171
     titre: leadRepository.getLeads (endpoint de liste principal des leads) n'a AUCUN select — rapatrie toutes les colonnes de chaque ligne, y compris Lead.notes (Text, libre) pour jusqu'à 500 lignes (LEADS_MAX_PAGE_SIZE) par appel ; projectRepository/taskRepository ont un select dédié pour leurs vues liste mais celui-ci inclut quand même description (Text) alors que les vues Kanban/liste qui les consomment n'affichent pas ce champ
     perimetre: server/src/repositories/lead.repository.ts#getLeads ; server/src/repositories/project.repository.ts (projectListSelect, ligne 37) ; server/src/utils/prismaSelects.ts (taskWithRelationsSelect)
+    categorie: A
     regle_violee: null
     classe: null
     gravite: mineur
@@ -411,6 +435,7 @@ anomalies:
   - id: SEC-179
     titre: 'server/test/idor.test.ts (14 tests, invoice.repository + proposal.repository) réimplémente localement invoiceUpdate/invoiceDelete/invoiceFindById/proposalUpdate/proposalDelete/proposalFindById sur un where: { id, companyId } fictif — companyId n''existe nulle part dans ce dépôt mono-tenant ; le fichier n''importe jamais les vrais repositories et ne prouve rien sur leur scoping réel'
     perimetre: 4.4 Facturation, 4.1 CRM & Pipeline commercial — server/test/idor.test.ts ; server/src/repositories/invoice.repository.ts ; server/src/repositories/proposal.repository.ts
+    categorie: E
     regle_violee: null
     classe: test_reimplemente_companyid_fictif
     gravite: moyen
@@ -426,6 +451,7 @@ anomalies:
   - id: SEC-183
     titre: Le taux d'acompte de 30% est un littéral 0.3 recopié indépendamment à 3 endroits (project.service.ts#clientApprove, proposal.service.ts#acceptWithCascade, documentGenerator.service.ts#generateQuotePDF) sans constante partagée — une future évolution du taux métier corrigée dans un seul site laisserait les autres calculer un acompte/solde différent de ce que le devis PDF a promis au client ou de ce que la facture réelle applique
     perimetre: 4.4 Facturation, 4.1 CRM & Pipeline commercial — server/src/services/project.service.ts:336 ; server/src/services/proposal.service.ts:466 ; server/src/services/documentGenerator.service.ts:399
+    categorie: B
     regle_violee: null
     classe: constante_metier_dupliquee_sans_source_unique
     gravite: majeur
@@ -441,6 +467,7 @@ anomalies:
   - id: SEC-187
     titre: leadService.createLead s'appuie sur un pré-check (tx.lead.findFirst puis tx.lead.create) suivi d'un catch P2002 présenté comme filet de sécurité DB, mais Lead.email ne porte qu'un @@index, jamais un @@unique — deux créations vraiment concurrentes (deux managers sur le même prospect) peuvent toutes deux lire « aucun doublon » avant que l'une des deux ne commite, produisant deux leads actifs avec le même email malgré SEC-155
     perimetre: 4.1 CRM & Pipeline commercial — server/src/services/lead.service.ts#createLead (lignes 69-101) ; schema.prisma#Lead (ligne 268, 291)
+    categorie: A
     regle_violee: null
     classe: toctou_precheck_sans_contrainte_db_reelle
     gravite: majeur
@@ -456,6 +483,7 @@ anomalies:
   - id: SEC-200
     titre: 'proposalsApi.getProposals désimbrique une couche de trop : le contrôleur renvoie l''enveloppe de pagination à plat ({ data, total, page, pageSize }), mais le client lit response.data.data — la liste des propositions n''apparaît donc JAMAIS dans l''UI (aucune recherche, aucune pagination, table toujours vide)'
     perimetre: client/src/api/proposals.api.ts#getProposals ; server/src/controllers/proposal.controller.ts#getProposals (res.json(result) où result = { data, total, page, pageSize })
+    categorie: F
     regle_violee: null
     classe: client_desimbrication_enveloppe_pagination_incorrecte
     gravite: bloquant
@@ -472,6 +500,7 @@ anomalies:
   - id: SEC-203
     titre: 'Même motif que SEC-171 sur deux autres repositories : documentRepository.findAll (aucun select, seulement include client) et proposalRepository.findAll/findAllByClientId (aucun select, seulement include client/invoice/sections) rapatrient chacun la colonne Text intégrale (Document.description / Proposal.description) sur chaque ligne d''un endpoint de liste paginé, alors que ni DocumentsPage ni ProposalsPage/ProposalsClientPage n''affichent ce champ en vue liste'
     perimetre: 'server/src/repositories/document.repository.ts#findAll (ligne 75-83) ; server/src/repositories/proposal.repository.ts#findAll (ligne 57-67) et #findAllByClientId (ligne 81-91)'
+    categorie: C
     regle_violee: null
     classe: liste_paginee_sans_select_restrictif
     gravite: mineur
@@ -490,6 +519,7 @@ anomalies:
   - id: SEC-205
     titre: 'LeadDetailDialog.tsx : useLead ne déstructure jamais isLoading — pendant que la fiche détaillée (avec les propositions liées) est en cours de chargement, current retombe sur la prop lead issue de la liste, qui ne porte jamais proposals, et la section affiche « aucune proposition liée » alors que le lead en a peut-être réellement, juste pas encore chargées (faux état vide, pas seulement un indicateur de chargement manquant)'
     perimetre: client/src/features/leads/LeadDetailDialog.tsx (ligne 42, avant correctif)
+    categorie: H
     regle_violee: null
     classe: null
     gravite: mineur
@@ -506,6 +536,7 @@ anomalies:
   - id: SEC-207
     titre: 'Diff Swagger vs comportement réel sur Invoice/Proposal/Project : 5 divergences réelles trouvées — POST/respond proposal documentent un conflit de version en 400 alors que PROPOSAL_VERSION_MISMATCH/INVALID_PROPOSAL_TRANSITION/PROPOSAL_EXPIRED sont réellement des 409 ; POST /proposals documente un 403 générique pour un dépassement de scope MANAGER qui renvoie en réalité des 404 (Lead/Client not found) ; clientInvited documenté comme reflétant une invitation réelle alors qu''il vaut toujours false (RG-018/SEC-002) ; POST/PUT /projects omettent totalement le champ status (et serviceId pour PUT) du schéma de requête documenté alors qu''il est réellement accepté ; GET /projects documentait un stub {id,name,description} au lieu du vrai schema Project (lui-même incomplet, corrigé dans la même passe)'
     perimetre: server/src/routes/proposal.routes.ts, server/src/routes/project.routes.ts, server/src/swagger.ts#Project
+    categorie: F
     regle_violee: null
     classe: null
     gravite: mineur
@@ -524,6 +555,7 @@ anomalies:
   - id: SEC-208
     titre: 'invoice.validator.ts et proposal.validator.ts réimplémentaient chacun un schéma Zod déjà défini dans @secritou/shared (invoiceItemSchema/createCreditNoteSchema/addPaymentSchema pour invoice ; proposalBaseSchema/proposalSectionSchema/rejectProposalSchema/respondToProposalSchema pour proposal) au lieu de les importer — même motif que celui déjà corrigé pour lead/document/task/project/client/user/freelancer.validator.ts ; une divergence déjà réelle constatée : leadId accepté par le serveur pour proposal mais absent du schéma partagé, invisible à tout formulaire client construit sur ce schéma'
     perimetre: server/src/validators/invoice.validator.ts ; server/src/validators/proposal.validator.ts ; shared/src/schemas/proposal.schema.ts (leadId ajouté)
+    categorie: F
     regle_violee: null
     classe: validateur_zod_duplique_au_lieu_de_reutiliser_shared
     gravite: mineur
@@ -543,6 +575,7 @@ anomalies:
   - id: SEC-215
     titre: server/src/repositories/client.repository.ts#findAll construit son `where` mais n'applique jamais `options.search` — GET /clients?search=<texte> retourne la liste complète non filtrée triée par date de création, quel que soit le texte cherché, pour tout ADMIN/MANAGER utilisant la recherche clients
     perimetre: server/src/repositories/client.repository.ts#findAll
+    categorie: G
     regle_violee: null
     classe: recherche-serveur-non-appliquee
     gravite: majeur
@@ -558,6 +591,7 @@ anomalies:
   - id: SEC-220
     titre: gdprService (RG-025) ne couvre pas les Lead non convertis — exportClient/eraseClient ne traitent que les Leads déjà rattachés à un Client via convertedClientId, un prospect jamais converti (ex. statut LOST) n'a aucun chemin d'export/effacement RGPD
     perimetre: server/src/services/gdpr.service.ts (exportClient/eraseClient) ; server/src/repositories/lead.repository.ts
+    categorie: A
     regle_violee: RG-025
     classe: perimetre_rgpd_incomplet
     gravite: mineur
@@ -572,6 +606,7 @@ anomalies:
   - id: SEC-221
     titre: ContactRequest (soumissions du formulaire de contact public) hors périmètre RGPD — en amont de Lead (Lead.sourceContactId), aucun chemin d'export/effacement dédié
     perimetre: server/src/services/gdpr.service.ts ; server/src/services/contact.service.ts (aucun repository dédié, prisma.contactRequest.* appelé directement)
+    categorie: A
     regle_violee: RG-025
     classe: perimetre_rgpd_incomplet
     gravite: mineur
@@ -586,6 +621,7 @@ anomalies:
   - id: SEC-232
     titre: 'Suppression de client : branche d''erreur CLIENT_HAS_PROJECTS jamais émise par le serveur'
     perimetre: 4.1 CRM & Pipeline commercial — client/src/features/clients/ClientDetailPage.tsx, server/src/services/client.service.ts#deleteClient
+    categorie: H
     regle_violee: null
     classe: code_erreur_frontend_sans_contrepartie_serveur
     gravite: mineur
@@ -600,6 +636,7 @@ anomalies:
   - id: SEC-233
     titre: Sélecteur client de CreateProposalFromLeadDialog plafonné à 50 côté serveur alors que le frontend demande et annonce 200
     perimetre: 4.1 CRM & Pipeline commercial — client/src/features/leads/CreateProposalFromLeadDialog.tsx, server/src/controllers/client.controller.ts#getClients, server/src/utils/listQuery.ts#parseListQuery
+    categorie: C
     regle_violee: null
     classe: plafond_pagesize_serveur_non_aligne_appelant
     gravite: majeur

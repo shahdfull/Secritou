@@ -13,6 +13,7 @@ anomalies:
   - id: SEC-006
     titre: 'Champ phone du portail Client : jamais relu, jamais pré-rempli, jamais effaçable'
     perimetre: 4.14 Authentification & Compte utilisateur
+    categorie: F
     regle_violee: null
     classe: type_frontend_desynchronise_du_schema_prisma
     gravite: majeur
@@ -35,6 +36,7 @@ anomalies:
   - id: SEC-009
     titre: userRepository.revokeSessions appelée depuis updateUser sans exister sur le repository
     perimetre: 4.14 Authentification & Compte utilisateur
+    categorie: E
     regle_violee: null
     classe: typecheck_serveur_en_echec
     gravite: bloquant
@@ -52,6 +54,7 @@ anomalies:
   - id: SEC-011
     titre: Fenêtre de grâce de 30 s sur les refresh tokens révoqués, introduite sans décision documentée
     perimetre: 4.14 Authentification & Compte utilisateur — server/src/services/auth.service.ts
+    categorie: A
     regle_violee: null
     classe: null
     gravite: majeur
@@ -69,6 +72,7 @@ anomalies:
   - id: SEC-050
     titre: 'Le champ phone promis par le contrat auth-user (toAuthUser + AuthUser client) n''est JAMAIS selectionne par userPublicSelect : login/register/refresh renvoient toujours phone: undefined, quel que soit le telephone reellement stocke'
     perimetre: 4.11 Auth & comptes — server/src/repositories/auth.repository.ts, server/src/services/auth.service.ts, client/src/types/auth.ts
+    categorie: F
     regle_violee: null
     classe: null
     gravite: mineur
@@ -87,6 +91,7 @@ anomalies:
   - id: SEC-129
     titre: Aucun test HTTP n'inspecte les attributs Set-Cookie (HttpOnly/Secure/SameSite) du refresh token, ni le flux réel login->logout->réutilisation du refresh token — auth.service.test.ts teste la logique via mock DB, jamais le contrat cookie/contrôleur
     perimetre: server/test/auth.service.test.ts ; server/test/auth.middleware.test.ts ; server/src/utils/authCookies.ts
+    categorie: E
     regle_violee: null
     classe: test_http_route_critique_manquant
     gravite: mineur
@@ -102,6 +107,7 @@ anomalies:
   - id: SEC-140
     titre: Swagger de POST /auth/logout documente une réponse 200, le contrôleur renvoie 204 No Content
     perimetre: server/src/routes/auth.routes.ts, server/src/controllers/auth.controller.ts
+    categorie: F
     regle_violee: null
     classe: doc_openapi_desynchronisee_du_code_reel
     gravite: mineur
@@ -118,6 +124,7 @@ anomalies:
   - id: SEC-141
     titre: Swagger de POST /auth/login, /auth/register et /auth/refresh ne documente ni le cookie HTTP-only refreshToken ni le fait que le corps JSON ne renvoie que accessToken
     perimetre: server/src/routes/auth.routes.ts
+    categorie: F
     regle_violee: null
     classe: doc_openapi_desynchronisee_du_code_reel
     gravite: mineur
@@ -134,6 +141,7 @@ anomalies:
   - id: SEC-142
     titre: Swagger de GET /users, GET /users/permissions et GET /clients ne documente pas la forme réelle de la réponse (permissionsMatrix, pagination {data,total,page,pageSize}, connectedTimeAverages)
     perimetre: server/src/routes/user.routes.ts, server/src/routes/client.routes.ts, server/src/controllers/user.controller.ts, server/src/controllers/client.controller.ts
+    categorie: F
     regle_violee: null
     classe: doc_openapi_desynchronisee_du_code_reel
     gravite: mineur
@@ -150,6 +158,7 @@ anomalies:
   - id: SEC-147
     titre: Swagger de PATCH /users/me ne documente pas le champ phone, alors que updateMeSchema l'accepte et que updateMe l'applique — écart documentaire distinct du défaut fonctionnel SEC-006 (déjà résolu)
     perimetre: server/src/routes/user.routes.ts, server/src/validators/user.validator.ts
+    categorie: F
     regle_violee: null
     classe: doc_openapi_desynchronisee_du_code_reel
     gravite: mineur
@@ -166,6 +175,7 @@ anomalies:
   - id: SEC-165
     titre: 'La suppression d''un User (DELETE /users/:id, ADMIN uniquement, route réellement câblée) cascade sur Commission, ProjectCommissionSplit et TimeEntry (onDelete: Cascade sur les trois relations) — supprimer le compte d''un des 3 associés détruit silencieusement tout son historique de commissions et de temps facturé, sans aucune garde dans userService.deleteUser'
     perimetre: 'schema.prisma#Commission, #ProjectCommissionSplit, #TimeEntry (relations vers User) ; server/src/services/user.service.ts#deleteUser ; server/src/repositories/user.repository.ts#delete'
+    categorie: B
     regle_violee: null
     classe: null
     gravite: bloquant
@@ -182,6 +192,7 @@ anomalies:
   - id: SEC-174
     titre: Le token d'accès JWT est purement stateless (aucune vérification DB, aucune liste de révocation) — un compte ADMIN/MANAGER supprimé ou dont le rôle est rétrogradé reste utilisable avec les anciens droits jusqu'à expiration naturelle du token (15 min par défaut)
     perimetre: 4.0 Authentification/RBAC — server/src/middlewares/auth.middleware.ts#authenticate ; server/src/config/env.ts (JWT_ACCESS_EXPIRES_IN)
+    categorie: A
     regle_violee: null
     classe: revocation_session_differee
     gravite: mineur
@@ -198,6 +209,7 @@ anomalies:
   - id: SEC-189
     titre: README.md décrit la durée du JWT access token comme « 1h » alors que JWT_ACCESS_EXPIRES_IN vaut 15m par défaut (env.ts:13) — écart de documentation déjà signalé en aparté dans la note de SEC-174 sans ID propre
     perimetre: documentation — README.md (tableau stack, ligne Auth) ; server/src/config/env.ts:13
+    categorie: I
     regle_violee: null
     classe: documentation_desynchronisee
     gravite: mineur
@@ -212,6 +224,7 @@ anomalies:
   - id: SEC-223
     titre: AuditLog.before/after conserve indéfiniment un snapshot PII pré-anonymisation (name/email) même après un GDPR_CLIENT_ANONYMIZED/GDPR_USER_ANONYMIZED — non documenté dans REFERENTIEL.md ni le README au moment où RG-025 a été écrit
     perimetre: 'server/src/services/auditLog.service.ts ; gdprService.eraseClient/eraseUser (argument before: {name, email, ...} passé à auditLogService.record) ; REFERENTIEL.md RG-025 ; README.md § Data protection notes'
+    categorie: A
     regle_violee: RG-025
     classe: retention_pii_non_documentee
     gravite: mineur

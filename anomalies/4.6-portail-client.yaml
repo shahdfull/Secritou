@@ -13,6 +13,7 @@ anomalies:
   - id: SEC-002
     titre: Activation du portail client non alignée sur le paiement de la 1re tranche
     perimetre: 4.6 Portail client
+    categorie: G
     regle_violee: RG-018
     classe: null
     gravite: majeur
@@ -33,6 +34,7 @@ anomalies:
   - id: SEC-091
     titre: 'Portail client : chaque carte projet declenche 2 requetes independantes (timeline avec polling 30s + taches terminees), motif N+1 qui s''aggrave avec le nombre de projets d''un client'
     perimetre: 4.2 Gestion de projet, 4.6 Portail client — client/src/features/client-portal/ProjectsClientPage.tsx, client/src/features/client-portal/components/ProjectTimeline.tsx, client/src/features/client-portal/components/CompletedTasksList.tsx
+    categorie: C
     regle_violee: null
     classe: null
     gravite: mineur
@@ -54,6 +56,7 @@ anomalies:
   - id: SEC-111
     titre: ServiceRequest.priority et ServiceRequest.type sans index alors que les deux sont utilisés comme filtre WHERE (et priority comme tri) dans serviceRequest.repository.ts
     perimetre: schema.prisma — model ServiceRequest ; server/src/repositories/serviceRequest.repository.ts
+    categorie: B
     regle_violee: null
     classe: index_manquant_colonne_filtree
     gravite: mineur
@@ -69,6 +72,7 @@ anomalies:
   - id: SEC-116
     titre: ProjectsClientPage monte un ProjectTimeline (polling 30s) par carte projet — le coût de polling devient (nb clients actifs) × (nb projets affichés) × 2 req/min, sans limite de cartes ni lazy-mount
     perimetre: 4.6 Portail client — client/src/features/client-portal/ProjectsClientPage.tsx, client/src/features/client-portal/components/ProjectTimeline.tsx
+    categorie: C
     regle_violee: null
     classe: null
     gravite: mineur
@@ -84,6 +88,7 @@ anomalies:
   - id: SEC-117
     titre: 'useProjectTimeline (client-portal) ne suspend jamais son polling 30s quand l''onglet est masqué — pas de garde Page Visibility API — CONSTAT INFIRMÉ : le comportement demandé existe déjà nativement dans React Query v5'
     perimetre: 4.6 Portail client — client/src/features/client-portal/components/ProjectTimeline.tsx
+    categorie: F
     regle_violee: null
     classe: null
     gravite: mineur
@@ -98,6 +103,7 @@ anomalies:
   - id: SEC-163
     titre: 'client/src/features/client-portal/ClientBriefPage.tsx contient du texte mojibake (UTF-8 réinterprété en Latin-1 : « problÃ¨me », « rÃ©fÃ©rence », « pÃ´le ») — bloque actuellement npm run lint --workspace client (no-irregular-whitespace, ligne 257), empêchant tout commit propre sur ce workspace tant que non corrigé'
     perimetre: client/src/features/client-portal/ClientBriefPage.tsx:254,257
+    categorie: B
     regle_violee: null
     classe: null
     gravite: majeur
@@ -114,6 +120,7 @@ anomalies:
   - id: SEC-164
     titre: 'Migration 20260625230000_remove_commented_approval_status réécrit silencieusement l''historique : UPDATE "ApprovalTimeline" SET "status" = ''PENDING'' WHERE "status"::text = ''COMMENTED'' falsifie toute ligne d''audit historique qui valait réellement COMMENTED au moment des faits — ApprovalTimeline est un journal d''audit (mêmes rôle que ProposalHistory), pas un état courant qu''on peut réécrire'
     perimetre: server/prisma/migrations/20260625230000_remove_commented_approval_status/migration.sql ; schema.prisma#ApprovalTimeline
+    categorie: B
     regle_violee: null
     classe: null
     gravite: bloquant
@@ -130,6 +137,7 @@ anomalies:
   - id: SEC-188
     titre: 'invoice.service.ts#addPayment : le paiement est déjà commité (statut PAID, portalActivatedAt posé) quand l''invite client post-commit s''exécute ; si inviteClientUser échoue pour une raison autre que 409 (ex. panne SMTP réelle), l''erreur remonte et fait échouer toute la requête HTTP addPayment, laissant l''appelant croire que le paiement n''a pas été enregistré alors qu''il l''a été'
     perimetre: 4.4 Facturation, 4.6 Portail client — server/src/services/invoice.service.ts#addPayment (lignes 214-306)
+    categorie: D
     regle_violee: RG-018
     classe: erreur_post_commit_masque_succes_transaction
     gravite: majeur
@@ -145,6 +153,7 @@ anomalies:
   - id: SEC-213
     titre: 'e2e/client-approval.spec.ts ("a client sees the closing action on a project ready for review, and approving it really closes the project (RG-013)") échoue en local (reproduit hors CI, une fois le vrai bug CSP de SEC-212 corrigé) sur `await expect(card).toBeVisible()` : après connexion CLIENT et clic sur le lien "Projets", la page atterrit sur le détail d''un projet existant déjà seedé ("Intégration ERP Géant Tunisia") au lieu de la liste des projets où devrait apparaître la carte du nouveau projet créé par le test ("E2E approval proposal <timestamp>") — la navigation "Projets" ne mène pas systématiquement à la liste'
     perimetre: e2e/client-approval.spec.ts, client/src (page/route "Projets" du portail CLIENT)
+    categorie: H
     regle_violee: null
     classe: e2e_navigation_liste_vs_detail
     gravite: mineur
@@ -160,6 +169,7 @@ anomalies:
   - id: SEC-216
     titre: clientService.inviteClientUser (server/src/services/client.service.ts) réinitialise le mot de passe de tout utilisateur CLIENT dont lastLoginAt est null, quel que soit son état réel — un compte provisionné directement (mot de passe déjà connu/fonctionnel, jamais passé par le flux d'invitation email) n'a jamais lastLoginAt renseigné avant son tout premier vrai login, donc se fait silencieusement réinitialiser au prochain déclenchement du flux d'invitation pour son client (ex. un second paiement d'acompte sur un second projet)
     perimetre: server/src/services/client.service.ts#inviteClientUser ; server/prisma/seed.ts (données de seed concernées)
+    categorie: G
     regle_violee: null
     classe: reinitialisation-mdp-silencieuse
     gravite: majeur
@@ -175,6 +185,7 @@ anomalies:
   - id: SEC-218
     titre: e2e/client-approval.spec.ts:114 asserte page.getByText(/clôturé/) sans le scoper au toast visible — matche aussi la région sr-only aria-live d'a11yAnnounce (ProjectsClientPage.tsx#announce), qui duplique le même texte de succès ; Playwright rejette l'ambiguïté en strict mode (2 éléments résolus) au lieu de faire échouer le test pour une vraie régression fonctionnelle
     perimetre: e2e/client-approval.spec.ts (ligne 114) ; client/src/features/client-portal/ProjectsClientPage.tsx (ligne 103, announce())
+    categorie: E
     regle_violee: null
     classe: null
     gravite: mineur
@@ -191,6 +202,7 @@ anomalies:
   - id: SEC-229
     titre: Project.serviceType (VarChar(50), champ questionnaire brief client) n'est écrit nulle part côté serveur — toujours null en pratique, masqué côté client par un fallback codé en dur ("WEB") dans ClientBriefPage.tsx
     perimetre: 4.5 Brief client / ClientBriefPage.tsx
+    categorie: B
     regle_violee: null
     classe: champ_mort_fallback_trompeur
     gravite: mineur
@@ -205,6 +217,7 @@ anomalies:
   - id: SEC-230
     titre: ProjectsClientPage.tsx#ApproveDialog lit err.response.data.message (forme inexistante) au lieu de err.response.data.error.message (forme réelle du serveur, cf. apiError.ts) — le message serveur réel n'atteint jamais le toast, seul le repli générique "Une erreur est survenue." s'affiche
     perimetre: 4.3 Portail client / client/src/features/client-portal/ProjectsClientPage.tsx#ApproveDialog
+    categorie: H
     regle_violee: null
     classe: ux_erreur_serveur_non_remontee
     gravite: mineur

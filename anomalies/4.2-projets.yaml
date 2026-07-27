@@ -13,6 +13,7 @@ anomalies:
   - id: SEC-023
     titre: 'documentService.signDocument : signature de contrat toujours impossible (FK signedByClientId erronée) + client sans projet permanemment bloqué'
     perimetre: 3.18 Document — server/src/services/document.service.ts
+    categorie: G
     regle_violee: null
     classe: null
     gravite: bloquant
@@ -33,6 +34,7 @@ anomalies:
   - id: SEC-026
     titre: 37 erreurs ESLint pré-existantes font échouer les jobs CI client/server sur origin/main, hors de tout périmètre touché par les sessions d'audit
     perimetre: systémique — server/src/controllers/**, server/src/services/upload.service.ts, server/src/services/agentOrchestrator.service.ts, server/test/invoice.service.test.ts, client/src/api/axios.ts, client/src/features/projects/ProjectDetailPage.tsx
+    categorie: D
     regle_violee: null
     classe: null
     gravite: majeur
@@ -62,6 +64,7 @@ anomalies:
   - id: SEC-030
     titre: 'RG-004b (facture de solde) : provenance code_grep seule, calcul exact jamais confirmé par lecture directe ni test réel — aucun défaut trouvé, preuve manquante comblée'
     perimetre: 4.4 Facturation, 4.2 Gestion de projet, 4.6 Portail client — server/src/services/project.service.ts (clientApprove)
+    categorie: E
     regle_violee: RG-004b
     classe: null
     gravite: mineur
@@ -80,6 +83,7 @@ anomalies:
   - id: SEC-033
     titre: Le détail d'un projet n'affichait jamais ses tâches — projectListSelect ne sélectionnait jamais la relation tasks
     perimetre: 4.2 Gestion de projet — server/src/repositories/project.repository.ts, client/src/features/projects/ProjectDetailPage.tsx
+    categorie: G
     regle_violee: null
     classe: null
     gravite: bloquant
@@ -98,6 +102,7 @@ anomalies:
   - id: SEC-034
     titre: L'onglet « Mes livrables » n'était filtré par aucun projet — et les livrables déposés n'avaient jamais de projectId, les rendant invisibles pour le freelance qui les dépose
     perimetre: 4.2 Gestion de projet, 4.7 Freelances — client/src/features/projects/ProjectDetailPage.tsx, server/src/repositories/document.repository.ts
+    categorie: G
     regle_violee: null
     classe: null
     gravite: bloquant
@@ -119,6 +124,7 @@ anomalies:
   - id: SEC-035
     titre: Onglets Actif/Terminé du freelance (ProjectsPage.tsx) calculés par .filter() sur une seule page paginée — incompatible avec la pagination affichée en bas de page
     perimetre: 4.2 Gestion de projet, 4.7 Freelances — client/src/features/projects/ProjectsPage.tsx, server/src/repositories/project.repository.ts
+    categorie: C
     regle_violee: null
     classe: null
     gravite: majeur
@@ -140,6 +146,7 @@ anomalies:
   - id: SEC-036
     titre: '4 failles IDOR de scope MANAGER : réunions de projet, application de template, brief et timeline lisibles/modifiables hors du pôle du Manager'
     perimetre: 4.2 Gestion de projet — server/src/services/projectMeeting.service.ts, server/src/services/projectTemplate.service.ts, server/src/services/project.service.ts, server/src/routes/project.routes.ts
+    categorie: A
     regle_violee: RG-002
     classe: scope_manager_manquant
     gravite: bloquant
@@ -163,6 +170,7 @@ anomalies:
   - id: SEC-037
     titre: 'Qualité de code : incohérence prisma/prismaRead (risque plus grave qu''une simple charge inutile), Kanban tâches sans garde de transition + message d''erreur générique, plafond 200 tâches sans indicateur, typage mensonger sur getFreelancerAvailability'
     perimetre: 4.2 Gestion de projet, 4.6 Portail client — server/src/repositories/project.repository.ts, server/src/repositories/task.repository.ts, server/src/utils/projectProgress.ts, server/src/controllers/task.controller.ts, client/src/features/tasks/TasksKanban.tsx, client/src/features/tasks/TasksPage.tsx
+    categorie: B
     regle_violee: null
     classe: null
     gravite: majeur
@@ -187,6 +195,7 @@ anomalies:
   - id: SEC-038
     titre: ProjectsPage.tsx appelle GET /projects/trash pour tout rôle, y compris FREELANCER — requête systématiquement vouée à l'échec (403) pour une section jamais destinée à ce rôle
     perimetre: 4.2 Gestion de projet, 4.7 Freelances — client/src/features/projects/ProjectsPage.tsx, client/src/hooks/useProjects.ts
+    categorie: H
     regle_violee: null
     classe: null
     gravite: mineur
@@ -206,6 +215,7 @@ anomalies:
   - id: SEC-039
     titre: Le bouton Nouveau projet (ProjectsPage.tsx) était 100% non fonctionnel — le formulaire ne collectait jamais proposalId, requis et strictement validé côté serveur
     perimetre: 4.2 Gestion de projet, 4.1 CRM & Pipeline commercial — client/src/features/projects/ProjectsPage.tsx, server/src/validators/project.validator.ts, server/src/services/project.service.ts
+    categorie: G
     regle_violee: null
     classe: null
     gravite: bloquant
@@ -226,6 +236,7 @@ anomalies:
   - id: SEC-040
     titre: Archivage de projet (archivedAt) invisible côté UI — aucun moyen de marquer un projet abandonné autrement que par suppression dure
     perimetre: 4.2 Gestion de projet — client/src/features/projects/ProjectDetailPage.tsx, server/src/routes/project.routes.ts, server/src/repositories/project.repository.ts
+    categorie: H
     regle_violee: null
     classe: null
     gravite: mineur
@@ -260,6 +271,7 @@ anomalies:
   - id: SEC-041
     titre: assertProjectInScope duplique a l'identique entre task.service.ts et projectMeeting.service.ts — risque de 3e reecriture divergente pour un futur module ; aucun test n'appelait createProject/archiveProject/restoreProject directement
     perimetre: 4.2 Gestion de projet — server/src/services/task.service.ts, server/src/services/projectMeeting.service.ts, server/src/utils/serviceScope.ts, server/test/
+    categorie: E
     regle_violee: null
     classe: null
     gravite: mineur
@@ -280,6 +292,7 @@ anomalies:
   - id: SEC-042
     titre: 'SEC-040 (bouton Archiver) a rendu atteignable un chemin jamais exerce : les taches d''un projet archive restaient visibles/glissables dans /app/tasks, et sa fiche detail restait accessible par URL directe avec des boutons actifs qui echouaient silencieusement (404 invisible a l''ecran)'
     perimetre: 4.2 Gestion de projet — server/src/repositories/task.repository.ts, server/src/repositories/project.repository.ts, client/src/features/projects/ProjectDetailPage.tsx
+    categorie: H
     regle_violee: null
     classe: null
     gravite: mineur
@@ -301,6 +314,7 @@ anomalies:
   - id: SEC-043
     titre: 'applyToProject (templates) sans garde-fou serveur d''idempotence : double-clic/rejeu/appel API direct dupliquait tout le lot de taches du template — seule l''UI masquait le bouton'
     perimetre: 4.2 Gestion de projet — server/src/services/projectTemplate.service.ts, server/src/repositories/project.repository.ts, server/src/repositories/projectTemplate.repository.ts
+    categorie: F
     regle_violee: null
     classe: null
     gravite: mineur
@@ -319,6 +333,7 @@ anomalies:
   - id: SEC-044
     titre: 'Incoherence de rigueur entre validateurs de dates : dates de reunion en ISO strict avec fuseau, dates de tache acceptant tout Date.parse (March 3, 2024/1/1, etc.)'
     perimetre: 4.3 Gestion des taches — server/src/validators/task.validator.ts, server/src/validators/projectMeeting.validator.ts
+    categorie: F
     regle_violee: null
     classe: null
     gravite: mineur
@@ -338,6 +353,7 @@ anomalies:
   - id: SEC-045
     titre: Aucun test ne prouvait la regle negative « un FREELANCER ne peut modifier QUE le statut de SES propres taches » — restriction vivant uniquement dans task.service.ts, non asseree
     perimetre: 4.3 Gestion des taches — server/src/services/task.service.ts, server/src/routes/task.routes.ts
+    categorie: B
     regle_violee: null
     classe: null
     gravite: mineur
@@ -355,6 +371,7 @@ anomalies:
   - id: SEC-046
     titre: 'Route POST /projects sans consommateur UL (morte cote front depuis SEC-039) et doc Swagger fausse/trompeuse : requestBody omettait proposalId, le champ requis'
     perimetre: 4.2 Gestion de projet — server/src/routes/project.routes.ts, client/src/hooks/useProjects.ts, client/src/api/projects.api.ts
+    categorie: F
     regle_violee: null
     classe: null
     gravite: mineur
@@ -371,6 +388,7 @@ anomalies:
   - id: SEC-047
     titre: 'Task.priority modelise (Prisma/Zod/UI) mais absent de toute logique metier serveur — jamais critere de tri, notification ou regle : donnee purement declarative'
     perimetre: 4.3 Gestion des taches — server/prisma/schema.prisma, server/src/repositories/task.repository.ts, server/src/validators/task.validator.ts, shared/src/schemas/task.schema.ts
+    categorie: G
     regle_violee: null
     classe: null
     gravite: mineur
@@ -387,6 +405,7 @@ anomalies:
   - id: SEC-048
     titre: 'Scoping MANAGER par pole = source repetee d''oublis d''autorisation sur le module Project/Task (SEC-036 : getBrief/getTimelineStatus/applyToProject/projectMeeting) — pas de checklist de revue systematique'
     perimetre: 4.2 Gestion de projet / 4.3 Gestion des taches — process de revue de code
+    categorie: G
     regle_violee: null
     classe: null
     gravite: mineur
@@ -402,6 +421,7 @@ anomalies:
   - id: SEC-052
     titre: 'Le lien « Voir toutes les taches » (fiche projet -> /app/tasks?projectId=...) atterrissait sur la liste COMPLETE non filtree : TasksPage.tsx ne lisait jamais ce parametre d''URL alors que useTasks/tasksApi.getAll/le serveur le supportent deja de bout en bout'
     perimetre: 4.3 Gestion des taches — client/src/features/tasks/TasksPage.tsx, client/src/features/tasks/hooks/useTasksPageData.ts, client/src/hooks/useTasks.ts
+    categorie: F
     regle_violee: null
     classe: null
     gravite: eleve
@@ -420,6 +440,7 @@ anomalies:
   - id: SEC-053
     titre: 'Le selecteur Projet du formulaire de creation de tache charge useProjects({page:1, pageSize:100}) sans recherche serveur : au-dela de 100 projets actifs, certains deviennent invisibles/inselectionnables sans aucun avertissement'
     perimetre: 4.3 Gestion des taches — client/src/features/tasks/hooks/useTasksPageData.ts
+    categorie: G
     regle_violee: null
     classe: null
     gravite: moyen
@@ -437,6 +458,7 @@ anomalies:
   - id: SEC-054
     titre: 'Le selecteur Assigne a du formulaire de creation de tache liste usersApi.getUsers() sans filtrer par role : un CLIENT peut y apparaitre alors que le serveur rejette l''assignation en 422 INVALID_ASSIGNEE_ROLE, decouvert seulement apres soumission'
     perimetre: 4.3 Gestion des taches — client/src/features/tasks/components/TaskCreateDialog.tsx, server/src/services/task.service.ts
+    categorie: F
     regle_violee: null
     classe: null
     gravite: moyen
@@ -454,6 +476,7 @@ anomalies:
   - id: SEC-055
     titre: Aucun bouton Ajouter une tache contextualise sur l'onglet Taches de la fiche projet des qu'il contient deja une tache (le bouton template n'apparait qu'a l'etat vide) ; ProjectMeetingsTab n'a ni edition ni suppression de reunion, et sa liste n'est pas paginee
     perimetre: 4.2 Gestion de projet — client/src/features/projects/ProjectDetailPage.tsx, client/src/features/projects/ProjectMeetingsTab.tsx, client/src/hooks/useTaskActions ts (openCreateDialogForProject), client/src/hooks/useProjectMeetings.ts, client/src/api/projectMeetings.api.ts, server/src/routes/project.routes.ts, server/src/controllers/projectMeeting.controller.ts, server/src/services/projectMeeting.service.ts, server/src/repositories/projectMeeting.repository.ts, server/src/validators/projectMeeting.validator.ts
+    categorie: H
     regle_violee: null
     classe: null
     gravite: faible
@@ -475,6 +498,7 @@ anomalies:
   - id: SEC-056
     titre: TasksListView n'offre qu'un filtre statut + recherche texte (manquent projet/assigne/echeance en retard) et utilise une grille CSS a colonnes fixes en pixels sans variante empilee mobile, contrairement a la grille responsive de ProjectsPage
     perimetre: 4.3 Gestion des taches — client/src/features/tasks/TasksPage.tsx, client/src/features/tasks/components/TasksListView.tsx, client/src/features/tasks/hooks/useTasksPageData.ts, client/src/api/tasks.api.ts, client/src/hooks/useTasks.ts, server/src/controllers/task.controller.ts, server/src/services/task.service.ts, server/src/repositories/task.repository.ts
+    categorie: G
     regle_violee: null
     classe: null
     gravite: moyen
@@ -496,6 +520,7 @@ anomalies:
   - id: SEC-058
     titre: 'Point positif signale par le rapport (aucune action requise) : l''archivage de projet (SEC-046) explique tres honnetement son irreversibilite cote UI — bonne pratique a generaliser a toute future action irreversible'
     perimetre: 4.2 Gestion de projet — client/src/features/projects/ProjectDetailPage.tsx
+    categorie: H
     regle_violee: null
     classe: null
     gravite: info
@@ -511,6 +536,7 @@ anomalies:
   - id: SEC-059
     titre: Un commentaire de tache n'est jamais modifiable ni supprimable, ni par son auteur ni par un ADMIN — seules les routes GET/POST existent sur /tasks/:taskId/comments
     perimetre: 4.3 Gestion des tâches — server/src/routes/task.routes.ts, server/src/controllers/comment.controller.ts, server/src/services/comment.service.ts, server/src/repositories/comment.repository.ts, server/src/validators/task.validator.ts, client/src/api/comments.api.ts, client/src/features/tasks/hooks/useTaskCommentMutation.ts, client/src/features/tasks/hooks/useTaskActions.ts, client/src/features/tasks/components/TaskDetailDrawer.tsx
+    categorie: G
     regle_violee: null
     classe: null
     gravite: faible
@@ -530,6 +556,7 @@ anomalies:
   - id: SEC-060
     titre: 'Absence de fonctionnalites de gestion de projet standard sur des outils comparables : sous-taches, dependances entre taches, vue calendrier/Gantt, actions en masse, pieces jointes sur tache, mentions @ dans les commentaires'
     perimetre: 4.3 Gestion des tâches — server/prisma/schema.prisma (model Task), server/src/services/task.service.ts, server/src/services/comment.service.ts, client/src/types/task.ts, client/src/features/tasks/
+    categorie: G
     regle_violee: null
     classe: fonctionnalites-pm-standard-absentes
     gravite: moyen
@@ -550,6 +577,7 @@ anomalies:
   - id: SEC-061
     titre: Le CLIENT ne voit son projet qu'via une timeline synthetique en 7 etapes et un brief, jamais le detail des taches — friction de confiance potentielle sur des projets longs
     perimetre: 4.2 Gestion de projet — client/src/features/client-portal/, server/src/controllers/project.controller.ts#getTimelineStatus, server/src/controllers/project.controller.ts#getCompletedTasks, server/src/services/project.service.ts, server/src/routes/project.routes.ts, client/src/api/projects.api.ts, client/src/features/client-portal/hooks/useProjectCompletedTasks.ts, client/src/features/client-portal/components/CompletedTasksList.tsx, client/src/features/client-portal/ProjectsClientPage.tsx
+    categorie: H
     regle_violee: null
     classe: null
     gravite: faible
@@ -569,6 +597,7 @@ anomalies:
   - id: SEC-062
     titre: 'Point positif signale par le rapport (aucune action requise) : la completion d''un projet (clientApprove) declenche automatiquement une demande d''evaluation des freelances aupres des managers — boucle de qualite deja bouclee'
     perimetre: 4.2 Gestion de projet — server/src/services/project.service.ts#clientApprove, server/src/services/rating.service.ts
+    categorie: G
     regle_violee: null
     classe: null
     gravite: info
@@ -584,6 +613,7 @@ anomalies:
   - id: SEC-063
     titre: L'onglet Mes livrables (FREELANCER) appelle POST /documents pour deposer un livrable, mais cette route est authorize(ADMIN, MANAGER) seul — un FREELANCER recoit systematiquement 403 avant meme le controle requirePermission, jamais atteignable via ce flux
     perimetre: 4.2 Gestion de projet — server/src/routes/document.routes.ts, server/src/services/document.service.ts, server/src/controllers/document.controller.ts, client/src/features/projects/ProjectDetailPage.tsx
+    categorie: H
     regle_violee: null
     classe: null
     gravite: majeur
@@ -603,6 +633,7 @@ anomalies:
   - id: SEC-064
     titre: Aucune piece jointe ne peut etre attachee directement a une tache — Document supporte deja un projectId optionnel mais aucun taskId
     perimetre: 4.3 Gestion des tâches — server/prisma/schema.prisma (model Document, model Task), server/src/repositories/document.repository.ts, server/src/services/document.service.ts, server/src/controllers/document.controller.ts, shared/src/schemas/document.schema.ts, client/src/api/documents.api.ts, client/src/hooks/useDocuments.ts, client/src/features/tasks/components/TaskAttachments.tsx, client/src/features/tasks/components/TaskDetailDrawer.tsx
+    categorie: G
     regle_violee: null
     classe: fonctionnalites-pm-standard-absentes
     gravite: moyen
@@ -620,6 +651,7 @@ anomalies:
   - id: SEC-065
     titre: Aucune logique de mention @ n'existe dans les commentaires de tache — ni parsing, ni notification dediee, ni UI d'autocomplete
     perimetre: 4.3 Gestion des tâches — server/src/utils/mentions.ts, server/src/services/comment.service.ts, client/src/features/tasks/components/MentionTextarea.tsx, client/src/features/tasks/components/TaskDetailDrawer.tsx, client/src/features/tasks/TasksPage.tsx
+    categorie: G
     regle_violee: null
     classe: fonctionnalites-pm-standard-absentes
     gravite: moyen
@@ -641,6 +673,7 @@ anomalies:
   - id: SEC-066
     titre: Aucune action en masse (selection multiple + changement de statut/suppression groupee) n'existe sur la liste des taches
     perimetre: 4.3 Gestion des tâches — server/src/services/task.service.ts, server/src/controllers/task.controller.ts, server/src/routes/task.routes.ts, server/src/validators/task.validator.ts, client/src/api/tasks.api.ts, client/src/hooks/useTasks.ts, client/src/features/tasks/components/TasksListView.tsx
+    categorie: G
     regle_violee: null
     classe: fonctionnalites-pm-standard-absentes
     gravite: moyen
@@ -660,6 +693,7 @@ anomalies:
   - id: SEC-067
     titre: Aucune sous-tache/checklist n'existe sur une tache — model Task n'a ni parentId ni relation vers des Task[] enfants
     perimetre: 4.3 Gestion des tâches — server/prisma/schema.prisma (model Task, model TaskChecklistItem), server/src/repositories/taskChecklist.repository.ts, server/src/services/taskChecklist.service.ts, server/src/controllers/taskChecklist.controller.ts, server/src/validators/taskChecklist.validator.ts, server/src/routes/task.routes.ts, client/src/api/taskChecklist.api.ts, client/src/features/tasks/hooks/useTaskChecklist.ts, client/src/features/tasks/components/TaskChecklist.tsx, client/src/features/tasks/components/TaskDetailDrawer.tsx
+    categorie: G
     regle_violee: null
     classe: fonctionnalites-pm-standard-absentes
     gravite: moyen
@@ -680,6 +714,7 @@ anomalies:
   - id: SEC-068
     titre: createDocumentSchema (validateur POST /documents) n'a pas de champ title, alors que title est obligatoire (String, sans defaut) sur le modele Prisma Document — le middleware validate() retire silencieusement title du body avant le controleur, faisant echouer toute creation de document via cette route
     perimetre: 4.2/4.4 — shared/src/schemas/document.schema.ts, server/src/validators/document.validator.ts, server/src/middlewares/validate.middleware.ts, server/src/controllers/document.controller.ts, client/src/features/documents/DocumentsPage.tsx, client/src/features/projects/ProjectDetailPage.tsx
+    categorie: G
     regle_violee: null
     classe: null
     gravite: bloquant
@@ -700,6 +735,7 @@ anomalies:
   - id: SEC-069
     titre: Aucune vue calendrier n'existe sur le module Taches — seules les vues liste et Kanban sont disponibles
     perimetre: 4.3 Gestion des tâches — client/src/features/tasks/TasksPage.tsx, client/src/features/tasks/components/TasksCalendar.tsx
+    categorie: G
     regle_violee: null
     classe: fonctionnalites-pm-standard-absentes
     gravite: moyen
@@ -718,6 +754,7 @@ anomalies:
   - id: SEC-070
     titre: getCompletedTasksForClient derive completedAt de task.updatedAt, qui reflete la derniere modification de la ligne pour n'importe quelle cause, pas specifiquement l'instant de la transition vers DONE — une correction ulterieure du titre d'une tache deja terminee avance silencieusement la date affichee au client
     perimetre: 4.2 Gestion de projet — server/src/services/project.service.ts#getCompletedTasksForClient, client/src/features/client-portal/components/CompletedTasksList.tsx
+    categorie: G
     regle_violee: null
     classe: null
     gravite: moyen
@@ -733,6 +770,7 @@ anomalies:
   - id: SEC-071
     titre: Un commentaire de tache modifie (SEC-059) est indiscernable d'un commentaire original — model Comment n'a pas de champ updatedAt/editedAt, aucun indicateur de modification affiche cote UI
     perimetre: 4.3 Gestion des tâches — server/prisma/schema.prisma (model Comment), server/src/repositories/comment.repository.ts, client/src/features/tasks/components/TaskDetailDrawer.tsx
+    categorie: H
     regle_violee: null
     classe: null
     gravite: faible
@@ -748,6 +786,7 @@ anomalies:
   - id: SEC-072
     titre: 'Commentaire de code obsolete dans TaskAttachments.tsx : cite une restriction d''autorisation FREELANCER sur POST /documents deja levee par SEC-063, alors que la vraie cause du blocage actuel (type toujours fixe a OTHER, incompatible avec FREELANCER_DELIVERABLE_ONLY) n''est pas documentee'
     perimetre: 4.3 Gestion des tâches — client/src/features/tasks/components/TaskAttachments.tsx
+    categorie: I
     regle_violee: null
     classe: null
     gravite: faible
@@ -763,6 +802,7 @@ anomalies:
   - id: SEC-073
     titre: 'projectTemplateService.applyToProject : la lecture du compte de taches existantes et l''insertion du lot ne sont pas dans une meme transaction Prisma — deux appels strictement concurrents sur un projet vide peuvent tous deux lire count=0 avant qu''aucun n''ait insere, dupliquant le lot malgre la garde d''idempotence'
     perimetre: 4.2 Gestion de projet — server/src/services/projectTemplate.service.ts#applyToProject
+    categorie: H
     regle_violee: null
     classe: null
     gravite: faible
@@ -778,6 +818,7 @@ anomalies:
   - id: SEC-074
     titre: 'taskChecklistService.createItem : le commentaire affirme qu''un calcul de position derive d''un simple count() empeche toute collision entre creations concurrentes, ce qui est faux — aucune transaction ni contrainte @@unique([taskId, position]) ne protege ce calcul'
     perimetre: 4.3 Gestion des tâches — server/src/services/taskChecklist.service.ts#createItem, server/prisma/schema.prisma (model TaskChecklistItem)
+    categorie: B
     regle_violee: null
     classe: null
     gravite: faible
@@ -793,6 +834,7 @@ anomalies:
   - id: SEC-075
     titre: Aucune limite sur le nombre d'items de checklist par tache — contrairement aux autres garde-fous du module (bulk plafonne a 100, kanban/calendrier a 200), createChecklistItemSchema ne borne que la longueur du titre et getChecklistItems charge tout sans pagination ni limite
     perimetre: 4.3 Gestion des tâches — server/src/validators/taskChecklist.validator.ts, server/src/controllers/taskChecklist.controller.ts#getChecklistItems, server/src/repositories/taskChecklist.repository.ts#findByTaskId, client/src/features/tasks/components/TaskChecklist.tsx
+    categorie: C
     regle_violee: null
     classe: null
     gravite: faible
@@ -808,6 +850,7 @@ anomalies:
   - id: SEC-076
     titre: 'ProjectMeetingsTab.tsx : le formulaire d''edition d''une reunion (editingMeeting) est rendu apres la liste paginee et sa pagination, sans scrollIntoView ni mecanisme de defilement automatique — invisible sans defilement manuel sur une liste longue'
     perimetre: 4.2 Gestion de projet — client/src/features/projects/ProjectMeetingsTab.tsx
+    categorie: C
     regle_violee: null
     classe: null
     gravite: faible
@@ -824,6 +867,7 @@ anomalies:
   - id: SEC-077
     titre: taskChecklistService.createItem verifiait le plafond de 100 items (SEC-075) via un countByTaskId separe, hors de la transaction Serializable qui calcule ensuite position dans taskChecklistRepository.create — deux comptages non atomiques entre eux, rouvrant sous forte concurrence pres de la limite exactement la fenetre de course que SEC-074 venait de fermer pour la position
     perimetre: 4.3 Gestion des tâches — server/src/services/taskChecklist.service.ts#createItem, server/src/repositories/taskChecklist.repository.ts#create
+    categorie: G
     regle_violee: null
     classe: checklist-position-concurrence
     gravite: faible
@@ -839,6 +883,7 @@ anomalies:
   - id: SEC-078
     titre: Archivage de projet toujours irreversible via l'interface — aucune route de desarchivage n'existait, contrairement a restore()/trash pour deletedAt
     perimetre: 4.2 Gestion de projet — server/src/repositories/project.repository.ts, server/src/services/project.service.ts, server/src/routes/project.routes.ts, client/src/features/projects/ProjectDetailPage.tsx
+    categorie: G
     regle_violee: null
     classe: null
     gravite: mineur
@@ -855,6 +900,7 @@ anomalies:
   - id: SEC-079
     titre: Creer ou editer une tache sans renseigner startDate/dueDate echoue systematiquement en 422 Invalid date — le client envoie des chaines vides, le validateur Zod ne les tolere pas
     perimetre: 4.3 Gestion des tâches — client/src/features/tasks/hooks/useTaskActions.ts, client/src/hooks/useTasks.ts, server/src/validators/task.validator.ts
+    categorie: F
     regle_violee: null
     classe: null
     gravite: bloquant
@@ -870,6 +916,7 @@ anomalies:
   - id: SEC-080
     titre: Un FREELANCER ne peut pas changer le statut de sa tache via le dialogue d'edition — editForm.reset({...task}) fait re-soumettre l'objet complet, rejete 403 DISALLOWED_FIELD_UPDATE par task.service.ts
     perimetre: 4.3 Gestion des tâches — client/src/features/tasks/hooks/useTaskActions.ts, client/src/features/tasks/components/TaskEditDialog.tsx, server/src/services/task.service.ts
+    categorie: H
     regle_violee: null
     classe: null
     gravite: bloquant
@@ -885,6 +932,7 @@ anomalies:
   - id: SEC-081
     titre: Editer un champ (nom/description) d'un projet deja COMPLETED echoue toujours — updateProject bloque tout update dont status=COMPLETED sans distinguer une vraie transition d'un statu quo
     perimetre: 4.2 Gestion de projet — server/src/services/project.service.ts#updateProject, client/src/features/projects/ProjectsPage.tsx
+    categorie: G
     regle_violee: null
     classe: null
     gravite: eleve
@@ -900,6 +948,7 @@ anomalies:
   - id: SEC-082
     titre: Les mentions @ dans les commentaires de tache s'affichent en markup brut @[Nom](uuid) au lieu d'un rendu lisible — l'UUID interne de l'utilisateur mentionne fuit dans le texte visible
     perimetre: 4.3 Gestion des tâches — client/src/features/tasks/components/TaskDetailDrawer.tsx, client/src/features/tasks/components/MentionTextarea.tsx
+    categorie: H
     regle_violee: null
     classe: null
     gravite: eleve
@@ -915,6 +964,7 @@ anomalies:
   - id: SEC-083
     titre: Le bouton Editer d'un projet est affiche pour le role FREELANCER dans ProjectsPage.tsx, alors que PUT /projects/:id refuse ce role (403 systematique)
     perimetre: 4.2 Gestion de projet — client/src/features/projects/ProjectsPage.tsx, server/src/routes/project.routes.ts
+    categorie: A
     regle_violee: null
     classe: null
     gravite: eleve
@@ -930,6 +980,7 @@ anomalies:
   - id: SEC-084
     titre: Le selecteur Client du formulaire d'edition de projet est affiche pour le role MANAGER, mais updateProject supprime silencieusement clientId de son payload — la modification n'a jamais d'effet, sans message
     perimetre: 4.2 Gestion de projet — client/src/features/projects/ProjectsPage.tsx, server/src/services/project.service.ts#updateProject
+    categorie: G
     regle_violee: null
     classe: null
     gravite: moyen
@@ -945,6 +996,7 @@ anomalies:
   - id: SEC-085
     titre: projectService.clientApprove n'exige pas que le projet soit en statut REVIEW — l'UI conditionne le bouton d'approbation a ce statut mais le serveur accepterait un appel API direct depuis n'importe quel statut si les autres conditions sont reunies
     perimetre: 4.2 Gestion de projet, 4.6 Portail client — server/src/services/project.service.ts#clientApprove, client/src/features/client-portal/ProjectsClientPage.tsx
+    categorie: F
     regle_violee: null
     classe: null
     gravite: moyen
@@ -960,6 +1012,7 @@ anomalies:
   - id: SEC-086
     titre: projectRepository.findById ne filtre pas deletedAt sur aucune des 4 branches de role — la fiche d'un projet supprime (corbeille) reste accessible par URL directe, avec un bouton Archiver qui echoue en 404 silencieux (canArchive ne teste que archivedAt)
     perimetre: 4.2 Gestion de projet — server/src/repositories/project.repository.ts#findById, client/src/features/projects/ProjectDetailPage.tsx
+    categorie: A
     regle_violee: null
     classe: scope_manager_manquant
     gravite: moyen
@@ -975,6 +1028,7 @@ anomalies:
   - id: SEC-087
     titre: server/test/taskScope.test.ts (et idor.test.ts) testent une reimplementation locale a base de companyId inexistant dans le code reel — vert trompeur, ne prouve rien sur le vrai scoping MANAGER des taches
     perimetre: 4.3 Gestion des tâches — server/test/taskScope.test.ts, server/test/idor.test.ts
+    categorie: E
     regle_violee: null
     classe: null
     gravite: moyen
@@ -992,6 +1046,7 @@ anomalies:
   - id: SEC-088
     titre: Le nom de projet affiche dans les vues Liste/Kanban de taches vient d'un useProjects({pageSize:100}) — au-dela de 100 projets, le nom devient un tiret sans aucun avertissement (SEC-053 couvre le selecteur de creation, pas cet affichage)
     perimetre: 4.3 Gestion des tâches — client/src/features/tasks/hooks/useTasksPageData.ts
+    categorie: C
     regle_violee: null
     classe: null
     gravite: mineur
@@ -1007,6 +1062,7 @@ anomalies:
   - id: SEC-089
     titre: Checklist et commentaires d'une tache restent modifiables/ajoutables sur un projet archive ou COMPLETED, alors que les champs de la tache elle-meme sont geles dans ce cas (assertProjectIsOpenForTaskChanges)
     perimetre: 4.3 Gestion des tâches — server/src/services/taskChecklist.service.ts, server/src/services/comment.service.ts, server/src/services/task.service.ts
+    categorie: G
     regle_violee: null
     classe: null
     gravite: mineur
@@ -1022,6 +1078,7 @@ anomalies:
   - id: SEC-090
     titre: taskRepository.create utilise un littéral maison sans priority (au lieu du type Prisma genere) — priority transite silencieusement à l'execution sans jamais etre verifie par TypeScript, meme classe de defaut que SEC-012 non couverte par sa conversion
     perimetre: 4.3 Gestion des tâches — server/src/repositories/task.repository.ts#create, server/src/types/entities.ts#CreateTaskDTO
+    categorie: B
     regle_violee: null
     classe: type_maison_substitue_au_type_prisma
     gravite: mineur
@@ -1037,6 +1094,7 @@ anomalies:
   - id: SEC-092
     titre: projectMeetingRepository.findDueForReminder ne filtre ni deletedAt ni status COMPLETED — un projet supprime ou termine avec une cadence de reunion active continuerait de generer des rappels
     perimetre: 4.2 Gestion de projet — server/src/repositories/projectMeeting.repository.ts#findDueForReminder
+    categorie: G
     regle_violee: null
     classe: null
     gravite: mineur
@@ -1052,6 +1110,7 @@ anomalies:
   - id: SEC-093
     titre: 'Kanban des tâches (TasksKanban.tsx) : ouvrir le détail d''une carte est souris-seule (onClick sur un div sans role/tabIndex/onKeyDown) ; le déplacement clavier dnd-kit reste par ailleurs sans annonce lecteur d''écran'
     perimetre: 4.3 Gestion des tâches — client/src/features/tasks/TasksKanban.tsx#SortableTaskCard
+    categorie: H
     regle_violee: null
     classe: a11y_clavier_lecteur_ecran
     gravite: mineur
@@ -1067,6 +1126,7 @@ anomalies:
   - id: SEC-094
     titre: Boutons icône-seule de la table desktop TasksListView.tsx (Voir/Modifier/Supprimer) n'exposent qu'un `title`, pas d'`aria-label` — nom accessible absent pour lecteur d'écran, exactement la zone non vérifiée par SEC-057
     perimetre: 4.3 Gestion des tâches — client/src/features/tasks/components/TasksListView.tsx (branche `hidden sm:block`, lignes ~385-395)
+    categorie: H
     regle_violee: null
     classe: a11y_label_accessible_bouton_icone
     gravite: mineur
@@ -1082,6 +1142,7 @@ anomalies:
   - id: SEC-095
     titre: onError absent ou générique sur plusieurs mutations du module (TimeTrackingTab, ProjectMeetingsTab, TaskChecklist, TaskAttachments) — les codes métier serveur (PROJECT_ARCHIVED, etc.) ne remontent aucun message lisible à l'utilisateur du formulaire
     perimetre: 4.2/4.3 — client/src/features/projects/TimeTrackingTab.tsx, client/src/features/projects/ProjectMeetingsTab.tsx, client/src/features/tasks/components/TaskChecklist.tsx, client/src/features/tasks/components/TaskAttachments.tsx
+    categorie: H
     regle_violee: null
     classe: ux_erreur_serveur_non_remontee
     gravite: mineur
@@ -1099,6 +1160,7 @@ anomalies:
   - id: SEC-096
     titre: Couleurs et libellés de statut de tâche codés en dur dans ProjectDetailPage (TASK_STATUS_COLOR/TASK_STATUS_LABELS) et 3e jeu dans TasksKanban (STATUS_CONFIG) au lieu des helpers centralisés — un même statut change de couleur selon l'écran, libellés FR hors i18n
     perimetre: 4.2/4.3 — client/src/features/projects/ProjectDetailPage.tsx (TASK_STATUS_COLOR, TASK_STATUS_LABELS), client/src/features/tasks/TasksKanban.tsx (STATUS_CONFIG)
+    categorie: H
     regle_violee: null
     classe: coherence_ui_couleurs_i18n
     gravite: mineur
@@ -1114,6 +1176,7 @@ anomalies:
   - id: SEC-097
     titre: Actions en masse sur les taches (bulkUpdateStatus/bulkDelete) executees strictement en serie, une tache a la fois, chacune retraversant tout le chemin updateTask/deleteTask (5-8 requetes + invalidations de cache) — jusqu'a 100 iterations sequentielles par requete HTTP
     perimetre: 4.2 Gestion de projet — server/src/services/task.service.ts#bulkUpdateStatus/#bulkDelete, client/src/features/tasks/components/TasksListView.tsx (selection jusqu'a la page entiere)
+    categorie: C
     regle_violee: null
     classe: null
     gravite: mineur
@@ -1131,6 +1194,7 @@ anomalies:
   - id: SEC-098
     titre: Les mutations de commentaire, d'item de checklist et de reunion (create/update/delete) n'invalident aucun tag de cache Redis, alors que getProjectSummary/getClientSummary ecrivent sous tag:project/tag:client — incoherent avec le reste du module qui invalide systematiquement (impact utilisateur reel non confirme, voir correction du constat ci-dessous)
     perimetre: '4.2 Gestion de projet — server/src/services/comment.service.ts, server/src/services/taskChecklist.service.ts, server/src/services/projectMeeting.service.ts ; consommateur cache : server/src/services/summary.service.ts + summary.repository.ts#getProjectSummary/#getClientSummary'
+    categorie: C
     regle_violee: null
     classe: null
     gravite: mineur
@@ -1147,6 +1211,7 @@ anomalies:
   - id: SEC-112
     titre: Document sans index composite (projectId, type) alors que documentRepository.findLatestByProjectAndType filtre exactement sur ce couple
     perimetre: schema.prisma — model Document ; server/src/repositories/document.repository.ts
+    categorie: B
     regle_violee: null
     classe: index_manquant_colonne_filtree
     gravite: mineur
@@ -1162,6 +1227,7 @@ anomalies:
   - id: SEC-122
     titre: documentRepository.findById n'applique aucun filtre de pôle pour le rôle MANAGER (seules les branches CLIENT et FREELANCER existent) alors que findAll le fait — un manager peut lire/télécharger par ID direct un document hors de son pôle
     perimetre: 4.9 Documents — server/src/repositories/document.repository.ts ; server/src/services/document.service.ts ; server/src/controllers/document.controller.ts
+    categorie: A
     regle_violee: null
     classe: scoping_pole_manquant_ou_incorrect
     gravite: bloquant
@@ -1177,6 +1243,7 @@ anomalies:
   - id: SEC-126
     titre: taskService.updateTask n'est jamais testé pour le cas MANAGER hors pôle ni FREELANCER étranger, malgré que le contrôle existe dans le code — taskScope.test.ts ne couvre que getAllTasks/getTaskById (lecture), jamais l'écriture
     perimetre: server/test/taskScope.test.ts ; server/src/services/task.service.ts#updateTask
+    categorie: E
     regle_violee: null
     classe: test_scope_methode_non_couverte
     gravite: mineur
@@ -1192,6 +1259,7 @@ anomalies:
   - id: SEC-127
     titre: projectMeetingService.update/delete ne sont jamais testées pour le cas MANAGER hors pôle, contrairement à listByProject/create/getSchedule/setSchedule déjà couvertes — projectMeetingUpdateDelete.test.ts ne teste que l'autorisation auteur/non-auteur sur ces deux méthodes, jamais le scope de pôle
     perimetre: server/test/projectMeetingUpdateDelete.test.ts ; server/src/services/projectMeeting.service.ts
+    categorie: E
     regle_violee: null
     classe: test_scope_methode_non_couverte
     gravite: mineur
@@ -1207,6 +1275,7 @@ anomalies:
   - id: SEC-130
     titre: documentAccess.test.ts ne valide que la fonction pure visibleAccessLevels(), jamais son application réelle dans la requête findFirst de document.repository.ts — un mauvais câblage futur du where.accessLevel resterait invisible à ce test
     perimetre: server/test/documentAccess.test.ts ; server/src/repositories/document.repository.ts
+    categorie: E
     regle_violee: null
     classe: test_helper_isole_non_cable
     gravite: mineur
@@ -1222,6 +1291,7 @@ anomalies:
   - id: SEC-148
     titre: 'server/src/routes/project.routes.ts : 20 des 25 routes réelles n''ont aucun bloc @swagger (seules /, /:id, POST /, PUT /:id, DELETE /:id sont documentées) — le plus gros trou de couverture OpenAPI du dépôt, plus large que SEC-143'
     perimetre: server/src/routes/project.routes.ts
+    categorie: F
     regle_violee: null
     classe: doc_openapi_desynchronisee_du_code_reel
     gravite: majeur
@@ -1238,6 +1308,7 @@ anomalies:
   - id: SEC-149
     titre: Au moins 9 réponses d'erreur écrites à la main dans 5 contrôleurs (auth, project, upload, siteContent, freelancerApplication) contournent l'enveloppe centralisée de error.middleware.ts, avec deux formes distinctes ({message:...} et {error:"string brute"}) — distinct de SEC-145 qui ne couvre que la branche ZodError du middleware
     perimetre: server/src/controllers/auth.controller.ts, server/src/controllers/project.controller.ts, server/src/controllers/upload.controller.ts, server/src/controllers/siteContent.controller.ts, server/src/controllers/freelancerApplication.controller.ts
+    categorie: F
     regle_violee: null
     classe: null
     gravite: mineur
@@ -1258,6 +1329,7 @@ anomalies:
   - id: SEC-156
     titre: ReportsPage.tsx demande pageSize:500 pour projects/invoices, mais getAllProjects et getInvoices appellent parseListQuery sans maxPageSize (plafond 50 par défaut, cf. SEC-118) — ET le tri par défaut est createdAt ASC (les plus anciens), donc au-delà de 50 lignes le rapport/export PDF-Excel calcule ses stats et sa plage « 30 derniers jours » sur les 50 enregistrements les plus ANCIENS, pas les plus récents
     perimetre: 4.7 Rapports/Analytics — client/src/features/reports/ReportsPage.tsx, server/src/controllers/project.controller.ts#getAllProjects, server/src/controllers/invoice.controller.ts, server/src/utils/listQuery.ts, server/src/repositories/project.repository.ts, server/src/repositories/invoice.repository.ts
+    categorie: C
     regle_violee: null
     classe: pagination_plafond_silencieux
     gravite: majeur
@@ -1279,6 +1351,7 @@ anomalies:
   - id: SEC-168
     titre: project.service.ts#clientApprove construit une URL de portail client avec des antislashs au lieu de slashs (`${env.FRONTEND_URL}\client\invoices`) dans l'email envoyé au client après approbation finale — lien cassé/inutilisable selon le navigateur
     perimetre: server/src/services/project.service.ts#clientApprove (ligne ~441)
+    categorie: G
     regle_violee: null
     classe: null
     gravite: mineur
@@ -1296,6 +1369,7 @@ anomalies:
   - id: SEC-173
     titre: Migration 20260719200000_add_task_completedat_comment_editedat ajoute Task.completedAt (nullable) sans backfill — toute tâche déjà au statut DONE avant cette migration garde completedAt=null en permanence (le champ n'est écrit que par updateTask au moment de la transition vers DONE, jamais rétroactivement)
     perimetre: server/prisma/migrations/20260719200000_add_task_completedat_comment_editedat/migration.sql ; schema.prisma#Task (commentaire SEC-070)
+    categorie: B
     regle_violee: null
     classe: migration_champ_derive_sans_backfill
     gravite: mineur
@@ -1312,6 +1386,7 @@ anomalies:
   - id: SEC-177
     titre: 'projectService.clientApprove : le preread (status !== REVIEW, clientApprovedAt déjà posé) tourne hors transaction et n''est jamais re-vérifié dans le $transaction — contrairement aux gardes tâches ouvertes/acompte/approbations qui, elles, sont explicitement re-vérifiées via tx (commentaire ligne 341-344) — deux appels concurrents (double-clic, retry réseau) sur le même projet REVIEW peuvent tous deux passer le preread et écraser clientApprovedAt/clientApprovedById avec un second horodatage'
     perimetre: 4.2 Gestion de projet, 4.4 Facturation — server/src/services/project.service.ts#clientApprove (lignes 296-388)
+    categorie: A
     regle_violee: null
     classe: toctou_precheck_hors_transaction
     gravite: mineur
@@ -1328,6 +1403,7 @@ anomalies:
   - id: SEC-185
     titre: La signature électronique de contrat (PATCH /documents/:id/sign) ne capture ni hash du contenu du PDF, ni adresse IP, ni user-agent du signataire — seuls signedAt/signedByClientId sont écrits, alors que le même service capture déjà ipAddress/userAgent pour un simple téléchargement via documentService.logAccess
     perimetre: 4.9 Documents — server/src/services/document.service.ts#signDocument ; server/src/controllers/document.controller.ts#signDocument
+    categorie: A
     regle_violee: null
     classe: preuve_signature_electronique_insuffisante
     gravite: majeur
@@ -1343,6 +1419,7 @@ anomalies:
   - id: SEC-195
     titre: 'Le garde `{ skip: !dbAvailable }` (ou `!schemaLoaded`), qu''il soit posé sur `describe(...)` OU sur chaque `test(...)` individuel, est structurellement peu fiable dans server/test/*.ts : l''option `skip` est TOUJOURS évaluée de façon SYNCHRONE au moment de l''enregistrement de describe/test, avant que le `before()` asynchrone correspondant (qui assigne réellement `dbAvailable`) n''ait pu s''exécuter — contrairement à ce que cette entrée affirmait initialement, déplacer `skip` du `describe` vers chaque `test()` individuel NE corrige RIEN : `test(name, { skip: !flag }, fn)` a exactement le même défaut de timing que `describe(name, { skip: !flag }, fn)`, seul un check FAIT DANS LE CORPS du test (via le paramètre `t: TestContext` et `t.skip(msg)`) s''exécute après que before() a résolu'
     perimetre: 'server/test/*.ts — 63 fichiers corrigés dans cette passe (grep sur `SEC-195:` pour la liste exacte, à jour) : archivedProjectTaskVisibility, authCookieAndLogoutReuse, authPhoneRoundTrip, checkInvoiceFollowup, clientApproveEmailPortalUrl, clientInviteResend, clientPortalActivationBackfill, commissionCreationExclusivity, commissionService, contactConvertToLeadScope, creditNoteApply, creditNoteCumulativeAmount, creditNoteNumberConcurrency, depositRateSingleSource, documentCreateHttp, documentScopeManager, documentSignContract, errorEnvelope.http, executiveMetricsActiveProjectsParallel, executiveMetricsCriticalCountUnbounded, executiveMetricsProjectRisks, freelancerSeesOwnDeliverable, idor, invoiceAuditLog, invoiceCreateFromProposal, invoiceNumberingGapless, invoicePaymentInviteFailure, invoiceScopeManager, lead.repository, leadCreateConcurrency, leadCreateScope, leadDuplicateEmail, leadListExcludesNotes, leadService, leadsKanbanMaxPageSize, managerScopeIdorFixes, markOverdueInvoicesAuditLog, metricAnomalyAndCommissionBatching, portalActivationOnPayment, projectClientApproveBalanceInvoice, projectClientApproveConcurrency, projectCreateArchiveRestore, projectDetailIncludesTasks, projectStatusInFilter, projectTemplateIdempotencyAndFreelancerFields, proposal.service, proposalAcceptCascade, proposalAcceptCascadeConcurrency, proposalAcceptRbacHttp, proposalCreationScope, proposalListOrderBy, proposalScopeAfterCreation, proposalScopeSendUpdateAddSection, proposalWriteScopeRefusal, reportsPageSortOrder, schemaIndexCleanupAndTimeEntryFk, searchScope, serviceRequestService, taskCompletedAtBackfill, taskPrioritySort, taskUpdateScopeRefusal, userDeleteFinancialHistory, userProfilePhone.http'
+    categorie: E
     regle_violee: null
     classe: garde_skip_evalue_avant_before_async
     gravite: majeur
@@ -1360,6 +1437,7 @@ anomalies:
   - id: SEC-209
     titre: server/src/swagger-schemas.ts (schémas de requête CreateProject/CreateTask + réponses génériques Conflict/UnprocessableEntity/RateLimited) n'est importé par aucun fichier du dépôt — code mort, ne contribue rien au spec Swagger réellement servi (swagger-jsdoc ne scanne que src/routes/*.ts et src/controllers/*.ts, configuré dans swagger.ts)
     perimetre: server/src/swagger-schemas.ts
+    categorie: F
     regle_violee: null
     classe: null
     gravite: mineur
@@ -1375,6 +1453,7 @@ anomalies:
   - id: SEC-214
     titre: taskChecklistRepository.create (server/src/repositories/taskChecklist.repository.ts) ne retry que sur le code Prisma P2034 avec un budget de 8 tentatives et un jitter plat 0-20ms — sous 5 créations concurrentes réelles proches du plafond en CI, ce budget peut s'épuiser avant que les 5 appelants aient fini de se sérialiser, laissant fuiter l'erreur Prisma brute vers l'appelant au lieu du HttpError CHECKLIST_LIMIT_REACHED attendu par le test SEC-077 (server/test/taskChecklist.test.ts)
     perimetre: 4.3 Gestion des tâches — server/src/repositories/taskChecklist.repository.ts#create
+    categorie: G
     regle_violee: null
     classe: checklist-position-concurrence
     gravite: mineur
@@ -1391,6 +1470,7 @@ anomalies:
   - id: SEC-228
     titre: server/test/taskAssigneeAndOverdueFilters.test.ts échoue systématiquement au niveau process (node:test rapporte pass 4/fail 1) alors que les 5 sous-tests individuels affichent tous ✔ dans les logs — suspicion de connexion Prisma non fermée (aucun prisma.$disconnect() dans le fichier), pas un défaut de logique métier
     perimetre: server/test/taskAssigneeAndOverdueFilters.test.ts
+    categorie: E
     regle_violee: null
     classe: test_process_non_ferme
     gravite: mineur

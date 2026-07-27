@@ -13,6 +13,7 @@ anomalies:
   - id: SEC-017
     titre: executiveMetrics.* et revenueForecast.* ne sont montés sur aucune route HTTP
     perimetre: 4.8 Analytics & Performance
+    categorie: F
     regle_violee: null
     classe: null
     gravite: mineur
@@ -31,6 +32,7 @@ anomalies:
   - id: SEC-024
     titre: 'executiveMetricsRepository.getAll : 3 des 6 types de risque déclarés ne produisent jamais de ligne dans risks[] (PROJECT_CRITICAL, STALE_PROJECT), et CONTRACT_EXPIRING alimente un badge sans donnée réelle ni ligne de risque correspondante'
     perimetre: 4.8 Analytics & Performance — server/src/repositories/executiveMetrics.repository.ts
+    categorie: G
     regle_violee: null
     classe: null
     gravite: mineur
@@ -50,6 +52,7 @@ anomalies:
   - id: SEC-160
     titre: dashboardService.getSummary bypasse totalement le cache pour toute vue scopée MANAGER (serviceId !== undefined) — appelle analyticsService.getSummary (7 agrégations Prisma en parallèle) sans cacheGet/cacheSet, alors que la vue ADMIN non-scopée est mise en cache 60s (cacheTTL.dashboard) — chaque chargement du dashboard par un des 3 Managers de pôle recalcule tout depuis zéro
     perimetre: 4.8 Analytics & Performance — server/src/services/dashboard.service.ts#getSummary, server/src/services/analytics.service.ts#getSummary, server/src/repositories/analytics.repository.ts
+    categorie: C
     regle_violee: null
     classe: cache_manquant_chemin_frequent
     gravite: majeur
@@ -69,6 +72,7 @@ anomalies:
   - id: SEC-161
     titre: 'executiveMetricsRepository.getAll : une requête (activeProjects) s''exécute en séquentiel APRÈS le Promise.all principal de 26 requêtes, avec un fan-out non borné (tous les projets actifs × toutes leurs tâches) ; clientsWithProjects (dans le même Promise.all) charge aussi tous les clients avec projets+factures imbriqués sans aucune limite — mitigé par le cache 3min du service mais reste le calcul le plus lourd du dashboard exécutif à chaque expiration de cache'
     perimetre: 4.8 Analytics & Performance — server/src/repositories/executiveMetrics.repository.ts#getAll
+    categorie: C
     regle_violee: null
     classe: null
     gravite: mineur
@@ -86,6 +90,7 @@ anomalies:
   - id: SEC-169
     titre: metricAnomalyService.detectClickAnomalies boucle sur clientIds avec un findMany séquentiel par client (1 aller-retour DB par client GSC connecté) au lieu d'un findMany groupé — appelé depuis le job quotidien syncSearchConsole, coût croît linéairement avec le nombre de clients connectés à Search Console
     perimetre: 'server/src/services/metricAnomaly.service.ts#detectClickAnomalies ; appelant : server/src/services/searchConsole.service.ts:154'
+    categorie: C
     regle_violee: null
     classe: n_plus_un_boucle_sequentielle
     gravite: mineur

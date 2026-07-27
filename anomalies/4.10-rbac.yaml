@@ -13,6 +13,7 @@ anomalies:
   - id: SEC-025
     titre: 'client/src/types/permissions.ts#MODULES désynchronisé du serveur : client-success et client-onboarding absents, jamais affichés dans la grille de permissions'
     perimetre: 4.10 RBAC & Permissions granulaires — client/src/types/permissions.ts, client/src/features/settings/PermissionsGrid.tsx
+    categorie: A
     regle_violee: null
     classe: null
     gravite: mineur
@@ -31,6 +32,7 @@ anomalies:
   - id: SEC-113
     titre: ManagerPermission.profileId sans index alors que managerPermissionRepository.findUserIdsByProfileId filtre dessus (appelé à chaque update/delete de PermissionProfile)
     perimetre: schema.prisma — model ManagerPermission ; server/src/repositories/managerPermission.repository.ts
+    categorie: B
     regle_violee: null
     classe: index_manquant_colonne_filtree
     gravite: mineur
@@ -46,6 +48,7 @@ anomalies:
   - id: SEC-114
     titre: 'PermissionProfile.delete ne vérifie pas si des ManagerPermission y sont encore rattachées : la suppression passe (ON DELETE SET NULL en base), mais les managers concernés perdent silencieusement toutes les permissions venant du profil, sans avertissement ni trace'
     perimetre: server/src/services/managerPermission.service.ts ; schema.prisma — relation ManagerPermission.profile
+    categorie: B
     regle_violee: null
     classe: null
     gravite: majeur
@@ -70,6 +73,7 @@ anomalies:
   - id: SEC-121
     titre: 'Invalidation du cache de permissions par profil potentiellement O(n) sur le nombre de managers partageant un profil — CONSTAT NON VÉRIFIABLE : décrit du code en cours d''écriture par une session concurrente, non commité au moment de l''enregistrement'
     perimetre: server/src/services/managerPermission.service.ts, server/src/repositories/managerPermission.repository.ts
+    categorie: C
     regle_violee: null
     classe: null
     gravite: mineur
@@ -84,6 +88,7 @@ anomalies:
   - id: SEC-196
     titre: 'managerPermissionRepository.findUserNamesByProfileId (server/src/repositories/managerPermission.repository.ts) est du code mort : aucun appelant nulle part dans le dépôt (src/ ni test/, ni client/) — remplacée par findManagersByProfileId (mêmes lignes du même fichier, mêmes données + le userId en plus) sans jamais être nettoyée'
     perimetre: server/src/repositories/managerPermission.repository.ts (lignes 21-29)
+    categorie: B
     regle_violee: null
     classe: code_mort_apres_remplacement
     gravite: mineur
@@ -100,6 +105,7 @@ anomalies:
   - id: SEC-197
     titre: 'permissionProfileService.delete : fenêtre TOCTOU mineure entre la suppression réelle du profil (permissionProfileRepository.delete, ligne 146) et l''invalidation du cache des managers affectés (cacheDel, lignes 148-151) — un resolvePermissions concurrent exécuté dans cet intervalle lirait encore l''ancien cache valide (les permissions de l''ancien profil), alors que le profil n''existe déjà plus en base'
     perimetre: server/src/services/managerPermission.service.ts#permissionProfileService.delete (lignes 125-171)
+    categorie: A
     regle_violee: null
     classe: toctou_invalidation_cache_apres_suppression
     gravite: mineur

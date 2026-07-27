@@ -13,6 +13,7 @@ anomalies:
   - id: SEC-021
     titre: Les 4 CTA « Nous contacter » de la section services publique envoient un serviceType invalide (rejeté par le serveur)
     perimetre: site public (landing) — client/src/features/landing/components/Services.tsx, client/src/features/landing/pages/ContactPage.tsx
+    categorie: I
     regle_violee: null
     classe: vocabulaire_pole_incoherent
     gravite: majeur
@@ -29,6 +30,7 @@ anomalies:
   - id: SEC-226
     titre: 'Migration CMS incomplète — HowItWorks/FAQ/SocialProof lisent désormais cmsJson(...) sur SiteContent au lieu de t(...) sur i18n, mais server/prisma/seed.ts n''a jamais été mis à jour pour copier ce contenu en base : les 3 sections retombent sur des défauts vides (title:"", body:"") en landing page alors que le texte FR/EN complet existe toujours dans translation.json, jamais lu'
     perimetre: client/src/features/landing/components/{HowItWorks,FAQ,SocialProof}.tsx ; server/prisma/seed.ts (sections HOW_IT_WORKS, FAQ, SOCIAL_PROOF absentes) ; client/src/i18n/locales/{fr,en}/translation.json (home.howItWorks.steps, home.faq.questions, home.socialProof.testimonials — contenu intact, orphelin)
+    categorie: B
     regle_violee: null
     classe: migration_cms_seed_manquant
     gravite: majeur
@@ -45,6 +47,7 @@ anomalies:
   - id: SEC-227
     titre: Même défaut que SEC-226 sur 3 sections supplémentaires — Problems/SolutionsTeaser/Differentiators lisent cmsJson(...) sur SiteContent (sections PROBLEMS/SOLUTIONS/DIFFERENTIATORS, déjà présentes dans l'enum SiteContentSection) mais aucune entrée seed correspondante n'existait, malgré un texte FR/EN complet toujours présent dans translation.json
     perimetre: client/src/features/landing/components/{Problems,SolutionsTeaser,Differentiators}.tsx ; server/prisma/seed.ts (sections PROBLEMS, SOLUTIONS, DIFFERENTIATORS absentes avant correctif) ; client/src/i18n/locales/{fr,en}/translation.json (problems.items, solutionsTeaser.segments, differentiators.items — contenu intact, orphelin)
+    categorie: B
     regle_violee: null
     classe: migration_cms_seed_manquant
     gravite: majeur
