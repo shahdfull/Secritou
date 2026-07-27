@@ -51,12 +51,17 @@ i18n global, design system, observabilité).
 
 1. Lire `anomalies/_index.yaml` en entier AVANT de commencer tout audit
    (léger — id, perimetre, statut, gravite, classe).
-2. Auditer UN périmètre nommé (un module de REFERENTIEL.md §4, ex. "4.5
-   Rémunération des associés") contre les sections correspondantes du
-   référentiel — ne pas mélanger plusieurs périmètres dans une même passe.
-   Lire uniquement `anomalies/<perimetre>.yaml` du périmètre ciblé (pas les
-   autres fichiers de détail) pour le détail complet des anomalies déjà
-   connues sur ce périmètre.
+2. Choisir le périmètre à auditer en lisant `COUVERTURE.yaml` d'abord :
+   prioriser la combinaison (périmètre, catégorie A-J) dont la date est la
+   plus ancienne ou `null` (jamais balayée) — sauf si un signal plus fort
+   existe (commit récent touchant ce périmètre, anomalie ouverte critique
+   remontée par ailleurs, demande explicite du porteur). Auditer UN
+   périmètre nommé (un module de REFERENTIEL.md §4, ex. "4.5 Rémunération
+   des associés") contre les sections correspondantes du référentiel — ne
+   pas mélanger plusieurs périmètres dans une même passe. Lire uniquement
+   `anomalies/<perimetre>.yaml` du périmètre ciblé (pas les autres fichiers
+   de détail) pour le détail complet des anomalies déjà connues sur ce
+   périmètre.
 3. Pour chaque constat :
    - s'il correspond à un ID déjà ouvert (visible dans `_index.yaml`), ne
      pas le reformuler — citer l'ID existant tel quel ;
@@ -68,6 +73,10 @@ i18n global, design system, observabilité).
      ensemble, jamais l'un sans l'autre.
 4. Toujours lister dans le rendu les fichiers réellement lus pendant l'audit
    (chemins exacts), pas une estimation.
+5. À la fin de la session, mettre à jour dans `COUVERTURE.yaml` la cellule
+   (périmètre, catégorie) réellement balayée avec la date du jour — jamais
+   une autre cellule par supposition, et jamais la ligne entière si une
+   seule catégorie a été balayée cette passe.
 
 ## Interdiction de reformulation
 

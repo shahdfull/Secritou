@@ -1,0 +1,244 @@
+# Matrice de couverture d'audit — Secritou
+#
+# Lignes : les 14 modules de REFERENTIEL.md §4 (+ une ligne "transverse" pour
+# ce qui n'appartient à aucun module, cohérent avec anomalies/transverse.yaml).
+# Colonnes : les 10 catégories d'audit A-J de AUDIT_MATURITE_SECRITOU.md.
+# Chaque cellule : date ISO du dernier balayage ACTIF de cette catégorie sur
+# ce périmètre, ou null si jamais balayé (ou si seule une source
+# "historique" au sens de REFERENTIEL.md §0 — audit/*.md, rounds 1-9 —
+# en parle, ce qui ne compte pas comme balayage actif, décision du porteur
+# du projet, session du 2026-07-27).
+#
+# Sources retenues comme faisant foi (verifie: session, pas de simple
+# citation) :
+#   - AUDIT_GRID.md (2026-07-17, mise à jour Lead 2026-07-22) : grille CRUD
+#     exhaustive des 24 entités §3, lecture directe. Couvre surtout la
+#     catégorie B (Intégrité des données) et partiellement G (Exactitude
+#     métier) module par module — pas de couverture par module pour les
+#     8 autres catégories dans ce document.
+#   - AUDIT_MATURITE_SECRITOU.md v5 (git: 2026-07-25) : balayage actif des
+#     catégories A (Sécurité applicative) et D (Fiabilité opérationnelle/
+#     DevOps), mais de façon GLOBALE/transverse (routes, secrets, alertes
+#     monitoring) — jamais périmètre par périmètre. Faute d'un grain plus
+#     fin, cette date est appliquée à TOUTES les lignes pour A et D
+#     (décision du porteur, session du 2026-07-27) : traiter comme un
+#     balayage valable pour chaque périmètre, pas comme une preuve ciblée.
+#   - anomalies/ (git: 2026-07-27) : date de la migration de structure du
+#     registre, PAS un balayage — n'alimente aucune cellule de cette matrice.
+#
+# Catégories A-J (poids, AUDIT_MATURITE_SECRITOU.md §2) :
+#   A. Sécurité applicative — 18%
+#   B. Intégrité des données — 15%
+#   C. Performance et scalabilité — 10%
+#   D. Fiabilité opérationnelle / DevOps — 10%
+#   E. Couverture et qualité des tests — 10%
+#   F. Conception API et cohérence des contrats — 6%
+#   G. Exactitude métier et financière — 15%
+#   H. UX/UI et accessibilité — 8%
+#   I. Qualité et fiabilité de la documentation — 3%
+#   J. Maturité du processus de release / CI-CD — 5%
+#
+# Règle de mise à jour (voir aussi CLAUDE.md) : chaque audit doit mettre à
+# jour la cellule (perimetre, categorie) réellement balayée avec la date du
+# jour, à la fin de la session — jamais une autre cellule par supposition.
+
+derniere_maj: "2026-07-27"
+
+modules:
+  "4.1-crm":
+    label: "4.1 CRM & Pipeline commercial"
+    A: "2026-07-25"
+    B: "2026-07-22"
+    C: null
+    D: "2026-07-25"
+    E: null
+    F: null
+    G: null
+    H: null
+    I: null
+    J: null
+
+  "4.2-projets":
+    label: "4.2 Gestion de projet"
+    A: "2026-07-25"
+    B: "2026-07-17"
+    C: null
+    D: "2026-07-25"
+    E: null
+    F: null
+    G: null
+    H: null
+    I: null
+    J: null
+
+  "4.3-onboarding":
+    label: "4.3 Onboarding client"
+    A: "2026-07-25"
+    B: "2026-07-17"
+    C: null
+    D: "2026-07-25"
+    E: null
+    F: null
+    G: null
+    H: null
+    I: null
+    J: null
+
+  "4.4-facturation":
+    label: "4.4 Facturation & Paiements"
+    A: "2026-07-25"
+    B: "2026-07-17"
+    C: null
+    D: "2026-07-25"
+    E: null
+    F: null
+    G: null
+    H: null
+    I: null
+    J: null
+
+  "4.5-commissions":
+    label: "4.5 Rémunération des associés (Commissions)"
+    A: "2026-07-25"
+    B: "2026-07-17"
+    C: null
+    D: "2026-07-25"
+    E: null
+    F: null
+    G: null
+    H: null
+    I: null
+    J: null
+
+  "4.6-portail-client":
+    label: "4.6 Portail client"
+    A: "2026-07-25"
+    B: "2026-07-17"
+    C: null
+    D: "2026-07-25"
+    E: null
+    F: null
+    G: null
+    H: null
+    I: null
+    J: null
+
+  "4.7-freelances":
+    label: "4.7 Freelances"
+    A: "2026-07-25"
+    B: "2026-07-17"
+    C: null
+    D: "2026-07-25"
+    E: null
+    F: null
+    G: null
+    H: null
+    I: null
+    J: null
+
+  "4.8-analytics":
+    label: "4.8 Analytics & Performance"
+    A: "2026-07-25"
+    B: "2026-07-17"
+    C: null
+    D: "2026-07-25"
+    E: null
+    F: null
+    G: null
+    H: null
+    I: null
+    J: null
+
+  "4.9-client-success":
+    label: "4.9 Client Success"
+    note: "Module GELÉ — voir CLAUDE.md « Statut GELÉ » : exclu de tout audit/développement sauf blocage du chemin de l'argent remonté ailleurs."
+    A: "2026-07-25"
+    B: "2026-07-17"
+    C: null
+    D: "2026-07-25"
+    E: null
+    F: null
+    G: null
+    H: null
+    I: null
+    J: null
+
+  "4.10-rbac":
+    label: "4.10 RBAC & Permissions granulaires"
+    A: "2026-07-25"
+    B: "2026-07-17"
+    C: null
+    D: "2026-07-25"
+    E: null
+    F: null
+    G: null
+    H: null
+    I: null
+    J: null
+
+  "4.11-ia":
+    label: "4.11 Module IA (agent-service)"
+    note: "Module GELÉ — voir CLAUDE.md « Statut GELÉ »."
+    A: "2026-07-25"
+    B: "2026-07-17"
+    C: null
+    D: "2026-07-25"
+    E: null
+    F: null
+    G: null
+    H: null
+    I: null
+    J: null
+
+  "4.12-site-public":
+    label: "4.12 Contenu du site public"
+    A: "2026-07-25"
+    B: "2026-07-17"
+    C: null
+    D: "2026-07-25"
+    E: null
+    F: null
+    G: null
+    H: null
+    I: null
+    J: null
+
+  "4.13-notifications-jobs":
+    label: "4.13 Notifications & Automatisations"
+    note: "AUDIT_GRID.md ne couvre aucune entité §3 dédiée à ce module (jobs/notifications transverses, pas d'entité CRUD propre) — colonne B non alimentée par cette source."
+    A: "2026-07-25"
+    B: null
+    C: null
+    D: "2026-07-25"
+    E: null
+    F: null
+    G: null
+    H: null
+    I: null
+    J: null
+
+  "4.14-auth":
+    label: "4.14 Authentification & Compte utilisateur"
+    A: "2026-07-25"
+    B: "2026-07-17"
+    C: null
+    D: "2026-07-25"
+    E: null
+    F: null
+    G: null
+    H: null
+    I: null
+    J: null
+
+  "transverse":
+    label: "Transverse (hors modules §4 — CI/infra, RGPD, docs, i18n global, design system, observabilité)"
+    A: "2026-07-25"
+    B: null
+    C: null
+    D: "2026-07-25"
+    E: null
+    F: null
+    G: null
+    H: null
+    I: null
+    J: null
