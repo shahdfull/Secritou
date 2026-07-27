@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { authApi } from "@/api/auth.api";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -19,12 +19,13 @@ export function ResetPasswordPage() {
     confirmPassword: z.string(),
   }).refine((data) => data.newPassword === data.confirmPassword, { message: t("auth.passwordMismatch"), path: ["confirmPassword"] });
   type ResetPasswordForm = z.infer<typeof resetPasswordSchema>;
-  const { mutate: resetPassword, isPending, isSuccess } = useMutation({
+  const { mutate: resetPassword, isPending, isSuccess, isError } = useMutation({
     mutationFn: async (newPassword: string) => {
       if (!token) throw new Error("Invalid reset token");
       return authApi.resetPassword(token, newPassword);
     },
     onSuccess: () => toast.success(t("auth.passwordResetSuccess")),
+    onError: () => toast.error(t("auth.resetPasswordFailed")),
   });
   const { register, handleSubmit, formState: { errors } } = useForm<ResetPasswordForm>({
     resolver: zodResolver(resetPasswordSchema),
@@ -66,17 +67,44 @@ export function ResetPasswordPage() {
         <p className="mt-2 text-sm text-muted-foreground">{t("auth.setNewPasswordInstructions")}</p>
         <div className="mt-6 space-y-4">
           <div className="space-y-1">
-            <Input placeholder={t("auth.newPassword")} type="password" {...register("newPassword")} disabled={isPending} />
-            {errors.newPassword && <p className="text-xs text-red-500">{errors.newPassword.message}</p>}
+            <label htmlFor="reset-new-password" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {t("auth.newPassword")}
+            </label>
+            <PasswordInput
+              id="reset-new-password"
+              placeholder={t("auth.newPassword")}
+              aria-invalid={Boolean(errors.newPassword)}
+              aria-describedby={errors.newPassword ? "reset-new-password-error" : undefined}
+              {...register("newPassword")}
+              disabled={isPending}
+            />
+            {errors.newPassword && <p id="reset-new-password-error" role="alert" className="text-xs text-red-500">{errors.newPassword.message}</p>}
           </div>
           <div className="space-y-1">
-            <Input placeholder={t("auth.confirmPassword")} type="password" {...register("confirmPassword")} disabled={isPending} />
-            {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword.message}</p>}
+            <label htmlFor="reset-confirm-password" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {t("auth.confirmPassword")}
+            </label>
+            <PasswordInput
+              id="reset-confirm-password"
+              placeholder={t("auth.confirmPassword")}
+              aria-invalid={Boolean(errors.confirmPassword)}
+              aria-describedby={errors.confirmPassword ? "reset-confirm-password-error" : undefined}
+              {...register("confirmPassword")}
+              disabled={isPending}
+            />
+            {errors.confirmPassword && <p id="reset-confirm-password-error" role="alert" className="text-xs text-red-500">{errors.confirmPassword.message}</p>}
           </div>
         </div>
         <Button className="mt-6 w-full rounded-full" type="submit" disabled={isPending}>
           {isPending ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("auth.resetting")}</>) : t("auth.resetPassword")}
         </Button>
+        {isError && (
+          <div className="mt-4 text-center text-sm text-muted-foreground">
+            <Link to="/forgot-password" className="font-semibold text-primary hover:underline">
+              {t("auth.requestNewResetLink")}
+            </Link>
+          </div>
+        )}
       </form>
     </section>
   );

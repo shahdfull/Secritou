@@ -7,6 +7,7 @@ import type { AuthTokens, LoginCredentials, RegisterCredentials, User } from "..
 import { toast } from "sonner";
 import i18n from "@/i18n";
 import { useEffect } from "react";
+import { getServerErrorMessage } from "@/utils/apiError";
 
 // Maps a failed login's HTTP status to a translated, user-facing toast message.
 function loginErrorMessage(error: AxiosError): string {
@@ -185,8 +186,8 @@ export function useUpdateMe() {
       );
       toast.success(i18n.t("toasts.profileUpdated", "Profil mis à jour avec succès"));
     },
-    onError: (error: Error) => {
-      toast.error(error.message ?? i18n.t("errors.generic", "Une erreur est survenue"));
+    onError: (error: unknown) => {
+      toast.error(getServerErrorMessage(error) ?? i18n.t("errors.generic", "Une erreur est survenue"));
     },
   });
 }
@@ -214,6 +215,9 @@ export function useChangePassword() {
         );
       }
       toast.success(i18n.t("auth.passwordChanged"));
+    },
+    onError: (error: unknown) => {
+      toast.error(getServerErrorMessage(error) ?? i18n.t("errors.generic", "Une erreur est survenue"));
     },
   });
 }

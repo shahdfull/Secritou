@@ -81,7 +81,7 @@ export function ChangePasswordPage() {
               name="currentPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Current Password</FormLabel>
+                  <FormLabel>{t("auth.currentPassword")}</FormLabel>
                   <FormControl>
                     <Input type="password" {...field} />
                   </FormControl>
@@ -94,7 +94,7 @@ export function ChangePasswordPage() {
               name="newPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>New Password</FormLabel>
+                  <FormLabel>{t("auth.newPassword")}</FormLabel>
                   <FormControl>
                     <Input type="password" {...field} />
                   </FormControl>
@@ -107,7 +107,7 @@ export function ChangePasswordPage() {
               name="confirmPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Confirm New Password</FormLabel>
+                  <FormLabel>{t("auth.confirmNewPassword")}</FormLabel>
                   <FormControl>
                     <Input type="password" {...field} />
                   </FormControl>
@@ -120,7 +120,7 @@ export function ChangePasswordPage() {
               className="w-full"
               disabled={changePassword.isPending}
             >
-              {changePassword.isPending ? "Changing..." : t("common.save")}
+              {changePassword.isPending ? t("auth.changing") : t("common.save")}
             </Button>
           </form>
         </Form>

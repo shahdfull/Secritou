@@ -38,12 +38,11 @@ export function LoginPage() {
   return (
     <section className="container-page grid min-h-login-safe place-items-center py-16">
       <form className="w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-soft" onSubmit={handleSubmit(onSubmit)}>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Secritou</p>
         <h1 className="mt-2 font-display text-3xl font-bold text-ink">{t("auth.signIn")}</h1>
         <p className="mt-2 text-sm text-muted-foreground">{t("auth.accessWorkspace")}</p>
         <div className="mt-6 space-y-4">
           <div className="space-y-1">
-            <label htmlFor="login-email" className="sr-only">{t("auth.email")}</label>
+            <label htmlFor="login-email" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("auth.email")}</label>
             <Input
               id="login-email"
               placeholder={t("auth.email")}
@@ -56,7 +55,7 @@ export function LoginPage() {
             {errors.email && <p id="login-email-error" role="alert" className="text-xs text-red-500">{errors.email.message}</p>}
           </div>
           <div className="space-y-1">
-            <label htmlFor="login-password" className="sr-only">{t("auth.password")}</label>
+            <label htmlFor="login-password" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("auth.password")}</label>
             <PasswordInput
               id="login-password"
               placeholder={t("auth.password")}
