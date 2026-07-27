@@ -8,6 +8,7 @@ import { SolutionsTeaser } from "@/features/landing/components/SolutionsTeaser";
 import { Differentiators } from "@/features/landing/components/Differentiators";
 import { FAQ } from "@/features/landing/components/FAQ";
 import { FinalCTA } from "@/features/landing/components/FinalCTA";
+import { OnThisPageNav } from "@/features/landing/components/OnThisPageNav";
 import { useSeoMeta } from "@/hooks/useSeoMeta";
 
 
@@ -20,6 +21,11 @@ export function HomePage() {
   });
   return (
     <>
+      <div className="pointer-events-none fixed left-6 top-1/2 z-30 hidden -translate-y-1/2 2xl:block">
+        <div className="pointer-events-auto">
+          <OnThisPageNav />
+        </div>
+      </div>
       <Hero />
       <SocialProof />
       <Problems />

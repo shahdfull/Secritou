@@ -20,21 +20,16 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { toast } from "sonner";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { useCreateFreelancerApplication } from "@/hooks/useFreelancerApplications";
 import { FileUploadField } from "@/components/common/FileUploadField";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { isValidTunisianPhone } from "@secritou/shared";
 
 export function JoinUsPage() {
   const { t } = useTranslation();
   const createApplication = useCreateFreelancerApplication();
   const [isSuccess, setIsSuccess] = useState(false);
-
-  // Track selected files (not uploaded yet - will be uploaded on form submit)
-  const uploadedCv = useRef<File | null>(null);
-  const uploadedPortfolio = useRef<File | null>(null);
 
   const schema = z.object({
     firstName: z.string().min(1, t("auth.nameMinLength")),
@@ -49,6 +44,14 @@ export function JoinUsPage() {
     ),
     role: z.enum(["FREELANCER", "MANAGER"]),
     bio: z.string().min(20, t("joinUs.bioMinLength")),
+    // Files are tracked as form values (not just refs) so a missing CV/portfolio
+    // surfaces as an inline field error like any other required field, instead
+    // of a one-off toast the schema knows nothing about. Typed as z.instanceof(File)
+    // (not z.any().refine(...)) so the resolver's inferred type has cvFile/portfolioFile
+    // as required File — matching the useForm<JoinUsForm>() annotation instead of
+    // diverging into an optional `any`, which used to break the Resolver/Control types.
+    cvFile: z.instanceof(File, { message: t("joinUs.cvRequired") }),
+    portfolioFile: z.instanceof(File, { message: t("joinUs.portfolioRequired") }),
     // Honeypot: hidden field a human never fills in. Left unconstrained so a
     // bot filling it still passes client-side validation and reaches the
     // server, which silently no-ops instead of revealing the trap.
@@ -65,19 +68,18 @@ export function JoinUsPage() {
       phone: "",
       role: "FREELANCER",
       bio: "",
+      cvFile: undefined,
+      portfolioFile: undefined,
       website: "",
     },
   });
 
   const onSubmit = (data: JoinUsForm) => {
-    if (!uploadedCv.current) {
-      toast.error(t("joinUs.cvRequired"));
-      return;
-    }
-    if (!uploadedPortfolio.current) {
-      toast.error(t("joinUs.portfolioRequired"));
-      return;
-    }
+    // cvFile/portfolioFile presence is already guaranteed by the Zod schema
+    // at this point (zodResolver blocks submission and shows inline errors
+    // otherwise), so no manual ref check or toast is needed here.
+    const cvFile = data.cvFile as File;
+    const portfolioFile = data.portfolioFile as File;
 
     // Create FormData to send files + form data together
     const formData = new FormData();
@@ -88,14 +90,13 @@ export function JoinUsPage() {
     formData.append("role", data.role);
     formData.append("bio", data.bio);
     formData.append("position", data.role === "FREELANCER" ? "Freelancer" : "Manager");
-    formData.append("cvFile", uploadedCv.current);
-    formData.append("portfolioFile", uploadedPortfolio.current);
+    formData.append("cvFile", cvFile);
+    formData.append("portfolioFile", portfolioFile);
     formData.append("website", data.website || "");
 
     createApplication.mutate(formData, {
       onSuccess: () => {
         setIsSuccess(true);
-        toast.success(t("joinUs.successMessage"));
       },
     });
   };
@@ -229,9 +230,14 @@ export function JoinUsPage() {
                 maxSizeMb={10}
                 aria-labelledby="joinus-cv-label"
                 onUploaded={(result) => {
-                  uploadedCv.current = result as File;
+                  form.setValue("cvFile", result as File, { shouldValidate: true });
                 }}
               />
+              {form.formState.errors.cvFile && (
+                <p role="alert" className="text-xs font-medium text-destructive">
+                  {String(form.formState.errors.cvFile.message)}
+                </p>
+              )}
             </div>
 
             {/* Portfolio Upload */}
@@ -246,9 +252,14 @@ export function JoinUsPage() {
                 maxSizeMb={20}
                 aria-labelledby="joinus-portfolio-label"
                 onUploaded={(result) => {
-                  uploadedPortfolio.current = result as File;
+                  form.setValue("portfolioFile", result as File, { shouldValidate: true });
                 }}
               />
+              {form.formState.errors.portfolioFile && (
+                <p role="alert" className="text-xs font-medium text-destructive">
+                  {String(form.formState.errors.portfolioFile.message)}
+                </p>
+              )}
             </div>
 
             <FormField

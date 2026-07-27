@@ -158,6 +158,7 @@ export function AppRoutes() {
         <Route path="rejoindre" element={withBoundary(<JoinUsPage />)} />
         <Route path="forgot-password" element={withBoundary(<ForgotPasswordPage />)} />
         <Route path="reset-password" element={withBoundary(<ResetPasswordPage />)} />
+        <Route path="*" element={withBoundary(<NotFoundPage />)} />
       </Route>
 
       <Route path="change-password" element={withBoundary(<ChangePasswordPage />)} />
@@ -230,10 +231,14 @@ export function AppRoutes() {
           <Route path="seo" element={withBoundary(<SeoReportPage />)} />
           <Route path="brief/:projectId" element={withBoundary(<ClientBriefPage />)} />
           <Route path="onboarding" element={withBoundary(<OnboardingClientPage />)} />
+          {/* Same component as /app/client-onboarding/:onboardingId (ADMIN/MANAGER route) —
+              mounted directly under /client/* so a CLIENT's URL bar never leaves the client
+              portal's own route space, without duplicating the ~600-line interactive form.
+              Server-side authorization already scopes CLIENT to read + their own mutations
+              (contract sign, questionnaire submit) on these routes. */}
+          <Route path="onboarding/:onboardingId" element={withBoundary(<ClientOnboardingPage />)} />
         </Route>
       </Route>
-
-      <Route path="*" element={withBoundary(<NotFoundPage />)} />
     </Routes>
     </>
   );

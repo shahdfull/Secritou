@@ -36,7 +36,7 @@ export function FAQ() {
   const faqs = cmsJson("faq.items", DEFAULT_ITEMS);
 
   return (
-    <section className="bg-surface-warm/40 py-14 sm:py-20">
+    <section id="faq" className="bg-surface-warm/40 py-14 sm:py-20">
       <div className="container-page grid gap-12 lg:grid-cols-[1fr_1.4fr]">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{subtitle}</p>

@@ -22,7 +22,7 @@ export function HowItWorks() {
   if (steps.length === 0) return null;
 
   return (
-    <section className="bg-background py-14 sm:py-20">
+    <section id="how-it-works" className="bg-background py-14 sm:py-20">
       <div className="container-page">
         <div className="max-w-2xl">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{subtitle}</p>

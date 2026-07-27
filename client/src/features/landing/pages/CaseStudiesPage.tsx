@@ -1,5 +1,4 @@
-﻿import { ArrowUpRight } from "lucide-react";
-import { FinalCTA } from "@/features/landing/components/FinalCTA";
+﻿import { FinalCTA } from "@/features/landing/components/FinalCTA";
 import { useTranslation } from "react-i18next";
 
 const extendedCases = [
@@ -16,7 +15,7 @@ const extendedCases = [
     company: "Atlas Studio",
     challengeKey: "solutionsPage.sections.startuppers.needs.0.b",
     outcomeKey: "solutionsPage.sections.startuppers.needs.1.b",
-    metric: "3.8×",
+    metric: "+280%",
     metricLabelKey: "caseStudiesPage.metricLabel",
   },
   {
@@ -24,7 +23,7 @@ const extendedCases = [
     company: "Helix Labs",
     challengeKey: "solutionsPage.sections.brands.needs.0.b",
     outcomeKey: "solutionsPage.sections.brands.needs.1.b",
-    metric: "+42k DT",
+    metric: "+61%",
     metricLabelKey: "caseStudiesPage.metricLabel",
   },
   {
@@ -53,6 +52,9 @@ export function CaseStudiesPage() {
           <p className="mt-5 text-base text-muted-foreground sm:text-lg">
             {t("caseStudiesPage.subtitle")}
           </p>
+          <p className="mt-3 text-xs italic text-muted-foreground">
+            {t("caseStudiesPage.illustrativeNotice")}
+          </p>
         </div>
       </section>
 
@@ -63,12 +65,9 @@ export function CaseStudiesPage() {
               key={c.company}
               className="flex flex-col rounded-3xl border border-border bg-card p-8 shadow-soft"
             >
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center rounded-full bg-surface-warm/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {t(c.industryKey)}
-                </span>
-                <ArrowUpRight className="h-5 w-5 text-muted-foreground" />
-              </div>
+              <span className="inline-flex w-fit items-center rounded-full bg-surface-warm/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {t(c.industryKey)}
+              </span>
               <h2 className="mt-5 font-display text-2xl font-bold text-ink">{c.company}</h2>
               <p className="mt-4 text-sm text-muted-foreground">
                 <span className="font-semibold text-ink">{t("caseStudiesPage.challenge")}.</span> {t(c.challengeKey)}

@@ -1,11 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRight, Calendar, Mail, MapPin, Check, Phone } from "lucide-react";
+import { ArrowRight, Calendar, Mail, MapPin, Check, Phone, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useForm, type UseFormRegisterReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
+import { AxiosError } from "axios";
 import { z } from "zod";
 import { isValidTunisianPhone, CONTACT_SERVICE_TYPES, CONTACT_BUDGET_OPTIONS } from "@secritou/shared";
 import { submitContactRequest, type ServiceType } from "@/services/contact.service";
@@ -87,10 +88,13 @@ export function ContactPage() {
       trackContactFormSubmitted({ company: values.company });
       setShowSuccess(true);
       reset();
-      setTimeout(() => setShowSuccess(false), 5000);
     } catch (error) {
       trackContactFormFailed({ error: error instanceof Error ? error.message : "Unknown error" });
-      toast.error(t("contact.unableToSend"));
+      // Distinguish a network failure (no response reached the server) from an
+      // actual server-side error, since the two point the user to different
+      // fixes (check connection vs. try again later / contact us another way).
+      const isNetworkError = error instanceof AxiosError && !error.response;
+      toast.error(isNetworkError ? t("contact.networkError") : t("contact.unableToSend"));
     }
   });
 
@@ -124,9 +128,21 @@ export function ContactPage() {
               style={{ position: "absolute", left: "-9999px" }}
             />
             {showSuccess && (
-              <div className="mb-6 flex items-center gap-3 rounded-2xl bg-green-50 p-4 text-green-700">
+              <div
+                role="status"
+                aria-live="polite"
+                className="mb-6 flex items-center gap-3 rounded-2xl bg-green-50 p-4 text-green-700"
+              >
                 <Check className="h-6 w-6 flex-shrink-0" />
-                <p className="font-medium">{t("contact.successMessage")}</p>
+                <p className="font-medium flex-1">{t("contact.successMessage")}</p>
+                <button
+                  type="button"
+                  onClick={() => setShowSuccess(false)}
+                  aria-label={t("common.close")}
+                  className="flex-shrink-0 rounded-full p-1 text-green-700/70 hover:bg-green-100 hover:text-green-800"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
             )}
             <div className="grid gap-5 sm:grid-cols-2">

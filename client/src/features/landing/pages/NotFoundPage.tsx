@@ -1,6 +1,12 @@
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
+const suggestedLinks = [
+  { to: "/case-studies", labelKey: "nav.caseStudies" },
+  { to: "/contact", labelKey: "nav.contact" },
+  { to: "/rejoindre", labelKey: "nav.joinUs" },
+];
+
 export function NotFoundPage() {
   const { t } = useTranslation();
   return (
@@ -14,6 +20,22 @@ export function NotFoundPage() {
       >
         {t("notFound.goHome")}
       </Link>
+      <div className="mt-10">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {t("notFound.suggestions")}
+        </p>
+        <nav className="mt-3 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+          {suggestedLinks.map((link) => (
+            <Link
+              key={link.to}
+              to={link.to}
+              className="text-sm font-medium text-ink underline-offset-4 hover:underline"
+            >
+              {t(link.labelKey)}
+            </Link>
+          ))}
+        </nav>
+      </div>
     </div>
   );
 }
