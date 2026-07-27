@@ -88,12 +88,12 @@ export function SettingsPage() {
               <TabsTrigger value="requests">{t("settingsTabs.requests")}</TabsTrigger>
               <TabsTrigger value="site-content" className="gap-1.5">
                 <Globe className="h-3.5 w-3.5" />
-                Site vitrine
+                {t("settingsTabs.siteContent")}
               </TabsTrigger>
             </>
           )}
           {isFreelancer && (
-            <TabsTrigger value="freelancer-profile">Mon profil</TabsTrigger>
+            <TabsTrigger value="freelancer-profile">{t("settingsTabs.freelancerProfile")}</TabsTrigger>
           )}
           <TabsTrigger value="appearance">{t("settingsTabs.appearance")}</TabsTrigger>
         </TabsList>

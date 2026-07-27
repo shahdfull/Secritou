@@ -98,6 +98,11 @@ export function SettingsSiteContentTab() {
   const [edits, setEdits] = useState<EditMap>({});
   const [loading, setLoading] = useState(true);
   const [savingSection, setSavingSection] = useState<string | null>(null);
+  // Keys with unsaved edits since the last successful load/save of that key.
+  // Only the section a given key belongs to is cleared on save, so switching
+  // sections doesn't silently drop the "unsaved" state of another section.
+  const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(new Set());
+  const isDirty = dirtyKeys.size > 0;
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -138,6 +143,7 @@ export function SettingsSiteContentTab() {
 
       setMerged(Array.from(bySection.entries()).flatMap(([, items]) => items));
       setEdits(initial);
+      setDirtyKeys(new Set());
     } catch {
       toast.error("Le contenu n'a pas pu être chargé");
     } finally {
@@ -149,8 +155,23 @@ export function SettingsSiteContentTab() {
     loadData();
   }, [loadData]);
 
+  // Warns before a full page reload/close so unsaved site-content edits
+  // aren't lost. In-app SPA navigation isn't covered here — the app uses
+  // <BrowserRouter> (not a data router), so react-router's useBlocker isn't
+  // available; the browser-level guard covers the most common accidental-loss case.
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
   function handleChange(key: string, value: EditValue) {
     setEdits((prev) => ({ ...prev, [key]: value }));
+    setDirtyKeys((prev) => new Set(prev).add(key));
   }
 
   async function handleSaveSection(section: string) {
@@ -181,6 +202,11 @@ export function SettingsSiteContentTab() {
           return [];
         })
       );
+      setDirtyKeys((prev) => {
+        const next = new Set(prev);
+        for (const item of items) next.delete(item.key);
+        return next;
+      });
       toast.success(`${SECTION_LABELS[section] ?? section} enregistré`);
     } catch {
       toast.error("Échec de l'enregistrement. Vérifiez votre connexion et réessayez.");
@@ -214,6 +240,7 @@ export function SettingsSiteContentTab() {
         orderedSections.map((section) => {
           const items = merged.filter((m) => m.section === section);
           const isSaving = savingSection === section;
+          const sectionDirty = items.some((item) => dirtyKeys.has(item.key));
           return (
             <Card key={section}>
               <CardHeader className="pb-3">
@@ -284,7 +311,10 @@ export function SettingsSiteContentTab() {
                   );
                 })}
 
-                <div className="flex justify-end pt-1">
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  {sectionDirty && !isSaving && (
+                    <span className="text-xs text-amber-600">Modifications non enregistrées</span>
+                  )}
                   <Button
                     size="sm"
                     onClick={() => handleSaveSection(section)}

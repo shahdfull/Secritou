@@ -17,7 +17,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useChangePassword, useUpdateMe } from "@/hooks/useAuth";
-import { toast } from "sonner";
 
 export const SettingsProfileTab = memo(function SettingsProfileTab({
   name,
@@ -54,7 +53,7 @@ export const SettingsProfileTab = memo(function SettingsProfileTab({
   });
 
   const profileSchema = z.object({
-    name: z.string().min(1, "Le nom est requis"),
+    name: z.string().min(1, t("settings.profile.nameRequired")),
   });
 
   type ProfileForm = z.infer<typeof profileSchema>;
@@ -76,31 +75,20 @@ export const SettingsProfileTab = memo(function SettingsProfileTab({
         onSuccess: () => {
           setOpen(false);
           changePasswordForm.reset();
-          toast.success(t("auth.passwordChanged"));
-        },
-        onError: (error: Error) => {
-          toast.error(error.message ?? t("errors.generic", "Une erreur est survenue"));
         },
       }
     );
   };
 
   const handleProfileSubmit = async (data: ProfileForm) => {
-    updateMe.mutate(
-      { name: data.name },
-      {
-        onError: (error: Error) => {
-          toast.error(error.message ?? t("errors.generic", "Une erreur est survenue"));
-        },
-      }
-    );
+    updateMe.mutate({ name: data.name });
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Profile</CardTitle>
-        <CardDesc>Your account information</CardDesc>
+        <CardTitle>{t("settings.profile.title")}</CardTitle>
+        <CardDesc>{t("settings.profile.subtitle")}</CardDesc>
       </CardHeader>
       <CardContent className="space-y-4">
         <Form {...profileForm}>
@@ -110,7 +98,7 @@ export const SettingsProfileTab = memo(function SettingsProfileTab({
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>{t("common.name")}</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
@@ -119,23 +107,23 @@ export const SettingsProfileTab = memo(function SettingsProfileTab({
               )}
             />
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("common.email")}</Label>
               <Input id="email" value={email ?? ""} disabled />
             </div>
             <Button type="submit" disabled={updateMe.isPending}>
-              {updateMe.isPending ? "Saving..." : "Save changes"}
+              {updateMe.isPending ? t("common.saving") : t("settings.profile.saveChanges")}
             </Button>
           </form>
         </Form>
         <div className="pt-4">
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline">Change Password</Button>
+              <Button variant="outline">{t("auth.changePassword")}</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Change Password</DialogTitle>
-                <DialogDescription>Enter your current password and your new password</DialogDescription>
+                <DialogTitle>{t("auth.changePassword")}</DialogTitle>
+                <DialogDescription>{t("auth.changePasswordDescription")}</DialogDescription>
               </DialogHeader>
               <Form {...changePasswordForm}>
                 <form onSubmit={changePasswordForm.handleSubmit(handleChangePasswordSubmit)} className="space-y-4">
@@ -144,7 +132,7 @@ export const SettingsProfileTab = memo(function SettingsProfileTab({
                     name="currentPassword"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Current Password</FormLabel>
+                        <FormLabel>{t("auth.currentPassword")}</FormLabel>
                         <FormControl>
                           <Input type="password" {...field} />
                         </FormControl>
@@ -157,7 +145,7 @@ export const SettingsProfileTab = memo(function SettingsProfileTab({
                     name="newPassword"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>New Password</FormLabel>
+                        <FormLabel>{t("auth.newPassword")}</FormLabel>
                         <FormControl>
                           <Input type="password" {...field} />
                         </FormControl>
@@ -170,7 +158,7 @@ export const SettingsProfileTab = memo(function SettingsProfileTab({
                     name="confirmPassword"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Confirm Password</FormLabel>
+                        <FormLabel>{t("auth.confirmNewPassword")}</FormLabel>
                         <FormControl>
                           <Input type="password" {...field} />
                         </FormControl>
@@ -184,10 +172,10 @@ export const SettingsProfileTab = memo(function SettingsProfileTab({
                       variant="outline"
                       onClick={() => setOpen(false)}
                     >
-                      Cancel
+                      {t("common.cancel")}
                     </Button>
                     <Button type="submit" disabled={changePassword.isPending}>
-                      {changePassword.isPending ? "Saving..." : "Save"}
+                      {changePassword.isPending ? t("common.saving") : t("common.save")}
                     </Button>
                   </DialogFooter>
                 </form>

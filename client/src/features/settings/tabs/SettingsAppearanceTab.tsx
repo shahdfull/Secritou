@@ -1,4 +1,5 @@
 import { memo, useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,9 +21,8 @@ export const SettingsAppearanceTab = memo(function SettingsAppearanceTab({
   onLangChange(next: string): void;
   onSavePrimaryColor(color: string): void;
 }) {
-  const [primaryColor, setPrimaryColor] = useState(() => {
-    return localStorage.getItem("companyColor") || "#000000";
-  });
+  const { t } = useTranslation();
+  const [primaryColor, setPrimaryColor] = useState(() => localStorage.getItem("companyColor") || "#000000");
 
   useEffect(() => {
     if (primaryColor) {
@@ -33,41 +33,41 @@ export const SettingsAppearanceTab = memo(function SettingsAppearanceTab({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Appearance</CardTitle>
-        <CardDescription>Customize your app's look and feel</CardDescription>
+        <CardTitle>{t("settings.appearance.title")}</CardTitle>
+        <CardDescription>{t("settings.appearance.subtitle")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <Label htmlFor="theme" className="text-base font-medium">
-              Dark Mode
+              {t("settings.appearance.darkMode")}
             </Label>
-            <p className="text-sm text-muted-foreground">Switch between light and dark theme</p>
+            <p className="text-sm text-muted-foreground">{t("settings.appearance.darkModeDesc")}</p>
           </div>
           <Switch id="theme" checked={theme === "dark"} onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")} />
         </div>
 
         <div>
           <Label htmlFor="language" className="text-base font-medium">
-            Language
+            {t("settings.appearance.language")}
           </Label>
-          <p className="text-sm text-muted-foreground mb-2">Select your preferred language</p>
+          <p className="text-sm text-muted-foreground mb-2">{t("settings.appearance.languageDesc")}</p>
           <Select value={lang} onValueChange={onLangChange}>
             <SelectTrigger id="language" className="w-[200px]">
-              <SelectValue placeholder="Select language" />
+              <SelectValue placeholder={t("settings.appearance.languagePlaceholder")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="fr">Français</SelectItem>
-              <SelectItem value="en">English</SelectItem>
+              <SelectItem value="fr">{t("settings.appearance.languages.fr")}</SelectItem>
+              <SelectItem value="en">{t("settings.appearance.languages.en")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div>
           <Label htmlFor="platform-color" className="text-base font-medium">
-            Platform color
+            {t("settings.appearance.platformColor")}
           </Label>
-          <p className="text-sm text-muted-foreground mb-2">Customize the platform's primary brand color</p>
+          <p className="text-sm text-muted-foreground mb-2">{t("settings.appearance.platformColorDesc")}</p>
           <div className="flex gap-2 items-center">
             <Input
               id="platform-color"
@@ -77,12 +77,9 @@ export const SettingsAppearanceTab = memo(function SettingsAppearanceTab({
               className="h-10 w-20"
             />
             <span className="text-sm text-muted-foreground">{primaryColor}</span>
-            <Button
-              type="button"
-              onClick={() => onSavePrimaryColor(primaryColor)}
-            >
+            <Button type="button" onClick={() => onSavePrimaryColor(primaryColor)}>
               <Save className="h-4 w-4 mr-2" />
-              Save
+              {t("common.save")}
             </Button>
           </div>
         </div>
