@@ -30,7 +30,7 @@ explicite) :**
 
 Devise : toujours DT/TND. Outil interne **mono-tenant** — aucune notion de
 `companyId`/`tenantId` à introduire (arbitrage tranché, voir REFERENTIEL.md
-§7 et SEC-004 : ne pas rouvrir cette question sans instruction explicite).
+§7 : ne pas rouvrir cette question sans instruction explicite).
 
 ## Interdiction
 
@@ -208,8 +208,8 @@ fonction locale équivalente ne prouve rien : il resterait vert si le code
 réel dérivait. Un tel test vaut `code_grep` au mieux — le code doit être
 importé et appelé, pas simulé à côté.
 
-Signal de détection concret, trouvé à répétition dans ce dépôt (SEC-087,
-SEC-100, SEC-109) : un fichier de test qui définit ses propres fonctions
+Signal de détection concret, motif déjà rencontré à répétition dans ce
+dépôt : un fichier de test qui définit ses propres fonctions
 « mirror of… » / « mirrors the real service logic » au lieu d'un
 `import { … } from "../src/…"` du module ciblé. Un test sur un champ qui
 n'existe nulle part dans le vrai code (ex. un `companyId` dans un dépôt
@@ -230,7 +230,7 @@ au moins deux réparations possibles — supprimer l'appel, ou créer la méthod
 Choisir « créer » est une décision produit : elle se demande, elle ne se
 déduit pas du fait que le code compile ensuite.
 
-## Zéro warning lint : porte obligatoire (SEC-049)
+## Zéro warning lint : porte obligatoire
 
 Aucun warning ESLint n'est toléré, ni côté serveur ni côté client — pas
 seulement zéro erreur. Toute session qui modifie du code doit finir avec
@@ -290,10 +290,10 @@ mort, ni un bug : `npm run lint` reste attendu à 0 error partout, mais ces
 - Événements sortants vers n8n : `notifyN8n(...)`, HMAC-signés, fire-and-forget.
 - i18n : clés FR/EN dans `client/src/i18n`, `fallbackLng: "fr"`.
 
-## Checklist de revue — scoping des routes Project/Task (SEC-048)
+## Checklist de revue — scoping des routes Project/Task
 
 Le scoping par pôle a été une source répétée d'oublis d'autorisation sur ce
-module précis (SEC-036 a trouvé 4 trous d'un coup : `getBrief`,
+module précis (un audit antérieur a trouvé 4 trous d'un coup : `getBrief`,
 `getTimelineStatus`, `projectMeeting.service.ts`,
 `projectTemplate.service.ts#applyToProject`). Toute route nouvelle **ou
 modifiée** touchant `Project` ou `Task` doit, avant merge, répondre
@@ -306,21 +306,21 @@ jamais au seul frontend :
    l'appelant de le refaire selon le rôle réel de l'action.
 3. **FREELANCER** est-il restreint à ses tâches assignées (`assigneeId`),
    et ne peut-il modifier **que** les champs autorisés (statut seul sur une
-   tâche — voir SEC-045) ?
+   tâche) ?
 
 Une route qui ne peut répondre « oui » ou « sans objet justifié » aux trois
 n'est pas prête. Réutiliser `assertProjectInScope` (`utils/serviceScope.ts`)
 plutôt que réécrire le contrôle.
 
-## Checklist de revue — jobs BullMQ (SEC-119/SEC-120)
+## Checklist de revue — jobs BullMQ
 
 Un job enfilé sans `jobId` déterministe est rejouable silencieusement : un
 appelant retenté (ex. requête HTTP cliente relancée après un crash serveur
 avant que la réponse originale ne revienne) enfile un second job
 indiscernable du premier, dupliquant l'effet métier (email envoyé deux fois,
 document régénéré, notification en double) — surtout coûteux quand l'effet
-n'est pas idempotent (SEC-110 : `regenerateSpecsWithAiContent` crée un
-nouveau document versionné à chaque appel, jamais un no-op). Toute route ou
+n'est pas idempotent (ex. `regenerateSpecsWithAiContent` crée un nouveau
+document versionné à chaque appel, jamais un no-op). Toute route ou
 service qui appelle `queue.add`/`addBulk` (`communicationQueue`,
 `documentsQueue`, `maintenanceQueue`) doit, avant merge, répondre à :
 
@@ -338,7 +338,7 @@ service qui appelle `queue.add`/`addBulk` (`communicationQueue`,
    déjà ses propres tentatives de retry via le même `jobId` interne — le
    risque ici est un second `add()` distinct, pas un retry).
 
-## Pagination : un plafond serveur qui tronque silencieusement est un bug (SEC-118)
+## Pagination : un plafond serveur qui tronque silencieusement est un bug
 
 `parseListQuery` plafonne `pageSize` (défaut 50) sans avertir l'appelant si
 la valeur demandée le dépasse — un endpoint qui a légitimement besoin de

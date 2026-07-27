@@ -1,29 +1,13 @@
 # Registre des anomalies — Secritou
 #
 # Ce fichier fait partie du registre éclaté (voir CLAUDE.md § « Procédure
-# d'audit obligatoire »). Schéma identique à l'ancien ANOMALIES.yaml
-# (archivé) : id, titre, perimetre, regle_violee, classe, gravite, statut,
-# critere_de_resolution, detecte_le, source, confiance, note.
+# d'audit obligatoire »). Schéma par anomalie : id, titre, perimetre,
+# regle_violee, classe, gravite, statut, critere_de_resolution, detecte_le,
+# source, confiance, note.
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : 4.5 Rémunération des associés (Commissions)
-# 1 anomalie(s)
+# 0 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
+# archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 
-anomalies:
-  - id: SEC-170
-    titre: 'commissionRepository.createManyTx crée les lignes Commission une par une dans une boucle for...of séquentielle au lieu d''un createMany groupé — délibéré (commentaire : createMany ne permet pas de retourner les lignes créées avec include), mais borné par le nombre d''associés (~3-4), pas par un volume métier croissant'
-    perimetre: server/src/repositories/commission.repository.ts#createManyTx (lignes 41-55)
-    categorie: C
-    regle_violee: null
-    classe: n_plus_un_boucle_sequentielle
-    gravite: mineur
-    statut: resolu
-    critere_de_resolution: |
-      Sera résolu si une version de Prisma supportant `createManyAndReturn` (5.14+) est déjà en place ou adoptée, permettant de remplacer la boucle par un seul appel groupé retournant les lignes créées avec relations — sinon, documenter explicitement que le nombre de lignes par appel est borné par le nombre de partenaires actifs (jamais par un volume utilisateur) pour clore ce constat sans changement de code.
-    detecte_le: '2026-07-20'
-    source: audit_llm
-    confiance: certain
-    note: |
-      3e passe d'audit base de données. Lecture directe : `commission.repository.ts:41-55` — `createManyTx(tx, rows)` fait `for (const row of rows) { created.push(await tx.commission.create({ data: row, include: {...} })) }`, avec un commentaire explicite ligne 46 : « Create one by one to return the created records » — limitation connue de l'API Prisma `createMany` (ne supporte pas `include`/le retour des lignes créées dans les versions historiques de Prisma). `rows` correspond aux partenaires ayant une part sur un projet (`ProjectCommissionSplit`), borné par le nombre d'associés de l'agence (REFERENTIEL.md : 1 CEO + 3 associés) — donc N ≤ 4 dans la pratique actuelle et prévisible, pas un N qui croît avec le nombre de clients/projets. Gravité mineure, à la limite du non-constat : signalé pour complétude de la recherche N+1 demandée, pas parce que l'impact réel est significatif à ce stade.
-      CORRECTIF ÉCRIT (session du 2026-07-21), `en_cours` en attente d'exécution : Prisma installé est 6.19.3 (>= 5.14, vérifié `node_modules/@prisma/client/package.json`), donc la première option du critère s'applique — la boucle `for...of` remplacée par un seul `tx.commission.createManyAndReturn({ data: rows, select: {...} })`. `createManyAndReturn` ne supporte pas `include` (seulement `select`) — c'était la vraie raison d'être de la boucle d'origine ; le `select` écrit reproduit exactement la même forme que l'`include` précédent (tous les champs scalaires + les mêmes trois relations `partner`/`project`/`invoice` avec les mêmes sous-selects), typé compatible pour tous les appelants (`npx tsc --noEmit` propre sans aucune retouche en aval). Test écrit (`server/test/metricAnomalyAndCommissionBatching.test.ts`, importé dans `run-all.test.ts`) : appelle le vrai `createManyTx` dans une vraie transaction avec un vrai User/Project/Invoice/Payment et vérifie que la ligne créée revient avec les trois relations peuplées. NON exécuté : base inaccessible (Docker arrêté) — `en_cours` jusqu'à exécution verte. Fix et test produits par mes propres appels d'outils dans cette session.
-      CONFIRMATION D'EXÉCUTION (même session, après retour de l'infrastructure) : suite complète exécutée verte — 513/513 tests, 0 échec, 39s (run final7). Le passage `en_cours` → `resolu` annoncé dans le paragraphe précédent est donc effectif ; dérogation CI du porteur toujours applicable.
+anomalies: []

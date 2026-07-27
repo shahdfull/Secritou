@@ -1,8 +1,7 @@
 #!/usr/bin/env node
-// Calcule un score de maturité par catégorie A-J (AUDIT_MATURITE_SECRITOU.md §2)
-// à partir des anomalies ouvertes dans anomalies/_index.yaml, et un score
-// global pondéré. Génère AUDIT_MATURITE_SECRITOU.generated.md (comparaison
-// avec le score déclaré, pas remplacement automatique).
+// Calcule un score de maturité par catégorie A-J à partir des anomalies
+// ouvertes dans anomalies/_index.yaml, et un score global pondéré. Génère
+// AUDIT_MATURITE_SECRITOU.generated.md.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,11 +29,9 @@ if (Math.abs(poidsTotal - 1) > 1e-9) {
   throw new Error(`Les poids de catégorie ne totalisent pas 100% (${poidsTotal * 100}%)`);
 }
 
-// Barème de pénalité par gravité. Le champ gravite du registre utilise en
-// réalité 7 valeurs (majeur, mineur, bloquant, eleve, moyen, faible, info),
-// pas seulement les 3 documentées dans le schéma d'en-tête — voir SEC-234
-// (anomalies/transverse.yaml). Mapping vers l'échelle à 3 niveaux, décidé
-// avec le porteur du projet (session du 2026-07-27) :
+// Barème de pénalité par gravité. Le champ gravite peut porter 7 valeurs
+// (majeur, mineur, bloquant, eleve, moyen, faible, info) selon les entrées —
+// mapping vers l'échelle à 3 niveaux ci-dessous :
 const GRAVITE_A_POIDS = {
   bloquant: 6,
   eleve: 6,
@@ -82,16 +79,13 @@ lines.push("# AUDIT_MATURITE_SECRITOU.generated.md — score calculé automatiqu
 lines.push("");
 lines.push(
   `Généré le ${dateISO} par \`npm run audit:score\` (scripts/audit-score.mjs), à partir des ` +
-    "anomalies ouvertes (`ouvert`/`confirme`/`en_cours`) de `anomalies/_index.yaml`. " +
-    "Document de comparaison, ne remplace pas AUDIT_MATURITE_SECRITOU.md tant que l'écart " +
-    "n'a pas été discuté avec le porteur du projet.",
+    "anomalies ouvertes (`ouvert`/`confirme`/`en_cours`) de `anomalies/_index.yaml`.",
 );
 lines.push("");
 lines.push(
   "**Barème de pénalité** : par anomalie ouverte, poids de gravité `bloquant`/`eleve` = 6, " +
-    "`majeur`/`moyen` = 3, `mineur`/`faible`/`info` = 1 (mapping des 4 valeurs hors schéma " +
-    "documenté, voir SEC-234). Score de catégorie = `max(0, 10 - Σ pénalités)`. Score global " +
-    "= `Σ (score_catégorie × poids_catégorie%)`.",
+    "`majeur`/`moyen` = 3, `mineur`/`faible`/`info` = 1. Score de catégorie = " +
+    "`max(0, 10 - Σ pénalités)`. Score global = `Σ (score_catégorie × poids_catégorie%)`.",
 );
 lines.push("");
 lines.push("## Tableau de score calculé");
@@ -106,17 +100,10 @@ for (const r of rows) {
 lines.push("");
 lines.push(`## Score global calculé : **${scoreGlobalSur100}/100**`);
 lines.push("");
-lines.push(
-  "Comparaison avec le score déclaré dans AUDIT_MATURITE_SECRITOU.md v5 : **86/100**. " +
-    `Écart : ${scoreGlobalSur100 - 86 >= 0 ? "+" : ""}${scoreGlobalSur100 - 86} point(s). ` +
-    "Ne pas trancher automatiquement lequel fait foi — discuter avec le porteur du projet " +
-    "avant de remplacer le score déclaré (voir la consigne du Chantier 3).",
-);
-lines.push("");
 
 fs.writeFileSync(OUT_PATH, lines.join("\n") + "\n", "utf8");
 
-console.log(`Score global calculé : ${scoreGlobalSur100}/100 (déclaré v5 : 86/100)`);
+console.log(`Score global calculé : ${scoreGlobalSur100}/100`);
 console.log(`Écrit dans ${path.relative(ROOT, OUT_PATH)}`);
 for (const r of rows) {
   console.log(

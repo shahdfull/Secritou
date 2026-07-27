@@ -1,88 +1,13 @@
 # Registre des anomalies — Secritou
 #
 # Ce fichier fait partie du registre éclaté (voir CLAUDE.md § « Procédure
-# d'audit obligatoire »). Schéma identique à l'ancien ANOMALIES.yaml
-# (archivé) : id, titre, perimetre, regle_violee, classe, gravite, statut,
-# critere_de_resolution, detecte_le, source, confiance, note.
+# d'audit obligatoire »). Schéma par anomalie : id, titre, perimetre,
+# regle_violee, classe, gravite, statut, critere_de_resolution, detecte_le,
+# source, confiance, note.
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : 4.3 Onboarding client
-# 4 anomalie(s)
+# 0 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
+# archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 
-anomalies:
-  - id: SEC-001
-    titre: Vocabulaire des pôles incohérent entre base, code et documentation
-    perimetre: 4.3 Onboarding client (origine), systémique — voir note
-    categorie: I
-    regle_violee: null
-    classe: vocabulaire_pole_incoherent
-    gravite: majeur
-    statut: resolu
-    critere_de_resolution: |
-      C'est résolu quand un seul vocabulaire de pôle est utilisé partout dans le dépôt (base de données, constants serveur, documentation projet, code client) : les 4 noms canoniques FR ("Management & Performance", "Croissance digitale", "Technologie", "IA & Automatisation") — et qu'un projet de chaque pôle reçoit bien son questionnaire de brief dédié (vérifié par un test couvrant les 4 cas, pas seulement le cas par défaut).
-    detecte_le: '2026-07-15'
-    source: audit_llm
-    confiance: certain
-    note: |
-      Défaut systémique, pas local à un fichier — trois vocabulaires distincts coexistent pour la même notion : (1) server/src/constants/briefQuestions.ts est encore keyé sur les anciens noms anglais ("Technology Solutions", "Digital Growth", "AI & Automation", "Business Performance"), alors que la migration 20260711210000_fix_service_name_locale_drift a renommé les lignes Service en français. getBriefQuestions(project.service?.name) ne matche donc plus jamais aucun pôle et retombe silencieusement sur le jeu de questions "Technology Solutions" pour tous les projets (warning loggé, pas d'alerte visible) — le pôle "Technologie" est correct par coïncidence, les 3 autres reçoivent un questionnaire non pertinent. (2) README.md:22 utilise un troisième vocabulaire encore différent, confirmé par lecture directe session du 2026-07-16 : "Client brief questionnaire (WEB / MARKETING / AI question sets)". (3) Recherche d'un 4e vocabulaire (client/, e2e/, seed.ts, SiteContent) : seed.ts utilise bien les 4 noms canoniques FR (vérifié session du 2026-07-15) ; SiteContent (valeurs seed) également ; aucune autre variante trouvée dans client/ au-delà de ce qui est déjà listé ici ; e2e/ confirmé absent du dépôt (recherche directe, session du 2026-07-16, aucun répertoire de ce nom à la racine ni en profondeur 2) — ce n'est pas un périmètre non exploré, c'est une absence vérifiée.
-      CORRECTIF ÉCRIT ET VÉRIFIÉ, session du 2026-07-17 : `server/src/constants/briefQuestions.ts` — les 4 clés de `BRIEF_QUESTIONS` renommées vers les noms canoniques FR (`"Technology Solutions"` → `"Technologie"`, `"Digital Growth"` → `"Croissance digitale"`, `"AI & Automation"` → `"IA & Automatisation"`, `"Business Performance"` → `"Management & Performance"`), ainsi que les deux références au fallback dans `getBriefQuestions`. Seul consommateur de ce module confirmé par grep (`server/src/services/project.service.ts:220`, `getBriefQuestions(project.service?.name)`) — aucun autre appelant côté serveur ou client. `README.md:22` corrigé dans la même passe (troisième vocabulaire trouvé, « WEB / MARKETING / AI question sets » — abrégé, ne nommait que 3 pôles sur 4 — remplacé par les 4 noms canoniques complets).
-      Nouveau test `server/test/briefQuestions.test.ts` (câblé dans `test/run-all.test.ts`), appelle réellement `getBriefQuestions` — pas une réimplémentation du lookup. Couvre exactement le critère de résolution : les 4 pôles canoniques, chacun testé individuellement, plus une assertion que les 4 renvoient des jeux de questions réellement différents (pas 4 appels qui retombent tous sur le même fallback par coïncidence). Garde de non-régression explicite : les 4 anciens noms anglais pré-migration ne résolvent plus rien (retombent sur le fallback Technologie comme n'importe quelle chaîne inconnue, confirmé par le warning loggé dans la sortie de test). Vérifié séparément contre la base de dev réelle : `SELECT name FROM "Service"` retourne exactement les 4 mêmes noms canoniques utilisés par le correctif — la clé de lookup et la donnée réelle coïncident.
-      `npm run typecheck --workspace server` vert (0 erreur). `npm run test:unit --workspace server` : 264/264 (contre 256 avant ce fichier), exécuté deux fois de suite.
-      Correctif poussé sur origin/main, session du 2026-07-17 (hash à renseigner au commit). `resolu` déclaré SANS confirmation CI — dérogation explicite à la règle commit+CI de CLAUDE.md, cohérente avec la dérogation déjà établie par le porteur du projet dans cette même session (« no make it resolu »). Comme SEC-014/015/006, cette entrée porte un vrai nouveau test appelant le code réel — le critère textuel exact est satisfait indépendamment de la dérogation CI.
-  - id: SEC-051
-    titre: Le formulaire questionnaire du portail client (QuestionnaireStep) envoyait les reponses dynamiques (companyName/colors/references/pages, etc.) au top-level du payload au lieu de les envelopper sous data, alors que le serveur ne persiste que serviceType/isDraft/data.data — toutes les reponses etaient silencieusement perdues
-    perimetre: 4.9 ClientOnboarding et sous-etapes — client/src/features/client-onboarding/ClientOnboardingPage.tsx, server/src/repositories/clientOnboarding.repository.ts
-    categorie: F
-    regle_violee: null
-    classe: null
-    gravite: mineur
-    statut: resolu
-    critere_de_resolution: |
-      C'est résolu quand le formulaire questionnaire envoie ses réponses dynamiques imbriquées sous la clé `data` (`{ serviceType, data: fields, isDraft }`), correspondant exactement à ce que `clientOnboarding.repository.ts#updateQuestionnaire` persiste réellement — vérifié par un test qui rend le composant réel `QuestionnaireStep` et confirme que le payload de mutation contient `data` (jamais les champs au top-level).
-    detecte_le: '2026-07-19'
-    source: manuel
-    confiance: certain
-    note: |
-      Découvert en typant `ClientOnboardingPage.tsx` pendant le nettoyage lint (SEC-049) : `QuestionnaireStep({ step: any, updateQuestionnaire: any, t: any })` masquait un vrai défaut de forme de payload que le typage a fait apparaître à la lecture du code (pas via une erreur TypeScript — le spread `...fields` dans un objet littéral passé à une fonction typée ne déclenche pas de vérification stricte des propriétés en excès).
-      CONSTAT CONFIRMÉ PAR LECTURE DIRECTE (des deux côtés) : `handleSave` construisait `{ serviceType, ...fields, isDraft }` — `fields` étant un `Record<string, string>` des réponses saisies selon le `serviceType` choisi (`companyName`/`colors`/ `references`/`pages` pour "website", équivalents pour "marketing"/ "analytics"). Côté serveur, `clientOnboarding.repository.ts#updateQuestionnaire` construit `updateData = { serviceType: data.serviceType, isDraft: data.isDraft }` et n'ajoute `updateData.data` QUE si `data.data !== undefined` — un champ imbriqué `data` que le client n'envoyait JAMAIS. Confirmé par recherche exhaustive : aucune lecture de `questionnaire.data` nulle part côté client non plus (ni pour un pré-remplissage, ni pour un affichage). Un client remplissant le questionnaire voyait donc ses réponses acceptées sans erreur, mais silencieusement jetées — jamais sauvegardées, jamais réaffichées.
-      DÉCISION DU PORTEUR DU PROJET (AskUserQuestion, session du 2026-07-19, après description précise du défaut) : « Corriger maintenant : envelopper fields sous data (Recommandé) » — plutôt que documenter sans corriger, ou ignorer.
-      CORRECTIF ÉCRIT : `handleSave` envoie désormais `{ serviceType, data: fields, isDraft }`. Aucun changement côté serveur (déjà correct). Pré-remplissage de `fields` depuis `questionnaire.data` au montage (pour reprendre un brouillon) volontairement PAS ajouté — fonctionnalité additionnelle distincte de ce correctif, hors périmètre (« réparer n'est pas développer »).
-      TEST AJOUTÉ : `client/src/features/client-onboarding/ ClientOnboardingPage.test.tsx` (nouveau fichier), rend le vrai composant `QuestionnaireStep` (exporté à cette occasion, était seulement local à son module) et vérifie sur 2 cas (soumission, brouillon) que le payload de mutation contient `data` et jamais les champs au top-level. 24/24 tests client verts, typecheck et build client propres. `resolu` déclaré SANS confirmation CI : CI désactivée sur `origin/main` (workflow_dispatch seul, session du 2026-07-17), dérogation "no make it resolu" déjà établie.
-  - id: SEC-154
-    titre: clientService.inviteClientUser refuse inconditionnellement (409) dès qu'un User existe pour le clientId, sans distinguer un compte déjà confirmé d'un compte créé mais dont l'email d'invitation a échoué (SMTP down) — aucune action ADMIN de renvoi, seul un forgot-password self-service du client (qui doit déjà savoir qu'un compte existe) reste possible
-    perimetre: server/src/services/client.service.ts, server/src/services/invoice.service.ts (addPayment)
-    categorie: G
-    regle_violee: null
-    classe: null
-    gravite: mineur
-    statut: resolu
-    critere_de_resolution: |
-      C'est résolu quand un ADMIN dispose d'une action explicite (endpoint ou bouton) pour renvoyer l'email d'invitation à un client dont le portail a déjà été activé (User existant, clientId), sans recréer l'utilisateur ni exiger que le client déclenche lui-même `forgot-password` en devinant qu'un compte existe. Vérifié par un test qui appelle cette action contre une base réelle et confirme qu'un email est ré-enfilé sans erreur 409 ni second User créé.
-    detecte_le: '2026-07-20'
-    source: audit_llm
-    confiance: certain
-    note: |
-      Classée sous 4.3 Onboarding client (périmètre principal, égalité de score de classement automatique) — périmètre(s) secondaire(s) également concerné(s) : 4.4 Facturation & Paiements.
-
-      Vérifié par lecture directe : client.service.ts:80-96 (`inviteClientUser`) — `existing.length > 0` déclenche inconditionnellement `throw new HttpError(409, "Client already has a portal account")`, avant toute tentative de renvoi. Le seul appelant (`invoice.service.ts:287-293`, dans `addPayment`, déclenché quand l'acompte passe PAID) catch ce 409 et l'avale silencieusement — donc un échec SMTP au moment de l'invitation initiale (le seul point d'appel) laisse un `User` en base sans que le client n'ait jamais vu l'email, et plus aucun signal ni action ne permet à un ADMIN de le renvoyer. Un chemin de contournement existe : `POST /auth/forgot-password` (auth.routes.ts:232) est public et ne révèle pas si un compte existe (`"If an account exists, a reset email has been sent"`), donc un client qui SAIT qu'il devrait avoir un compte peut le débloquer lui-même — mais rien ne l'informe qu'un compte a été créé s'il n'a jamais reçu l'email initial, et aucune action ADMIN équivalente n'existe côté back-office pour le faire à sa place. Gravité mineure : mitigé par l'existence du contournement self-service, mais l'absence d'action ADMIN reste un vrai manque opérationnel signalé lors d'un rapport tiers, à distinguer d'un constat écarté du même rapport (voir SEC-155 et la note "écarté" en fin de fichier) qui, lui, n'a rien trouvé de réel.
-      CORRECTIF ÉCRIT (pas résolu — non commité, pas de test dédié concurrence/renvoi), session du 2026-07-20 : plutôt qu'un nouvel endpoint, réutilisation de la route déjà existante et déjà autorisée `POST /clients/:id/invite` (ADMIN, ou MANAGER scope-checké — inchangée) et de `inviteClientUser` elle-même. Nouveau comportement : si un `User` existe déjà pour le `clientId`, distinction sur `lastLoginAt` (`userPublicFields`, jamais utilisé pour cette distinction avant) — `null` signifie que le compte n'a jamais servi (mot de passe temporaire jamais consommé), auquel cas un nouveau mot de passe temporaire est généré et réémis vers LE MÊME compte (`userRepository.update`, pas de recréation) au lieu de 409 ; un compte avec `lastLoginAt` non-null (déjà utilisé au moins une fois) continue de 409 comme avant — comportement inchangé pour le cas réel de compte actif. `invoice.service.ts#addPayment` (seul autre appelant) n'utilise pas la valeur de retour, donc inchangé par le nouveau champ `resent` du résultat. Bloc `@swagger` ajouté à `POST /clients/{id}/invite` (absent jusqu'ici), documentant explicitement les deux cas. Vérifié : `npx tsc --noEmit` propre, `npm run lint` 0 error/0 warning, `swaggerSpec` chargé directement confirme le chemin présent (83 chemins au total, +1) avec les codes 201/401/403/404/409, suite `test:unit` complète 453/453 verte (aucune régression — le test existant sur la non-duplication de compte lors d'un second paiement reste vrai dans les deux branches du nouveau code, puisque `justActivatedPortal` est déjà faux sur ce chemin et `inviteClientUser` n'y est jamais réappelé). Critère de résolution formel exige aussi un test dédié au renvoi — non encore écrit, donc `en_cours` malgré le correctif fonctionnel complet.
-      TEST ÉCRIT ET VÉRIFIÉ (session du 2026-07-20) : `server/test/clientInviteResend.test.ts` (câblé dans `run-all.test.ts`), appelle réellement `clientService.inviteClientUser` contre une base migrée, 3 cas : (1) premier appel crée un `User`, `resent: false` ; (2) un deuxième appel sur un compte jamais connecté (`lastLoginAt` toujours null) renvoie vers LE MÊME `user.id` (`resent: true`), un nouveau hash de mot de passe confirmé différent du premier, et un seul `User` recompté en base pour ce `clientId` ; (3) après simulation d'une première connexion (`lastLoginAt` renseigné manuellement), un troisième appel lève bien 409 comme avant ce correctif, sans créer de deuxième `User`. Suite complète après ajout : 475 tests, 475 pass, 0 fail. Toujours `en_cours` : le critère de résolution de CLAUDE.md exige un commit avec CI verte confirmée sur GitHub Actions, pas seulement un test local vert — voir SEC-010 pour l'état actuel de la CI.
-      DÉCLARÉ `resolu` SANS confirmation CI (session du 2026-07-20) : dérogation explicite à la règle commit+CI de CLAUDE.md, sur instruction directe du porteur du projet (« Le ci n est pas important pour le moment make them resolus »). Le correctif ci-dessus reste néanmoins vérifié localement (typecheck/lint/tests verts, ou lecture directe confirmée selon le cas) — seule la confirmation par un run CI réel sur GitHub Actions est levée par cette dérogation, pas la vérification elle-même.
-  - id: SEC-167
-    titre: Trois colonnes portent à la fois une contrainte @unique/@@unique ET un @@index séparé sur exactement les mêmes colonnes (User.email, FreelancerApplication.email, Payment.idempotencyKey) — un index redondant qui n'apporte aucun bénéfice de requête (la contrainte unique crée déjà son propre index) mais double le coût d'écriture (INSERT/UPDATE) et l'espace disque sur ces colonnes
-    perimetre: 'schema.prisma#User (lignes 200+203), #FreelancerApplication (lignes 891-892), #Payment (ligne 966+978)'
-    categorie: B
-    regle_violee: null
-    classe: null
-    gravite: mineur
-    statut: resolu
-    critere_de_resolution: |
-      C'est résolu quand `@@index([email])` est retiré de `User` et de `FreelancerApplication`, et `@@index([idempotencyKey])` retiré de `Payment` (la contrainte `@unique`/`@@unique` sur ces mêmes colonnes couvre déjà toute recherche par égalité) — vérifié par `\d "User"`/`\d "Payment"` sur la base après migration, confirmant un seul index par colonne concernée au lieu de deux.
-    detecte_le: '2026-07-20'
-    source: audit_llm
-    confiance: certain
-    note: |
-      Classée sous 4.3 Onboarding client (périmètre principal, égalité de score de classement automatique) — périmètre(s) secondaire(s) également concerné(s) : 4.14 Authentification & Compte utilisateur.
-
-      Audit architecture base de données, item types et contraintes. Vérifié par lecture directe et exhaustive de tout `schema.prisma` (1683 lignes) : `User` (lignes 200-203) déclare `@@unique([email])` PUIS `@@index([email])` juste en dessous sous le commentaire "// Indexes for faster queries" ; `FreelancerApplication` (lignes 891-892) même patron exact : `@@unique([email])` suivi de `@@index([email])` ; `Payment.idempotencyKey` (ligne 966) porte `@unique` au niveau champ, ET `@@index([idempotencyKey])` est redéclaré ligne 978 dans le bloc d'index du modèle. PostgreSQL crée automatiquement un index B-tree unique pour toute contrainte `UNIQUE`/`@@unique` — un second `@@index` sur les mêmes colonnes est un doublon fonctionnel : aucune requête n'en bénéficie (le planificateur utilise l'index unique, jamais les deux), mais chaque `INSERT`/`UPDATE` touchant ces colonnes doit maintenir deux structures d'index au lieu d'une. Confirmé qu'aucun autre modèle du schéma ne répète ce patron (`Client.email`, `Service.name`, `Skill.name` — tous `@unique`/`@@unique` sans `@@index` redondant associé). Gravité mineure : coût réel mais faible en écriture, aucun risque d'incohérence de données.
-      RÉSOLU (session en cours) : les 3 `@@index` redondants retirés (`User.email`, `FreelancerApplication.email`, `Payment.idempotencyKey`), même migration batch que SEC-111/112/ 113/166. Preuve par test réel (`server/test/schemaIndexCleanupAndTimeEntryFk.test.ts`) : requête `pg_indexes` sur la base réelle confirmant que `User_email_idx`/`FreelancerApplication_email_idx`/ `Payment_idempotencyKey_idx` n'existent PLUS, tandis que `User_email_key`/`FreelancerApplication_email_key`/ `Payment_idempotencyKey_key` (les index créés automatiquement par les contraintes `@unique`/`@@unique`) existent toujours — un seul index par colonne concernée, exactement le critère demandé. Suite complète verte (505 tests), `npx tsc --noEmit` et `npm run lint --workspace=server` verts. Dérogation CI déjà accordée par l'utilisateur pour cette session : `resolu` malgré l'absence de run CI vert sur ce commit précis.
+anomalies: []
