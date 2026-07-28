@@ -15,6 +15,19 @@ enum Role {
   FREELANCER
 }
 
+// AUTO: commissionService.recalcAutoSplit owns ProjectCommissionSplit for this project and
+// overwrites it silently on every 0<->1 assigned-FREELANCER threshold crossing (RG-005-bis).
+// MANUAL: set the moment a CEO edit lands via setSplits; recalculation is frozen and a
+// threshold crossing only raises Project.commissionSplitDesynced instead.
+// PER_TASK (RG-028/RG-029): commission is paid per Task, not as a % of payments received —
+// computeForPaymentTx must not create any PROJECT_PERCENT commission for a project in this
+// mode (RG-028). No existing project is migrated to this value by the migration that adds it.
+enum CommissionSplitMode {
+  AUTO
+  MANUAL
+  PER_TASK
+}
+
 // Status of a custom question asked from the FAQ
 enum CustomQuestionStatus {
   OPEN
@@ -156,6 +169,7 @@ model User {
   serviceId                   String?
   service                     Service?                 @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   tasks                       Task[]                   @relation("AssignedTasks")
+  validatedTasks              Task[]                   @relation("TaskValidator")
   comments                    Comment[]
   refreshTokens               RefreshToken[]
   freelancerProfile           FreelancerProfile?
@@ -191,8 +205,15 @@ model User {
   timeEntries                 TimeEntry[]
   commissionSplits            ProjectCommissionSplit[] @relation("PartnerCommissionSplits")
   commissions                 Commission[]             @relation("PartnerCommissions")
+  managerProjectFees          ProjectManagerFee[]      @relation("ManagerProjectFees")
   connectedGscConnections     GscConnection[]
   sessions                    UserSession[]
+  // RG-005-bis/LOT 5 (refonte paiement à la tâche) : un MANAGER avec ce flag à true peut être
+  // assigneeId d'une Task (exécuter dans son propre pôle en plus de le superviser). Faux par
+  // défaut — sans lui, assertAssigneeIsValid continue de n'accepter que ADMIN/MANAGER/FREELANCER
+  // sans distinction ; ce flag ne restreint rien de plus, il documente juste l'intention pour
+  // l'UI d'assignation (afficher ou non un Manager comme option d'assigné).
+  canExecuteAsFreelancer      Boolean                  @default(false)
   lastLoginAt                 DateTime?                @db.Timestamptz(6)
   createdAt                   DateTime                 @default(now()) @db.Timestamptz(6)
   updatedAt                   DateTime                 @updatedAt @db.Timestamptz(6)
@@ -208,10 +229,11 @@ model User {
 
 // Tracks connected-time via a heartbeat ping from the authenticated back-office UI
 // (see POST /users/me/heartbeat). A session is "active" while lastHeartbeatAt is
-// recent; the maintenance job closes stale sessions (no heartbeat for
-// SESSION_IDLE_TIMEOUT_MINUTES) by leaving lastHeartbeatAt as the effective end time —
-// duration = lastHeartbeatAt - startedAt. This approximates real usage time (tab open +
-// focused) rather than login-to-logout, which would overcount idle/background tabs.
+// recent; the maintenance job closes stale sessions (no heartbeat for the configurable
+// idle timeout, see AppSetting key "sessionIdleTimeoutMinutes", RG-020) by leaving
+// lastHeartbeatAt as the effective end time — duration = lastHeartbeatAt - startedAt.
+// This approximates real usage time (tab open + focused) rather than login-to-logout,
+// which would overcount idle/background tabs.
 model UserSession {
   id              String    @id @default(uuid())
   userId          String
@@ -532,47 +554,60 @@ model ServiceRequestHistory {
 }
 
 model Project {
-  id                 String                   @id @default(uuid())
-  name               String                   @db.VarChar(255)
-  description        String?                  @db.Text
-  status             ProjectStatus            @default(PLANNING)
-  clientId           String?
-  client             Client?                  @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  serviceId          String?
-  service            Service?                 @relation(fields: [serviceId], references: [id], onDelete: SetNull)
-  tasks              Task[]
-  timeEntries        TimeEntry[]
-  documents          Document[]
-  proposals          Proposal[]               @relation("ProjectProposals")
-  proposalId         String?                  @unique
-  proposal           Proposal?                @relation("ProjectProposal", fields: [proposalId], references: [id])
-  approvals          Approval[]
-  invoices           Invoice[]
-  commissionSplits   ProjectCommissionSplit[]
-  commissions        Commission[]
-  metricSnapshots    MetricSnapshot[]
-  clientOnboardings  ClientOnboarding[]
-  meetings           ProjectMeeting[]
+  id                      String                   @id @default(uuid())
+  name                    String                   @db.VarChar(255)
+  description             String?                  @db.Text
+  status                  ProjectStatus            @default(PLANNING)
+  clientId                String?
+  client                  Client?                  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  serviceId               String?
+  service                 Service?                 @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  tasks                   Task[]
+  timeEntries             TimeEntry[]
+  documents               Document[]
+  proposals               Proposal[]               @relation("ProjectProposals")
+  proposalId              String?                  @unique
+  proposal                Proposal?                @relation("ProjectProposal", fields: [proposalId], references: [id])
+  approvals               Approval[]
+  invoices                Invoice[]
+  commissionSplits        ProjectCommissionSplit[]
+  commissionSplitMode     CommissionSplitMode      @default(AUTO)
+  // Set when a Task's FREELANCER assignee count crosses the 0<->1 threshold while the
+  // project is in MANUAL mode — signals the CEO that the manual split may be stale,
+  // without overwriting it (see commissionService.recalcAutoSplit, RG-005-bis).
+  commissionSplitDesynced Boolean                  @default(false)
+  commissionSplitHistory  CommissionSplitHistory[]
+  commissions             Commission[]
+  managerFees             ProjectManagerFee[]
+  metricSnapshots         MetricSnapshot[]
+  clientOnboardings       ClientOnboarding[]
+  meetings                ProjectMeeting[]
   // Recurring meeting cadence — NONE (default) means no reminder job tracks this project.
-  meetingFrequency   MeetingFrequency         @default(NONE)
-  nextMeetingDate    DateTime?                @db.Timestamptz(6)
+  meetingFrequency        MeetingFrequency         @default(NONE)
+  nextMeetingDate         DateTime?                @db.Timestamptz(6)
   // Snapshot from the accepted proposal (budget is free-text like Project elsewhere; deadline
   // mirrors the proposal's expiry). Filled by the acceptance cascade, editable afterwards.
-  budget             String?                  @db.VarChar(255)
-  deadline           DateTime?                @db.Timestamptz(6)
+  budget                  String?                  @db.VarChar(255)
+  deadline                DateTime?                @db.Timestamptz(6)
+  // RG-006 (refonte paiement à la tâche) : enveloppe maximale versable sur le projet
+  // (payoutAmount des Task + ProjectManagerFee), fixée explicitement par le CEO — jamais déduite
+  // automatiquement de `budget` (texte libre, non fiable) ni écrite par le système. Nullable :
+  // tant qu'elle n'est pas fixée, toute écriture de payoutAmount est bloquée (PAYOUT_BUDGET_NOT_SET,
+  // voir LOT 3).
+  payoutBudget            Decimal?                 @db.Decimal(14, 3)
   // Client brief questionnaire
-  serviceType        String?                  @db.VarChar(50)
-  briefData          Json?
-  briefCompleted     Boolean                  @default(false)
-  briefCompletedAt   DateTime?                @db.Timestamptz(6)
+  serviceType             String?                  @db.VarChar(50)
+  briefData               Json?
+  briefCompleted          Boolean                  @default(false)
+  briefCompletedAt        DateTime?                @db.Timestamptz(6)
   // Client final approval (triggers COMPLETED + balance invoice)
-  clientApprovedAt   DateTime?                @db.Timestamptz(6)
-  clientApprovedById String?
-  clientApprovedBy   User?                    @relation("ProjectClientApprovals", fields: [clientApprovedById], references: [id], onDelete: SetNull)
-  archivedAt         DateTime?                @db.Timestamptz(6)
-  deletedAt          DateTime?                @db.Timestamptz(6)
-  createdAt          DateTime                 @default(now()) @db.Timestamptz(6)
-  updatedAt          DateTime                 @updatedAt @db.Timestamptz(6)
+  clientApprovedAt        DateTime?                @db.Timestamptz(6)
+  clientApprovedById      String?
+  clientApprovedBy        User?                    @relation("ProjectClientApprovals", fields: [clientApprovedById], references: [id], onDelete: SetNull)
+  archivedAt              DateTime?                @db.Timestamptz(6)
+  deletedAt               DateTime?                @db.Timestamptz(6)
+  createdAt               DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt               DateTime                 @updatedAt @db.Timestamptz(6)
 
   // Indexes for faster queries
   @@index([status])
@@ -602,6 +637,21 @@ model Task {
   // SEC-070: set exactly when status transitions to DONE (task.service.ts#updateTask), cleared if
   // it transitions away from DONE — unlike updatedAt, never touched by unrelated field edits.
   completedAt    DateTime?           @db.Timestamptz(6)
+  // RG-006/RG-007 (refonte paiement à la tâche, LOT 3) : montant de base fixé par le CEO avant
+  // exécution — RG-007 interdit à une tâche de quitter TODO sans cette valeur, sur un projet en
+  // mode non-AUTO (PER_TASK). Jamais recalculé automatiquement une fois une Commission générée
+  // (RG-008, LOT 4) : modifier payoutAmount après validation n'affecte aucune commission passée.
+  payoutAmount   Decimal?            @db.Decimal(14, 3)
+  // RG-008 (barème) : saisi à la validation (passage à DONE), 1 à 5. Sert au calcul du
+  // coefficient, jamais recalculé rétroactivement si modifié après coup.
+  qualityScore   Int?
+  reworkCount    Int                 @default(0)
+  // RG-009 : horodatage/auteur de la validation qui a fait passer la tâche à DONE. validatedById
+  // doit être un ADMIN si assigneeId est un MANAGER du pôle du projet (conflit d'intérêt,
+  // SELF_VALIDATION_FORBIDDEN) — voir task.service.ts.
+  validatedAt    DateTime?           @db.Timestamptz(6)
+  validatedById  String?
+  validatedBy    User?               @relation("TaskValidator", fields: [validatedById], references: [id], onDelete: SetNull)
   projectId      String
   project        Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
   assigneeId     String?
@@ -616,6 +666,7 @@ model Task {
   // lighter model rather than a self-referencing Task.parentId, to avoid implying a subtask is a
   // full task (which the porteur explicitly ruled out).
   checklistItems TaskChecklistItem[]
+  commissions    Commission[]
   createdAt      DateTime            @default(now()) @db.Timestamptz(6)
   updatedAt      DateTime            @updatedAt @db.Timestamptz(6)
 
@@ -971,7 +1022,10 @@ model Payment {
   status           PaymentStatus   @default(UNPAID)
   deadline         DateTime?       @db.Timestamptz(6)
   paidAt           DateTime?       @db.Timestamptz(6)
-  commission       Commission?
+  // One row per partner sharing the project's commission split for this payment (SEC-201/bug
+  // bloquant) — was a single optional Commission before the paymentId unique constraint was
+  // relaxed to (paymentId, partnerId).
+  commissions      Commission[]
   createdAt        DateTime        @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime        @updatedAt @db.Timestamptz(6)
 
@@ -1355,29 +1409,93 @@ model ProjectCommissionSplit {
   @@index([partnerId])
 }
 
+// One row per automatic recalculation or mode switch on a project's commission split
+// (RG-005-bis) — lets the CEO audit why a split changed after the fact.
+model CommissionSplitHistory {
+  id             String   @id @default(uuid())
+  projectId      String
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  trigger        String   @db.VarChar(30) // AUTO_RECALC | MANUAL_EDIT | MODE_RESET_TO_AUTO | MODE_SET_PER_TASK
+  previousSplits Json
+  newSplits      Json
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([projectId])
+}
+
 // What is owed to an associate for a specific payment received. One Commission row is
 // created per (partner, Payment) — a deposit payment and a balance payment on the same
 // project each generate their own commission, prorated on the amount actually collected.
-model Commission {
-  id        String           @id @default(uuid())
-  partnerId String
-  partner   User             @relation("PartnerCommissions", fields: [partnerId], references: [id], onDelete: Cascade)
-  projectId String
-  project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  invoiceId String
-  invoice   Invoice          @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  paymentId String           @unique
-  payment   Payment          @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  // Amount the commission is computed from (the payment amount actually received) and the
-  // resulting share, both in the invoice's currency.
-  basis     Decimal          @db.Decimal(14, 3)
-  ratePct   Decimal          @db.Decimal(5, 2)
-  amount    Decimal          @db.Decimal(14, 3)
-  status    CommissionStatus @default(PENDING)
-  paidAt    DateTime?        @db.Timestamptz(6)
-  createdAt DateTime         @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime         @updatedAt @db.Timestamptz(6)
+// RG-008 (refonte paiement à la tâche, LOT 4) : PROJECT_PERCENT = ancien régime (mode AUTO,
+// pourcentage sur paiement encaissé, inchangé). TASK_FIXED = commission générée à la validation
+// d'une tâche (mode PER_TASK). MANAGER_PROJECT_FEE = fee fixe du Manager à la livraison du
+// projet (LOT 5, pas encore généré). Toute ligne existante avant ce lot est PROJECT_PERCENT
+// (backfill de la migration) — jamais réinterprétée après coup.
+enum CommissionSource {
+  PROJECT_PERCENT
+  TASK_FIXED
+  MANAGER_PROJECT_FEE
+}
 
+// RG-011 (refonte paiement à la tâche, LOT 5) : montant fixe dû au Manager du pôle à la livraison
+// du projet — exigible seulement quand le projet passe au statut livré/terminé, jamais avant, et
+// jamais pour un projet abandonné en cours de route. Modèle volontairement séparé de
+// ProjectCommissionSplit (qui reste strictement en pourcentage, réservé au mode AUTO) pour ne
+// jamais mélanger les deux régimes de calcul.
+model ProjectManagerFee {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  managerId String
+  manager   User     @relation("ManagerProjectFees", fields: [managerId], references: [id], onDelete: Cascade)
+  amount    Decimal  @db.Decimal(14, 3)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([projectId, managerId])
+  @@index([projectId])
+}
+
+model Commission {
+  id          String           @id @default(uuid())
+  partnerId   String
+  partner     User             @relation("PartnerCommissions", fields: [partnerId], references: [id], onDelete: Cascade)
+  projectId   String
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  source      CommissionSource @default(PROJECT_PERCENT)
+  // PROJECT_PERCENT uniquement : facture/paiement à l'origine du calcul au pourcentage.
+  invoiceId   String?
+  invoice     Invoice?         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  paymentId   String?
+  payment     Payment?         @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  // Amount the commission is computed from (the payment amount actually received) and the
+  // resulting share, both in the invoice's currency. PROJECT_PERCENT uniquement.
+  basis       Decimal?         @db.Decimal(14, 3)
+  ratePct     Decimal?         @db.Decimal(5, 2)
+  // TASK_FIXED uniquement (RG-008) : tâche validée, montant de base (Task.payoutAmount au
+  // moment de la validation) et coefficient du barème appliqué — tous deux figés à la création,
+  // jamais recalculés si qualityScore/reworkCount changent après coup (voir
+  // commissionService.computeForTaskValidationTx).
+  taskId      String?
+  task        Task?            @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  baseAmount  Decimal?         @db.Decimal(14, 3)
+  coefficient Decimal?         @db.Decimal(4, 3)
+  amount      Decimal          @db.Decimal(14, 3)
+  status      CommissionStatus @default(PENDING)
+  paidAt      DateTime?        @db.Timestamptz(6)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(6)
+
+  // SEC-201/bug bloquant: paymentId was @unique alone (one Commission row per payment, period),
+  // but computeForPaymentTx creates one row per partner assigned to the project for the SAME
+  // payment — any project with >=2 partners violated this constraint the moment a payment landed.
+  // The real invariant is "one row per (payment, partner)", not "one row per payment". NULLs
+  // never collide in a Postgres unique index, so TASK_FIXED rows (paymentId: NULL) coexist freely.
+  @@unique([paymentId, partnerId])
+  // RG-008 : une seule Commission TASK_FIXED par (tâche, partenaire) — une tâche a un seul
+  // assigné, donc en pratique un seul partenaire par tâche, mais l'unicité protège contre un
+  // double appel de computeForTaskValidationTx sur la même validation.
+  @@unique([taskId, partnerId])
   @@index([partnerId])
   @@index([projectId])
   @@index([invoiceId])
@@ -1689,6 +1807,18 @@ model SiteContent {
 
   @@unique([key, locale])
   @@index([locale, section])
+}
+
+// Generic key/value store for runtime-configurable system parameters (ADMIN-only writes),
+// e.g. "sessionIdleTimeoutMinutes" (RG-020). Not for per-user preferences or business data —
+// those already have dedicated models.
+model AppSetting {
+  key             String   @id @db.VarChar(120)
+  value           String   @db.Text
+  updatedAt       DateTime @updatedAt @db.Timestamptz(6)
+  updatedByUserId String?
+
+  @@index([updatedByUserId])
 }
 
 model AuditLog {

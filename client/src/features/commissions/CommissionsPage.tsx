@@ -33,7 +33,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2 } from "lucide-react";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ConfirmationDialog } from "@/components/shared/crud/ConfirmationDialog";
 import { useState } from "react";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -239,34 +239,38 @@ export function CommissionsPage() {
         />
       )}
 
-      <AlertDialog open={!!paidTarget} onOpenChange={(open) => !open && setPaidTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t("commissions.confirmMarkPaidTitle", "Confirmer le paiement de cette commission ?")}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t(
-                "commissions.confirmMarkPaidDesc",
-                "Cette action valide le paiement pour cette ligne. Si le montant est incorrect, corrigez-le avant confirmation."
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPaidTarget(null)}>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-green-600 text-white hover:bg-green-700"
-              onClick={() => {
-                if (!paidTarget) return;
-                markPaidMutation.mutate(paidTarget.id);
-                setPaidTarget(null);
-              }}
-            >
-              {t("common.confirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmationDialog
+        open={!!paidTarget}
+        onOpenChange={(open) => !open && setPaidTarget(null)}
+        onConfirm={() => {
+          if (!paidTarget) return;
+          markPaidMutation.mutate(paidTarget.id, { onSuccess: () => setPaidTarget(null) });
+        }}
+        isLoading={markPaidMutation.isPending}
+        title={t("commissions.confirmMarkPaidTitle", "Confirmer le paiement de cette commission ?")}
+        description={
+          paidTarget && (
+            <>
+              {t("commissions.confirmMarkPaidDesc")}
+              <br />
+              <strong>
+                {(partnerNameById.get(paidTarget.partnerId) ?? paidTarget.partnerId.slice(0, 8))}
+                {" — "}
+                {formatCurrency(paidTarget.amount)}
+              </strong>
+            </>
+          )
+        }
+        checkboxLabel={
+          paidTarget &&
+          t("commissions.confirmMarkPaidCheckbox", {
+            amount: formatCurrency(paidTarget.amount),
+            partner: partnerNameById.get(paidTarget.partnerId) ?? paidTarget.partnerId.slice(0, 8),
+          })
+        }
+        confirmLabel={t("common.confirm")}
+        cancelLabel={t("common.cancel")}
+      />
     </section>
   );
 }

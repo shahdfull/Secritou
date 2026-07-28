@@ -56,6 +56,9 @@ const projectListSelect = {
   clientApprovedById: true,
   meetingFrequency: true,
   nextMeetingDate: true,
+  commissionSplitMode: true,
+  commissionSplitDesynced: true,
+  payoutBudget: true,
   client: { select: clientBriefSelect },
 } as const;
 

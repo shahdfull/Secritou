@@ -21,12 +21,24 @@ export const confirmEmailChangeSchema = z.object({
   }),
 });
 
+// RG-020 : seuil d'inactivité en minutes, ADMIN uniquement (voir REFERENTIEL.md §7,
+// 2026-07-28). Borné à [1, 240] pour éviter une valeur absurde (0 = jamais de session,
+// >4h = perd le sens d'un "timeout d'inactivité").
+export const updateSessionIdleTimeoutSchema = z.object({
+  body: z.object({
+    minutes: z.number().int().min(1).max(240),
+  }),
+});
+
 const userBaseSchema = sharedUserBase.extend({
   role: z.nativeEnum(Role),
 });
 
 export const createUserSchema = z.object({
-  body: userBaseSchema,
+  body: userBaseSchema.refine((data) => data.role !== "MANAGER" || !!data.serviceId, {
+    message: "serviceId is required when role is MANAGER",
+    path: ["serviceId"],
+  }),
 });
 
 export const updateUserSchema = z.object({

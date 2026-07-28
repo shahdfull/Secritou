@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/utils/format";
 import { getProposalStatusBadgeClass } from "@/utils/statusColors";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ConfirmationDialog } from "@/components/shared/crud/ConfirmationDialog";
 import apiClient from "@/api/axios";
 import { getServerErrorMessage, getServerRequestId } from "@/utils/apiError";
 import { format } from "date-fns";
@@ -180,33 +180,42 @@ export function ProposalsClientPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!acceptTarget} onOpenChange={(open) => !open && setAcceptTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t("clientPortal.proposals.confirmAcceptTitle", "Confirmer l'acceptation de cette proposition ?")}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
+      <ConfirmationDialog
+        open={!!acceptTarget}
+        onOpenChange={(open) => !open && setAcceptTarget(null)}
+        onConfirm={() => {
+          if (!acceptTarget) return;
+          respond.mutate({ id: acceptTarget.id, action: "accept", expectedVersion: acceptTarget.version });
+        }}
+        isLoading={respond.isPending}
+        icon={CheckCircle}
+        title={t("clientPortal.proposals.confirmAcceptTitle", "Confirmer l'acceptation de cette proposition ?")}
+        description={
+          acceptTarget && (
+            <>
               {t(
                 "clientPortal.proposals.confirmAcceptDesc",
-                "Cette décision valide le devis et peut déclencher les prochaines étapes du projet. Vérifiez bien le contenu avant de confirmer."
+                "Cette décision valide le devis et engage contractuellement les prochaines étapes du projet. Vérifiez bien le contenu avant de confirmer."
               )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-ink text-white hover:bg-ink/90"
-              onClick={() =>
-                acceptTarget &&
-                respond.mutate({ id: acceptTarget.id, action: "accept", expectedVersion: acceptTarget.version })
-              }
-            >
-              {t("common.confirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              <br />
+              <strong>
+                {acceptTarget.title}
+                {acceptTarget.amount != null && ` — ${formatCurrency(acceptTarget.amount, acceptTarget.currency)}`}
+              </strong>
+            </>
+          )
+        }
+        checkboxLabel={
+          acceptTarget &&
+          t(
+            "clientPortal.proposals.confirmAcceptCheckbox",
+            "Je confirme accepter la proposition « {{title}} » et m'engager sur les termes qui y sont décrits.",
+            { title: acceptTarget.title }
+          )
+        }
+        confirmLabel={t("common.confirm")}
+        cancelLabel={t("common.cancel")}
+      />
 
       {/* Reject dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={(o) => { if (!o) { setRejectDialogOpen(false); setComment(""); } }}>

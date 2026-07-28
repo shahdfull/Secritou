@@ -11,11 +11,13 @@ export interface InviteUserInput {
   name: string;
   email: string;
   role: "ADMIN" | "MANAGER" | "CLIENT" | "FREELANCER";
+  serviceId?: string | null;
 }
 
 export interface UpdateUserInput {
   name?: string;
   role?: "ADMIN" | "MANAGER" | "CLIENT" | "FREELANCER";
+  serviceId?: string | null;
 }
 
 export interface UpdateMeInput {
@@ -62,5 +64,16 @@ export const usersApi = {
 
   sendHeartbeat: async (): Promise<void> => {
     await apiClient.post("/users/me/heartbeat");
+  },
+
+  // RG-020 : ADMIN uniquement.
+  getSessionIdleTimeout: async (): Promise<number> => {
+    const response = await apiClient.get<ApiResponse<{ minutes: number }>>("/users/settings/session-idle-timeout");
+    return response.data.data.minutes;
+  },
+
+  updateSessionIdleTimeout: async (minutes: number): Promise<number> => {
+    const response = await apiClient.put<ApiResponse<{ minutes: number }>>("/users/settings/session-idle-timeout", { minutes });
+    return response.data.data.minutes;
   },
 };

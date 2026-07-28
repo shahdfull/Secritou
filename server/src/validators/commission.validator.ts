@@ -19,3 +19,13 @@ export const setCommissionSplitsSchema = z.object({
     })).max(10),
   }),
 });
+
+// RG-006 (refonte paiement à la tâche) : l'enveloppe est fixée explicitement par le CEO,
+// jamais déduite automatiquement — null l'efface (retour à "non fixée", ce qui bloque à
+// nouveau toute écriture de payoutAmount, voir LOT 3).
+export const setProjectPayoutBudgetSchema = z.object({
+  params: z.object({ projectId: uuidParam }),
+  body: z.object({
+    payoutBudget: z.number().positive().nullable(),
+  }),
+});

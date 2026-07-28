@@ -1,16 +1,25 @@
 import { prisma, prismaRead } from "../config/prisma.js";
+import { appSettingRepository } from "./appSetting.repository.js";
 
-// A heartbeat within this window is treated as "the same session" (extends it)
-// rather than starting a new one. Must stay in sync with the client's ping
-// interval (see useSessionHeartbeat.ts) plus margin for one missed tick.
-export const SESSION_IDLE_TIMEOUT_MINUTES = 3;
+// RG-020 (décision du porteur du projet, session du 2026-07-28, voir REFERENTIEL.md §7) :
+// valeur par défaut si l'entrée AppSetting.SESSION_IDLE_TIMEOUT_MINUTES_KEY est absente.
+// Le seuil effectif est configurable en base par un ADMIN (server/src/services/appSetting.service.ts).
+export const DEFAULT_SESSION_IDLE_TIMEOUT_MINUTES = 20;
+export const SESSION_IDLE_TIMEOUT_MINUTES_KEY = "sessionIdleTimeoutMinutes";
+
+export async function getSessionIdleTimeoutMinutes(): Promise<number> {
+  const raw = await appSettingRepository.get(SESSION_IDLE_TIMEOUT_MINUTES_KEY);
+  const parsed = raw !== null ? Number(raw) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_SESSION_IDLE_TIMEOUT_MINUTES;
+}
 
 export const userSessionRepository = {
   // Extends the caller's most recent still-open session if the last heartbeat was
   // within the idle window, otherwise starts a new session (previous tab closed /
   // laptop slept long enough to be treated as a gap, not continuous usage).
   async recordHeartbeat(userId: string): Promise<void> {
-    const cutoff = new Date(Date.now() - SESSION_IDLE_TIMEOUT_MINUTES * 60_000);
+    const timeoutMinutes = await getSessionIdleTimeoutMinutes();
+    const cutoff = new Date(Date.now() - timeoutMinutes * 60_000);
     const now = new Date();
 
     const openSession = await prisma.userSession.findFirst({
@@ -36,7 +45,8 @@ export const userSessionRepository = {
   // closed/backgrounded without a final ping, so lastHeartbeatAt is the effective end time.
   // updateMany can't set a column to another column's value, hence the raw query.
   async closeStaleSessions(): Promise<number> {
-    const cutoff = new Date(Date.now() - SESSION_IDLE_TIMEOUT_MINUTES * 60_000);
+    const timeoutMinutes = await getSessionIdleTimeoutMinutes();
+    const cutoff = new Date(Date.now() - timeoutMinutes * 60_000);
     const count = await prisma.$executeRaw`
       UPDATE "UserSession"
       SET "closedAt" = "lastHeartbeatAt"

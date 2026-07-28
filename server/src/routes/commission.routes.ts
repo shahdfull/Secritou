@@ -2,12 +2,16 @@ import express from "express";
 import {
   getProjectCommissionSplits,
   setProjectCommissionSplits,
+  setProjectCommissionModeToPerTask,
   getCommissions,
   getCommissionsOwedSummary,
   getMyCommissions,
   getMyCommissionsSummary,
   getMySplitForProject,
   markCommissionPaid,
+  resetProjectCommissionSplitToAuto,
+  getProjectCommissionSplitHistory,
+  setProjectPayoutBudget,
 } from "../controllers/commission.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
@@ -17,6 +21,7 @@ import {
   projectIdParamSchema,
   commissionIdParamSchema,
   setCommissionSplitsSchema,
+  setProjectPayoutBudgetSchema,
 } from "../validators/commission.validator.js";
 
 const router = express.Router();
@@ -43,5 +48,24 @@ router.post("/:id/mark-paid", sensitiveWriteRateLimit, validate(commissionIdPara
 
 router.get("/projects/:projectId/splits", validate(projectIdParamSchema), getProjectCommissionSplits);
 router.put("/projects/:projectId/splits", sensitiveWriteRateLimit, validate(setCommissionSplitsSchema), setProjectCommissionSplits);
+router.post(
+  "/projects/:projectId/reset-to-auto",
+  sensitiveWriteRateLimit,
+  validate(projectIdParamSchema),
+  resetProjectCommissionSplitToAuto
+);
+router.post(
+  "/projects/:projectId/commission-mode/per-task",
+  sensitiveWriteRateLimit,
+  validate(projectIdParamSchema),
+  setProjectCommissionModeToPerTask
+);
+router.get("/projects/:projectId/history", validate(projectIdParamSchema), getProjectCommissionSplitHistory);
+router.put(
+  "/projects/:projectId/payout-budget",
+  sensitiveWriteRateLimit,
+  validate(setProjectPayoutBudgetSchema),
+  setProjectPayoutBudget
+);
 
 export default router;

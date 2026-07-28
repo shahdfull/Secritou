@@ -24,6 +24,43 @@ export function useSetCommissionSplits(projectId: string) {
   });
 }
 
+export function useResetSplitToAuto(projectId: string) {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  return useMutation({
+    mutationFn: () => commissionsApi.resetToAuto(projectId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["commissionSplits", projectId] });
+      toast.success(t("commissions.resetToAutoDone", "Calcul automatique réactivé"));
+    },
+  });
+}
+
+export function useCommissionSplitHistory(projectId: string, enabled = true) {
+  return useQuery({
+    queryKey: ["commissionSplitHistory", projectId],
+    queryFn: () => commissionsApi.getSplitHistory(projectId),
+    enabled: enabled && !!projectId,
+  });
+}
+
+// RG-006 (refonte paiement à la tâche) : le CEO fixe explicitement l'enveloppe — le
+// pré-remplissage suggéré (65% de la proposition) n'est jamais envoyé automatiquement ici,
+// seulement affiché côté composant ; ce hook n'écrit que la valeur que le CEO valide.
+export function useSetPayoutBudget(projectId: string) {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  return useMutation({
+    mutationFn: (payoutBudget: number | null) => commissionsApi.setPayoutBudget(projectId, payoutBudget),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["commissionSplits", projectId] });
+      toast.success(t("commissions.payoutBudgetUpdated", "Enveloppe de rémunération mise à jour"));
+    },
+  });
+}
+
 export function useCommissions(params?: { page?: number; pageSize?: number; partnerId?: string; status?: string }, enabled = true) {
   return useQuery<PaginatedResponse<Commission>>({
     queryKey: ["commissions", params],

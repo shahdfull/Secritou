@@ -98,6 +98,8 @@ export interface CreateTaskDTO {
   dueDate?: Date;
   projectId: string;
   assigneeId?: string;
+  payoutAmount?: number;
+  qualityScore?: number;
 }
 
 export interface UpdateLeadStatusDTO {

@@ -15,6 +15,7 @@ import { prisma, prismaRead } from "../config/prisma.js";
 import { auditLogService } from "./auditLog.service.js";
 import { getBriefQuestions } from "../constants/briefQuestions.js";
 import { invoiceService } from "./invoice.service.js";
+import { commissionService } from "./commission.service.js";
 import { emailService } from "./email.service.js";
 import { projectApprovedClientTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
@@ -383,6 +384,13 @@ export const projectService = {
         where: { id: projectId },
         select: { id: true, name: true, clientId: true, invoices: { select: { invoiceType: true } } },
       });
+
+      // RG-011 (refonte paiement à la tâche, LOT 5) : le fee Manager n'est exigible qu'à la
+      // livraison réelle du projet — clientApprove est le seul chemin qui fait transiter un
+      // projet vers COMPLETED (SEC-081 : toute autre tentative via updateProject est bloquée),
+      // donc c'est le point d'entrée unique pour cette génération. Un projet abandonné (archivé,
+      // supprimé) ne passe jamais par ici.
+      await commissionService.generateManagerFeesOnDeliveryTx(tx, projectId);
 
       // Re-check inside transaction to prevent double creation!
       const balanceAlreadyExistsInTx = project.invoices.some((inv) => inv.invoiceType === "BALANCE");

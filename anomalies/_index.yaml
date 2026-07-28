@@ -12,7 +12,7 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-003
+dernier_id: SEC-011
 anomalies:
   - id: SEC-001
     titre: >
@@ -41,3 +41,90 @@ anomalies:
     statut: en_cours
     gravite: moyenne
     classe: audit-log-manquant
+
+  - id: SEC-004
+    titre: >
+      Le scope MANAGER de ServiceRequest (via client.projects.some.serviceId)
+      expose toutes les demandes d'un client multi-pôle à chaque pôle où il a
+      un projet, y compris les commentaires internes isInternal
+    perimetre: 4.6-portail-client
+    statut: ouvert
+    gravite: moyenne
+    classe: idor-scope-approxime
+
+  - id: SEC-005
+    titre: >
+      Aucun des 4 services du portail client (clientPortal, approval,
+      serviceRequest, customQuestion) n'écrit jamais dans AuditLog
+    perimetre: 4.6-portail-client
+    statut: ouvert
+    gravite: mineure
+    classe: audit-log-manquant
+
+  - id: SEC-006
+    titre: >
+      Aucun endpoint ni interface ne permet d'assigner ou de modifier le
+      serviceId (pôle) d'un utilisateur MANAGER — le champ dont dépend tout
+      le scoping par pôle audité sur les modules 4.1/4.2/4.4/4.6 n'est
+      jamais écrit ailleurs qu'en base directement
+    perimetre: 4.14-auth
+    statut: ouvert
+    gravite: majeure
+    classe: capacite-produit-manquante
+
+  - id: SEC-007
+    titre: >
+      Aucun chemin API réel ne permet de retirer l'assigneeId d'une Task
+      (mettre à null) — updateTask ne peut donc jamais faire franchir le
+      seuil "≥1 freelancer assigné" → "0" par retrait d'assignation, ce qui
+      laisse RG-005-bis (recalcul auto de split de commission) non testable
+      sur cette direction précise du seuil
+    perimetre: 4.5-commissions
+    statut: ouvert
+    gravite: mineure
+    classe: capacite-produit-manquante
+
+  - id: SEC-008
+    titre: >
+      GET /users/me (userService.getMe) retourne 500 en base de dev réelle
+      — la table AppSetting (migration RG-020) n'a jamais été appliquée,
+      alors que getMe l'interroge désormais à chaque appel
+    perimetre: 4.14-auth
+    statut: resolu
+    gravite: majeure
+    classe: migration-non-appliquee
+
+  - id: SEC-009
+    titre: >
+      La suite user.service.test.ts échoue sur 2 fronts distincts après
+      l'ajout du chemin d'écriture serviceId (SEC-006) : un test RG-021
+      préexistant appelle updateUser(..., "service-1", ...) sans mocker
+      prisma.service.findUnique (404 réel "Service not found"), et le
+      describe SEC-006 lui-même plante à l'initialisation
+      (mock.method(prisma.service, "findUnique", ...) reçoit "findUnique"
+      undefined), annulant 6 tests de la suite
+    perimetre: 4.14-auth
+    statut: ouvert
+    gravite: majeure
+    classe: test-casse-par-changement-non-synchronise
+
+  - id: SEC-010
+    titre: >
+      gdprErasure.test.ts — l'anonymisation d'un Client avec facture
+      s'exécute (mode "anonymized" confirmé) mais l'assertion sur
+      Invoice.amount.toString() attend "100.000" et obtient "100"
+    perimetre: transverse
+    statut: ouvert
+    gravite: mineure
+    classe: assertion-format-decimal
+
+  - id: SEC-011
+    titre: >
+      Le bouton "Soumettre le brief" de ClientBriefPage.tsx n'est jamais
+      désactivé pour un champ requis vide (seul submitMutation.isPending
+      le désactive) — un client peut soumettre un brief incomplet malgré
+      la validation par étape affichée à l'écran
+    perimetre: 4.6-portail-client
+    statut: ouvert
+    gravite: moyenne
+    classe: validation-cote-client-incomplete

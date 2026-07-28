@@ -80,6 +80,17 @@ beforeEach(() => {
 });
 
 describe("ProposalsClientPage — accept/reject (client side of the cascade)", () => {
+  // Accepting a proposal is a Niveau 2 confirmation (RG-026): clicking "Accepter" only opens a
+  // confirmation dialog — the request is sent only after the mandatory checkbox is checked and
+  // "Confirmer" is clicked. This was already true on the pre-RG-026 AlertDialog (verified on HEAD)
+  // — the two-step flow is not new, only the added checkbox is.
+  async function acceptViaDialog(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole("button", { name: /Accepter/ }));
+    const checkbox = await screen.findByRole("checkbox");
+    await user.click(checkbox);
+    await user.click(screen.getByRole("button", { name: "Confirmer" }));
+  }
+
   test("accepting sends the real request with the version the client actually reviewed", async () => {
     const user = userEvent.setup();
     vi.mocked(apiClient.get).mockResolvedValue({ data: { data: { data: [makeProposal({ version: 3 })], total: 1 } } });
@@ -87,7 +98,7 @@ describe("ProposalsClientPage — accept/reject (client side of the cascade)", (
     renderPage();
 
     await waitFor(() => expect(screen.getByText("Site vitrine")).toBeInTheDocument());
-    await user.click(screen.getByRole("button", { name: /Accepter/ }));
+    await acceptViaDialog(user);
 
     expect(apiClient.post).toHaveBeenCalledWith(
       "/proposals/proposal-1/respond",
@@ -111,7 +122,7 @@ describe("ProposalsClientPage — accept/reject (client side of the cascade)", (
     renderPage();
 
     await waitFor(() => expect(screen.getByText("Site vitrine")).toBeInTheDocument());
-    await user.click(screen.getByRole("button", { name: /Accepter/ }));
+    await acceptViaDialog(user);
 
     await waitFor(() => expect(toastErrorMock).toHaveBeenCalledWith(expect.stringMatching(/modifiée depuis son ouverture/)));
   });
@@ -124,7 +135,7 @@ describe("ProposalsClientPage — accept/reject (client side of the cascade)", (
     renderPage();
 
     await waitFor(() => expect(screen.getByText("Site vitrine")).toBeInTheDocument());
-    await user.click(screen.getByRole("button", { name: /Accepter/ }));
+    await acceptViaDialog(user);
 
     await waitFor(() => expect(toastErrorMock).toHaveBeenCalledWith(expect.stringMatching(/Impossible d'enregistrer votre réponse/)));
   });

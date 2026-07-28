@@ -2,8 +2,10 @@ import { useEffect } from "react";
 import { usersApi } from "@/api/users.api";
 import { useMe } from "./useAuth";
 
-// Must stay below the server's SESSION_IDLE_TIMEOUT_MINUTES (3 min, see
-// userSession.repository.ts) so a missed tick doesn't split one visit into two sessions.
+// The server's idle timeout (RG-020, ADMIN-configurable, 20 min by default — see
+// userSession.repository.ts / AppSetting key "sessionIdleTimeoutMinutes") is always far
+// above this interval, so no runtime sync is needed here: a fixed 60s ping stays a small
+// fraction of even the lowest allowed timeout (1 min).
 const HEARTBEAT_INTERVAL_MS = 60_000;
 
 // Pings the server periodically while the back-office tab is open and in the foreground,

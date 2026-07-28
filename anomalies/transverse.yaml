@@ -7,7 +7,50 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : Transverse (hors modules §4 — CI/infra, docs, RGPD, i18n global, design system, observabilité)
-# 0 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
+# 1 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 
-anomalies: []
+anomalies:
+  - id: SEC-010
+    titre: >
+      gdprErasure.test.ts — l'anonymisation d'un Client avec facture
+      s'exécute (mode "anonymized" confirmé) mais l'assertion sur
+      Invoice.amount.toString() attend "100.000" et obtient "100"
+    perimetre: transverse
+    regle_violee: >
+      RG-025 (export et effacement RGPD, verifie:test) : le test attendu
+      comme preuve que l'anonymisation ne touche pas la facture échoue sur
+      une assertion de formatage, pas sur le comportement métier lui-même
+      (le mode "anonymized" et la survie de la facture sont confirmés par
+      les lignes précédentes du même test, elles passent).
+    classe: assertion-format-decimal
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      server/test/gdprErasure.test.ts, cas "a client with an invoice is
+      anonymized, not deleted — the invoice survives untouched" doit passer
+      au vert. Deux réparations possibles, à trancher (pas déduit du seul
+      typecheck, cf. CLAUDE.md « réparer n'est pas développer ») : (a)
+      l'assertion attend un format Decimal.js à 3 décimales fixes
+      (".000") qui ne correspond pas à ce que Prisma renvoie réellement
+      pour ce champ Decimal(14,3) — corriger l'assertion pour matcher le
+      format réel ; ou (b) un comportement réel de troncature/formatage
+      existe quelque part sur ce chemin et l'assertion a raison de
+      l'attendre — à investiguer avant de choisir.
+    detecte_le: "2026-07-28"
+    source: >
+      npm run test:unit --workspace server, session du 2026-07-28 (RG-025,
+      demande explicite du porteur de faire tourner typecheck/lint/tests).
+      AssertionError strictEqual : actual '100', expected '100.000',
+      server/test/gdprErasure.test.ts:72
+      (`assert.equal(invoiceStillThere?.amount.toString(), "100.000")`).
+      Invoice.amount est Decimal(14,3) en base (schema.prisma) — écrit avec
+      la valeur JS 100 à la création du fixture de test (ligne 58, `amount: 100`).
+      Pas d'investigation plus poussée dans cette session sur le
+      comportement exact de Prisma.Decimal#toString() pour ce champ.
+    confiance: moyenne
+    note: >
+      Hypothèse sur le code, pas tranchée : ni le test ni le code n'ont été
+      modifiés dans cette session sur ce point — seul le symptôme exact est
+      enregistré, conformément à CLAUDE.md (« un test rouge est une
+      hypothèse sur le code, pas un défaut du test »).

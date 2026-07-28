@@ -13,6 +13,7 @@ import { notifyN8n } from "../utils/webhook.js";
 import { env } from "../config/env.js";
 import { ALLOWED_TASK_TRANSITIONS } from "@secritou/shared";
 import { auditLogService } from "./auditLog.service.js";
+import { commissionService } from "./commission.service.js";
 
 function assertValidTaskTransition(from: TaskStatus, to: TaskStatus): void {
   const allowed = ALLOWED_TASK_TRANSITIONS[from] ?? [];
@@ -31,6 +32,81 @@ async function assertAssigneeIsValid(assigneeId: string) {
   if (!user) throw new HttpError(422, "Assignee not found", "INVALID_ASSIGNEE");
   if (user.role === "CLIENT") {
     throw new HttpError(422, "A task cannot be assigned to a CLIENT", "INVALID_ASSIGNEE_ROLE");
+  }
+}
+
+// RG-005-bis: recalcAutoSplit only needs to run when a project crosses the 0<->1 assigned-
+// FREELANCER threshold, not on every unrelated task edit — this counts how many distinct
+// FREELANCER assignees the project has right now (post-write), which the caller compares
+// against a pre-write count taken before the task change lands.
+async function countAssignedFreelancers(projectId: string): Promise<number> {
+  const { prismaRead: prisma } = await import("../config/prisma.js");
+  const tasks = await prisma.task.findMany({
+    where: { projectId, assigneeId: { not: null }, assignee: { role: "FREELANCER" } },
+    select: { assigneeId: true },
+    distinct: ["assigneeId"],
+  });
+  return tasks.length;
+}
+
+// Never blocks the task response on a recalculation failure — the task write already
+// succeeded, and the commission split is a downstream financial concern, not a task concern.
+async function maybeRecalcAutoSplit(projectId: string, freelancerCountBefore: number) {
+  const freelancerCountAfter = await countAssignedFreelancers(projectId);
+  const crossedThreshold =
+    (freelancerCountBefore === 0) !== (freelancerCountAfter === 0);
+  if (!crossedThreshold) return;
+  try {
+    await commissionService.recalcAutoSplit(projectId);
+  } catch (err) {
+    console.error(`recalcAutoSplit failed for project ${projectId}`, err);
+  }
+}
+
+// RG-007 (refonte paiement à la tâche) : une tâche ne peut pas quitter TODO sans payoutAmount
+// fixé, sur un projet en mode PER_TASK — le montant doit être connu avant le travail, pas
+// négocié après coup. Sans objet en mode AUTO/MANUAL (pourcentage projet, pas de montant par
+// tâche).
+async function assertPayoutAmountSetIfLeavingTodo(args: {
+  fromStatus: TaskStatus;
+  toStatus: TaskStatus;
+  payoutAmount: unknown;
+  projectId: string;
+}) {
+  if (args.fromStatus !== "TODO" || args.toStatus === "TODO") return;
+  const { prismaRead: prisma } = await import("../config/prisma.js");
+  const project = await prisma.project.findUnique({ where: { id: args.projectId }, select: { commissionSplitMode: true } });
+  if (project?.commissionSplitMode !== "PER_TASK") return;
+  if (args.payoutAmount === null || args.payoutAmount === undefined) {
+    throw new HttpError(422, "This task's payout amount must be set before it can leave TODO", "TASK_PAYOUT_NOT_SET");
+  }
+}
+
+// RG-009 (refonte paiement à la tâche) : conflit d'intérêt — un Manager ne peut pas valider
+// (faire passer à DONE) sa propre tâche exécutée dans son propre pôle. Seul un ADMIN peut valider
+// une tâche assignée au Manager du pôle du projet. Bloqué côté service, jamais laissé à la seule
+// UI.
+async function assertNoSelfValidationConflict(args: {
+  assigneeId: string | null;
+  projectId: string;
+  validatorId?: string;
+  validatorRole?: Role;
+}) {
+  if (!args.assigneeId) return;
+  const { prismaRead: prisma } = await import("../config/prisma.js");
+  const [assignee, project] = await Promise.all([
+    prisma.user.findUnique({ where: { id: args.assigneeId }, select: { role: true, serviceId: true } }),
+    prisma.project.findUnique({ where: { id: args.projectId }, select: { serviceId: true } }),
+  ]);
+  const assigneeIsPoleManager =
+    assignee?.role === "MANAGER" && project?.serviceId != null && assignee.serviceId === project.serviceId;
+  if (!assigneeIsPoleManager) return;
+  if (args.validatorRole !== "ADMIN") {
+    throw new HttpError(
+      403,
+      "Only an ADMIN can validate a task assigned to the pole's own Manager",
+      "SELF_VALIDATION_FORBIDDEN"
+    );
   }
 }
 
@@ -99,6 +175,7 @@ export const taskService = {
   async createTask(data: CreateTaskDTO, scope?: ServiceScope) {
     await assertProjectInScope(data.projectId, scope);
     await assertProjectIsOpenForTaskChanges(data.projectId);
+    let assigneeIsFreelancer = false;
     if (data.assigneeId) {
       await assertAssigneeIsValid(data.assigneeId);
       if (data.startDate && data.dueDate) {
@@ -107,8 +184,25 @@ export const taskService = {
           throw new HttpError(409, "Assignee is already booked on an overlapping task", "FREELANCER_UNAVAILABLE", { conflicts });
         }
       }
+      const { prismaRead: prismaAssigneeRole } = await import("../config/prisma.js");
+      const assigneeUser = await prismaAssigneeRole.user.findUnique({ where: { id: data.assigneeId }, select: { role: true } });
+      assigneeIsFreelancer = assigneeUser?.role === "FREELANCER";
+    }
+    const freelancerCountBefore = assigneeIsFreelancer ? await countAssignedFreelancers(data.projectId) : 0;
+
+    if (data.payoutAmount !== undefined) {
+      const { prisma } = await import("../config/prisma.js");
+      await prisma.$transaction((tx) =>
+        commissionService.assertPayoutBudgetNotExceededTx(tx, {
+          projectId: data.projectId,
+          candidatePayoutAmount: data.payoutAmount!,
+        })
+      );
     }
     const task = await taskRepository.create(data);
+    if (assigneeIsFreelancer) {
+      await maybeRecalcAutoSplit(data.projectId, freelancerCountBefore);
+    }
     if (data.assigneeId) {
       await enqueueNotification({
         userId: data.assigneeId,
@@ -165,6 +259,24 @@ export const taskService = {
 
     if (data.status && data.status !== task.status) {
       assertValidTaskTransition(task.status, data.status);
+      const nextPayoutAmount = data.payoutAmount !== undefined ? data.payoutAmount : task.payoutAmount;
+      await assertPayoutAmountSetIfLeavingTodo({
+        fromStatus: task.status,
+        toStatus: data.status,
+        payoutAmount: nextPayoutAmount,
+        projectId: task.projectId,
+      });
+      // RG-009 : la validation (passage à DONE) est le moment où le conflit d'intérêt se joue —
+      // un statut qui transite vers DONE sans jamais y être passé auparavant, pas une simple
+      // ré-écriture d'un champ sur une tâche déjà DONE.
+      if (data.status === "DONE") {
+        await assertNoSelfValidationConflict({
+          assigneeId: task.assigneeId,
+          projectId: task.projectId,
+          validatorId: scope?.userId,
+          validatorRole: scope?.userRole,
+        });
+      }
     }
 
     const nextAssigneeId = data.assigneeId !== undefined ? data.assigneeId : task.assigneeId;
@@ -187,7 +299,67 @@ export const taskService = {
       data.status && data.status !== task.status
         ? { completedAt: data.status === "DONE" ? new Date() : null }
         : {};
-    const updated = await taskRepository.update(id, { ...data, ...completedAtPatch });
+    // RG-009: validatedAt/validatedById are stamped exactly on the transition into DONE, cleared
+    // if the task ever moves away from DONE again — mirrors SEC-070's completedAt convention so
+    // "who validated this, and when" always reflects the CURRENT DONE state, not a stale one.
+    const validationPatch =
+      data.status && data.status !== task.status
+        ? data.status === "DONE"
+          ? { validatedAt: new Date(), validatedById: scope?.userId ?? null }
+          : { validatedAt: null, validatedById: null }
+        : {};
+
+    const freelancerCountBefore = reassigned ? await countAssignedFreelancers(task.projectId) : 0;
+
+    // RG-006: checked as a standalone assertion (not itself a write) before the single real
+    // update below — the check and the write must still observe the same value, so this only
+    // runs when payoutAmount is actually changing.
+    const previousPayoutAmount = task.payoutAmount === null ? null : Number(task.payoutAmount);
+    if (data.payoutAmount !== undefined && data.payoutAmount !== previousPayoutAmount) {
+      const { prisma } = await import("../config/prisma.js");
+      await prisma.$transaction((tx) =>
+        commissionService.assertPayoutBudgetNotExceededTx(tx, {
+          projectId: task.projectId,
+          taskId: id,
+          candidatePayoutAmount: data.payoutAmount!,
+        })
+      );
+    }
+
+    // RG-008 : la génération de la commission TASK_FIXED se fait dans la MÊME transaction que le
+    // passage à DONE — si l'une échoue, l'autre n'est jamais persistée seule.
+    const enteringDone = data.status === "DONE" && task.status !== "DONE";
+    const nextQualityScore = data.qualityScore !== undefined ? data.qualityScore : task.qualityScore;
+    const finalPayoutAmount = data.payoutAmount !== undefined ? data.payoutAmount : previousPayoutAmount;
+
+    let updated: Awaited<ReturnType<typeof taskRepository.update>>;
+    if (enteringDone && task.assigneeId && finalPayoutAmount !== null && nextQualityScore !== null && nextQualityScore !== undefined) {
+      const { prisma } = await import("../config/prisma.js");
+      const completedAt = (completedAtPatch as { completedAt?: Date | null }).completedAt ?? new Date();
+      updated = await prisma.$transaction(async (tx) => {
+        const result = await tx.task.updateMany({ where: { id }, data: { ...data, ...completedAtPatch, ...validationPatch } });
+        if (result.count === 0) throw new HttpError(404, "Task not found");
+        await commissionService.computeForTaskValidationTx(tx, {
+          taskId: id,
+          projectId: task.projectId,
+          partnerId: task.assigneeId!,
+          payoutAmount: finalPayoutAmount,
+          dueDate: task.dueDate,
+          completedAt: completedAt as Date,
+          qualityScore: nextQualityScore,
+          reworkCount: task.reworkCount,
+        });
+        const { taskWithRelationsSelect } = await import("../utils/prismaSelects.js");
+        const t = await tx.task.findFirst({ where: { id }, select: taskWithRelationsSelect });
+        if (!t) throw new HttpError(404, "Task not found");
+        return t;
+      });
+    } else {
+      updated = await taskRepository.update(id, { ...data, ...completedAtPatch, ...validationPatch });
+    }
+    if (reassigned) {
+      await maybeRecalcAutoSplit(task.projectId, freelancerCountBefore);
+    }
     const { prismaRead: prisma } = await import("../config/prisma.js");
     const project = await prisma.project.findUnique({ where: { id: task.projectId }, select: { id: true, clientId: true, serviceId: true } });
 
@@ -240,6 +412,26 @@ export const taskService = {
           link: `/app/tasks?taskId=${updated.id}`,
         }))
       );
+    }
+
+    // RG-008 : une tâche qui repasse hors DONE ne supprime jamais sa Commission TASK_FIXED déjà
+    // générée — décision manuelle du CEO, jamais automatique. On se contente d'alerter les
+    // ADMIN/Managers du pôle que la tâche et sa commission sont désormais désynchronisées.
+    if (data.status && task.status === "DONE" && data.status !== "DONE") {
+      const hasCommission = await commissionService.taskHasCommission(id);
+      if (hasCommission) {
+        const recipients = await userRepository.findAdminsAndPoleManagers(project?.serviceId ?? null);
+        await enqueueNotifications(
+          recipients.map((u) => ({
+            userId: u.id,
+            title: "Tâche repassée hors DONE — commission existante",
+            message: `La tâche "${updated.title}" a quitté le statut DONE alors qu'une commission avait déjà été générée. Cette commission n'est pas supprimée automatiquement — une décision manuelle est nécessaire.`,
+            type: "GENERAL" as const,
+            entityId: updated.id,
+            link: `/app/tasks?taskId=${updated.id}`,
+          }))
+        );
+      }
     }
 
     const tagsToInvalidate = [cacheTags.company(), cacheTags.dashboard(), cacheTags.project(task.projectId)];

@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ConfirmationDialog } from "@/components/shared/crud/ConfirmationDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -77,6 +78,7 @@ export function BookingAdminPage() {
   const [slotDialogOpen, setSlotDialogOpen] = useState(false);
   const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<BookingRecord | null>(null);
+  const [cancellingBooking, setCancellingBooking] = useState(false);
   const [deleteSlotTarget, setDeleteSlotTarget] = useState<BookingSlotRecord | null>(null);
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>([1, 2, 3, 4, 5]);
 
@@ -424,22 +426,48 @@ export function BookingAdminPage() {
         </div>
       </div>
 
-      <AlertDialog open={!!cancelTarget} onOpenChange={(open) => !open && setCancelTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("booking.admin.cancelBookingConfirmTitle", "Annuler cette réservation ?")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {cancelTarget ? t("booking.admin.cancelBookingConfirmDescription", { defaultValue: "Annuler la réservation de {{name}} pour le créneau du {{slot}} ?", name: cancelTarget.name, slot: formatDateTime(cancelTarget.slot.startTime) }) : ""}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { if (!cancelTarget) return; handleCancelBooking(cancelTarget); setCancelTarget(null); }}>
-              {t("common.confirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmationDialog
+        open={!!cancelTarget}
+        onOpenChange={(open) => !open && setCancelTarget(null)}
+        onConfirm={async () => {
+          if (!cancelTarget) return;
+          setCancellingBooking(true);
+          try {
+            await handleCancelBooking(cancelTarget);
+            setCancelTarget(null);
+          } finally {
+            setCancellingBooking(false);
+          }
+        }}
+        isLoading={cancellingBooking}
+        icon={XCircle}
+        variant="destructive"
+        title={t("booking.admin.cancelBookingConfirmTitle", "Annuler cette réservation ?")}
+        description={
+          cancelTarget && (
+            <>
+              {t(
+                "booking.admin.cancelBookingConfirmDescription",
+                "Cette action est irréversible et libère le créneau pour d'autres réservations."
+              )}
+              <br />
+              <strong>
+                {cancelTarget.name} — {formatDateTime(cancelTarget.slot.startTime)}
+              </strong>
+            </>
+          )
+        }
+        checkboxLabel={
+          cancelTarget &&
+          t("booking.admin.cancelBookingConfirmCheckbox", {
+            defaultValue: "Je confirme l'annulation de la réservation de {{name}} du {{slot}}.",
+            name: cancelTarget.name,
+            slot: formatDateTime(cancelTarget.slot.startTime),
+          })
+        }
+        confirmLabel={t("common.confirm")}
+        cancelLabel={t("common.cancel")}
+      />
 
       <AlertDialog open={!!deleteSlotTarget} onOpenChange={(open) => !open && setDeleteSlotTarget(null)}>
         <AlertDialogContent>

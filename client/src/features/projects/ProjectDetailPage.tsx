@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, ExternalLink, FileText, CheckSquare, Activity, ClipboardCheck, Upload, Users, Archive, ArchiveRestore, Plus } from "lucide-react";
+import { ArrowLeft, Loader2, ExternalLink, FileText, CheckSquare, Activity, ClipboardCheck, Upload, Users, Archive, ArchiveRestore, Plus, PiggyBank } from "lucide-react";
 import { useProject, useUpdateProject, useArchiveProject, useUnarchiveProject } from "@/hooks/useProjects";
 import { useMe } from "@/hooks/useAuth";
 import { useMySplitForProject } from "@/hooks/useCommissions";
@@ -23,6 +23,7 @@ import { getProjectStatusBadgeClass, getTaskStatusBadgeClass } from "@/utils/sta
 import { getStatusLabel as getTaskStatusLabel } from "@/features/tasks/taskUtils";
 import { TimeTrackingTab } from "./TimeTrackingTab";
 import { ProjectMeetingsTab } from "./ProjectMeetingsTab";
+import { ProjectCommissionSplitTab } from "./ProjectCommissionSplitTab";
 import { useProjectTemplateForService, useApplyProjectTemplate } from "@/hooks/useProjectTemplates";
 import { ApprovalsPage } from "@/features/approvals/ApprovalsPage";
 import { TabErrorBoundary } from "@/components/ui/TabErrorBoundary";
@@ -295,6 +296,12 @@ export function ProjectDetailPage() {
               Réunions
             </TabsTrigger>
           )}
+          {isAdmin && (
+            <TabsTrigger value="commissions" className={tabTriggerClass}>
+              <PiggyBank className="h-3.5 w-3.5" />
+              Commissions
+            </TabsTrigger>
+          )}
           {isFreelancer && (
             <TabsTrigger value="deliverables" className={tabTriggerClass}>
               <Upload className="h-3.5 w-3.5" />
@@ -389,6 +396,12 @@ export function ProjectDetailPage() {
         {isAdminOrManager && (
           <TabsContent value="meetings" className="mt-5">
             <ProjectMeetingsTab projectId={project.id} />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="commissions" className="mt-5">
+            <ProjectCommissionSplitTab projectId={project.id} />
           </TabsContent>
         )}
 

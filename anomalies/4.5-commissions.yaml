@@ -7,7 +7,53 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : 4.5 Rémunération des associés (Commissions)
-# 0 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
+# 1 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 
-anomalies: []
+anomalies:
+  - id: SEC-007
+    titre: >
+      Aucun chemin API réel ne permet de retirer l'assigneeId d'une Task
+      (mettre à null) — updateTask ne peut donc jamais faire franchir le
+      seuil "≥1 freelancer assigné" → "0" par retrait d'assignation, ce qui
+      laisse RG-005-bis (recalcul auto de split de commission) non testable
+      sur cette direction précise du seuil
+    perimetre: 4.5-commissions
+    regle_violee: >
+      RG-005-bis (voir REFERENTIEL.md §5, session du 2026-07-28) exige un
+      recalcul automatique du split de commission à chaque franchissement du
+      seuil 0<->≥1 Freelancer assigné sur une Task du projet, dans les DEUX
+      sens. Le sens "ajout" est réellement exercé (createTask/updateTask
+      avec un nouvel assigneeId) ; le sens "retrait" ne peut être déclenché
+      par aucun appelant réel, faute de chemin d'écriture pour assigneeId:
+      null.
+    classe: capacite-produit-manquante
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      Un utilisateur autorisé (ADMIN/MANAGER dans le pôle du projet) doit
+      pouvoir retirer l'assigné d'une tâche depuis l'écran des tâches
+      (TasksListView / TasksKanban), et ce retrait doit se répercuter dans
+      taskService.updateTask jusqu'à assigneeId: null en base. Chemin à
+      construire : shared/src/schemas/task.schema.ts#taskBaseSchema
+      (assigneeId doit accepter null, pas seulement string|undefined) →
+      server/src/validators/task.validator.ts → task.controller.ts →
+      task.service.ts#updateTask (déjà prêt à réagir : reassigned est
+      calculé sur data.assigneeId !== undefined, donc null passe déjà le
+      test one fois le typage corrigé) → UI (bouton "Retirer l'assigné").
+      Un test doit appeler réellement taskService.updateTask avec
+      assigneeId: null sur une tâche précédemment assignée à un
+      FREELANCER seul sur le projet, et vérifier que
+      commissionService.recalcAutoSplit est bien déclenché (retour à
+      ADMIN 80%/Managers 20% ou 100% ADMIN si 0 Manager).
+    detecte_le: "2026-07-28"
+    source: >
+      Écrit en implémentant RG-005-bis (session du 2026-07-28) :
+      shared/src/schemas/task.schema.ts:33 (assigneeId: z.string().optional(),
+      pas de .nullable()) ; grep exhaustif "assigneeId: null" sur
+      server/src : zéro résultat dans tout le dépôt. taskService.updateTask
+      (server/src/services/task.service.ts:207-208) calcule bien
+      `reassigned` sur `data.assigneeId !== undefined`, ce qui gérerait
+      correctement un `null` reçu — mais aucun appelant, du contrôleur au
+      schéma partagé, ne peut produire cette valeur aujourd'hui.
+    confiance: haute

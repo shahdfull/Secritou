@@ -1,5 +1,10 @@
 import { userRepository } from "../repositories/user.repository.js";
-import { userSessionRepository } from "../repositories/userSession.repository.js";
+import {
+  userSessionRepository,
+  getSessionIdleTimeoutMinutes,
+  SESSION_IDLE_TIMEOUT_MINUTES_KEY,
+} from "../repositories/userSession.repository.js";
+import { appSettingRepository } from "../repositories/appSetting.repository.js";
 import { AuthRepository } from "../repositories/auth.repository.js";
 import { HttpError } from "../utils/httpError.js";
 import { enqueueEmail } from "../jobs/queues.js";
@@ -14,6 +19,7 @@ import crypto from "crypto";
 import { auditLogService } from "./auditLog.service.js";
 import logger from "../utils/logger.js";
 import { authDenylist } from "../cache/authDenylist.js";
+import { serviceService } from "./service.service.js";
 
 const authRepository = new AuthRepository(prisma);
 
@@ -68,7 +74,8 @@ export const userService = {
   async getMe(userId: string) {
     const user = await userRepository.findById(userId);
     if (!user) throw new HttpError(404, "User not found");
-    return user;
+    const sessionIdleTimeoutMinutes = await getSessionIdleTimeoutMinutes();
+    return { ...user, sessionIdleTimeoutMinutes };
   },
 
   async updateMe(userId: string, data: Prisma.UserUncheckedUpdateInput) {
@@ -135,14 +142,39 @@ export const userService = {
     await userSessionRepository.recordHeartbeat(userId);
   },
 
-  async inviteUser(email: string, name: string, role: Role) {
+  // RG-020 : lu par /users/me (tout rôle) pour que le client sache combien de temps il a
+  // avant expiration ; écrit uniquement via updateSessionIdleTimeoutMinutes (ADMIN, route dédiée).
+  async getSessionIdleTimeoutMinutes(): Promise<number> {
+    return getSessionIdleTimeoutMinutes();
+  },
+
+  async updateSessionIdleTimeoutMinutes(minutes: number, actorUserId: string): Promise<number> {
+    await appSettingRepository.set(SESSION_IDLE_TIMEOUT_MINUTES_KEY, String(minutes), actorUserId);
+    return minutes;
+  },
+
+  async inviteUser(email: string, name: string, role: Role, serviceId?: string | null) {
     const existingUser = await userRepository.findByEmail(email);
     if (existingUser) throw new HttpError(409, "User with that email already exists");
+
+    if (role === "MANAGER" && !serviceId) {
+      throw new HttpError(400, "serviceId is required when role is MANAGER", "SERVICE_ID_REQUIRED");
+    }
+    if (serviceId && !(await serviceService.existsById(serviceId))) {
+      throw new HttpError(404, "Service not found", "SERVICE_NOT_FOUND");
+    }
 
     const tempPassword = generateRandomPassword();
     const hashedPassword = await bcrypt.hash(tempPassword, 12);
 
-    const user = await userRepository.create({ name, email, passwordHash: hashedPassword, role, mustChangePassword: true });
+    const user = await userRepository.create({
+      name,
+      email,
+      passwordHash: hashedPassword,
+      role,
+      mustChangePassword: true,
+      serviceId: role === "MANAGER" ? serviceId : undefined,
+    });
 
     const loginUrl = `${env.FRONTEND_URL}/login`;
     const { subject, html } = userInvitationTemplate(name, email, tempPassword, loginUrl);
@@ -151,14 +183,28 @@ export const userService = {
     return user;
   },
 
-  async updateUser(id: string, name?: string, role?: Role, actor?: Actor) {
+  async updateUser(id: string, name?: string, role?: Role, serviceId?: string | null, actor?: Actor) {
     const user = await userRepository.findById(id);
     if (!user) throw new HttpError(404, "User not found");
     if (user.role === "ADMIN" && role && role !== "ADMIN") {
       const adminCount = await userRepository.countByRole("ADMIN");
       if (adminCount <= 1) throw new HttpError(409, "Cannot remove the last remaining admin", "LAST_ADMIN");
     }
-    const updated = await userRepository.update(id, { name, role });
+
+    const finalRole = role ?? user.role;
+    const finalServiceId = serviceId !== undefined ? serviceId : user.serviceId;
+    if (finalRole === "MANAGER" && !finalServiceId) {
+      throw new HttpError(400, "serviceId is required when role is MANAGER", "SERVICE_ID_REQUIRED");
+    }
+    if (serviceId && !(await serviceService.existsById(serviceId))) {
+      throw new HttpError(404, "Service not found", "SERVICE_NOT_FOUND");
+    }
+
+    const updated = await userRepository.update(id, {
+      name,
+      role,
+      serviceId: finalRole === "MANAGER" ? finalServiceId : null,
+    });
     // A role change must not leave the old permissions valid on an already-issued access
     // token: force re-authentication so the new role takes effect immediately.
     if (role && role !== user.role) {

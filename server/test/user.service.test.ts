@@ -20,6 +20,7 @@ const { auditLogService } = await import("../src/services/auditLog.service.js");
 const { communicationQueue } = await import("../src/jobs/queues.js");
 const { userService } = await import("../src/services/user.service.js");
 const { authDenylist } = await import("../src/cache/authDenylist.js");
+const { serviceService } = await import("../src/services/service.service.js");
 
 function makeUser(overrides: Record<string, unknown> = {}) {
   return {
@@ -28,6 +29,7 @@ function makeUser(overrides: Record<string, unknown> = {}) {
     name: "Original Name",
     role: "MANAGER",
     clientId: null,
+    serviceId: "service-1",
     mustChangePassword: false,
     lastLoginAt: null,
     createdAt: new Date(),
@@ -71,7 +73,7 @@ describe("userService.updateUser session revocation (RG-019)", () => {
     auditMock.mock.resetCalls();
     findByIdMock.mock.mockImplementationOnce(async () => makeUser({ role: "MANAGER" }));
 
-    await userService.updateUser("user-1", undefined, "ADMIN", { id: "actor-1", role: "ADMIN" });
+    await userService.updateUser("user-1", undefined, "ADMIN", undefined, { id: "actor-1", role: "ADMIN" });
 
     assert.equal(revokeMock.mock.callCount(), 1, "should call revokeAllSessionsForUser");
     assert.equal(revokeMock.mock.calls[0]!.arguments[0], "user-1");
@@ -87,7 +89,7 @@ describe("userService.updateUser session revocation (RG-019)", () => {
     auditMock.mock.resetCalls();
     findByIdMock.mock.mockImplementationOnce(async () => makeUser({ role: "MANAGER" }));
 
-    await userService.updateUser("user-1", "New Name", undefined, { id: "actor-1", role: "ADMIN" });
+    await userService.updateUser("user-1", "New Name", undefined, undefined, { id: "actor-1", role: "ADMIN" });
 
     assert.equal(revokeMock.mock.callCount(), 0, "should not call revokeAllSessionsForUser");
     assert.equal(revokeAccessTokenMock.mock.callCount(), 0, "should not revoke the access token (SEC-174) on a non-role change");
@@ -100,7 +102,7 @@ describe("userService.updateUser session revocation (RG-019)", () => {
     revokeAccessTokenMock.mock.resetCalls();
     findByIdMock.mock.mockImplementationOnce(async () => makeUser({ role: "MANAGER" }));
 
-    await userService.updateUser("user-1", undefined, "MANAGER", { id: "actor-1", role: "ADMIN" });
+    await userService.updateUser("user-1", undefined, "MANAGER", undefined, { id: "actor-1", role: "ADMIN" });
 
     assert.equal(revokeMock.mock.callCount(), 0, "should not call revokeAllSessionsForUser");
     assert.equal(revokeAccessTokenMock.mock.callCount(), 0, "should not revoke the access token (SEC-174) when the role is unchanged");
@@ -130,6 +132,9 @@ describe("userService last-Admin protection (RG-021)", () => {
     // Its call is asserted below on the successful-delete tests (not just stubbed): revoking a
     // deleted user's still-valid access token has no value if deleteUser stops calling it.
     revokeAccessTokenMock = mock.method(authDenylist, "revokeAccessToken", async () => {});
+    // Several tests below pass a serviceId through updateUser (SEC-006 validation) — stub
+    // existence so this suite stays focused on RG-021, not SEC-006's own validation path.
+    mock.method(serviceService, "existsById", async () => true);
   });
 
   after(() => {
@@ -141,7 +146,7 @@ describe("userService last-Admin protection (RG-021)", () => {
     countByRoleMock.mock.mockImplementationOnce(async () => 1);
 
     await assert.rejects(
-      () => userService.updateUser("user-1", undefined, "MANAGER", { id: "actor-1", role: "ADMIN" }),
+      () => userService.updateUser("user-1", undefined, "MANAGER", "service-1", { id: "actor-1", role: "ADMIN" }),
       (err: HttpError) => {
         assert.equal(err.statusCode, 409);
         assert.equal(err.code, "LAST_ADMIN");
@@ -155,7 +160,7 @@ describe("userService last-Admin protection (RG-021)", () => {
     countByRoleMock.mock.mockImplementationOnce(async () => 2);
 
     await assert.doesNotReject(() =>
-      userService.updateUser("user-1", undefined, "MANAGER", { id: "actor-1", role: "ADMIN" })
+      userService.updateUser("user-1", undefined, "MANAGER", "service-1", { id: "actor-1", role: "ADMIN" })
     );
   });
 
@@ -246,5 +251,114 @@ describe("userService.updateMe phone write/read/clear (SEC-006)", () => {
 
     const [, dataArg] = updateMeMock.mock.calls[updateMeMock.mock.callCount() - 1]!.arguments as [string, Record<string, unknown>];
     assert.ok(!("phone" in dataArg), "phone must be absent from the update payload, not sent as undefined/null");
+  });
+});
+
+// SEC-006: a MANAGER's serviceId (pole) must be writable through the real product path —
+// userService.inviteUser/updateUser — not only via direct database access.
+describe("userService serviceId assignment for MANAGER (SEC-006)", () => {
+  let createMock: ReturnType<typeof mock.method>;
+  let updateMock: ReturnType<typeof mock.method>;
+  let existsByIdMock: ReturnType<typeof mock.method>;
+
+  before(() => {
+    mock.method(userRepository, "findByEmail", async () => null);
+    mock.method(userRepository, "countByRole", async () => 5);
+    createMock = mock.method(userRepository, "create", async (data: Record<string, unknown>) => ({
+      ...makeUser(),
+      ...data,
+    }));
+    updateMock = mock.method(userRepository, "update", async (id: string, data: Record<string, unknown>) => ({
+      ...makeUser(),
+      ...data,
+    }));
+    existsByIdMock = mock.method(serviceService, "existsById", async () => true);
+    mock.method(AuthRepository.prototype, "revokeAllSessionsForUser", async () => ({ count: 1 }));
+    mock.method(auditLogService, "record", async () => {});
+    mock.method(authDenylist, "revokeAccessToken", async () => {});
+  });
+
+  after(() => {
+    mock.restoreAll();
+  });
+
+  test("inviteUser: a MANAGER invited with a serviceId persists it via userRepository.create", async () => {
+    createMock.mock.resetCalls();
+    existsByIdMock.mock.resetCalls();
+
+    const user = await userService.inviteUser("m@example.com", "New Manager", "MANAGER", "service-1");
+
+    assert.equal(existsByIdMock.mock.callCount(), 1, "must verify the service exists");
+    assert.equal(createMock.mock.callCount(), 1);
+    const [createArg] = createMock.mock.calls[0]!.arguments as [Record<string, unknown>];
+    assert.equal(createArg.serviceId, "service-1", "serviceId must reach userRepository.create");
+    assert.equal(user.serviceId, "service-1", "the returned user must carry the persisted serviceId");
+  });
+
+  test("inviteUser: a MANAGER invited without a serviceId is rejected before create is called", async () => {
+    createMock.mock.resetCalls();
+
+    await assert.rejects(
+      () => userService.inviteUser("m2@example.com", "New Manager", "MANAGER", undefined),
+      (err: HttpError) => {
+        assert.equal(err.statusCode, 400);
+        assert.equal(err.code, "SERVICE_ID_REQUIRED");
+        return true;
+      }
+    );
+    assert.equal(createMock.mock.callCount(), 0, "must not create the user when serviceId is missing");
+  });
+
+  test("inviteUser: a non-MANAGER role does not require a serviceId", async () => {
+    createMock.mock.resetCalls();
+
+    await assert.doesNotReject(() => userService.inviteUser("admin2@example.com", "New Admin", "ADMIN", undefined));
+    assert.equal(createMock.mock.callCount(), 1);
+  });
+
+  test("updateUser: changing an existing MANAGER's serviceId persists the new value via userRepository.update", async () => {
+    mock.method(userRepository, "findById", async () => makeUser({ role: "MANAGER", serviceId: "service-old" }));
+    updateMock.mock.resetCalls();
+    existsByIdMock.mock.resetCalls();
+
+    const user = await userService.updateUser("user-1", undefined, undefined, "service-1", {
+      id: "actor-1",
+      role: "ADMIN",
+    });
+
+    assert.equal(existsByIdMock.mock.callCount(), 1, "must verify the new service exists");
+    assert.equal(updateMock.mock.callCount(), 1);
+    const [, updateArg] = updateMock.mock.calls[0]!.arguments as [string, Record<string, unknown>];
+    assert.equal(updateArg.serviceId, "service-1", "the new serviceId must reach userRepository.update");
+    assert.equal(user.serviceId, "service-1", "the returned user must carry the persisted serviceId");
+  });
+
+  test("updateUser: promoting a user to MANAGER without any serviceId (new or existing) is rejected", async () => {
+    mock.method(userRepository, "findById", async () => makeUser({ role: "CLIENT", serviceId: null }));
+    updateMock.mock.resetCalls();
+
+    await assert.rejects(
+      () => userService.updateUser("user-1", undefined, "MANAGER", undefined, { id: "actor-1", role: "ADMIN" }),
+      (err: HttpError) => {
+        assert.equal(err.statusCode, 400);
+        assert.equal(err.code, "SERVICE_ID_REQUIRED");
+        return true;
+      }
+    );
+    assert.equal(updateMock.mock.callCount(), 0);
+  });
+
+  test("updateUser: demoting a MANAGER to CLIENT clears serviceId", async () => {
+    mock.method(userRepository, "findById", async () => makeUser({ role: "MANAGER", serviceId: "service-1" }));
+    updateMock.mock.resetCalls();
+
+    const user = await userService.updateUser("user-1", undefined, "CLIENT", undefined, {
+      id: "actor-1",
+      role: "ADMIN",
+    });
+
+    const [, updateArg] = updateMock.mock.calls[0]!.arguments as [string, Record<string, unknown>];
+    assert.equal(updateArg.serviceId, null, "serviceId must be cleared once the role is no longer MANAGER");
+    assert.equal(user.serviceId, null);
   });
 });

@@ -10,6 +10,7 @@ const userPublicFields = {
   phone: true,
   role: true,
   clientId: true,
+  serviceId: true,
   mustChangePassword: true,
   lastLoginAt: true,
   createdAt: true,
@@ -105,6 +106,7 @@ export const userRepository = {
     passwordHash: string;
     role?: Role;
     clientId?: string;
+    serviceId?: string | null;
     mustChangePassword?: boolean;
   }): Promise<PublicUser> {
     return prisma.user.create({

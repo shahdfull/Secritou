@@ -9,6 +9,8 @@ export interface User {
   mustChangePassword?: boolean;
   createdAt: string;
   updatedAt: string;
+  // RG-020 : seuil courant d'inactivité de session en minutes, configurable par ADMIN.
+  sessionIdleTimeoutMinutes: number;
 }
 
 export interface AuthTokens {

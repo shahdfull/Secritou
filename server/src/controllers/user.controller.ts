@@ -60,8 +60,8 @@ export const getUsers: RequestHandler = async (req, res, next) => {
 
 export const inviteUser: RequestHandler = async (req, res, next) => {
   try {
-    const { name, email, role } = req.body;
-    const user = await userService.inviteUser(email, name, role);
+    const { name, email, role, serviceId } = req.body;
+    const user = await userService.inviteUser(email, name, role, serviceId);
     res.json({ data: user });
   } catch (error) {
     next(error);
@@ -71,8 +71,8 @@ export const inviteUser: RequestHandler = async (req, res, next) => {
 export const updateUser: RequestHandler = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, role } = req.body;
-    const user = await userService.updateUser(id as string, name, role, {
+    const { name, role, serviceId } = req.body;
+    const user = await userService.updateUser(id as string, name, role, serviceId, {
       id: req.user?.sub,
       role: req.user?.role,
       ip: req.ip,
@@ -108,6 +108,27 @@ export const heartbeat: RequestHandler = async (req, res, next) => {
   try {
     await userService.recordHeartbeat(req.user!.sub);
     res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /users/settings/session-idle-timeout : ADMIN only (RG-020).
+export const getSessionIdleTimeout: RequestHandler = async (_req, res, next) => {
+  try {
+    const minutes = await userService.getSessionIdleTimeoutMinutes();
+    res.json({ data: { minutes } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /users/settings/session-idle-timeout : ADMIN only (RG-020).
+export const updateSessionIdleTimeout: RequestHandler = async (req, res, next) => {
+  try {
+    const { minutes } = req.body as { minutes: number };
+    const updated = await userService.updateSessionIdleTimeoutMinutes(minutes, req.user!.sub);
+    res.json({ data: { minutes: updated } });
   } catch (error) {
     next(error);
   }

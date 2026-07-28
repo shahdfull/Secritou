@@ -33,6 +33,29 @@ export interface CommissionOwedSummary {
   paid: number;
 }
 
+export type CommissionSplitMode = "AUTO" | "MANUAL";
+
+export interface CommissionSplitState {
+  splits: CommissionSplit[];
+  commissionSplitMode: CommissionSplitMode;
+  commissionSplitDesynced: boolean;
+  // RG-006 (refonte paiement à la tâche) : enveloppe maximale versable sur le projet, fixée
+  // explicitement par le CEO (null tant qu'elle n'est pas fixée).
+  payoutBudget: number | null;
+  // Suggestion calculée à 65% du montant de la proposition acceptée — jamais persistée
+  // automatiquement, seulement affichée comme pré-remplissage que le CEO doit valider.
+  suggestedPayoutBudget: number | null;
+}
+
+export interface CommissionSplitHistoryEntry {
+  id: string;
+  projectId: string;
+  trigger: "AUTO_RECALC" | "MANUAL_EDIT" | "MODE_RESET_TO_AUTO";
+  previousSplits: { partnerId: string; ratePct: number }[];
+  newSplits: { partnerId: string; ratePct: number }[];
+  createdAt: string;
+}
+
 export interface PaginatedResponse<T> {
   data: T[];
   total: number;
@@ -41,13 +64,43 @@ export interface PaginatedResponse<T> {
 }
 
 export const commissionsApi = {
-  getSplits: async (projectId: string): Promise<CommissionSplit[]> => {
-    const response = await apiClient.get<{ data: CommissionSplit[] }>(`/commissions/projects/${projectId}/splits`);
+  getSplits: async (projectId: string): Promise<CommissionSplitState> => {
+    const response = await apiClient.get<{
+      data: CommissionSplit[];
+      commissionSplitMode: CommissionSplitMode;
+      commissionSplitDesynced: boolean;
+      payoutBudget: number | null;
+      suggestedPayoutBudget: number | null;
+    }>(`/commissions/projects/${projectId}/splits`);
+    return {
+      splits: response.data.data,
+      commissionSplitMode: response.data.commissionSplitMode,
+      commissionSplitDesynced: response.data.commissionSplitDesynced,
+      payoutBudget: response.data.payoutBudget,
+      suggestedPayoutBudget: response.data.suggestedPayoutBudget,
+    };
+  },
+
+  setPayoutBudget: async (projectId: string, payoutBudget: number | null): Promise<{ id: string; payoutBudget: number | null }> => {
+    const response = await apiClient.put<{ data: { id: string; payoutBudget: number | null } }>(
+      `/commissions/projects/${projectId}/payout-budget`,
+      { payoutBudget }
+    );
     return response.data.data;
   },
 
   setSplits: async (projectId: string, splits: { partnerId: string; ratePct: number }[]): Promise<CommissionSplit[]> => {
     const response = await apiClient.put<{ data: CommissionSplit[] }>(`/commissions/projects/${projectId}/splits`, { splits });
+    return response.data.data;
+  },
+
+  resetToAuto: async (projectId: string): Promise<CommissionSplit[]> => {
+    const response = await apiClient.post<{ data: CommissionSplit[] }>(`/commissions/projects/${projectId}/reset-to-auto`);
+    return response.data.data;
+  },
+
+  getSplitHistory: async (projectId: string): Promise<CommissionSplitHistoryEntry[]> => {
+    const response = await apiClient.get<{ data: CommissionSplitHistoryEntry[] }>(`/commissions/projects/${projectId}/history`);
     return response.data.data;
   },
 

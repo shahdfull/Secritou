@@ -17,4 +17,9 @@ export const serviceService = {
   async listAll() {
     return prismaRead.service.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } });
   },
+
+  async existsById(id: string): Promise<boolean> {
+    const service = await prismaRead.service.findUnique({ where: { id }, select: { id: true } });
+    return !!service;
+  },
 };

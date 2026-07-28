@@ -28,7 +28,7 @@ import apiClient from "@/api/axios";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ConfirmationDialog } from "@/components/shared/crud/ConfirmationDialog";
 import { AddPaymentDialog } from "./components/AddPaymentDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -425,54 +425,84 @@ export function InvoicesPage() {
         invoice={selectedInvoice}
       />
 
-      <AlertDialog open={!!sendTarget} onOpenChange={(open) => !open && setSendTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("invoices.sendConfirmTitle", "Envoyer cette facture ?")}</AlertDialogTitle>
-            <AlertDialogDescription>
+      <ConfirmationDialog
+        open={!!sendTarget}
+        onOpenChange={(open) => !open && setSendTarget(null)}
+        onConfirm={() => {
+          if (!sendTarget) return;
+          sendMutation.mutate(sendTarget.id, { onSuccess: () => setSendTarget(null) });
+        }}
+        isLoading={sendMutation.isPending}
+        icon={Send}
+        title={t("invoices.sendConfirmTitle", "Envoyer cette facture ?")}
+        description={
+          sendTarget && (
+            <>
               {t("invoices.sendConfirmDescription", "La facture sera envoyée au client et passera au statut envoyé.")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { if (!sendTarget) return; sendMutation.mutate(sendTarget.id); setSendTarget(null); }}>
-              {t("common.confirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              <br />
+              <strong>
+                {sendTarget.number} — {sendTarget.client?.name} — {formatCurrency(sendTarget.amount, sendTarget.currency)}
+              </strong>
+            </>
+          )
+        }
+        checkboxLabel={
+          sendTarget &&
+          t("invoices.sendConfirmCheckbox", "Je confirme l'envoi de la facture {{number}} à {{client}}.", {
+            number: sendTarget.number,
+            client: sendTarget.client?.name,
+          })
+        }
+        confirmLabel={t("common.confirm")}
+        cancelLabel={t("common.cancel")}
+      />
 
-      <AlertDialog open={!!cancelTarget} onOpenChange={(open) => !open && setCancelTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("invoices.cancelConfirmTitle", "Annuler cette facture ?")}</AlertDialogTitle>
-            <AlertDialogDescription>
+      <ConfirmationDialog
+        open={!!cancelTarget}
+        onOpenChange={(open) => !open && setCancelTarget(null)}
+        onConfirm={() => {
+          if (!cancelTarget) return;
+          cancelMutation.mutate(cancelTarget.id, { onSuccess: () => setCancelTarget(null) });
+        }}
+        isLoading={cancelMutation.isPending}
+        icon={Ban}
+        variant="destructive"
+        title={t("invoices.cancelConfirmTitle", "Annuler cette facture ?")}
+        description={
+          cancelTarget && (
+            <>
               {t("invoices.cancelConfirmDescription", "Cette action est irréversible, y compris pour une facture déjà envoyée.")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {cancelTarget && cancelTarget.amountPaid > 0 && (
-            <div className="flex gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs items-start">
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold">
-                  {t("invoices.cancelPaidWarningTitle", "Avertissement : paiements déjà enregistrés")}
-                </p>
-                <p className="mt-0.5">
-                  {t("invoices.cancelPaidWarningBody", "{{amount}} déjà payé sur cette facture ne sera pas remboursé ni converti en avoir automatiquement par cette annulation.", {
-                    amount: formatCurrency(cancelTarget.amountPaid, cancelTarget.currency),
-                  })}
-                </p>
-              </div>
-            </div>
-          )}
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { if (!cancelTarget) return; cancelMutation.mutate(cancelTarget.id); setCancelTarget(null); }}>
-              {t("common.confirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              <br />
+              <strong>
+                {cancelTarget.number} — {cancelTarget.client?.name} — {formatCurrency(cancelTarget.amount, cancelTarget.currency)}
+              </strong>
+              {cancelTarget.amountPaid > 0 && (
+                <div className="flex gap-2 p-3 mt-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs items-start">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold">
+                      {t("invoices.cancelPaidWarningTitle", "Avertissement : paiements déjà enregistrés")}
+                    </p>
+                    <p className="mt-0.5">
+                      {t("invoices.cancelPaidWarningBody", "{{amount}} déjà payé sur cette facture ne sera pas remboursé ni converti en avoir automatiquement par cette annulation.", {
+                        amount: formatCurrency(cancelTarget.amountPaid, cancelTarget.currency),
+                      })}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
+          )
+        }
+        checkboxLabel={
+          cancelTarget &&
+          t("invoices.cancelConfirmCheckbox", "Je confirme l'annulation irréversible de la facture {{number}}.", {
+            number: cancelTarget.number,
+          })
+        }
+        confirmLabel={t("common.confirm")}
+        cancelLabel={t("common.cancel")}
+      />
 
     </section>
   );

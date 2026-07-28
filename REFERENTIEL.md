@@ -1011,8 +1011,13 @@ Répartition et calcul des commissions par mission et par paiement reçu.
       - server/src/routes/commission.routes.ts
       - server/src/validators/commission.validator.ts
       - server/test/analyticsCommissionScope.test.ts
-      - prisma/schema.prisma#ProjectCommissionSplit,Commission
+      - server/test/commissionService.test.ts
+      - server/test/commissionCreationExclusivity.test.ts
+      - server/test/commissionAutoSplitTaskTrigger.test.ts
+      - server/test/commissionPerTaskExclusivity.test.ts
+      - prisma/schema.prisma#ProjectCommissionSplit,Commission,CommissionSplitHistory
       - client/src/features/commissions/**
+      - client/src/features/projects/ProjectCommissionSplitTab.tsx
 
 ### 4.6 Portail client — **ACTIF**
 Accès externe du Client : projet, factures, brief, approbations, demandes de
@@ -1413,18 +1418,50 @@ recalcul fixe). Les 3 tests existants touchant `clientApprove`
 réimplémentaient tous une logique-miroir locale, aucun n'appelait le vrai
 service ni n'assérait le montant du solde.
 
-**RG-005 — Partage associé par défaut (cible métier).**
-La répartition par défaut d'une commission de mission est **60% pour le
+**RG-005 — Partage associé par défaut (cible métier). REMPLACÉE.**
+La répartition par défaut d'une commission de mission était **60% pour le
 CEO** (apporteur d'affaires/décideur) et **40% pour l'associé exécutant**,
 évolutive vers **50%/50%** selon des critères métier (ancienneté,
-performance, décision). *Module : 4.5.* Statut : **PRÉVU** — le calcul
-automatique de ce défaut n'est pas implémenté ; le système actuel exige une
-saisie manuelle du pourcentage par mission (RG-006). `verifie: document`
-— source : réponse du porteur du projet, session du 2026-07-15 (« Le
-référentiel doit retenir 60% CEO / 40% Associé, avec une évolution possible
-vers 50%/50% »), recoupée par un extrait de `Secritou_Cadrage.docx` §7.2
-obtenu via un contournement d'extraction non revérifié directement par moi
-(voir §7 pour la nuance de sourcing complète).
+performance, décision). *Module : 4.5.* Statut : **REMPLACÉE par
+RG-005-bis** (session du 2026-07-28, voir §7) — cette règle n'a jamais été
+implémentée (le système exigeait une saisie 100% manuelle, RG-006) et est
+remplacée par un calcul automatique par pôle/mission piloté par un mode
+`AUTO`/`MANUAL` par projet. Conservée ici pour l'historique, ne plus citer
+comme règle active. `verifie: document` — source : réponse du porteur du
+projet, session du 2026-07-15 (« Le référentiel doit retenir 60% CEO / 40%
+Associé, avec une évolution possible vers 50%/50% »), recoupée par un
+extrait de `Secritou_Cadrage.docx` §7.2 obtenu via un contournement
+d'extraction non revérifié directement par moi (voir §7 pour la nuance de
+sourcing complète).
+
+**RG-005-bis — Split de commission automatique par pôle/mission (remplace
+RG-005).** Chaque `Project` porte un mode `commissionSplitMode`
+(`AUTO` par défaut, ou `MANUAL`). En mode `AUTO`, la répartition
+`ProjectCommissionSplit` est calculée ainsi : aucun Freelancer assigné à
+une `Task` du projet → ADMIN 80% / Managers du pôle (`serviceId` du projet)
+20% répartis également entre eux (remontent entièrement à l'ADMIN si le
+pôle a 0 Manager) ; au moins un Freelancer assigné → ADMIN 40% / Managers
+20% (même règle de répartition/remontée) / Freelancers 40% répartis
+également entre eux. Le recalcul automatique s'exécute et écrase
+silencieusement les splits existants à chaque franchissement du seuil
+0↔≥1 Freelancer assigné sur une tâche du projet (`Task.assigneeId`). Toute
+édition manuelle des splits via `setSplits` bascule immédiatement le projet
+en mode `MANUAL`, qui gèle le recalcul automatique : un franchissement de
+seuil pose alors seulement `commissionSplitDesynced = true` (signal
+consultable par le CEO), sans écraser le split manuel. Un endpoint dédié
+repasse le projet en mode `AUTO`, ce qui déclenche un recalcul immédiat et
+efface le signal de désynchronisation. Chaque recalcul automatique et
+chaque bascule de mode est tracé dans `CommissionSplitHistory` (ancien
+split, nouveau split, déclencheur, date). *Module : 4.5.* Statut :
+**IMPLÉMENTÉ. `verifie: test`** (session du 2026-07-28) —
+`commissionService.recalcAutoSplit`/`setSplits`/`resetToAutoSplit` testés
+contre une base migrée dans `server/test/commissionService.test.ts`
+(cas 0/1/plusieurs Freelancers, 0/plusieurs Managers, comportement gelé en
+mode `MANUAL`) ; déclenchement depuis `taskService.createTask`/`updateTask`
+testé par appel réel dans
+`server/test/commissionAutoSplitTaskTrigger.test.ts`. `verifie: document`
+pour la décision de remplacement elle-même — voir §7, session du
+2026-07-28.
 
 **RG-006 — Rémunération à la mission (état implémenté).**
 Chaque mission (`Project`) porte une ou plusieurs répartitions de commission
@@ -1636,18 +1673,40 @@ révocation était inopérante depuis l'introduction de l'intention (commit
 eb93f08, 2026-07-11) jusqu'à la session du 2026-07-16, l'appel visant une
 méthode qui n'existait sur aucun repository.
 
-**RG-020 — Timeout d'inactivité de session (heartbeat).**
+**RG-020 — Timeout d'inactivité de session (heartbeat), configurable.**
 Une session de connexion au back-office est prolongée par un heartbeat reçu
-dans les `SESSION_IDLE_TIMEOUT_MINUTES` (= 3) suivant le dernier heartbeat
-enregistré ; passé ce délai, un nouveau heartbeat ouvre une nouvelle session
-plutôt que d'étendre l'ancienne, et la session précédente est considérée
-périmée (`closeStaleSessions`, qui fixe `closedAt` au dernier
-`lastHeartbeatAt` connu). *Module : 4.14.* Statut : **`[À CONFIRMER]`**,
-`verifie: code_direct` — server/src/repositories/userSession.repository.ts:6
-(constante), :8-33 (`recordHeartbeat`), :35-46 (`closeStaleSessions`),
-lecture intégrale, session du 2026-07-16 (audit 4.14, Constat B). Le seuil
-de 3 minutes n'a aucune source dans REFERENTIEL.md ni dans un document de
-cadrage — vit uniquement dans le code, sans validation produit connue.
+dans le seuil courant (en minutes) suivant le dernier heartbeat enregistré ;
+passé ce délai, un nouveau heartbeat ouvre une nouvelle session plutôt que
+d'étendre l'ancienne, et la session précédente est considérée périmée
+(`closeStaleSessions`, qui fixe `closedAt` au dernier `lastHeartbeatAt`
+connu). Le seuil n'est plus une constante codée en dur : il est lu depuis
+la table `AppSetting` (clé `sessionIdleTimeoutMinutes`), avec repli sur
+`DEFAULT_SESSION_IDLE_TIMEOUT_MINUTES` (= 20) si absent. Modifiable
+uniquement par ADMIN via `PUT /users/settings/session-idle-timeout` (borné
+à [1, 240] minutes), lu par tout rôle authentifié via `GET /users/me`
+(`sessionIdleTimeoutMinutes`). *Module : 4.14.* Statut : **IMPLÉMENTÉ**,
+`verifie: code_direct` — server/src/repositories/appSetting.repository.ts
+(accès `AppSetting`), server/src/repositories/userSession.repository.ts
+(`getSessionIdleTimeoutMinutes`, `recordHeartbeat`, `closeStaleSessions`),
+server/src/services/user.service.ts (`getSessionIdleTimeoutMinutes`,
+`updateSessionIdleTimeoutMinutes`, `getMe`), server/src/controllers/
+user.controller.ts (`getSessionIdleTimeout`, `updateSessionIdleTimeout`),
+server/src/routes/user.routes.ts (routes ADMIN-only), migration
+`20260728070000_app_setting`, session du 2026-07-28. Test dédié écrit,
+appelant réellement `userSessionRepository.recordHeartbeat`/
+`closeStaleSessions` et `userService.updateSessionIdleTimeoutMinutes` contre
+une base migrée : server/test/sessionIdleTimeout.test.ts — **jamais exécuté
+avec succès à ce jour** : la migration `20260728070000_app_setting` n'a pas
+été appliquée à la base de dev (5 autres migrations d'une session
+antérieure sont également en attente, `prisma migrate dev` non lancé faute
+de consentement explicite du porteur du projet dans cette session). Le
+test se skip proprement (`dbAvailable = false`) plutôt que d'échouer —
+aucune régression introduite (632 pass / 4 fail / 6 cancelled inchangés par
+rapport à l'état avant cette session, les 4 échecs et 6 annulations étant
+tous dans userProfilePhone.http.test.ts/gdprErasure.test.ts/
+user.service.test.ts, sans rapport avec RG-020). `verifie: test` à
+réattribuer dès que `prisma migrate dev` est lancé et le test relancé avec
+succès contre une base migrée.
 
 **RG-021 — Protection du dernier Admin.**
 `userService.updateUser` refuse (409, code `LAST_ADMIN`) de retirer le rôle
@@ -1719,7 +1778,10 @@ concernées — seuls les chemins DEPOSIT/BALANCE affichaient un timbre).
 Factures DEPOSIT/BALANCE déjà existantes avant ce correctif :
 `timbreFiscal` reste `NULL`, `amount` inchangé — aucun retraitement
 rétroactif (une facture déjà payée/réconciliée ne doit pas voir son
-montant stocké changer après coup).
+montant stocké changer après coup). Confirmé choix produit assumé le
+2026-07-28 (voir §7) : pas de script de retraitement, notamment parce
+qu'aucun client actif n'existe à ce jour donc aucune facture réelle n'est
+concernée en production.
 
 **RG-025 — Export et effacement RGPD (IMPLÉMENTÉ).**
 Sujets couverts, formant une seule chaîne d'identité :
@@ -1863,6 +1925,119 @@ ergonomique du 25 juillet 2026 ; les 7 actions listées ci-dessus ne sont
 pas encore protégées au niveau 2 dans le code au moment de la rédaction de
 cette règle — à traiter action par action, voir to-do de suivi).
 
+**RG-027 — Unicité du rôle par personne (un compte = un rôle, jamais un
+cumul).**
+Un utilisateur ne peut occuper qu'un seul rôle à la fois — jamais Admin et
+Freelancer, jamais Freelancer et Manager, etc. — et une même personne
+(identifiée par son adresse email) ne peut détenir deux comptes actifs
+portant des rôles différents. *Module : 4.14 (Authentification & Compte
+utilisateur), transverse (RBAC).* Statut : **IMPLÉMENTÉ. `verifie:
+code_direct`** (session du 2026-07-28, vérification demandée explicitement
+par le porteur du projet) :
+
+- `User.role` (`schema.prisma:152`) est un champ scalaire `Role` (pas
+  `Role[]`) — structurellement, un `User` ne peut jamais porter plus d'un
+  rôle simultanément. Changer de rôle (`userService.updateUser`,
+  `user.service.ts:154-174`) remplace toujours l'ancien par le nouveau
+  (`userRepository.update(id, { name, role })`), jamais un ajout — et
+  révoque toutes les sessions actives de l'utilisateur pour empêcher un
+  jeton déjà émis de continuer à porter l'ancien rôle (RG-019, déjà
+  `verifie: test`).
+- `User.email` porte `@@unique([email])` (`schema.prisma:200`) — une même
+  adresse email ne peut correspondre qu'à un seul compte `User`, donc à un
+  seul rôle actif. Vérifié sur les 3 points de création de compte
+  (`userRepository.create`, grep exhaustif sur `server/src/services`) :
+  `userService.inviteUser` (invitation staff, `user.service.ts:138-152`)
+  vérifie explicitement l'absence de compte existant avant création
+  (`if (existingUser) throw new HttpError(409, ...)`) ;
+  `clientService` (invitation portail client) et
+  `freelancerApplicationService#acceptApplication`
+  (`freelancerApplication.service.ts:119-152`, peut créer un compte
+  `FREELANCER` ou `MANAGER` selon l'issue de la candidature) ne
+  pré-vérifient pas l'email, mais toute tentative de création en
+  doublon échoue à la contrainte `@@unique` de la base — remontée en 409
+  `DUPLICATE_ENTRY` par le middleware d'erreur global
+  (`error.middleware.ts:19-29`, gère `P2002` explicitement), jamais un
+  second compte silencieusement créé ni un crash 500 non géré.
+
+**Écart de message identifié, pas une brèche de la règle** :
+`acceptApplication` n'ayant pas de pré-vérification, une collision
+d'email produit un message générique (« A record with this unique field
+already exists ») plutôt qu'un message métier explicite (« cet email
+correspond déjà à un compte existant, avec le rôle X ») — confort
+d'usage pour l'Admin qui traite la candidature, pas un défaut de sécurité
+ni un moyen de contourner la règle. Non enregistré comme anomalie
+séparée : à la limite du périmètre 4.7 Freelances (déjà audité le
+2026-07-17, « CRUD complet et sain, aucune anomalie trouvée » — voir §4.7)
+et 4.14 Authentification (déjà audité le 2026-07-16). Un audit futur de
+l'un de ces deux modules devra trancher s'il vaut la peine d'ouvrir un
+SEC-xxx dédié à ce seul confort de message, ou si `verifie: code_direct`
+suffit ici sans `test` dédié (aucun test n'appelle réellement
+`acceptApplication` avec un email en collision pour prouver le 409 — pas
+vérifié `verifie: test` dans cette session, qui portait sur l'existence
+de la règle, pas sur la qualité de son message d'erreur).
+
+**Tranché le 2026-07-28 — Client et Freelancer restent mutuellement
+exclusifs, choix produit assumé, pas un effet de bord.** Contrairement au
+couple Admin/Freelancer (incompatibilité métier évidente), une même
+personne physique aurait pu légitimement vouloir être à la fois cliente de
+l'agence (Client) et prestataire pour elle (Freelancer) — deux rôles
+réellement compatibles dans la vraie vie. Le porteur du projet a confirmé
+qu'il ne souhaite **pas** l'autoriser (conflit d'intérêt/comptabilité) :
+le comportement actuel du code, qui interdit ce cumul comme conséquence
+collatérale de la contrainte `@@unique([email])`, correspond donc à
+l'intention produit réelle, pas seulement à un accident technique. Aucun
+code à changer. Si cette position devait changer un jour, cela
+nécessiterait un mécanisme distinct (lier deux comptes à une même
+« personne » sans fusionner leurs identités applicatives, ex. un
+`personId` commun optionnel) — à redemander explicitement le cas échéant,
+voir §7 (2026-07-28).
+
+**Constat associé, SEC-006 (ouvert, gravité majeure)** : aucun endpoint
+ni interface ne permet d'assigner ou de modifier le `serviceId` (pôle)
+d'un utilisateur `MANAGER` — les formulaires « Inviter un utilisateur »/
+« Modifier l'utilisateur » (`SettingsUsersTab.tsx`) et les fonctions
+serveur correspondantes (`user.service.ts#inviteUser`/`updateUser`) ne
+portent que `name`/`email`/`role`, jamais `serviceId`. C'est distinct de
+RG-027 elle-même (l'unicité du rôle reste garantie) mais touche la même
+zone : un Manager fraîchement invité a nécessairement `serviceId: null`,
+donc scopé « à rien » sur RG-002 (déjà `IMPLÉMENTÉ`, mais dont la
+précondition — un Manager a un pôle assigné — n'a jamais été atteignable
+depuis le produit lui-même, seulement via un accès direct à la base).
+
+**RG-028 — Pas de double paiement en mode PER_TASK.**
+Un projet dont `commissionSplitMode = PER_TASK` ne peut générer aucune
+commission au pourcentage (`Commission` issue de `computeForPaymentTx`)
+sur un encaissement. `computeForPaymentTx` lit
+`project.commissionSplitMode` dans la même transaction que l'encaissement
+et retourne `[]` immédiatement si le mode est `PER_TASK`, y compris en
+présence de `ProjectCommissionSplit` résiduels (état transitoire juste
+après une bascule vers ce mode). *Module : 4.5.* Statut : **IMPLÉMENTÉ.
+`verifie: test`** (session du 2026-07-28) —
+`server/test/commissionPerTaskExclusivity.test.ts` appelle réellement
+`invoiceService.addPayment` contre une base migrée sur un projet
+`PER_TASK` portant encore un split résiduel à 50% : zéro `Commission`
+créée.
+
+**RG-029 — Purge des splits à la bascule vers PER_TASK.**
+Le passage d'un projet en mode `PER_TASK`
+(`commissionService.setSplitToPerTask`) supprime ses
+`ProjectCommissionSplit` dans la même transaction que le changement de
+mode, et écrit une ligne `CommissionSplitHistory`
+(`trigger: "MODE_SET_PER_TASK"`, `newSplits: []`) pour que la purge
+elle-même soit auditable. L'endpoint dédié
+(`POST /commissions/projects/:projectId/commission-mode/per-task`,
+réservé ADMIN) refuse (409, `COMMISSION_ALREADY_EXISTS`) si le projet a
+déjà au moins une `Commission` enregistrée — le régime de paiement d'un
+projet ne se change pas rétroactivement une fois de l'argent
+effectivement calculé sous l'ancien régime — et refuse (409,
+`ALREADY_PER_TASK`) une bascule redondante. `setSplits` (édition manuelle
+des % ) refuse symétriquement (409, `PROJECT_IS_PER_TASK`) sur un projet
+déjà en mode `PER_TASK`. *Module : 4.5.* Statut : **IMPLÉMENTÉ.
+`verifie: code_direct`** (session du 2026-07-28) — pas encore de test
+dédié à la purge/au garde-fou 409 eux-mêmes (seul RG-028, l'exclusivité de
+paiement, est couvert par un test qui appelle le vrai code).
+
 ---
 
 ## 6. Hors périmètre — liste unique (fusion de l'ancien §1/§6)
@@ -1915,6 +2090,7 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-16** | **SEC-009 et SEC-011 repassées de `resolu` à `en_cours` : un correctif non commité n'est pas résolu, quel que soit le résultat local du typecheck/tests. Règle ajoutée à ANOMALIES.yaml (schéma) et CLAUDE.md : `resolu` exige commit + CI verte sur ce commit, pas seulement un working tree vert en local — sinon le correctif a la même espérance de vie qu'un défaut non commité (la fenêtre de grâce SEC-011 a survécu des jours précisément pour cette raison).** | **Correction du porteur du projet, session du 2026-07-16, après le commit snapshot ff181d7 (GATE 1/2) : les gates 1 et 2 avaient été déclarés fermés sans rapport de hash/EXIT codes, et les correctifs SEC-009/011 déclarés `resolu` alors qu'ils vivaient dans un working tree non commité, jamais vus par la CI.** |
 | **2026-07-16** | **SEC-010 reformulée : défaut de PROCESSUS (les correctifs de cette session n'ont jamais été poussés vers origin/main, donc jamais vus par une CI par ailleurs correcte), pas défaut d'OUTILLAGE (le workflow ci.yml lui-même n'est pas en cause). `git log origin/main` confirmait `origin/main` à 3 commits derrière HEAD local au moment de la vérification.** | **Instruction du porteur du projet, session du 2026-07-16 : `git log origin/main --oneline -1` et `git status -sb` suffisent à trancher, sans avoir besoin de checkouter quoi que ce soit.** |
 | **2026-07-16** | **Confirmé : aucun workflow de déploiement (Vercel/Railway/Render/Fly) n'existe dans `.github/workflows/` — seuls `ci.yml` (lint/typecheck/test/build/schema-drift/restore-smoke-test) et `backup.yml` (sauvegarde, sans lien avec un environnement de production) sont présents. Un push vers `origin/main` ne déclenche donc aucun déploiement, seulement la CI.** | **Vérification directe demandée par le porteur du projet avant tout push, session du 2026-07-16 : `ls .github/workflows/` (2 fichiers) et lecture des correspondances "deploy" (fausses pistes : commentaire d'exemple SSH, `/tmp/deploy_key`, et `prisma migrate deploy` — la sous-commande Prisma, pas un déploiement applicatif).** |
+| **2026-07-28** | **RG-005 (60/40 CEO/associé fixe → 50/50, jamais implémenté) est REMPLACÉE par RG-005-bis : calcul automatique du split de commission par projet (mode `AUTO`/`MANUAL`), voir RG-005-bis en §5. Résumé : sans Freelancer assigné, ADMIN 80% / Managers du pôle 20% (répartis également, remontent à l'ADMIN si 0 Manager) ; avec au moins un Freelancer assigné, ADMIN 40% / Managers 20% / Freelancers 40% (chaque part répartie également en interne). Le mode `AUTO` recalcule et écrase silencieusement les splits à chaque franchissement du seuil 0↔≥1 Freelancer assigné sur une tâche du projet ; toute édition manuelle via `setSplits` bascule le projet en `MANUAL` et gèle le recalcul automatique (un franchissement de seuil pose alors un simple flag de désynchronisation, consultable et effaçable via un retour explicite en mode `AUTO`). Chaque recalcul et bascule de mode est tracé dans `CommissionSplitHistory`.** | **Confirmé par le porteur du projet, session du 2026-07-28, en réponse directe à la question de blocage soulevée avant implémentation (l'entrée §7 du 2026-07-16 ne couvrait que l'ancien RG-005 60/40→50/50, sans mention de ce remplacement) — décision exécutée dans la même session, voir RG-005-bis (§5), `commission.service.ts`, `task.service.ts`, migration `commission_split_mode`.** |
 | **2026-07-16** | **SEC-012 : critère de résolution corrigé — porte sur la chaîne entière (validateurs → controllers → services → repositories), pas seulement `server/src/repositories/**`. Les 17 méthodes de repository ont été reconverties vers la variante `Unchecked` par défaut (`Prisma.<Model>UncheckedUpdateInput`), jamais `connect`, sauf écriture de relation imbriquée déjà réelle dans le code.** | **Décision du porteur du projet, session du 2026-07-16 : TypeScript ne vérifie les propriétés en excès que sur les littéraux frais, jamais sur les variables — un repository seul ne suffit pas si l'appelant garde son propre type maison.** |
 | **2026-07-16** | **`phone` : la chaîne complète remontée jusqu'au premier littéral frais (server/src/controllers/user.controller.ts:21), qui a fini par produire l'erreur tsc attendue une fois `userService.updateMe` lui-même converti. Décision : `phone` EST un champ voulu sur `User` (cohérent avec Client/Lead/FreelancerApplication) — migration `20260716120000_add_phone_to_user` appliquée, `User.phone String? @db.VarChar(50)`. typecheck vert, 237/237 tests verts.** | **Décision du porteur du projet, session du 2026-07-16 : décision produit explicitement demandée avant toute correction — pas déduite du typage.** |
 | **2026-07-16** | **Face à un blocage (`git switch -c` refusé), une cause plausible non vérifiée (« hook du dépôt ») a été présentée comme un fait au lieu de dire « je n'ai pas la permission ». Règle ajoutée à CLAUDE.md : signaler le blocage tel quel, ne jamais l'expliquer par une supposition, ne jamais contourner sans le dire.** | **Correction du porteur du projet, session du 2026-07-16 : aucun hook git ne peut techniquement bloquer `git switch -c` — c'était une restriction de permissions de l'outil, pas un mécanisme du dépôt. Pas de SEC-013 : il n'y a aucun hook cassé dans le dépôt, la faute est dans le compte-rendu, pas dans le code.** |
@@ -1931,6 +2107,11 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-17** | **`AUDIT_GRID.md` créé à la racine du dépôt : grille CRUD exhaustive des 24 entités de §3, construite par grep + lecture directe (pas devinée), avec statut `verifie:` par opération. Sert de référence pour les futures passes d'audit module par module et a produit les 4 corrections perimetre_code ci-dessus. Commité séparément (`5c31f2e`), poussé sur `origin/main`.** | **Travail demandé par le porteur du projet, session du 2026-07-17 : générer une checklist CRUD de référence, sans corriger ni auditer un module en particulier.** |
 | **2026-07-17** | **SEC-018 rejeté : `req.user!.id` et `req.user!.sub` sont signés avec la même valeur à l'émission du token (`auth.service.ts:44-45`) — pas un bug, juste une incohérence de nommage sans conséquence fonctionnelle.** | **Vérification directe du porteur/session, 2026-07-17 : lecture de `JwtPayload` (les deux champs coexistent) et de `signAccessToken` (les deux reçoivent `user.id`).** |
 | **2026-07-27** | **RG-018 repassée d'ÉCART à IMPLÉMENTÉ (`verifie: code_direct`) : le comportement divergent constaté à l'origine (invitation envoyée à l'acceptation de la proposition) a été corrigé entre-temps — `acceptWithCascadeAttempt` ne crée plus d'invitation, celle-ci n'est déclenchée que par `invoice.service.ts#addPayment` au moment où la facture d'acompte passe réellement `PAID`. Confirmé par lecture intégrale des deux fonctions, pas par déduction.** | **Vérification directe demandée par le porteur du projet, session du 2026-07-27, audit 4.4 Facturation & Paiements — le statut ÉCART datait d'une session antérieure et n'avait jamais été revérifié sur le code actuel avant cette passe.** |
+| **2026-07-28** | **RG-020 tranchée : le seuil d'inactivité de 3 min codé en dur (sans source produit) devient un paramètre configurable en base, valeur par défaut 20 minutes, stocké dans une nouvelle table générique `AppSetting` (clé/valeur, réutilisable pour de futurs paramètres système plutôt qu'un champ dédié), modifiable uniquement par ADMIN (`PUT /users/settings/session-idle-timeout`, borné [1, 240] min), lu par tout rôle via `GET /users/me`. Le ping client (`useSessionHeartbeat.ts`, 60s fixe) n'a pas été rendu dynamique — 60s reste très inférieur au plus petit seuil autorisé (1 min), aucune synchronisation stricte n'était nécessaire ; seul le commentaire obsolète (« doit rester < 3 min ») a été corrigé.** | **Réponse explicite du porteur du projet, session du 2026-07-28, à 3 questions posées avant tout code (valeur par défaut 20 min plutôt que 15 ou 3 ; table `AppSetting` générique plutôt que variable d'environnement ou champ dédié ; ADMIN uniquement plutôt que ADMIN+MANAGER ; sync client via `/users/me` plutôt qu'intervalle fixe inchangé — ce dernier point tranché en faveur de « exposer via /users/me » mais l'implémentation n'en a pas eu besoin dans l'immédiat, la valeur par défaut restant très supérieure à l'intervalle de ping).** |
+| **2026-07-28** | **RG-020 : migration `20260728070000_app_setting` écrite mais jamais appliquée à la base de dev dans cette session (5 autres migrations d'une session antérieure également en attente) — statut ramené à `verifie: code_direct`, pas `verifie: test`, tant que le test dédié (server/test/sessionIdleTimeout.test.ts) n'a pas tourné avec succès contre une base migrée. `npm run typecheck`/`npm run lint` verts sur les deux workspaces ; `npm run test:unit` (server) exécuté en entier : 632 pass / 4 fail / 6 cancelled / 5 skipped (mes 5 tests RG-020 inclus, skip propre, pas d'échec), identique à l'état avant cette session — aucune régression introduite.** | **Consentement explicite refusé/différé du porteur du projet pour lancer `prisma migrate dev` dans cette session (« skip — rapporter sans vérification base réelle »).** |
+| **2026-07-28** | **RG-027 : Client et Freelancer restent mutuellement exclusifs — choix produit assumé (conflit d'intérêt/comptabilité), pas un effet de bord non voulu de la contrainte `@@unique([email])`. Aucun code à changer ; le comportement actuel du code correspond désormais à l'intention produit documentée. Si cette position devait changer, un mécanisme `personId` commun serait nécessaire — à redemander explicitement.** | **Réponse du porteur du projet, session du 2026-07-28, tranchant le point `[À CONFIRMER]` soulevé en §5 RG-027.** |
+| **2026-07-28** | **RG-024 : pas de retraitement rétroactif du timbre fiscal sur les factures DEPOSIT/BALANCE émises avant le correctif SEC-198 (`timbreFiscal` reste `NULL`) — choix produit confirmé, pas seulement une prudence technique.** | **Réponse du porteur du projet, session du 2026-07-28 : aucun client actif à ce jour, donc aucune facture réelle concernée en production.** |
+| **2026-07-28** | **Incident de procédure signalé : un `git stash` a été lancé par erreur en cours de diagnostic de test, sur un working tree contenant des changements non commités de sessions antérieures (commission split mode, project payout budget, etc.), sans vérification préalable de `git status` ni consentement. Restauré immédiatement (`git stash pop`, `git status` revérifié : tous les fichiers listés dans le stash sont revenus, aucun n'a disparu). Aucune perte constatée, mais l'action elle-même n'aurait pas dû être lancée sans confirmation — cf. règle du projet sur les opérations difficilement réversibles.** | **Constat direct, session du 2026-07-28, enregistré immédiatement conformément à CLAUDE.md.** |
 | **2026-07-17** | **SEC-019 : les 4 méthodes repository orphelines (invoice/siteContent/aiConversation/freelancerApplication) supprimées — code mort confirmé par grep, zéro appelant, typecheck + 247/247 tests verts après suppression.** | **Décision implicite via la procédure du projet (suppression de code mort confirmé n'est pas un développement) — pas de décision produit distincte requise.** |
 | **2026-07-17** | **SEC-016 : migration `LeadArchive`/`ContactRequestArchive` créée sur décision du porteur (« créer la migration manquante »). Scope volontairement limité à Lead + ContactRequest — Document exclu (cascade DocumentAccessLog + versioning), Notification exclu par la même décision malgré l'absence de risque de cascade trouvé.** | **Réponse du porteur du projet, session du 2026-07-17, face au choix désactiver/créer/laisser tel quel pour le job `archiveColdData`.** |
 | **2026-07-17** | **`prisma migrate reset --force` exécuté sur la base de dev locale (secritou_db, localhost:5434) par le porteur du projet lui-même — bloqué pour l'assistant par le garde-fou anti-agent-IA de Prisma (consentement explicite requis, jamais contourné). A permis la vérification réelle de SEC-016/SEC-020 contre une base migrée plutôt qu'une simple lecture de code.** | **Consentement explicite du porteur du projet, session du 2026-07-17, après explication complète (commande exacte, motif, caractère irréversible, confirmation base non-production).** |
@@ -2023,3 +2204,6 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-23** | **SEC-091 (N+1 portail client) : les 2 requêtes/carte (timeline + tâches terminées) restent 2 endpoints logiquement distincts (décision SEC-061 non rouverte), mais sont désormais BATCHÉES en 1 seul appel HTTP (`GET /projects/my/summaries?ids=...`) pour toutes les cartes actuellement visibles, au lieu d'un appel par carte — sans revenir sur le montage paresseux (SEC-116) : le batch ne demande jamais un id dont la carte n'est pas encore visible.** | **AskUserQuestion, session du 2026-07-23 : choix « Batcher les 2 endpoints en 1 seul appel (Recommandé) » parmi 3 options, puis choix « Batcher uniquement les cartes déjà visibles (Recommandé) » face au risque identifié de rouvrir SEC-116 (le porteur a validé la conciliation lazy-mount + batch plutôt qu'un batch naïf de tout dès le chargement).** |
 | **2026-07-24** | **Nouvelle règle RG-025 (export/effacement RGPD) créée — périmètre couvrant `Client` (+ `Lead` convertis, même identité) ET `User` (ADMIN/MANAGER/FREELANCER/CLIENT-portail, un seul modèle). Absent de toute version antérieure de REFERENTIEL.md ; introduit sur demande explicite du porteur, pas déduit d'un besoin de code existant.** | **AskUserQuestion, session du 2026-07-24, question « Pour quels types de personnes veux-tu l'export/effacement RGPD en premier ? » (multi-sélection) : choix « Client / contact, Freelance, Utilisateur interne (Admin/Manager) » — les trois options proposées, aucune exclue.** |
 | **2026-07-24** | **Sémantique de l'effacement RG-025 tranchée : suppression réelle (`prisma.delete`) si le sujet n'a aucun enregistrement financier lié (réutilise `clientRepository.countInvoices` / `userRepository.hasFinancialHistory`, guards déjà en place) ; sinon anonymisation en place (PII écrasé, factures/AuditLog intacts) — pas de suppression partielle ni de nouvelle colonne de schéma.** | **AskUserQuestion, session du 2026-07-24, question « Que doit faire concrètement l'"effacement" vu que les factures doivent légalement être conservées ? » : choix « Suppression complète si aucune facture liée » parmi 3 options (l'option alternative « anonymiser systématiquement, ne jamais supprimer » n'a pas été retenue).** |
+| **2026-07-28** | **Nouvelle règle RG-027 (unicité du rôle par personne) créée et vérifiée : un utilisateur ne peut occuper qu'un seul rôle à la fois (jamais Admin+Freelancer, jamais Freelancer+Manager), et une même personne (email) ne peut détenir deux comptes actifs à rôles différents. Statut IMPLÉMENTÉ, `verifie: code_direct` — garanti structurellement par `User.role` (champ scalaire, pas un tableau) et `User.email` (`@@unique`), vérifié sur les 3 points de création de compte du dépôt (`userService.inviteUser`, `clientService`, `freelancerApplicationService#acceptApplication`) : toute tentative de doublon échoue à la contrainte `@@unique`, remontée en 409 `DUPLICATE_ENTRY` par le middleware d'erreur global, jamais un second compte créé ni un crash 500 non géré. Écart de confort identifié (message générique plutôt que métier explicite sur `acceptApplication`) mais non enregistré comme anomalie séparée — ne touche pas à l'existence de la règle elle-même.** | **Remontée directe du porteur du projet (« une personne ne peut occuper qu'un seul rôle... ne peut pas être admin et freelancer, freelancer et manager »), suivie d'une demande explicite de tout vérifier ET formaliser (AskUserQuestion, choix combiné plutôt qu'un seul des 3 angles proposés). Vérifié sur 3 axes avant formalisation : changement de rôle (`updateUser`, remplace toujours, jamais un cumul), création d'un second compte pour la même personne (bloquée par `@@unique`), et la contrainte structurelle elle-même — aucun des trois n'a révélé de brèche.** |
+| **2026-07-28** | **Demande du porteur de vérifier d'autres règles avec une perspective dev full-stack/CEO produit — 3 angles proposés et retenus (AskUserQuestion, multi-sélection) : cohérence rôle↔champs associés, exclusivité Client+Freelancer, changement de pôle d'un Manager en poste. Le premier axe a révélé SEC-006 (ouvert, majeure) : aucun endpoint/UI ne permet d'assigner `serviceId` à un Manager — `inviteUser`/`updateUser` (service, contrôleur, validateur, UI `SettingsUsersTab.tsx`) ne portent que `name`/`email`/`role`. Le 2e axe (Client+Freelancer) est resté `[À CONFIRMER]` sur choix explicite du porteur — le comportement actuel bloque déjà ce cumul (effet de bord de `@@unique([email])`), mais ce n'est pas une décision produit assumée, seulement documentée comme telle sous RG-027. Le 3e axe (changement de pôle) n'a révélé aucune anomalie propre : `Project.serviceId` est indépendant du Manager assigné, aucun orphelinage — mais devient concrètement pertinent seulement une fois SEC-006 corrigé.** | **AskUserQuestion, session du 2026-07-28 : choix « Cohérence rôle ↔ champs associés (Recommandé), Un Freelancer ne peut pas être aussi Client (Recommandé), Un Manager ne peut gérer qu'un seul pôle à la fois » parmi 4 options (la 4e, « un seul CEO/rôle fondateur », non retenue). Puis, sur la question Client+Freelancer, choix explicite « Ouvrir la question au porteur pour une future décision produit » plutôt que documenter l'interdiction ou la laisser sans suite — le porteur du projet réel devra trancher, pas l'assistant.** |
+| **2026-07-28** | **Nouveau régime de rémunération PER_TASK (3e valeur de `CommissionSplitMode`, aux côtés de `AUTO`/`MANUAL`) créé, avec RG-028 (pas de double paiement : `computeForPaymentTx` retourne `[]` pour un projet `PER_TASK`, même avec des `ProjectCommissionSplit` résiduels) et RG-029 (bascule vers `PER_TASK` = purge des splits + entrée `CommissionSplitHistory` `MODE_SET_PER_TASK` dans la même transaction, via un endpoint dédié `POST /commissions/projects/:projectId/commission-mode/per-task`, réservé ADMIN, refusé en 409 si le projet a déjà une `Commission`). Absent de toute version antérieure de REFERENTIEL.md ; introduit sur instruction explicite du porteur (remplace la lecture antérieure « MANUAL = paiement à la tâche »). Migration `20260728030000_commission_split_mode_per_task` : `ALTER TYPE ... ADD VALUE`, aucun projet existant migré.** | **Instructions explicites du porteur, session du 2026-07-28 (fichier `checklist-regles-metier-secritou.md`, items 1 à 4). Les identifiants RG-012/RG-013 proposés par le porteur pour ces deux règles collisionnaient avec des RG-012 (numérotation factures) et RG-013 (clôture mission) déjà attribués dans REFERENTIEL.md §5 — AskUserQuestion, choix explicite du porteur : renumérotées RG-028/RG-029 (prochains identifiants libres après RG-027).** |

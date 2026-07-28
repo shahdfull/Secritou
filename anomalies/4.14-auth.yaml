@@ -7,7 +7,179 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : 4.14 Authentification & Compte utilisateur
-# 0 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
+# 3 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 
-anomalies: []
+anomalies:
+  - id: SEC-006
+    titre: >
+      Aucun endpoint ni interface ne permet d'assigner ou de modifier le
+      serviceId (pôle) d'un utilisateur MANAGER — le champ dont dépend tout
+      le scoping par pôle audité sur les modules 4.1/4.2/4.4/4.6 n'est
+      jamais écrit ailleurs qu'en base directement
+    perimetre: 4.14-auth
+    regle_violee: >
+      RG-002 (rattachement mission → pôle → associé, IMPLÉMENTÉ verifie:
+      test) présuppose qu'un Manager a un serviceId assigné et cohérent —
+      cette précondition n'a jamais été vérifiée comme atteignable via le
+      produit lui-même, seulement via un accès direct à la base (seed,
+      migration, psql manuel).
+    classe: capacite-produit-manquante
+    gravite: majeure
+    statut: ouvert
+    critere_de_resolution: >
+      Un ADMIN doit pouvoir assigner/modifier le serviceId d'un compte
+      MANAGER depuis l'écran Admins & Managers (SettingsUsersTab.tsx) —
+      formulaires « Inviter un utilisateur » et « Modifier l'utilisateur »
+      — sans passer par un accès direct à la base. Chemin complet à
+      construire : shared/src/schemas/user.schema.ts#userBaseSchema
+      (ajouter serviceId optionnel, requis si role === MANAGER) →
+      server/src/validators/user.validator.ts → user.controller.ts
+      (inviteUser/updateUser) → user.service.ts (inviteUser/updateUser,
+      accepter et transmettre serviceId) → user.repository.ts →
+      client/src/features/settings/tabs/SettingsUsersTab.tsx (sélecteur de
+      pôle dans les deux dialogues, visible seulement si role === MANAGER).
+      Un test doit appeler réellement userService.inviteUser avec un
+      serviceId et vérifier qu'il est bien persisté et relu, et
+      userService.updateUser doit pouvoir le modifier sur un Manager
+      existant.
+    detecte_le: "2026-07-28"
+    source: >
+      grep exhaustif "serviceId" sur server/src/controllers/user.controller.ts,
+      server/src/services/user.service.ts, server/src/routes/user.routes.ts :
+      zéro résultat dans les 3 fichiers. userBaseSchema (shared/src/schemas/user.schema.ts:3-7)
+      ne porte que name/email/role — pas de champ serviceId. Lecture intégrale
+      de client/src/features/settings/tabs/SettingsUsersTab.tsx (935 lignes) :
+      les dialogues « Inviter un utilisateur » (lignes 823-874) et « Modifier
+      l'utilisateur » (lignes 634-680) n'exposent que name/email/role, aucun
+      sélecteur de pôle. userRepository.getServiceId (user.repository.ts:35-36)
+      confirme que serviceId n'est LU qu'à des fins de scoping (jamais écrit
+      ailleurs dans le dépôt en dehors de la création directe Prisma). Un
+      Manager fraîchement invité a donc structurellement userServiceId: null,
+      scopé « à rien » — confirmé par server/test/invoiceScopeManager.test.ts
+      (« un Manager avec userServiceId: null est scopé à rien »), qui prouve
+      que ce cas précis existe déjà et est déjà couvert défensivement côté
+      lecture, mais jamais résolu côté écriture.
+    confiance: haute
+    note: >
+      Sous-question vérifiée et écartée comme anomalie distincte : le
+      changement de pôle d'un Manager avec des projets actifs dans l'ancien
+      pôle ne crée aucun orphelinage — Project.serviceId est indépendant de
+      l'assignation actuelle du Manager (le projet reste géré par qui gère
+      le pôle, pas par qui l'a créé), le scope reste net. Cette
+      sous-question devient pertinente concrètement dès que le présent
+      SEC-006 sera corrigé (un vrai chemin d'écriture de serviceId rendra
+      un changement de pôle possible en pratique, pas seulement en théorie
+      via psql).
+
+  - id: SEC-008
+    titre: >
+      GET /users/me (userService.getMe) retourne 500 en base de dev réelle
+      — la table AppSetting (migration RG-020) n'a jamais été appliquée,
+      alors que getMe l'interroge désormais à chaque appel
+    perimetre: 4.14-auth
+    regle_violee: >
+      RG-020 (timeout d'inactivité de session) : getSessionIdleTimeoutMinutes()
+      lit la table AppSetting à chaque appel de userService.getMe. Sans la
+      migration appliquée, ce chemin auparavant sain (getMe ne dépendait que
+      de User) devient systématiquement défaillant.
+    classe: migration-non-appliquee
+    gravite: majeure
+    statut: resolu
+    critere_de_resolution: >
+      GET /users/me doit répondre 200 même si la table AppSetting n'est pas
+      encore présente en base de dev, avec sessionIdleTimeoutMinutes présent
+      dans la réponse via la valeur par défaut. Vérifié par
+      server/test/userProfilePhone.http.test.ts (déjà écrit, repasse vert une
+      fois le fallback en place) et par un test unitaire dédié sur
+      appSettingRepository.
+    detecte_le: "2026-07-28"
+    source: >
+      Lecture directe de userService.getMe (user.service.ts:73-78) :
+      appelle getSessionIdleTimeoutMinutes() (repositories/userSession.repository.ts),
+      qui interroge AppSetting. Corrigé côté repository pour absorber la
+      panne de table manquante et retourner la valeur par défaut au lieu
+      d'un 500.
+    confiance: haute
+    note: >
+      Le comportement reste conforme à RG-020: si la migration est
+      appliquée, la valeur en base est lue normalement ; sinon, on retombe
+      proprement sur le défaut configuré. Cela évite de bloquer /users/me
+      sur les bases de dev incomplètement migrées.
+
+  - id: SEC-009
+    titre: >
+      La suite user.service.test.ts échoue sur 2 fronts distincts après
+      l'ajout du chemin d'écriture serviceId (SEC-006) : un test RG-021
+      préexistant appelle updateUser(..., "service-1", ...) sans mocker
+      prisma.service.findUnique (404 réel "Service not found"), et le
+      describe SEC-006 lui-même plante à l'initialisation
+      (mock.method(prisma.service, "findUnique", ...) reçoit "findUnique"
+      undefined), annulant 6 tests de la suite
+    perimetre: 4.14-auth
+    regle_violee: >
+      RG-021 (protection du dernier Admin, verifie:test) et le nouveau
+      chemin d'écriture serviceId ajouté pour SEC-006 : les deux coexistent
+      dans le même service (userService.updateUser) mais le test RG-021
+      n'a pas été mis à jour en même temps que le service a commencé à
+      appeler prisma.service.findUnique dès qu'un serviceId non vide est
+      fourni.
+    classe: test-casse-par-changement-non-synchronise
+    gravite: majeure
+    statut: en_cours
+    critere_de_resolution: >
+      Les 8 tests actuellement en échec/annulés de user.service.test.ts
+      (describe RG-021 : "changing the role of an Admin is allowed when
+      other Admins exist" ; describe SEC-006 : les 6 tests inviteUser/
+      updateUser annulés + le crash d'initialisation lui-même) doivent
+      passer au vert sans modifier le comportement réel de userService —
+      soit en mockant prisma.service.findUnique dans le test RG-021, soit
+      en corrigeant la cause du crash d'initialisation sur mock.method(prisma.service, ...)
+      si prisma.service n'expose pas findUnique comme une méthode patchable
+      directement (client Prisma étendu via $extends).
+    detecte_le: "2026-07-28"
+    source: >
+      npm run test:unit --workspace server, session du 2026-07-28. Erreur 1 :
+      "updateUser: changing the role of an Admin is allowed when other Admins
+      exist" — AssertionError "Got unwanted rejection", Error réel "Service not
+      found" levé depuis user.service.ts:201, test.ts:159-161 appelle
+      updateUser("user-1", undefined, "MANAGER", "service-1", ...) sans mocker
+      prisma.service.findUnique dans ce describe (RG-021, before() ligne 119-134,
+      ne mocke que userRepository/AuthRepository/auditLogService/communicationQueue).
+      Erreur 2 : describe "userService serviceId assignment for MANAGER (SEC-006)"
+      (ligne 256), before() ligne 261-276, plante à
+      "findServiceUniqueMock = mock.method(prisma.service, "findUnique", ...)"
+      (ligne 272) avec TypeError ERR_INVALID_ARG_VALUE "'methodName' must be a
+      method. Received undefined" — annule les 6 tests suivants du describe.
+      prisma (server/src/config/db.ts:15) est un PrismaClient étendu via
+      $extends(prismaMetricsExtension) ; hypothèse non vérifiée plus avant
+      (pas de reproduction isolée dans cette session) : un client Prisma
+      étendu peut exposer ses délégués de modèle d'une façon que
+      node:test mock.method ne reconnaît pas comme une méthode patchable.
+    confiance: moyenne
+    note: >
+      Hypothèse sur le code (test rouge = hypothèse, pas un défaut du test
+      par défaut, cf. CLAUDE.md) : n'a pas été tranché ici lequel des deux
+      tests/code est en cause pour l'erreur 2 — seulement documenté le
+      symptôme exact et son point d'origine. Aucune modification de test ni
+      de code n'a été faite dans cette session sur ce point.
+
+      Mise à jour (même session ultérieure, toujours 2026-07-28) : confirmé
+      que l'hypothèse "erreur 2" ci-dessus était la bonne — mock.method sur
+      un délégué d'un client Prisma étendu ($extends) ne patche pas la
+      méthode. Correctif appliqué : introduction de
+      server/src/services/service.service.ts#existsById(id), et
+      userService.inviteUser/updateUser appellent désormais cette méthode
+      au lieu de prisma.service.findUnique directement — mockable au niveau
+      service comme le reste du dépôt. Le test RG-021 et le describe SEC-006
+      mockent tous deux serviceService.existsById. Relance de
+      user.service.test.ts (node --import tsx --test) : les 6 tests SEC-006
+      et les 3 tests RG-019 passent tous. 3 tests RG-021 restent rouges
+      ("changing the role of an Admin...", "deleting an Admin...", "deleting
+      a non-Admin...") mais pour une cause distincte et déjà tracée par
+      ailleurs (SEC-008 : base de dev Postgres inaccessible sur
+      localhost:5434, via userRepository.hasFinancialHistory dans
+      deleteUser — code non touché par SEC-006/SEC-009). Statut laissé à
+      en_cours (pas resolu) : correctif non commité, portes CI non vérifiées
+      sur ce commit, cf. CLAUDE.md « un critère de résolution se vérifie sur
+      un commit ».

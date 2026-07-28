@@ -11,7 +11,7 @@ import {
 } from "@/hooks/useClientOnboarding";
 import type { OnboardingStep } from "@secritou/shared";
 import { Button } from "@/components/ui/button";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ConfirmationDialog } from "@/components/shared/crud/ConfirmationDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -620,36 +620,29 @@ export function ClientOnboardingPage() {
         </div>
       </div>
 
-      <AlertDialog open={!!contractTarget} onOpenChange={(open) => !open && setContractTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t("onboarding.contract.confirmSignTitle", "Confirmer la signature du contrat ?")}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t(
-                "onboarding.contract.confirmSignDesc",
-                "Cette signature valide l’accord de départ et peut engager des étapes contractuelles irréversibles. Vérifiez le contrat avant de confirmer."
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (!contractTarget) return;
-                updateContract.mutate({
-                  contractId: contractTarget.contractId,
-                  data: { status: "SIGNED" },
-                });
-                setContractTarget(null);
-              }}
-            >
-              {t("common.confirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmationDialog
+        open={!!contractTarget}
+        onOpenChange={(open) => !open && setContractTarget(null)}
+        onConfirm={() => {
+          if (!contractTarget) return;
+          updateContract.mutate(
+            { contractId: contractTarget.contractId, data: { status: "SIGNED" } },
+            { onSuccess: () => setContractTarget(null) }
+          );
+        }}
+        isLoading={updateContract.isPending}
+        title={t("onboarding.contract.confirmSignTitle", "Confirmer la signature du contrat ?")}
+        description={t(
+          "onboarding.contract.confirmSignDesc",
+          "Cette signature valide l'accord de départ et engage contractuellement les prochaines étapes. Vérifiez le contrat avant de confirmer."
+        )}
+        checkboxLabel={t(
+          "onboarding.contract.confirmSignCheckbox",
+          "Je confirme avoir lu et accepté les termes du contrat, et je le signe en connaissance de cause."
+        )}
+        confirmLabel={t("common.confirm")}
+        cancelLabel={t("common.cancel")}
+      />
     </section>
   );
 }

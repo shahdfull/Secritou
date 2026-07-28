@@ -63,6 +63,23 @@ async function makeProjectWithSplit(namePrefix: string, ratePct: number) {
   return { client, partner, project };
 }
 
+async function makeProjectWithSplits(namePrefix: string, rates: number[]) {
+  const client = await prisma.client.create({ data: { name: `${namePrefix} client`, serviceId } });
+  createdClientIds.push(client.id);
+  const project = await prisma.project.create({ data: { name: `${namePrefix} project`, clientId: client.id, serviceId } });
+  createdProjectIds.push(project.id);
+  const partners = [];
+  for (const [i, ratePct] of rates.entries()) {
+    const partner = await prisma.user.create({
+      data: { email: `${namePrefix}-${i}-${Date.now()}@example.com`, name: `${namePrefix} partner ${i}`, passwordHash: "x", role: "MANAGER", serviceId },
+    });
+    createdUserIds.push(partner.id);
+    await prisma.projectCommissionSplit.create({ data: { projectId: project.id, partnerId: partner.id, ratePct } });
+    partners.push(partner);
+  }
+  return { client, partners, project };
+}
+
 // SEC-195: `{ skip: !dbAvailable }` is evaluated SYNCHRONOUSLY when describe/test runs, before
 // the async before() above has any chance to set the real value. Checking dbAvailable inside
 // each test body (via t.skip()) is the only pattern that actually runs after before() resolves.
@@ -98,5 +115,33 @@ describe("RG-008 : Commission created only when a Payment is actually recorded",
 
     const commissions = await prisma.commission.findMany({ where: { invoiceId: invoice.id } });
     assert.equal(commissions.length, 0, "no Commission must be created when nothing was actually applied to the invoice");
+  });
+
+  // Bug bloquant (LOT 1) : Commission.paymentId portait @unique seul (une ligne par paiement,
+  // tous partenaires confondus), alors que computeForPaymentTx crée une ligne par partenaire pour
+  // le MÊME paiement. Dès qu'un projet a 2 partenaires ou plus, createManyAndReturn violait la
+  // contrainte et l'encaissement plantait entièrement (aucune Commission créée, transaction
+  // annulée). Ce test échoue sur le schéma d'avant ce lot (contrainte @@unique([paymentId])) et
+  // passe une fois la contrainte relâchée à @@unique([paymentId, partnerId]).
+  test("a real payment on a project with 3 partners creates one Commission row per partner, prorated", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
+    const { project, partners } = await makeProjectWithSplits("rg008-c", [50, 30, 20]);
+    const invoice = await prisma.invoice.create({
+      data: { number: `RG008-C-${Date.now()}`, title: "Test", amount: 1000, amountPaid: 0, status: "SENT", currency: "TND", projectId: project.id, clientId: project.clientId },
+    });
+
+    await invoiceService.addPayment(invoice.id, { amount: 400 }, undefined, undefined);
+
+    const commissions = await prisma.commission.findMany({ where: { invoiceId: invoice.id } });
+    assert.equal(commissions.length, 3, "one Commission row must exist per partner sharing the project's split, for the same payment");
+
+    const byPartner = new Map(commissions.map((c) => [c.partnerId, c]));
+    assert.equal(Number(byPartner.get(partners[0]!.id)!.amount), 200, "50% of 400");
+    assert.equal(Number(byPartner.get(partners[1]!.id)!.amount), 120, "30% of 400");
+    assert.equal(Number(byPartner.get(partners[2]!.id)!.amount), 80, "20% of 400");
+    for (const c of commissions) {
+      assert.equal(c.paymentId, commissions[0]!.paymentId, "all 3 rows share the same paymentId — only partnerId differs");
+      assert.equal(Number(c.basis), 400, "basis is the amount actually applied, same for every partner's row");
+    }
   });
 });

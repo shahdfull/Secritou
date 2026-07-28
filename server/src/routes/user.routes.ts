@@ -13,8 +13,17 @@ import {
   deleteUser,
   getPermissions,
   heartbeat,
+  getSessionIdleTimeout,
+  updateSessionIdleTimeout,
 } from "../controllers/user.controller.js";
-import { createUserSchema, updateUserSchema, updateMeSchema, requestEmailChangeSchema, confirmEmailChangeSchema } from "../validators/user.validator.js";
+import {
+  createUserSchema,
+  updateUserSchema,
+  updateMeSchema,
+  requestEmailChangeSchema,
+  confirmEmailChangeSchema,
+  updateSessionIdleTimeoutSchema,
+} from "../validators/user.validator.js";
 import { sensitiveWriteRateLimit } from "../middlewares/rateLimit.middleware.js";
 
 const router = Router();
@@ -365,5 +374,70 @@ router.patch("/:id", authorize("ADMIN"), validate(updateUserSchema), updateUser)
  *         $ref: '#/components/responses/NotFound'
  */
 router.delete("/:id", authorize("ADMIN"), deleteUser);
+
+/**
+ * @swagger
+ * /users/settings/session-idle-timeout:
+ *   get:
+ *     summary: Get the current session idle timeout (minutes, RG-020) — ADMIN only
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Current timeout in minutes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     minutes:
+ *                       type: integer
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *   put:
+ *     summary: Set the session idle timeout (minutes, RG-020) — ADMIN only
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [minutes]
+ *             properties:
+ *               minutes:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 240
+ *     responses:
+ *       200:
+ *         description: Timeout updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     minutes:
+ *                       type: integer
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ */
+router.get("/settings/session-idle-timeout", authorize("ADMIN"), getSessionIdleTimeout);
+router.put(
+  "/settings/session-idle-timeout",
+  authorize("ADMIN"),
+  sensitiveWriteRateLimit,
+  validate(updateSessionIdleTimeoutSchema),
+  updateSessionIdleTimeout
+);
 
 export default router;

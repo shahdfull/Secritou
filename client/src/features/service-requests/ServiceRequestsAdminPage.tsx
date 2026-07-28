@@ -57,6 +57,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ConfirmationDialog } from "@/components/shared/crud/ConfirmationDialog";
 import {
   Tooltip,
   TooltipContent,
@@ -640,29 +641,27 @@ function ServiceRequestDetail({
         isPending={createProposal.isPending || updateMutation.isPending}
       />
 
-      <AlertDialog open={statusTarget === "CANCELLED"} onOpenChange={(open) => !open && setStatusTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmer l’annulation de cette demande ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Cette transition est terminale et ne pourra pas être annulée ensuite. Vérifiez bien
-              la demande avant de confirmer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setStatusTarget(null)}>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                updateMutation.mutate({ status: "CANCELLED" });
-                setStatusTarget(null);
-              }}
-            >
-              Confirmer
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmationDialog
+        open={statusTarget === "CANCELLED"}
+        onOpenChange={(open) => !open && setStatusTarget(null)}
+        onConfirm={() => {
+          updateMutation.mutate({ status: "CANCELLED" }, { onSuccess: () => setStatusTarget(null) });
+        }}
+        isLoading={updateMutation.isPending}
+        variant="destructive"
+        title="Confirmer l'annulation de cette demande ?"
+        description={
+          <>
+            Cette transition est terminale et ne pourra pas être annulée ensuite. Vérifiez bien la
+            demande avant de confirmer.
+            <br />
+            <strong>{request.title}</strong>
+          </>
+        }
+        checkboxLabel={<>Je confirme l'annulation irréversible de la demande « {request.title} ».</>}
+        confirmLabel="Confirmer"
+        cancelLabel="Annuler"
+      />
     </>
   );
 }

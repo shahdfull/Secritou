@@ -8,13 +8,39 @@ function textQuery(value: unknown): string | undefined {
 }
 
 export const getProjectCommissionSplits = async (req: Request, res: Response) => {
-  const splits = await commissionService.getSplitsByProject(req.params.projectId as string);
-  res.json({ data: splits });
+  const state = await commissionService.getProjectSplitState(req.params.projectId as string);
+  res.json({
+    data: state.splits,
+    commissionSplitMode: state.commissionSplitMode,
+    commissionSplitDesynced: state.commissionSplitDesynced,
+    payoutBudget: state.payoutBudget,
+    suggestedPayoutBudget: state.suggestedPayoutBudget,
+  });
+};
+
+export const resetProjectCommissionSplitToAuto = async (req: Request, res: Response) => {
+  const splits = await commissionService.resetToAutoSplit(req.params.projectId as string);
+  res.status(200).json({ data: splits });
+};
+
+export const getProjectCommissionSplitHistory = async (req: Request, res: Response) => {
+  const history = await commissionService.getSplitHistory(req.params.projectId as string);
+  res.json({ data: history });
 };
 
 export const setProjectCommissionSplits = async (req: Request, res: Response) => {
   const splits = await commissionService.setSplits(req.params.projectId as string, req.body.splits);
   res.status(200).json({ data: splits });
+};
+
+export const setProjectCommissionModeToPerTask = async (req: Request, res: Response) => {
+  const splits = await commissionService.setSplitToPerTask(req.params.projectId as string);
+  res.status(200).json({ data: splits });
+};
+
+export const setProjectPayoutBudget = async (req: Request, res: Response) => {
+  const result = await commissionService.setProjectPayoutBudget(req.params.projectId as string, req.body.payoutBudget);
+  res.status(200).json({ data: result });
 };
 
 export const getCommissions = async (req: Request, res: Response) => {

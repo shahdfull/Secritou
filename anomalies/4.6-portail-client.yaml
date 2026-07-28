@@ -7,7 +7,170 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : 4.6 Portail client
-# 0 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
-# archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
+# 3 anomalie(s) — premier audit réel de ce périmètre dans le registre remis
+# à zéro le 2026-07-27, session du 2026-07-27 (+1 le 2026-07-28).
 
-anomalies: []
+anomalies:
+  - id: SEC-004
+    titre: >
+      Le scope MANAGER de ServiceRequest (via client.projects.some.serviceId)
+      expose toutes les demandes d'un client multi-pôle à chaque pôle où il a
+      un projet, y compris les commentaires internes isInternal
+    perimetre: 4.6-portail-client
+    regle_violee: >
+      Checklist de revue CLAUDE.md « scoping des routes Project/Task »,
+      appliquée par analogie : un MANAGER ne doit voir/modifier que les
+      ressources qui concernent réellement son pôle, pas une approximation
+      plus large qui fuit dès qu'une condition annexe (ici : le client a des
+      projets dans plusieurs pôles) devient vraie.
+    classe: idor-scope-approxime
+    gravite: moyenne
+    statut: ouvert
+    critere_de_resolution: >
+      Un test doit créer un Client avec deux Project dans deux Service
+      distincts (pôle A et pôle B), créer une ServiceRequest pour ce client,
+      puis appeler réellement serviceRequestService.getServiceRequestById /
+      getServiceRequestsByCompany / adminUpdateServiceRequest /
+      deleteServiceRequest / addComment avec un MANAGER scope { userServiceId:
+      serviceIdA } et attendre un refus (404, ou absence de la ligne dans la
+      liste) — le comportement actuel les expose. La correction nécessite une
+      décision produit (pas seulement technique) : soit ajouter un lien direct
+      ServiceRequest → Project (ou Service) au schéma pour un scope exact,
+      soit décider explicitement que ServiceRequest reste un objet
+      « intégralement visible à tout Manager du client », documenté comme tel
+      dans REFERENTIEL.md §7 — ne pas trancher seul, cf. CLAUDE.md
+      « interdiction de créer une règle métier absente du référentiel sans
+      le demander explicitement ».
+    detecte_le: "2026-07-27"
+    source: >
+      Lecture intégrale de server/src/repositories/serviceRequest.repository.ts
+      (findAll l.90-120, findById l.122-128, findByIdSimple l.130-136) : les
+      3 méthodes filtrent MANAGER via
+      `client: { projects: { some: { serviceId } } }` — un test AU MOINS UN
+      projet dans le pôle du Manager, pas un lien direct entre la
+      ServiceRequest et un pôle précis. schema.prisma:450-475 confirme que
+      ServiceRequest n'a aucun champ serviceId/projectId propre — rattachée
+      uniquement à Client. RG-002 (audité précédemment, session du
+      2026-07-27, module 4.4) confirme explicitement qu'« un même client peut
+      avoir des projets dans plusieurs pôles » — condition suffisante pour
+      que ce filtre expose une ServiceRequest hors du pôle réellement
+      concerné. Le commentaire en tête de
+      server/test/serviceRequestService.test.ts (lignes 1-6) documente déjà
+      cette approximation comme un fait connu du code, mais AUCUN cas de ce
+      fichier de test ne construit un client avec des projets dans DEUX pôles
+      distincts — tous les scénarios (`makeClientWithProject`) créent un
+      client avec un seul projet dans un seul pôle, donc ne peuvent jamais
+      démontrer la fuite. server/src/controllers/serviceRequest.controller.ts
+      confirmé : addComment (l.83-93) transmet bien scope, mais le
+      commentaire créé peut porter isInternal:true (masqué au client
+      seulement, jamais à un Manager hors scope réel) — schema.prisma:1584-1596
+      confirme ServiceRequestComment n'a pas non plus de scope propre au-delà
+      de sa ServiceRequest parente.
+    confiance: haute
+    note: >
+      deleteComment (controller l.95-103, repository l.178-183) n'est PAS
+      concerné par cette anomalie : il restreint déjà par authorId (un
+      Manager ne peut supprimer que son propre commentaire), un contrôle
+      orthogonal au scope de pôle qui reste valide indépendamment de ce
+      défaut. customQuestion.service.ts n'est pas concerné non plus :
+      CustomQuestion n'a aucun lien vers Client/Project/Service dans le
+      schéma (rattachée à User seul) — accessible à tout ADMIN/MANAGER par
+      conception, pas une approximation qui fuit.
+
+  - id: SEC-005
+    titre: >
+      Aucun des 4 services du portail client (clientPortal, approval,
+      serviceRequest, customQuestion) n'écrit jamais dans AuditLog
+    perimetre: 4.6-portail-client
+    regle_violee: >
+      Cohérence de traçabilité attendue sur les décisions client (voir
+      auditLogService.record déjà appelé 6+ fois dans invoice.service.ts,
+      module 4.4, audité dans la même session) — une décision du client
+      (approuver/rejeter un livrable, ouvrir/fermer une demande de service)
+      devrait laisser une trace au même titre qu'une mutation financière.
+    classe: audit-log-manquant
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      approvalService.approve/reject (décision du client sur un livrable) et
+      serviceRequestService.adminUpdateServiceRequest (changement de statut,
+      déjà tracé dans ServiceRequestHistory — donc partiellement redondant
+      avec AuditLog, à trancher avec le porteur avant d'ajouter un second
+      mécanisme de traçabilité) doivent, a minima pour approve/reject,
+      appeler auditLogService.record avec entityType: "Approval",
+      before/after status. Un test doit appeler réellement
+      approvalService.approve et relire la table AuditLog pour confirmer
+      l'entrée, même pattern que server/test/invoiceAuditLog.test.ts
+      (module 4.4).
+    detecte_le: "2026-07-27"
+    source: >
+      grep "auditLogService" sur server/src/services/approval.service.ts,
+      serviceRequest.service.ts, customQuestion.service.ts,
+      clientPortal.service.ts : aucune occurrence dans les 4 fichiers, lus
+      intégralement. Comparé à invoice.service.ts/creditNote.service.ts
+      (module 4.4, même session) qui appellent auditLogService.record sur
+      create/cancel/delete/restore/send/addPayment/creditNote.create/apply.
+    confiance: haute
+    note: >
+      Gravité volontairement classée mineure (pas moyenne comme SEC-001/003
+      en 4.4) : Approval ne déclenche aucune cascade financière ou de statut
+      projet direct (vérifié : aucun appelant de approvalService dans
+      project.service.ts en dehors d'un commentaire descriptif), contrairement
+      aux mutations Invoice qui affectent directement l'argent encaissé.
+      ServiceRequest a déjà sa propre table ServiceRequestHistory pour les
+      changements de statut/priorité/assignation — l'absence d'AuditLog n'y
+      est donc pas une absence totale de traçabilité, seulement l'absence du
+      mécanisme transverse standard du dépôt. À confirmer avec le porteur si
+      un second mécanisme de traçabilité est justifié avant de coder quoi que
+      ce soit ici (cf. CLAUDE.md, ne pas trancher une question produit seul).
+
+  - id: SEC-011
+    titre: >
+      Le bouton "Soumettre le brief" de ClientBriefPage.tsx n'est jamais
+      désactivé pour un champ requis vide (seul submitMutation.isPending
+      le désactive) — un client peut soumettre un brief incomplet malgré
+      la validation par étape affichée à l'écran
+    perimetre: 4.6-portail-client
+    regle_violee: >
+      Aucune règle numérotée du référentiel ne couvre directement ce cas ;
+      constat de cohérence interne : le composant calcule déjà
+      currentSectionValid (dérivé de isQuestionValid, qui applique la
+      contrainte required par question) et l'utilise pour désactiver le
+      bouton "Suivant" entre étapes, mais pas pour désactiver "Soumettre le
+      brief" sur la dernière étape — la même validation existe déjà dans le
+      composant, seulement pas branchée sur ce bouton précis.
+    classe: validation-cote-client-incomplete
+    gravite: moyenne
+    statut: ouvert
+    critere_de_resolution: >
+      Le bouton "Soumettre le brief" (ClientBriefPage.tsx, JSX de la
+      branche isLastStep) doit être desactive quand
+      !currentSectionValid, en plus de submitMutation.isPending — un
+      test qui remplit un formulaire à 1 étape avec un champ required vide
+      doit trouver ce bouton disabled (déjà écrit :
+      client/src/features/client-portal/ClientBriefPage.test.tsx, test "a
+      required field left empty blocks submitting the (single, last)
+      step" — actuellement rouge, appelle le vrai composant).
+    detecte_le: "2026-07-28"
+    source: >
+      npx vitest run src/features/client-portal/ClientBriefPage.test.tsx
+      (session du 2026-07-28, effet de bord d'une passe de tests plus large
+      sur RG-026, aucune modification de ce fichier ni de son test dans
+      cette session) : le test échoue avec "Received element is not
+      disabled" sur le bouton "Soumettre le brief". Lecture directe de
+      client/src/features/client-portal/ClientBriefPage.tsx lignes 279-287
+      (isQuestionValid/currentSectionValid) et 441-451 (bouton isLastStep) :
+      confirmé que disabled={submitMutation.isPending} uniquement, aucune
+      référence à currentSectionValid sur ce bouton — contrairement au
+      bouton "Suivant" du même fichier qui utilise bien cette variable.
+      git diff HEAD sur ClientBriefPage.tsx/ClientBriefPage.test.tsx : vide,
+      confirmé préexistant sur HEAD, non attribuable à cette session (cf.
+      CLAUDE.md, attribution des changements).
+    confiance: haute
+    note: >
+      Écart enregistré immédiatement conformément à CLAUDE.md
+      (« enregistrement immédiat de tout écart constaté » hors audit
+      formel) — découvert en relançant la suite de tests frontend pendant
+      les vérifications de non-régression de RG-026 (confirmation UX),
+      périmètre distinct de celui-ci. Aucune correction appliquée dans
+      cette session.

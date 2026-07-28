@@ -35,12 +35,14 @@ import { MODULES } from "@/types/permissions";
 import { PermissionsGrid } from "../PermissionsGrid";
 import { getServerErrorMessage, getServerRequestId } from "@/utils/apiError";
 import { useGdprExportUser, useGdprEraseUser } from "@/hooks/useUsers";
+import { useServices } from "@/hooks/useServices";
 
 type AppUser = {
   id: string;
   name: string;
   email: string;
   role: "ADMIN" | "MANAGER" | "CLIENT" | "FREELANCER";
+  serviceId?: string | null;
   createdAt: string;
   mustChangePassword?: boolean;
   lastLoginAt?: string | null;
@@ -540,13 +542,14 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
   invitingUser: boolean;
   updatingUser: boolean;
   deletingUser: boolean;
-  inviteUser(input: { name: string; email: string; role: "ADMIN" | "MANAGER" | "CLIENT" | "FREELANCER" }): void;
-  updateUser(input: { id: string; data: { name: string; role: "ADMIN" | "MANAGER" | "CLIENT" | "FREELANCER" } }): void;
+  inviteUser(input: { name: string; email: string; role: "ADMIN" | "MANAGER" | "CLIENT" | "FREELANCER"; serviceId?: string | null }): void;
+  updateUser(input: { id: string; data: { name: string; role: "ADMIN" | "MANAGER" | "CLIENT" | "FREELANCER"; serviceId?: string | null } }): void;
   deleteUser(id: string): void;
 }) {
+  const { data: services = [] } = useServices();
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
-  const [inviteForm, setInviteForm] = useState<{ name: string; email: string; role: "ADMIN" | "MANAGER" }>({ name: "", email: "", role: "MANAGER" });
-  const [editingUser, setEditingUser] = useState<{ id: string; name: string; role: "ADMIN" | "MANAGER" | "CLIENT" | "FREELANCER" } | null>(null);
+  const [inviteForm, setInviteForm] = useState<{ name: string; email: string; role: "ADMIN" | "MANAGER"; serviceId: string }>({ name: "", email: "", role: "MANAGER", serviceId: "" });
+  const [editingUser, setEditingUser] = useState<{ id: string; name: string; role: "ADMIN" | "MANAGER" | "CLIENT" | "FREELANCER"; serviceId: string } | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<string | null>(null);
   const [gdprEraseDialogOpen, setGdprEraseDialogOpen] = useState<string | null>(null);
   const [expandedPermissions, setExpandedPermissions] = useState<string | null>(null);
@@ -564,9 +567,14 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
   const handleInviteSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
-      inviteUser(inviteForm);
+      inviteUser({
+        name: inviteForm.name,
+        email: inviteForm.email,
+        role: inviteForm.role,
+        serviceId: inviteForm.role === "MANAGER" ? inviteForm.serviceId || null : null,
+      });
       setInviteDialogOpen(false);
-      setInviteForm({ name: "", email: "", role: "MANAGER" });
+      setInviteForm({ name: "", email: "", role: "MANAGER", serviceId: "" });
     },
     [inviteForm, inviteUser]
   );
@@ -575,7 +583,14 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
     (e: React.FormEvent) => {
       e.preventDefault();
       if (!editingUser) return;
-      updateUser({ id: editingUser.id, data: { name: editingUser.name, role: editingUser.role } });
+      updateUser({
+        id: editingUser.id,
+        data: {
+          name: editingUser.name,
+          role: editingUser.role,
+          serviceId: editingUser.role === "MANAGER" ? editingUser.serviceId || null : null,
+        },
+      });
       setEditingUser(null);
     },
     [editingUser, updateUser]
@@ -633,7 +648,7 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
           )}
           <Dialog
             open={editingUser?.id === u.id}
-            onOpenChange={(open) => setEditingUser(open ? { id: u.id, name: u.name, role: u.role } : null)}
+            onOpenChange={(open) => setEditingUser(open ? { id: u.id, name: u.name, role: u.role, serviceId: u.serviceId ?? "" } : null)}
           >
             <DialogTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -667,9 +682,25 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
                       </SelectContent>
                     </Select>
                   </div>
+                  {editingUser.role === "MANAGER" && (
+                    <div>
+                      <Label htmlFor="edit-service">Pôle</Label>
+                      <Select
+                        value={editingUser.serviceId}
+                        onValueChange={(val) => setEditingUser((s) => s ? { ...s, serviceId: val } : s)}
+                      >
+                        <SelectTrigger id="edit-service"><SelectValue placeholder="Choisir un pôle" /></SelectTrigger>
+                        <SelectContent>
+                          {services.map((svc) => (
+                            <SelectItem key={svc.id} value={svc.id}>{svc.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <DialogFooter>
                     <Button variant="outline" type="button" onClick={() => setEditingUser(null)}>Annuler</Button>
-                    <Button type="submit" disabled={updatingUser}>
+                    <Button type="submit" disabled={updatingUser || (editingUser.role === "MANAGER" && !editingUser.serviceId)}>
                       {updatingUser && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                       Sauvegarder
                     </Button>
@@ -756,6 +787,7 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
       editingUser,
       updatingUser,
       handleEditSubmit,
+      services,
       canDelete,
       deleteDialogOpen,
       deletingUser,
@@ -862,9 +894,25 @@ export const SettingsUsersTab = memo(function SettingsUsersTab({
                       </SelectContent>
                     </Select>
                   </div>
+                  {inviteForm.role === "MANAGER" && (
+                    <div>
+                      <Label htmlFor="invite-service">Pôle</Label>
+                      <Select
+                        value={inviteForm.serviceId}
+                        onValueChange={(val) => setInviteForm((s) => ({ ...s, serviceId: val }))}
+                      >
+                        <SelectTrigger id="invite-service"><SelectValue placeholder="Choisir un pôle" /></SelectTrigger>
+                        <SelectContent>
+                          {services.map((svc) => (
+                            <SelectItem key={svc.id} value={svc.id}>{svc.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <DialogFooter>
                     <Button variant="outline" type="button" onClick={() => setInviteDialogOpen(false)}>Annuler</Button>
-                    <Button type="submit" disabled={invitingUser}>
+                    <Button type="submit" disabled={invitingUser || (inviteForm.role === "MANAGER" && !inviteForm.serviceId)}>
                       {invitingUser && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                       Envoyer l'invitation
                     </Button>

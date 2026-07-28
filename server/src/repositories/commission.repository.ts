@@ -25,14 +25,139 @@ export const commissionRepository = {
     return prismaRead.projectCommissionSplit.findFirst({ where: { projectId, partnerId } });
   },
 
-  async setSplits(projectId: string, splits: { partnerId: string; ratePct: number }[]) {
-    return prisma.$transaction(async (tx) => {
-      await tx.projectCommissionSplit.deleteMany({ where: { projectId } });
-      if (splits.length === 0) return [];
+  // ─── Auto-split (RG-005-bis) ───────────────────────────────────────────────
+
+  async getProjectForSplit(projectId: string) {
+    return prismaRead.project.findUnique({
+      where: { id: projectId },
+      select: { id: true, serviceId: true, commissionSplitMode: true },
+    });
+  },
+
+  // RG-006 (refonte paiement à la tâche) : source du pré-remplissage à 65% suggéré côté client
+  // pour payoutBudget — jamais persisté automatiquement, seulement affiché comme suggestion que
+  // le CEO doit valider explicitement (voir commissionService.getProjectSplitState).
+  async getProposalAmountForProject(projectId: string) {
+    const project = await prismaRead.project.findUnique({
+      where: { id: projectId },
+      select: { proposal: { select: { amount: true } } },
+    });
+    return project?.proposal?.amount ?? null;
+  },
+
+  // RG-028: read inside the same transaction as the payment write, so computeForPaymentTx sees
+  // a mode switch that may have landed concurrently rather than a stale read-committed snapshot.
+  async getProjectSplitModeTx(tx: TxClient, projectId: string) {
+    return tx.project.findUnique({ where: { id: projectId }, select: { commissionSplitMode: true } });
+  },
+
+  async projectHasAnyCommission(projectId: string) {
+    const count = await prismaRead.commission.count({ where: { projectId } });
+    return count > 0;
+  },
+
+  // RG-006 : lu dans la même transaction que l'écriture d'un payoutAmount, pour que le total
+  // reflète l'état réel post-écriture (pas un instantané read-committed potentiellement obsolète
+  // si deux écritures concurrentes sur le même projet se chevauchent).
+  async getProjectPayoutBudgetTx(tx: TxClient, projectId: string) {
+    return tx.project.findUnique({ where: { id: projectId }, select: { payoutBudget: true } });
+  },
+
+  // Somme des payoutAmount de toutes les tâches du projet, à l'exclusion de la tâche en cours
+  // d'écriture (son nouveau montant est ajouté séparément par l'appelant) — évite de compter
+  // deux fois l'ancienne et la nouvelle valeur de la même tâche. excludeTaskId absent (création
+  // d'une nouvelle tâche, pas encore d'id) : somme simplement toutes les tâches existantes.
+  async sumOtherTasksPayoutAmountTx(tx: TxClient, projectId: string, excludeTaskId?: string) {
+    const result = await tx.task.aggregate({
+      where: { projectId, ...(excludeTaskId ? { id: { not: excludeTaskId } } : {}), payoutAmount: { not: null } },
+      _sum: { payoutAmount: true },
+    });
+    return Number(result._sum.payoutAmount ?? 0);
+  },
+
+  // RG-006 (rappel LOT 5) : ProjectManagerFee.amount rejoint le total contrôlé par l'enveloppe,
+  // au même titre que Task.payoutAmount. excludeManagerId absent (création du premier fee pour ce
+  // couple projet/manager) : somme simplement tous les fees existants du projet.
+  async sumOtherManagerFeesTx(tx: TxClient, projectId: string, excludeManagerId?: string) {
+    const result = await tx.projectManagerFee.aggregate({
+      where: { projectId, ...(excludeManagerId ? { managerId: { not: excludeManagerId } } : {}) },
+      _sum: { amount: true },
+    });
+    return Number(result._sum.amount ?? 0);
+  },
+
+  async upsertManagerFeeTx(tx: TxClient, args: { projectId: string; managerId: string; amount: number }) {
+    return tx.projectManagerFee.upsert({
+      where: { projectId_managerId: { projectId: args.projectId, managerId: args.managerId } },
+      create: { projectId: args.projectId, managerId: args.managerId, amount: args.amount },
+      update: { amount: args.amount },
+    });
+  },
+
+  // RG-005-bis assumes a single ADMIN account in practice (see CLAUDE.md) — the first one
+  // found is the sole recipient of the ADMIN share and of any Manager/Freelancer remainder.
+  async getAdminPartnerId() {
+    const admin = await prismaRead.user.findFirst({ where: { role: "ADMIN" }, select: { id: true } });
+    return admin?.id ?? null;
+  },
+
+  async getActiveManagersForService(serviceId: string | null) {
+    return prismaRead.user.findMany({
+      where: { role: "MANAGER", serviceId: serviceId ?? "__none__" },
+      select: { id: true },
+    });
+  },
+
+  async getDistinctAssignedFreelancers(projectId: string) {
+    const tasks = await prismaRead.task.findMany({
+      where: { projectId, assigneeId: { not: null }, assignee: { role: "FREELANCER" } },
+      select: { assigneeId: true },
+      distinct: ["assigneeId"],
+    });
+    return tasks.map((t) => t.assigneeId as string);
+  },
+
+  async setSplitsTx(tx: TxClient, projectId: string, splits: { partnerId: string; ratePct: number }[]) {
+    await tx.projectCommissionSplit.deleteMany({ where: { projectId } });
+    if (splits.length > 0) {
       await tx.projectCommissionSplit.createMany({
         data: splits.map((s) => ({ projectId, partnerId: s.partnerId, ratePct: s.ratePct })),
       });
-      return tx.projectCommissionSplit.findMany({ where: { projectId } });
+    }
+    return tx.projectCommissionSplit.findMany({ where: { projectId } });
+  },
+
+  async setModeTx(
+    tx: TxClient,
+    projectId: string,
+    data: { commissionSplitMode?: "AUTO" | "MANUAL" | "PER_TASK"; commissionSplitDesynced?: boolean }
+  ) {
+    return tx.project.update({ where: { id: projectId }, data });
+  },
+
+  async recordHistoryTx(
+    tx: TxClient,
+    args: {
+      projectId: string;
+      trigger: "AUTO_RECALC" | "MANUAL_EDIT" | "MODE_RESET_TO_AUTO" | "MODE_SET_PER_TASK";
+      previousSplits: unknown;
+      newSplits: unknown;
+    }
+  ) {
+    return tx.commissionSplitHistory.create({
+      data: {
+        projectId: args.projectId,
+        trigger: args.trigger,
+        previousSplits: args.previousSplits as Prisma.InputJsonValue,
+        newSplits: args.newSplits as Prisma.InputJsonValue,
+      },
+    });
+  },
+
+  async getSplitHistory(projectId: string) {
+    return prismaRead.commissionSplitHistory.findMany({
+      where: { projectId },
+      orderBy: { createdAt: "desc" },
     });
   },
 
@@ -65,6 +190,53 @@ export const commissionRepository = {
         invoice: { select: { id: true, number: true } },
       },
     });
+  },
+
+  // RG-008 (TASK_FIXED) : une seule ligne par validation de tâche, jamais dans createManyTx
+  // (réservé à PROJECT_PERCENT/un paiement) — taskId/baseAmount/coefficient sont propres à ce
+  // régime, invoiceId/paymentId/basis/ratePct restent null (colonnes PROJECT_PERCENT).
+  async createTaskFixedTx(
+    tx: TxClient,
+    row: { partnerId: string; projectId: string; taskId: string; baseAmount: number; coefficient: number; amount: number }
+  ) {
+    return tx.commission.create({
+      data: {
+        partnerId: row.partnerId,
+        projectId: row.projectId,
+        taskId: row.taskId,
+        baseAmount: row.baseAmount,
+        coefficient: row.coefficient,
+        amount: row.amount,
+        source: "TASK_FIXED",
+      },
+    });
+  },
+
+  async taskHasCommission(taskId: string) {
+    const count = await prismaRead.commission.count({ where: { taskId } });
+    return count > 0;
+  },
+
+  // RG-011 : les ProjectManagerFee fixés à l'avance par le CEO, lus au moment de la livraison
+  // pour générer une Commission MANAGER_PROJECT_FEE par fee — jamais avant.
+  async getManagerFeesByProjectTx(tx: TxClient, projectId: string) {
+    return tx.projectManagerFee.findMany({ where: { projectId } });
+  },
+
+  async createManagerFeeCommissionTx(tx: TxClient, row: { partnerId: string; projectId: string; amount: number }) {
+    return tx.commission.create({
+      data: {
+        partnerId: row.partnerId,
+        projectId: row.projectId,
+        amount: row.amount,
+        source: "MANAGER_PROJECT_FEE",
+      },
+    });
+  },
+
+  async projectHasManagerFeeCommission(projectId: string) {
+    const count = await prismaRead.commission.count({ where: { projectId, source: "MANAGER_PROJECT_FEE" } });
+    return count > 0;
   },
 
   async getAll(
