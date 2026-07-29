@@ -72,12 +72,15 @@ test("accepting a SENT proposal navigates to the newly created project (RG-010, 
   const searchBox = page.getByPlaceholder("Rechercher des propositions...");
   await searchBox.fill(proposalTitle);
   await expect(searchBox).toHaveValue(proposalTitle);
-  const row = page.locator("tr", { hasText: proposalTitle });
-  // 30s (not the usual 15s default elsewhere in this suite): a real CI run confirmed the row was
-  // correct and present in the DOM at the moment of a 15s timeout failure — the search request's
-  // round trip, not application logic, was the bottleneck (cold-start first authenticated request
-  // on the runner, consistent with the SEC-212 timing margins already used elsewhere in this job).
-  await expect(row).toBeVisible({ timeout: 30_000 });
+  // ProposalsPage.tsx renders its list with AG Grid (8215b21), which emits `div[role="row"]`,
+  // never a literal `<tr>` — a real CI run's accessibility snapshot showed the correct row
+  // present (`row "E2E cascade proposal ... Accepter Refuser ..."`) at the exact moment
+  // `page.locator("tr", ...)` still reported "element(s) not found": the row existed, this
+  // selector could just never match AG Grid's actual DOM. getByRole is the fix, not a longer
+  // timeout — matches the same real element the earlier failed run's own snapshot already proved
+  // was there.
+  const row = page.getByRole("row", { name: new RegExp(proposalTitle) });
+  await expect(row).toBeVisible();
 
   await row.getByTitle("Accepter").click();
   await expect(page.getByText(/sera créé/)).toBeVisible();
