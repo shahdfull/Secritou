@@ -45,10 +45,11 @@ derniere_maj: "2026-07-29"
 # 4.5-commissions : A/B/G balayées le 2026-07-29 (audit réel contre
 # REFERENTIEL.md §5, commission.service.ts/.controller.ts/.routes.ts/
 # .validator.ts/.repository.ts + grep ciblé task.service.ts/schema.prisma) —
-# SEC-015 (éleve) et SEC-016 (moyenne) trouvées, aucune bloquante ; module
-# non clôturable "prêt au lancement" tant que SEC-015 n'est pas resolu (voir
-# CLAUDE.md « Critère de clôture "prêt au lancement" »). C/D/E/F/H/I/J
-# laissées à null, non vérifiées cette passe.
+# SEC-015 (eleve) et SEC-016 (moyenne) trouvées, toutes deux resolu (commit
+# fdc1363, CI verte confirmée run 30457571233) — aucune anomalie
+# bloquant/eleve ouverte sur A/B/G : 4.5-commissions remplit le critère de
+# clôture "prêt au lancement" (CLAUDE.md). C/D/E/F/H/I/J laissées à null,
+# non vérifiées cette passe, n'entrent pas dans ce critère.
 
 modules:
   "4.1-crm":

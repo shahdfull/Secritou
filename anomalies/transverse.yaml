@@ -25,7 +25,7 @@ anomalies:
       les lignes précédentes du même test, elles passent).
     classe: assertion-format-decimal
     gravite: mineure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       server/test/gdprErasure.test.ts, cas "a client with an invoice is
       anonymized, not deleted — the invoice survives untouched" doit passer
@@ -63,6 +63,49 @@ anomalies:
       comportement réel de Prisma. Corrigée : `assert.equal(Number(
       invoiceStillThere?.amount), 100)` au lieu de comparer une chaîne
       formatée. Suite complète server (650 tests, 650 pass, 0 fail, 0 skip)
-      exécutée sans régression. Statut en_cours (pas resolu) tant que ce
-      correctif n'est pas vu vert en CI (CLAUDE.md « Un critère de
+      exécutée sans régression. Commité (954a191) et confirmé vu vert en
+      CI sur le commit fdc1363 (run GitHub Actions 30457571233, 6/6 jobs
+      verts) — critère de résolution rempli (CLAUDE.md « Un critère de
       résolution se vérifie sur un commit »).
+
+  - id: SEC-017
+    titre: >
+      Dépendance circulaire creditNote.service.ts <-> invoice.service.ts
+      (madge --circular, porte CI "Circular dependency check") — invoice.service.ts
+      importe creditNoteService pour la cascade de trop-perçu, creditNote.service.ts
+      importait assertInvoiceInScope depuis invoice.service.ts
+    perimetre: transverse
+    regle_violee: >
+      Porte de build CI "Circular dependency check" (`npx madge --circular
+      --extensions ts src/`, server/.github/workflows/ci.yml), présente et
+      verte 5 jours avant cette session (run 30051176133), rouge sur les 3
+      runs suivant le premier commit de cette session — régression réelle
+      introduite par un des 15 commits pré-existants poussés en une fois au
+      début de cette session, jamais relus individuellement.
+    classe: dependance-circulaire
+    gravite: moyenne
+    statut: resolu
+    critere_de_resolution: >
+      `npx madge --circular --extensions ts src/` (depuis server/) ne
+      rapporte aucun cycle, et la porte CI "Circular dependency check"
+      passe au vert sur un commit réel.
+    detecte_le: "2026-07-29"
+    source: >
+      CI run 30456780465 (job server, étape "Circular dependency check") :
+      « Found 1 circular dependency! 1) services/creditNote.service.ts >
+      services/invoice.service.ts ». Confirmé par lecture directe des deux
+      fichiers : invoice.service.ts:11 importe creditNoteService (utilisé
+      ligne 280, cascade de trop-perçu automatique) ; creditNote.service.ts:14
+      importait assertInvoiceInScope depuis invoice.service.ts (utilisé
+      ligne 95, scope MANAGER sur la facture liée à l'avoir).
+    confiance: haute
+    correctif: >
+      assertInvoiceInScope (fonction pure de scope, ne dépendait déjà que de
+      ServiceScope et de prismaRead — aucune dépendance réelle au reste
+      d'invoice.service.ts) extraite vers server/src/utils/serviceScope.ts,
+      même précédent que assertProjectInScope (SEC-041). Les deux services
+      importent désormais cette fonction depuis serviceScope.ts, plus aucune
+      dépendance mutuelle entre eux. Vérifié : `npx madge --circular`
+      propre, typecheck/lint serveur propres, 650/650 tests (0 skip).
+      Commité (fdc1363) et confirmé vu vert en CI (run GitHub Actions
+      30457571233, 6/6 jobs verts) — critère de résolution rempli.

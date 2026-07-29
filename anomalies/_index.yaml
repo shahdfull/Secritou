@@ -12,7 +12,7 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-016
+dernier_id: SEC-017
 anomalies:
   - id: SEC-001
     titre: >
@@ -176,7 +176,7 @@ anomalies:
       (payoutBudget, Task.payoutAmount, ProjectManagerFee, coefficient
       qualité) qui n'existe nulle part dans REFERENTIEL.md §5
     perimetre: 4.5-commissions
-    statut: en_cours
+    statut: resolu
     gravite: eleve
     classe: incoherence-doc-code-rg-id
 
@@ -190,6 +190,17 @@ anomalies:
       de persistance) mais aucun test ne prouve le franchissement du seuil
       dans le sens descendant sur le split de commission
     perimetre: 4.5-commissions
-    statut: en_cours
+    statut: resolu
     gravite: moyenne
     classe: critere-resolution-incomplet
+
+  - id: SEC-017
+    titre: >
+      Dépendance circulaire creditNote.service.ts <-> invoice.service.ts
+      (madge --circular, porte CI "Circular dependency check") — invoice.service.ts
+      importe creditNoteService pour la cascade de trop-perçu, creditNote.service.ts
+      importait assertInvoiceInScope depuis invoice.service.ts
+    perimetre: transverse
+    statut: resolu
+    gravite: moyenne
+    classe: dependance-circulaire

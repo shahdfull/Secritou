@@ -107,7 +107,7 @@ anomalies:
       d'accord entre elles sur quels RG-xxx couvrent ce régime.
     classe: incoherence-doc-code-rg-id
     gravite: eleve
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       REFERENTIEL.md §5 est mis à jour dans la même session que ce
       correctif : soit (a) RG-006 à RG-011 existants sont renommés/déplacés
@@ -152,8 +152,9 @@ anomalies:
       server/test/taskFixedCommission.test.ts,
       server/test/commissionService.test.ts. Décision écrite dans
       REFERENTIEL.md §7 (entrée du 2026-07-29) dans la même session.
-      Statut en_cours (pas resolu) tant que ce correctif n'est pas commité
-      et vu vert en CI (CLAUDE.md « Un critère de résolution se vérifie
+      Commité (d18325a) et confirmé vu vert en CI sur le commit fdc1363
+      (run GitHub Actions 30457571233, 6/6 jobs verts) — critère de
+      résolution rempli (CLAUDE.md « Un critère de résolution se vérifie
       sur un commit »). Note : les commentaires SQL des migrations déjà
       appliquées (20260728020000_project_payout_budget,
       20260728040000_task_payout_fields) citent encore RG-006/RG-007/
@@ -191,7 +192,7 @@ anomalies:
       recalcAutoSplit) n'a jamais été écrit.
     classe: critere-resolution-incomplet
     gravite: moyenne
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Un nouveau cas de test dans commissionAutoSplitTaskTrigger.test.ts (ou
       un fichier dédié) appelle réellement taskService.updateTask avec
@@ -227,6 +228,7 @@ anomalies:
       gap comme non résolu) a été retiré et remplacé par le contexte du
       nouveau test. Suite complète server (650 tests, 645 pass, 0 fail, 5
       skip pré-existants) exécutée deux fois de suite sans régression ;
-      typecheck et lint serveur propres. Statut en_cours (pas resolu) tant
-      que ce correctif n'est pas commité et vu vert en CI (CLAUDE.md « Un
+      typecheck et lint serveur propres. Commité (d18325a) et confirmé vu
+      vert en CI sur le commit fdc1363 (run GitHub Actions 30457571233,
+      6/6 jobs verts) — critère de résolution rempli (CLAUDE.md « Un
       critère de résolution se vérifie sur un commit »).
