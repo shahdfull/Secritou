@@ -39,13 +39,13 @@ before(async () => {
     const service = await prisma.service.findFirst();
     if (!service) throw new Error("no Service seeded");
 
-    const password = "x".repeat(60);
+    const passwordHash = "x".repeat(60);
     const user = await prisma.user.create({
-      data: { name: "RG-020 test user", email: `rg020-${Date.now()}@test.local`, password, role: "MANAGER", serviceId: service.id },
+      data: { name: "RG-020 test user", email: `rg020-${Date.now()}@test.local`, passwordHash, role: "MANAGER", serviceId: service.id },
     });
     userId = user.id;
     const actor = await prisma.user.create({
-      data: { name: "RG-020 test admin", email: `rg020-admin-${Date.now()}@test.local`, password, role: "ADMIN" },
+      data: { name: "RG-020 test admin", email: `rg020-admin-${Date.now()}@test.local`, passwordHash, role: "ADMIN" },
     });
     actorId = actor.id;
   } catch {
