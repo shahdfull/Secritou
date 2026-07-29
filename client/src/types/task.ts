@@ -14,7 +14,7 @@ export interface Task {
   startDate?: string;
   dueDate?: string;
   projectId: string;
-  assigneeId?: string;
+  assigneeId?: string | null;
   createdAt: string;
   updatedAt: string;
   project?: Project;
@@ -29,7 +29,7 @@ export interface CreateTaskInput {
   startDate?: string;
   dueDate?: string;
   projectId: string;
-  assigneeId?: string;
+  assigneeId?: string | null;
 }
 
 export interface UpdateTaskInput extends Partial<CreateTaskInput> {

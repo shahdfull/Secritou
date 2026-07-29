@@ -65,6 +65,7 @@ export function TaskEditDialog({
   const availableStatuses: TaskStatus[] = initialStatus
     ? [initialStatus, ...(ALLOWED_TASK_TRANSITIONS[initialStatus] ?? [])]
     : [...STATUS_OPTIONS];
+  const currentAssigneeId = form.watch("assigneeId");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -178,7 +179,7 @@ export function TaskEditDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t("common.project")}</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={(val) => field.onChange(val === "__none__" ? null : val)} value={field.value ?? "__none__"}>
                       <FormControl>
                         <SelectTrigger><SelectValue placeholder={t("tasksPage.selectProject")} /></SelectTrigger>
                       </FormControl>
@@ -198,11 +199,12 @@ export function TaskEditDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t("tasksPage.assignedTo")}</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={(val) => field.onChange(val === "__none__" ? null : val)} value={field.value ?? "__none__"}>
                       <FormControl>
                         <SelectTrigger><SelectValue placeholder={t("common.selectUser")} /></SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="__none__">Aucun assigné</SelectItem>
                         {users?.map((user) => (
                           <SelectItem key={user.id} value={user.id}>
                             <div className="flex items-center gap-2">
@@ -213,6 +215,17 @@ export function TaskEditDialog({
                         ))}
                       </SelectContent>
                     </Select>
+                    <div className="mt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => form.setValue("assigneeId", null, { shouldDirty: true, shouldValidate: true })}
+                        disabled={currentAssigneeId === null}
+                      >
+                        Retirer l'assigné
+                      </Button>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

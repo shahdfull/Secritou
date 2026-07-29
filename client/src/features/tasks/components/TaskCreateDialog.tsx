@@ -157,7 +157,7 @@ export function TaskCreateDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t("common.project")} <span className="text-red-500">*</span></FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} defaultValue={field.value ?? undefined}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder={t("tasksPage.selectProject")} />
@@ -182,13 +182,14 @@ export function TaskCreateDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Assigné à</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={(val) => field.onChange(val === "__none__" ? null : val)} defaultValue={field.value ?? "__none__"}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder={t("common.selectUser")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="__none__">Aucun assigné</SelectItem>
                       {users?.map((user) => (
                         <SelectItem key={user.id} value={user.id}>
                           <div className="flex items-center gap-2">

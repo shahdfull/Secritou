@@ -242,7 +242,7 @@ export const TasksKanban = memo(function TasksKanban({ filteredTasks, onTaskClic
   const { groupedTasks, taskIdToStatus, taskIdToAssignee } = useMemo(() => {
     const groups: Record<Task["status"], Task[]> = { TODO: [], IN_PROGRESS: [], REVIEW: [], DONE: [] };
     const statusMap = new Map<string, Task["status"]>();
-    const assigneeMap = new Map<string, string | undefined>();
+    const assigneeMap = new Map<string, string | null | undefined>();
     for (const task of filteredTasks) {
       groups[task.status].push(task);
       statusMap.set(task.id, task.status);
