@@ -7,7 +7,100 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : 4.2 Gestion de projet
-# 0 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
+# 2 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 
-anomalies: []
+anomalies:
+  - id: SEC-020
+    titre: >
+      timeEntry.service.ts (create/list/summary/mySummary) ne vérifie jamais
+      que le projet appartient au pôle du MANAGER appelant — seul
+      task.service.ts/projectMeeting.service.ts/projectTemplate.service.ts
+      appellent assertProjectInScope, timeEntry.service.ts non
+    perimetre: 4.2-projets
+    regle_violee: >
+      RG-002 (Rattachement mission → pôle → associé) — un Manager (associé)
+      ne peut créer, lire ou modifier des ressources d'un projet que dans
+      son propre pôle.
+    classe: idor-scope-manque
+    gravite: bloquant
+    statut: resolu
+    critere_de_resolution: >
+      Un test réel appelle timeEntryService.create/list/summary/mySummary
+      (ou les routes POST/GET /projects/:id/time-entries,
+      GET /projects/:id/my-time-summary) avec un scope MANAGER dont le
+      serviceId diffère de celui du projet ciblé, et observe un rejet
+      (403/404) au lieu d'un succès — pour les 4 méthodes. Le correctif doit
+      appeler assertProjectInScope (server/src/utils/serviceScope.ts),
+      cohérent avec le pattern déjà utilisé par task.service.ts/
+      projectMeeting.service.ts/projectTemplate.service.ts.
+    detecte_le: "2026-07-29"
+    source: >
+      Audit direct de 4.2-projets (catégories A/B/G), lecture intégrale de
+      server/src/services/timeEntry.service.ts,
+      server/src/repositories/timeEntry.repository.ts,
+      server/src/controllers/timeEntry.controller.ts,
+      server/src/routes/project.routes.ts (comparaison avec le pattern
+      assertProjectInScope de server/src/utils/serviceScope.ts, déjà
+      appliqué dans task.service.ts/projectMeeting.service.ts/
+      projectTemplate.service.ts).
+    confiance: haute
+    note: >
+      Route POST/GET /projects/:id/time-entries et
+      GET /projects/:id/my-time-summary sont toutes authorize("ADMIN",
+      "MANAGER","FREELANCER") sans aucun filtre de pôle au niveau service —
+      un MANAGER peut journaliser du temps, lister les entrées, et lire son
+      propre résumé de temps sur un projet de n'importe quel autre pôle.
+      getTimeSummary (résumé global du projet) est authorize("ADMIN") seul,
+      donc hors de portée pour un MANAGER — non concerné par ce constat.
+      globalSummary/workloadByAssignee (GET /time-entries/summary,
+      /workload — hors périmètre_code de ce fichier de routes) forcent déjà
+      correctement serviceId au niveau contrôleur pour MANAGER — seules les
+      4 méthodes keyed par projectId direct (create/list/summary/mySummary)
+      sont concernées.
+      Corrigé (session du 2026-07-29) : assertProjectInScope appelé dans
+      create/list/mySummary (summary reste non scopé, route ADMIN-only) ;
+      scope construit et transmis depuis timeEntry.controller.ts. Nouveau
+      test server/test/timeEntryScope.test.ts (7 cas, appelle réellement
+      timeEntryService contre une base migrée), enregistré dans
+      test/run-all.test.ts. `verifie: test`.
+
+  - id: SEC-021
+    titre: >
+      timeEntryService.create ne vérifie pas que taskId appartient bien à
+      l'assigneeId du FREELANCER appelant (seul le rattachement du taskId au
+      projectId est vérifié) — un FREELANCER staffé sur un projet peut
+      journaliser du temps sur la tâche d'un collègue du même projet
+    perimetre: 4.2-projets
+    regle_violee: >
+      Cohérence attendue avec la restriction FREELANCER déjà appliquée
+      ailleurs dans le module (task.service.ts#updateTask : un FREELANCER ne
+      peut agir que sur ses propres tâches assignées) — timeEntry.service.ts
+      ne réplique cette restriction qu'au niveau du projet, pas de la tâche
+      précise journalisée.
+    classe: idor-scope-manque
+    gravite: moyenne
+    statut: resolu
+    critere_de_resolution: >
+      Un test réel appelle timeEntryService.create avec un FREELANCER staffé
+      sur le projet (au moins une tâche qui lui est assignée) mais passant le
+      taskId d'une tâche du même projet assignée à un autre utilisateur, et
+      observe un rejet (403/422) au lieu d'un succès.
+    detecte_le: "2026-07-29"
+    source: >
+      Audit direct de 4.2-projets, lecture intégrale de
+      server/src/services/timeEntry.service.ts#create (comparaison avec
+      task.service.ts#updateTask, qui restreint explicitement un FREELANCER
+      à task.assigneeId === scope.userId).
+    confiance: haute
+    note: >
+      Constat distinct de SEC-020 (portée FREELANCER-vers-tâche, pas
+      MANAGER-vers-projet) — même classe (idor-scope-manque), critère de
+      résolution différent, donc ID distinct (voir CLAUDE.md « Règle des
+      IDs »). Impact limité à la visibilité/attribution des heures
+      journalisées (pas un accès à des données financières client), d'où la
+      gravité moyenne plutôt que bloquant.
+      Corrigé (session du 2026-07-29) : timeEntryService.create restreint
+      désormais data.taskId à assigneeId: userId quand userRole ===
+      "FREELANCER". Même test server/test/timeEntryScope.test.ts (2 des 7
+      cas couvrent spécifiquement ce constat). `verifie: test`.

@@ -8,7 +8,8 @@ export const createTimeEntry: RequestHandler = async (req, res, next) => {
     const projectId = req.params.id as string;
     const userId = req.user!.sub;
     const userRole = req.user!.role;
-    const entry = await timeEntryService.create(projectId, userId, userRole, req.body);
+    const scope = await buildServiceScope(req);
+    const entry = await timeEntryService.create(projectId, userId, userRole, req.body, scope);
     res.status(201).json({ data: entry });
   } catch (err) {
     next(err);
@@ -20,7 +21,8 @@ export const listTimeEntries: RequestHandler = async (req, res, next) => {
     const projectId = req.params.id as string;
     const page = Number(req.query.page) || 1;
     const pageSize = Math.min(Number(req.query.pageSize) || 20, 100);
-    const result = await timeEntryService.list(projectId, page, pageSize, req.user!.sub, req.user!.role);
+    const scope = await buildServiceScope(req);
+    const result = await timeEntryService.list(projectId, page, pageSize, req.user!.sub, req.user!.role, scope);
     res.json(result);
   } catch (err) {
     next(err);
@@ -40,7 +42,8 @@ export const getTimeSummary: RequestHandler = async (req, res, next) => {
 export const getMyTimeSummary: RequestHandler = async (req, res, next) => {
   try {
     const projectId = req.params.id as string;
-    const summary = await timeEntryService.mySummary(projectId, req.user!.sub);
+    const scope = await buildServiceScope(req);
+    const summary = await timeEntryService.mySummary(projectId, req.user!.sub, scope);
     res.json({ data: summary });
   } catch (err) {
     next(err);

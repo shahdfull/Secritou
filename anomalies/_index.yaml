@@ -12,8 +12,30 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-019
+dernier_id: SEC-021
 anomalies:
+  - id: SEC-020
+    titre: >
+      timeEntry.service.ts (create/list/summary/mySummary) ne vérifie jamais
+      que le projet appartient au pôle du MANAGER appelant — seul
+      task.service.ts/projectMeeting.service.ts/projectTemplate.service.ts
+      appellent assertProjectInScope, timeEntry.service.ts non
+    perimetre: 4.2-projets
+    statut: resolu
+    gravite: bloquant
+    classe: idor-scope-manque
+
+  - id: SEC-021
+    titre: >
+      timeEntryService.create ne vérifie pas que taskId appartient bien à
+      l'assigneeId du FREELANCER appelant (seul le rattachement du taskId au
+      projectId est vérifié) — un FREELANCER staffé sur un projet peut
+      journaliser du temps sur la tâche d'un collègue du même projet
+    perimetre: 4.2-projets
+    statut: resolu
+    gravite: moyenne
+    classe: idor-scope-manque
+
   - id: SEC-001
     titre: >
       GET /invoices/:id/credit-notes ne vérifie aucun scope de pôle pour

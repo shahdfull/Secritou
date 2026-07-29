@@ -59,6 +59,21 @@ derniere_maj: "2026-07-29"
 # bloquant/eleve ouverte sur A/B/G : 4.5-commissions remplit le critère de
 # clôture "prêt au lancement" (CLAUDE.md). C/D/E/F/H/I/J laissées à null,
 # non vérifiées cette passe, n'entrent pas dans ce critère.
+# 4.2-projets : A/B/G balayées le 2026-07-29 (premier audit réel du nouveau
+# registre — project.service.ts/.repository.ts/.controller.ts,
+# project.routes.ts, task.service.ts, timeEntry.service.ts/.repository.ts/
+# .controller.ts, comment.service.ts/.controller.ts, document.service.ts,
+# serviceScope.ts) — SEC-020 (bloquant, timeEntry.service.ts sans
+# assertProjectInScope pour MANAGER) et SEC-021 (moyenne, création
+# d'entrée de temps FREELANCER sans vérification que taskId lui est
+# assigné) trouvées et resolu dans la même session (assertProjectInScope
+# ajouté à create/list/mySummary, restriction assigneeId ajoutée pour
+# FREELANCER dans create, nouveau server/test/timeEntryScope.test.ts, 7
+# cas, appelle réellement timeEntryService) — aucune anomalie
+# bloquant/eleve ouverte sur A/B/G : 4.2-projets remplit le critère de
+# clôture "prêt au lancement" (CLAUDE.md), sous réserve de la CI verte sur
+# le commit correspondant. C/D/E/F/H/I/J laissées à null, non vérifiées
+# cette passe, n'entrent pas dans ce critère.
 
 modules:
   "4.1-crm":
@@ -76,13 +91,13 @@ modules:
 
   "4.2-projets":
     label: "4.2 Gestion de projet"
-    A: null
-    B: null
+    A: "2026-07-29"
+    B: "2026-07-29"
     C: null
     D: null
     E: null
     F: null
-    G: null
+    G: "2026-07-29"
     H: null
     I: null
     J: null

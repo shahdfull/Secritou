@@ -34,6 +34,7 @@ import "./leadCreateScope.test.ts";
 import "./leadUpdateStatusValidator.test.ts";
 import "./searchScope.test.ts";
 import "./taskScope.test.ts";
+import "./timeEntryScope.test.ts";
 import "./financeAccess.test.ts";
 import "./documentAccess.test.ts";
 import "./ai.endpoint.test.ts";
