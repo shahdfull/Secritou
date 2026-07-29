@@ -87,8 +87,10 @@ derniere_maj: "2026-07-29"
 # requirePermission("documents","update") en amont) découverte en
 # vérifiant comment requirePermission est réellement consommé côté
 # 4.2-projets — enregistrée et resolu sous 4.2-projets (pas ce périmètre,
-# le défaut est dans le consommateur, pas dans 4.10 lui-même). G non
-# balayée (pas de calcul financier direct dans ce module) ;
+# le défaut est dans le consommateur, pas dans 4.10 lui-même), commit
+# b352fb5, CI verte confirmée (6 checks GitHub Actions completed/success :
+# client, server, contrast-check, i18n-check, restore-smoke-test, e2e). G
+# non balayée (pas de calcul financier direct dans ce module) ;
 # C/D/E/F/H/I/J laissées à null.
 
 modules:
