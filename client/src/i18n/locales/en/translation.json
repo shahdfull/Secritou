@@ -593,7 +593,8 @@
     "noOverdue": "No overdue",
     "welcomeName": "Welcome back, {{name}} — here's what's happening today.",
     "welcomeAnon": "Welcome back — here's what's happening today.",
-    "pendingApprovals": "pending approvals"
+    "pendingApprovals": "pending approvals",
+    "createLeadFailed": "Unable to create the lead."
   },
   "commercial": {
     "tabs": {
@@ -780,8 +781,10 @@
     "by": "By",
     "confirm": "Confirm",
     "delete": "Delete",
+    "remove": "Remove",
     "edit": "Edit",
     "view": "View",
+    "anonymous": "Anonymous",
     "back": "Back",
     "search": "Search",
     "new": "New",
@@ -837,6 +840,9 @@
     "startDate": "Start date"
   },
   "settings": {
+    "title": "Settings",
+    "description": "Configure your profile, company, users and appearance.",
+    "savedSuccess": "Profile updated",
     "profile": {
       "title": "Profile",
       "subtitle": "Your account information",
@@ -1032,7 +1038,9 @@
       "fullscreen": "Open fullscreen",
       "close": "Close"
     },
-    "clearHistory": "Clear history"
+    "clearHistory": "Clear history",
+    "deleteConversationTitle": "Delete this conversation?",
+    "deleteConversationDesc": "This action is irreversible. The conversation and all its messages will be permanently deleted."
   },
   "notifications": {
     "open": "Open notifications",
@@ -1372,6 +1380,7 @@
   "leadsPage": {
     "title": "Leads",
     "subtitle": "Manage your leads and track their progress",
+    "empty": "No leads.",
     "addLead": "Add Lead",
     "createLead": "Create Lead",
     "createLeadDesc": "Add a new lead to your list",
@@ -1482,6 +1491,7 @@
   "clientsPage": {
     "title": "Clients",
     "subtitle": "Manage your client relationships",
+    "empty": "No clients.",
     "addClient": "Add Client",
     "createClient": "Create Client",
     "createClientDesc": "Add a new client to your list",
@@ -1584,11 +1594,6 @@
       "createFailed": "Unable to create this client. Please try again.",
       "updateFailed": "Unable to update this client. Please try again."
     }
-  },
-  "settings": {
-    "title": "Settings",
-    "description": "Configure your profile, company, users and appearance.",
-    "savedSuccess": "Profile updated"
   },
   "settingsTabs": {
     "profile": "Profile",
@@ -1798,6 +1803,9 @@
       "respondSuccess": "Your response has been recorded.",
       "respondError": "Failed to send your response. Please try again.",
       "noTimelineEntries": "No timeline entries yet.",
+      "confirmApproveDesc": "This approval is irreversible and closes the review of this request. Double-check the attachments and content before confirming.",
+      "approveWarning": "Once approved, this decision cannot be undone from this portal.",
+      "approveCheckboxLabel": "I confirm I have reviewed the content and attachments of this request.",
       "statuses": {
         "PENDING": "Pending",
         "APPROVED": "Approved",
@@ -1812,6 +1820,7 @@
         "creditNotes": "My credit notes"
       },
       "empty": "No invoices at the moment.",
+      "pdf": "PDF",
       "issuedOn": "Issued on",
       "dueDate": "Due",
       "paidSuffix": "paid",
@@ -2238,6 +2247,8 @@
     "cancelConfirmTitle": "Cancel this invoice?",
     "cancelConfirmDescription": "This action is irreversible, even for an already-sent invoice.",
     "cancelConfirmCheckbox": "I confirm the irreversible cancellation of invoice {{number}}.",
+    "cancelPaidWarningTitle": "Warning: payments already recorded",
+    "cancelPaidWarningBody": "{{amount}} already paid on this invoice will not be refunded or automatically converted into a credit note by this cancellation.",
     "createInvoice": "Create an invoice",
     "tabInvoices": "Invoices",
     "tabCreditNotes": "Credit Notes",
@@ -2595,6 +2606,8 @@
     "status": "Status",
     "actions": "Actions",
     "empty": "No commissions yet.",
+    "noManualCreationNotice": "A commission is created automatically from a payment received — there is no manual creation here.",
+    "correctionHint": "If there is an error on a commission already paid, request a correction before any new marking.",
     "markPaid": "Mark as paid",
     "alreadyPaid": "Already paid",
     "markedPaid": "Commission marked as paid",

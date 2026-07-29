@@ -285,6 +285,8 @@ export function ClientBriefPage() {
   };
 
   const currentSectionValid = currentSection.every(isQuestionValid);
+  const canAdvance = currentSectionValid;
+  const canSubmit = currentSectionValid;
 
   const handleChange = (key: string, value: unknown) => {
     setAnswers((prev) => ({ ...prev, [key]: value }));
@@ -441,7 +443,7 @@ export function ClientBriefPage() {
         {isLastStep ? (
           <Button
             onClick={handleSubmit}
-            disabled={submitMutation.isPending}
+            disabled={submitMutation.isPending || !canSubmit}
           >
             {submitMutation.isPending ? (
               <><Loader2 className="h-4 w-4 animate-spin mr-2" />Envoi en cours…</>
@@ -450,7 +452,7 @@ export function ClientBriefPage() {
             )}
           </Button>
         ) : (
-          <Button onClick={handleNext}>
+          <Button onClick={handleNext} disabled={!canAdvance}>
             Suivant
             <ArrowRight className="h-4 w-4 ml-1" />
           </Button>
@@ -459,7 +461,6 @@ export function ClientBriefPage() {
     </section>
   );
 }
-
 
 
 

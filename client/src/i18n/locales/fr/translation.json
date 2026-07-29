@@ -593,7 +593,8 @@
     "noOverdue": "Aucun retard",
     "welcomeName": "Bon retour, {{name}} — voici ce qui se passe aujourd'hui.",
     "welcomeAnon": "Bon retour — voici ce qui se passe aujourd'hui.",
-    "pendingApprovals": "approbations en attente"
+    "pendingApprovals": "approbations en attente",
+    "createLeadFailed": "Impossible de créer le lead."
   },
   "commercial": {
     "tabs": {
@@ -780,8 +781,10 @@
     "by": "Par",
     "confirm": "Confirmer",
     "delete": "Supprimer",
+    "remove": "Retirer",
     "edit": "Modifier",
     "view": "Voir",
+    "anonymous": "Anonyme",
     "back": "Retour",
     "search": "Rechercher",
     "new": "Nouveau",
@@ -837,6 +840,9 @@
     "startDate": "Date de début"
   },
   "settings": {
+    "title": "Paramètres",
+    "description": "Configurez votre profil, entreprise, utilisateurs et apparence.",
+    "savedSuccess": "Profil mis à jour",
     "profile": {
       "title": "Profil",
       "subtitle": "Informations de votre compte",
@@ -1032,7 +1038,9 @@
       "fullscreen": "Ouvrir en plein écran",
       "close": "Fermer"
     },
-    "clearHistory": "Effacer l'historique"
+    "clearHistory": "Effacer l'historique",
+    "deleteConversationTitle": "Supprimer cette conversation ?",
+    "deleteConversationDesc": "Cette action est irréversible. La conversation et tous ses messages seront définitivement supprimés."
   },
   "notifications": {
     "open": "Ouvrir les notifications",
@@ -1372,6 +1380,7 @@
   "leadsPage": {
     "title": "Prospects",
     "subtitle": "Gérez vos prospects et suivez leur progression",
+    "empty": "Aucun prospect.",
     "addLead": "Ajouter un prospect",
     "createLead": "Créer un prospect",
     "createLeadDesc": "Ajoutez un nouveau prospect à votre liste",
@@ -1482,6 +1491,7 @@
   "clientsPage": {
     "title": "Clients",
     "subtitle": "Gérez vos relations clients",
+    "empty": "Aucun client.",
     "addClient": "Ajouter un client",
     "createClient": "Créer un client",
     "createClientDesc": "Ajoutez un nouveau client à votre liste",
@@ -1584,11 +1594,6 @@
       "createFailed": "Impossible de créer ce client. Veuillez réessayer.",
       "updateFailed": "Impossible de mettre à jour ce client. Veuillez réessayer."
     }
-  },
-  "settings": {
-    "title": "Paramètres",
-    "description": "Configurez votre profil, entreprise, utilisateurs et apparence.",
-    "savedSuccess": "Profil mis à jour"
   },
   "settingsTabs": {
     "profile": "Profil",
@@ -1798,6 +1803,9 @@
       "respondSuccess": "Votre réponse a bien été enregistrée.",
       "respondError": "L'envoi de votre réponse a échoué. Veuillez réessayer.",
       "noTimelineEntries": "Aucun historique pour le moment.",
+      "confirmApproveDesc": "Cette approbation est irréversible et clôt la validation de cette demande. Vérifiez bien les pièces jointes et le contenu avant de confirmer.",
+      "approveWarning": "Une fois approuvée, cette décision ne pourra pas être annulée depuis ce portail.",
+      "approveCheckboxLabel": "Je confirme avoir vérifié le contenu et les pièces jointes de cette demande.",
       "statuses": {
         "PENDING": "En attente",
         "APPROVED": "Approuvé",
@@ -1812,6 +1820,7 @@
         "creditNotes": "Mes avoirs"
       },
       "empty": "Aucune facture pour le moment.",
+      "pdf": "PDF",
       "issuedOn": "Émise le",
       "dueDate": "Échéance",
       "paidSuffix": "réglé",
@@ -2238,6 +2247,8 @@
     "cancelConfirmTitle": "Annuler cette facture ?",
     "cancelConfirmDescription": "Cette action est irréversible, y compris pour une facture déjà envoyée.",
     "cancelConfirmCheckbox": "Je confirme l'annulation irréversible de la facture {{number}}.",
+    "cancelPaidWarningTitle": "Avertissement : paiements déjà enregistrés",
+    "cancelPaidWarningBody": "{{amount}} déjà payé sur cette facture ne sera pas remboursé ni converti en avoir automatiquement par cette annulation.",
     "createInvoice": "Créer une facture",
     "tabInvoices": "Factures",
     "tabCreditNotes": "Avoirs",
@@ -2595,6 +2606,8 @@
     "status": "Statut",
     "actions": "Actions",
     "empty": "Aucune commission pour le moment.",
+    "noManualCreationNotice": "Une commission naît automatiquement d'un paiement encaissé — il n'y a pas de création manuelle ici.",
+    "correctionHint": "En cas d’erreur sur une commission déjà versée, demandez une correction avant tout nouveau marquage.",
     "markPaid": "Marquer comme payée",
     "alreadyPaid": "Déjà payée",
     "markedPaid": "Commission marquée comme payée",

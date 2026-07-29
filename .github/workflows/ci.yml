@@ -279,12 +279,31 @@ jobs:
       REDIS_PORT: "6379"
       FRONTEND_URL: http://localhost:5173
       PLAYWRIGHT_SKIP_WEB_SERVER: "true"
+      # e19f3e0 made prisma:seed call documentGeneratorService.generateInvoicePDF, which requires
+      # a real S3-compatible target. MinIO can't be declared under `services:` here — its image
+      # has no default CMD that starts the server (`minio` alone just prints --help; GitHub
+      # Actions service containers only support `env`/`ports`/`options`, none of which can supply
+      # the required `server /data` command) — so it's started as a plain background step below
+      # instead, same pattern as "Start server" further down this job.
+      S3_ENDPOINT: http://localhost:9000
+      S3_BUCKET: secritou-ci
+      S3_ACCESS_KEY_ID: secritou-ci
+      S3_SECRET_ACCESS_KEY: secritou-ci-secret
+      S3_REGION: us-east-1
+      S3_PUBLIC_URL: http://localhost:9000/secritou-ci
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
+      - name: Start MinIO
+        run: |
+          docker run -d --name ci-minio \
+            -e MINIO_ROOT_USER=secritou-ci \
+            -e MINIO_ROOT_PASSWORD=secritou-ci-secret \
+            -p 9000:9000 \
+            minio/minio:latest server /data --console-address ":9001"
       - name: Wait for Postgres and Redis to accept real queries
         # SEC-212: see the identical step in the `server` job — same runner-contention symptom
         # observed here as the app server's first real request (login) being slow enough to trip
@@ -323,11 +342,44 @@ jobs:
             fi
             sleep 2
           done
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:9000/minio/health/live >/dev/null 2>&1; then
+              echo "MinIO ready after ${i} attempt(s)."
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "::error::MinIO did not become healthy after 30 attempts."
+              exit 1
+            fi
+            sleep 2
+          done
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run prisma:generate --workspace=server
       - name: Apply migrations
         run: npx prisma migrate deploy
+        working-directory: server
+      - name: Create S3 bucket
+        # MinIO starts with no buckets — create the one the seed script's
+        # documentGeneratorService.generateInvoicePDF (e19f3e0) uploads generated invoice PDFs
+        # into, using the same AWS SDK client already a dependency of server/ rather than adding
+        # a new CLI dependency (aws-cli/mc) to the runner.
+        run: |
+          node -e "
+            const { S3Client, CreateBucketCommand } = require('@aws-sdk/client-s3');
+            const client = new S3Client({
+              region: process.env.S3_REGION,
+              endpoint: process.env.S3_ENDPOINT,
+              forcePathStyle: true,
+              credentials: {
+                accessKeyId: process.env.S3_ACCESS_KEY_ID,
+                secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+              },
+            });
+            client.send(new CreateBucketCommand({ Bucket: process.env.S3_BUCKET }))
+              .then(() => console.log('Bucket created:', process.env.S3_BUCKET))
+              .catch((e) => { console.error(e); process.exit(1); });
+          "
         working-directory: server
       - name: Seed database
         run: npm run prisma:seed --workspace=server

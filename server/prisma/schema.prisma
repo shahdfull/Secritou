@@ -249,15 +249,15 @@ model UserSession {
 // Service (business pole/department) : e.g. "Technology Solutions", "AI & Automation".
 // Leads, clients and users are attached to a service so MANAGERs can be scoped to their pole.
 model Service {
-  id        String            @id @default(uuid())
-  name      String            @unique @db.VarChar(100)
-  leads     Lead[]
-  projects  Project[]
+  id              String            @id @default(uuid())
+  name            String            @unique @db.VarChar(100)
+  leads           Lead[]
+  projects        Project[]
   serviceRequests ServiceRequest[]
-  users     User[]
-  clients   Client[]
-  templates ProjectTemplate[]
-  createdAt DateTime          @default(now()) @db.Timestamptz(6)
+  users           User[]
+  clients         Client[]
+  templates       ProjectTemplate[]
+  createdAt       DateTime          @default(now()) @db.Timestamptz(6)
 }
 
 // One reusable task checklist per pole — applied on demand from a project's empty-tasks
