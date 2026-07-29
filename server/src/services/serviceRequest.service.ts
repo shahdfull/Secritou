@@ -41,8 +41,19 @@ export const serviceRequestService = {
     return req;
   },
 
-  async createServiceRequest(data: { title: string; description?: string; type?: "SUPPORT" | "NEW_PROJECT"; clientId: string }) {
-    const request = await serviceRequestRepository.create({ ...data, type: data.type ?? "NEW_PROJECT" });
+  async createServiceRequest(data: { title: string; description?: string; type?: "SUPPORT" | "NEW_PROJECT"; clientId: string; projectId: string }) {
+    const { prismaRead } = await import("../config/prisma.js");
+    const project = await prismaRead.project.findFirst({
+      where: { id: data.projectId, clientId: data.clientId, deletedAt: null },
+      select: { id: true, serviceId: true },
+    });
+    if (!project) throw new HttpError(404, "Project not found");
+
+    const request = await serviceRequestRepository.create({
+      ...data,
+      type: data.type ?? "NEW_PROJECT",
+      serviceId: project.serviceId,
+    });
 
     const admins = await userRepository.findAdmins();
     await notificationRepository.createMany(admins.map((admin) => ({ userId: admin.id, title: "Nouvelle demande de service", message: `Une nouvelle demande de service "${data.title}" a été soumise.`, link: "/app/commercial?tab=service-requests" })));
@@ -56,6 +67,8 @@ export const serviceRequestService = {
       description: data.description,
       type: request.type,
       clientId: data.clientId,
+      projectId: project.id,
+      serviceId: project.serviceId,
       clientName: client?.name,
       adminUrl: `${env.FRONTEND_URL}/app/commercial?tab=service-requests`,
       agencyEmail: env.CONTACT_RECEIVER_EMAIL,

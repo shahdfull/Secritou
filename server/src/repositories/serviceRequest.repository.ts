@@ -14,10 +14,13 @@ const listSelect = {
   status: true,
   priority: true,
   clientId: true,
+  projectId: true,
+  serviceId: true,
   assignedToId: true,
   createdAt: true,
   updatedAt: true,
   client: { select: { name: true, id: true } },
+  project: { select: { id: true, name: true, serviceId: true } },
   assignedTo: { select: { id: true, name: true, email: true } },
   proposal: { select: { id: true, title: true } },
 } as const;
@@ -30,10 +33,13 @@ const detailSelect = {
   status: true,
   priority: true,
   clientId: true,
+  projectId: true,
+  serviceId: true,
   assignedToId: true,
   createdAt: true,
   updatedAt: true,
   client: { select: { name: true, id: true } },
+  project: { select: { id: true, name: true, serviceId: true } },
   assignedTo: { select: { id: true, name: true, email: true } },
   proposal: { select: { id: true, title: true } },
   comments: {
@@ -74,8 +80,11 @@ export const serviceRequestRepository = {
       status: true,
       priority: true,
       clientId: true,
+      projectId: true,
+      serviceId: true,
       createdAt: true,
       updatedAt: true,
+      project: { select: { id: true, name: true, serviceId: true } },
       proposal: { select: { id: true, title: true } },
     } as const;
 
@@ -105,7 +114,7 @@ export const serviceRequestRepository = {
       ...(options.assignedToId ? { assignedToId: options.assignedToId } : {}),
       ...(options.priority ? { priority: options.priority } : {}),
       ...(options.type ? { type: options.type } : {}),
-      ...(options.serviceId !== undefined ? { client: { projects: { some: { serviceId: options.serviceId ?? "__none__" } } } } : {}),
+      ...(options.serviceId !== undefined ? { OR: [{ serviceId: options.serviceId ?? "__none__" }, { project: { is: { serviceId: options.serviceId ?? "__none__" } } }] } : {}),
     };
 
     const skip = (options.page - 1) * options.pageSize;
@@ -122,7 +131,7 @@ export const serviceRequestRepository = {
   async findById(id: string, serviceId?: string | null) {
     const where: Record<string, unknown> = { id };
     if (serviceId !== undefined) {
-      where.client = { projects: { some: { serviceId: serviceId ?? "__none__" } } };
+      where.OR = [{ serviceId: serviceId ?? "__none__" }, { project: { is: { serviceId: serviceId ?? "__none__" } } }];
     }
     return prismaRead.serviceRequest.findFirst({ where, select: detailSelect });
   },
@@ -130,7 +139,7 @@ export const serviceRequestRepository = {
   async findByIdSimple(id: string, serviceId?: string | null): Promise<ServiceRequest | null> {
     const where: Record<string, unknown> = { id };
     if (serviceId !== undefined) {
-      where.client = { projects: { some: { serviceId: serviceId ?? "__none__" } } };
+      where.OR = [{ serviceId: serviceId ?? "__none__" }, { project: { is: { serviceId: serviceId ?? "__none__" } } }];
     }
     return prismaRead.serviceRequest.findFirst({ where });
   },
@@ -144,6 +153,8 @@ export const serviceRequestRepository = {
     description?: string;
     type?: "SUPPORT" | "NEW_PROJECT";
     clientId: string;
+    projectId: string;
+    serviceId?: string | null;
   }): Promise<ServiceRequest> {
     return prisma.serviceRequest.create({ data });
   },

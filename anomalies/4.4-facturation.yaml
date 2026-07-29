@@ -23,7 +23,7 @@ anomalies:
       niveau service, jamais supposé.
     classe: idor-scope-manque
     gravite: moyenne
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       creditNoteService.listByInvoice (ou son appelant
       getInvoiceCreditNotes, server/src/controllers/invoice.controller.ts:
@@ -91,7 +91,7 @@ anomalies:
       la nature réelle de la facture qu'il décrit.
     classe: incoherence-affichage-stockage
     gravite: moyenne
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Le client qui télécharge le PDF d'une facture dont
       invoice.invoiceType === "BALANCE" doit lire un document intitulé
@@ -167,7 +167,7 @@ anomalies:
       annulation.
     classe: audit-log-manquant
     gravite: moyenne
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       invoiceService.update (server/src/services/invoice.service.ts:134-148)
       doit appeler auditLogService.record({ actorId, actorRole,

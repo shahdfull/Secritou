@@ -63,8 +63,8 @@ async function makeClientWithProject(namePrefix: string, serviceId: string) {
   return client;
 }
 
-async function makeRequest(clientId: string, title: string) {
-  const req = await serviceRequestService.createServiceRequest({ title, clientId });
+async function makeRequest(clientId: string, projectId: string, title: string) {
+  const req = await serviceRequestService.createServiceRequest({ title, clientId, projectId });
   createdRequestIds.push(req.id);
   return req;
 }
@@ -76,7 +76,7 @@ describe("serviceRequestService MANAGER scoping (real code, not a reimplementati
   test("a manager can read a service request whose client has a project in the manager's service", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClientWithProject("scope-read-ok", serviceIdA);
-    const req = await makeRequest(client.id, "scope read ok");
+    const req = await makeRequest(client.id, (await prisma.project.findFirstOrThrow({ where: { clientId: client.id } })).id, "scope read ok");
 
     const found = await serviceRequestService.getServiceRequestById(req.id, { userRole: "MANAGER", userServiceId: serviceIdA });
     assert.equal(found.id, req.id);
@@ -84,11 +84,11 @@ describe("serviceRequestService MANAGER scoping (real code, not a reimplementati
 
   test("a manager cannot read a service request whose client has no project in the manager's service (404, not leaked)", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
-    const client = await makeClientWithProject("scope-read-blocked", serviceIdA);
-    const req = await makeRequest(client.id, "scope read blocked");
+    const client = await makeClientWithProject("scope-read-blocked", serviceIdB);
+    const req = await makeRequest(client.id, (await prisma.project.findFirstOrThrow({ where: { clientId: client.id } })).id, "scope read blocked");
 
     await assert.rejects(
-      () => serviceRequestService.getServiceRequestById(req.id, { userRole: "MANAGER", userServiceId: serviceIdB }),
+      () => serviceRequestService.getServiceRequestById(req.id, { userRole: "MANAGER", userServiceId: serviceIdA }),
       (err: unknown) => {
         assert.ok(err instanceof HttpError);
         assert.equal(err.statusCode, 404);
@@ -100,7 +100,7 @@ describe("serviceRequestService MANAGER scoping (real code, not a reimplementati
   test("a manager with no serviceId assigned is scoped to nothing (cannot read any service request)", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClientWithProject("scope-no-service", serviceIdA);
-    const req = await makeRequest(client.id, "scope no service");
+    const req = await makeRequest(client.id, (await prisma.project.findFirstOrThrow({ where: { clientId: client.id } })).id, "scope no service");
 
     await assert.rejects(
       () => serviceRequestService.getServiceRequestById(req.id, { userRole: "MANAGER", userServiceId: null }),
@@ -114,11 +114,11 @@ describe("serviceRequestService MANAGER scoping (real code, not a reimplementati
 
   test("deleteServiceRequest enforces the same scope as getServiceRequestById, not just the read path", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
-    const client = await makeClientWithProject("scope-delete-blocked", serviceIdA);
-    const req = await makeRequest(client.id, "scope delete blocked");
+    const client = await makeClientWithProject("scope-delete-blocked", serviceIdB);
+    const req = await makeRequest(client.id, (await prisma.project.findFirstOrThrow({ where: { clientId: client.id } })).id, "scope delete blocked");
 
     await assert.rejects(
-      () => serviceRequestService.deleteServiceRequest(req.id, { userRole: "MANAGER", userServiceId: serviceIdB }),
+      () => serviceRequestService.deleteServiceRequest(req.id, { userRole: "MANAGER", userServiceId: serviceIdA }),
       (err: unknown) => {
         assert.ok(err instanceof HttpError);
         assert.equal(err.statusCode, 404);
@@ -133,10 +133,31 @@ describe("serviceRequestService MANAGER scoping (real code, not a reimplementati
   test("an ADMIN (no scope) can read across services", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClientWithProject("scope-admin", serviceIdB);
-    const req = await makeRequest(client.id, "scope admin");
+    const req = await makeRequest(client.id, (await prisma.project.findFirstOrThrow({ where: { clientId: client.id } })).id, "scope admin");
 
     const found = await serviceRequestService.getServiceRequestById(req.id, { userRole: "ADMIN" });
     assert.equal(found.id, req.id);
+  });
+});
+
+describe("serviceRequestService exact project scope for multi-pole clients", () => {
+  test("a manager cannot read a request tied to a project in another service even if the same client has a project in their service", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
+    const client = await prisma.client.create({ data: { name: "exact-scope client" } });
+    createdClientIds.push(client.id);
+    const projectA = await prisma.project.create({ data: { name: "exact-scope project A", clientId: client.id, serviceId: serviceIdA } });
+    const projectB = await prisma.project.create({ data: { name: "exact-scope project B", clientId: client.id, serviceId: serviceIdB } });
+    createdProjectIds.push(projectA.id, projectB.id);
+    const req = await makeRequest(client.id, projectB.id, "exact scope blocked");
+
+    await assert.rejects(
+      () => serviceRequestService.getServiceRequestById(req.id, { userRole: "MANAGER", userServiceId: serviceIdA }),
+      (err: unknown) => {
+        assert.ok(err instanceof HttpError);
+        assert.equal(err.statusCode, 404);
+        return true;
+      }
+    );
   });
 });
 
@@ -147,7 +168,7 @@ describe("serviceRequestService.adminUpdateServiceRequest status transitions (re
   test("allows a valid transition (NEW -> IN_REVIEW) and records history", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClientWithProject("transition-valid", serviceIdA);
-    const req = await makeRequest(client.id, "transition valid");
+    const req = await makeRequest(client.id, (await prisma.project.findFirstOrThrow({ where: { clientId: client.id } })).id, "transition valid");
 
     const updated = await serviceRequestService.adminUpdateServiceRequest(req.id, actorUserId, { status: "IN_REVIEW" });
     assert.equal(updated.status, "IN_REVIEW");
@@ -161,7 +182,7 @@ describe("serviceRequestService.adminUpdateServiceRequest status transitions (re
   test("rejects an invalid transition (NEW -> COMPLETED, skipping the workflow) with 422", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClientWithProject("transition-invalid", serviceIdA);
-    const req = await makeRequest(client.id, "transition invalid");
+    const req = await makeRequest(client.id, (await prisma.project.findFirstOrThrow({ where: { clientId: client.id } })).id, "transition invalid");
 
     await assert.rejects(
       () => serviceRequestService.adminUpdateServiceRequest(req.id, actorUserId, { status: "COMPLETED" }),
@@ -179,7 +200,7 @@ describe("serviceRequestService.adminUpdateServiceRequest status transitions (re
   test("rejects any transition out of a terminal status (COMPLETED -> IN_PROGRESS)", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClientWithProject("transition-terminal", serviceIdA);
-    const req = await makeRequest(client.id, "transition terminal");
+    const req = await makeRequest(client.id, (await prisma.project.findFirstOrThrow({ where: { clientId: client.id } })).id, "transition terminal");
     await serviceRequestService.adminUpdateServiceRequest(req.id, actorUserId, { status: "IN_REVIEW" });
     await serviceRequestService.adminUpdateServiceRequest(req.id, actorUserId, { status: "IN_PROGRESS" });
     await serviceRequestService.adminUpdateServiceRequest(req.id, actorUserId, { status: "COMPLETED" });
@@ -197,7 +218,7 @@ describe("serviceRequestService.adminUpdateServiceRequest status transitions (re
   test("rejects an attempt to change type (immutable after creation) with SERVICE_REQUEST_TYPE_IMMUTABLE", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const client = await makeClientWithProject("transition-type", serviceIdA);
-    const req = await makeRequest(client.id, "transition type");
+    const req = await makeRequest(client.id, (await prisma.project.findFirstOrThrow({ where: { clientId: client.id } })).id, "transition type");
 
     await assert.rejects(
       () => serviceRequestService.adminUpdateServiceRequest(req.id, actorUserId, { type: "SUPPORT" } as never),

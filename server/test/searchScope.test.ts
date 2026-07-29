@@ -127,14 +127,15 @@ describe("searchRepository.search — real code, pole scope and role restriction
     const invoice = await prisma.invoice.create({ data: { number: `SEC132-INV-${uniq}`, title: `SEC132-full-invoice-${uniq}`, amount: 100, clientId: client.id, projectId: project.id } });
     const otherPoleInvoice = await prisma.invoice.create({ data: { number: `SEC132-INV-OTHER-${uniq}`, title: `SEC132-full-invoice-${uniq}`, amount: 100, clientId: otherClient.id, projectId: otherPoleProject.id } });
 
-    const serviceRequest = await prisma.serviceRequest.create({ data: { title: `SEC132-full-sr-${uniq}`, description: "x", type: "SUPPORT", clientId: client.id } });
-    const otherPoleServiceRequest = await prisma.serviceRequest.create({ data: { title: `SEC132-full-sr-${uniq}`, description: "x", type: "SUPPORT", clientId: otherClient.id } });
+    const serviceRequest = await prisma.serviceRequest.create({ data: { title: `SEC132-full-sr-${uniq}`, description: "x", type: "SUPPORT", clientId: client.id, projectId: project.id, serviceId: serviceA } });
+    const otherPoleServiceRequest = await prisma.serviceRequest.create({ data: { title: `SEC132-full-sr-${uniq}`, description: "x", type: "SUPPORT", clientId: otherClient.id, projectId: otherPoleProject.id, serviceId: serviceB } });
 
     const approval = await prisma.approval.create({ data: { title: `SEC132-full-approval-${uniq}`, clientId: client.id } });
     const otherPoleApproval = await prisma.approval.create({ data: { title: `SEC132-full-approval-${uniq}`, clientId: otherClient.id } });
 
-    // Both clients need at least one project in the relevant pole for serviceRequest/approval's
-    // client-projects.some.serviceId scoping (search.repository.ts:85-86) to actually discriminate.
+    // otherClient needs at least one project in the relevant pole for approval's
+    // client-projects.some.serviceId scoping (search.repository.ts:93) to actually discriminate —
+    // serviceRequest now scopes via its own serviceId/projectId (SEC-004), set directly above.
     await prisma.project.create({ data: { name: `SEC132-full-anchor-${uniq}`, clientId: otherClient.id, serviceId: serviceB } });
     createdProjectIds.push((await prisma.project.findFirst({ where: { name: `SEC132-full-anchor-${uniq}` } }))!.id);
 

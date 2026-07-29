@@ -106,4 +106,17 @@ describe("taskService.updateTask enforces scope on write (SEC-126)", () => {
     const byOwner = await taskService.updateTask(task.id, { status: "IN_PROGRESS" }, { userRole: "FREELANCER", userId: owner.id });
     assert.equal(byOwner.status, "IN_PROGRESS");
   });
+
+  test("an ADMIN can remove a task assignee by sending assigneeId null", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const owner = await prisma.user.create({ data: { email: `sec126-null-${Date.now()}@test.local`, name: "Owner Null", passwordHash: "x", role: "FREELANCER" } });
+    createdUserIds.push(owner.id);
+    const task = await makeTaskInService(serviceA, "sec126-null", owner.id);
+
+    const updated = await taskService.updateTask(task.id, { assigneeId: null }, { userRole: "ADMIN" });
+    assert.equal(updated.assigneeId, null);
+
+    const persisted = await prisma.task.findUnique({ where: { id: task.id } });
+    assert.equal(persisted?.assigneeId, null);
+  });
 });

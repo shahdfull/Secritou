@@ -26,7 +26,7 @@ anomalies:
       migration, psql manuel).
     classe: capacite-produit-manquante
     gravite: majeure
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       Un ADMIN doit pouvoir assigner/modifier le serviceId d'un compte
       MANAGER depuis l'écran Admins & Managers (SettingsUsersTab.tsx) —
@@ -126,7 +126,7 @@ anomalies:
       fourni.
     classe: test-casse-par-changement-non-synchronise
     gravite: majeure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Les 8 tests actuellement en échec/annulés de user.service.test.ts
       (describe RG-021 : "changing the role of an Admin is allowed when

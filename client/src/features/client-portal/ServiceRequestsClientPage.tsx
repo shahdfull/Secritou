@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { getServiceRequestStatusBadgeClass } from "@/utils/statusColors";
+import { useMyProjects } from "./hooks/useMyProjects";
 
 const getStatusText = (status: string, t: (key: string) => string) => {
   switch (status) {
@@ -35,21 +36,24 @@ export function ServiceRequestsClientPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { data: requestsResult, isLoading } = useClientServiceRequests();
+  const { data: projectsResult } = useMyProjects();
   const { mutate: createRequest, isPending } = useCreateClientServiceRequest();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState<"SUPPORT" | "NEW_PROJECT">("SUPPORT");
+  const [projectId, setProjectId] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     createRequest(
-      { title, description, type },
+      { title, description, type, projectId },
       {
         onSuccess: () => {
           toast.success(t("clientPortal.serviceRequests.createSuccess"));
           setTitle("");
           setDescription("");
           setType("SUPPORT");
+          setProjectId("");
         },
         onError: () => {
           toast.error(t("clientPortal.serviceRequests.createFailed"));
@@ -67,6 +71,7 @@ export function ServiceRequestsClientPage() {
   }
 
   const requests = requestsResult?.data ?? [];
+  const projects = projectsResult?.data ?? [];
 
   return (
     <div className="container-page max-w-6xl mx-auto py-8">
@@ -91,6 +96,21 @@ export function ServiceRequestsClientPage() {
                     placeholder={t("clientPortal.serviceRequests.titlePlaceholder")}
                     required
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">Projet concerné</label>
+                  <Select value={projectId} onValueChange={setProjectId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choisir un projet" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-1">{t("clientPortal.serviceRequests.requestType")}</label>

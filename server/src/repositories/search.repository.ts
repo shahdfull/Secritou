@@ -82,7 +82,14 @@ export const searchRepository = {
         : prisma.freelancerProfile.findMany({ where: { user: { is: { name: contains } } }, select: { id: true, user: { select: { id: true, name: true, email: true } } }, take: SEARCH_LIMIT }),
       prisma.proposal.findMany({ where: { ...viaProject, title: contains }, select: { id: true, title: true, status: true, amount: true }, take: SEARCH_LIMIT }),
       prisma.invoice.findMany({ where: { ...viaProject, OR: [{ title: contains }, { number: contains }] }, select: { id: true, title: true, number: true, status: true, amount: true }, take: SEARCH_LIMIT }),
-      prisma.serviceRequest.findMany({ where: { ...(svc ? { client: { is: { projects: { some: { serviceId: svc, archivedAt: null } } } } } : {}), title: contains }, select: { id: true, title: true, status: true }, take: SEARCH_LIMIT }),
+      prisma.serviceRequest.findMany({
+        where: {
+          ...(svc ? { OR: [{ serviceId: svc }, { project: { is: { serviceId: svc, archivedAt: null } } }] } : {}),
+          title: contains,
+        },
+        select: { id: true, title: true, status: true },
+        take: SEARCH_LIMIT,
+      }),
       prisma.approval.findMany({ where: { ...(svc ? { client: { is: { projects: { some: { serviceId: svc, archivedAt: null } } } } } : {}), title: contains }, select: { id: true, title: true, status: true }, take: SEARCH_LIMIT }),
     ]);
 

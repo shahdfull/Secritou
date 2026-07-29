@@ -25,6 +25,7 @@ const serviceRequestBaseSchema = z.object({
 export const createServiceRequestSchema = z.object({
   body: serviceRequestBaseSchema.extend({
     type: z.enum(["SUPPORT", "NEW_PROJECT"]).default("NEW_PROJECT"),
+    projectId: z.string().uuid(),
   }),
 });
 

@@ -7,8 +7,9 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : 4.6 Portail client
-# 3 anomalie(s) — premier audit réel de ce périmètre dans le registre remis
-# à zéro le 2026-07-27, session du 2026-07-27 (+1 le 2026-07-28).
+# 6 anomalie(s) — premier audit réel de ce périmètre dans le registre remis
+# à zéro le 2026-07-27, session du 2026-07-27 (+1 le 2026-07-28, +2 le
+# 2026-07-28, +1 le 2026-07-28).
 
 anomalies:
   - id: SEC-004
@@ -25,7 +26,7 @@ anomalies:
       projets dans plusieurs pôles) devient vraie.
     classe: idor-scope-approxime
     gravite: moyenne
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       Un test doit créer un Client avec deux Project dans deux Service
       distincts (pôle A et pôle B), créer une ServiceRequest pour ce client,
@@ -90,7 +91,7 @@ anomalies:
       devrait laisser une trace au même titre qu'une mutation financière.
     classe: audit-log-manquant
     gravite: mineure
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       approvalService.approve/reject (décision du client sur un livrable) et
       serviceRequestService.adminUpdateServiceRequest (changement de statut,
@@ -174,3 +175,171 @@ anomalies:
       les vérifications de non-régression de RG-026 (confirmation UX),
       périmètre distinct de celui-ci. Aucune correction appliquée dans
       cette session.
+
+  - id: SEC-012
+    titre: >
+      serviceRequestService.test.ts (describe "adminUpdateServiceRequest
+      status transitions") appelle makeRequest(client.id, title) avec 2
+      arguments au lieu de 3 (clientId, projectId, title) — projectId
+      reçoit la chaîne du titre, causant un "Project not found" sur 4 tests
+      de transition
+    perimetre: 4.6-portail-client
+    regle_violee: >
+      Aucune règle métier violée — bug de fixture de test uniquement.
+      makeRequest (helper local du fichier, ligne 66-70) a la signature
+      (clientId, projectId, title) ; le describe des transitions de statut
+      (ligne 167+) l'appelle avec seulement 2 arguments positionnels sur 4
+      cas, décalant projectId sur la valeur du titre.
+    classe: bug-fixture-test
+    gravite: mineure
+    statut: resolu
+    critere_de_resolution: >
+      Les 4 appels makeRequest(client.id, "...") du describe
+      "adminUpdateServiceRequest status transitions" (lignes 171, ~185,
+      ~203, ~221) doivent passer un vrai projectId (via
+      prisma.project.findFirstOrThrow comme le reste du fichier), pas
+      seulement un titre — les 4 tests doivent alors passer sans "Project
+      not found". Corrigé : les 4 appels passent désormais
+      (await prisma.project.findFirstOrThrow({ where: { clientId:
+      client.id } })).id comme 2e argument. npm run test:unit --workspace
+      server relancé en entier : 649 tests / 644 pass / 0 fail / 0
+      cancelled / 5 skipped (vs 636/8/0/5 avant correctif).
+    detecte_le: "2026-07-28"
+    source: >
+      npm run test:unit --workspace server, session du 2026-07-28, après
+      application de la migration 20260728080000_service_request_project_service_id
+      (SEC-004) qui a rendu ServiceRequest.projectId une colonne réelle en
+      base — ces 4 tests échouaient déjà auparavant mais silencieusement
+      masqués par l'absence de la colonne (le create() plantait avant
+      d'atteindre la vérification projectId). Lecture directe de
+      server/test/serviceRequestService.test.ts ligne 171 :
+      `const req = await makeRequest(client.id, "transition valid");` —
+      comparé à la signature `async function makeRequest(clientId: string,
+      projectId: string, title: string)` ligne 66.
+    confiance: haute
+    note: >
+      Distinct de SEC-004 (déjà resolu) : le code produit
+      (serviceRequestService.createServiceRequest) est correct et rejette
+      à raison un projectId invalide — c'est l'appel du test qui est
+      malformé, pas la vérification qu'il déclenche. Aucune modification
+      de test appliquée dans cette session (cf. CLAUDE.md, un test rouge
+      est une hypothèse sur le code, pas un défaut du test par défaut —
+      ici l'hypothèse a été vérifiée et écartée en faveur du test).
+
+  - id: SEC-013
+    titre: >
+      2 tests écrits pour SEC-004 (exact scope ServiceRequest) sont
+      incohérents avec le code qu'ils testent : serviceRequestService.test.ts
+      teste un scope "no access" avec le même serviceId que celui du projet
+      créé (self-contradictoire) ; searchScope.test.ts crée un ServiceRequest
+      sans projectId alors que search.repository.ts scope désormais par
+      serviceId/project.serviceId exact (l'un des deux doit être renseigné
+      pour matcher)
+    perimetre: 4.6-portail-client
+    regle_violee: >
+      Aucune règle métier violée — bugs de fixture de test, découverts une
+      fois la migration SEC-004 réellement appliquée (auparavant la colonne
+      n'existant pas en base, ces tests échouaient pour une raison
+      différente et non diagnostiquée : "Project not found"/erreur de
+      colonne manquante masquait le vrai défaut de fixture).
+    classe: bug-fixture-test
+    gravite: mineure
+    statut: resolu
+    critere_de_resolution: >
+      (a) server/test/serviceRequestService.test.ts, test "a manager cannot
+      read a service request whose client has no project in the manager's
+      service (404, not leaked)" (ligne 85-98) : le projet créé est dans
+      serviceIdB (ligne 87) et le scope testé est aussi serviceIdB (ligne
+      91) — même pôle, donc l'accès doit réussir, pas être rejeté. Le test
+      doit soit scoper avec serviceIdA (cas réellement "hors pôle"), soit
+      son assertion doit devenir assert.equal(found.id, req.id) si
+      l'intention était de coupler ce test à un scénario déjà couvert par
+      un autre test du même describe. Corrigé : userServiceId passe à
+      serviceIdA (cas hors pôle réel), même correction appliquée par
+      cohérence au test "deleteServiceRequest enforces the same scope..."
+      (ligne 115-131, même bug, même origine) même s'il n'était pas dans la
+      liste initiale des 8 échecs.
+      (b) server/test/searchScope.test.ts, test "a MANAGER only finds
+      projects/invoices/serviceRequests/approvals from their own pole"
+      (ligne 115+) : prisma.serviceRequest.create (ligne 130-131) ne fixe
+      ni projectId ni serviceId — avec le scope exact désormais en place
+      (search.repository.ts:85-92, OR sur serviceId/project.serviceId), la
+      ServiceRequest ne peut matcher aucun manager. Le create doit passer
+      projectId: project.id (le projet du bon pôle déjà créé ligne 122) et
+      otherPoleServiceRequest doit recevoir otherPoleProject.id, pour que
+      la comparaison own-pole / cross-pole redevienne significative.
+      Corrigé : les deux create() reçoivent désormais projectId et
+      serviceId cohérents avec leur pôle réel ; commentaire obsolète
+      (« client-projects.some.serviceId ») mis à jour pour ne plus décrire
+      que le scope d'Approval, qui utilise encore ce mécanisme. npm run
+      test:unit --workspace server relancé en entier : 649 tests / 644
+      pass / 0 fail / 0 cancelled / 5 skipped (vs 636/8/0/5 avant
+      correctif).
+    detecte_le: "2026-07-28"
+    source: >
+      npm run test:unit --workspace server, session du 2026-07-28, après
+      application de la migration SEC-004
+      (20260728080000_service_request_project_service_id). Lecture directe
+      de server/src/repositories/serviceRequest.repository.ts#findById
+      (ligne 131-137, OR exact sur serviceId/project.serviceId) et
+      server/src/repositories/search.repository.ts (ligne 85-92, même
+      logique) confirmant que le code produit applique bien le scope exact
+      annoncé par SEC-004 — les 2 tests ci-dessus ne sont pas alignés sur ce
+      comportement.
+    confiance: haute
+    note: >
+      Aucune modification de test ni de code appliquée dans cette session
+      sur ce point — seul le symptôme exact et sa cause précise (fixture
+      incohérente avec le scope exact déjà implémenté) sont enregistrés,
+      cf. CLAUDE.md.
+
+  - id: SEC-014
+    titre: >
+      ApprovalsClientPage.tsx (approbation client, RG-026 Niveau 2)
+      réimplémente localement le contrat de confirmation renforcée au lieu
+      d'utiliser le composant partagé ConfirmationDialog.tsx utilisé par
+      les 6 autres actions Niveau 2
+    perimetre: 4.6-portail-client
+    regle_violee: >
+      RG-026 (niveaux de confirmation UX) cite explicitement
+      ApprovalsClientPage.tsx comme l'une des 7 actions classées Niveau 2
+      (« liste fermée »), au même titre que les 6 autres qui utilisent
+      toutes le composant partagé ConfirmationDialog.tsx
+      (client/src/components/shared/crud/ConfirmationDialog.tsx, dont le
+      commentaire de tête cite RG-026 comme raison d'être). Ce n'est pas
+      une violation du contrat fonctionnel Niveau 2 lui-même (checkbox
+      obligatoire, description séparée du libellé de la case, bouton
+      désactivé tant que non cochée — les trois exigences sont bien
+      respectées dans ApprovalsClientPage.tsx), mais une divergence
+      d'implémentation par rapport au modèle que la règle établit pour les
+      6 autres cas.
+    classe: incoherence-factorisation-ui
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      ApprovalsClientPage.tsx utilise le composant partagé
+      ConfirmationDialog.tsx pour son dialogue d'approbation, au lieu de
+      sa réimplémentation locale actuelle (Dialog + Checkbox + Textarea
+      dans le même fichier, lignes ~168-249) — décision de refactor
+      pure, à confirmer avec le porteur avant d'y toucher (le fichier
+      gère aussi les actions reject/comment dans le même Dialog, qui ne
+      sont pas Niveau 2 : la refonte doit isoler proprement le seul cas
+      approve sans casser reject/comment).
+    detecte_le: "2026-07-28"
+    source: >
+      Lecture directe intégrale des 7 fichiers cités par RG-026
+      (InvoicesPage.tsx, CommissionsPage.tsx, BookingAdminPage.tsx,
+      ServiceRequestsAdminPage.tsx, ProposalsClientPage.tsx,
+      ApprovalsClientPage.tsx, ClientOnboardingPage.tsx) et de
+      ConfirmationDialog.tsx, session du 2026-07-28, en réponse à une
+      demande explicite du porteur du projet de vérifier si RG-026 est
+      réellement codée. 6 des 7 fichiers importent et utilisent
+      ConfirmationDialog ; ApprovalsClientPage.tsx (lignes 168-249)
+      construit son propre Dialog avec Checkbox inline au lieu de
+      l'importer.
+    confiance: haute
+    note: >
+      Le comportement utilisateur final n'est pas dégradé (mêmes
+      garanties de confirmation renforcée) — l'anomalie porte sur la
+      cohérence de factorisation attendue par la formulation de RG-026
+      elle-même, pas sur une brèche de protection.

@@ -3,6 +3,7 @@ import { userRepository } from "../repositories/user.repository.js";
 import { enqueueEmails, enqueueNotifications } from "../jobs/queues.js";
 import { approvalRequestedTemplate, approvalDecisionTemplate } from "./emailTemplates/index.js";
 import { env } from "../config/env.js";
+import { auditLogService } from "./auditLog.service.js";
 import type { ApprovalStatus, Prisma } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import type { ServiceScope } from "../utils/serviceScope.js";
@@ -107,6 +108,14 @@ export const approvalService = {
     }
     const updated = await approvalRepository.update(id, { status: "APPROVED" });
     await approvalRepository.addTimeline(id, { action: "APPROVED", comment, status: "APPROVED", userId });
+    void auditLogService.record({
+      actorId: userId,
+      action: "approval.approve",
+      entityType: "Approval",
+      entityId: id,
+      before: { status: approval.status },
+      after: { status: "APPROVED" },
+    });
 
     const [decider, clientUsers, admins] = await Promise.all([
       userId ? userRepository.findById(userId) : Promise.resolve(null),
@@ -149,6 +158,14 @@ export const approvalService = {
     }
     const updated = await approvalRepository.update(id, { status: "REJECTED" });
     await approvalRepository.addTimeline(id, { action: "REJECTED", comment, status: "REJECTED", userId });
+    void auditLogService.record({
+      actorId: userId,
+      action: "approval.reject",
+      entityType: "Approval",
+      entityId: id,
+      before: { status: approval.status },
+      after: { status: "REJECTED" },
+    });
 
     const [decider, clientUsers, admins] = await Promise.all([
       userId ? userRepository.findById(userId) : Promise.resolve(null),

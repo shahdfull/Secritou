@@ -16,10 +16,13 @@ export interface ServiceRequest {
   status: ServiceRequestStatus;
   priority: ServiceRequestPriority;
   clientId: string;
+  projectId?: string | null;
+  serviceId?: string | null;
   assignedToId?: string | null;
   createdAt: string;
   updatedAt: string;
   client?: { id: string; name: string };
+  project?: { id: string; name: string; serviceId?: string | null } | null;
   assignedTo?: { id: string; name: string; email: string } | null;
   proposal?: { id: string; title: string } | null;
 }
@@ -51,6 +54,7 @@ export interface CreateServiceRequestInput {
   title: string;
   description?: string;
   type?: "SUPPORT" | "NEW_PROJECT";
+  projectId: string;
 }
 
 export interface AdminUpdateServiceRequestInput {
