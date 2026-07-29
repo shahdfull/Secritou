@@ -73,7 +73,11 @@ test("accepting a SENT proposal navigates to the newly created project (RG-010, 
   await searchBox.fill(proposalTitle);
   await expect(searchBox).toHaveValue(proposalTitle);
   const row = page.locator("tr", { hasText: proposalTitle });
-  await expect(row).toBeVisible({ timeout: 15_000 });
+  // 30s (not the usual 15s default elsewhere in this suite): a real CI run confirmed the row was
+  // correct and present in the DOM at the moment of a 15s timeout failure — the search request's
+  // round trip, not application logic, was the bottleneck (cold-start first authenticated request
+  // on the runner, consistent with the SEC-212 timing margins already used elsewhere in this job).
+  await expect(row).toBeVisible({ timeout: 30_000 });
 
   await row.getByTitle("Accepter").click();
   await expect(page.getByText(/sera créé/)).toBeVisible();
