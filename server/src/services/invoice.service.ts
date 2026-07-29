@@ -9,7 +9,7 @@ import { prisma } from "../config/prisma.js";
 import { HttpError } from "../utils/httpError.js";
 import { clientSuccessService } from "./clientSuccess.service.js";
 import { creditNoteService } from "./creditNote.service.js";
-import type { ServiceScope } from "../utils/serviceScope.js";
+import { assertInvoiceInScope, type ServiceScope } from "../utils/serviceScope.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
 import { computeVat, roundMoney, TIMBRE_FISCAL } from "../utils/vat.js";
@@ -25,25 +25,6 @@ async function invalidateFinanceCaches() {
 }
 
 type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
-
-// A MANAGER may only act on invoices whose project belongs to their service.
-// Invoices without a project are service-neutral and visible to every manager
-// (same rule as invoiceRepository.findAllByServiceId).
-// Throws 404 (not 403) to avoid leaking existence of out-of-scope invoices.
-export async function assertInvoiceInScope(
-  invoice: { projectId?: string | null } | null,
-  scope?: ServiceScope
-) {
-  if (!invoice) throw new HttpError(404, "Invoice not found");
-  if (!scope || scope.userRole !== "MANAGER") return;
-  if (!invoice.projectId) return;
-  const { prismaRead } = await import("../config/prisma.js");
-  const project = await prismaRead.project.findFirst({
-    where: { id: invoice.projectId, serviceId: scope.userServiceId ?? "__none__" },
-    select: { id: true },
-  });
-  if (!project) throw new HttpError(404, "Invoice not found");
-}
 
 /**
  * Line items may only be added/changed/removed while the invoice is a DRAFT.

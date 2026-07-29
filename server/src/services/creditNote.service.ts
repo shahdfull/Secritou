@@ -11,8 +11,7 @@ import { notifyN8n } from "../utils/webhook.js";
 import { env } from "../config/env.js";
 import { auditLogService } from "./auditLog.service.js";
 import { invoiceRepository } from "../repositories/invoice.repository.js";
-import { assertInvoiceInScope } from "./invoice.service.js";
-import type { ServiceScope } from "../utils/serviceScope.js";
+import { assertInvoiceInScope, type ServiceScope } from "../utils/serviceScope.js";
 
 // Transaction client type (matches the tx passed by prisma.$transaction on the extended client).
 type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];

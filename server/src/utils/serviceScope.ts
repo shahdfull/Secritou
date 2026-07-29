@@ -51,3 +51,25 @@ export async function assertProjectIsOpenForTaskChanges(projectId: string): Prom
     throw new HttpError(409, "This project is completed and no longer accepts task changes", "PROJECT_COMPLETED");
   }
 }
+
+// A MANAGER may only act on invoices whose project belongs to their service. Invoices without a
+// project are service-neutral and visible to every manager (same rule as
+// invoiceRepository.findAllByServiceId). Throws 404 (not 403) to avoid leaking existence of
+// out-of-scope invoices. Extracted from invoice.service.ts (madge circular dependency check,
+// session 2026-07-29): creditNote.service.ts imports this, and invoice.service.ts imports
+// creditNoteService for the overpayment cascade — importing this from invoice.service.ts created
+// a real import cycle between the two, caught by `npx madge --circular` in CI.
+export async function assertInvoiceInScope(
+  invoice: { projectId?: string | null } | null,
+  scope?: ServiceScope
+) {
+  if (!invoice) throw new HttpError(404, "Invoice not found");
+  if (!scope || scope.userRole !== "MANAGER") return;
+  if (!invoice.projectId) return;
+  const { prismaRead } = await import("../config/prisma.js");
+  const project = await prismaRead.project.findFirst({
+    where: { id: invoice.projectId, serviceId: scope.userServiceId ?? "__none__" },
+    select: { id: true },
+  });
+  if (!project) throw new HttpError(404, "Invoice not found");
+}
