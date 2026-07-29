@@ -30,13 +30,13 @@ export const taskBaseSchema = z.object({
   status: TaskStatusEnum,
   priority: z.enum(TASK_PRIORITIES).optional(),
   projectId: z.string().min(1),
-  assigneeId: z.string().optional(),
+  assigneeId: z.string().nullable().optional(),
   startDate: z.string().optional(),
   dueDate: z.string().optional(),
-  // RG-006/RG-007 (refonte paiement à la tâche) : montant de base fixé par le CEO avant
+  // RG-030/RG-031 (refonte paiement à la tâche) : montant de base fixé par le CEO avant
   // exécution — requis pour quitter TODO sur un projet en mode non-AUTO (voir task.service.ts).
   payoutAmount: z.number().positive().optional(),
-  // RG-008 : saisi à la validation (passage à DONE), 1 à 5.
+  // RG-032 : saisi à la validation (passage à DONE), 1 à 5.
   qualityScore: z.number().int().min(1).max(5).optional(),
 });
 

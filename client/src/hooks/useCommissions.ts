@@ -45,7 +45,7 @@ export function useCommissionSplitHistory(projectId: string, enabled = true) {
   });
 }
 
-// RG-006 (refonte paiement à la tâche) : le CEO fixe explicitement l'enveloppe — le
+// RG-030 (refonte paiement à la tâche) : le CEO fixe explicitement l'enveloppe — le
 // pré-remplissage suggéré (65% de la proposition) n'est jamais envoyé automatiquement ici,
 // seulement affiché côté composant ; ce hook n'écrit que la valeur que le CEO valide.
 export function useSetPayoutBudget(projectId: string) {

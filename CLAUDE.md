@@ -78,6 +78,26 @@ i18n global, design system, observabilité).
    une autre cellule par supposition, et jamais la ligne entière si une
    seule catégorie a été balayée cette passe.
 
+## Critère de clôture "prêt au lancement"
+
+Un module non-GELÉ est considéré **clôturé pour le lancement** quand les
+catégories A (Sécurité applicative), B (Intégrité des données) et G
+(Exactitude métier et financière) ont été balayées dans `COUVERTURE.yaml`
+pour ce périmètre, ET que les anomalies `bloquant`/`eleve` détectées sur ces
+trois catégories pour ce périmètre sont `resolu`.
+
+Les catégories C/D/E/F/H/I/J restent en backlog post-lancement : elles ne
+bloquent jamais la clôture d'un module et ne sont auditées que sur signal
+fort explicite (incident réel, demande directe du porteur du projet) — jamais
+par défaut, jamais pour "compléter" une matrice.
+
+Le registre entier (`anomalies/_index.yaml` + détail, `COUVERTURE.yaml`) ne
+se remet plus à zéro globalement. Une case (périmètre, catégorie) déjà
+balayée ne redevient "à auditer" que si
+`git log --since=<date_de_la_case> -- <chemin_du_périmètre>` montre un commit
+touchant ce périmètre après sa date de balayage — jamais par doute général
+ni par remise à zéro préventive.
+
 ## Interdiction de reformulation
 
 Une anomalie déjà enregistrée ne se réécrit pas avec d'autres mots pour

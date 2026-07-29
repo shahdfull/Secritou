@@ -7,7 +7,7 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : 4.5 Rémunération des associés (Commissions)
-# 1 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
+# 3 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 
 anomalies:
@@ -29,7 +29,7 @@ anomalies:
       null.
     classe: capacite-produit-manquante
     gravite: mineure
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       Un utilisateur autorisé (ADMIN/MANAGER dans le pôle du projet) doit
       pouvoir retirer l'assigné d'une tâche depuis l'écran des tâches
@@ -57,3 +57,176 @@ anomalies:
       correctement un `null` reçu — mais aucun appelant, du contrôleur au
       schéma partagé, ne peut produire cette valeur aujourd'hui.
     confiance: haute
+    note: >
+      SEC-016 (session du 2026-07-29) a trouvé que ce statut resolu ne
+      remplissait pas le critère exact ci-dessus (test manquant sur le
+      franchissement de seuil descendant). Corrigé sous SEC-016 (voir
+      plus bas dans ce fichier) — le nouveau test qui referme SEC-016
+      referme aussi, de fait, ce critère précis de SEC-007. Ne pas
+      rouvrir SEC-007 elle-même : le gap qu'elle décrivait au moment de
+      sa clôture (statut, confiance, source) reste correct pour
+      l'historique, c'est le critère qui a été vérifié après coup, sous
+      un ID distinct dédié à cette vérification (CLAUDE.md « Un ID = un
+      critère de résolution »).
+
+  - id: SEC-015
+    titre: >
+      REFERENTIEL.md §5 RG-006 à RG-011 (base de calcul commission, cycle
+      de vie paiement, cascade proposition, visibilité par associé) sont
+      des définitions obsolètes — le code (commission.service.ts,
+      task.service.ts, schema.prisma) a réutilisé silencieusement ces
+      mêmes identifiants pour un régime de rémunération PER_TASK entier
+      (payoutBudget, Task.payoutAmount, ProjectManagerFee, coefficient
+      qualité) qui n'existe nulle part dans REFERENTIEL.md §5
+    perimetre: 4.5-commissions
+    regle_violee: >
+      CLAUDE.md § « Cohérence obligatoire REFERENTIEL.md ↔ anomalies/*.yaml »
+      (par extension : la numérotation RG elle-même ne peut diverger entre le
+      code et REFERENTIEL.md sans que ce dernier ne soit mis à jour dans la
+      même passe) et § « Toute décision du porteur s'écrit dans §7 dans la
+      même passe ». REFERENTIEL.md §5 documente RG-006 (« Rémunération à la
+      mission — état implémenté », splits manuels ProjectCommissionSplit),
+      RG-007 (« Base de calcul de la commission », montant brut encaissé),
+      RG-008 (« Déclenchement de la commission », sur Payment), RG-009
+      (« Cycle de vie du paiement de commission », PENDING->PAID), RG-010
+      (« Cascade d'acceptation de proposition ») et RG-011 (« Visibilité des
+      commissions par associé »). Le code réutilise ces 6 identifiants pour
+      des règles totalement différentes du régime PER_TASK : RG-006 devient
+      « refonte paiement à la tâche : enveloppe payoutBudget »
+      (commission.service.ts:110, :228), RG-007 devient « une tâche ne peut
+      pas quitter TODO sans payoutAmount fixé » (task.service.ts:66), RG-008
+      devient « barème qualité/délai à la validation, computeForTaskValidationTx »
+      (commission.service.ts:84, :439), RG-009 devient « conflit d'intérêt,
+      pas d'auto-validation Manager » (task.service.ts:85), RG-010 devient
+      « verrouillage du mode dès qu'une Commission existe »
+      (commission.service.ts:282, :331), RG-011 devient « fee manager fixe à
+      la livraison, generateManagerFeesOnDeliveryTx » (commission.service.ts:182).
+      schema.prisma lui-même cite un 3e jeu d'identifiants pour le même
+      régime PER_TASK (« PER_TASK (RG-028/RG-029) », ligne 22 ; « RG-006 »,
+      ligne 601 ; « RG-008 », ligne 1483) — trois sources ne sont pas
+      d'accord entre elles sur quels RG-xxx couvrent ce régime.
+    classe: incoherence-doc-code-rg-id
+    gravite: eleve
+    statut: en_cours
+    critere_de_resolution: >
+      REFERENTIEL.md §5 est mis à jour dans la même session que ce
+      correctif : soit (a) RG-006 à RG-011 existants sont renommés/déplacés
+      sous de nouveaux identifiants libres (après RG-029) pour documenter le
+      régime PER_TASK tel qu'il existe réellement en code (payoutBudget,
+      Task.payoutAmount/qualityScore/reworkCount, ProjectManagerFee, conflit
+      de validation, verrouillage de mode), et les commentaires de code
+      (commission.service.ts, task.service.ts, schema.prisma) sont mis à
+      jour pour citer les nouveaux identifiants — soit (b) le porteur du
+      projet confirme explicitement que RG-006 à RG-011 doivent être
+      RÉÉCRITS en place pour refléter le régime PER_TASK, et que leur sens
+      actuel dans REFERENTIEL.md (splits manuels, base brute encaissée,
+      cascade proposition, visibilité associé) est soit fusionné ailleurs
+      soit abandonné — décision produit qui ne se déduit pas du code, à
+      demander explicitement avant toute réécriture (CLAUDE.md
+      « Interdiction d'inférer une décision de l'utilisateur »). Dans les
+      deux cas, schema.prisma doit citer les MÊMES identifiants que
+      REFERENTIEL.md, pas un 3e jeu distinct.
+    detecte_le: "2026-07-29"
+    source: >
+      Lecture directe intégrale de server/src/services/commission.service.ts
+      (532 lignes), server/src/controllers/commission.controller.ts (87
+      lignes), server/src/routes/commission.routes.ts (72 lignes),
+      server/src/validators/commission.validator.ts (32 lignes),
+      server/src/repositories/commission.repository.ts (291 lignes), grep
+      ciblé sur server/src/services/task.service.ts (lignes 38-83, 190-201,
+      315-348) et server/prisma/schema.prisma (lignes 22, 208, 216, 582-656,
+      1426, 1439-1490), et grep exhaustif "RG-006 —" à "RG-011 —" sur
+      REFERENTIEL.md (6 résultats, lignes 1466-1531), session du 2026-07-29.
+    confiance: haute
+    correctif: >
+      Option (a) retenue par le porteur (AskUserQuestion, session du
+      2026-07-29) : le régime PER_TASK renuméroté RG-030 (enveloppe
+      payoutBudget) à RG-035 (fee Manager à la livraison), documenté dans
+      REFERENTIEL.md §5 juste après RG-029, avec une note de numérotation
+      explicite renvoyant à ce SEC-015. RG-006 à RG-011 laissées inchangées.
+      Tous les commentaires de code et labels de test mis à jour vers les
+      nouveaux identifiants : commission.service.ts, commission.repository.ts,
+      commission.validator.ts, task.service.ts, project.service.ts,
+      schema.prisma, server/test/managerProjectFee.test.ts,
+      server/test/taskPayoutRules.test.ts,
+      server/test/taskFixedCommission.test.ts,
+      server/test/commissionService.test.ts. Décision écrite dans
+      REFERENTIEL.md §7 (entrée du 2026-07-29) dans la même session.
+      Statut en_cours (pas resolu) tant que ce correctif n'est pas commité
+      et vu vert en CI (CLAUDE.md « Un critère de résolution se vérifie
+      sur un commit »). Note : les commentaires SQL des migrations déjà
+      appliquées (20260728020000_project_payout_budget,
+      20260728040000_task_payout_fields) citent encore RG-006/RG-007/
+      RG-008/RG-009 — volontairement non modifiés, une migration déjà
+      appliquée est un artefact historique immuable (même traitement que
+      l'AuditLog, jamais réécrit après coup) ; seuls les commentaires du
+      code source vivant ont été renumérotés.
+
+  - id: SEC-016
+    titre: >
+      SEC-007 marquée resolu alors que son critère de résolution exact
+      (un test appelant réellement taskService.updateTask avec
+      assigneeId:null et vérifiant le déclenchement de
+      commissionService.recalcAutoSplit vers le seuil "0 freelancer") n'est
+      pas rempli — le chemin de désassignation existe (UI + schéma + test
+      de persistance) mais aucun test ne prouve le franchissement du seuil
+      dans le sens descendant sur le split de commission
+    perimetre: 4.5-commissions
+    regle_violee: >
+      CLAUDE.md § « Un critère de résolution s'énonce par ce que
+      l'utilisateur peut faire » et § « `verifie: test` exige un test qui
+      appelle le code réel ». Le critère de résolution de SEC-007 (voir
+      ci-dessus dans ce même fichier) exige explicitement : « Un test doit
+      appeler réellement taskService.updateTask avec assigneeId: null sur
+      une tâche précédemment assignée à un FREELANCER seul sur le projet, et
+      vérifier que commissionService.recalcAutoSplit est bien déclenché ».
+      Le chemin de désassignation (shared/src/schemas/task.schema.ts:33,
+      assigneeId: z.string().nullable().optional() ; UI
+      TaskEditDialog.tsx:223, bouton "Retirer l'assigné" ;
+      server/test/taskUpdateScope.test.ts:110-121, test de persistance
+      assigneeId:null) a bien été construit — mais
+      server/test/commissionAutoSplitTaskTrigger.test.ts:106-112 documente
+      lui-même explicitement, dans un commentaire non retiré, que le test du
+      franchissement de seuil descendant (1->0 freelancer déclenchant
+      recalcAutoSplit) n'a jamais été écrit.
+    classe: critere-resolution-incomplet
+    gravite: moyenne
+    statut: en_cours
+    critere_de_resolution: >
+      Un nouveau cas de test dans commissionAutoSplitTaskTrigger.test.ts (ou
+      un fichier dédié) appelle réellement taskService.updateTask avec
+      { assigneeId: null } sur une tâche dont le retrait fait passer le
+      projet de 1 à 0 freelancer assigné, et vérifie qu'une entrée
+      CommissionSplitHistory (trigger AUTO_RECALC) est créée avec le split
+      "sans freelancer" attendu (ADMIN 80% / Managers 20%, ou 100% ADMIN si
+      0 Manager sur le pôle) — symétrique du test déjà existant pour le sens
+      montant (0->1). Une fois ce test vert, retirer aussi le commentaire
+      obsolète de commissionAutoSplitTaskTrigger.test.ts:106-112 qui décrit
+      ce gap comme non résolu.
+    detecte_le: "2026-07-29"
+    source: >
+      Lecture directe de server/test/commissionAutoSplitTaskTrigger.test.ts
+      (131 lignes, intégral), server/test/taskUpdateScope.test.ts:108-121,
+      shared/src/schemas/task.schema.ts:33,
+      client/src/features/tasks/components/TaskEditDialog.tsx (grep ciblé
+      "assigneeId", lignes 68/198/223), et anomalies/4.5-commissions.yaml
+      (entrée SEC-007 existante, statut resolu, critère de résolution cité
+      mot pour mot ci-dessus), session du 2026-07-29.
+    confiance: haute
+    correctif: >
+      Nouveau cas de test ajouté dans
+      server/test/commissionAutoSplitTaskTrigger.test.ts : appelle
+      réellement taskService.updateTask avec { assigneeId: null } sur la
+      tâche assignant le seul freelancer d'un projet nouvellement créé,
+      confirme la persistance (assigneeId null en base), confirme une 2e
+      entrée CommissionSplitHistory (trigger AUTO_RECALC, après celle du
+      0->1 initial) et confirme le split résultant (ADMIN 100% — 80% base
+      + 20% rollup Managers, 0 Manager sur ce pôle de test ; le freelancer
+      retiré n'a plus aucune part). Le commentaire obsolète de
+      commissionAutoSplitTaskTrigger.test.ts (lignes 106-112, décrivant ce
+      gap comme non résolu) a été retiré et remplacé par le contexte du
+      nouveau test. Suite complète server (650 tests, 645 pass, 0 fail, 5
+      skip pré-existants) exécutée deux fois de suite sans régression ;
+      typecheck et lint serveur propres. Statut en_cours (pas resolu) tant
+      que ce correctif n'est pas commité et vu vert en CI (CLAUDE.md « Un
+      critère de résolution se vérifie sur un commit »).

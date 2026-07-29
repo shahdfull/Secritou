@@ -253,6 +253,7 @@ model Service {
   name      String            @unique @db.VarChar(100)
   leads     Lead[]
   projects  Project[]
+  serviceRequests ServiceRequest[]
   users     User[]
   clients   Client[]
   templates ProjectTemplate[]
@@ -480,6 +481,10 @@ model ServiceRequest {
   assignedTo   User?                @relation("ServiceRequestAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
   clientId     String
   client       Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projectId    String?
+  project      Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  serviceId    String?
+  service      Service?             @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   createdAt    DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt    DateTime             @updatedAt @db.Timestamptz(6)
 
@@ -488,6 +493,8 @@ model ServiceRequest {
   proposal Proposal?
 
   @@index([clientId])
+  @@index([projectId])
+  @@index([serviceId])
   @@index([status])
   @@index([createdAt])
   @@index([status, createdAt])
@@ -562,6 +569,7 @@ model Project {
   client                  Client?                  @relation(fields: [clientId], references: [id], onDelete: SetNull)
   serviceId               String?
   service                 Service?                 @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  serviceRequests         ServiceRequest[]
   tasks                   Task[]
   timeEntries             TimeEntry[]
   documents               Document[]
@@ -589,7 +597,7 @@ model Project {
   // mirrors the proposal's expiry). Filled by the acceptance cascade, editable afterwards.
   budget                  String?                  @db.VarChar(255)
   deadline                DateTime?                @db.Timestamptz(6)
-  // RG-006 (refonte paiement à la tâche) : enveloppe maximale versable sur le projet
+  // RG-030 (refonte paiement à la tâche) : enveloppe maximale versable sur le projet
   // (payoutAmount des Task + ProjectManagerFee), fixée explicitement par le CEO — jamais déduite
   // automatiquement de `budget` (texte libre, non fiable) ni écrite par le système. Nullable :
   // tant qu'elle n'est pas fixée, toute écriture de payoutAmount est bloquée (PAYOUT_BUDGET_NOT_SET,
@@ -637,16 +645,16 @@ model Task {
   // SEC-070: set exactly when status transitions to DONE (task.service.ts#updateTask), cleared if
   // it transitions away from DONE — unlike updatedAt, never touched by unrelated field edits.
   completedAt    DateTime?           @db.Timestamptz(6)
-  // RG-006/RG-007 (refonte paiement à la tâche, LOT 3) : montant de base fixé par le CEO avant
-  // exécution — RG-007 interdit à une tâche de quitter TODO sans cette valeur, sur un projet en
+  // RG-030/RG-031 (refonte paiement à la tâche, LOT 3) : montant de base fixé par le CEO avant
+  // exécution — RG-031 interdit à une tâche de quitter TODO sans cette valeur, sur un projet en
   // mode non-AUTO (PER_TASK). Jamais recalculé automatiquement une fois une Commission générée
-  // (RG-008, LOT 4) : modifier payoutAmount après validation n'affecte aucune commission passée.
+  // (RG-032, LOT 4) : modifier payoutAmount après validation n'affecte aucune commission passée.
   payoutAmount   Decimal?            @db.Decimal(14, 3)
-  // RG-008 (barème) : saisi à la validation (passage à DONE), 1 à 5. Sert au calcul du
+  // RG-032 (barème) : saisi à la validation (passage à DONE), 1 à 5. Sert au calcul du
   // coefficient, jamais recalculé rétroactivement si modifié après coup.
   qualityScore   Int?
   reworkCount    Int                 @default(0)
-  // RG-009 : horodatage/auteur de la validation qui a fait passer la tâche à DONE. validatedById
+  // RG-033 : horodatage/auteur de la validation qui a fait passer la tâche à DONE. validatedById
   // doit être un ADMIN si assigneeId est un MANAGER du pôle du projet (conflit d'intérêt,
   // SELF_VALIDATION_FORBIDDEN) — voir task.service.ts.
   validatedAt    DateTime?           @db.Timestamptz(6)
@@ -1426,7 +1434,7 @@ model CommissionSplitHistory {
 // What is owed to an associate for a specific payment received. One Commission row is
 // created per (partner, Payment) — a deposit payment and a balance payment on the same
 // project each generate their own commission, prorated on the amount actually collected.
-// RG-008 (refonte paiement à la tâche, LOT 4) : PROJECT_PERCENT = ancien régime (mode AUTO,
+// RG-032 (refonte paiement à la tâche, LOT 4) : PROJECT_PERCENT = ancien régime (mode AUTO,
 // pourcentage sur paiement encaissé, inchangé). TASK_FIXED = commission générée à la validation
 // d'une tâche (mode PER_TASK). MANAGER_PROJECT_FEE = fee fixe du Manager à la livraison du
 // projet (LOT 5, pas encore généré). Toute ligne existante avant ce lot est PROJECT_PERCENT
@@ -1437,7 +1445,7 @@ enum CommissionSource {
   MANAGER_PROJECT_FEE
 }
 
-// RG-011 (refonte paiement à la tâche, LOT 5) : montant fixe dû au Manager du pôle à la livraison
+// RG-035 (refonte paiement à la tâche, LOT 5) : montant fixe dû au Manager du pôle à la livraison
 // du projet — exigible seulement quand le projet passe au statut livré/terminé, jamais avant, et
 // jamais pour un projet abandonné en cours de route. Modèle volontairement séparé de
 // ProjectCommissionSplit (qui reste strictement en pourcentage, réservé au mode AUTO) pour ne
@@ -1472,7 +1480,7 @@ model Commission {
   // resulting share, both in the invoice's currency. PROJECT_PERCENT uniquement.
   basis       Decimal?         @db.Decimal(14, 3)
   ratePct     Decimal?         @db.Decimal(5, 2)
-  // TASK_FIXED uniquement (RG-008) : tâche validée, montant de base (Task.payoutAmount au
+  // TASK_FIXED uniquement (RG-032) : tâche validée, montant de base (Task.payoutAmount au
   // moment de la validation) et coefficient du barème appliqué — tous deux figés à la création,
   // jamais recalculés si qualityScore/reworkCount changent après coup (voir
   // commissionService.computeForTaskValidationTx).
@@ -1492,7 +1500,7 @@ model Commission {
   // The real invariant is "one row per (payment, partner)", not "one row per payment". NULLs
   // never collide in a Postgres unique index, so TASK_FIXED rows (paymentId: NULL) coexist freely.
   @@unique([paymentId, partnerId])
-  // RG-008 : une seule Commission TASK_FIXED par (tâche, partenaire) — une tâche a un seul
+  // RG-032 : une seule Commission TASK_FIXED par (tâche, partenaire) — une tâche a un seul
   // assigné, donc en pratique un seul partenaire par tâche, mais l'unicité protège contre un
   // double appel de computeForTaskValidationTx sur la même validation.
   @@unique([taskId, partnerId])

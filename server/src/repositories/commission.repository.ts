@@ -34,7 +34,7 @@ export const commissionRepository = {
     });
   },
 
-  // RG-006 (refonte paiement à la tâche) : source du pré-remplissage à 65% suggéré côté client
+  // RG-030 (refonte paiement à la tâche) : source du pré-remplissage à 65% suggéré côté client
   // pour payoutBudget — jamais persisté automatiquement, seulement affiché comme suggestion que
   // le CEO doit valider explicitement (voir commissionService.getProjectSplitState).
   async getProposalAmountForProject(projectId: string) {
@@ -56,7 +56,7 @@ export const commissionRepository = {
     return count > 0;
   },
 
-  // RG-006 : lu dans la même transaction que l'écriture d'un payoutAmount, pour que le total
+  // RG-030 : lu dans la même transaction que l'écriture d'un payoutAmount, pour que le total
   // reflète l'état réel post-écriture (pas un instantané read-committed potentiellement obsolète
   // si deux écritures concurrentes sur le même projet se chevauchent).
   async getProjectPayoutBudgetTx(tx: TxClient, projectId: string) {
@@ -75,7 +75,7 @@ export const commissionRepository = {
     return Number(result._sum.payoutAmount ?? 0);
   },
 
-  // RG-006 (rappel LOT 5) : ProjectManagerFee.amount rejoint le total contrôlé par l'enveloppe,
+  // RG-030 (rappel LOT 5) : ProjectManagerFee.amount rejoint le total contrôlé par l'enveloppe,
   // au même titre que Task.payoutAmount. excludeManagerId absent (création du premier fee pour ce
   // couple projet/manager) : somme simplement tous les fees existants du projet.
   async sumOtherManagerFeesTx(tx: TxClient, projectId: string, excludeManagerId?: string) {
@@ -192,7 +192,7 @@ export const commissionRepository = {
     });
   },
 
-  // RG-008 (TASK_FIXED) : une seule ligne par validation de tâche, jamais dans createManyTx
+  // RG-032 (TASK_FIXED) : une seule ligne par validation de tâche, jamais dans createManyTx
   // (réservé à PROJECT_PERCENT/un paiement) — taskId/baseAmount/coefficient sont propres à ce
   // régime, invoiceId/paymentId/basis/ratePct restent null (colonnes PROJECT_PERCENT).
   async createTaskFixedTx(
@@ -217,7 +217,7 @@ export const commissionRepository = {
     return count > 0;
   },
 
-  // RG-011 : les ProjectManagerFee fixés à l'avance par le CEO, lus au moment de la livraison
+  // RG-035 : les ProjectManagerFee fixés à l'avance par le CEO, lus au moment de la livraison
   // pour générer une Commission MANAGER_PROJECT_FEE par fee — jamais avant.
   async getManagerFeesByProjectTx(tx: TxClient, projectId: string) {
     return tx.projectManagerFee.findMany({ where: { projectId } });

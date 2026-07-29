@@ -39,7 +39,7 @@ export interface CommissionSplitState {
   splits: CommissionSplit[];
   commissionSplitMode: CommissionSplitMode;
   commissionSplitDesynced: boolean;
-  // RG-006 (refonte paiement à la tâche) : enveloppe maximale versable sur le projet, fixée
+  // RG-030 (refonte paiement à la tâche) : enveloppe maximale versable sur le projet, fixée
   // explicitement par le CEO (null tant qu'elle n'est pas fixée).
   payoutBudget: number | null;
   // Suggestion calculée à 65% du montant de la proposition acceptée — jamais persistée

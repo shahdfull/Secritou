@@ -1,4 +1,4 @@
-// RG-006/RG-010/RG-011 (refonte paiement à la tâche, LOT 5). Real calls against
+// RG-030/RG-034/RG-035 (refonte paiement à la tâche, LOT 5). Real calls against
 // projectService.clientApprove and commissionService.setSplits/resetToAutoSplit/setManagerFee —
 // not reimplementations — against a real, migrated database. Skipped if unreachable. Run via
 // `npm run test:unit` (test/run-all.test.ts owns the shared Redis/BullMQ connection close).
@@ -91,7 +91,7 @@ async function makeManagerForService(namePrefix: string, serviceId: string) {
   return manager;
 }
 
-describe("RG-011: MANAGER_PROJECT_FEE generated on project delivery (real code)", () => {
+describe("RG-035: MANAGER_PROJECT_FEE generated on project delivery (real code)", () => {
   test("a ProjectManagerFee fixed in advance produces a MANAGER_PROJECT_FEE commission when the project is client-approved", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { client, clientUser, project, service } = await makeApprovableProject("rg011-nominal", { payoutBudget: 500 });
@@ -147,7 +147,7 @@ describe("RG-011: MANAGER_PROJECT_FEE generated on project delivery (real code)"
   });
 });
 
-describe("RG-006 (rappel LOT 5): ProjectManagerFee.amount is subject to the payout envelope (real code)", () => {
+describe("RG-030 (rappel LOT 5): ProjectManagerFee.amount is subject to the payout envelope (real code)", () => {
   test("setManagerFee is rejected with 422 PAYOUT_BUDGET_EXCEEDED at the worst-case coefficient", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const service = await prisma.service.create({ data: { name: `rg006-mgrfee-service-${Date.now()}` } });
@@ -195,7 +195,7 @@ describe("RG-006 (rappel LOT 5): ProjectManagerFee.amount is subject to the payo
   });
 });
 
-describe("RG-010: commission mode is locked once a Commission exists (real code)", () => {
+describe("RG-034: commission mode is locked once a Commission exists (real code)", () => {
   test("setSplits is rejected with 409 COMMISSION_MODE_LOCKED once the project has a commission", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const service = await prisma.service.create({ data: { name: `rg010-setsplits-service-${Date.now()}` } });

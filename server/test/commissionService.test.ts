@@ -385,9 +385,9 @@ describe("commissionService.recalcAutoSplit / resetToAutoSplit (RG-005-bis, real
   });
 });
 
-// RG-006 (refonte paiement à la tâche, LOT 2). Real calls against
+// RG-030 (refonte paiement à la tâche, LOT 2). Real calls against
 // commissionService.setProjectPayoutBudget/getProjectSplitState — not a reimplementation.
-describe("commissionService.setProjectPayoutBudget / getProjectSplitState.payoutBudget (RG-006, real code)", () => {
+describe("commissionService.setProjectPayoutBudget / getProjectSplitState.payoutBudget (RG-030, real code)", () => {
   test("setProjectPayoutBudget persists a positive amount, readable back via getProjectSplitState", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const project = await makeProject("payout-budget-set");

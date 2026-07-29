@@ -63,7 +63,7 @@ async function maybeRecalcAutoSplit(projectId: string, freelancerCountBefore: nu
   }
 }
 
-// RG-007 (refonte paiement à la tâche) : une tâche ne peut pas quitter TODO sans payoutAmount
+// RG-031 (refonte paiement à la tâche) : une tâche ne peut pas quitter TODO sans payoutAmount
 // fixé, sur un projet en mode PER_TASK — le montant doit être connu avant le travail, pas
 // négocié après coup. Sans objet en mode AUTO/MANUAL (pourcentage projet, pas de montant par
 // tâche).
@@ -82,7 +82,7 @@ async function assertPayoutAmountSetIfLeavingTodo(args: {
   }
 }
 
-// RG-009 (refonte paiement à la tâche) : conflit d'intérêt — un Manager ne peut pas valider
+// RG-033 (refonte paiement à la tâche) : conflit d'intérêt — un Manager ne peut pas valider
 // (faire passer à DONE) sa propre tâche exécutée dans son propre pôle. Seul un ADMIN peut valider
 // une tâche assignée au Manager du pôle du projet. Bloqué côté service, jamais laissé à la seule
 // UI.
@@ -266,7 +266,7 @@ export const taskService = {
         payoutAmount: nextPayoutAmount,
         projectId: task.projectId,
       });
-      // RG-009 : la validation (passage à DONE) est le moment où le conflit d'intérêt se joue —
+      // RG-033 : la validation (passage à DONE) est le moment où le conflit d'intérêt se joue —
       // un statut qui transite vers DONE sans jamais y être passé auparavant, pas une simple
       // ré-écriture d'un champ sur une tâche déjà DONE.
       if (data.status === "DONE") {
@@ -299,7 +299,7 @@ export const taskService = {
       data.status && data.status !== task.status
         ? { completedAt: data.status === "DONE" ? new Date() : null }
         : {};
-    // RG-009: validatedAt/validatedById are stamped exactly on the transition into DONE, cleared
+    // RG-033: validatedAt/validatedById are stamped exactly on the transition into DONE, cleared
     // if the task ever moves away from DONE again — mirrors SEC-070's completedAt convention so
     // "who validated this, and when" always reflects the CURRENT DONE state, not a stale one.
     const validationPatch =
@@ -311,7 +311,7 @@ export const taskService = {
 
     const freelancerCountBefore = reassigned ? await countAssignedFreelancers(task.projectId) : 0;
 
-    // RG-006: checked as a standalone assertion (not itself a write) before the single real
+    // RG-030: checked as a standalone assertion (not itself a write) before the single real
     // update below — the check and the write must still observe the same value, so this only
     // runs when payoutAmount is actually changing.
     const previousPayoutAmount = task.payoutAmount === null ? null : Number(task.payoutAmount);
@@ -326,7 +326,7 @@ export const taskService = {
       );
     }
 
-    // RG-008 : la génération de la commission TASK_FIXED se fait dans la MÊME transaction que le
+    // RG-032 : la génération de la commission TASK_FIXED se fait dans la MÊME transaction que le
     // passage à DONE — si l'une échoue, l'autre n'est jamais persistée seule.
     const enteringDone = data.status === "DONE" && task.status !== "DONE";
     const nextQualityScore = data.qualityScore !== undefined ? data.qualityScore : task.qualityScore;
@@ -414,7 +414,7 @@ export const taskService = {
       );
     }
 
-    // RG-008 : une tâche qui repasse hors DONE ne supprime jamais sa Commission TASK_FIXED déjà
+    // RG-032 : une tâche qui repasse hors DONE ne supprime jamais sa Commission TASK_FIXED déjà
     // générée — décision manuelle du CEO, jamais automatique. On se contente d'alerter les
     // ADMIN/Managers du pôle que la tâche et sa commission sont désormais désynchronisées.
     if (data.status && task.status === "DONE" && data.status !== "DONE") {

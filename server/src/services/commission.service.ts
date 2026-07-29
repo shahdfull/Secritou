@@ -5,25 +5,27 @@
 //   AUTO calcule ce split automatiquement (computeAutoSplit) ; MANUAL est saisi à la main par le
 //   CEO (setSplits). Génère des Commission source = PROJECT_PERCENT.
 //
-// - PER_TASK (paiement à la tâche, refonte RG-006 à RG-011) : ProjectCommissionSplit n'a plus de
-//   sens et reste vide (purgé par setSplitToPerTask). Deux mécanismes de paiement distincts :
-//     - Freelancer/exécutant : Task.payoutAmount fixé par le CEO avant travail (RG-007), modulé
-//       par un barème qualité/délai/reprises à la validation (RG-008,
+// - PER_TASK (paiement à la tâche, refonte RG-030 à RG-035 — voir REFERENTIEL.md §5 ; RG-006 à
+//   RG-011 restent les règles §5 d'origine, sans rapport avec ce régime, cf. SEC-015) :
+//   ProjectCommissionSplit n'a plus de sens et reste vide (purgé par setSplitToPerTask). Deux
+//   mécanismes de paiement distincts :
+//     - Freelancer/exécutant : Task.payoutAmount fixé par le CEO avant travail (RG-031), modulé
+//       par un barème qualité/délai/reprises à la validation (RG-032,
 //       computeForTaskValidationTx, appelée depuis task.service.ts dans la même transaction que
 //       le passage à DONE). Génère des Commission source = TASK_FIXED.
 //     - Manager de pôle : ProjectManagerFee, montant fixe par (projet, manager), exigible
-//       seulement à la livraison du projet (RG-011, generateManagerFeesOnDeliveryTx, appelée
+//       seulement à la livraison du projet (RG-035, generateManagerFeesOnDeliveryTx, appelée
 //       depuis project.service.ts#clientApprove — seul chemin réel vers COMPLETED). Génère des
 //       Commission source = MANAGER_PROJECT_FEE.
 //   L'enveloppe totale du projet (Project.payoutBudget) plafonne SUM(Task.payoutAmount) au pire
 //   coefficient (1.20x) + SUM(ProjectManagerFee.amount) — voir assertPayoutBudgetNotExceededTx
-//   (RG-006). Une même personne peut être Manager ET Freelancer (User.canExecuteAsFreelancer) :
+//   (RG-030). Une même personne peut être Manager ET Freelancer (User.canExecuteAsFreelancer) :
 //   ses gains TASK_FIXED et son fee MANAGER_PROJECT_FEE s'additionnent normalement dans
 //   getOwedSummary/getOwedSummaryForPartner (agrégés par partnerId, indépendamment de source).
 //
 // Important : la valeur d'enum MANUAL ne signifie PAS « paiement à la tâche » — c'est PER_TASK
 // qui porte ce sens. MANUAL reste, comme avant la refonte, « pourcentages projet saisis à la
-// main ». RG-010 : dès qu'au moins une Commission existe sur un projet, son commissionSplitMode
+// main ». RG-034 : dès qu'au moins une Commission existe sur un projet, son commissionSplitMode
 // est verrouillé (COMMISSION_MODE_LOCKED sur setSplits/resetToAutoSplit, ALREADY_PER_TASK/
 // COMMISSION_ALREADY_EXISTS sur setSplitToPerTask) — un projet ne change plus jamais de régime de
 // paiement une fois de l'argent réellement calculé dessus.
@@ -75,13 +77,13 @@ function computeAutoSplit(args: { adminId: string; managerIds: string[]; freelan
   return Array.from(byPartner.entries()).map(([partnerId, ratePct]) => ({ partnerId, ratePct }));
 }
 
-// RG-006 (refonte paiement à la tâche) : coefficient maximal du barème (RG-008/LOT 4) — le
+// RG-030 (refonte paiement à la tâche) : coefficient maximal du barème (RG-032/LOT 4) — le
 // plafond est calculé sur ce pire cas pour qu'aucune validation ultérieure ne puisse faire
 // dépasser l'enveloppe, même si chaque tâche individuelle passe la validation à un coefficient
 // plus bas au moment de son écriture.
 const WORST_CASE_COEFFICIENT = 1.20;
 
-// RG-008 (barème) : coefficient = coefDeadline + bonusQualité + malusReprises, borné à
+// RG-032 (barème) : coefficient = coefDeadline + bonusQualité + malusReprises, borné à
 // [0.85, 1.20]. Calculé une seule fois à la validation, jamais recalculé rétroactivement — voir
 // computeForTaskValidationTx.
 function computeQualityCoefficient(args: { dueDate: Date | null; completedAt: Date; qualityScore: number; reworkCount: number }): number {
@@ -107,9 +109,9 @@ export const commissionService = {
     return commissionRepository.getSplitsByProject(projectId);
   },
 
-  // RG-006 : appelé dans la même transaction que toute écriture d'un payoutAmount de Task OU
+  // RG-030 : appelé dans la même transaction que toute écriture d'un payoutAmount de Task OU
   // d'un ProjectManagerFee.amount (LOT 5) — le total contrôlé est SUM(Task.payoutAmount) +
-  // SUM(ProjectManagerFee.amount), au pire coefficient (1.20x, le max du barème RG-008 ; un fee
+  // SUM(ProjectManagerFee.amount), au pire coefficient (1.20x, le max du barème RG-032 ; un fee
   // manager n'est pas soumis au barème mais reste compté au même facteur pour rester sur le pire
   // cas global). Rejette si payoutBudget n'est pas fixé (PAYOUT_BUDGET_NOT_SET) ou si le total
   // dépasserait l'enveloppe (PAYOUT_BUDGET_EXCEEDED). Exactement un des deux candidats
@@ -165,7 +167,7 @@ export const commissionService = {
       commissionSplitMode: project.commissionSplitMode,
       commissionSplitDesynced: project.commissionSplitDesynced,
       payoutBudget: project.payoutBudget === null ? null : Number(project.payoutBudget),
-      // RG-006: 65% of the accepted proposal's amount, surfaced only as a suggestion for the
+      // RG-030: 65% of the accepted proposal's amount, surfaced only as a suggestion for the
       // CEO's payout-budget input — never written anywhere automatically (see setProjectPayoutBudget).
       suggestedPayoutBudget: proposalAmount === null ? null : roundMoney(Number(proposalAmount) * 0.65),
     };
@@ -179,7 +181,7 @@ export const commissionService = {
     return commissionRepository.taskHasCommission(taskId);
   },
 
-  // RG-011 : appelé dans la MÊME transaction que le passage du projet à COMPLETED
+  // RG-035 : appelé dans la MÊME transaction que le passage du projet à COMPLETED
   // (project.service.ts#clientApprove — seul chemin réel vers ce statut, SEC-081). Génère une
   // Commission MANAGER_PROJECT_FEE par ProjectManagerFee déjà fixé par le CEO sur ce projet.
   // Ne s'exécute qu'en mode PER_TASK — en AUTO/MANUAL, la rémunération manager reste le
@@ -210,7 +212,7 @@ export const commissionService = {
     return rows;
   },
 
-  // RG-006 (rappel LOT 5) : écriture d'un ProjectManagerFee, soumise au même contrôle
+  // RG-030 (rappel LOT 5) : écriture d'un ProjectManagerFee, soumise au même contrôle
   // d'enveloppe qu'un payoutAmount de Task.
   async setManagerFee(projectId: string, managerId: string, amount: number) {
     const project = await prismaRead.project.findUnique({ where: { id: projectId }, select: { id: true } });
@@ -225,7 +227,7 @@ export const commissionService = {
     });
   },
 
-  // RG-006 (refonte paiement à la tâche) : l'enveloppe maximale versable sur le projet, fixée
+  // RG-030 (refonte paiement à la tâche) : l'enveloppe maximale versable sur le projet, fixée
   // explicitement par le CEO. Écriture directe, aucun calcul dérivé — le pré-remplissage à 65%
   // de Proposal.amount est un calcul côté client uniquement (jamais persisté automatiquement),
   // le CEO doit toujours valider explicitement via cet endpoint.
@@ -279,7 +281,7 @@ export const commissionService = {
   },
 
   // Repasses a project to AUTO mode: recalculates immediately and clears the desync signal.
-  // RG-010 : dès qu'au moins une Commission existe sur ce projet, le mode est verrouillé — sans
+  // RG-034 : dès qu'au moins une Commission existe sur ce projet, le mode est verrouillé — sans
   // ce garde-fou, un aller-retour MANUAL/PER_TASK -> AUTO après des tâches déjà payées les
   // repaierait une seconde fois au pourcentage.
   async resetToAutoSplit(projectId: string) {
@@ -328,7 +330,7 @@ export const commissionService = {
   // rule, so this is set explicitly per deal rather than derived. Per RG-005-bis, a manual
   // edit switches the project to MANUAL mode (freezing recalcAutoSplit) and clears any
   // pending desync signal, since the CEO's edit is by definition up to date.
-  // RG-010 : verrouillé dès qu'au moins une Commission existe sur le projet — même raison que
+  // RG-034 : verrouillé dès qu'au moins une Commission existe sur le projet — même raison que
   // resetToAutoSplit ci-dessus.
   async setSplits(projectId: string, splits: { partnerId: string; ratePct: number }[]) {
     const project = await prismaRead.project.findUnique({ where: { id: projectId }, select: { id: true, commissionSplitMode: true } });
@@ -370,7 +372,7 @@ export const commissionService = {
   // RG-029: switches a project to PER_TASK mode. Purges any residual ProjectCommissionSplit in
   // the same transaction (a % split has no meaning once the project is paid per task) and
   // records the switch in history with newSplits: [] so the purge itself is auditable. Refuses
-  // (409) if the project already has a Commission — RG-010's exclusivity assumption is that a
+  // (409) if the project already has a Commission — RG-034's exclusivity assumption is that a
   // project's payment/commission regime doesn't change retroactively once money has actually
   // been computed under the previous regime.
   async setSplitToPerTask(projectId: string) {
@@ -436,7 +438,7 @@ export const commissionService = {
     return commissionRepository.createManyTx(tx, rows);
   },
 
-  // RG-008 : appelé depuis task.service.ts dans la MÊME transaction que le passage à DONE.
+  // RG-032 : appelé depuis task.service.ts dans la MÊME transaction que le passage à DONE.
   // Ne s'exécute qu'en mode PER_TASK (en mode AUTO/MANUAL, aucune commission de tâche n'est
   // générée — le pourcentage du projet gouverne toujours). Calcule le coefficient une seule
   // fois ; jamais recalculé si qualityScore/reworkCount changent ensuite (une commission déjà

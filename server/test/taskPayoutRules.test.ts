@@ -1,4 +1,4 @@
-// RG-006/RG-007/RG-009 (refonte paiement à la tâche, LOT 3). Real calls against
+// RG-030/RG-031/RG-033 (refonte paiement à la tâche, LOT 3). Real calls against
 // taskService.createTask/updateTask — not a reimplementation — against a real, migrated
 // database. Skipped if unreachable.
 //
@@ -78,7 +78,7 @@ async function makeManagerForService(namePrefix: string, serviceId: string) {
 
 // SEC-195 pattern: dbAvailable is only correct after before() resolves, so it's checked inside
 // each test body via t.skip(), never in a synchronously-evaluated { skip } option.
-describe("RG-006: payout budget envelope, worst-case coefficient (real code)", () => {
+describe("RG-030: payout budget envelope, worst-case coefficient (real code)", () => {
   test("createTask with a payoutAmount that fits the budget at the 1.20x worst case succeeds", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { project } = await makePerTaskProject("rg006-fits", 120);
@@ -155,7 +155,7 @@ describe("RG-006: payout budget envelope, worst-case coefficient (real code)", (
   });
 });
 
-describe("RG-007: a task cannot leave TODO without payoutAmount set, on a PER_TASK project (real code)", () => {
+describe("RG-031: a task cannot leave TODO without payoutAmount set, on a PER_TASK project (real code)", () => {
   test("updateTask rejects a TODO -> IN_PROGRESS transition with no payoutAmount, 422 TASK_PAYOUT_NOT_SET", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { project } = await makePerTaskProject("rg007-block", 1000);
@@ -183,7 +183,7 @@ describe("RG-007: a task cannot leave TODO without payoutAmount set, on a PER_TA
     assert.equal(updated.status, "IN_PROGRESS");
   });
 
-  test("a task on an AUTO-mode project can leave TODO without payoutAmount — RG-007 only applies to PER_TASK", async (t) => {
+  test("a task on an AUTO-mode project can leave TODO without payoutAmount — RG-031 only applies to PER_TASK", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const service = await prisma.service.create({ data: { name: `rg007-auto-service-${Date.now()}` } });
     createdServiceIds.push(service.id);
@@ -201,7 +201,7 @@ describe("RG-007: a task cannot leave TODO without payoutAmount set, on a PER_TA
   });
 });
 
-describe("RG-009: self-validation conflict of interest (real code)", () => {
+describe("RG-033: self-validation conflict of interest (real code)", () => {
   test("a MANAGER cannot validate (move to DONE) their own task in their own pole — 403 SELF_VALIDATION_FORBIDDEN", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { project, service } = await makePerTaskProject("rg009-forbidden", 1000);

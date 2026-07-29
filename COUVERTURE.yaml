@@ -34,7 +34,7 @@
 # balayée avec la date du jour, à la fin de la session — jamais une autre
 # cellule par supposition.
 
-derniere_maj: "2026-07-27"
+derniere_maj: "2026-07-29"
 # 4.4-facturation : A/B/G balayées le 2026-07-27 (premier audit réel du
 # nouveau registre) — C/D/E/F/H/I/J laissées à null, non vérifiées cette
 # passe.
@@ -42,6 +42,13 @@ derniere_maj: "2026-07-27"
 # calcul financier direct dans ce module) ; C/D/E/F/H/I/J laissées à null.
 # 4.14-auth : A balayée le 2026-07-28 (vérification ciblée RBAC/rôles sur
 # demande du porteur, pas un audit complet du module) ; B-J laissées à null.
+# 4.5-commissions : A/B/G balayées le 2026-07-29 (audit réel contre
+# REFERENTIEL.md §5, commission.service.ts/.controller.ts/.routes.ts/
+# .validator.ts/.repository.ts + grep ciblé task.service.ts/schema.prisma) —
+# SEC-015 (éleve) et SEC-016 (moyenne) trouvées, aucune bloquante ; module
+# non clôturable "prêt au lancement" tant que SEC-015 n'est pas resolu (voir
+# CLAUDE.md « Critère de clôture "prêt au lancement" »). C/D/E/F/H/I/J
+# laissées à null, non vérifiées cette passe.
 
 modules:
   "4.1-crm":
@@ -98,13 +105,13 @@ modules:
 
   "4.5-commissions":
     label: "4.5 Rémunération des associés (Commissions)"
-    A: null
-    B: null
+    A: "2026-07-29"
+    B: "2026-07-29"
     C: null
     D: null
     E: null
     F: null
-    G: null
+    G: "2026-07-29"
     H: null
     I: null
     J: null

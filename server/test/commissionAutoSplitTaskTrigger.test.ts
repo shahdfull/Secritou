@@ -103,13 +103,44 @@ describe("taskService createTask/updateTask trigger recalcAutoSplit on the 0<->1
     assert.equal(history.length, 0, "no freelancer assignment means no threshold crossing, so no recalculation");
   });
 
-  // NOTE: there is no test here for "removing a task's assignee" (assigneeId: null) crossing the
-  // threshold back to 0 — as of this session, neither the shared Zod schema (assigneeId is
-  // `string().optional()`, no null) nor any caller in server/src ever sends assigneeId: null to
-  // updateTask. That unassignment path is unreachable through the real API today, so testing it
-  // directly against the service would exercise a scenario CLAUDE.md's "verifie: test" standard
-  // explicitly warns against asserting on code that can't be reached for real. Flagged here for a
-  // follow-up decision (add a real unassignment path, or accept the gap) rather than asserted on.
+  // SEC-016: the assigneeId:null unassignment path is real now (shared/src/schemas/task.schema.ts
+  // accepts assigneeId.nullable(), and TaskEditDialog.tsx has a "Retirer l'assigné" button — see
+  // server/test/taskUpdateScope.test.ts for the plain persistence proof), but until this test was
+  // added, nothing proved that removing the project's sole freelancer crosses the 1->0 threshold
+  // and re-triggers recalcAutoSplit down to the "no freelancer" split.
+  test("updateTask removing the project's sole freelancer (assigneeId: null) crosses the threshold back to 0 and re-triggers recalcAutoSplit", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
+    const project = await makeIsolatedProject("trigger-unassign");
+    const freelancer = await makeFreelancer("trigger-unassign-fl");
+    const task = await taskService.createTask(
+      { title: "Solo freelancer task", projectId: project.id, assigneeId: freelancer.id },
+      { userRole: "ADMIN" }
+    );
+    createdTaskIds.push(task.id);
+
+    // First recalc landed on task creation (0->1 crossing): sanity-checked by the "has freelancer"
+    // test above. Now remove the assignee — this must cross 1->0 and re-fire recalcAutoSplit.
+    await taskService.updateTask(task.id, { assigneeId: null }, { userRole: "ADMIN" });
+
+    const persisted = await prisma.task.findUnique({ where: { id: task.id } });
+    assert.equal(persisted?.assigneeId, null, "the assignee must actually be cleared for the threshold to cross");
+
+    const history = await prisma.commissionSplitHistory.findMany({
+      where: { projectId: project.id },
+      orderBy: { createdAt: "asc" },
+    });
+    assert.equal(history.length, 2, "the 0->1 crossing on create and the 1->0 crossing on unassignment must each fire exactly one recalculation");
+    assert.equal(history[1]!.trigger, "AUTO_RECALC");
+
+    const splits = await prisma.projectCommissionSplit.findMany({ where: { projectId: project.id } });
+    const byPartner = new Map(splits.map((s) => [s.partnerId, Number(s.ratePct)]));
+    // Back to "no freelancer" on a pole with 0 managers: computeAutoSplit gives ADMIN the 80%
+    // no-freelancer base bucket PLUS the managers' 20% bucket rolled up (0 managers on this
+    // pole), for a full 100% — same distribution as if no freelancer had ever been assigned
+    // (mirrors the "no freelancer" branch already asserted by the sibling createTask test above).
+    assert.equal(byPartner.get(adminId), 100, "with the sole freelancer removed and 0 managers on the pole, ADMIN must receive the full no-freelancer split");
+    assert.equal(byPartner.has(freelancer.id), false, "the departed freelancer must no longer hold any share of the split");
+  });
 
   test("updateTask reassigning between two freelancers (still >=1 assigned) does not cross the threshold, no extra recalculation", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }

@@ -12,14 +12,14 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-011
+dernier_id: SEC-016
 anomalies:
   - id: SEC-001
     titre: >
       GET /invoices/:id/credit-notes ne vérifie aucun scope de pôle pour
       MANAGER — IDOR sur la liste des avoirs d'une facture hors pôle
     perimetre: 4.4-facturation
-    statut: en_cours
+    statut: resolu
     gravite: moyenne
     classe: idor-scope-manque
 
@@ -29,7 +29,7 @@ anomalies:
       "Facture d'acompte" / "Acompte 30 %" — affiché incohérent avec le
       titre réel de la facture (RG-004b)
     perimetre: 4.4-facturation
-    statut: en_cours
+    statut: resolu
     gravite: moyenne
     classe: incoherence-affichage-stockage
 
@@ -38,7 +38,7 @@ anomalies:
       invoiceService.update (ADMIN, modifie amount/title/dueDate/currency
       sur une facture DRAFT) n'écrit aucune entrée AuditLog
     perimetre: 4.4-facturation
-    statut: en_cours
+    statut: resolu
     gravite: moyenne
     classe: audit-log-manquant
 
@@ -48,7 +48,7 @@ anomalies:
       expose toutes les demandes d'un client multi-pôle à chaque pôle où il a
       un projet, y compris les commentaires internes isInternal
     perimetre: 4.6-portail-client
-    statut: ouvert
+    statut: resolu
     gravite: moyenne
     classe: idor-scope-approxime
 
@@ -57,7 +57,7 @@ anomalies:
       Aucun des 4 services du portail client (clientPortal, approval,
       serviceRequest, customQuestion) n'écrit jamais dans AuditLog
     perimetre: 4.6-portail-client
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: audit-log-manquant
 
@@ -68,7 +68,7 @@ anomalies:
       le scoping par pôle audité sur les modules 4.1/4.2/4.4/4.6 n'est
       jamais écrit ailleurs qu'en base directement
     perimetre: 4.14-auth
-    statut: ouvert
+    statut: resolu
     gravite: majeure
     classe: capacite-produit-manquante
 
@@ -80,7 +80,7 @@ anomalies:
       laisse RG-005-bis (recalcul auto de split de commission) non testable
       sur cette direction précise du seuil
     perimetre: 4.5-commissions
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: capacite-produit-manquante
 
@@ -104,7 +104,7 @@ anomalies:
       (mock.method(prisma.service, "findUnique", ...) reçoit "findUnique"
       undefined), annulant 6 tests de la suite
     perimetre: 4.14-auth
-    statut: ouvert
+    statut: resolu
     gravite: majeure
     classe: test-casse-par-changement-non-synchronise
 
@@ -114,7 +114,7 @@ anomalies:
       s'exécute (mode "anonymized" confirmé) mais l'assertion sur
       Invoice.amount.toString() attend "100.000" et obtient "100"
     perimetre: transverse
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: assertion-format-decimal
 
@@ -125,6 +125,71 @@ anomalies:
       le désactive) — un client peut soumettre un brief incomplet malgré
       la validation par étape affichée à l'écran
     perimetre: 4.6-portail-client
-    statut: ouvert
+    statut: resolu
     gravite: moyenne
     classe: validation-cote-client-incomplete
+
+  - id: SEC-012
+    titre: >
+      serviceRequestService.test.ts (describe "adminUpdateServiceRequest
+      status transitions") appelle makeRequest(client.id, title) avec 2
+      arguments au lieu de 3 (clientId, projectId, title) — projectId
+      reçoit la chaîne du titre, causant un "Project not found" sur 4 tests
+      de transition
+    perimetre: 4.6-portail-client
+    statut: resolu
+    gravite: mineure
+    classe: bug-fixture-test
+
+  - id: SEC-013
+    titre: >
+      2 tests écrits pour SEC-004 (exact scope ServiceRequest) sont
+      incohérents avec le code qu'ils testent : serviceRequestService.test.ts
+      teste un scope "no access" avec le même serviceId que celui du projet
+      créé (self-contradictoire) ; searchScope.test.ts crée un ServiceRequest
+      sans projectId alors que search.repository.ts scope désormais par
+      serviceId/project.serviceId exact (l'un des deux doit être renseigné
+      pour matcher)
+    perimetre: 4.6-portail-client
+    statut: resolu
+    gravite: mineure
+    classe: bug-fixture-test
+
+  - id: SEC-014
+    titre: >
+      ApprovalsClientPage.tsx (approbation client, RG-026 Niveau 2)
+      réimplémente localement le contrat de confirmation renforcée au lieu
+      d'utiliser le composant partagé ConfirmationDialog.tsx utilisé par
+      les 6 autres actions Niveau 2
+    perimetre: 4.6-portail-client
+    statut: ouvert
+    gravite: mineure
+    classe: incoherence-factorisation-ui
+
+  - id: SEC-015
+    titre: >
+      REFERENTIEL.md §5 RG-006 à RG-011 (base de calcul commission, cycle
+      de vie paiement, cascade proposition, visibilité par associé) sont
+      des définitions obsolètes — le code (commission.service.ts,
+      task.service.ts, schema.prisma) a réutilisé silencieusement ces
+      mêmes identifiants pour un régime de rémunération PER_TASK entier
+      (payoutBudget, Task.payoutAmount, ProjectManagerFee, coefficient
+      qualité) qui n'existe nulle part dans REFERENTIEL.md §5
+    perimetre: 4.5-commissions
+    statut: en_cours
+    gravite: eleve
+    classe: incoherence-doc-code-rg-id
+
+  - id: SEC-016
+    titre: >
+      SEC-007 marquée resolu alors que son critère de résolution exact
+      (un test appelant réellement taskService.updateTask avec
+      assigneeId:null et vérifiant le déclenchement de
+      commissionService.recalcAutoSplit vers le seuil "0 freelancer") n'est
+      pas rempli — le chemin de désassignation existe (UI + schéma + test
+      de persistance) mais aucun test ne prouve le franchissement du seuil
+      dans le sens descendant sur le split de commission
+    perimetre: 4.5-commissions
+    statut: en_cours
+    gravite: moyenne
+    classe: critere-resolution-incomplet

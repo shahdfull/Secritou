@@ -1,4 +1,4 @@
-// RG-008 (refonte paiement à la tâche, LOT 4). Real calls against taskService.updateTask (the
+// RG-032 (refonte paiement à la tâche, LOT 4). Real calls against taskService.updateTask (the
 // DONE transition) — not a reimplementation — against a real, migrated database. Skipped if
 // unreachable. Run via `npm run test:unit` (test/run-all.test.ts owns the shared Redis/BullMQ
 // connection close, same as taskPayoutRules.test.ts).
@@ -56,7 +56,7 @@ async function makeFreelancer(namePrefix: string) {
   return freelancer;
 }
 
-describe("RG-008: TASK_FIXED commission generated on the DONE transition (real code)", () => {
+describe("RG-032: TASK_FIXED commission generated on the DONE transition (real code)", () => {
   test("a task with no dueDate, qualityScore 3, no rework: coefficient 1.00, amount = payoutAmount", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const project = await makePerTaskProject("rg008-nominal", 1000);

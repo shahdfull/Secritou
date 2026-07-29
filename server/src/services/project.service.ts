@@ -385,7 +385,7 @@ export const projectService = {
         select: { id: true, name: true, clientId: true, invoices: { select: { invoiceType: true } } },
       });
 
-      // RG-011 (refonte paiement à la tâche, LOT 5) : le fee Manager n'est exigible qu'à la
+      // RG-035 (refonte paiement à la tâche, LOT 5) : le fee Manager n'est exigible qu'à la
       // livraison réelle du projet — clientApprove est le seul chemin qui fait transiter un
       // projet vers COMPLETED (SEC-081 : toute autre tentative via updateProject est bloquée),
       // donc c'est le point d'entrée unique pour cette génération. Un projet abandonné (archivé,

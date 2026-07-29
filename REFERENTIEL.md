@@ -1692,21 +1692,14 @@ server/src/services/user.service.ts (`getSessionIdleTimeoutMinutes`,
 `updateSessionIdleTimeoutMinutes`, `getMe`), server/src/controllers/
 user.controller.ts (`getSessionIdleTimeout`, `updateSessionIdleTimeout`),
 server/src/routes/user.routes.ts (routes ADMIN-only), migration
-`20260728070000_app_setting`, session du 2026-07-28. Test dédié écrit,
-appelant réellement `userSessionRepository.recordHeartbeat`/
-`closeStaleSessions` et `userService.updateSessionIdleTimeoutMinutes` contre
-une base migrée : server/test/sessionIdleTimeout.test.ts — **jamais exécuté
-avec succès à ce jour** : la migration `20260728070000_app_setting` n'a pas
-été appliquée à la base de dev (5 autres migrations d'une session
-antérieure sont également en attente, `prisma migrate dev` non lancé faute
-de consentement explicite du porteur du projet dans cette session). Le
-test se skip proprement (`dbAvailable = false`) plutôt que d'échouer —
-aucune régression introduite (632 pass / 4 fail / 6 cancelled inchangés par
-rapport à l'état avant cette session, les 4 échecs et 6 annulations étant
-tous dans userProfilePhone.http.test.ts/gdprErasure.test.ts/
-user.service.test.ts, sans rapport avec RG-020). `verifie: test` à
-réattribuer dès que `prisma migrate dev` est lancé et le test relancé avec
-succès contre une base migrée.
+`20260728070000_app_setting`, session du 2026-07-28. `verifie: test` —
+server/test/sessionIdleTimeout.test.ts appelle réellement
+`userSessionRepository.recordHeartbeat`/`closeStaleSessions` et
+`userService.updateSessionIdleTimeoutMinutes` contre une base migrée,
+exécuté avec succès après application de la migration
+`20260728070000_app_setting` (voir §7, 2026-07-28 — l'historique de
+migrations était désynchronisé du schéma réel et a été resynchronisé dans
+la même passe, consentement explicite du porteur).
 
 **RG-021 — Protection du dernier Admin.**
 `userService.updateUser` refuse (409, code `LAST_ADMIN`) de retirer le rôle
@@ -1919,11 +1912,27 @@ client (`ApprovalsClientPage.tsx`) ; signature de contrat en onboarding
 (`ClientOnboardingPage.tsx`).
 
 *Module : transverse — UI/UX, tous modules à écran.* Statut :
-**PRÉVU. `verifie: code_direct`** (règle nouvellement définie cette
-session à la demande explicite de l'utilisateur, sur la base de l'audit
-ergonomique du 25 juillet 2026 ; les 7 actions listées ci-dessus ne sont
-pas encore protégées au niveau 2 dans le code au moment de la rédaction de
-cette règle — à traiter action par action, voir to-do de suivi).
+**IMPLÉMENTÉ. `verifie: code_direct`** (session du 2026-07-28,
+vérification demandée explicitement par le porteur du projet) — les 7
+fichiers listés ci-dessus lus intégralement. Composant partagé
+`ConfirmationDialog.tsx`
+(`client/src/components/shared/crud/ConfirmationDialog.tsx`, commentaire
+en tête citant RG-026 explicitement) implémente le contrat Niveau 2 :
+`description` (rappel nommé de l'entité + irréversibilité) et
+`checkboxLabel` distincts, bouton de confirmation désactivé tant que la
+case n'est pas cochée (`disabled={!checked || isLoading}`). Utilisé
+réellement par 6 des 7 actions listées : envoi de facture, annulation de
+facture (`InvoicesPage.tsx`), marquage commission payée
+(`CommissionsPage.tsx`), annulation réservation client
+(`BookingAdminPage.tsx`), transition demande de service → Annulée
+(`ServiceRequestsAdminPage.tsx`), acceptation proposition
+(`ProposalsClientPage.tsx`), signature contrat onboarding
+(`ClientOnboardingPage.tsx`). Écart constaté sur la 7e (approbation
+client, `ApprovalsClientPage.tsx`) : le contrat Niveau 2 est bien
+respecté fonctionnellement (checkbox obligatoire, description séparée,
+bouton désactivé tant que non cochée) mais réimplémenté localement dans
+le composant plutôt que via `ConfirmationDialog` — incohérence de
+factorisation, pas un défaut de protection utilisateur. Voir SEC-014.
 
 **RG-027 — Unicité du rôle par personne (un compte = un rôle, jamais un
 cumul).**
@@ -2038,6 +2047,122 @@ déjà en mode `PER_TASK`. *Module : 4.5.* Statut : **IMPLÉMENTÉ.
 dédié à la purge/au garde-fou 409 eux-mêmes (seul RG-028, l'exclusivité de
 paiement, est couvert par un test qui appelle le vrai code).
 
+**RG-030 — Enveloppe de rémunération à la tâche (`payoutBudget`).**
+Sur un projet en mode `PER_TASK`, le CEO fixe explicitement une enveloppe
+maximale (`Project.payoutBudget`, nullable — tant qu'elle n'est pas fixée,
+toute écriture d'un `Task.payoutAmount` ou d'un `ProjectManagerFee.amount`
+est bloquée en 422 `PAYOUT_BUDGET_NOT_SET`). Chaque écriture d'un
+`payoutAmount`/`ProjectManagerFee.amount` est vérifiée dans la même
+transaction contre le total : `SUM(Task.payoutAmount) × 1.20`
+(coefficient qualité pire cas, voir RG-032) `+ SUM(ProjectManagerFee.amount)`
+— rejet en 422 `PAYOUT_BUDGET_EXCEEDED` si ce total dépasserait l'enveloppe.
+Un pré-remplissage suggéré à 65% du montant de la proposition acceptée est
+affiché côté client comme suggestion uniquement, jamais persisté
+automatiquement — le CEO doit toujours valider explicitement via l'endpoint
+dédié (`PUT /commissions/projects/:projectId/payout-budget`, ADMIN
+uniquement). *Module : 4.5.* Statut : **IMPLÉMENTÉ. `verifie: test`**
+(`server/test/taskPayoutRules.test.ts`, `server/test/commissionService.test.ts`,
+`server/test/managerProjectFee.test.ts` — appellent réellement
+`commissionService.assertPayoutBudgetNotExceededTx`/`setProjectPayoutBudget`/
+`setManagerFee` et `taskService.createTask`/`updateTask` contre une base
+migrée, couvrant le pire cas 1.20x, le rejet sans enveloppe fixée, et le
+cumul correct entre plusieurs tâches/managers).
+
+**RG-031 — Une tâche ne peut pas quitter TODO sans `payoutAmount` fixé
+(PER_TASK).**
+Sur un projet en mode `PER_TASK` uniquement, une tâche ne peut transitionner
+hors du statut `TODO` (`task.service.ts#updateTask`) sans que son
+`payoutAmount` soit déjà renseigné — le montant doit être connu avant le
+début du travail, jamais négocié après coup. Sans objet sur un projet en
+mode `AUTO`/`MANUAL` (pourcentage projet, pas de montant par tâche). *Module :
+4.5, 4.2.* Statut : **IMPLÉMENTÉ. `verifie: test`**
+(`server/test/taskPayoutRules.test.ts` — appelle réellement
+`taskService.updateTask` : rejet 422 `TASK_PAYOUT_NOT_SET` sur TODO→IN_PROGRESS
+sans `payoutAmount`, succès une fois fixé, et confirmation qu'un projet
+`AUTO` n'est jamais soumis à cette contrainte).
+
+**RG-032 — Barème qualité/délai à la validation d'une tâche PER_TASK
+(commission TASK_FIXED).**
+Sur un projet en mode `PER_TASK`, le passage d'une tâche à `DONE`
+(`task.service.ts#updateTask`, même transaction) déclenche
+`commissionService.computeForTaskValidationTx`, qui calcule un coefficient
+= `coefDeadline + bonusQualité + malusReprises`, borné à `[0.85, 1.20]` :
+`coefDeadline` vaut 1.00 si rendu à temps, 0.95 si retard ≤ 24h, 0.85
+au-delà ; `bonusQualité` va de -0.05 (`qualityScore` ≤ 2) à +0.10
+(`qualityScore` = 5) ; `malusReprises` vaut -0.05 si `reworkCount` ≥ 3.
+Le montant de la `Commission` (source `TASK_FIXED`) est
+`Task.payoutAmount × coefficient`, calculé une seule fois à la validation —
+jamais recalculé rétroactivement si `qualityScore`/`reworkCount` changent
+ensuite, et jamais supprimé si la tâche repasse hors `DONE`. Idempotent au
+niveau base via `@@unique([taskId, partnerId])` sur `Commission`. Sans
+objet en mode `AUTO`/`MANUAL` (le pourcentage du projet gouverne toujours,
+aucune commission par tâche n'est générée). *Module : 4.5, 4.2.* Statut :
+**IMPLÉMENTÉ. `verifie: test`** (`server/test/taskFixedCommission.test.ts` —
+appelle réellement `taskService.updateTask` sur la transition vers `DONE`,
+vérifie le calcul du coefficient sur plusieurs combinaisons délai/qualité/
+reprises et l'absence de recalcul rétroactif).
+
+**RG-033 — Conflit d'intérêt : pas d'auto-validation par un Manager
+(PER_TASK).**
+Un Manager ne peut pas valider (faire passer à `DONE`) sa propre tâche
+lorsqu'il en est l'exécutant assigné dans son propre pôle — seul un ADMIN
+peut valider une tâche assignée au Manager du pôle du projet. Bloqué côté
+service (`task.service.ts#assertNoSelfValidationConflict`, appelé
+exactement sur la transition vers `DONE`), jamais laissé à la seule UI ;
+rejet en 403 `SELF_VALIDATION_FORBIDDEN`. Sans objet si l'assigné n'est pas
+un Manager du pôle du projet (un Freelancer ou un Manager d'un autre pôle
+peut valider sa propre tâche sans restriction supplémentaire de cette
+règle). *Module : 4.5, 4.2.* Statut : **IMPLÉMENTÉ. `verifie: test`**
+(`server/test/taskPayoutRules.test.ts` — appelle réellement
+`taskService.updateTask` avec un Manager assigné à sa propre tâche dans
+son propre pôle, confirme le rejet 403).
+
+**RG-034 — Verrouillage du régime de commission dès qu'une `Commission`
+existe.**
+Dès qu'au moins une `Commission` a été enregistrée sur un projet (tous
+régimes confondus — `PROJECT_PERCENT`, `TASK_FIXED`, `MANAGER_PROJECT_FEE`),
+son `commissionSplitMode` est verrouillé : `setSplits` (édition manuelle),
+`resetToAutoSplit` et `setSplitToPerTask` (bascule de mode) refusent tous en
+409 (`COMMISSION_MODE_LOCKED` pour les deux premiers, `COMMISSION_ALREADY_EXISTS`
+pour le dernier). Un projet ne change jamais de régime de paiement une fois
+de l'argent réellement calculé sous l'ancien régime — sans ce garde-fou, un
+aller-retour `MANUAL`/`PER_TASK` → `AUTO` après des tâches déjà payées les
+repaierait une seconde fois au pourcentage. *Module : 4.5.* Statut :
+**IMPLÉMENTÉ. `verifie: test`** (`server/test/managerProjectFee.test.ts` —
+appelle réellement `commissionService.setSplits` contre une base migrée
+portant déjà une `Commission`, confirme le rejet 409).
+
+**RG-035 — Fee Manager fixe, exigible à la livraison du projet
+(PER_TASK).**
+Sur un projet en mode `PER_TASK`, le CEO fixe à l'avance un montant fixe par
+(projet, Manager) via `ProjectManagerFee` (`commissionService.setManagerFee`,
+soumis au même contrôle d'enveloppe que RG-030). Ce montant n'est dû —
+c'est-à-dire converti en `Commission` (source `MANAGER_PROJECT_FEE`) — qu'au
+moment où le projet passe `COMPLETED` via la validation client
+(`project.service.ts#clientApprove`, seul chemin réel vers ce statut, voir
+RG-013), dans la MÊME transaction
+(`commissionService.generateManagerFeesOnDeliveryTx`). Idempotent au niveau
+service (aucune génération si déjà faite pour ce projet) en plus de la
+protection base (`@@unique([projectId, managerId])` sur `ProjectManagerFee`).
+Sans objet en mode `AUTO`/`MANUAL` (la rémunération Manager y reste le
+pourcentage du split, jamais un fee fixe). *Module : 4.5, 4.2.* Statut :
+**IMPLÉMENTÉ. `verifie: test`** (`server/test/managerProjectFee.test.ts` —
+appelle réellement `projectService.clientApprove` contre une base migrée :
+un fee fixé génère bien la commission à la livraison, l'absence de fee
+n'en génère aucune, et un projet en mode `AUTO` n'en génère jamais même si
+une ligne `ProjectManagerFee` existe par erreur).
+
+*Note de numérotation (SEC-015, session du 2026-07-29) : RG-030 à RG-035
+documentent le régime PER_TASK. Le code (commentaires de
+`commission.service.ts`, `task.service.ts`, `schema.prisma`) citait
+auparavant ces mêmes règles sous les identifiants RG-006 à RG-011 — collision
+directe avec les règles RG-006 à RG-011 déjà attribuées plus haut dans ce
+même §5 (base de calcul de la commission, cycle de vie du paiement, cascade
+d'acceptation de proposition, visibilité par associé), qui n'ont aucun
+rapport avec le régime PER_TASK. Renumérotées ici et dans le code sur
+décision du porteur du projet — RG-006 à RG-011 gardent leur sens d'origine,
+inchangé.*
+
 ---
 
 ## 6. Hors périmètre — liste unique (fusion de l'ancien §1/§6)
@@ -2111,6 +2236,8 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-28** | **RG-020 : migration `20260728070000_app_setting` écrite mais jamais appliquée à la base de dev dans cette session (5 autres migrations d'une session antérieure également en attente) — statut ramené à `verifie: code_direct`, pas `verifie: test`, tant que le test dédié (server/test/sessionIdleTimeout.test.ts) n'a pas tourné avec succès contre une base migrée. `npm run typecheck`/`npm run lint` verts sur les deux workspaces ; `npm run test:unit` (server) exécuté en entier : 632 pass / 4 fail / 6 cancelled / 5 skipped (mes 5 tests RG-020 inclus, skip propre, pas d'échec), identique à l'état avant cette session — aucune régression introduite.** | **Consentement explicite refusé/différé du porteur du projet pour lancer `prisma migrate dev` dans cette session (« skip — rapporter sans vérification base réelle »).** |
 | **2026-07-28** | **RG-027 : Client et Freelancer restent mutuellement exclusifs — choix produit assumé (conflit d'intérêt/comptabilité), pas un effet de bord non voulu de la contrainte `@@unique([email])`. Aucun code à changer ; le comportement actuel du code correspond désormais à l'intention produit documentée. Si cette position devait changer, un mécanisme `personId` commun serait nécessaire — à redemander explicitement.** | **Réponse du porteur du projet, session du 2026-07-28, tranchant le point `[À CONFIRMER]` soulevé en §5 RG-027.** |
 | **2026-07-28** | **RG-024 : pas de retraitement rétroactif du timbre fiscal sur les factures DEPOSIT/BALANCE émises avant le correctif SEC-198 (`timbreFiscal` reste `NULL`) — choix produit confirmé, pas seulement une prudence technique.** | **Réponse du porteur du projet, session du 2026-07-28 : aucun client actif à ce jour, donc aucune facture réelle concernée en production.** |
+| **2026-07-28** | **Consentement explicite obtenu pour lancer `prisma migrate dev` sur la base de dev locale (secritou_db, localhost:5434) : les 54 migrations déjà reflétées dans le schéma réel (colonnes/tables confirmées présentes une par une par grep sur information_schema) ont été marquées appliquées via `prisma migrate resolve --applied` (l'historique `_prisma_migrations` ne contenait plus qu'une seule ligne avant cette passe, désynchronisé du schéma réel bien plus avancé), puis la migration `20260728070000_app_setting` (RG-020) réellement appliquée via `prisma migrate deploy`. Ceci a débloqué SEC-008 (GET /users/me 500) et a fait apparaître un défaut de drift distinct et non lié à RG-020 : `ServiceRequest.projectId`/`serviceId` (schéma déjà modifié par une session antérieure pour SEC-004) n'avait jamais eu de migration générée. Migration `20260728080000_service_request_project_service_id` écrite et appliquée dans la même passe, avec consentement du porteur.** | **Consentement explicite du porteur du projet, session du 2026-07-28, en réponse directe à la question posée avant toute action sur la base — la précédente session avait explicitement différé cette action (« skip »), cf. entrée du 2026-07-28 ci-dessus.** |
+| **2026-07-28** | **RG-020 repasse de `verifie: code_direct` à `verifie: test` : `server/test/sessionIdleTimeout.test.ts` tourne désormais contre une base réellement migrée. `npm run test:unit` (server) réexécuté en entier après application des migrations : 636 pass / 8 fail / 0 cancelled / 5 skipped (vs 632/4/6/5 avant) — aucune régression sur les tests déjà verts, seuls des tests jusque-là masqués par l'absence de colonnes/tables se sont mis à s'exécuter pour de vrai. Les 8 échecs sont tous des défauts de fixture de test (SEC-012, SEC-013) ou un défaut préexistant sans lien (SEC-010, format Decimal RGPD) — aucun n'est un défaut du code produit lui-même, vérifié par lecture directe de chaque cas avant enregistrement.** | **Constat direct, session du 2026-07-28, après application des migrations ci-dessus — conformément à CLAUDE.md (« un test rouge est une hypothèse sur le code, pas un défaut du test »), aucun test ni code n'a été modifié pour ces 8 cas, seulement enregistré en anomalie.** |
 | **2026-07-28** | **Incident de procédure signalé : un `git stash` a été lancé par erreur en cours de diagnostic de test, sur un working tree contenant des changements non commités de sessions antérieures (commission split mode, project payout budget, etc.), sans vérification préalable de `git status` ni consentement. Restauré immédiatement (`git stash pop`, `git status` revérifié : tous les fichiers listés dans le stash sont revenus, aucun n'a disparu). Aucune perte constatée, mais l'action elle-même n'aurait pas dû être lancée sans confirmation — cf. règle du projet sur les opérations difficilement réversibles.** | **Constat direct, session du 2026-07-28, enregistré immédiatement conformément à CLAUDE.md.** |
 | **2026-07-17** | **SEC-019 : les 4 méthodes repository orphelines (invoice/siteContent/aiConversation/freelancerApplication) supprimées — code mort confirmé par grep, zéro appelant, typecheck + 247/247 tests verts après suppression.** | **Décision implicite via la procédure du projet (suppression de code mort confirmé n'est pas un développement) — pas de décision produit distincte requise.** |
 | **2026-07-17** | **SEC-016 : migration `LeadArchive`/`ContactRequestArchive` créée sur décision du porteur (« créer la migration manquante »). Scope volontairement limité à Lead + ContactRequest — Document exclu (cascade DocumentAccessLog + versioning), Notification exclu par la même décision malgré l'absence de risque de cascade trouvé.** | **Réponse du porteur du projet, session du 2026-07-17, face au choix désactiver/créer/laisser tel quel pour le job `archiveColdData`.** |
@@ -2206,4 +2333,6 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-24** | **Sémantique de l'effacement RG-025 tranchée : suppression réelle (`prisma.delete`) si le sujet n'a aucun enregistrement financier lié (réutilise `clientRepository.countInvoices` / `userRepository.hasFinancialHistory`, guards déjà en place) ; sinon anonymisation en place (PII écrasé, factures/AuditLog intacts) — pas de suppression partielle ni de nouvelle colonne de schéma.** | **AskUserQuestion, session du 2026-07-24, question « Que doit faire concrètement l'"effacement" vu que les factures doivent légalement être conservées ? » : choix « Suppression complète si aucune facture liée » parmi 3 options (l'option alternative « anonymiser systématiquement, ne jamais supprimer » n'a pas été retenue).** |
 | **2026-07-28** | **Nouvelle règle RG-027 (unicité du rôle par personne) créée et vérifiée : un utilisateur ne peut occuper qu'un seul rôle à la fois (jamais Admin+Freelancer, jamais Freelancer+Manager), et une même personne (email) ne peut détenir deux comptes actifs à rôles différents. Statut IMPLÉMENTÉ, `verifie: code_direct` — garanti structurellement par `User.role` (champ scalaire, pas un tableau) et `User.email` (`@@unique`), vérifié sur les 3 points de création de compte du dépôt (`userService.inviteUser`, `clientService`, `freelancerApplicationService#acceptApplication`) : toute tentative de doublon échoue à la contrainte `@@unique`, remontée en 409 `DUPLICATE_ENTRY` par le middleware d'erreur global, jamais un second compte créé ni un crash 500 non géré. Écart de confort identifié (message générique plutôt que métier explicite sur `acceptApplication`) mais non enregistré comme anomalie séparée — ne touche pas à l'existence de la règle elle-même.** | **Remontée directe du porteur du projet (« une personne ne peut occuper qu'un seul rôle... ne peut pas être admin et freelancer, freelancer et manager »), suivie d'une demande explicite de tout vérifier ET formaliser (AskUserQuestion, choix combiné plutôt qu'un seul des 3 angles proposés). Vérifié sur 3 axes avant formalisation : changement de rôle (`updateUser`, remplace toujours, jamais un cumul), création d'un second compte pour la même personne (bloquée par `@@unique`), et la contrainte structurelle elle-même — aucun des trois n'a révélé de brèche.** |
 | **2026-07-28** | **Demande du porteur de vérifier d'autres règles avec une perspective dev full-stack/CEO produit — 3 angles proposés et retenus (AskUserQuestion, multi-sélection) : cohérence rôle↔champs associés, exclusivité Client+Freelancer, changement de pôle d'un Manager en poste. Le premier axe a révélé SEC-006 (ouvert, majeure) : aucun endpoint/UI ne permet d'assigner `serviceId` à un Manager — `inviteUser`/`updateUser` (service, contrôleur, validateur, UI `SettingsUsersTab.tsx`) ne portent que `name`/`email`/`role`. Le 2e axe (Client+Freelancer) est resté `[À CONFIRMER]` sur choix explicite du porteur — le comportement actuel bloque déjà ce cumul (effet de bord de `@@unique([email])`), mais ce n'est pas une décision produit assumée, seulement documentée comme telle sous RG-027. Le 3e axe (changement de pôle) n'a révélé aucune anomalie propre : `Project.serviceId` est indépendant du Manager assigné, aucun orphelinage — mais devient concrètement pertinent seulement une fois SEC-006 corrigé.** | **AskUserQuestion, session du 2026-07-28 : choix « Cohérence rôle ↔ champs associés (Recommandé), Un Freelancer ne peut pas être aussi Client (Recommandé), Un Manager ne peut gérer qu'un seul pôle à la fois » parmi 4 options (la 4e, « un seul CEO/rôle fondateur », non retenue). Puis, sur la question Client+Freelancer, choix explicite « Ouvrir la question au porteur pour une future décision produit » plutôt que documenter l'interdiction ou la laisser sans suite — le porteur du projet réel devra trancher, pas l'assistant.** |
+| **2026-07-28** | **RG-026 (niveaux de confirmation UX) relevée de `PRÉVU` à `IMPLÉMENTÉ`, `verifie: code_direct` — vérification demandée explicitement par le porteur du projet sur les 7 fichiers cités par la règle, tous lus intégralement. Le composant partagé `ConfirmationDialog.tsx` implémente bien le contrat Niveau 2 (checkbox obligatoire, description distincte du libellé de la case, bouton désactivé tant que non cochée) et 6 des 7 actions listées l'utilisent réellement. SEC-014 ouverte pour le seul écart trouvé : `ApprovalsClientPage.tsx` (approbation client) respecte le même contrat fonctionnel mais le réimplémente localement au lieu d'utiliser `ConfirmationDialog` — incohérence de factorisation, pas un défaut de protection utilisateur (l'utilisateur final est protégé dans les deux cas).** | **Demande explicite du porteur du projet (« RG-026 est ce que codé ? verifier le code reelement »), suivie de la confirmation de mettre à jour REFERENTIEL.md et d'enregistrer l'écart trouvé. Vérification par lecture directe intégrale des 7 fichiers et du composant `ConfirmationDialog.tsx` avant toute conclusion.** |
 | **2026-07-28** | **Nouveau régime de rémunération PER_TASK (3e valeur de `CommissionSplitMode`, aux côtés de `AUTO`/`MANUAL`) créé, avec RG-028 (pas de double paiement : `computeForPaymentTx` retourne `[]` pour un projet `PER_TASK`, même avec des `ProjectCommissionSplit` résiduels) et RG-029 (bascule vers `PER_TASK` = purge des splits + entrée `CommissionSplitHistory` `MODE_SET_PER_TASK` dans la même transaction, via un endpoint dédié `POST /commissions/projects/:projectId/commission-mode/per-task`, réservé ADMIN, refusé en 409 si le projet a déjà une `Commission`). Absent de toute version antérieure de REFERENTIEL.md ; introduit sur instruction explicite du porteur (remplace la lecture antérieure « MANUAL = paiement à la tâche »). Migration `20260728030000_commission_split_mode_per_task` : `ALTER TYPE ... ADD VALUE`, aucun projet existant migré.** | **Instructions explicites du porteur, session du 2026-07-28 (fichier `checklist-regles-metier-secritou.md`, items 1 à 4). Les identifiants RG-012/RG-013 proposés par le porteur pour ces deux règles collisionnaient avec des RG-012 (numérotation factures) et RG-013 (clôture mission) déjà attribués dans REFERENTIEL.md §5 — AskUserQuestion, choix explicite du porteur : renumérotées RG-028/RG-029 (prochains identifiants libres après RG-027).** |
+| **2026-07-29** | **SEC-015 résolue : le reste du régime PER_TASK construit le 2026-07-28 (enveloppe `payoutBudget`, `Task.payoutAmount`/blocage TODO, barème qualité TASK_FIXED, conflit d'intérêt d'auto-validation, verrouillage de mode, fee Manager à la livraison) avait été implémenté en citant, dans les commentaires de code (`commission.service.ts`, `task.service.ts`, `schema.prisma`) et les tests, les identifiants RG-006 à RG-011 — qui désignaient déjà, dans ce même §5, des règles sans rapport (base de calcul de la commission sur montant brut encaissé, cycle de vie PENDING→PAID, cascade d'acceptation de proposition, visibilité par associé). Collision d'identifiants jamais remontée en §7 au moment de l'implémentation initiale. Corrigé : le régime PER_TASK renuméroté RG-030 (enveloppe payoutBudget) à RG-035 (fee Manager à la livraison), documenté en §5 ci-dessus ; RG-006 à RG-011 laissées inchangées dans leur sens d'origine ; tous les commentaires de code et labels de test (`commission.service.ts`, `commission.repository.ts`, `commission.validator.ts`, `task.service.ts`, `project.service.ts`, `schema.prisma`, `managerProjectFee.test.ts`, `taskPayoutRules.test.ts`, `taskFixedCommission.test.ts`, `commissionService.test.ts`) mis à jour vers les nouveaux identifiants — aucun changement de comportement, renumérotation pure.** | **AskUserQuestion, session du 2026-07-29, en réponse directe à SEC-015 (trouvée lors de l'audit 4.5-commissions catégories A/B/G) : choix « Renuméroter le régime PER_TASK » plutôt que « Réécrire RG-006 à RG-011 en place » — RG-006 à RG-011 gardent leur sens §5 d'origine, le régime PER_TASK reçoit de nouveaux identifiants libres après RG-029.** |

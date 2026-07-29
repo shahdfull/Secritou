@@ -115,7 +115,7 @@ export function ProjectCommissionSplitTab({ projectId }: ProjectCommissionSplitT
   const startEditingBudget = () => {
     const current = splitState?.payoutBudget;
     const suggested = splitState?.suggestedPayoutBudget;
-    // RG-006 : la suggestion à 65% n'est proposée que si aucune enveloppe n'est déjà fixée —
+    // RG-030 : la suggestion à 65% n'est proposée que si aucune enveloppe n'est déjà fixée —
     // une valeur existante n'est jamais écrasée silencieusement par la suggestion.
     setPayoutBudgetInput(current !== null && current !== undefined ? String(current) : suggested !== null && suggested !== undefined ? String(suggested) : "");
   };
