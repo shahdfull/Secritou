@@ -25,7 +25,7 @@ anomalies:
       les lignes précédentes du même test, elles passent).
     classe: assertion-format-decimal
     gravite: mineure
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       server/test/gdprErasure.test.ts, cas "a client with an invoice is
       anonymized, not deleted — the invoice survives untouched" doit passer
@@ -54,3 +54,15 @@ anomalies:
       modifiés dans cette session sur ce point — seul le symptôme exact est
       enregistré, conformément à CLAUDE.md (« un test rouge est une
       hypothèse sur le code, pas un défaut du test »).
+    correctif: >
+      Option (a) tranchée (AskUserQuestion, session du 2026-07-29) : aucune
+      troncature de données réelles n'existe sur ce chemin —
+      Prisma.Decimal#toString() ne préserve pas les zéros de fin d'un
+      Decimal(14,3) pour la valeur 100, "100" est le format réel et correct.
+      L'assertion attendait un format qui n'a jamais correspondu au
+      comportement réel de Prisma. Corrigée : `assert.equal(Number(
+      invoiceStillThere?.amount), 100)` au lieu de comparer une chaîne
+      formatée. Suite complète server (650 tests, 650 pass, 0 fail, 0 skip)
+      exécutée sans régression. Statut en_cours (pas resolu) tant que ce
+      correctif n'est pas vu vert en CI (CLAUDE.md « Un critère de
+      résolution se vérifie sur un commit »).

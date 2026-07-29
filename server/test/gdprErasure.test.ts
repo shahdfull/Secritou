@@ -69,7 +69,7 @@ describe("gdprService.eraseClient (RG-025)", () => {
 
     const invoiceStillThere = await prisma.invoice.findUnique({ where: { id: invoice.id } });
     assert.ok(invoiceStillThere, "the Invoice must not be touched or deleted");
-    assert.equal(invoiceStillThere?.amount.toString(), "100.000");
+    assert.equal(Number(invoiceStillThere?.amount), 100);
   });
 
   test("a client with no invoice and a converted lead is hard-deleted along with the lead", async (t) => {
