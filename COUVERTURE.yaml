@@ -35,6 +35,15 @@
 # cellule par supposition.
 
 derniere_maj: "2026-07-29"
+# 4.1-crm : A/B/G balayées le 2026-07-29 (audit réel contre REFERENTIEL.md
+# §3.4/§4.1/§5 RG-002, lead.service.ts/.repository.ts/.controller.ts/
+# .validator.ts, proposal.service.ts/.repository.ts/.controller.ts/
+# .validator.ts, contact.service.ts, client/src/features/crm+leads+proposals) —
+# SEC-018 (bloquant, régression validateur cassant tout le pipeline lead) et
+# SEC-019 (bloquant, IDOR par arguments positionnels sur la création de
+# proposition) trouvées et resolu (commit 1e27433, CI verte confirmée run
+# 30465092019) — 4.1-crm remplit le critère de clôture "prêt au lancement"
+# (CLAUDE.md). C/D/E/F/H/I/J laissées à null, non vérifiées cette passe.
 # 4.4-facturation : A/B/G balayées le 2026-07-27 (premier audit réel du
 # nouveau registre) — C/D/E/F/H/I/J laissées à null, non vérifiées cette
 # passe.
@@ -54,13 +63,13 @@ derniere_maj: "2026-07-29"
 modules:
   "4.1-crm":
     label: "4.1 CRM & Pipeline commercial"
-    A: null
-    B: null
+    A: "2026-07-29"
+    B: "2026-07-29"
     C: null
     D: null
     E: null
     F: null
-    G: null
+    G: "2026-07-29"
     H: null
     I: null
     J: null

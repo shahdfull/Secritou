@@ -212,7 +212,7 @@ anomalies:
       toute transition de statut autre que NEW, cassant le pipeline
       commercial (Kanban, convertLead) de bout en bout
     perimetre: 4.1-crm
-    statut: en_cours
+    statut: resolu
     gravite: bloquant
     classe: regression-validation-zod
 
@@ -226,6 +226,6 @@ anomalies:
       undefined est ignoré par Prisma) — un MANAGER peut créer une
       proposition liée à un projet d'un autre pôle
     perimetre: 4.1-crm
-    statut: en_cours
+    statut: resolu
     gravite: bloquant
     classe: idor-scope-manque
