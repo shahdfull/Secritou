@@ -12,7 +12,7 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-017
+dernier_id: SEC-019
 anomalies:
   - id: SEC-001
     titre: >
@@ -204,3 +204,28 @@ anomalies:
     statut: resolu
     gravite: moyenne
     classe: dependance-circulaire
+
+  - id: SEC-018
+    titre: >
+      lead.validator.ts écrase status: z.nativeEnum(LeadStatus).optional()
+      par z.literal(LeadStatus.NEW).optional() — PUT /leads/:id rejette
+      toute transition de statut autre que NEW, cassant le pipeline
+      commercial (Kanban, convertLead) de bout en bout
+    perimetre: 4.1-crm
+    statut: en_cours
+    gravite: bloquant
+    classe: regression-validation-zod
+
+  - id: SEC-019
+    titre: >
+      proposal.controller.ts#createProposal appelle
+      projectService.getProjectById(projectId, userId, "MANAGER",
+      scope.userServiceId) avec 4 arguments positionnels — le serviceId
+      (5e paramètre) reste undefined, neutralisant le filtre de scope
+      MANAGER dans project.repository.ts#findById (where.serviceId:
+      undefined est ignoré par Prisma) — un MANAGER peut créer une
+      proposition liée à un projet d'un autre pôle
+    perimetre: 4.1-crm
+    statut: en_cours
+    gravite: bloquant
+    classe: idor-scope-manque

@@ -7,7 +7,147 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : 4.1 CRM & Pipeline commercial
-# 0 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
-# archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
+# 2 anomalie(s) — premier audit réel de ce périmètre dans le registre remis
+# à zéro le 2026-07-27, session du 2026-07-29.
 
-anomalies: []
+anomalies:
+  - id: SEC-018
+    titre: >
+      lead.validator.ts écrase status: z.nativeEnum(LeadStatus).optional()
+      par z.literal(LeadStatus.NEW).optional() — PUT /leads/:id rejette
+      toute transition de statut autre que NEW, cassant le pipeline
+      commercial (Kanban, convertLead) de bout en bout
+    perimetre: 4.1-crm
+    regle_violee: >
+      §3.4 (cycle de vie NEW → CONTACTED → QUALIFIED → PROPOSAL →
+      WON/LOST) et RG-002 par ricochet (le pipeline lead est le point
+      d'entrée de toute proposition/mission — aucune proposition/mission
+      n'est atteignable si le lead ne peut jamais dépasser NEW).
+    classe: regression-validation-zod
+    gravite: bloquant
+    statut: en_cours
+    critere_de_resolution: >
+      Un ADMIN ou un MANAGER doit pouvoir faire progresser un lead de NEW
+      vers CONTACTED, QUALIFIED, PROPOSAL, WON ou LOST via PUT /leads/:id
+      — l'API ne doit rejeter QUE les transitions non autorisées par
+      LEAD_NEXT_STATUSES (lead.service.ts), jamais toutes les transitions
+      hors NEW. Un test réel doit appeler updateLeadSchema.safeParse (ou
+      la route complète) avec chacun des 5 statuts non-NEW et confirmer
+      qu'aucun n'est rejeté par le seul validateur.
+    detecte_le: "2026-07-29"
+    source: >
+      Lecture directe de server/src/validators/lead.validator.ts (29
+      lignes, intégral) : `leadBaseSchema = sharedLeadBase.extend({
+      status: z.literal(LeadStatus.NEW).optional() })`, alors que
+      shared/src/schemas/lead.schema.ts définit `status:
+      z.nativeEnum(LeadStatus).optional()` (6 valeurs). updateLeadSchema =
+      leadBaseSchema.partial() hérite du littéral figé. Confirmé qu'aucune
+      autre route ne permet de changer le statut : server/src/routes/lead.routes.ts
+      (lu intégral) n'expose que POST /:id/convert et POST /:id/reopen en
+      plus de PUT /:id — aucune route status dédiée. Confirmé côté client :
+      client/src/api/leads.api.ts#updateLeadStatus appelle bien PUT
+      /leads/${id} avec { status, ... } — c'est le seul chemin, il est
+      cassé pour toute valeur ≠ NEW. git log -- server/src/validators/lead.validator.ts
+      identifie le commit e26574f (2026-07-21, "chore: commit remaining
+      working tree state...") comme origine, avec un message qui cite
+      explicitement ce fichier parmi des modifications d'une "session
+      externe non auditée" committées à la demande directe du porteur
+      ("commit all and push all even not yours") — la régression est donc
+      documentée comme non revue au moment de son introduction, jamais
+      détectée depuis (aucun test ne couvre updateLeadSchema/PUT /leads/:id
+      avec un statut non-NEW).
+    confiance: haute
+    correctif: >
+      `status: z.literal(LeadStatus.NEW).optional()` remplacé par
+      `status: z.nativeEnum(LeadStatus).optional()` — restaure exactement
+      le comportement d'avant la régression (accepte les 6 valeurs de
+      l'enum, jamais de valeur par défaut forcée sur un update partiel).
+      La logique de transition (LEAD_NEXT_STATUSES, lead.service.ts)
+      reste le seul contrôle métier, inchangée. Nouveau test réel
+      server/test/leadUpdateStatusValidator.test.ts (7 cas : les 6
+      statuts valides + 1 statut invalide rejeté), appelle
+      updateLeadSchema.safeParse directement (pas de réimplémentation),
+      enregistré dans test/run-all.test.ts. Suite complète : 659/659,
+      0 skip, exécutée deux fois de suite sans régression ; typecheck/lint
+      propres (serveur + client). Statut en_cours (pas resolu) tant que ce
+      correctif n'est pas commité et vu vert en CI (CLAUDE.md « Un
+      critère de résolution se vérifie sur un commit »).
+
+  - id: SEC-019
+    titre: >
+      proposal.controller.ts#createProposal appelle
+      projectService.getProjectById(projectId, userId, "MANAGER",
+      scope.userServiceId) avec 4 arguments positionnels — le serviceId
+      (5e paramètre) reste undefined, neutralisant le filtre de scope
+      MANAGER dans project.repository.ts#findById (where.serviceId:
+      undefined est ignoré par Prisma) — un MANAGER peut créer une
+      proposition liée à un projet d'un autre pôle
+    perimetre: 4.1-crm
+    regle_violee: >
+      RG-002 (« un Manager ne peut créer ou modifier un projet que dans
+      son propre pôle — y compris via la proposition qui en est à
+      l'origine »). SEC-028 (session du 2026-07-18) avait déjà corrigé ce
+      contournement précis pour le chemin leadId/clientId
+      (assertProposalCreationInScope) ; le chemin projectId a son propre
+      garde-fou distinct dans le contrôleur, qui est cassé.
+    classe: idor-scope-manque
+    gravite: bloquant
+    statut: en_cours
+    critere_de_resolution: >
+      Un MANAGER qui tente POST /proposals avec un projectId appartenant
+      à un pôle différent du sien doit recevoir un refus (403 ou 404)
+      systématique. Un test réel doit appeler proposalService.create (ou
+      la route HTTP complète) avec un projectId d'un autre pôle et
+      confirmer le rejet — pas seulement relire le code.
+    detecte_le: "2026-07-29"
+    source: >
+      Lecture directe de server/src/controllers/proposal.controller.ts
+      lignes 71-83 : `projectService.getProjectById(req.body.projectId,
+      req.user!.sub!, "MANAGER", scope.userServiceId ?? undefined)` — 4
+      arguments. Lecture directe de la signature réelle,
+      server/src/services/project.service.ts:44 : `getProjectById(id,
+      userId, userRole, clientId?, serviceId?)` — le 4e paramètre est
+      clientId, pas serviceId ; le 5e (serviceId, jamais fourni par cet
+      appel) vaut donc toujours undefined. Lecture directe de
+      server/src/repositories/project.repository.ts lignes 116-117,
+      branche MANAGER de findById : `where: { id, deletedAt: null,
+      serviceId: serviceId ?? undefined }` — avec serviceId undefined,
+      `serviceId: undefined` dans une clause Prisma where est ignoré (pas
+      un filtre "doit être null"), rendant cette requête identique à la
+      branche ADMIN (aucune restriction de pôle). getProjectById lève déjà
+      HttpError(404) si le projet est introuvable (ligne 46), donc le
+      `if (!project) throw ...` du contrôleur (ligne 76) ne se déclenche
+      jamais avant que getProjectById lui-même n'ait déjà renvoyé le
+      projet hors-scope sans erreur. Grep exhaustif sur server/test :
+      aucun test n'appelle createProposal/getProjectById avec deux pôles
+      distincts sur ce chemin projectId précis.
+    confiance: haute
+    note: >
+      Le chemin leadId/clientId (assertProposalCreationInScope dans
+      proposal.service.ts, appelé par proposalService.create juste après
+      ce garde-fou) reste correct et vérifié par
+      server/test/proposalCreationScope.test.ts (SEC-028) — cette
+      anomalie porte spécifiquement sur le 2e garde-fou, propre au cas
+      projectId, absent de cette couverture de test.
+    correctif: >
+      L'appel passe désormais explicitement `undefined` en 4e position
+      (clientId, non pertinent pour une lecture en rôle MANAGER) et
+      scope.userServiceId en 5e — commentaire ajouté sur le site d'appel
+      documentant précisément ce piège d'arguments positionnels pour
+      éviter une régression future identique. Comportement réel observé
+      une fois corrigé : getProjectById lève déjà HttpError(404) "Project
+      not found" dès que le scope MANAGER exclut la ligne — le
+      `if (!project) throw HttpError(403, ...)` du contrôleur ne se
+      déclenche jamais (code mort mais inoffensif, laissé en l'état),
+      donc le vrai comportement HTTP est 404, pas 403 — cohérent avec la
+      convention déjà en place ailleurs (ex. assertInvoiceInScope) de ne
+      jamais révéler l'existence d'une ressource hors scope. Nouveau test
+      réel server/test/proposalCreateProjectScopeHttp.test.ts (2 cas via
+      supertest contre la vraie route HTTP : un MANAGER hors-pôle est
+      rejeté 404 et aucune proposition n'est créée ; un MANAGER du même
+      pôle réussit toujours), enregistré dans test/run-all.test.ts. Suite
+      complète : 659/659, 0 skip, exécutée deux fois de suite sans
+      régression ; typecheck/lint propres (serveur + client). Statut
+      en_cours (pas resolu) tant que ce correctif n'est pas commité et vu
+      vert en CI (CLAUDE.md « Un critère de résolution se vérifie sur un
+      commit »).

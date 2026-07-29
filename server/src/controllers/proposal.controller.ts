@@ -72,7 +72,12 @@ export const createProposal = async (req: Request, res: Response) => {
   const scope = await buildServiceScope(req);
   if (req.user!.role === "MANAGER" && req.body.projectId) {
     if (scope.userServiceId !== undefined) {
-      const project = await (await import("../services/project.service.js")).projectService.getProjectById(req.body.projectId, req.user!.sub!, "MANAGER", scope.userServiceId ?? undefined);
+      // SEC-019: getProjectById(id, userId, userRole, clientId?, serviceId?) — serviceId is the
+      // 5th positional arg, not the 4th. Passing it 4th (as clientId) silently disabled the
+      // MANAGER pole filter in project.repository.ts#findById (a Prisma `where` clause ignores
+      // `serviceId: undefined` entirely, matching any pole). clientId is explicitly undefined
+      // here since a MANAGER-role lookup never uses it.
+      const project = await (await import("../services/project.service.js")).projectService.getProjectById(req.body.projectId, req.user!.sub!, "MANAGER", undefined, scope.userServiceId ?? undefined);
       if (!project) throw new HttpError(403, "Project not in your service scope");
     }
   }
