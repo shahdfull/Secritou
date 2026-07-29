@@ -104,3 +104,55 @@ anomalies:
       désormais data.taskId à assigneeId: userId quand userRole ===
       "FREELANCER". Même test server/test/timeEntryScope.test.ts (2 des 7
       cas couvrent spécifiquement ce constat). `verifie: test`.
+
+  - id: SEC-022
+    titre: >
+      documentService.update/createVersion n'appellent jamais
+      documentRepository.findById avec un viewer scopé — un MANAGER peut
+      modifier ou créer une nouvelle version de n'importe quel document
+      (nom, titre, tags, accessLevel) hors de son pôle, alors que
+      getById/getDownloadUrl vérifient déjà correctement ce même scope via
+      where.client.projects.some.serviceId
+    perimetre: 4.2-projets
+    regle_violee: >
+      RG-002 (Rattachement mission → pôle → associé) — un Manager ne peut
+      créer, lire ou modifier des ressources d'un projet que dans son
+      propre pôle.
+    classe: idor-scope-manque
+    gravite: eleve
+    statut: resolu
+    critere_de_resolution: >
+      Un test réel appelle documentService.update et documentService.
+      createVersion avec un viewer MANAGER dont le serviceId diffère de
+      celui du projet/client propriétaire du document ciblé, et observe un
+      rejet (403/404) au lieu d'un succès — pour les deux méthodes.
+    detecte_le: "2026-07-29"
+    source: >
+      Audit direct de 4.2-projets, lecture intégrale de
+      server/src/services/document.service.ts,
+      server/src/repositories/document.repository.ts,
+      server/src/controllers/document.controller.ts,
+      server/src/routes/document.routes.ts (comparaison entre
+      documentRepository.findById(id, viewer) — utilisé correctement par
+      getById/getDownloadUrl — et update/createVersion, qui appellent
+      soit prisma.document.update(id) directement soit
+      documentRepository.findById(id) SANS le second argument viewer).
+    confiance: haute
+    note: >
+      PUT /documents/:id (authorize ADMIN/MANAGER, requirePermission
+      documents.update) et POST /documents/:id/versions (même garde)
+      passent bien par requirePermission, mais aucun scope de pôle n'est
+      revérifié après ce point — la garde RBAC granulaire donne une fausse
+      impression de sécurité complète alors que le scope métier (pôle) est
+      absent sur ces deux chemins d'écriture précis. DELETE /documents/:id
+      est ADMIN-only (jamais atteignable par un MANAGER), donc hors de
+      portée de ce constat malgré le même repository.delete(id) sans
+      scope.
+      Corrigé (session du 2026-07-29) : documentService.update/
+      createVersion acceptent désormais un viewer et appellent
+      documentRepository.findById(id, viewer) (404 si hors scope) avant
+      d'écrire. document.controller.ts construit et transmet le scope
+      MANAGER. Nouveau
+      server/test/documentUpdateVersionScopeManager.test.ts (5 cas,
+      appelle réellement documentService contre une base migrée),
+      enregistré dans test/run-all.test.ts. `verifie: test`.

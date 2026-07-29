@@ -12,8 +12,21 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-021
+dernier_id: SEC-022
 anomalies:
+  - id: SEC-022
+    titre: >
+      documentService.update/createVersion n'appellent jamais
+      documentRepository.findById avec un viewer scopé — un MANAGER peut
+      modifier ou créer une nouvelle version de n'importe quel document
+      (nom, titre, tags, accessLevel) hors de son pôle, alors que
+      getById/getDownloadUrl vérifient déjà correctement ce même scope via
+      where.client.projects.some.serviceId
+    perimetre: 4.2-projets
+    statut: resolu
+    gravite: eleve
+    classe: idor-scope-manque
+
   - id: SEC-020
     titre: >
       timeEntry.service.ts (create/list/summary/mySummary) ne vérifie jamais

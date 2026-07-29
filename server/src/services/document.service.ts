@@ -44,7 +44,13 @@ export const documentService = {
     return documentRepository.create(data);
   },
 
-  async update(id: string, data: Prisma.DocumentUncheckedUpdateInput) {
+  // SEC-022: getById/getDownloadUrl already scope a MANAGER to their own pôle via
+  // documentRepository.findById's viewer parameter — update() called
+  // documentRepository.update(id, ...) directly, bypassing that check entirely (a MANAGER with
+  // the documents.update RBAC permission could edit any document company-wide).
+  async update(id: string, data: Prisma.DocumentUncheckedUpdateInput, viewer: Viewer) {
+    const doc = await documentRepository.findById(id, viewer);
+    if (!doc) throw new HttpError(404, "Document not found");
     return documentRepository.update(id, data);
   },
 
@@ -62,8 +68,10 @@ export const documentService = {
     return deleted;
   },
 
-  async createVersion(id: string, data: { url: string; userId?: string; ipAddress?: string; userAgent?: string }) {
-    const original = await documentRepository.findById(id);
+  // SEC-022: same gap as update() above — findById(id) with no viewer never applied the
+  // MANAGER-own-pôle filter, letting a MANAGER version any document company-wide.
+  async createVersion(id: string, data: { url: string; userId?: string; ipAddress?: string; userAgent?: string }, viewer: Viewer) {
+    const original = await documentRepository.findById(id, viewer);
     if (!original) throw new Error("Document not found");
 
     const newVersion = await documentRepository.create({

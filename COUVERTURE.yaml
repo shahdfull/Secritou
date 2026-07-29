@@ -76,6 +76,20 @@ derniere_maj: "2026-07-29"
 # remplit le critère de clôture "prêt au lancement" (CLAUDE.md).
 # C/D/E/F/H/I/J laissées à null, non vérifiées
 # cette passe, n'entrent pas dans ce critère.
+# 4.10-rbac : A/B balayées le 2026-07-29 (premier audit réel du nouveau
+# registre — managerPermission.service.ts/.repository.ts/.controller.ts,
+# permissionProfile.repository.ts/.controller.ts, managerPermission.routes.ts,
+# permissionProfile.routes.ts, rbac.middleware.ts, managerPermission.validator.ts,
+# client/src/types/permissions.ts) — surface d'administration RBAC
+# elle-même saine (toutes les routes ADMIN-only, MODULES client/serveur
+# synchronisés depuis SEC-025). SEC-022 (eleve, documentService.update/
+# createVersion sans revérification du scope MANAGER malgré
+# requirePermission("documents","update") en amont) découverte en
+# vérifiant comment requirePermission est réellement consommé côté
+# 4.2-projets — enregistrée et resolu sous 4.2-projets (pas ce périmètre,
+# le défaut est dans le consommateur, pas dans 4.10 lui-même). G non
+# balayée (pas de calcul financier direct dans ce module) ;
+# C/D/E/F/H/I/J laissées à null.
 
 modules:
   "4.1-crm":
@@ -198,8 +212,8 @@ modules:
 
   "4.10-rbac":
     label: "4.10 RBAC & Permissions granulaires"
-    A: null
-    B: null
+    A: "2026-07-29"
+    B: "2026-07-29"
     C: null
     D: null
     E: null

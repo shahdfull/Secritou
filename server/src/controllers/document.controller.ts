@@ -72,7 +72,13 @@ export const createDocument = async (req: Request, res: Response) => {
 };
 
 export const updateDocument = async (req: Request, res: Response) => {
-  const document = await documentService.update(req.params.id as string, req.body);
+  const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
+  const document = await documentService.update(req.params.id as string, req.body, {
+    role: req.user!.role,
+    clientId: req.user!.clientId,
+    serviceId: scope?.userServiceId,
+    userId: req.user!.sub,
+  });
   res.json({ data: document });
 };
 
@@ -82,12 +88,22 @@ export const deleteDocument = async (req: Request, res: Response) => {
 };
 
 export const createDocumentVersion = async (req: Request, res: Response) => {
-  const document = await documentService.createVersion(req.params.id as string, {
-    ...req.body,
-    userId: req.user?.sub as string | undefined,
-    ipAddress: req.ip,
-    userAgent: req.get("User-Agent"),
-  });
+  const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
+  const document = await documentService.createVersion(
+    req.params.id as string,
+    {
+      ...req.body,
+      userId: req.user?.sub as string | undefined,
+      ipAddress: req.ip,
+      userAgent: req.get("User-Agent"),
+    },
+    {
+      role: req.user!.role,
+      clientId: req.user!.clientId,
+      serviceId: scope?.userServiceId,
+      userId: req.user!.sub,
+    }
+  );
   res.status(201).json({ data: document });
 };
 
