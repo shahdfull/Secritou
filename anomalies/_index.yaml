@@ -12,8 +12,22 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-037
+dernier_id: SEC-038
 anomalies:
+  - id: SEC-038
+    titre: >
+      commissionService.test.ts et commissionAutoSplitTaskTrigger.test.ts
+      passent chacun isolément (node --test sur le seul fichier) mais 6
+      assertions échouent réellement (pas un artefact de cleanup) quand
+      les deux tournent dans la même exécution de test:unit
+      (test/run-all.test.ts) — signe d'un état partagé non isolé entre
+      les deux fichiers (fixture DB résiduelle, compteur Service/User non
+      nettoyé, ou ordre d'exécution dont dépend un des deux)
+    perimetre: transverse
+    statut: ouvert
+    gravite: moyenne
+    classe: pollution-etat-partage-entre-fichiers-de-test
+
   - id: SEC-037
     titre: >
       gdprService.eraseClient/eraseUser/eraseLead/eraseContactRequest
@@ -93,7 +107,7 @@ anomalies:
       nulle part dans src/ — aucun dashboard d'observabilité BullMQ
       n'existe réellement malgré la dépendance présente
     perimetre: transverse
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: dependance-non-utilisee
 

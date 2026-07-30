@@ -9,9 +9,62 @@
 # Périmètre : Transverse (hors modules §4 — CI/infra, docs, RGPD, i18n global, design system, observabilité)
 # 6 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
-# +1 le 2026-07-30 (audit B).
+# +1 le 2026-07-30 (audit B). +1 le 2026-07-30 (découverte incidente en
+# corrigeant SEC-032).
 
 anomalies:
+  - id: SEC-038
+    titre: >
+      commissionService.test.ts et commissionAutoSplitTaskTrigger.test.ts
+      passent chacun isolément (node --test sur le seul fichier) mais 6
+      assertions échouent réellement (pas un artefact de cleanup) quand
+      les deux tournent dans la même exécution de test:unit
+      (test/run-all.test.ts) — signe d'un état partagé non isolé entre
+      les deux fichiers (fixture DB résiduelle, compteur Service/User non
+      nettoyé, ou ordre d'exécution dont dépend un des deux)
+    perimetre: transverse
+    regle_violee: >
+      Aucune règle explicite de REFERENTIEL.md ne couvre ce cas — constat
+      de fiabilité de la suite de tests (catégorie E) découvert
+      incidemment en vérifiant que le nouveau test bullBoardAdminOnly.http.test.ts
+      (SEC-032) tournait bien dans test:unit une fois ajouté à
+      run-all.test.ts.
+    classe: pollution-etat-partage-entre-fichiers-de-test
+    gravite: moyenne
+    statut: ouvert
+    critere_de_resolution: >
+      npm run test:unit --workspace server passe à 0 échec sur
+      commissionService.test.ts et commissionAutoSplitTaskTrigger.test.ts
+      dans le contexte complet de run-all.test.ts (pas seulement isolément)
+      — vérifié en relançant la suite complète après correction et en
+      confirmant que les 6 assertions actuellement en échec (ADMIN
+      80%/managers 20%, 0 managers → ADMIN 100%, freelancer assigné 40/20/40,
+      resetToAutoSplit, createTask/updateTask threshold recalcAutoSplit)
+      passent dans ce contexte.
+    detecte_le: "2026-07-30"
+    source: >
+      npm run test:unit --workspace server (via node --import tsx --test
+      test/run-all.test.ts) : 692/698 passent, 6 échecs, tous dans
+      commissionService.test.ts/commissionAutoSplitTaskTrigger.test.ts.
+      Reproduit isolément chaque fichier séparément (node --import tsx
+      --test test/commissionAutoSplitTaskTrigger.test.ts) : les mêmes
+      assertions passent (4/4 réelles, le seul "✖" restant est un artefact
+      de cleanup BullMQ déjà connu — cf. run-all.test.ts#after ferme
+      communicationQueue/maintenanceQueue/documentsQueue précisément pour
+      ce problème). Confirmé préexistant sur main avant toute modification
+      de cette session (git stash + relance de la suite complète : mêmes
+      6 échecs sans les changements SEC-032).
+    confiance: haute
+    note: >
+      Non bloquant pour le lancement (catégorie E, backlog post-lancement)
+      — CI verte historique sur ces mêmes commits suggère que l'ordre
+      d'exécution des fichiers dans run-all.test.ts en CI diffère
+      suffisamment (parallélisme, cache Prisma, timing) pour ne pas
+      toujours révéler la collision, ce qui rend le défaut d'autant plus
+      insidieux (flaky plutôt que systématiquement rouge). Hors scope de
+      la correction de SEC-032 (bull-board) — enregistré et laissé ouvert
+      conformément à la règle CLAUDE.md d'enregistrement immédiat de tout
+      écart constaté hors audit formel.
   - id: SEC-037
     titre: >
       gdprService.eraseClient/eraseUser/eraseLead/eraseContactRequest
@@ -81,7 +134,7 @@ anomalies:
       dédiée à cet effet est déjà installée et jamais exploitée.
     classe: dependance-non-utilisee
     gravite: mineure
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       Une décision du porteur du projet tranche (parmi : (a) monter
       réellement un dashboard BullBoard, gardé derrière une auth
@@ -108,6 +161,23 @@ anomalies:
       directe). Ce constat porte uniquement sur l'absence d'exploitation
       d'une dépendance déjà présente, pas sur un défaut de
       snapshotExecutiveKpis.
+
+      Décision du porteur (AskUserQuestion, session du 2026-07-30) : monter
+      un vrai dashboard BullBoard plutôt que retirer la dépendance.
+      Implémenté : server/src/observability/bullBoard.ts (createBullBoard +
+      ExpressAdapter + BullMQAdapter sur les 3 queues réelles —
+      communicationQueue/maintenanceQueue/documentsQueue), monté dans
+      app.ts sur /api/v1/admin/queues derrière authenticate + authorize("ADMIN"),
+      même pile d'auth que toute autre route protégée (pas de schéma de
+      credentials séparé). Vérifié manuellement contre un serveur réel
+      (npx tsx src/index.ts) : 401 sans token, 403 avec un token MANAGER,
+      200 avec un token ADMIN, les 3 queues réelles apparaissent avec
+      leurs vrais compteurs de jobs. Nouveau
+      server/test/bullBoardAdminOnly.http.test.ts (supertest contre l'app
+      réelle + vraie base) : mêmes 3 assertions (401/403/200) rejouées
+      automatiquement, ajouté à test/run-all.test.ts. Statut laissé à
+      en_cours : correctif écrit et testé localement mais pas encore
+      commité/vérifié en CI.
 
   - id: SEC-030
     titre: >

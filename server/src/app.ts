@@ -14,8 +14,11 @@ import { metricsAuthMiddleware } from "./middlewares/metricsAuth.middleware.js";
 import { enforceMustChangePassword } from "./middlewares/mustChangePassword.middleware.js";
 import { metricsMiddleware } from "./observability/middleware.js";
 import { metricsHandler, metricsRoutes } from "./observability/routes.js";
+import { BULL_BOARD_BASE_PATH, bullBoardRouter } from "./observability/bullBoard.js";
 import { apiRoutes } from "./routes/index.js";
 import { swaggerSpec } from "./swagger.js";
+import { authenticate } from "./middlewares/auth.middleware.js";
+import { authorize } from "./middlewares/rbac.middleware.js";
 
 export const app = express();
 
@@ -100,6 +103,11 @@ app.use(loggingMiddleware);
 if (env.METRICS_ENABLED) {
   app.get(env.METRICS_PATH, metricsAuthMiddleware, metricsHandler);
 }
+
+// SEC-032: real-time BullMQ dashboard (communicationQueue/maintenanceQueue/documentsQueue),
+// ADMIN-only — same auth stack as every other authenticated route (JWT + RBAC), no separate
+// credential scheme for this admin surface.
+app.use(BULL_BOARD_BASE_PATH, authenticate, authorize("ADMIN"), bullBoardRouter);
 
 // Swagger/OpenAPI documentation
 if (process.env.NODE_ENV !== "production") {
