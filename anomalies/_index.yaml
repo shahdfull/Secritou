@@ -58,7 +58,7 @@ anomalies:
       été rempli tel qu'écrit, bien que la correction réelle effectuée
       (celle décrite par la note) soit correcte et suffisante
     perimetre: 4.11-ia
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: incoherence-interne-registre
 
@@ -75,7 +75,7 @@ anomalies:
       commentaire affirme une couverture que le test ne prouve pas
       réellement
     perimetre: 4.11-ia
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: commentaire-de-test-perime
 
@@ -103,9 +103,10 @@ anomalies:
       couvrait que 4.11 et le grep de 4 emplacements, celui-ci est un
       5e cas, dans §3, passé sous le radar)
     perimetre: 4.11-ia
-    statut: ouvert
+    statut: resolu
     gravite: moyenne
     classe: affirmation-factuelle-non-sourcee
+
   - id: SEC-047
     titre: >
       SEC-041 (Ollama ajouté aux docker-compose) est incomplète : l'image

@@ -72,7 +72,9 @@ anomalies:
       "resolved model: $OLLAMA_MODEL"' avec OLLAMA_MODEL=llama3 dans
       server/.env retourne bien "resolved model: llama3" ; sans cette
       ligne, retombe correctement sur "mistral". Les deux fichiers
-      compose validés syntaxiquement après correction.
+      compose validés syntaxiquement après correction. Commité (7de7599),
+      CI verte confirmée (6/6 checks GitHub Actions completed/success).
+
   - id: SEC-050
     titre: >
       SEC-046 (registre) contient une incohérence interne : son
@@ -107,7 +109,8 @@ anomalies:
       Corrigé dans la même session : critere_de_resolution de SEC-046
       réécrit pour retirer l'exigence de réalignement du titre, la note
       existante étant conservée telle quelle (elle explique correctement
-      pourquoi ce point n'a pas été traité comme les 3 autres).
+      pourquoi ce point n'a pas été traité comme les 3 autres). Commité
+      (7de7599), CI verte confirmée (6/6) — statut corrigé à resolu.
 
   - id: SEC-049
     titre: >
@@ -147,7 +150,8 @@ anomalies:
       Corrigé par la première option (commentaire honnête sur la portée
       réelle du test, pas d'import du routeur — un test qui monterait
       tout Express juste pour vérifier authorize() serait disproportionné
-      face à un test HTTP déjà existant ailleurs si besoin).
+      face à un test HTTP déjà existant ailleurs si besoin). Commité
+      (7de7599), CI verte confirmée (6/6) — statut corrigé à resolu.
 
   - id: SEC-048
     titre: >
@@ -206,7 +210,9 @@ anomalies:
       emplacements réécrits avec citation du code réel et une note
       explicite sur ce qui a changé depuis SEC-040/SEC-044, plutôt que
       de simplement remplacer un nom de fichier par un autre sans
-      expliquer pourquoi.
+      expliquer pourquoi. Commité (7de7599), CI verte confirmée (6/6
+      checks GitHub Actions completed/success) — statut corrigé à
+      resolu.
 
   - id: SEC-047
     titre: >
