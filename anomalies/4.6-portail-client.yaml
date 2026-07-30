@@ -29,7 +29,7 @@ anomalies:
       jamais faire d'arithmétique flottante brute sur des montants ».
     classe: arithmetique-flottante-brute-sur-montant
     gravite: mineure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       getOutstandingBalance retourne un résultat arrondi à 3 décimales
       (millimes TND) sans résidu de précision flottante — vérifié par
@@ -49,9 +49,9 @@ anomalies:
       Corrigé dans la même session : roundMoney() importé depuis utils/vat.ts
       et appliqué à la soustraction. Reproduction confirmée avant fix
       (Math.max(1000.1 - 800.2, 0) === 199.89999999999998 en Node réel).
-      Statut laissé à en_cours : correctif écrit et testé localement mais
-      pas encore commité/vérifié en CI (CLAUDE.md « un critère de
-      résolution se vérifie sur un commit »).
+      Commité (2f89506), CI verte confirmée (6/6 checks GitHub Actions
+      completed/success : server, client, e2e, contrast-check, i18n-check,
+      restore-smoke-test) — statut corrigé à resolu.
 
   - id: SEC-004
     titre: >

@@ -35,6 +35,12 @@
 # cellule par supposition.
 
 derniere_maj: "2026-07-30"
+# 4.6-portail-client : G balayée le 2026-07-30 (clientPortal.service.ts,
+# clientPortal.repository.ts) — SEC-036 (mineure, getOutstandingBalance en
+# arithmétique flottante brute sans roundMoney()) trouvée et resolu (commit
+# 2f89506, CI verte confirmée 6/6) — aucune anomalie bloquant/eleve ouverte
+# sur A/B/G : 4.6-portail-client remplit le critère de clôture "prêt au
+# lancement" (CLAUDE.md). C/D/E/F/H/I/J laissées à null.
 # Balayage des G restants (2026-07-30) : 4.7-freelances (hourlyRate confirmé
 # simple champ saisi, updateFreelancerRatingAverage arrondit un score 1-5,
 # pas un montant — sans objet), 4.10-rbac (grep amount/montant/Decimal sur
@@ -314,7 +320,7 @@ modules:
     D: null
     E: null
     F: null
-    G: null
+    G: "2026-07-30"
     H: null
     I: null
     J: null
