@@ -138,9 +138,18 @@ derniere_maj: "2026-07-30"
 # 61f6619, CI verte confirmée (6/6 checks GitHub Actions
 # completed/success : server, client, restore-smoke-test,
 # contrast-check, e2e, i18n-check) — 4.3-onboarding remplit le critère de
-# clôture "prêt au lancement" (CLAUDE.md). G non balayée (Payment.amount
-# est un champ saisi, pas un calcul propre à ce module) ; C/D/E/F/H/I/J
-# laissées à null.
+# clôture "prêt au lancement" (CLAUDE.md).
+# G balayée le 2026-07-30 (audit direct de clientOnboarding.validator.ts,
+# .service.ts, ClientOnboardingPage.tsx) — SEC-029 (eleve, Payment.amount/
+# amountPaid/status librement saisissables sans lien avec la vraie
+# facture DEPOSIT du projet, affiché comme fait acquis au CLIENT) trouvée
+# et resolu (décision du porteur : lier réellement à Invoice —
+# amount/amountPaid/status/invoiceId dérivés de la facture DEPOSIT réelle
+# à chaque appel, deadline seul champ saisissable), commit 8076c30, CI
+# verte confirmée (6/6). SEC-030 (moyenne, transverse — npm run
+# typecheck ne couvrait jamais server/test/**) découverte incidemment en
+# corrigeant SEC-029, resolu dans la même session (voir anomalies/
+# transverse.yaml). C/D/E/F/H/I/J laissées à null.
 # 4.7-freelances : A/B balayées le 2026-07-30 (premier audit réel du
 # nouveau registre — freelancer.service.ts/.repository.ts/.controller.ts,
 # freelancer.routes.ts, freelancerApplication.service.ts/.routes.ts,
@@ -216,7 +225,7 @@ modules:
     D: null
     E: null
     F: null
-    G: null
+    G: "2026-07-30"
     H: null
     I: null
     J: null
