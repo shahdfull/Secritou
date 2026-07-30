@@ -412,7 +412,7 @@ anomalies:
       d'utiliser le composant partagé ConfirmationDialog.tsx utilisé par
       les 6 autres actions Niveau 2
     perimetre: 4.6-portail-client
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: incoherence-factorisation-ui
 

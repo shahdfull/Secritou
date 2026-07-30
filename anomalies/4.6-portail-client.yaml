@@ -367,7 +367,7 @@ anomalies:
       6 autres cas.
     classe: incoherence-factorisation-ui
     gravite: mineure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       ApprovalsClientPage.tsx utilise le composant partagé
       ConfirmationDialog.tsx pour son dialogue d'approbation, au lieu de
@@ -411,4 +411,5 @@ anomalies:
       avant pour ce flux Approval — disproportionné pour une pure
       refactorisation de cohérence UI sans changement de contrat
       fonctionnel). Statut laissé à en_cours : correctif écrit et vérifié
-      localement mais pas encore commité/vérifié en CI.
+      localement. Commité (aa2d413), CI verte confirmée (6/6 checks
+      GitHub Actions completed/success) — statut corrigé à resolu.
