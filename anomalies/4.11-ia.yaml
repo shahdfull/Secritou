@@ -37,7 +37,7 @@ anomalies:
       fausse garantie à depends_on: condition: service_healthy.
     classe: healthcheck-ne-verifie-pas-la-vraie-disponibilite
     gravite: moyenne
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Le modèle Mistral est téléchargé au démarrage (ex. service
       ollama-pull dédié avec entrypoint "ollama pull ${OLLAMA_MODEL}",
@@ -73,16 +73,18 @@ anomalies:
       re-attende un pull déjà terminé sur le volume partagé. Les deux
       fichiers compose validés syntaxiquement (docker compose config).
       Démarrage réel testé (docker compose up -d ollama ollama-pull) :
-      l'image ollama/ollama (~2 Go) et le téléchargement du modèle
-      mistral (~4 Go supplémentaires) ont débuté avec succès, mais le
-      débit réseau de cet environnement (quelques centaines de Ko/s) rend
-      la vérification complète de bout en bout (confirmer qu'un vrai
-      POST /api/chat répond sans "model not found" une fois le pull
-      terminé) disproportionnément longue pour cette session — non menée
-      à son terme. Statut laissé à en_cours : correctif écrit, validé
-      syntaxiquement et partiellement vérifié en exécution réelle
-      (téléchargement démarré sans erreur), mais pas confirmé de bout en
-      bout ni commité/vérifié en CI.
+      l'image ollama/ollama et le modèle mistral (4.4 GB) ont mis
+      plusieurs dizaines de minutes à se télécharger vu le débit réseau
+      de cet environnement, mais le pull s'est terminé avec succès
+      (docker logs saas-ollama-pull-1 : "success", exit code 0 confirmé
+      via docker inspect). docker exec saas-ollama-1 ollama list confirme
+      mistral:latest (4.4 GB) présent. Vérification finale de bout en
+      bout réussie : curl -X POST http://localhost:11434/api/chat avec
+      model:"mistral" répond avec un vrai contenu généré (" Ok."),
+      done:true, aucune erreur "model not found". Commité (f544927), CI
+      verte confirmée (6/6 checks GitHub Actions completed/success) —
+      statut corrigé à resolu, cette fois avec la preuve d'intégration
+      complète qui manquait à la première tentative.
 
   - id: SEC-046
     titre: >
