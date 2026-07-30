@@ -9,6 +9,7 @@ import { enqueueNotifications } from "../queues.js";
 import { env } from "../../config/env.js";
 import { notifyN8n } from "../../utils/webhook.js";
 import { auditLogService } from "../../services/auditLog.service.js";
+import { DEFAULT_CURRENCY } from "../../constants/currency.js";
 
 export async function cleanupExpiredRefreshTokens() {
   const start = performance.now();
@@ -396,4 +397,56 @@ export async function closeStaleUserSessions() {
   const count = await userSessionRepository.closeStaleSessions();
   recordBullMQJob("maintenance", "close-stale-user-sessions", "completed", (performance.now() - start) / 1000);
   return count;
+}
+
+// SEC-031: writes one immutable ExecutiveKpiSnapshot row per real Service plus one company-wide
+// (serviceId: null) row, for the CURRENT month — read back next month as "last month's snapshot"
+// by executiveMetricsRepository.getAll's overdueGrowthMoM/pendingGrowthMoM. Mirrors the exact
+// overdue/pending where-clauses already used there (status/currency/deletedAt/client.deletedAt),
+// so the snapshot and the live query are comparing the same definition of "overdue"/"pending" —
+// just captured at different points in time. Upsert (not create): running this mid-month more
+// than once (e.g. a manual retrigger) must overwrite the same month's row, never duplicate it.
+export async function snapshotExecutiveKpis() {
+  const start = performance.now();
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const clientActiveScope = { client: { deletedAt: null } };
+
+  const services = await prisma.service.findMany({ select: { id: true } });
+  const scopes: Array<{ id: string | null }> = [{ id: null }, ...services.map((s) => ({ id: s.id }))];
+
+  for (const scope of scopes) {
+    const invoiceProjectScope = scope.id ? { project: { serviceId: scope.id } } : {};
+    const [overdueRaw, pendingRaw] = await Promise.all([
+      prisma.invoice.aggregate({
+        where: { status: { in: ["SENT", "PARTIAL", "OVERDUE"] }, dueDate: { lt: now }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope },
+        _sum: { amount: true },
+      }),
+      prisma.invoice.aggregate({
+        where: { status: { in: ["SENT", "PARTIAL"] }, dueDate: { gte: now }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    // findFirst + create/update (not .upsert): Prisma's generated compound-unique input for
+    // serviceId_monthStart requires serviceId: string, rejecting null even though the column
+    // itself is nullable — a known Prisma limitation with nullable fields in @@unique. The
+    // COALESCE-based partial index (migration 20260730100000) is still what actually enforces
+    // one row per (scope, month) at the database level; this find-then-write is just how the
+    // application reaches it without a typed compound key that supports null.
+    const existing = await prisma.executiveKpiSnapshot.findFirst({ where: { serviceId: scope.id, monthStart }, select: { id: true } });
+    if (existing) {
+      await prisma.executiveKpiSnapshot.update({
+        where: { id: existing.id },
+        data: { overdueAmount: overdueRaw._sum.amount ?? 0, pendingAmount: pendingRaw._sum.amount ?? 0 },
+      });
+    } else {
+      await prisma.executiveKpiSnapshot.create({
+        data: { serviceId: scope.id, monthStart, overdueAmount: overdueRaw._sum.amount ?? 0, pendingAmount: pendingRaw._sum.amount ?? 0 },
+      });
+    }
+  }
+
+  recordBullMQJob("maintenance", "snapshot-executive-kpis", "completed", (performance.now() - start) / 1000);
+  return scopes.length;
 }

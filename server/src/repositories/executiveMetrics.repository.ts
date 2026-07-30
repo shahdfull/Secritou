@@ -165,9 +165,8 @@ export const executiveMetricsRepository = {
       billedYTDRaw,
       billedTotalRaw,
       overdueRaw,
-      overduePrevSnapshotRaw,
       pendingRaw,
-      pendingPrevSnapshotRaw,
+      prevMonthSnapshot,
       cashByMonthRaw,
       billedByMonthRaw,
 
@@ -216,14 +215,20 @@ export const executiveMetricsRepository = {
       prisma.invoice.aggregate({ where: { status: { notIn: ["DRAFT", "CANCELLED"] }, createdAt: { gte: ytdStart }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true } }),
       prisma.invoice.aggregate({ where: { status: { notIn: ["DRAFT", "CANCELLED"] }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true } }),
       prisma.invoice.aggregate({ where: { status: { in: ["SENT", "PARTIAL", "OVERDUE"] }, dueDate: { lt: now }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true }, _count: true }),
-      // Snapshot of what was overdue as of the end of last month — invoices whose
-      // due date had already passed by then, still unpaid at all (a rough but
-      // consistent point-in-time comparison; doesn't try to reconstruct exact
-      // historical payment state).
-      prisma.invoice.aggregate({ where: { status: { in: ["SENT", "PARTIAL", "OVERDUE"] }, dueDate: { lt: prevMtdEnd }, createdAt: { lte: prevMtdEnd }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true } }),
       prisma.invoice.aggregate({ where: { status: { in: ["SENT", "PARTIAL"] }, dueDate: { gte: now }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true }, _count: true }),
-      // Snapshot of what was pending (sent/partial, not yet due) as of end of last month.
-      prisma.invoice.aggregate({ where: { status: { in: ["SENT", "PARTIAL"] }, dueDate: { gte: prevMtdEnd }, createdAt: { lte: prevMtdEnd }, currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope }, _sum: { amount: true } }),
+      // SEC-031: a real, immutable end-of-last-month snapshot (ExecutiveKpiSnapshot, written
+      // daily by jobNames.snapshotExecutiveKpis) — replaces the previous re-query-by-current-
+      // status approach, which silently dropped any invoice paid off since last month from BOTH
+      // readings, biasing growth toward false improvement. null if the cron hasn't run yet for
+      // this scope (e.g. a brand-new Service, or before the job's first run) — growth then
+      // falls back to 0 rather than a fabricated comparison.
+      // findFirst (not findUnique): Prisma's generated compound-unique input for
+      // serviceId_monthStart requires serviceId: string, rejecting null even though the column
+      // itself is nullable — a known Prisma limitation with nullable fields in @@unique.
+      prisma.executiveKpiSnapshot.findFirst({
+        where: { serviceId: serviceId ?? null, monthStart: new Date(prevMtdStart.getFullYear(), prevMtdStart.getMonth(), 1) },
+        select: { overdueAmount: true, pendingAmount: true },
+      }),
       // Monthly cash + billed (last 12 months)
       prisma.payment.findMany({
         where: { paidAt: { gte: new Date(ytdStart.getFullYear() - 1, ytdStart.getMonth(), 1) }, invoice: { currency: DEFAULT_CURRENCY, deletedAt: null, ...clientActiveScope, ...invoiceProjectScope } },
@@ -419,9 +424,7 @@ export const executiveMetricsRepository = {
     const billedMTD = Number(billedMTDRaw._sum.amount ?? 0);
     const billedPrevMTD = Number(billedPrevMtdRaw._sum.amount ?? 0);
     const overdueAmount = Number(overdueRaw._sum.amount ?? 0);
-    const overduePrevSnapshot = Number(overduePrevSnapshotRaw._sum.amount ?? 0);
     const pendingAmount = Number(pendingRaw._sum.amount ?? 0);
-    const pendingPrevSnapshot = Number(pendingPrevSnapshotRaw._sum.amount ?? 0);
 
     const finance: FinanceKPIs = {
       cashMTD, cashYTD, cashTotal,
@@ -435,8 +438,11 @@ export const executiveMetricsRepository = {
       cashGrowthMoM: growthPct(cashMTD, cashPrevMTD),
       cashGrowthYoY: growthPct(cashMTD, cashSameMthLY),
       billedGrowthMoM: growthPct(billedMTD, billedPrevMTD),
-      overdueGrowthMoM: growthPct(overdueAmount, overduePrevSnapshot),
-      pendingGrowthMoM: growthPct(pendingAmount, pendingPrevSnapshot),
+      // SEC-031: 0 (not growthPct's usual behavior) when no real snapshot exists yet for last
+      // month — growthPct(x, 0) would otherwise report a fabricated +100%, which is worse than
+      // admitting "no comparison available" for a brand-new Service or before the cron's first run.
+      overdueGrowthMoM: prevMonthSnapshot ? growthPct(overdueAmount, Number(prevMonthSnapshot.overdueAmount)) : 0,
+      pendingGrowthMoM: prevMonthSnapshot ? growthPct(pendingAmount, Number(prevMonthSnapshot.pendingAmount)) : 0,
       cashByMonth,
     };
 

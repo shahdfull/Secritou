@@ -21,6 +21,7 @@ import {
   syncSearchConsole,
   pruneAnalyticsEvents,
   closeStaleUserSessions,
+  snapshotExecutiveKpis,
 } from "./processors/maintenance.processor.js";
 import {
   checkStaleProjects,
@@ -203,6 +204,9 @@ function startWorkers() {
       if (job.name === jobNames.closeStaleUserSessions) {
         return closeStaleUserSessions();
       }
+      if (job.name === jobNames.snapshotExecutiveKpis) {
+        return snapshotExecutiveKpis();
+      }
       throw new Error(`Unknown job: ${job.name}`);
     },
     { connection, concurrency: 1 }
@@ -279,6 +283,16 @@ function startWorkers() {
     jobNames.closeStaleUserSessions,
     {},
     { repeat: { pattern: "*/5 * * * *" }, jobId: "close-stale-user-sessions-5m" }
+  );
+  // SEC-031: snapshot the current month's overdue/pending invoice totals — read back next
+  // month as "last month's snapshot" by executiveMetricsRepository.getAll's
+  // overdueGrowthMoM/pendingGrowthMoM. Runs daily (not just once at month-end) so the current
+  // month's row stays in sync as invoices move in/out of overdue/pending during the month —
+  // only the LAST write before the month rolls over is ever actually read back.
+  void maintenanceQueue.add(
+    jobNames.snapshotExecutiveKpis,
+    {},
+    { repeat: { pattern: "30 4 * * *" }, jobId: "snapshot-executive-kpis-daily" }
   );
 
   // ── CEO Alerts ──────────────────────────────────────────────────────────────

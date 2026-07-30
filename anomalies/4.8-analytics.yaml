@@ -7,10 +7,83 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : 4.8 Analytics & Performance
-# 1 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
+# 2 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 
 anomalies:
+  - id: SEC-031
+    titre: >
+      executiveMetricsRepository.getAll — overdueGrowthMoM/pendingGrowthMoM
+      recalculent le « snapshot du mois dernier » en filtrant sur le
+      status ACTUEL de la facture (status: {in:[...]}), pas sur son état
+      réel fin du mois dernier — une facture en retard fin du mois
+      dernier mais payée depuis (status désormais PAID) disparaît aussi
+      du snapshot passé, biaisant systématiquement la croissance affichée
+      vers une amélioration factice à chaque paiement d'ancienne facture
+    perimetre: 4.8-analytics
+    regle_violee: >
+      Exactitude métier et financière (catégorie G) : un KPI de
+      croissance mensuelle doit comparer deux états réellement distincts
+      dans le temps — ici, la valeur "précédente" est recalculée avec les
+      mêmes filtres de status que la valeur "actuelle" mais appliqués à
+      des lignes qui ont pu changer de status entre-temps, ce qui n'est
+      plus une reconstitution du passé mais une nouvelle lecture du
+      présent restreinte par date de création/échéance.
+    classe: kpi-historique-non-reconstitue
+    gravite: moyenne
+    statut: resolu
+    critere_de_resolution: >
+      Une décision du porteur du projet tranche l'approche (parmi :
+      (a) un snapshot réel — table d'historique dédiée écrite chaque fin
+      de mois (cron), permettant une comparaison contre un état
+      effectivement figé ; (b) documenter explicitement la limite actuelle
+      dans le libellé UI du KPI (ex. tooltip "approximatif, ne
+      reconstitue pas l'historique de paiement") plutôt que de laisser
+      croire à une vraie mesure de croissance ; (c) retirer
+      overdueGrowthMoM/pendingGrowthMoM si jugés trompeurs sans solution
+      simple). Ne pas trancher seul (CLAUDE.md « réparer n'est pas
+      développer » — construire un vrai mécanisme de snapshot serait un
+      développement, pas une correction). Décision du porteur
+      (AskUserQuestion, session du 2026-07-30) : option (a).
+    detecte_le: "2026-07-30"
+    source: >
+      Lecture intégrale de server/src/repositories/executiveMetrics.repository.ts
+      (comparaison entre le calcul de cashGrowthMoM/cashGrowthYoY, basé
+      sur Payment.paidAt — un fait immuable une fois enregistré — et
+      overdueGrowthMoM/pendingGrowthMoM, basés sur Invoice.status — un
+      champ mutable — appliqué avec dueDate/createdAt <= date passée mais
+      status filtré sur sa valeur actuelle, pas sur un état historique
+      réellement conservé).
+    confiance: haute
+    note: >
+      Le commentaire du code lui-même reconnaît l'approximation
+      ("doesn't try to reconstruct exact historical payment state") mais
+      ne documente pas que l'effet net est un biais systématique dans UNE
+      seule direction (amélioration artificielle), jamais neutre —
+      dangereux précisément parce que présenté comme un vrai KPI de
+      croissance sur le dashboard exécutif (executiveMetrics.controller.ts,
+      consommé par les rôles ADMIN/MANAGER pour le pilotage). cashGrowthMoM/
+      cashGrowthYoY et billedGrowthMoM ne sont pas concernés (basés sur
+      Payment.paidAt/Invoice.createdAt, des faits immuables une fois
+      posés, pas sur un status recalculable).
+      Corrigé (session du 2026-07-30) : nouveau modèle
+      ExecutiveKpiSnapshot (migration 20260730100000, index unique
+      partiel COALESCE(serviceId, '__company_wide__') + monthStart —
+      Prisma ne peut pas exprimer un index partiel dans le schéma, même
+      pattern que Invoice.[projectId,invoiceType]), nouveau job
+      jobNames.snapshotExecutiveKpis (cron quotidien 4h30, un
+      upsert-par-find par pôle réel + une ligne company-wide, mêmes
+      clauses where overdue/pending que la lecture live pour garantir la
+      même définition dans le temps). executiveMetricsRepository.getAll
+      lit désormais ce vrai snapshot du mois précédent au lieu de
+      recalculer sur le status actuel ; retombe sur 0% (jamais +100%
+      fabriqué par growthPct) si aucun snapshot n'existe encore pour un
+      pôle. Nouveau server/test/executiveKpiSnapshotGrowth.test.ts (4
+      cas, appelle réellement snapshotExecutiveKpis et
+      executiveMetricsRepository.getAll contre une base migrée),
+      enregistré dans test/run-all.test.ts. `verifie: test`.
+
+
   - id: SEC-028
     titre: >
       gscConnectionService (startConnect/getStatus/disconnect/

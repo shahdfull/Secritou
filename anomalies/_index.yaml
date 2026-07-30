@@ -12,8 +12,22 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-030
+dernier_id: SEC-031
 anomalies:
+  - id: SEC-031
+    titre: >
+      executiveMetricsRepository.getAll — overdueGrowthMoM/pendingGrowthMoM
+      recalculent le « snapshot du mois dernier » en filtrant sur le
+      status ACTUEL de la facture (status: {in:[...]}), pas sur son état
+      réel fin du mois dernier — une facture en retard fin du mois
+      dernier mais payée depuis (status désormais PAID) disparaît aussi
+      du snapshot passé, biaisant systématiquement la croissance affichée
+      vers une amélioration factice à chaque paiement d'ancienne facture
+    perimetre: 4.8-analytics
+    statut: resolu
+    gravite: moyenne
+    classe: kpi-historique-non-reconstitue
+
   - id: SEC-030
     titre: >
       server/tsconfig.json n'inclut que "src/**/*.ts" — npm run typecheck

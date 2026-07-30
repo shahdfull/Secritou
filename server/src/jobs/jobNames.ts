@@ -29,4 +29,5 @@ export const jobNames = {
   checkCustomQuestionSla: "check-custom-question-sla",
   checkApprovalSla: "check-approval-sla",
   weeklyHealthBoardDigest: "weekly-health-board-digest",
+  snapshotExecutiveKpis: "snapshot-executive-kpis",
 } as const;
