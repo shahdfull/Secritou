@@ -9,5 +9,107 @@
 # Périmètre : 4.11 Module IA (agent-service)
 # 0 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
+#
+# Reclassé GELÉ → ACTIF le 2026-07-30 (décision explicite du porteur, voir
+# REFERENTIEL.md §7) — audit A/B/G démarré le jour même.
 
-anomalies: []
+anomalies:
+  - id: SEC-035
+    titre: >
+      aiConversationService.create/addMessage persistent le message USER
+      (aiConversationRepository.addMessage) AVANT d'appeler callOllama —
+      si l'appel échoue (timeout 120s, Ollama indisponible), l'exception
+      remonte telle quelle au client (5xx) mais le message USER reste
+      durablement enregistré sans réponse ASSISTANT associée ; un client
+      qui renvoie le même message après l'erreur crée un second message
+      USER orphelin dans l'historique de la même conversation, aucun état
+      « échoué » n'est jamais écrit
+    perimetre: 4.11-ia
+    regle_violee: >
+      Aucune règle explicite de REFERENTIEL.md ne couvre ce cas — constat
+      relevé pendant l'audit B (intégrité des données) du module 4.11 :
+      écriture partielle en base sans marquage d'état d'échec, exposant un
+      retry naïf du client à des messages dupliqués silencieusement.
+    classe: ecriture-partielle-sans-etat-echec
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      Le message USER n'est persisté qu'après succès de callOllama (ou,
+      si un enregistrement immédiat est préféré pour ne pas perdre la
+      saisie utilisateur, un champ de statut explicite marque l'échec de
+      la génération de réponse) — vérifié par un test qui simule un échec
+      de callOllama et assère l'état final de la conversation (pas de
+      message USER sans réponse laissé en état ambigu, ou statut d'échec
+      explicite lisible par le client).
+    detecte_le: "2026-07-30"
+    source: lecture_directe
+    confiance: haute
+    note: >
+      Non bloquant pour le lancement — dégrade l'expérience (historique
+      pollué de messages sans réponse après un timeout Ollama) sans
+      exposer de faille de sécurité ni de calcul métier faux. Backlog
+      post-lancement.
+
+  - id: SEC-033
+    titre: >
+      personas.ts#getPersona retombe silencieusement sur le premier
+      persona du Record (Object.values(personas)[0]) pour un id inconnu
+      au lieu de retourner undefined/lever — actuellement non exploitable
+      (les 2 seuls appelants, generateBrief/generateTasks, codent
+      personaId en dur), mais un futur appelant passant un id utilisateur
+      directement à getPersona exécuterait silencieusement le mauvais
+      persona plutôt que d'échouer
+    perimetre: 4.11-ia
+    regle_violee: >
+      Aucune règle explicite de REFERENTIEL.md ne couvre ce cas — constat
+      de robustesse défensive relevé pendant l'audit A (sécurité
+      applicative) du module 4.11, catégorie « repli silencieux sur entrée
+      invalide » déjà rencontrée ailleurs dans le dépôt.
+    classe: repli-silencieux-id-invalide
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      getPersona(id) lève une erreur explicite (ou retourne undefined
+      géré par l'appelant) pour un id absent de personas, au lieu de
+      retomber sur Object.values(personas)[0] — vérifié par un test qui
+      appelle réellement getPersona avec un id inconnu et assère le rejet.
+    detecte_le: "2026-07-30"
+    source: lecture_directe
+    confiance: haute
+    note: >
+      Non bloquant pour le lancement (aucun appelant actuel ne passe un id
+      utilisateur) — laissé ouvert, gravité mineure, backlog post-lancement
+      sauf si un futur appelant expose personaId au choix de l'utilisateur.
+
+  - id: SEC-034
+    titre: >
+      generateBriefSchema/generateTasksSchema (POST /ai/brief, POST
+      /ai/tasks) valident context: z.record(z.any()) sans aucune limite de
+      taille/profondeur — le payload part directement en
+      JSON.stringify(contextData) vers Ollama (agentOrchestrator.service.ts),
+      seul aiRateLimit (limite de fréquence) protège ce chemin, aucune
+      limite de volume
+    perimetre: 4.11-ia
+    regle_violee: >
+      Aucune règle explicite de REFERENTIEL.md ne couvre ce cas — constat
+      relevé pendant l'audit A (sécurité applicative) du module 4.11 :
+      validation d'entrée non bornée en taille/profondeur sur un champ
+      transmis tel quel à un service externe (Ollama).
+    classe: validation-entree-non-bornee
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      generateBriefSchema/generateTasksSchema imposent une limite de
+      taille sérialisée (ex. JSON.stringify(context).length borné) et/ou
+      de profondeur sur le champ context, rejetant explicitement un
+      payload hors limite — vérifié par un test qui appelle réellement le
+      validator avec un payload oversized et assère le rejet.
+    detecte_le: "2026-07-30"
+    source: lecture_directe
+    confiance: haute
+    note: >
+      Non bloquant pour le lancement — seuls Admin/Manager authentifiés
+      atteignent cette route (RG-014), et aiRateLimit borne la fréquence.
+      Risque résiduel : un seul appel large peut gonfler le prompt envoyé à
+      Ollama (coût/latence), pas une vulnérabilité d'accès. Backlog
+      post-lancement.
