@@ -12,8 +12,21 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-027
+dernier_id: SEC-028
 anomalies:
+  - id: SEC-028
+    titre: >
+      gscConnectionService (startConnect/getStatus/disconnect/
+      completeConnect) et metricSnapshotController#getClientMetrics ne
+      vérifient jamais que le clientId appartient au pôle du MANAGER
+      appelant — un MANAGER peut initier/consulter/déconnecter une
+      connexion Search Console et lire les métriques de n'importe quel
+      client, hors de son pôle
+    perimetre: 4.8-analytics
+    statut: resolu
+    gravite: eleve
+    classe: idor-scope-manque
+
   - id: SEC-027
     titre: >
       GET/POST /ratings/freelancers/:freelancerId (getRatings/addRating)

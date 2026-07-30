@@ -7,7 +7,60 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : 4.8 Analytics & Performance
-# 0 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
+# 1 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 
-anomalies: []
+anomalies:
+  - id: SEC-028
+    titre: >
+      gscConnectionService (startConnect/getStatus/disconnect/
+      completeConnect) et metricSnapshotController#getClientMetrics ne
+      vérifient jamais que le clientId appartient au pôle du MANAGER
+      appelant — un MANAGER peut initier/consulter/déconnecter une
+      connexion Search Console et lire les métriques de n'importe quel
+      client, hors de son pôle
+    perimetre: 4.8-analytics
+    regle_violee: >
+      RG-002 (Rattachement mission → pôle → associé) par analogie — un
+      Manager ne peut agir sur les ressources d'un client (ici, sa
+      connexion Search Console et ses métriques) que dans son propre
+      pôle, cohérent avec le filtre déjà appliqué à
+      clientRepository.findById (where.projects.some.serviceId).
+    classe: idor-scope-manque
+    gravite: eleve
+    statut: resolu
+    critere_de_resolution: >
+      Un test réel appelle gscConnectionService.startConnect/getStatus/
+      disconnect/completeConnect et metricSnapshotRepository.getByClient
+      (ou les routes correspondantes sous /gsc-connections) avec un scope
+      MANAGER dont le serviceId ne correspond à aucun projet du client
+      ciblé, et observe un rejet (403/404) au lieu d'un succès — pour
+      chacune des méthodes.
+    detecte_le: "2026-07-30"
+    source: >
+      Lecture intégrale de server/src/services/gscConnection.service.ts,
+      server/src/controllers/gscConnection.controller.ts,
+      server/src/routes/gscConnection.routes.ts,
+      server/src/controllers/metricSnapshot.controller.ts (comparaison
+      avec clientRepository.findById, qui applique déjà
+      where.projects.some.serviceId pour MANAGER).
+    confiance: haute
+    note: >
+      executiveMetrics.controller.ts/revenueForecast.controller.ts (même
+      périmètre) sont déjà correctement scopés — buildServiceScope et
+      forçage du serviceId pour MANAGER, vérifié par lecture directe.
+      Le trou est isolé à la chaîne clientId directe
+      (gscConnection.service.ts + metricSnapshot.controller.ts), jamais
+      passée par buildServiceScope malgré authorize("ADMIN","MANAGER") en
+      tête de gscConnection.routes.ts.
+      Corrigé (session du 2026-07-30) : nouvelle fonction
+      assertClientInScope (server/src/utils/serviceScope.ts, même pattern
+      que assertProjectInScope/assertInvoiceInScope), appelée dans
+      startConnect/getStatus/disconnect/completeConnect et
+      getClientMetrics ; les contrôleurs construisent et transmettent le
+      scope MANAGER. listAvailableSites (appelée uniquement depuis le
+      callback OAuth non authentifié, clientId venant du state signé HMAC)
+      non modifiée — hors de portée, modèle de confiance différent.
+      Nouveau server/test/gscConnectionScopeManager.test.ts (6 cas,
+      appelle réellement gscConnectionService contre une base migrée),
+      enregistré dans test/run-all.test.ts. `verifie: test`.

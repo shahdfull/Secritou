@@ -40,6 +40,7 @@ import "./documentAccess.test.ts";
 import "./documentUpdateVersionScopeManager.test.ts";
 import "./clientOnboardingWriteScopeManager.test.ts";
 import "./freelancerRatingScopeManager.test.ts";
+import "./gscConnectionScopeManager.test.ts";
 import "./ai.endpoint.test.ts";
 import "./freelancerApplicationUpload.test.ts";
 import "./honeypot.test.ts";

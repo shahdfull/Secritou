@@ -157,6 +157,20 @@ derniere_maj: "2026-07-30"
 # remplit le critère de clôture "prêt au lancement" (CLAUDE.md). G non
 # balayée (pas de calcul financier propre à ce module — hourlyRate est un
 # champ saisi) ; C/D/E/F/H/I/J laissées à null.
+# 4.8-analytics : A/B balayées le 2026-07-30 (premier audit réel du
+# nouveau registre — gscConnection.service.ts/.controller.ts/.routes.ts,
+# metricSnapshot.controller.ts, executiveMetrics.service.ts/.controller.ts,
+# revenueForecast.service.ts/.controller.ts) — SEC-028 (eleve,
+# gscConnectionService et getClientMetrics sans scope MANAGER, alors que
+# executiveMetrics/revenueForecast étaient déjà correctement scopés)
+# trouvée et resolu dans la même session (nouvelle assertClientInScope
+# dans serviceScope.ts, appliquée aux 4 méthodes de gscConnectionService +
+# getClientMetrics, nouveau
+# server/test/gscConnectionScopeManager.test.ts, 6 cas) —
+# 4.8-analytics remplit le critère de clôture "prêt au lancement"
+# (CLAUDE.md), sous réserve de la CI verte sur le commit correspondant. G
+# non balayée (pas de calcul financier propre à ce module) ;
+# C/D/E/F/H/I/J laissées à null.
 
 modules:
   "4.1-crm":
@@ -252,8 +266,8 @@ modules:
 
   "4.8-analytics":
     label: "4.8 Analytics & Performance"
-    A: null
-    B: null
+    A: "2026-07-30"
+    B: "2026-07-30"
     C: null
     D: null
     E: null

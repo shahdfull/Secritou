@@ -2,10 +2,12 @@ import type { Request, Response } from "express";
 import { gscConnectionService, parseState } from "../services/gscConnection.service.js";
 import { env } from "../config/env.js";
 import { HttpError } from "../utils/httpError.js";
+import { buildServiceScope } from "../utils/serviceScope.js";
 
 export const startGscConnect = async (req: Request, res: Response) => {
   const clientId = req.params.clientId as string;
-  const { url } = await gscConnectionService.startConnect(clientId, req.user!.id);
+  const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
+  const { url } = await gscConnectionService.startConnect(clientId, req.user!.id, scope);
   res.json({ data: { url } });
 };
 
@@ -40,16 +42,19 @@ export const handleGscCallback = async (req: Request, res: Response) => {
 export const completeGscConnect = async (req: Request, res: Response) => {
   const clientId = req.params.clientId as string;
   const { pendingId, siteUrl } = req.body as { pendingId: string; siteUrl: string };
-  const connection = await gscConnectionService.completeConnect(clientId, req.user!.id, pendingId, siteUrl);
+  const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
+  const connection = await gscConnectionService.completeConnect(clientId, req.user!.id, pendingId, siteUrl, scope);
   res.status(200).json({ data: { siteUrl: connection.siteUrl, connectedAt: connection.createdAt } });
 };
 
 export const getGscStatus = async (req: Request, res: Response) => {
-  const status = await gscConnectionService.getStatus(req.params.clientId as string);
+  const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
+  const status = await gscConnectionService.getStatus(req.params.clientId as string, scope);
   res.json({ data: status });
 };
 
 export const disconnectGsc = async (req: Request, res: Response) => {
-  await gscConnectionService.disconnect(req.params.clientId as string);
+  const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
+  await gscConnectionService.disconnect(req.params.clientId as string, scope);
   res.status(204).send();
 };

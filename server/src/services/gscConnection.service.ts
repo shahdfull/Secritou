@@ -7,6 +7,7 @@ import { encryptSecret } from "../utils/encryption.js";
 import { HttpError } from "../utils/httpError.js";
 import { getRedisClient } from "../cache/redis.js";
 import { env } from "../config/env.js";
+import { assertClientInScope, type ServiceScope } from "../utils/serviceScope.js";
 
 const PENDING_TTL_SECONDS = 10 * 60;
 
@@ -52,7 +53,11 @@ export function parseState(state: string): { clientId: string; initiatedById: st
 }
 
 export const gscConnectionService = {
-  async startConnect(clientId: string, initiatedById: string) {
+  // SEC-028: none of these methods checked the MANAGER-own-pole scope already applied to
+  // clientRepository.findById elsewhere — a MANAGER could otherwise connect/read/disconnect
+  // Search Console for any client company-wide.
+  async startConnect(clientId: string, initiatedById: string, scope?: ServiceScope) {
+    await assertClientInScope(clientId, scope);
     const client = await clientRepository.findById(clientId);
     if (!client) throw new HttpError(404, "Client not found");
     const state = buildState(clientId, initiatedById);
@@ -86,7 +91,8 @@ export const gscConnectionService = {
     };
   },
 
-  async completeConnect(clientId: string, connectedById: string, pendingId: string, siteUrl: string) {
+  async completeConnect(clientId: string, connectedById: string, pendingId: string, siteUrl: string, scope?: ServiceScope) {
+    await assertClientInScope(clientId, scope);
     const redis = await getRedisClient();
     if (!redis) throw new HttpError(503, "Redis is unavailable, cannot complete OAuth connection", "REDIS_UNAVAILABLE");
     const raw = await redis.get(pendingKey(pendingId));
@@ -107,7 +113,8 @@ export const gscConnectionService = {
     return connection;
   },
 
-  async getStatus(clientId: string) {
+  async getStatus(clientId: string, scope?: ServiceScope) {
+    await assertClientInScope(clientId, scope);
     const connection = await gscConnectionRepository.findByClientId(clientId);
     if (!connection) return { connected: false as const };
     return {
@@ -118,7 +125,8 @@ export const gscConnectionService = {
     };
   },
 
-  async disconnect(clientId: string) {
+  async disconnect(clientId: string, scope?: ServiceScope) {
+    await assertClientInScope(clientId, scope);
     const connection = await gscConnectionRepository.findByClientId(clientId);
     if (!connection) throw new HttpError(404, "No Search Console connection for this client");
     await gscConnectionRepository.disconnect(clientId);

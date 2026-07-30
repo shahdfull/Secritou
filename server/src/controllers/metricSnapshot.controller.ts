@@ -1,9 +1,12 @@
 import type { Request, Response } from "express";
 import { metricSnapshotRepository } from "../repositories/metricSnapshot.repository.js";
 import type { MetricSource } from "@prisma/client";
+import { assertClientInScope, buildServiceScope } from "../utils/serviceScope.js";
 
 export const getClientMetrics = async (req: Request, res: Response) => {
   const clientId = req.params.clientId as string;
+  const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
+  await assertClientInScope(clientId, scope);
   const { source, metric, from, to } = req.query as Record<string, string | undefined>;
   const rows = await metricSnapshotRepository.getByClient(clientId, {
     source: source as MetricSource | undefined,

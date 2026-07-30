@@ -52,6 +52,21 @@ export async function assertProjectIsOpenForTaskChanges(projectId: string): Prom
   }
 }
 
+// A MANAGER may only act on a client whose project(s) belong to their own service, mirroring the
+// filter clientRepository.findById already applies (where.projects.some.serviceId). Throws 404
+// (not 403) to avoid leaking existence of an out-of-scope client. Extracted for gscConnection.
+// service.ts/metricSnapshot.controller.ts (SEC-028, session 2026-07-30), which had no scope check
+// at all despite authorize("ADMIN","MANAGER") on their routes.
+export async function assertClientInScope(clientId: string, scope?: ServiceScope): Promise<void> {
+  if (!scope || scope.userRole !== "MANAGER") return;
+  const { prismaRead } = await import("../config/prisma.js");
+  const client = await prismaRead.client.findFirst({
+    where: { id: clientId, projects: { some: { serviceId: scope.userServiceId ?? "__none__" } } },
+    select: { id: true },
+  });
+  if (!client) throw new HttpError(404, "Client not found");
+}
+
 // A MANAGER may only act on invoices whose project belongs to their service. Invoices without a
 // project are service-neutral and visible to every manager (same rule as
 // invoiceRepository.findAllByServiceId). Throws 404 (not 403) to avoid leaking existence of
