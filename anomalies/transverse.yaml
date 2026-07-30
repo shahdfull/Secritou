@@ -10,9 +10,48 @@
 # 6 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 # +1 le 2026-07-30 (audit B). +1 le 2026-07-30 (découverte incidente en
-# corrigeant SEC-032).
+# corrigeant SEC-032). +1 le 2026-07-30 (découverte incidente en
+# contre-vérifiant le nettoyage du module 4.11).
 
 anomalies:
+  - id: SEC-051
+    titre: >
+      businessProjectProgressRecalculated (server/src/observability/
+      businessMetrics.ts:11) est un compteur Prometheus exporté sans
+      aucun consommateur — grep confirmant zéro incrémentation
+      (.inc()) nulle part dans server/src, introduit en un seul commit
+      historique (bb350dd) jamais utilisé depuis. Même classe que
+      SEC-045, mais antérieur et hors module IA — découvert incidemment
+      lors de la contre-vérification du porteur sur le nettoyage 4.11
+    perimetre: transverse
+    regle_violee: >
+      Même classe que SEC-045 (métrique orpheline sans appelant) — un
+      compteur Prometheus jamais incrémenté n'apporte aucune valeur
+      d'observabilité, seulement du bruit dans le registry.
+    classe: metrique-orpheline-sans-appelant
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      businessProjectProgressRecalculated est retiré de
+      businessMetrics.ts (ou un vrai appelant lui est trouvé/ajouté si
+      la métrique est en réalité voulue) — vérifié par grep confirmant
+      zéro référence restante à business_project_progress_recalculated_total
+      dans server/src et monitoring/, ou au contraire au moins un
+      appel réel à .inc().
+    detecte_le: "2026-07-30"
+    source: >
+      Contre-vérification du porteur du projet sur le nettoyage du
+      module 4.11 (SEC-045) — grep de
+      "businessProjectProgressRecalculated" sur server/src : un seul
+      résultat, la définition elle-même.
+    confiance: haute
+    note: >
+      Hors périmètre 4.11, signalé "au passage" par le porteur — laissé
+      ouvert dans cette session plutôt que corrigé dans la foulée
+      (périmètre distinct du module IA en cours de traitement, cf.
+      CLAUDE.md "auditer un périmètre nommé, ne pas mélanger plusieurs
+      périmètres dans une même passe"). Non bloquant pour le lancement.
+
   - id: SEC-038
     titre: >
       commissionRepository.getAdminPartnerId() sélectionnait le "premier

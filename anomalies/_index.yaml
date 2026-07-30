@@ -12,8 +12,100 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-047
+dernier_id: SEC-052
 anomalies:
+  - id: SEC-052
+    titre: >
+      La correction initiale proposée pour la dérive OLLAMA_MODEL
+      (env_file: server/.env ajouté au service ollama-pull, avec
+      ${OLLAMA_MODEL:-mistral} laissé tel quel dans entrypoint) ne
+      corrigeait en réalité rien : Docker Compose interpole
+      ${OLLAMA_MODEL} écrit directement dans entrypoint/environment au
+      moment du parsing du YAML (contre le shell hôte / un .env racine),
+      AVANT que env_file ne soit jamais injecté dans le conteneur —
+      confirmé par test réel (ajout de OLLAMA_MODEL=llama3 à
+      server/.env seul, aucun effet sur la commande résolue par docker
+      compose config). La vraie correction nécessite $$OLLAMA_MODEL
+      (échappé) pour laisser le shell du conteneur lui-même résoudre la
+      variable au runtime, avec la valeur réellement injectée par
+      env_file
+    perimetre: 4.11-ia
+    statut: resolu
+    gravite: moyenne
+    classe: interpolation-compose-au-mauvais-moment
+
+  - id: SEC-051
+    titre: >
+      businessProjectProgressRecalculated (server/src/observability/
+      businessMetrics.ts:11) est un compteur Prometheus exporté sans
+      aucun consommateur — grep confirmant zéro incrémentation
+      (.inc()) nulle part dans server/src, introduit en un seul commit
+      historique (bb350dd) jamais utilisé depuis. Même classe que
+      SEC-045, mais antérieur et hors module IA — découvert incidemment
+      lors de la contre-vérification du porteur sur le nettoyage 4.11
+    perimetre: transverse
+    statut: ouvert
+    gravite: mineure
+    classe: metrique-orpheline-sans-appelant
+
+  - id: SEC-050
+    titre: >
+      SEC-046 (registre) contient une incohérence interne : son
+      critere_de_resolution exige "titre SEC-040 aligné sur son
+      périmètre réel", mais sa propre note explique explicitement que le
+      titre a été laissé inchangé conformément à la règle CLAUDE.md "ne
+      jamais reformuler un titre existant" — le critère n'a donc jamais
+      été rempli tel qu'écrit, bien que la correction réelle effectuée
+      (celle décrite par la note) soit correcte et suffisante
+    perimetre: 4.11-ia
+    statut: ouvert
+    gravite: mineure
+    classe: incoherence-interne-registre
+
+  - id: SEC-049
+    titre: >
+      Deux commentaires de test devenus faux après la suppression de
+      /ai/chat (SEC-044), jamais mis à jour dans cette même passe :
+      aiExecutionAccessClient.test.ts ligne 10 affirme "authorize()
+      covers the one remaining AI route, /ai/chat" (route supprimée le
+      même jour) ; ai.endpoint.test.ts se décrit comme couvrant
+      "/ai/conversations/*" mais n'importe rien de
+      aiConversation.routes.ts — il exerce authorize() de façon
+      totalement isolée, sans jamais appeler le vrai routeur, donc son
+      commentaire affirme une couverture que le test ne prouve pas
+      réellement
+    perimetre: 4.11-ia
+    statut: ouvert
+    gravite: mineure
+    classe: commentaire-de-test-perime
+
+  - id: SEC-048
+    titre: >
+      Trois statuts REFERENTIEL.md marqués IMPLÉMENTÉ/verifie:code_direct
+      ou verifie:test citaient des fichiers supprimés le 2026-07-30
+      (SEC-040/SEC-044) sans jamais être mis à jour dans les mêmes
+      commits : RG-014 (agentOrchestrator.service.ts lignes 90-92,
+      ai.endpoint.test.ts) — le fichier cité n'existe plus, et l'énoncé
+      "seuls Admin et Manager peuvent déclencher un persona IA" n'a plus
+      d'objet (plus de persona) ; RG-017 (ai.routes.ts,
+      agentOrchestratorService.executeAgent "revérifie lui-même le
+      rôle") — la défense en profondeur au niveau service décrite
+      n'existe plus nulle part, seul le middleware authorize() protège
+      désormais aiConversation.service.ts, qui ne vérifie aucun rôle
+      dans ses propres méthodes ; §3.22 AiConversation/AiMessage
+      (agentOrchestrator.service.ts intégral "qui persiste ces
+      entités") — doublement faux, le fichier est supprimé ET
+      l'orchestrateur n'a jamais été la couche CRUD réelle
+      (aiConversation.repository.ts), erreur déjà identifiée et
+      corrigée dans perimetre_code le 2026-07-17 mais jamais répercutée
+      au niveau entité. Découvert par contre-vérification du porteur du
+      projet, session du 2026-07-30, hors périmètre de SEC-046 (qui ne
+      couvrait que 4.11 et le grep de 4 emplacements, celui-ci est un
+      5e cas, dans §3, passé sous le radar)
+    perimetre: 4.11-ia
+    statut: ouvert
+    gravite: moyenne
+    classe: affirmation-factuelle-non-sourcee
   - id: SEC-047
     titre: >
       SEC-041 (Ollama ajouté aux docker-compose) est incomplète : l'image

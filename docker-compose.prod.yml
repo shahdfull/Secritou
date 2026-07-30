@@ -82,14 +82,23 @@ services:
 
   # One-shot: pulls OLLAMA_MODEL (default mistral) into the shared ollama_data volume once ollama
   # is up. Idempotent — a no-op if the model is already present (e.g. after a redeploy).
+  #
+  # SEC-048: OLLAMA_MODEL must come from server/.env (env_file below) — server itself reads
+  # OLLAMA_MODEL from the same file. ${OLLAMA_MODEL} written directly in entrypoint/environment
+  # is interpolated by Compose at YAML-parse time (host shell / a root .env), before env_file is
+  # ever injected into the container — confirmed by testing: it silently ignores server/.env
+  # entirely. $$OLLAMA_MODEL (escaped) is left for the container's own shell to expand at
+  # runtime, using whatever env_file actually injected.
   ollama-pull:
     image: ollama/ollama:latest
     depends_on:
       ollama:
         condition: service_healthy
+    env_file:
+      - server/.env
     environment:
       OLLAMA_HOST: http://ollama:11434
-    entrypoint: ["sh", "-c", "ollama pull ${OLLAMA_MODEL:-mistral}"]
+    entrypoint: ["sh", "-c", "ollama pull \"$${OLLAMA_MODEL:-mistral}\""]
     restart: "no"
 
   server:

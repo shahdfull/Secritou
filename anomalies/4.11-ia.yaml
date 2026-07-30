@@ -16,9 +16,198 @@
 # décortique le module IA ensemble") le même jour : SEC-039 à SEC-043.
 # Contre-vérification du porteur sur les corrections apportées, même
 # jour : SEC-044 à SEC-047 (dont des erreurs factuelles dans ce même
-# registre, cf. SEC-046).
+# registre, cf. SEC-046). Nouvelle contre-vérification du porteur sur
+# la traçabilité laissée par les suppressions, même jour : SEC-048 à
+# SEC-052 (dont une nouvelle erreur factuelle hors 4.11, transverse —
+# voir anomalies/transverse.yaml#SEC-051).
 
 anomalies:
+  - id: SEC-052
+    titre: >
+      La correction initiale proposée pour la dérive OLLAMA_MODEL
+      (env_file: server/.env ajouté au service ollama-pull, avec
+      ${OLLAMA_MODEL:-mistral} laissé tel quel dans entrypoint) ne
+      corrigeait en réalité rien : Docker Compose interpole
+      ${OLLAMA_MODEL} écrit directement dans entrypoint/environment au
+      moment du parsing du YAML (contre le shell hôte / un .env racine),
+      AVANT que env_file ne soit jamais injecté dans le conteneur —
+      confirmé par test réel (ajout de OLLAMA_MODEL=llama3 à
+      server/.env seul, aucun effet sur la commande résolue par docker
+      compose config). La vraie correction nécessite $$OLLAMA_MODEL
+      (échappé) pour laisser le shell du conteneur lui-même résoudre la
+      variable au runtime, avec la valeur réellement injectée par
+      env_file
+    perimetre: 4.11-ia
+    regle_violee: >
+      Aucune règle explicite de REFERENTIEL.md ne couvre ce cas —
+      constat de conception Docker Compose : l'interpolation de
+      variable dans le YAML lui-même (${VAR}) et l'injection
+      d'environnement dans le conteneur (env_file) obéissent à des
+      moments et des sources différents, une confusion facile à
+      commettre et à ne pas détecter sans test réel.
+    classe: interpolation-compose-au-mauvais-moment
+    gravite: moyenne
+    statut: resolu
+    critere_de_resolution: >
+      docker-compose.yml et docker-compose.prod.yml#ollama-pull
+      utilisent $$OLLAMA_MODEL (échappé, résolu par le shell du
+      conteneur au runtime) plutôt que ${OLLAMA_MODEL} (résolu par
+      Compose au parsing du YAML) — vérifié par test réel : ajouter
+      OLLAMA_MODEL=<valeur> à server/.env doit changer le modèle
+      effectivement demandé par ollama pull, confirmé par docker compose
+      run --rm --entrypoint sh ollama-pull -c 'echo $OLLAMA_MODEL'.
+    detecte_le: "2026-07-30"
+    source: >
+      Test réel effectué en corrigeant SEC-048 (dérive OLLAMA_MODEL,
+      signalée par le porteur avec une correction proposée qui s'est
+      révélée insuffisante) : ajout de OLLAMA_MODEL=llama3 à
+      server/.env, docker compose -f docker-compose.yml config
+      ollama-pull toujours résolu à "mistral" (défaut codé en dur dans
+      entrypoint) malgré env_file déclaré — preuve directe que env_file
+      n'atteint jamais l'interpolation ${...} du YAML.
+    confiance: haute
+    note: >
+      Corrigé et vérifié dans la même session que sa découverte :
+      docker compose run --rm --entrypoint sh ollama-pull -c 'echo
+      "resolved model: $OLLAMA_MODEL"' avec OLLAMA_MODEL=llama3 dans
+      server/.env retourne bien "resolved model: llama3" ; sans cette
+      ligne, retombe correctement sur "mistral". Les deux fichiers
+      compose validés syntaxiquement après correction.
+  - id: SEC-050
+    titre: >
+      SEC-046 (registre) contient une incohérence interne : son
+      critere_de_resolution exige "titre SEC-040 aligné sur son
+      périmètre réel", mais sa propre note explique explicitement que le
+      titre a été laissé inchangé conformément à la règle CLAUDE.md "ne
+      jamais reformuler un titre existant" — le critère n'a donc jamais
+      été rempli tel qu'écrit, bien que la correction réelle effectuée
+      (celle décrite par la note) soit correcte et suffisante
+    perimetre: 4.11-ia
+    regle_violee: >
+      Le schéma du registre exige que critere_de_resolution et note
+      restent cohérents — un critère qui exige explicitement une action
+      que la note explique ensuite ne pas avoir été prise (à raison, sur
+      une base réglementaire correcte) laisse le critère littéralement
+      non rempli à la lecture, même si le fond du traitement est juste.
+    classe: incoherence-interne-registre
+    gravite: mineure
+    statut: resolu
+    critere_de_resolution: >
+      Le critere_de_resolution de SEC-046 est réécrit pour ne plus
+      exiger un alignement du titre de SEC-040, cohérent avec la note
+      qui explique pourquoi ce titre reste inchangé (règle CLAUDE.md
+      "jamais son titre").
+    detecte_le: "2026-07-30"
+    source: >
+      Contre-vérification du porteur du projet, lecture croisée du
+      critere_de_resolution et de la note de SEC-046 dans le même
+      fichier.
+    confiance: haute
+    note: >
+      Corrigé dans la même session : critere_de_resolution de SEC-046
+      réécrit pour retirer l'exigence de réalignement du titre, la note
+      existante étant conservée telle quelle (elle explique correctement
+      pourquoi ce point n'a pas été traité comme les 3 autres).
+
+  - id: SEC-049
+    titre: >
+      Deux commentaires de test devenus faux après la suppression de
+      /ai/chat (SEC-044), jamais mis à jour dans cette même passe :
+      aiExecutionAccessClient.test.ts ligne 10 affirme "authorize()
+      covers the one remaining AI route, /ai/chat" (route supprimée le
+      même jour) ; ai.endpoint.test.ts se décrit comme couvrant
+      "/ai/conversations/*" mais n'importe rien de
+      aiConversation.routes.ts — il exerce authorize() de façon
+      totalement isolée, sans jamais appeler le vrai routeur, donc son
+      commentaire affirme une couverture que le test ne prouve pas
+      réellement
+    perimetre: 4.11-ia
+    regle_violee: >
+      Même classe que SEC-046 (affirmation non revérifiée écrite dans
+      un commentaire) mais sur des commentaires de code, pas le
+      registre — un commentaire qui affirme une couverture de test que
+      le test ne prouve pas réellement induit en erreur toute
+      relecture future.
+    classe: commentaire-de-test-perime
+    gravite: mineure
+    statut: resolu
+    critere_de_resolution: >
+      aiExecutionAccessClient.test.ts ne mentionne plus /ai/chat comme
+      route existante. ai.endpoint.test.ts documente honnêtement qu'il
+      teste authorize() en isolation (pas le routeur réel monté) — soit
+      en corrigeant le commentaire pour dire précisément cela, soit en
+      important réellement aiConversation.routes.ts pour que le test
+      prouve ce qu'il affirme.
+    detecte_le: "2026-07-30"
+    source: >
+      Contre-vérification du porteur du projet, lecture directe des
+      deux fichiers de test après le commit 1977a5a.
+    confiance: haute
+    note: >
+      Corrigé par la première option (commentaire honnête sur la portée
+      réelle du test, pas d'import du routeur — un test qui monterait
+      tout Express juste pour vérifier authorize() serait disproportionné
+      face à un test HTTP déjà existant ailleurs si besoin).
+
+  - id: SEC-048
+    titre: >
+      Trois statuts REFERENTIEL.md marqués IMPLÉMENTÉ/verifie:code_direct
+      ou verifie:test citaient des fichiers supprimés le 2026-07-30
+      (SEC-040/SEC-044) sans jamais être mis à jour dans les mêmes
+      commits : RG-014 (agentOrchestrator.service.ts lignes 90-92,
+      ai.endpoint.test.ts) — le fichier cité n'existe plus, et l'énoncé
+      "seuls Admin et Manager peuvent déclencher un persona IA" n'a plus
+      d'objet (plus de persona) ; RG-017 (ai.routes.ts,
+      agentOrchestratorService.executeAgent "revérifie lui-même le
+      rôle") — la défense en profondeur au niveau service décrite
+      n'existe plus nulle part, seul le middleware authorize() protège
+      désormais aiConversation.service.ts, qui ne vérifie aucun rôle
+      dans ses propres méthodes ; §3.22 AiConversation/AiMessage
+      (agentOrchestrator.service.ts intégral "qui persiste ces
+      entités") — doublement faux, le fichier est supprimé ET
+      l'orchestrateur n'a jamais été la couche CRUD réelle
+      (aiConversation.repository.ts), erreur déjà identifiée et
+      corrigée dans perimetre_code le 2026-07-17 mais jamais répercutée
+      au niveau entité. Découvert par contre-vérification du porteur du
+      projet, session du 2026-07-30, hors périmètre de SEC-046 (qui ne
+      couvrait que 4.11 et le grep de 4 emplacements, celui-ci est un
+      5e cas, dans §3, passé sous le radar)
+    perimetre: 4.11-ia
+    regle_violee: >
+      CLAUDE.md « Provenance obligatoire de tout statut » — un statut
+      IMPLÉMENTÉ dont la preuve cite un fichier supprimé n'est plus
+      vérifié, quel que soit le fond de la règle. RG-017 aggrave le cas :
+      sa preuve affirmait une défense en profondeur à deux niveaux
+      (middleware + service) qui n'existe plus qu'à un seul niveau,
+      sans que le statut/la preuve ne le reflète — exactement le type
+      d'erreur (déduction non revérifiée) que RG-017 elle-même avait
+      déjà signalé comme piège en v0.2.0.
+    classe: affirmation-factuelle-non-sourcee
+    gravite: moyenne
+    statut: resolu
+    critere_de_resolution: >
+      RG-014 reformulée sur aiConversation.routes.ts (le seul chemin
+      IA réel restant) ; RG-017 documente honnêtement la perte de la
+      défense en profondeur au niveau service (aiConversation.service.ts
+      ne vérifie aucun rôle) tout en confirmant que le middleware seul
+      suffit à empêcher CLIENT/FREELANCER ; §3.22 pointe vers
+      aiConversation.repository.ts (la vraie couche CRUD). Vérifié par
+      lecture directe des 3 fichiers cités pour confirmer qu'ils
+      décrivent maintenant fidèlement le code réel.
+    detecte_le: "2026-07-30"
+    source: >
+      Contre-vérification du porteur du projet sur le commit 1977a5a —
+      lecture croisée de REFERENTIEL.md §5 (RG-014, RG-017), §3.22, et
+      du code réel (aiConversation.routes.ts ligne 22,
+      aiConversation.service.ts intégral, aiConversation.repository.ts).
+    confiance: haute
+    note: >
+      Corrigé dans la même session que sa découverte : les 3
+      emplacements réécrits avec citation du code réel et une note
+      explicite sur ce qui a changé depuis SEC-040/SEC-044, plutôt que
+      de simplement remplacer un nom de fichier par un autre sans
+      expliquer pourquoi.
+
   - id: SEC-047
     titre: >
       SEC-041 (Ollama ajouté aux docker-compose) est incomplète : l'image
@@ -121,9 +310,12 @@ anomalies:
       code après SEC-044 (retrait de /ai/chat) : plus aucune mention
       d'AIAssistantFloat.tsx "consommant" un endpoint IA au présent tant
       que ce n'est pas vérifié composant par composant, plus de référence
-      à aiConversation.service.ts pour /ai/chat, titre SEC-040 aligné sur
-      son périmètre réel, EXPLORATION.md ne liste plus de fichiers
-      supprimés comme "lus" dans le périmètre courant.
+      à aiConversation.service.ts pour /ai/chat, une note ajoutée à
+      SEC-040 expliquant l'imprécision de son titre sans le réécrire
+      (règle CLAUDE.md "jamais son titre" — corrigé sous SEC-050 après
+      une incohérence détectée entre cette exigence et ladite règle),
+      EXPLORATION.md ne liste plus de fichiers supprimés comme "lus"
+      sans le signaler comme tel.
     detecte_le: "2026-07-30"
     source: >
       Contre-vérification du porteur du projet sur le commit aebe1b9,

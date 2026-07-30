@@ -859,9 +859,18 @@ fonctionnelle. `/me` accessible à tout rôle authentifié,
 fonctionnelle trouvée.
 
 ### 3.22 AiConversation / AiMessage
-Historique des échanges avec les personas IA, par utilisateur.
+Historique des échanges du chat IA, par utilisateur.
 **Statut : IMPLÉMENTÉ. `verifie: code_direct`
-(`agentOrchestrator.service.ts` intégral, qui persiste ces entités).**
+(`aiConversation.repository.ts` intégral — `create`/`addMessage`/
+`findAll`/`findById`/`delete` sont la seule couche CRUD réelle de ces
+deux modèles).** Corrigé le 2026-07-30 (SEC-048) : la preuve précédente
+citait `agentOrchestrator.service.ts` (persona brief-generator/
+task-planner, supprimé le même jour, SEC-040) — ce fichier n'a jamais été
+la couche de persistance de `AiConversation`/`AiMessage`, seulement un
+appelant de `aiConversationService.create` pour un usage détourné
+(archivage, cf. SEC-043) sans rapport avec le CRUD réel. La même erreur
+avait déjà été identifiée et corrigée dans `perimetre_code:` de 4.11 le
+2026-07-17 (voir §7) sans jamais être répercutée ici, au niveau entité.
 
 ### 3.23 SiteContent
 Contenu éditable du site vitrine public, bilingue (FR/EN).
@@ -1599,12 +1608,20 @@ dev/seed. En cours de correction dans la même session.
 ### Autres règles
 
 **RG-014 — Vérification de rôle avant action IA.**
-Toute action du module agent-service vérifie le rôle de l'utilisateur avant
-exécution ; seuls Admin et Manager peuvent déclencher un persona IA.
+Toute route du module agent-service vérifie le rôle de l'utilisateur avant
+exécution ; seuls Admin et Manager peuvent accéder au chat IA.
 *Module : 4.11 (ACTIF depuis le 2026-07-30, voir §7).* Statut : IMPLÉMENTÉ.
 `verifie: code_direct`
-(`agentOrchestrator.service.ts` lignes 90-92, `ai.endpoint.test.ts`,
-intégral).
+(`aiConversation.routes.ts` ligne 22 —
+`router.use(authenticate, authorize("ADMIN", "MANAGER"))` sur tout le
+routeur ; `ai.endpoint.test.ts`, intégral, exerce ce même gate). Reformulée
+le 2026-07-30 (SEC-048) : la règle citait auparavant `agentOrchestrator
+.service.ts` (persona brief-generator/task-planner) comme double
+vérification middleware + service — ce fichier a été supprimé le
+2026-07-30 (SEC-040, code mort, aucun appelant frontend), et son unique
+appelant réel (`/ai/chat`) a été supprimé le même jour (SEC-044). Seul
+`/ai/conversations/*` reste, protégé par le seul middleware `authorize`,
+sans revérification au niveau service.
 
 **RG-015 — Fournisseur du module IA (état implémenté).**
 Le module agent-service appelle un modèle **Ollama (Mistral)**
@@ -1636,18 +1653,35 @@ Le statut IMPLÉMENTÉ affirmé en v0.2.0 (« garanti par RG-014 ») était une
 **déduction** (absence d'outil d'exécution combinée à un contrôle de rôle
 ailleurs), jamais une observation directe. Corrigé par vérification réelle,
 sans dépendance conditionnelle à RG-016 : `ai.routes.ts`/
-`aiConversation.routes.ts` gardent explicitement `authorize("ADMIN",
+`aiConversation.routes.ts` gardaient explicitement `authorize("ADMIN",
 "MANAGER")` sur chaque route (jamais CLIENT) ; `agentOrchestratorService
 .executeAgent` (le service métier réel, pas seulement le middleware)
-revérifie lui-même le rôle et rejette tout appelant hors ADMIN/MANAGER,
+revérifiait lui-même le rôle et rejetait tout appelant hors ADMIN/MANAGER,
 même un appel interne qui aurait oublié le middleware ; grep exhaustif sur
 tout `server/src` confirme l'absence de toute primitive
 `child_process`/`execSync`/`spawn`/`eval` — la base de RG-016 (aucun
-sandboxing car aucune exécution n'existe) est désormais un fait vérifié
-directement, pas seulement supposé. Nouveau test
-`server/test/aiExecutionAccessClient.test.ts`, appelle réellement
-`executeAgent` avec un rôle CLIENT (et FREELANCER) et confirme le rejet
-403, plus un scan direct des primitives d'exécution. Aucun défaut trouvé.
+sandboxing car aucune exécution n'existe) est un fait vérifié directement,
+pas seulement supposé.
+
+**Mise à jour (2026-07-30, SEC-048)** : `ai.routes.ts` et
+`agentOrchestratorService.executeAgent` (cités ci-dessus comme double
+protection middleware + service) ont été supprimés le 2026-07-30 (SEC-040,
+SEC-044 — code mort, aucun appelant frontend). Le test
+`aiExecutionAccessClient.test.ts` a été allégé dans la même passe : il ne
+contient plus que le scan grep des primitives d'exécution, plus l'appel à
+`executeAgent` avec un rôle CLIENT/FREELANCER (ce chemin n'existe plus).
+**La défense en profondeur au niveau service n'existe donc plus** :
+`aiConversation.service.ts` (seul chemin IA restant) ne prend ni ne
+vérifie aucun rôle dans ses méthodes (`create`/`addMessage`/`delete`/
+`getById`/`list` ne reçoivent que `userId`) — seule la ligne
+`router.use(authenticate, authorize("ADMIN", "MANAGER"))` de
+`aiConversation.routes.ts` protège désormais ce périmètre. La règle
+reste vraie sur le fond (CLIENT n'a toujours aucun accès, vérifié par le
+test d'`authorize()` de `ai.endpoint.test.ts`), mais avec une seule couche
+de protection, pas deux comme l'affirmait la preuve précédente. `verifie:
+test` maintenu (le rejet CLIENT est bien prouvé par un test qui appelle
+réellement le middleware), mais la preuve ne cite plus une revérification
+côté service qui n'existe plus.
 
 **RG-018 — Activation du portail client au paiement de l'acompte.**
 Le portail client s'active (invitation du compte, `Client.portalActivatedAt`

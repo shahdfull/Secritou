@@ -87,14 +87,32 @@ services:
   # (ollama pull is idempotent). Not part of server's own depends_on — server calling Ollama
   # before the pull finishes gets a real "model not found" error from Ollama itself rather than a
   # silently-passing healthcheck masking it.
+  #
+  # SEC-048: OLLAMA_MODEL must come from server/.env (env_file below), not the host shell/a root
+  # .env compose would otherwise resolve ${OLLAMA_MODEL} against — server itself reads
+  # OLLAMA_MODEL from server/.env. Without env_file here, changing the model in server/.env alone
+  # (which server/.env.example explicitly invites) pulls "mistral" while server requests whatever
+  # was actually configured — the exact "model not found" this service exists to prevent.
+  #
+  # IMPORTANT: ${OLLAMA_MODEL} must NOT be written directly inside entrypoint's shell string, nor
+  # under `environment:` as ${OLLAMA_MODEL} — both forms are interpolated by Compose against the
+  # host shell / a root .env at YAML-parse time, before env_file is ever injected into the
+  # container, so either would silently ignore server/.env entirely (confirmed: adding
+  # OLLAMA_MODEL to server/.env alone had zero effect on the resolved command). $$OLLAMA_MODEL
+  # (escaped, so Compose leaves it as a literal $OLLAMA_MODEL) is expanded by the container's own
+  # shell at runtime instead, using whatever env_file actually injected — falling back to
+  # Ollama's own default resolution if server/.env never sets it (no default is hardcoded here on
+  # purpose, to avoid re-introducing the same YAML-time interpolation trap).
   ollama-pull:
     image: ollama/ollama:latest
     depends_on:
       ollama:
         condition: service_healthy
+    env_file:
+      - server/.env
     environment:
       OLLAMA_HOST: http://ollama:11434
-    entrypoint: ["sh", "-c", "ollama pull ${OLLAMA_MODEL:-mistral}"]
+    entrypoint: ["sh", "-c", "ollama pull \"$${OLLAMA_MODEL:-mistral}\""]
     restart: "no"
 
   n8n:
