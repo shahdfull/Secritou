@@ -12,8 +12,32 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-022
+dernier_id: SEC-024
 anomalies:
+  - id: SEC-023
+    titre: >
+      .github/workflows/ci.yml et backup.yml référencent actions/checkout@v4,
+      actions/setup-node@v4, actions/upload-artifact@v4 par tag mutable,
+      jamais par SHA de commit — écart explicitement documenté par le
+      commentaire MED-1 dans ci.yml mais jamais corrigé ; dependabot.yml
+      maintiendrait des SHA épinglés à jour s'ils existaient, mais ne les
+      crée pas rétroactivement
+    perimetre: transverse
+    statut: ouvert
+    gravite: moyenne
+    classe: ci-action-non-epinglee
+
+  - id: SEC-024
+    titre: >
+      backup.yml se connecte en SSH à l'hôte de production avec
+      -o StrictHostKeyChecking=no, désactivant toute vérification de la
+      clé d'hôte — expose la connexion à une attaque MITM sur le chemin
+      SSH vers le serveur de sauvegarde
+    perimetre: transverse
+    statut: ouvert
+    gravite: moyenne
+    classe: ssh-host-key-non-verifiee
+
   - id: SEC-022
     titre: >
       documentService.update/createVersion n'appellent jamais

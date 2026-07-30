@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Trigger backup on production server
         # The backup script runs ON the production host (where PostgreSQL is accessible).
         # This step SSH-es into the server and executes backup-db.sh remotely.
@@ -21,13 +21,20 @@ jobs:
         #   SSH_HOST         : IP or hostname of the production server
         #   SSH_USER         : SSH user (e.g. deploy)
         #   SSH_PRIVATE_KEY  : PEM private key for SSH access
+        #   SSH_KNOWN_HOSTS  : output of `ssh-keyscan -H <host>`, verified once out-of-band
+        #                      (e.g. by comparing against the host's key over a separate trusted
+        #                      channel) before being pasted into this secret — pins the host key
+        #                      so this step can't be silently MITM'd (SEC-024).
         #   BACKUP_ENV_PATH  : full path to a file that exports backup env vars
         #                      (DATABASE_URL, S3_BUCKET, AWS_ACCESS_KEY_ID, etc.)
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
-          ssh -o StrictHostKeyChecking=no \
+          mkdir -p /tmp/ssh
+          echo "${{ secrets.SSH_KNOWN_HOSTS }}" > /tmp/ssh/known_hosts
+          chmod 600 /tmp/ssh/known_hosts
+          ssh -o UserKnownHostsFile=/tmp/ssh/known_hosts \
               -i /tmp/deploy_key \
               "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
               "source ${{ secrets.BACKUP_ENV_PATH }} && bash ~/secritou/scripts/backup-db.sh >> ~/logs/backup.log 2>&1"
-          rm -f /tmp/deploy_key
+          rm -f /tmp/deploy_key /tmp/ssh/known_hosts

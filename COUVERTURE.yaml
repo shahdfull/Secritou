@@ -110,6 +110,20 @@ derniere_maj: "2026-07-30"
 # nouvelle trouvée. G non balayée (pas de calcul financier propre à ce
 # module — les jobs délèguent à invoiceService/commissionService déjà
 # audités ailleurs) ; C/D/E/F/H/I/J laissées à null.
+# transverse : A balayée le 2026-07-30 (premier audit réel du nouveau
+# registre — RG-025 RGPD (gdpr.controller.ts/.service.ts/.routes.ts,
+# self-service /me/export /me/erase confirmé scopé strictement sur
+# req.user.sub), .github/workflows/ci.yml, .github/workflows/backup.yml,
+# .github/dependabot.yml) — SEC-023 (moyenne, actions GitHub non
+# épinglées par SHA malgré le TODO MED-1 documenté) et SEC-024 (moyenne,
+# backup.yml SSH StrictHostKeyChecking=no) trouvées et corrigées dans la
+# même session (SHA épinglés sur les 3 actions utilisées ; SSH
+# UserKnownHostsFile + secret SSH_KNOWN_HOSTS remplace
+# StrictHostKeyChecking=no) — SEC-024 non vérifiable de bout en bout
+# avant l'existence d'un vrai serveur de production (SEC-217), donc
+# `statut: ouvert` maintenu jusqu'à cette vérification réelle malgré le
+# code déjà corrigé. B/G non balayées (pas d'entité propre à ce
+# périmètre) ; C/D/E/F/H/I/J laissées à null.
 
 modules:
   "4.1-crm":
@@ -298,7 +312,7 @@ modules:
 
   "transverse":
     label: "Transverse (hors modules §4 — CI/infra, RGPD, docs, i18n global, design system, observabilité)"
-    A: null
+    A: "2026-07-30"
     B: null
     C: null
     D: null

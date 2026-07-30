@@ -7,7 +7,7 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : Transverse (hors modules §4 — CI/infra, docs, RGPD, i18n global, design system, observabilité)
-# 1 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
+# 4 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 
 anomalies:
@@ -109,3 +109,78 @@ anomalies:
       propre, typecheck/lint serveur propres, 650/650 tests (0 skip).
       Commité (fdc1363) et confirmé vu vert en CI (run GitHub Actions
       30457571233, 6/6 jobs verts) — critère de résolution rempli.
+
+  - id: SEC-023
+    titre: >
+      .github/workflows/ci.yml et backup.yml référencent actions/checkout@v4,
+      actions/setup-node@v4, actions/upload-artifact@v4 par tag mutable,
+      jamais par SHA de commit — écart explicitement documenté par le
+      commentaire MED-1 dans ci.yml mais jamais corrigé ; dependabot.yml
+      maintiendrait des SHA épinglés à jour s'ils existaient, mais ne les
+      crée pas rétroactivement
+    perimetre: transverse
+    regle_violee: >
+      Bonne pratique de sécurité de la chaîne d'approvisionnement CI
+      (supply-chain) : un tag `@v4` est mutable (peut être repointé vers un
+      commit différent par le mainteneur de l'action ou un compte compromis),
+      contrairement à un SHA de commit qui garantit un contenu figé.
+    classe: ci-action-non-epinglee
+    gravite: moyenne
+    statut: ouvert
+    critere_de_resolution: >
+      Toutes les occurrences de `uses: actions/*@v*` dans
+      .github/workflows/*.yml sont remplacées par `uses: actions/*@<sha>`
+      (avec le tag en commentaire pour lisibilité, convention GitHub
+      standard), et un push déclenche une CI verte sur ce commit.
+    detecte_le: "2026-07-30"
+    source: >
+      Lecture intégrale de .github/workflows/ci.yml (comparaison du
+      commentaire MED-1 en tête de fichier avec les `uses:` réels des 6
+      jobs) et .github/workflows/backup.yml, plus .github/dependabot.yml
+      (confirme que le mécanisme de maintien à jour existe mais ne peut
+      pas créer un épinglage qui n'existe pas encore).
+    confiance: haute
+    note: >
+      Risque théorique tant qu'aucun secret de production sensible ne
+      transite par ces workflows (SEC-217 : pas de serveur de production
+      à ce jour) — mais backup.yml, lui, manipule déjà des secrets SSH
+      réels (SSH_PRIVATE_KEY) dans le même fichier non épinglé, ce qui
+      élève la gravité au-delà d'un simple TODO cosmétique.
+
+  - id: SEC-024
+    titre: >
+      backup.yml se connecte en SSH à l'hôte de production avec
+      -o StrictHostKeyChecking=no, désactivant toute vérification de la
+      clé d'hôte — expose la connexion à une attaque MITM sur le chemin
+      SSH vers le serveur de sauvegarde
+    perimetre: transverse
+    regle_violee: >
+      Bonne pratique de sécurité SSH : StrictHostKeyChecking=no accepte
+      silencieusement n'importe quelle clé d'hôte présentée à la connexion,
+      annulant la protection normale contre un serveur usurpé (MITM) — sans
+      vérification, ce runner GitHub Actions éphémère n'a aucun moyen de
+      détecter un changement d'hôte malveillant.
+    classe: ssh-host-key-non-verifiee
+    gravite: moyenne
+    statut: ouvert
+    critere_de_resolution: >
+      L'option -o StrictHostKeyChecking=no est retirée de backup.yml, et la
+      clé d'hôte réelle du serveur de production est épinglée (ex. via un
+      secret GitHub SSH_KNOWN_HOSTS ajouté à ~/.ssh/known_hosts avant la
+      connexion, ou ssh-keyscan suivi d'une vérification manuelle une fois).
+      Vérifiable seulement une fois qu'un vrai serveur de production existe
+      (SEC-217) — jusque-là, aucun run réel de ce step ne peut confirmer la
+      correction en pratique, seule la lecture du YAML le peut.
+    detecte_le: "2026-07-30"
+    source: >
+      Lecture intégrale de .github/workflows/backup.yml.
+    confiance: haute
+    note: >
+      Le workflow entier est actuellement inerte (cron désactivé, secrets
+      SSH_HOST/SSH_USER/SSH_PRIVATE_KEY/BACKUP_ENV_PATH non définis dans
+      l'environnement "production" GitHub — voir le commentaire SEC-217 en
+      tête de fichier), donc aucun risque d'exploitation réel tant qu'un
+      serveur de production n'existe pas. Enregistré maintenant pour ne pas
+      redécouvrir ce même défaut au moment de l'activation du workflow, sans
+      bloquer le lancement (pas de production = pas de chemin de l'argent
+      concerné aujourd'hui).
