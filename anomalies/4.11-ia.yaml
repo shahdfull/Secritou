@@ -11,9 +11,229 @@
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 #
 # Reclassé GELÉ → ACTIF le 2026-07-30 (décision explicite du porteur, voir
-# REFERENTIEL.md §7) — audit A/B/G démarré le jour même.
+# REFERENTIEL.md §7) — audit A/B/G démarré le jour même. Relecture
+# approfondie (hors audit formel A/B/G, à la demande du porteur "on
+# décortique le module IA ensemble") le même jour : SEC-039 à SEC-043.
 
 anomalies:
+  - id: SEC-043
+    titre: >
+      agentOrchestratorService.executeAgent persiste son résultat via
+      aiConversationService.create(userId, JSON.stringify({persona,
+      context, result}), personaId) — create() appelle callOllama sur ce
+      firstMessage, déclenchant un SECOND appel LLM (jusqu'à 120s de plus)
+      pour chaque génération de brief/tâches, avec le JSON stringifié
+      envoyé comme question utilisateur au system prompt CRM générique ;
+      le titre de conversation résultant est le JSON tronqué à 60 chars
+      ({"persona":"brief-generator"...) ; si ce second appel échoue,
+      executeAgent lève après avoir déjà produit le vrai résultat (perdu
+      pour l'appelant) alors que businessMetrics.logAgentCall a déjà
+      enregistré success:true dans le finally
+    perimetre: 4.11-ia
+    regle_violee: >
+      Aucune règle explicite de REFERENTIEL.md ne couvre ce cas — constat
+      de conception : aiConversationService.create n'a jamais été un
+      simple insert (elle appelle toujours callOllama), donc l'utiliser
+      comme mécanisme d'archivage générique dans executeAgent double
+      silencieusement le coût/la latence de chaque appel agent, et
+      dissocie le résultat métier réel (déjà produit avec succès) du
+      succès/échec de cet archivage.
+    classe: cout-latence-doubles-effet-de-bord-persistance
+    gravite: eleve
+    statut: ouvert
+    critere_de_resolution: >
+      executeAgent persiste le résultat (persona, context, result) sans
+      déclencher un second appel LLM — soit via un appel direct au
+      repository (aiConversationRepository.create + addMessage, sans
+      passer par le service qui appelle callOllama), soit via une nouvelle
+      méthode dédiée du service qui n'appelle jamais Ollama. Le titre de
+      la conversation archivée doit être lisible (ex. nom du persona +
+      horodatage), pas un JSON tronqué. Un échec de la persistance ne doit
+      plus faire perdre le résultat déjà produit par le LLM à l'appelant.
+      businessMetrics.logAgentCall doit refléter le succès réel de
+      l'appel agent, pas être invalidé par un échec de persistance
+      indépendant. Vérifié par un test qui appelle réellement
+      executeAgent et compte le nombre d'appels à callOllama (mocké au
+      niveau module ou via une requête HTTP interceptée), assérant
+      exactement 1 appel par exécution.
+    detecte_le: "2026-07-30"
+    source: >
+      Lecture croisée de agentOrchestrator.service.ts#executeAgent
+      (ligne ~132-137, appel à aiConversationService.create) et
+      aiConversation.service.ts#create (ligne ~25-38, qui appelle
+      callOllama sur firstMessage) pendant une relecture approfondie du
+      module 4.11 demandée explicitement par le porteur du projet.
+    confiance: haute
+    note: >
+      Le fix SEC-035 (appeler callOllama avant de persister le message
+      USER) n'a pas créé ce problème et ne le couvre pas : SEC-035 portait
+      sur aiConversationService.create/addMessage utilisés pour un VRAI
+      chat utilisateur, pas sur leur détournement comme mécanisme
+      d'archivage dans executeAgent. Gravité élevée : coût/latence
+      doublés sur CHAQUE appel agent (brief-generator, task-planner),
+      pas un cas limite rare.
+
+  - id: SEC-042
+    titre: >
+      callAgentWithRetry (agentOrchestrator.service.ts) retente sur
+      n'importe quelle erreur catch — y compris un 502 Ollama réel ou un
+      persona introuvable — au lieu de restreindre le retry aux erreurs de
+      parsing (extractJson/JSON.parse/schema.parse), gaspillant un cycle
+      complet (jusqu'à 240s) sur des erreurs qu'un retry identique ne peut
+      pas corriger ; l'erreur finale (lastError) remonte brute au
+      middleware d'erreur, donc une ZodError de schema.parse sort en 500
+      générique au lieu d'un code lisible (422/502)
+    perimetre: 4.11-ia
+    regle_violee: >
+      Aucune règle explicite de REFERENTIEL.md ne couvre ce cas — constat
+      de robustesse/UX d'erreur : un retry doit cibler une classe
+      d'erreur transitoire/corrigible par répétition (parsing JSON
+      malformé), pas s'appliquer indifféremment à toute exception,
+      surtout quand chaque tentative coûte jusqu'à 120s.
+    classe: retry-non-borne-a-la-classe-derreur
+    gravite: moyenne
+    statut: ouvert
+    critere_de_resolution: >
+      callAgentWithRetry ne retente que sur une erreur de parsing
+      (extractJson, JSON.parse, schema.parse — distinguables par un type
+      d'erreur dédié ou un discriminant), et propage immédiatement toute
+      autre erreur (ex. HttpError d'callOllama) sans consommer de
+      tentative supplémentaire. L'erreur finale remontée au client
+      distingue un code lisible (422 sur échec de validation du schéma
+      après épuisement des tentatives, 502 sur échec Ollama) plutôt qu'un
+      500 générique. Vérifié par un test qui simule chaque type d'erreur
+      séparément et assère le nombre d'appels à callOllama et le code
+      HTTP final.
+    detecte_le: "2026-07-30"
+    source: >
+      Lecture directe de agentOrchestrator.service.ts#callAgentWithRetry
+      (lignes 42-80) : le seul catch (ligne 74) attrape toute erreur sans
+      distinction de type avant de retenter.
+    confiance: haute
+    note: >
+      Non bloquant pour le lancement — dégrade la latence perçue et la
+      lisibilité des erreurs, pas une faille de sécurité ni un calcul
+      métier faux. Backlog post-lancement.
+
+  - id: SEC-041
+    titre: >
+      REFERENTIEL.md §5 RG-015 (module IA auto-hébergé, Ollama) est marquée
+      IMPLÉMENTÉ verifie:code_direct sur la seule base du code
+      (llm.client.ts appelle bien OLLAMA_URL), mais aucun service ollama
+      n'existe dans docker-compose.yml ni docker-compose.prod.yml — la
+      valeur par défaut de OLLAMA_URL (http://localhost:11434) pointe, une
+      fois le serveur conteneurisé, sur le conteneur serveur lui-même, pas
+      sur un Ollama réel ; l'écart est entre le code et le déploiement,
+      pas dans le code
+    perimetre: 4.11-ia
+    regle_violee: >
+      CLAUDE.md « Provenance obligatoire de tout statut » : un statut
+      IMPLÉMENTÉ verifie:code_direct prouve qu'un chemin existe dans le
+      code, pas qu'il est réellement joignable une fois déployé — la
+      vérification actuelle de RG-015 ne couvre que le premier, laissant
+      le second non vérifié malgré le statut affiché.
+    classe: ecart-code-deploiement
+    gravite: moyenne
+    statut: ouvert
+    critere_de_resolution: >
+      Soit un service ollama est ajouté à docker-compose.yml (dev) et
+      docker-compose.prod.yml (prod) avec OLLAMA_URL pointant dessus par
+      défaut dans l'environnement conteneurisé, soit REFERENTIEL.md
+      documente explicitement que RG-015 n'est vérifiée qu'en développement
+      local hors conteneur et reste [À CONFIRMER] pour le déploiement
+      conteneurisé réel — décision à trancher avec le porteur, pas à
+      décider seul (cf. CLAUDE.md "Réparer n'est pas développer").
+    detecte_le: "2026-07-30"
+    source: >
+      Lecture de docker-compose.yml et docker-compose.prod.yml (aucune
+      occurrence de "ollama"), comparée à
+      server/src/config/env.ts#OLLAMA_URL (default
+      http://localhost:11434) et server/src/services/llm.client.ts.
+    confiance: haute
+    note: >
+      Non bloquant pour le lancement à ce jour (0 client actif, module IA
+      non encore utilisé en production réelle) — mais bloquant dès la
+      première tentative réelle d'utilisation du module en environnement
+      conteneurisé déployé.
+
+  - id: SEC-040
+    titre: >
+      Les 3 endpoints POST /ai/brief, /ai/tasks (et par extension le
+      persona task-planner) ne sont appelés par aucun code de
+      client/src — grep exhaustif sur "/ai/brief", "/ai/tasks",
+      "brief-generator", "task-planner" côté client : zéro résultat, seul
+      ChatMessage (type) est importé depuis client/src/api/ai.api.ts par
+      AIAssistantFloat.tsx ; brief-generator/task-planner sont du code
+      serveur testé et audité (SEC-033/034) mais structurellement
+      inatteignable par un utilisateur du produit
+    perimetre: 4.11-ia
+    regle_violee: >
+      Aucune règle explicite de REFERENTIEL.md ne couvre ce cas — constat
+      de couverture produit : une capacité serveur sans point d'entrée
+      frontend ne peut générer aucune valeur pour l'utilisateur final,
+      quel que soit son niveau de qualité/test côté code.
+    classe: capacite-serveur-sans-point-dentree-frontend
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      Décision du porteur tranchée et actée dans REFERENTIEL.md §7 :
+      soit un point d'entrée frontend réel est construit pour
+      generateBrief/generateTasks (ex. bouton dans l'écran projet), soit
+      ai.routes.ts (routes /ai/brief, /ai/tasks), ai.controller.ts
+      (generateBrief, generateTasks) et agentOrchestrator.service.ts sont
+      retirés comme code mort — dans les deux cas, ne pas laisser cette
+      ambiguïté se reformuler indéfiniment comme un simple constat
+      d'audit sans décision actée.
+    detecte_le: "2026-07-30"
+    source: >
+      Grep exhaustif "/ai/brief", "/ai/tasks", "brief-generator",
+      "task-planner", "generateBrief", "generateTasks" sur client/src/ :
+      seul le type ChatMessage (aiConversation, chemin distinct) est
+      utilisé. Lecture de client/src/api/ai.api.ts et
+      client/src/components/AIAssistantFloat.tsx confirmant qu'ils ne
+      couvrent que /ai/chat et /ai/conversations/*, jamais /ai/brief ni
+      /ai/tasks.
+    confiance: haute
+    note: >
+      Décision produit, pas un bug — laissé ouvert pour discussion
+      explicite avec le porteur (CLAUDE.md "Réparer n'est pas
+      développer" : construire un point d'entrée frontend serait un
+      développement, pas une réparation).
+
+  - id: SEC-039
+    titre: >
+      llm.client.ts#callOllama retombe silencieusement sur "Désolé, je
+      n'ai pas pu générer de réponse." (data.message?.content ?? ...) si
+      Ollama répond 200 avec un content vide/absent — ce texte de repli
+      est ensuite persisté comme un vrai message ASSISTANT en base
+      (aiConversationRepository.addMessage), indistinguable pour le
+      client d'une réponse légitime du modèle
+    perimetre: 4.11-ia
+    regle_violee: >
+      Aucune règle explicite de REFERENTIEL.md ne couvre ce cas — même
+      classe que SEC-033 (repli silencieux sur un cas anormal plutôt
+      qu'un signal explicite), sur un site de code distinct
+      (llm.client.ts, pas personas.ts) — ID distinct par la règle "même
+      classe, critère de résolution différent → ID distinct".
+    classe: repli-silencieux-reponse-vide
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      callOllama lève une erreur explicite (ex. HttpError 502) si
+      data.message?.content est vide/absent, au lieu de retomber sur un
+      texte fixe indistinguable d'une vraie réponse — vérifié par un test
+      qui appelle réellement callOllama contre une réponse mockée/réelle
+      à content vide et assère le rejet.
+    detecte_le: "2026-07-30"
+    source: >
+      Lecture directe de llm.client.ts#callOllama (ligne ~44-46).
+    confiance: haute
+    note: >
+      Non bloquant pour le lancement — dégrade la détectabilité d'une
+      panne du modèle (l'utilisateur voit une réponse plausible plutôt
+      qu'une erreur claire), pas une faille de sécurité. Backlog
+      post-lancement.
+
   - id: SEC-035
     titre: >
       aiConversationService.create/addMessage persistent le message USER

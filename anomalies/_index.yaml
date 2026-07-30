@@ -12,8 +12,83 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-038
+dernier_id: SEC-043
 anomalies:
+  - id: SEC-043
+    titre: >
+      agentOrchestratorService.executeAgent persiste son résultat via
+      aiConversationService.create(userId, JSON.stringify({persona,
+      context, result}), personaId) — create() appelle callOllama sur ce
+      firstMessage, déclenchant un SECOND appel LLM (jusqu'à 120s de plus)
+      pour chaque génération de brief/tâches, avec le JSON stringifié
+      envoyé comme question utilisateur au system prompt CRM générique ;
+      le titre de conversation résultant est le JSON tronqué à 60 chars
+      ({"persona":"brief-generator"...) ; si ce second appel échoue,
+      executeAgent lève après avoir déjà produit le vrai résultat (perdu
+      pour l'appelant) alors que businessMetrics.logAgentCall a déjà
+      enregistré success:true dans le finally
+    perimetre: 4.11-ia
+    statut: ouvert
+    gravite: eleve
+    classe: cout-latence-doubles-effet-de-bord-persistance
+
+  - id: SEC-042
+    titre: >
+      callAgentWithRetry (agentOrchestrator.service.ts) retente sur
+      n'importe quelle erreur catch — y compris un 502 Ollama réel ou un
+      persona introuvable — au lieu de restreindre le retry aux erreurs de
+      parsing (extractJson/JSON.parse/schema.parse), gaspillant un cycle
+      complet (jusqu'à 240s) sur des erreurs qu'un retry identique ne peut
+      pas corriger ; l'erreur finale (lastError) remonte brute au
+      middleware d'erreur, donc une ZodError de schema.parse sort en 500
+      générique au lieu d'un code lisible (422/502)
+    perimetre: 4.11-ia
+    statut: ouvert
+    gravite: moyenne
+    classe: retry-non-borne-a-la-classe-derreur
+
+  - id: SEC-041
+    titre: >
+      REFERENTIEL.md §5 RG-015 (module IA auto-hébergé, Ollama) est marquée
+      IMPLÉMENTÉ verifie:code_direct sur la seule base du code
+      (llm.client.ts appelle bien OLLAMA_URL), mais aucun service ollama
+      n'existe dans docker-compose.yml ni docker-compose.prod.yml — la
+      valeur par défaut de OLLAMA_URL (http://localhost:11434) pointe, une
+      fois le serveur conteneurisé, sur le conteneur serveur lui-même, pas
+      sur un Ollama réel ; l'écart est entre le code et le déploiement,
+      pas dans le code
+    perimetre: 4.11-ia
+    statut: ouvert
+    gravite: moyenne
+    classe: ecart-code-deploiement
+
+  - id: SEC-040
+    titre: >
+      Les 3 endpoints POST /ai/brief, /ai/tasks (et par extension le
+      persona task-planner) ne sont appelés par aucun code de
+      client/src — grep exhaustif sur "/ai/brief", "/ai/tasks",
+      "brief-generator", "task-planner" côté client : zéro résultat, seul
+      ChatMessage (type) est importé depuis client/src/api/ai.api.ts par
+      AIAssistantFloat.tsx ; brief-generator/task-planner sont du code
+      serveur testé et audité (SEC-033/034) mais structurellement
+      inatteignable par un utilisateur du produit
+    perimetre: 4.11-ia
+    statut: ouvert
+    gravite: mineure
+    classe: capacite-serveur-sans-point-dentree-frontend
+
+  - id: SEC-039
+    titre: >
+      llm.client.ts#callOllama retombe silencieusement sur "Désolé, je
+      n'ai pas pu générer de réponse." (data.message?.content ?? ...) si
+      Ollama répond 200 avec un content vide/absent — ce texte de repli
+      est ensuite persisté comme un vrai message ASSISTANT en base
+      (aiConversationRepository.addMessage), indistinguable pour le
+      client d'une réponse légitime du modèle
+    perimetre: 4.11-ia
+    statut: ouvert
+    gravite: mineure
+    classe: repli-silencieux-reponse-vide
   - id: SEC-038
     titre: >
       commissionRepository.getAdminPartnerId() sélectionnait le "premier
