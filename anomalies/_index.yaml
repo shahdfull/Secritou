@@ -12,8 +12,74 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-043
+dernier_id: SEC-047
 anomalies:
+  - id: SEC-047
+    titre: >
+      SEC-041 (Ollama ajouté aux docker-compose) est incomplète : l'image
+      ollama/ollama:latest démarre avec zéro modèle téléchargé — aucun
+      "ollama pull" n'existe nulle part dans le dépôt. Le healthcheck
+      "ollama list" réussit sur un store de modèles vide, donc le
+      conteneur est déclaré healthy et server (depends_on:
+      condition: service_healthy) démarre en croyant l'IA prête ; le
+      premier POST /api/chat avec model:"mistral" échoue en 404 "model
+      not found"
+    perimetre: 4.11-ia
+    statut: ouvert
+    gravite: moyenne
+    classe: healthcheck-ne-verifie-pas-la-vraie-disponibilite
+
+  - id: SEC-046
+    titre: >
+      REFERENTIEL.md §4.11, SEC-040 (titre et note), SEC-043 (note) et
+      EXPLORATION.md (ligne 36, périmètre 4.11) contiennent des
+      affirmations factuelles inexactes écrites après la suppression du
+      chemin agent : REFERENTIEL.md affirme que /ai/chat est "consommé
+      par AIAssistantFloat.tsx" (faux — ce composant n'importe que le
+      type ChatMessage, la vraie logique réseau vit dans
+      AIAssistantPage.tsx qui appelle uniquement useCreateConversation/
+      useAddMessage, jamais aiApi.chat) ; SEC-043 affirme que /ai/chat
+      "utilise aiConversation.service.ts" (faux — ai.controller.ts#chat
+      appelle callOllama directement, ne persiste rien) ; le titre de
+      SEC-040 dit "3 endpoints" mais n'en liste que 2 (généralisation du
+      constat initial jamais mise à jour) ; EXPLORATION.md liste encore
+      personas.ts et agentOrchestrator.service.ts comme fichiers lus du
+      périmètre 4.11 alors qu'ils sont supprimés
+    perimetre: 4.11-ia
+    statut: ouvert
+    gravite: moyenne
+    classe: affirmation-factuelle-non-sourcee
+
+  - id: SEC-045
+    titre: >
+      businessMetrics.logAgentCall (server/src/observability/businessMetrics.ts)
+      n'a plus aucun appelant depuis la suppression de
+      agentOrchestrator.service.ts#executeAgent — les métriques
+      Prometheus agent_call_total et agent_call_duration_seconds restent
+      enregistrées sur le registry et exposées à zéro pour toujours, sans
+      aucun code applicatif ne les incrémentant plus jamais
+    perimetre: 4.11-ia
+    statut: ouvert
+    gravite: mineure
+    classe: metrique-orpheline-sans-appelant
+
+  - id: SEC-044
+    titre: >
+      POST /ai/chat (ai.controller.ts#chat, ai.routes.ts, ai.validator.ts
+      #chatSchema) n'a aucun appelant réel côté client — grep de
+      aiApi.chat dans client/src : le seul import de
+      client/src/api/ai.api.ts (AIAssistantFloat.tsx, AdminLayout.tsx)
+      ne prend que le type ChatMessage ; toute l'UI de chat passe par
+      aiConversations.api.ts vers /ai/conversations/* (useCreateConversation/
+      useAddMessage dans AIAssistantPage.tsx). Même classe que SEC-040
+      (capacité serveur sans point d'entrée frontend), site de code
+      distinct — introduite/révélée par la correction de SEC-040 elle-même
+      (retirer /ai/brief,/ai/tasks a laissé /ai/chat comme seul survivant
+      du fichier, sans revérifier s'il avait, lui, un vrai appelant)
+    perimetre: 4.11-ia
+    statut: ouvert
+    gravite: mineure
+    classe: capacite-serveur-sans-point-dentree-frontend
   - id: SEC-043
     titre: >
       agentOrchestratorService.executeAgent persiste son résultat via

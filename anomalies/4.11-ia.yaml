@@ -14,8 +14,181 @@
 # REFERENTIEL.md §7) — audit A/B/G démarré le jour même. Relecture
 # approfondie (hors audit formel A/B/G, à la demande du porteur "on
 # décortique le module IA ensemble") le même jour : SEC-039 à SEC-043.
+# Contre-vérification du porteur sur les corrections apportées, même
+# jour : SEC-044 à SEC-047 (dont des erreurs factuelles dans ce même
+# registre, cf. SEC-046).
 
 anomalies:
+  - id: SEC-047
+    titre: >
+      SEC-041 (Ollama ajouté aux docker-compose) est incomplète : l'image
+      ollama/ollama:latest démarre avec zéro modèle téléchargé — aucun
+      "ollama pull" n'existe nulle part dans le dépôt. Le healthcheck
+      "ollama list" réussit sur un store de modèles vide, donc le
+      conteneur est déclaré healthy et server (depends_on:
+      condition: service_healthy) démarre en croyant l'IA prête ; le
+      premier POST /api/chat avec model:"mistral" échoue en 404 "model
+      not found"
+    perimetre: 4.11-ia
+    regle_violee: >
+      Aucune règle explicite de REFERENTIEL.md ne couvre ce cas — un
+      healthcheck qui prouve seulement qu'un processus répond, pas que le
+      service qu'il porte peut réellement traiter une requête, donne une
+      fausse garantie à depends_on: condition: service_healthy.
+    classe: healthcheck-ne-verifie-pas-la-vraie-disponibilite
+    gravite: moyenne
+    statut: ouvert
+    critere_de_resolution: >
+      Le modèle Mistral est téléchargé au démarrage (ex. service
+      ollama-pull dédié avec entrypoint "ollama pull ${OLLAMA_MODEL}",
+      depends_on: [ollama]) et/ou le healthcheck vérifie la présence
+      réelle du modèle (ollama list | grep -q ${OLLAMA_MODEL} || exit 1),
+      avec un start_period suffisant pour le téléchargement initial
+      (plusieurs minutes). Vérifié en démarrant réellement la stack
+      compose et en confirmant qu'un POST /api/chat contre le service
+      ollama répond sans erreur "model not found" dès que server devient
+      accessible.
+    detecte_le: "2026-07-30"
+    source: >
+      Contre-vérification du porteur du projet sur le commit aebe1b9
+      (correction de SEC-041) — grep de "ollama pull" sur tout le dépôt :
+      aucune occurrence.
+    confiance: haute
+    note: >
+      Point connexe non traité, signalé par le porteur : aucune contrainte
+      de ressources (mem_limit/deploy.resources) sur le service ollama —
+      Mistral 7B consomme ~5 Go de RAM résidente, sur la même VM que
+      postgres/redis/minio/server/client en dev comme en prod. Non
+      bloquant pour le lancement (0 client actif) mais à surveiller avant
+      toute mise en production réelle du module IA.
+
+  - id: SEC-046
+    titre: >
+      REFERENTIEL.md §4.11, SEC-040 (titre et note), SEC-043 (note) et
+      EXPLORATION.md (ligne 36, périmètre 4.11) contiennent des
+      affirmations factuelles inexactes écrites après la suppression du
+      chemin agent : REFERENTIEL.md affirme que /ai/chat est "consommé
+      par AIAssistantFloat.tsx" (faux — ce composant n'importe que le
+      type ChatMessage, la vraie logique réseau vit dans
+      AIAssistantPage.tsx qui appelle uniquement useCreateConversation/
+      useAddMessage, jamais aiApi.chat) ; SEC-043 affirme que /ai/chat
+      "utilise aiConversation.service.ts" (faux — ai.controller.ts#chat
+      appelle callOllama directement, ne persiste rien) ; le titre de
+      SEC-040 dit "3 endpoints" mais n'en liste que 2 (généralisation du
+      constat initial jamais mise à jour) ; EXPLORATION.md liste encore
+      personas.ts et agentOrchestrator.service.ts comme fichiers lus du
+      périmètre 4.11 alors qu'ils sont supprimés
+    perimetre: 4.11-ia
+    regle_violee: >
+      CLAUDE.md « Provenance obligatoire de tout statut » et « Face à un
+      blocage : le dire, ne jamais l'expliquer » — une affirmation
+      factuelle sur un comportement de code doit être vérifiée avant
+      d'être écrite, pas déduite par extrapolation d'un constat antérieur
+      resté vrai en partie. Ces 3 affirmations ont été écrites comme des
+      observations directes alors qu'elles n'avaient pas été revérifiées
+      au moment précis de la rédaction (après la suppression du chemin
+      agent, avant que SEC-044 ne révèle que /ai/chat était mort aussi).
+    classe: affirmation-factuelle-non-sourcee
+    gravite: moyenne
+    statut: ouvert
+    critere_de_resolution: >
+      Les 4 emplacements cités (REFERENTIEL.md §4.11, SEC-040, SEC-043,
+      EXPLORATION.md ligne 36) sont corrigés pour refléter l'état réel du
+      code après SEC-044 (retrait de /ai/chat) : plus aucune mention
+      d'AIAssistantFloat.tsx "consommant" un endpoint IA au présent tant
+      que ce n'est pas vérifié composant par composant, plus de référence
+      à aiConversation.service.ts pour /ai/chat, titre SEC-040 aligné sur
+      son périmètre réel, EXPLORATION.md ne liste plus de fichiers
+      supprimés comme "lus" dans le périmètre courant.
+    detecte_le: "2026-07-30"
+    source: >
+      Contre-vérification du porteur du projet sur le commit aebe1b9,
+      confirmée par lecture directe de AIAssistantFloat.tsx (import du
+      seul type ChatMessage, ligne 14), AIAssistantPage.tsx (useCreateConversation/
+      useAddMessage, aucun import de aiApi), et ai.controller.ts#chat
+      (appelle callOllama directement, ligne 32, aucun appel à
+      aiConversationService).
+    confiance: haute
+    note: >
+      Signal pris au sérieux : ce type d'erreur (déduction écrite comme
+      observation) est exactement ce qui avait piégé RG-017 en v0.2.0
+      selon CLAUDE.md — la correction de ce registre doit se faire dans
+      la même passe que la correction de SEC-044/SEC-045, pas
+      différée.
+
+  - id: SEC-045
+    titre: >
+      businessMetrics.logAgentCall (server/src/observability/businessMetrics.ts)
+      n'a plus aucun appelant depuis la suppression de
+      agentOrchestrator.service.ts#executeAgent — les métriques
+      Prometheus agent_call_total et agent_call_duration_seconds restent
+      enregistrées sur le registry et exposées à zéro pour toujours, sans
+      aucun code applicatif ne les incrémentant plus jamais
+    perimetre: 4.11-ia
+    regle_violee: >
+      Même classe que SEC-040 (capacité serveur sans point d'entrée/
+      appelant réel) — une métrique jamais incrémentée après le retrait
+      de son seul appelant est un résidu de la suppression, oublié dans
+      la même passe qui a retiré executeAgent.
+    classe: metrique-orpheline-sans-appelant
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      logAgentCall, agentCallCounter et agentCallDuration sont retirés de
+      businessMetrics.ts — vérifié par grep confirmant zéro référence
+      restante à agent_call_total/agent_call_duration_seconds/
+      logAgentCall dans server/src et monitoring/.
+    detecte_le: "2026-07-30"
+    source: >
+      Contre-vérification du porteur du projet sur le commit aebe1b9 —
+      grep de "logAgentCall" sur server/src : un seul résultat
+      (businessMetrics.ts lui-même, définition sans appelant).
+    confiance: haute
+    note: >
+      Rien dans monitoring/ ne référence ces métriques (pas de panneau
+      Grafana cassé) — simple nettoyage, non bloquant pour le lancement.
+
+  - id: SEC-044
+    titre: >
+      POST /ai/chat (ai.controller.ts#chat, ai.routes.ts, ai.validator.ts
+      #chatSchema) n'a aucun appelant réel côté client — grep de
+      aiApi.chat dans client/src : le seul import de
+      client/src/api/ai.api.ts (AIAssistantFloat.tsx, AdminLayout.tsx)
+      ne prend que le type ChatMessage ; toute l'UI de chat passe par
+      aiConversations.api.ts vers /ai/conversations/* (useCreateConversation/
+      useAddMessage dans AIAssistantPage.tsx). Même classe que SEC-040
+      (capacité serveur sans point d'entrée frontend), site de code
+      distinct — introduite/révélée par la correction de SEC-040 elle-même
+      (retirer /ai/brief,/ai/tasks a laissé /ai/chat comme seul survivant
+      du fichier, sans revérifier s'il avait, lui, un vrai appelant)
+    perimetre: 4.11-ia
+    regle_violee: >
+      Aucune règle explicite de REFERENTIEL.md ne couvre ce cas — même
+      constat de couverture produit que SEC-040 : une capacité serveur
+      sans point d'entrée frontend ne génère aucune valeur, quel que
+      soit son niveau de qualité côté code.
+    classe: capacite-serveur-sans-point-dentree-frontend
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      ai.controller.ts#chat, ai.routes.ts (route POST /ai/chat) et
+      ai.validator.ts#chatSchema sont retirés dans leur intégralité, ainsi
+      que client/src/api/ai.api.ts si plus aucun code (y compris le type
+      ChatMessage) n'en dépend après vérification — décision du porteur
+      déjà actée (AskUserQuestion, retirer /ai/chat), à exécuter dans la
+      même passe que SEC-046 (correction du registre) et SEC-045
+      (metrics orphelines).
+    detecte_le: "2026-07-30"
+    source: >
+      Contre-vérification du porteur du projet sur le commit aebe1b9 —
+      lecture directe de AIAssistantFloat.tsx et AIAssistantPage.tsx
+      confirmant qu'aucun des deux n'appelle aiApi.chat.
+    confiance: haute
+    note: >
+      SYSTEM_PROMPT dupliqué à l'identique dans ai.controller.ts et
+      aiConversation.service.ts se résorbe automatiquement en retirant
+      ai.controller.ts#chat.
+
   - id: SEC-043
     titre: >
       agentOrchestratorService.executeAgent persiste son résultat via
