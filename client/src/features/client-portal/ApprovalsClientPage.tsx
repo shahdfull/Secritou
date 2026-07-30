@@ -5,8 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ConfirmationDialog } from "@/components/shared/crud/ConfirmationDialog";
 import apiClient from "@/api/axios";
 import type { Approval as ApiApproval } from "@/api/approvals.api";
 import { getServerErrorMessage, getServerRequestId } from "@/utils/apiError";
@@ -20,7 +20,7 @@ type Approval = ApiApproval & {
   attachments: { id: string; name: string; url: string }[];
 };
 
-type RespondAction = "approve" | "reject" | "comment";
+type RespondAction = "reject" | "comment";
 
 export function ApprovalsClientPage() {
   const { t } = useTranslation();
@@ -29,7 +29,10 @@ export function ApprovalsClientPage() {
   const [timelineApproval, setTimelineApproval] = useState<Approval | null>(null);
   const [action, setAction] = useState<RespondAction>("comment");
   const [comment, setComment] = useState("");
-  const [approveConfirmed, setApproveConfirmed] = useState(false);
+  // RG-026 Niveau 2 : l'approbation (irréversible) utilise le composant partagé
+  // ConfirmationDialog, comme les 6 autres actions Niveau 2 — isolée de reject/comment
+  // (Niveau 1), qui restent dans le Dialog générique ci-dessous.
+  const [approveTarget, setApproveTarget] = useState<Approval | null>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["my-approvals"],
@@ -40,7 +43,7 @@ export function ApprovalsClientPage() {
   });
 
   const respond = useMutation({
-    mutationFn: (vars: { id: string; action: RespondAction; comment?: string }) =>
+    mutationFn: (vars: { id: string; action: RespondAction | "approve"; comment?: string }) =>
       apiClient.post(`/approvals/${vars.id}/respond`, { action: vars.action, comment: vars.comment }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-approvals"] });
@@ -77,7 +80,6 @@ export function ApprovalsClientPage() {
     setDialogApproval(a);
     setAction(act);
     setComment("");
-    setApproveConfirmed(false);
   };
 
   return (
@@ -132,7 +134,7 @@ export function ApprovalsClientPage() {
                   <Button
                     size="sm"
                     className="bg-green-600 hover:bg-green-700 text-white"
-                    onClick={() => openDialog(a, "approve")}
+                    onClick={() => setApproveTarget(a)}
                   >
                     <CheckCircle className="h-4 w-4 mr-1" /> {t("clientPortal.approvals.dialogApprove")}
                   </Button>
@@ -169,35 +171,15 @@ export function ApprovalsClientPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {action === "approve"
-                ? t("clientPortal.approvals.dialogApprove")
-                : action === "reject"
+              {action === "reject"
                 ? t("clientPortal.approvals.dialogReject")
                 : t("clientPortal.approvals.dialogComment")}
               {" : "}{dialogApproval?.title}
             </DialogTitle>
-            {action === "approve" && (
-              <p className="text-sm text-muted-foreground">
-                {t(
-                  "clientPortal.approvals.confirmApproveDesc",
-                  "Cette approbation est irréversible et clôt la validation de cette demande. Vérifiez bien les pièces jointes et le contenu avant de confirmer."
-                )}
-              </p>
-            )}
           </DialogHeader>
-          {action === "approve" && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-              {t(
-                "clientPortal.approvals.approveWarning",
-                "Une fois approuvée, cette décision ne pourra pas être annulée depuis ce portail."
-              )}
-            </div>
-          )}
           <Textarea
             placeholder={
-              action === "approve"
-                ? t("clientPortal.approvals.commentOptional")
-                : action === "reject"
+              action === "reject"
                 ? t("clientPortal.approvals.rejectReason")
                 : t("clientPortal.approvals.yourComment")
             }
@@ -206,40 +188,15 @@ export function ApprovalsClientPage() {
             rows={4}
             required={action === "comment"}
           />
-          {action === "approve" && (
-            <div className="flex items-start gap-3 pt-1">
-              <Checkbox
-                id="confirm-approve-approval"
-                checked={approveConfirmed}
-                onCheckedChange={(v) => setApproveConfirmed(!!v)}
-              />
-              <label htmlFor="confirm-approve-approval" className="text-sm leading-snug cursor-pointer">
-                {t(
-                  "clientPortal.approvals.approveCheckboxLabel",
-                  "Je confirme avoir vérifié le contenu et les pièces jointes de cette demande."
-                )}
-              </label>
-            </div>
-          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogApproval(null)}>{t("common.cancel")}</Button>
             <Button
-              className={
-                action === "approve"
-                  ? "bg-green-600 hover:bg-green-700 text-white"
-                  : action === "reject"
-                  ? "bg-red-600 hover:bg-red-700 text-white"
-                  : ""
-              }
+              className={action === "reject" ? "bg-red-600 hover:bg-red-700 text-white" : ""}
               onClick={() =>
                 dialogApproval &&
                 respond.mutate({ id: dialogApproval.id, action, comment: comment || undefined })
               }
-              disabled={
-                respond.isPending ||
-                (action === "comment" && !comment.trim()) ||
-                (action === "approve" && !approveConfirmed)
-              }
+              disabled={respond.isPending || (action === "comment" && !comment.trim())}
             >
               {respond.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {t("common.confirm")}
@@ -247,6 +204,28 @@ export function ApprovalsClientPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmationDialog
+        open={!!approveTarget}
+        onOpenChange={(open) => !open && setApproveTarget(null)}
+        onConfirm={() => {
+          if (!approveTarget) return;
+          respond.mutate({ id: approveTarget.id, action: "approve" as const });
+        }}
+        isLoading={respond.isPending}
+        icon={CheckCircle}
+        title={`${t("clientPortal.approvals.dialogApprove")} : ${approveTarget?.title ?? ""}`}
+        description={t(
+          "clientPortal.approvals.confirmApproveDesc",
+          "Cette approbation est irréversible et clôt la validation de cette demande. Vérifiez bien les pièces jointes et le contenu avant de confirmer."
+        )}
+        checkboxLabel={t(
+          "clientPortal.approvals.approveCheckboxLabel",
+          "Je confirme avoir vérifié le contenu et les pièces jointes de cette demande."
+        )}
+        confirmLabel={t("common.confirm")}
+        cancelLabel={t("common.cancel")}
+      />
 
       <Dialog open={!!timelineApproval} onOpenChange={(o) => !o && setTimelineApproval(null)}>
         <DialogContent className="max-w-2xl">

@@ -134,7 +134,7 @@ anomalies:
       dédiée à cet effet est déjà installée et jamais exploitée.
     classe: dependance-non-utilisee
     gravite: mineure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Une décision du porteur du projet tranche (parmi : (a) monter
       réellement un dashboard BullBoard, gardé derrière une auth
@@ -175,9 +175,10 @@ anomalies:
       leurs vrais compteurs de jobs. Nouveau
       server/test/bullBoardAdminOnly.http.test.ts (supertest contre l'app
       réelle + vraie base) : mêmes 3 assertions (401/403/200) rejouées
-      automatiquement, ajouté à test/run-all.test.ts. Statut laissé à
-      en_cours : correctif écrit et testé localement mais pas encore
-      commité/vérifié en CI.
+      automatiquement, ajouté à test/run-all.test.ts. Commité (92ca3fa),
+      CI verte confirmée (6/6 checks GitHub Actions completed/success :
+      server, client, e2e, contrast-check, i18n-check, restore-smoke-test)
+      — statut corrigé à resolu.
 
   - id: SEC-030
     titre: >
