@@ -48,7 +48,7 @@ anomalies:
       propre commentaire de clôture.
     classe: cloture-anomalie-prematuree
     gravite: mineure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       aiExecutionAccessClient.test.ts ne mentionne plus /ai/chat comme
       route existante nulle part dans le fichier (vérifié par grep,
@@ -69,9 +69,10 @@ anomalies:
       Corrigé dans la même session que sa découverte : commentaire
       réécrit (lignes 6-9) pour dire explicitement que /ai/chat a été
       supprimée avec les endpoints persona, référence à
-      /ai/conversations/* comme seule route IA restante. Statut laissé
-      à en_cours : correctif écrit et vérifié (typecheck/lint)
-      localement mais pas encore commité/vérifié en CI. Ce constat
+      /ai/conversations/* comme seule route IA restante. Grep confirmant
+      zéro mention restante de "/ai/chat" comme route existante dans le
+      fichier. Commité (43a69b5), CI verte confirmée (6/6 checks GitHub
+      Actions completed/success) — statut corrigé à resolu. Ce constat
       illustre la limite structurelle des relectures par le même agent
       qui a produit le travail initial — un audit véritablement
       indépendant (sans mémoire de session) reste le seul moyen fiable
@@ -190,7 +191,7 @@ anomalies:
       relecture future.
     classe: commentaire-de-test-perime
     gravite: mineure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       aiExecutionAccessClient.test.ts ne mentionne plus /ai/chat comme
       route existante. ai.endpoint.test.ts documente honnêtement qu'il
@@ -222,8 +223,10 @@ anomalies:
       elle-même dénonçait. Corrigé à nouveau (2026-07-31) : commentaire
       réécrit pour dire explicitement que /ai/chat a été supprimée,
       référence à /ai/conversations/* comme seule route restante.
-      Statut laissé à en_cours : correctif écrit et vérifié
-      (typecheck/lint) localement mais pas encore commité/vérifié en CI.
+      Commité (43a69b5), CI verte confirmée (6/6 checks GitHub Actions
+      completed/success) — statut reconfirmé resolu, cette fois avec
+      grep de vérification sur le fichier entier, pas seulement la
+      ligne visée initialement.
 
   - id: SEC-048
     titre: >

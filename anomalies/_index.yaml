@@ -27,7 +27,7 @@ anomalies:
       demandé explicitement pour vérifier si le registre mentait
       quelque part
     perimetre: 4.11-ia
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: commentaire-de-test-perime
   - id: SEC-052
@@ -91,7 +91,7 @@ anomalies:
       commentaire affirme une couverture que le test ne prouve pas
       réellement
     perimetre: 4.11-ia
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: commentaire-de-test-perime
 
