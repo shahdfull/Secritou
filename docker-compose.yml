@@ -60,6 +60,23 @@ services:
       timeout: 5s
       retries: 5
 
+  # SEC-041: RG-015 (module IA auto-hébergé via Ollama) was marked IMPLÉMENTÉ verifie:code_direct
+  # on the code path alone (llm.client.ts really does call OLLAMA_URL) — but no Ollama service
+  # existed in either compose file, so OLLAMA_URL's default (http://localhost:11434) never
+  # resolved to a real Ollama once the server itself ran in a container. This service, plus
+  # OLLAMA_URL set in server/.env to http://ollama:11434 (compose DNS), closes that gap for dev.
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   n8n:
     image: docker.n8n.io/n8nio/n8n:latest
     ports:
@@ -93,3 +110,4 @@ volumes:
   minio_data:
   n8n_postgres_data:
   n8n_data:
+  ollama_data:

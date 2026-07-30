@@ -398,7 +398,7 @@ modules:
 
   "4.11-ia":
     label: "4.11 Module IA (agent-service)"
-    note: "Reclassé GELÉ → ACTIF le 2026-07-30 (décision explicite du porteur, voir REFERENTIEL.md §7). Audit A/B/G du 2026-07-30 : SEC-033/034/035 trouvées puis toutes resolu le jour même (commit f5d0b9f, CI verte confirmée 6/6) — module intégralement sain."
+    note: "Reclassé GELÉ → ACTIF le 2026-07-30 (décision explicite du porteur, voir REFERENTIEL.md §7). Audit A/B/G du 2026-07-30 : SEC-033/034/035 trouvées puis toutes resolu le jour même (commit f5d0b9f, CI verte confirmée 6/6). Relecture approfondie ultérieure demandée par le porteur (« on décortique le module IA ensemble ») : SEC-039 à SEC-043 trouvées — SEC-040 (chemin brief/tasks sans point d'entrée frontend) et SEC-041 (Ollama absent des compose) tranchées par AskUserQuestion (retrait du code mort ; ajout du service Ollama), SEC-042/SEC-043 clôturées sans objet (code supprimé avec SEC-040), SEC-039 (repli silencieux llm.client.ts) corrigée directement. Module réduit à son seul chemin réel (/ai/chat) + infra Ollama désormais présente en dev/prod."
     A: "2026-07-30"
     B: "2026-07-30"
     C: null

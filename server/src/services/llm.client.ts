@@ -41,8 +41,13 @@ export async function callOllama(
     message: { content: string };
   };
 
-  return (
-    data.message?.content ?? "Désolé, je n'ai pas pu générer de réponse."
-  );
+  // SEC-039: a 200 with an empty/missing content used to fall back to a fixed placeholder
+  // string, silently persisted as a real ASSISTANT message (aiConversationRepository.addMessage)
+  // indistinguishable from a genuine model reply. Reject explicitly instead.
+  if (!data.message?.content) {
+    throw new HttpError(502, "Ollama provider returned an empty response");
+  }
+
+  return data.message.content;
 }
 

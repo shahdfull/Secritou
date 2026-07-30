@@ -40,7 +40,7 @@ anomalies:
       succès/échec de cet archivage.
     classe: cout-latence-doubles-effet-de-bord-persistance
     gravite: eleve
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       executeAgent persiste le résultat (persona, context, result) sans
       déclencher un second appel LLM — soit via un appel direct au
@@ -73,6 +73,19 @@ anomalies:
       doublés sur CHAQUE appel agent (brief-generator, task-planner),
       pas un cas limite rare.
 
+      Résolu autrement (session ultérieure, même jour 2026-07-30) :
+      décision du porteur (AskUserQuestion) de retirer le code mort
+      plutôt que de le corriger — cf. SEC-040. agentOrchestrator.service.ts
+      (et donc ce double-appel) a été supprimé dans son intégralité, ainsi
+      que ai.controller.ts#generateBrief/generateTasks et
+      ai.routes.ts#POST /ai/brief,/ai/tasks. Le seul chemin IA restant
+      (/ai/chat → aiConversation.service.ts, utilisé par
+      AIAssistantFloat.tsx) n'a jamais eu ce défaut : create()/addMessage
+      y sont le mécanisme de persistance légitime du chat, pas un
+      archivage détourné. Statut laissé à en_cours : suppression écrite
+      et vérifiée (typecheck/lint/tests) localement mais pas encore
+      commitée/vérifiée en CI.
+
   - id: SEC-042
     titre: >
       callAgentWithRetry (agentOrchestrator.service.ts) retente sur
@@ -92,7 +105,7 @@ anomalies:
       surtout quand chaque tentative coûte jusqu'à 120s.
     classe: retry-non-borne-a-la-classe-derreur
     gravite: moyenne
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       callAgentWithRetry ne retente que sur une erreur de parsing
       (extractJson, JSON.parse, schema.parse — distinguables par un type
@@ -115,6 +128,13 @@ anomalies:
       lisibilité des erreurs, pas une faille de sécurité ni un calcul
       métier faux. Backlog post-lancement.
 
+      Résolu autrement (session ultérieure, même jour 2026-07-30) :
+      agentOrchestrator.service.ts (seul emplacement de
+      callAgentWithRetry) a été supprimé dans son intégralité — cf.
+      SEC-040/SEC-043. Sans objet. Statut laissé à en_cours : suppression
+      écrite et vérifiée localement mais pas encore commitée/vérifiée en
+      CI.
+
   - id: SEC-041
     titre: >
       REFERENTIEL.md §5 RG-015 (module IA auto-hébergé, Ollama) est marquée
@@ -134,7 +154,7 @@ anomalies:
       le second non vérifié malgré le statut affiché.
     classe: ecart-code-deploiement
     gravite: moyenne
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       Soit un service ollama est ajouté à docker-compose.yml (dev) et
       docker-compose.prod.yml (prod) avec OLLAMA_URL pointant dessus par
@@ -156,6 +176,20 @@ anomalies:
       première tentative réelle d'utilisation du module en environnement
       conteneurisé déployé.
 
+      Corrigé (session ultérieure, même jour 2026-07-30, décision du
+      porteur via AskUserQuestion : ajouter le service plutôt que
+      documenter l'écart) : service ollama ajouté à docker-compose.yml
+      (dev, port 11434 publié, healthcheck ollama list) et
+      docker-compose.prod.yml (prod, non publié, server en dépend via
+      depends_on/condition service_healthy). server/.env.example
+      documente OLLAMA_URL pour les deux cas (localhost:11434 si le
+      serveur tourne sur l'hôte, http://ollama:11434 si le serveur est
+      lui-même conteneurisé). Les deux fichiers compose validés
+      syntaxiquement (docker compose config). Statut laissé à en_cours :
+      correctif écrit et vérifié localement mais pas encore
+      commité/vérifié en CI (et par nature non vérifiable de bout en bout
+      sans télécharger un vrai modèle Ollama en CI).
+
   - id: SEC-040
     titre: >
       Les 3 endpoints POST /ai/brief, /ai/tasks (et par extension le
@@ -174,7 +208,7 @@ anomalies:
       quel que soit son niveau de qualité/test côté code.
     classe: capacite-serveur-sans-point-dentree-frontend
     gravite: mineure
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       Décision du porteur tranchée et actée dans REFERENTIEL.md §7 :
       soit un point d'entrée frontend réel est construit pour
@@ -200,6 +234,24 @@ anomalies:
       développer" : construire un point d'entrée frontend serait un
       développement, pas une réparation).
 
+      Tranché (session ultérieure, même jour 2026-07-30, AskUserQuestion) :
+      décision du porteur de retirer le code mort plutôt que construire
+      un point d'entrée frontend. ai.routes.ts (routes /ai/brief,
+      /ai/tasks retirées, /ai/chat conservée), ai.controller.ts
+      (generateBrief/generateTasks retirés, chat conservé),
+      agentOrchestrator.service.ts et agents/personas.ts supprimés dans
+      leur intégralité (aucun autre fichier ne les importait, confirmé
+      par grep). ai.validator.ts réduit à chatSchema seul. Tests obsolètes
+      retirés (personas.test.ts, aiValidator.test.ts) ou allégés
+      (ai.endpoint.test.ts, aiExecutionAccessClient.test.ts gardent
+      uniquement ce qui reste pertinent : authorize() sur /ai/chat, et la
+      preuve grep RG-016/RG-017 qu'aucune primitive d'exécution n'existe).
+      Suite complète (test:unit) : 702/702 verts localement. Décision
+      actée ici même, à reporter dans REFERENTIEL.md §7 dans la même
+      passe de commit (règle CLAUDE.md sur la traçabilité des décisions
+      du porteur). Statut laissé à en_cours : suppression écrite et
+      vérifiée localement mais pas encore commitée/vérifiée en CI.
+
   - id: SEC-039
     titre: >
       llm.client.ts#callOllama retombe silencieusement sur "Désolé, je
@@ -217,7 +269,7 @@ anomalies:
       classe, critère de résolution différent → ID distinct".
     classe: repli-silencieux-reponse-vide
     gravite: mineure
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       callOllama lève une erreur explicite (ex. HttpError 502) si
       data.message?.content est vide/absent, au lieu de retomber sur un
@@ -233,6 +285,24 @@ anomalies:
       panne du modèle (l'utilisateur voit une réponse plausible plutôt
       qu'une erreur claire), pas une faille de sécurité. Backlog
       post-lancement.
+
+      Corrigé (session ultérieure, même jour 2026-07-30) : callOllama
+      lève désormais HttpError(502, "Ollama provider returned an empty
+      response") si data.message?.content est vide/absent, au lieu du
+      texte de repli fixe. Nouveau server/test/llmClientEmptyResponse.test.ts :
+      appelle réellement callOllama, avec mock.method sur globalThis.fetch
+      (primitive Node simple, pas un délégué Prisma étendu — mockable
+      directement, contrairement au piège rencontré sur SEC-009) pour
+      simuler une réponse 200 à content vide, et assère le rejet 502.
+      process.env.OLLAMA_URL n'a pas pu être utilisé pour ce test : env.ts
+      résout et fige OLLAMA_URL au premier import du module
+      (envSchema.parse(process.env)), qui se produit déjà via un fichier
+      importé plus tôt dans test/run-all.test.ts avant que ce test-ci ne
+      s'exécute — un override tardif de process.env n'a alors aucun effet
+      (confirmé par l'échec initial de ce test en suite complète alors
+      qu'il passait isolément). Suite complète (test:unit) : 702/702
+      verts. Statut laissé à en_cours : correctif écrit et testé
+      localement mais pas encore commité/vérifié en CI.
 
   - id: SEC-035
     titre: >

@@ -57,6 +57,23 @@ services:
     # No ports published to the host: reverse proxy should reach this
     # over the compose network (service name "minio", port 9000).
 
+  # SEC-041: RG-015 (module IA auto-hébergé via Ollama) had no Ollama service in this compose —
+  # OLLAMA_URL's default (http://localhost:11434) resolved to the server container itself, not a
+  # real Ollama instance. server/.env must set OLLAMA_URL=http://ollama:11434 (compose DNS) in
+  # this environment.
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # No port published to the host: only the server container needs to reach this, over the
+    # compose network (service name "ollama", port 11434).
+
   server:
     build:
       context: ./server
@@ -75,6 +92,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      ollama:
+        condition: service_healthy
     ports:
       - "5000:5000"
 
@@ -92,3 +111,4 @@ volumes:
   postgres_data:
   redis_data:
   minio_data:
+  ollama_data:

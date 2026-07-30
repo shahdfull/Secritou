@@ -1181,15 +1181,18 @@ grille de permissions. Aucune autre anomalie.
       - client/src/features/settings/tabs/SettingsUsersTab.tsx
 
 ### 4.11 Module IA (agent-service) — **ACTIF** (reclassé de GELÉ le 2026-07-30, voir §7)
-Personas IA pour assistance à la production. Le troisième objectif du
-module (génération de prototype via un code agent en sandbox, RG-016)
-n'est pas commencé — aucune infrastructure Docker de sandboxing n'existe
-à ce jour ; toute implémentation devra respecter RG-016/RG-017 sans
-dérogation avant d'exposer une quelconque capacité d'exécution de code.
+Un seul chemin IA réel aujourd'hui : le chat assistant (`/ai/chat` et
+`/ai/conversations/*`), consommé par `AIAssistantFloat.tsx`. Le persona
+brief-generator/task-planner (génération de brief et de tâches via
+`agentOrchestrator.service.ts`) a été retiré comme code mort le
+2026-07-30 (SEC-040, voir §7) — aucun code de `client/src` ne l'appelait
+jamais. Le troisième objectif du module (génération de prototype via un
+code agent en sandbox, RG-016) n'est pas commencé — aucune infrastructure
+Docker de sandboxing n'existe à ce jour ; toute implémentation devra
+respecter RG-016/RG-017 sans dérogation avant d'exposer une quelconque
+capacité d'exécution de code.
 
     perimetre_code:
-      - server/src/agents/personas.ts
-      - server/src/services/agentOrchestrator.service.ts
       - server/src/services/llm.client.ts
       - server/src/services/aiConversation.service.ts
       - server/src/repositories/aiConversation.repository.ts
@@ -1197,8 +1200,12 @@ dérogation avant d'exposer une quelconque capacité d'exécution de code.
       - server/src/routes/aiConversation.routes.ts
       - server/src/services/cvExtraction.service.ts
       - server/src/controllers/ai.controller.ts
+      - server/src/routes/ai.routes.ts
+      - server/src/validators/ai.validator.ts
       - server/test/ai.endpoint.test.ts
       - server/src/config/env.ts
+      - docker-compose.yml#ollama
+      - docker-compose.prod.yml#ollama
       - prisma/schema.prisma#AiConversation,AiMessage
       - client/src/features/ai-assistant/**
 
@@ -2349,3 +2356,5 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-28** | **Nouveau régime de rémunération PER_TASK (3e valeur de `CommissionSplitMode`, aux côtés de `AUTO`/`MANUAL`) créé, avec RG-028 (pas de double paiement : `computeForPaymentTx` retourne `[]` pour un projet `PER_TASK`, même avec des `ProjectCommissionSplit` résiduels) et RG-029 (bascule vers `PER_TASK` = purge des splits + entrée `CommissionSplitHistory` `MODE_SET_PER_TASK` dans la même transaction, via un endpoint dédié `POST /commissions/projects/:projectId/commission-mode/per-task`, réservé ADMIN, refusé en 409 si le projet a déjà une `Commission`). Absent de toute version antérieure de REFERENTIEL.md ; introduit sur instruction explicite du porteur (remplace la lecture antérieure « MANUAL = paiement à la tâche »). Migration `20260728030000_commission_split_mode_per_task` : `ALTER TYPE ... ADD VALUE`, aucun projet existant migré.** | **Instructions explicites du porteur, session du 2026-07-28 (fichier `checklist-regles-metier-secritou.md`, items 1 à 4). Les identifiants RG-012/RG-013 proposés par le porteur pour ces deux règles collisionnaient avec des RG-012 (numérotation factures) et RG-013 (clôture mission) déjà attribués dans REFERENTIEL.md §5 — AskUserQuestion, choix explicite du porteur : renumérotées RG-028/RG-029 (prochains identifiants libres après RG-027).** |
 | **2026-07-29** | **SEC-015 résolue : le reste du régime PER_TASK construit le 2026-07-28 (enveloppe `payoutBudget`, `Task.payoutAmount`/blocage TODO, barème qualité TASK_FIXED, conflit d'intérêt d'auto-validation, verrouillage de mode, fee Manager à la livraison) avait été implémenté en citant, dans les commentaires de code (`commission.service.ts`, `task.service.ts`, `schema.prisma`) et les tests, les identifiants RG-006 à RG-011 — qui désignaient déjà, dans ce même §5, des règles sans rapport (base de calcul de la commission sur montant brut encaissé, cycle de vie PENDING→PAID, cascade d'acceptation de proposition, visibilité par associé). Collision d'identifiants jamais remontée en §7 au moment de l'implémentation initiale. Corrigé : le régime PER_TASK renuméroté RG-030 (enveloppe payoutBudget) à RG-035 (fee Manager à la livraison), documenté en §5 ci-dessus ; RG-006 à RG-011 laissées inchangées dans leur sens d'origine ; tous les commentaires de code et labels de test (`commission.service.ts`, `commission.repository.ts`, `commission.validator.ts`, `task.service.ts`, `project.service.ts`, `schema.prisma`, `managerProjectFee.test.ts`, `taskPayoutRules.test.ts`, `taskFixedCommission.test.ts`, `commissionService.test.ts`) mis à jour vers les nouveaux identifiants — aucun changement de comportement, renumérotation pure.** | **AskUserQuestion, session du 2026-07-29, en réponse directe à SEC-015 (trouvée lors de l'audit 4.5-commissions catégories A/B/G) : choix « Renuméroter le régime PER_TASK » plutôt que « Réécrire RG-006 à RG-011 en place » — RG-006 à RG-011 gardent leur sens §5 d'origine, le régime PER_TASK reçoit de nouveaux identifiants libres après RG-029.** |
 | **2026-07-30** | **Module 4.11 (Module IA, agent-service) reclassé de GELÉ à ACTIF, dans son ensemble — les 2 personas existants (génération brief/roadmap, découpage de tâches, sur Ollama/Mistral auto-hébergé) redeviennent auditables/développables, ET le 3e objectif jamais commencé (génération de prototype via un code agent en sandbox, RG-016) devient un périmètre de développement ouvert. Aucun audit ni développement n'est effectué dans cette même passe — seul le statut change ; le prochain travail sur ce module devra respecter RG-016 (exécution de code toujours sandboxée, Docker, jamais d'exec direct sur l'hôte) et RG-017 (le Client n'a jamais accès à un outil d'exécution) sans dérogation.** | **Demande explicite du porteur du projet : « i want to remove the gele et dire a implementer », confirmée par AskUserQuestion sur le module concerné (« 4.11 Module IA (agent-service) ») puis sur le périmètre exact du dégel (« Tout le module (Recommandé) »). Aucun signal de blocage du chemin de l'argent invoqué — décision de portée produit assumée directement par le porteur, pas déduite d'une anomalie remontée ailleurs.** |
+| **2026-07-30** | **SEC-040 : le persona brief-generator/task-planner (`agentOrchestrator.service.ts`, `agents/personas.ts`, routes `POST /ai/brief`/`/ai/tasks`) est retiré du dépôt comme code mort plutôt que de recevoir un point d'entrée frontend construit après coup — grep exhaustif confirmant qu'aucun code de `client/src` n'appelait jamais ces deux endpoints. Le seul chemin IA restant est le chat (`/ai/chat`, `/ai/conversations/*`), consommé par `AIAssistantFloat.tsx`, inchangé. Suppression entraînant la clôture sans objet de SEC-042 (retry non borné, seul emplacement supprimé) et SEC-043 (double appel LLM caché dans l'archivage, mécanisme supprimé avec le service). `perimetre_code:` de 4.11 mis à jour dans la même passe (retrait de `agents/personas.ts` et `agentOrchestrator.service.ts`, ajout de `ai.routes.ts`/`ai.validator.ts` réduits au seul chat).** | **AskUserQuestion, session du 2026-07-30, en réponse directe à une relecture approfondie du module 4.11 demandée par le porteur (« on décortique le module IA ensemble »). Choix explicite « Retirer le code mort (Recommandé) » plutôt que « Construire un vrai point d'entrée frontend ».** |
+| **2026-07-30** | **SEC-041 : un service `ollama` est ajouté à `docker-compose.yml` (dev) et `docker-compose.prod.yml` (prod), fermant l'écart entre RG-015 (marquée `IMPLÉMENTÉ verifie:code_direct` sur le seul code) et son déploiement réel — `OLLAMA_URL` par défaut (`http://localhost:11434`) ne pointait auparavant vers aucun Ollama réel une fois le serveur conteneurisé. `server/.env.example` documente les deux cas (serveur sur l'hôte vs serveur conteneurisé).** | **AskUserQuestion, session du 2026-07-30, même relecture. Choix explicite « Ajouter le service Ollama aux deux compose (Recommandé) » plutôt que documenter l'écart sans corriger.** |
