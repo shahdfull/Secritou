@@ -7,10 +7,54 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : Transverse (hors modules §4 — CI/infra, docs, RGPD, i18n global, design system, observabilité)
-# 5 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
+# 6 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 
 anomalies:
+  - id: SEC-032
+    titre: >
+      @bull-board/api et @bull-board/express sont déclarées dans
+      server/package.json (dependencies) mais jamais importées ni montées
+      nulle part dans src/ — aucun dashboard d'observabilité BullMQ
+      n'existe réellement malgré la dépendance présente
+    perimetre: transverse
+    regle_violee: >
+      Fiabilité opérationnelle (catégorie D) : l'observabilité des jobs
+      BullMQ (échecs, latence, files bloquées) repose aujourd'hui
+      uniquement sur les logs pino + Sentry (voir jobs/index.ts,
+      maintenanceEvents.on("failed"/"stalled")) — fonctionnel mais sans
+      vue d'ensemble en temps réel des files/jobs, alors qu'une dépendance
+      dédiée à cet effet est déjà installée et jamais exploitée.
+    classe: dependance-non-utilisee
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      Une décision du porteur du projet tranche (parmi : (a) monter
+      réellement un dashboard BullBoard, gardé derrière une auth
+      ADMIN-only, sur une route dédiée ; (b) retirer la dépendance si elle
+      n'est pas jugée utile actuellement, l'observabilité pino+Sentry
+      existante suffisant). Ne pas monter un dashboard non authentifié
+      sans instruction explicite (RG-014/RG-016 dans le même esprit —
+      toute nouvelle capacité d'administration se demande).
+    detecte_le: "2026-07-30"
+    source: >
+      Découvert incidemment (CLAUDE.md « Enregistrement immédiat de tout
+      écart constaté ») en auditant la fiabilité opérationnelle du
+      nouveau job snapshotExecutiveKpis (SEC-031) — grep de
+      "bull-board"/"BullBoard"/"createBullBoard"/"BullMQAdapter" dans
+      server/src/ : aucune occurrence, alors que
+      server/package.json déclare les deux paquets en dependencies (pas
+      devDependencies).
+    confiance: haute
+    note: >
+      N'affecte aucun job existant ni snapshotExecutiveKpis lui-même —
+      ce dernier suit correctement le même pattern d'observabilité que
+      tous les autres jobs de maintenance.processor.ts (recordBullMQJob
+      + logger d'échec générique de la queue, vérifié par lecture
+      directe). Ce constat porte uniquement sur l'absence d'exploitation
+      d'une dépendance déjà présente, pas sur un défaut de
+      snapshotExecutiveKpis.
+
   - id: SEC-030
     titre: >
       server/tsconfig.json n'inclut que "src/**/*.ts" — npm run typecheck

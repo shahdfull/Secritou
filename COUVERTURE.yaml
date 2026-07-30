@@ -191,6 +191,18 @@ derniere_maj: "2026-07-30"
 # (9/9 — le job server avait d'abord échoué sur le commit c3388be faute
 # de mise à jour du filtre de dérive de schéma pour le nouvel index
 # partiel, corrigé dans la foulée). C/D/E/F/H/I/J laissées à null.
+# transverse : D balayée le 2026-07-30 (audit ciblé de la fiabilité
+# opérationnelle du nouveau job jobNames.snapshotExecutiveKpis créé pour
+# SEC-031 — worker/queue partagés avec tous les autres jobs maintenance,
+# logger d'échec générique + Sentry hérité automatiquement, attempts:2
+# par défaut identique, recordBullMQJob appelé au bon endroit, cohérent
+# avec le pattern de maintenance.processor.ts) — SEC-032 (mineure,
+# @bull-board/api/@bull-board/express déclarées mais jamais montées nulle
+# part, dépendance non exploitée, découverte incidemment) trouvée et
+# laissée ouverte (décision produit non tranchée, hors portée d'une
+# session d'audit). Ce n'est pas un audit D complet du périmètre
+# transverse, seulement du nouveau job introduit cette session — B/C/E/F/
+# G/H/I/J restent non balayées.
 # 4.12-site-public : A/B balayées le 2026-07-30 (premier audit réel du
 # nouveau registre — siteContent.service.ts/.repository.ts/.controller.ts/
 # .routes.ts/.validator.ts) — pas de notion de pôle applicable (contenu
@@ -390,7 +402,7 @@ modules:
     A: "2026-07-30"
     B: null
     C: null
-    D: null
+    D: "2026-07-30"
     E: null
     F: null
     G: null

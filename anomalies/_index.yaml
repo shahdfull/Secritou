@@ -12,8 +12,19 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-031
+dernier_id: SEC-032
 anomalies:
+  - id: SEC-032
+    titre: >
+      @bull-board/api et @bull-board/express sont déclarées dans
+      server/package.json (dependencies) mais jamais importées ni montées
+      nulle part dans src/ — aucun dashboard d'observabilité BullMQ
+      n'existe réellement malgré la dépendance présente
+    perimetre: transverse
+    statut: ouvert
+    gravite: mineure
+    classe: dependance-non-utilisee
+
   - id: SEC-031
     titre: >
       executiveMetricsRepository.getAll — overdueGrowthMoM/pendingGrowthMoM
