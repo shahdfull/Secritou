@@ -151,11 +151,12 @@ derniere_maj: "2026-07-30"
 # ajouté sur toute la chaîne repository/service/contrôleur pour les deux,
 # nouveau server/test/freelancerRatingScopeManager.test.ts, 6 cas) —
 # freelancerApplication.* confirmé ADMIN-only (aucune route MANAGER, pas
-# de scope pôle applicable) — 4.7-freelances remplit le critère de
-# clôture "prêt au lancement" (CLAUDE.md), sous réserve de la CI verte
-# sur le commit correspondant. G non balayée (pas de calcul financier
-# propre à ce module — hourlyRate est un champ saisi) ; C/D/E/F/H/I/J
-# laissées à null.
+# de scope pôle applicable) — commit 93aaf71, CI verte confirmée (6/6
+# checks GitHub Actions completed/success : server, client,
+# restore-smoke-test, contrast-check, e2e, i18n-check) — 4.7-freelances
+# remplit le critère de clôture "prêt au lancement" (CLAUDE.md). G non
+# balayée (pas de calcul financier propre à ce module — hourlyRate est un
+# champ saisi) ; C/D/E/F/H/I/J laissées à null.
 
 modules:
   "4.1-crm":
