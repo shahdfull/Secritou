@@ -39,7 +39,7 @@ anomalies:
       leads supprimés mais Client encore présent, ou Client anonymisé
       mais comptes portail non révoqués/anonymisés)
     perimetre: transverse
-    statut: ouvert
+    statut: resolu
     gravite: moyenne
     classe: ecriture-multi-etapes-sans-transaction
 

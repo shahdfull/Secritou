@@ -86,7 +86,7 @@ anomalies:
       l'intention de RG-025.
     classe: ecriture-multi-etapes-sans-transaction
     gravite: moyenne
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Chaque fonction eraseClient/eraseUser/eraseLead/eraseContactRequest
       atteint un état terminal cohérent même en cas d'échec à mi-séquence
@@ -123,9 +123,10 @@ anomalies:
       Client lui-même n'a PAS été anonymisé malgré que sa propre écriture
       soit exécutée en premier dans la transaction, preuve du rollback
       atomique (pas seulement que l'étape suivante échoue). Suite complète
-      (test:unit, 709 tests) : 709/709 verts localement. Statut laissé à
-      en_cours : correctif écrit et testé localement mais pas encore
-      commité/vérifié en CI.
+      (test:unit, 709 tests) : 709/709 verts localement. Commité
+      (9de5f12), CI verte confirmée (6/6 checks GitHub Actions
+      completed/success : server, client, e2e, contrast-check, i18n-check,
+      restore-smoke-test) — statut corrigé à resolu.
 
   - id: SEC-032
     titre: >
