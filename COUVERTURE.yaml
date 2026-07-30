@@ -116,13 +116,15 @@ derniere_maj: "2026-07-30"
 # req.user.sub), .github/workflows/ci.yml, .github/workflows/backup.yml,
 # .github/dependabot.yml) — SEC-023 (moyenne, actions GitHub non
 # épinglées par SHA malgré le TODO MED-1 documenté) et SEC-024 (moyenne,
-# backup.yml SSH StrictHostKeyChecking=no) trouvées et corrigées dans la
-# même session (SHA épinglés sur les 3 actions utilisées ; SSH
+# backup.yml SSH StrictHostKeyChecking=no) trouvées ; SEC-023 resolu
+# (SHA épinglés sur les 3 actions utilisées, commit 0a26794, CI verte
+# confirmée 9/9 checks) ; SEC-024 corrigée dans le code (SSH
 # UserKnownHostsFile + secret SSH_KNOWN_HOSTS remplace
-# StrictHostKeyChecking=no) — SEC-024 non vérifiable de bout en bout
-# avant l'existence d'un vrai serveur de production (SEC-217), donc
-# `statut: ouvert` maintenu jusqu'à cette vérification réelle malgré le
-# code déjà corrigé. B/G non balayées (pas d'entité propre à ce
+# StrictHostKeyChecking=no) mais `statut: ouvert` maintenu — non
+# vérifiable de bout en bout avant l'existence d'un vrai serveur de
+# production (SEC-217). Aucune des deux n'est bloquant/eleve, donc ne
+# bloque pas la clôture "prêt au lancement" de ce périmètre au sens du
+# critère CLAUDE.md. B/G non balayées (pas d'entité propre à ce
 # périmètre) ; C/D/E/F/H/I/J laissées à null.
 
 modules:

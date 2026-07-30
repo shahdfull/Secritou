@@ -23,7 +23,7 @@ anomalies:
       maintiendrait des SHA épinglés à jour s'ils existaient, mais ne les
       crée pas rétroactivement
     perimetre: transverse
-    statut: ouvert
+    statut: resolu
     gravite: moyenne
     classe: ci-action-non-epinglee
 

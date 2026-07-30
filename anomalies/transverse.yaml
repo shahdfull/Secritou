@@ -126,7 +126,7 @@ anomalies:
       contrairement à un SHA de commit qui garantit un contenu figé.
     classe: ci-action-non-epinglee
     gravite: moyenne
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       Toutes les occurrences de `uses: actions/*@v*` dans
       .github/workflows/*.yml sont remplacées par `uses: actions/*@<sha>`
@@ -146,6 +146,14 @@ anomalies:
       à ce jour) — mais backup.yml, lui, manipule déjà des secrets SSH
       réels (SSH_PRIVATE_KEY) dans le même fichier non épinglé, ce qui
       élève la gravité au-delà d'un simple TODO cosmétique.
+      Corrigé (session du 2026-07-30) : les 3 actions réellement utilisées
+      (actions/checkout, actions/setup-node, actions/upload-artifact)
+      épinglées par SHA de commit (tag en commentaire) dans ci.yml et
+      backup.yml ; commentaire MED-1 en tête de ci.yml remplacé par une
+      référence à SEC-023. Commit 0a26794, CI verte confirmée (9/9 checks
+      GitHub Actions completed/success — les 6 jobs applicatifs habituels
+      + 3 checks Dependabot déclenchés par la modification de
+      dependabot.yml/des workflows).
 
   - id: SEC-024
     titre: >
@@ -184,3 +192,14 @@ anomalies:
       redécouvrir ce même défaut au moment de l'activation du workflow, sans
       bloquer le lancement (pas de production = pas de chemin de l'argent
       concerné aujourd'hui).
+      Correctif écrit (session du 2026-07-30) : StrictHostKeyChecking=no
+      remplacé par UserKnownHostsFile=/tmp/ssh/known_hosts alimenté par un
+      nouveau secret GitHub SSH_KNOWN_HOSTS (documenté en commentaire dans
+      backup.yml, à renseigner par le porteur via `ssh-keyscan -H <host>`
+      vérifié hors bande une fois le serveur de production existant).
+      `statut` volontairement laissé `ouvert` malgré le code déjà corrigé
+      et poussé (commit 0a26794, CI verte) : le critère de résolution de
+      cette anomalie précise exige une vérification de bout en bout contre
+      un vrai hôte SSH, impossible tant que SEC-217 reste vraie (aucun
+      serveur de production). Ne pas repasser `resolu` sur la seule lecture
+      du YAML — attendre l'activation réelle du workflow.
