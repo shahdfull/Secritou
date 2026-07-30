@@ -346,7 +346,7 @@ modules:
 
   "4.11-ia":
     label: "4.11 Module IA (agent-service)"
-    note: "Module GELÉ — voir CLAUDE.md « Statut GELÉ »."
+    note: "Reclassé GELÉ → ACTIF le 2026-07-30 (décision explicite du porteur, voir REFERENTIEL.md §7) — jamais balayé sous ce nouveau statut, A-J restent à null."
     A: null
     B: null
     C: null

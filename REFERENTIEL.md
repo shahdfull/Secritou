@@ -1180,8 +1180,12 @@ grille de permissions. Aucune autre anomalie.
       - client/src/features/settings/PermissionsGrid.tsx
       - client/src/features/settings/tabs/SettingsUsersTab.tsx
 
-### 4.11 Module IA (agent-service) — **GELÉ**
-Personas IA pour assistance à la production.
+### 4.11 Module IA (agent-service) — **ACTIF** (reclassé de GELÉ le 2026-07-30, voir §7)
+Personas IA pour assistance à la production. Le troisième objectif du
+module (génération de prototype via un code agent en sandbox, RG-016)
+n'est pas commencé — aucune infrastructure Docker de sandboxing n'existe
+à ce jour ; toute implémentation devra respecter RG-016/RG-017 sans
+dérogation avant d'exposer une quelconque capacité d'exécution de code.
 
     perimetre_code:
       - server/src/agents/personas.ts
@@ -1203,8 +1207,8 @@ Personas IA pour assistance à la production.
 totalité de la couche CRUD réelle de `AiConversation`/`AiMessage` (le
 persona-orchestrator appelle `aiConversationService.create`, il ne contient
 pas lui-même le CRUD) — n'étaient pas listés, seul le service y figurait.
-Correction documentaire uniquement (module GELÉ, aucun développement/audit
-fonctionnel effectué ici).
+Correction documentaire uniquement (module alors GELÉ, aucun
+développement/audit fonctionnel effectué à cette date).
 
 ### 4.12 Contenu du site public — **ACTIF**
 Gestion éditoriale bilingue du site vitrine. Confirmé consommé par le site
@@ -1584,29 +1588,37 @@ dev/seed. En cours de correction dans la même session.
 **RG-014 — Vérification de rôle avant action IA.**
 Toute action du module agent-service vérifie le rôle de l'utilisateur avant
 exécution ; seuls Admin et Manager peuvent déclencher un persona IA.
-*Module : 4.11 (GELÉ).* Statut : IMPLÉMENTÉ. `verifie: code_direct`
+*Module : 4.11 (ACTIF depuis le 2026-07-30, voir §7).* Statut : IMPLÉMENTÉ.
+`verifie: code_direct`
 (`agentOrchestrator.service.ts` lignes 90-92, `ai.endpoint.test.ts`,
 intégral).
 
 **RG-015 — Fournisseur du module IA (état implémenté).**
 Le module agent-service appelle un modèle **Ollama (Mistral)**
-auto-hébergé. *Module : 4.11 (GELÉ).* Statut : IMPLÉMENTÉ. `verifie:
+auto-hébergé. *Module : 4.11 (ACTIF depuis le 2026-07-30, voir §7).*
+Statut : IMPLÉMENTÉ. `verifie:
 code_direct` (`llm.client.ts` intégral, `env.ts` grep ciblé).
 
 **RG-016 — Exécution de code toujours sandboxée.**
 Toute exécution de code (agent IA de génération de prototype) doit être
 sandboxée (Docker), jamais d'exécution directe sur l'hôte. *Module : 4.11
-(GELÉ).* Statut : **PRÉVU** — fonctionnalité non commencée, aucune trace de
-sandboxing dans le code. `verifie: code_direct` (grep exhaustif sur
-`server/src`, zéro résultat).
+(ACTIF depuis le 2026-07-30, voir §7).* Statut : **PRÉVU** — fonctionnalité
+non commencée, aucune trace de sandboxing dans le code. `verifie:
+code_direct` (grep exhaustif sur `server/src`, zéro résultat). Cette règle
+n'admet aucune dérogation : le dégel du module (§7, 2026-07-30) ouvre ce
+périmètre au développement, mais n'autorise en aucun cas une exécution de
+code non sandboxée « en attendant » l'infrastructure Docker.
 
 **RG-017 — Aucun accès Client aux outils d'exécution.**
 Le rôle Client ne doit jamais avoir accès à des outils d'exécution de
-commande, y compris via le module IA. *Module : 4.11 (GELÉ), 4.10 (ACTIF,
-sans rapport avec cette règle).* Statut : **IMPLÉMENTÉ. `verifie: test`**
-(session du 2026-07-18, SEC-029, module 4.11 dégelé explicitement pour
-cette seule vérification, sur décision du porteur du projet, puis regelé
-immédiatement — aucune correction fonctionnelle, aucune nouvelle capacité).
+commande, y compris via le module IA. *Module : 4.11 (ACTIF depuis le
+2026-07-30, voir §7), 4.10 (ACTIF, sans rapport avec cette règle).*
+Statut : **IMPLÉMENTÉ. `verifie: test`**
+(session du 2026-07-18 — à cette date le module était encore GELÉ, dégelé
+explicitement pour cette seule vérification sur décision du porteur du
+projet, puis regelé immédiatement, aucune correction fonctionnelle ni
+nouvelle capacité ; le module est ACTIF sans restriction depuis le
+2026-07-30, voir §7).
 Le statut IMPLÉMENTÉ affirmé en v0.2.0 (« garanti par RG-014 ») était une
 **déduction** (absence d'outil d'exécution combinée à un contrôle de rôle
 ailleurs), jamais une observation directe. Corrigé par vérification réelle,
@@ -2179,7 +2191,7 @@ pour la conséquence opérationnelle sur les audits).
 | 4.8 Analytics & Performance | ACTIF | Lecture directe intégrale (6 fichiers restants, session 2026-07-17, en plus de l'entité 3.19 déjà lue), SEC-024 trouvée et corrigée, aucune autre anomalie — décision du porteur du projet. |
 | 4.9 Client Success | GELÉ | Couverture `partiel` (au moins un document direct exploité) ; calcul partiellement automatisé seulement, 0 client actif pour l'alimenter. |
 | 4.10 RBAC & Permissions granulaires | ACTIF | Lecture directe intégrale (entité 3.21 + PermissionsGrid.tsx, session 2026-07-17), SEC-025 trouvée et corrigée, aucune autre anomalie — décision du porteur du projet. |
-| 4.11 Module IA (agent-service) | GELÉ | Couverture `lu` (complète) — deux personas existants conservés tels quels ; pas de développement supplémentaire pour l'instant. |
+| 4.11 Module IA (agent-service) | ACTIF (reclassé le 2026-07-30, voir §7) | Décision explicite du porteur du projet — dégelé dans son ensemble, y compris le 3e objectif (prototype en sandbox, RG-016) jamais commencé. |
 | 4.13 (volet webhooks n8n) | GELÉ | Automatisations externes existantes, non prioritaires hors flux argent. |
 | `server/src/jobs/**` (composant transverse de 4.13) | ACTIF | Couverture `lu` (8 fichiers, intégral, session 2026-07-17) ; relances facture défectueuses → SEC-014 (calcul de date) et SEC-015 (aucune relance après OVERDUE). |
 | Intégration bancaire / paiement en ligne (Flouci, Konnect, Paymee, e-Dinar) | HORS PÉRIMÈTRE (phase 2) | Aucune passerelle implémentée ; paiements saisis manuellement. |
@@ -2336,3 +2348,4 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-28** | **RG-026 (niveaux de confirmation UX) relevée de `PRÉVU` à `IMPLÉMENTÉ`, `verifie: code_direct` — vérification demandée explicitement par le porteur du projet sur les 7 fichiers cités par la règle, tous lus intégralement. Le composant partagé `ConfirmationDialog.tsx` implémente bien le contrat Niveau 2 (checkbox obligatoire, description distincte du libellé de la case, bouton désactivé tant que non cochée) et 6 des 7 actions listées l'utilisent réellement. SEC-014 ouverte pour le seul écart trouvé : `ApprovalsClientPage.tsx` (approbation client) respecte le même contrat fonctionnel mais le réimplémente localement au lieu d'utiliser `ConfirmationDialog` — incohérence de factorisation, pas un défaut de protection utilisateur (l'utilisateur final est protégé dans les deux cas).** | **Demande explicite du porteur du projet (« RG-026 est ce que codé ? verifier le code reelement »), suivie de la confirmation de mettre à jour REFERENTIEL.md et d'enregistrer l'écart trouvé. Vérification par lecture directe intégrale des 7 fichiers et du composant `ConfirmationDialog.tsx` avant toute conclusion.** |
 | **2026-07-28** | **Nouveau régime de rémunération PER_TASK (3e valeur de `CommissionSplitMode`, aux côtés de `AUTO`/`MANUAL`) créé, avec RG-028 (pas de double paiement : `computeForPaymentTx` retourne `[]` pour un projet `PER_TASK`, même avec des `ProjectCommissionSplit` résiduels) et RG-029 (bascule vers `PER_TASK` = purge des splits + entrée `CommissionSplitHistory` `MODE_SET_PER_TASK` dans la même transaction, via un endpoint dédié `POST /commissions/projects/:projectId/commission-mode/per-task`, réservé ADMIN, refusé en 409 si le projet a déjà une `Commission`). Absent de toute version antérieure de REFERENTIEL.md ; introduit sur instruction explicite du porteur (remplace la lecture antérieure « MANUAL = paiement à la tâche »). Migration `20260728030000_commission_split_mode_per_task` : `ALTER TYPE ... ADD VALUE`, aucun projet existant migré.** | **Instructions explicites du porteur, session du 2026-07-28 (fichier `checklist-regles-metier-secritou.md`, items 1 à 4). Les identifiants RG-012/RG-013 proposés par le porteur pour ces deux règles collisionnaient avec des RG-012 (numérotation factures) et RG-013 (clôture mission) déjà attribués dans REFERENTIEL.md §5 — AskUserQuestion, choix explicite du porteur : renumérotées RG-028/RG-029 (prochains identifiants libres après RG-027).** |
 | **2026-07-29** | **SEC-015 résolue : le reste du régime PER_TASK construit le 2026-07-28 (enveloppe `payoutBudget`, `Task.payoutAmount`/blocage TODO, barème qualité TASK_FIXED, conflit d'intérêt d'auto-validation, verrouillage de mode, fee Manager à la livraison) avait été implémenté en citant, dans les commentaires de code (`commission.service.ts`, `task.service.ts`, `schema.prisma`) et les tests, les identifiants RG-006 à RG-011 — qui désignaient déjà, dans ce même §5, des règles sans rapport (base de calcul de la commission sur montant brut encaissé, cycle de vie PENDING→PAID, cascade d'acceptation de proposition, visibilité par associé). Collision d'identifiants jamais remontée en §7 au moment de l'implémentation initiale. Corrigé : le régime PER_TASK renuméroté RG-030 (enveloppe payoutBudget) à RG-035 (fee Manager à la livraison), documenté en §5 ci-dessus ; RG-006 à RG-011 laissées inchangées dans leur sens d'origine ; tous les commentaires de code et labels de test (`commission.service.ts`, `commission.repository.ts`, `commission.validator.ts`, `task.service.ts`, `project.service.ts`, `schema.prisma`, `managerProjectFee.test.ts`, `taskPayoutRules.test.ts`, `taskFixedCommission.test.ts`, `commissionService.test.ts`) mis à jour vers les nouveaux identifiants — aucun changement de comportement, renumérotation pure.** | **AskUserQuestion, session du 2026-07-29, en réponse directe à SEC-015 (trouvée lors de l'audit 4.5-commissions catégories A/B/G) : choix « Renuméroter le régime PER_TASK » plutôt que « Réécrire RG-006 à RG-011 en place » — RG-006 à RG-011 gardent leur sens §5 d'origine, le régime PER_TASK reçoit de nouveaux identifiants libres après RG-029.** |
+| **2026-07-30** | **Module 4.11 (Module IA, agent-service) reclassé de GELÉ à ACTIF, dans son ensemble — les 2 personas existants (génération brief/roadmap, découpage de tâches, sur Ollama/Mistral auto-hébergé) redeviennent auditables/développables, ET le 3e objectif jamais commencé (génération de prototype via un code agent en sandbox, RG-016) devient un périmètre de développement ouvert. Aucun audit ni développement n'est effectué dans cette même passe — seul le statut change ; le prochain travail sur ce module devra respecter RG-016 (exécution de code toujours sandboxée, Docker, jamais d'exec direct sur l'hôte) et RG-017 (le Client n'a jamais accès à un outil d'exécution) sans dérogation.** | **Demande explicite du porteur du projet : « i want to remove the gele et dire a implementer », confirmée par AskUserQuestion sur le module concerné (« 4.11 Module IA (agent-service) ») puis sur le périmètre exact du dégel (« Tout le module (Recommandé) »). Aucun signal de blocage du chemin de l'argent invoqué — décision de portée produit assumée directement par le porteur, pas déduite d'une anomalie remontée ailleurs.** |
