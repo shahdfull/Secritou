@@ -27,7 +27,7 @@ anomalies:
       créaient temporairement un second ADMIN en base pendant
       test/run-all.test.ts)
     perimetre: transverse
-    statut: ouvert
+    statut: resolu
     gravite: moyenne
     classe: selection-non-deterministe-entite-metier
 

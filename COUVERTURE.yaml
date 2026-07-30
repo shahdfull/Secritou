@@ -38,13 +38,14 @@ derniere_maj: "2026-07-30"
 # Session de correction ciblée (2026-07-30) sur les anomalies restantes du
 # registre : SEC-014 (4.6-portail-client, ConfirmationDialog partagé),
 # SEC-032 (transverse, dashboard BullBoard ADMIN-only monté), SEC-037
-# (transverse, effacement RGPD atomique via $transaction) toutes resolu,
-# CI verte confirmée sur chaque commit (aa2d413, 92ca3fa, 9de5f12). SEC-024
-# reste ouverte (bloquée par l'absence de serveur de production, correctif
-# déjà en place). SEC-038 (transverse, nouvelle) enregistrée : 6 tests de
-# commissionService/commissionAutoSplitTaskTrigger échouent parfois
-# ensemble dans test:unit mais jamais isolément — flaky, préexistant sur
-# main, hors scope de cette session, laissé ouvert.
+# (transverse, effacement RGPD atomique via $transaction), SEC-038
+# (transverse, commissionRepository.getAdminPartnerId non déterministe —
+# vrai défaut d'exactitude métier découvert via la flakiness de
+# commissionService.test.ts/commissionAutoSplitTaskTrigger.test.ts, corrigé
+# par orderBy: createdAt asc) toutes resolu, CI verte confirmée sur chaque
+# commit (aa2d413, 92ca3fa, 9de5f12, 77921ff). SEC-024 reste seule ouverte
+# (bloquée par l'absence de serveur de production, correctif déjà en
+# place) — toutes les autres anomalies du registre sont resolu.
 # 4.14-auth : G balayée le 2026-07-30 (grep amount/montant/Decimal/price/
 # tarif sur auth.service.ts et auth.repository.ts : zéro résultat — aucun
 # calcul financier dans le module d'authentification, sans objet). SEC-006/
