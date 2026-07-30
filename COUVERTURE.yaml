@@ -35,6 +35,19 @@
 # cellule par supposition.
 
 derniere_maj: "2026-07-30"
+# 4.14-auth : B balayée le 2026-07-30 (auth.service.ts, auth.repository.ts,
+# auth.middleware.ts, authCookies.ts, authDenylist.ts) — timing-safe login
+# (DUMMY_PASSWORD_HASH), révocation de famille de refresh tokens sur reuse
+# detection, transaction Serializable sur resetPassword, denylist révoquée
+# sur logout/reset/changePassword, User.email bien @@unique (findFirst sur
+# ce champ ne peut retourner qu'un seul résultat), JWT vérifié avec
+# algorithms:["HS256"] forcé + tokenType + denylist par jti. Aucune
+# nouvelle anomalie trouvée. Relecture de cohérence incidente : SEC-009
+# avait déjà statut: resolu dans le champ structuré mais sa note en prose
+# disait encore "laissé à en_cours" (rédigée avant le commit du correctif
+# de18862) — corrigé (commit a9a986e), CI verte confirmée sur fdc1363,
+# descendant direct de de18862. G non balayée (pas de calcul financier
+# dans ce module) ; C/D/E/F/H/I/J restent à null.
 # 4.1-crm : A/B/G balayées le 2026-07-29 (audit réel contre REFERENTIEL.md
 # §3.4/§4.1/§5 RG-002, lead.service.ts/.repository.ts/.controller.ts/
 # .validator.ts, proposal.service.ts/.repository.ts/.controller.ts/
@@ -387,7 +400,7 @@ modules:
   "4.14-auth":
     label: "4.14 Authentification & Compte utilisateur"
     A: "2026-07-28"
-    B: null
+    B: "2026-07-30"
     C: null
     D: null
     E: null
