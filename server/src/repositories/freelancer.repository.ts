@@ -53,7 +53,16 @@ export const freelancerRepository = {
     return { data: raw.map(serialize), total, page: options.page, pageSize: options.pageSize };
   },
 
-  async findById(id: string): Promise<FreelancerWithRelations | null> {
+  async findById(id: string, serviceId?: string | null): Promise<FreelancerWithRelations | null> {
+    // SEC-026: mirrors findAll's own MANAGER pole filter (user.tasks.some.project.serviceId) —
+    // findUnique can't take a relation filter, so this drops to findFirst once scoped.
+    if (serviceId !== undefined) {
+      const raw = await prismaRead.freelancerProfile.findFirst({
+        where: { id, user: { tasks: { some: { project: { serviceId: serviceId ?? "__none__" } } } } },
+        include,
+      });
+      return raw ? serialize(raw) : null;
+    }
     const raw = await prismaRead.freelancerProfile.findUnique({ where: { id }, include });
     return raw ? serialize(raw) : null;
   },

@@ -34,7 +34,8 @@ export const getFreelancers: RequestHandler = async (req, res, next) => {
 
 export const getFreelancerById: RequestHandler = async (req, res, next) => {
   try {
-    const profile = await freelancerService.getById(String(req.params.id));
+    const scope = req.user!.role === "MANAGER" ? await buildServiceScope(req) : undefined;
+    const profile = await freelancerService.getById(String(req.params.id), scope?.userServiceId);
     res.json({ data: profile ? redactSensitiveInfo(profile, req.user!.role, req.user!.sub) : profile });
   } catch (error) {
     next(error);

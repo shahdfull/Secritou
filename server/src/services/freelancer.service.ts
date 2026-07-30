@@ -12,8 +12,11 @@ export const freelancerService = {
     return freelancerRepository.findAll(options);
   },
 
-  async getById(id: string) {
-    const profile = await freelancerRepository.findById(id);
+  // SEC-026: unlike getAll, which already scopes MANAGER by pole (user.tasks.some.project.
+  // serviceId), a direct-id lookup had no scope check at all — a MANAGER could read any
+  // freelancer's full profile (hourlyRate included) via GET /freelancers/:id regardless of pole.
+  async getById(id: string, serviceId?: string | null) {
+    const profile = await freelancerRepository.findById(id, serviceId);
     if (!profile) throw new HttpError(404, "Freelancer not found");
     return profile;
   },

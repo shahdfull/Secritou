@@ -12,8 +12,31 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-025
+dernier_id: SEC-027
 anomalies:
+  - id: SEC-027
+    titre: >
+      GET/POST /ratings/freelancers/:freelancerId (getRatings/addRating)
+      ne scopent jamais par pôle pour MANAGER — un MANAGER peut lire ou
+      créer une évaluation pour un freelance sans tâche dans son pôle
+    perimetre: 4.7-freelances
+    statut: resolu
+    gravite: moyenne
+    classe: idor-scope-manque
+
+  - id: SEC-026
+    titre: >
+      GET /freelancers/:id (getFreelancerById) ne scope jamais par pôle
+      pour MANAGER — freelancerService.getById n'a aucun paramètre de
+      scope, contrairement à getAll (list) qui filtre déjà via
+      user.tasks.some.project.serviceId ; un MANAGER peut lire par id
+      direct le profil complet (hourlyRate inclus) d'un freelance sans
+      tâche dans son pôle
+    perimetre: 4.7-freelances
+    statut: resolu
+    gravite: eleve
+    classe: idor-scope-manque
+
   - id: SEC-025
     titre: >
       clientOnboardingService/repository — updateOnboarding, deleteOnboarding,

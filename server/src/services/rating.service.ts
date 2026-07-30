@@ -12,12 +12,21 @@ import { env } from "../config/env.js";
 const LOW_RATING_ALERT_THRESHOLD = 2;
 
 export const ratingService = {
-  async addRating(freelancerId: string, score: number, comment?: string, ratedByUserId?: string) {
+  // SEC-027: mirrors freelancerRepository.findAll's own MANAGER pole filter
+  // (user.tasks.some.project.serviceId) — a freelancer with no task in the caller's pole is
+  // treated as out of scope, same rule as the freelancer list/lookup.
+  async addRating(freelancerId: string, score: number, comment?: string, ratedByUserId?: string, serviceId?: string | null) {
     if (score < 1 || score > 5 || !Number.isInteger(score)) {
       throw new HttpError(422, "Score must be an integer between 1 and 5");
     }
 
-    const profile = await prisma.freelancerProfile.findUnique({ where: { id: freelancerId }, select: { id: true, userId: true, user: { select: { name: true } } } });
+    const profile = await prisma.freelancerProfile.findFirst({
+      where: {
+        id: freelancerId,
+        ...(serviceId !== undefined ? { user: { tasks: { some: { project: { serviceId: serviceId ?? "__none__" } } } } } : {}),
+      },
+      select: { id: true, userId: true, user: { select: { name: true } } },
+    });
     if (!profile) throw new HttpError(404, "Freelancer profile not found");
 
     const rating = await prisma.rating.create({ data: { score, comment, freelancerId, ratedByUserId } });
@@ -48,7 +57,14 @@ export const ratingService = {
     return rating;
   },
 
-  async getRatingsByFreelancerId(freelancerId: string) {
+  async getRatingsByFreelancerId(freelancerId: string, serviceId?: string | null) {
+    if (serviceId !== undefined) {
+      const profile = await prisma.freelancerProfile.findFirst({
+        where: { id: freelancerId, user: { tasks: { some: { project: { serviceId: serviceId ?? "__none__" } } } } },
+        select: { id: true },
+      });
+      if (!profile) throw new HttpError(404, "Freelancer profile not found");
+    }
     return prisma.rating.findMany({
       where: { freelancerId },
       include: { ratedByUser: { select: { id: true, name: true } } },

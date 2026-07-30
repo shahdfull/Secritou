@@ -7,7 +7,103 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : 4.7 Freelances
-# 0 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
+# 2 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 
-anomalies: []
+anomalies:
+  - id: SEC-027
+    titre: >
+      GET/POST /ratings/freelancers/:freelancerId (getRatings/addRating)
+      ne scopent jamais par pôle pour MANAGER — un MANAGER peut lire ou
+      créer une évaluation pour un freelance sans tâche dans son pôle
+    perimetre: 4.7-freelances
+    regle_violee: >
+      RG-002 par analogie (voir SEC-026 ci-dessous, même fichier) — un
+      Manager ne devrait agir sur les ressources d'un freelance (ici, ses
+      évaluations) que si ce freelance a une tâche dans son pôle, cohérent
+      avec le filtre déjà appliqué à freelancerRepository.findAll.
+    classe: idor-scope-manque
+    gravite: moyenne
+    statut: resolu
+    critere_de_resolution: >
+      Un test réel appelle ratingService.addRating/getRatingsByFreelancerId
+      (ou les routes GET/POST /ratings/freelancers/:freelancerId) avec un
+      scope MANAGER dont le pôle ne correspond à aucun projet où le
+      freelance a une tâche assignée, et observe un rejet (403/404) au
+      lieu d'un succès — pour les deux opérations.
+    detecte_le: "2026-07-30"
+    source: >
+      Lecture intégrale de server/src/services/rating.service.ts,
+      server/src/controllers/rating.controller.ts,
+      server/src/routes/rating.routes.ts.
+    confiance: haute
+    note: >
+      Gravité moyenne (pas eleve comme SEC-026) : une évaluation n'est ni
+      une donnée financière (hourlyRate) ni un document contractuel — le
+      risque porte sur l'intégrité du processus d'évaluation (un manager
+      hors pôle notant un freelance qu'il ne supervise pas), pas sur une
+      fuite de données sensibles.
+      Corrigé (session du 2026-07-30) : ratingService.addRating/
+      getRatingsByFreelancerId acceptent désormais un serviceId, filtrant
+      via le même chemin de relation (user.tasks.some.project.serviceId)
+      que freelancerRepository.findAll. rating.controller.ts construit et
+      transmet le scope MANAGER. Nouveau
+      server/test/freelancerRatingScopeManager.test.ts (3 cas sur les 6,
+      appelle réellement ratingService contre une base migrée),
+      enregistré dans test/run-all.test.ts. `verifie: test`.
+
+  - id: SEC-026
+    titre: >
+      GET /freelancers/:id (getFreelancerById) ne scope jamais par pôle
+      pour MANAGER — freelancerService.getById n'a aucun paramètre de
+      scope, contrairement à getAll (list) qui filtre déjà via
+      user.tasks.some.project.serviceId ; un MANAGER peut lire par id
+      direct le profil complet (hourlyRate inclus) d'un freelance sans
+      tâche dans son pôle
+    perimetre: 4.7-freelances
+    regle_violee: >
+      RG-002 (Rattachement mission → pôle → associé) — un Manager ne peut
+      lire des ressources rattachées à un projet/mission que dans son
+      propre pôle ; ici étendu par analogie à freelancer.repository.ts#
+      findAll, qui applique déjà ce filtre pour la liste (via les tâches
+      du freelance sur des projets du pôle), mais jamais pour la lecture
+      par id direct.
+    classe: idor-scope-manque
+    gravite: eleve
+    statut: resolu
+    critere_de_resolution: >
+      Un test réel appelle freelancerService.getById (ou
+      GET /freelancers/:id) avec un scope MANAGER dont le serviceId ne
+      correspond à aucun projet où le freelance a une tâche assignée, et
+      observe un rejet (403/404) au lieu du profil complet
+      (hourlyRate/bio/email inclus) — tout en confirmant qu'un MANAGER du
+      bon pôle (ou un ADMIN) continue de le lire normalement.
+    detecte_le: "2026-07-30"
+    source: >
+      Lecture intégrale de server/src/services/freelancer.service.ts,
+      server/src/repositories/freelancer.repository.ts,
+      server/src/controllers/freelancer.controller.ts,
+      server/src/routes/freelancer.routes.ts (comparaison entre
+      freelancerRepository.findAll, qui applique déjà
+      user.tasks.some.project.serviceId côté MANAGER, et findById, qui ne
+      reçoit aucun paramètre de scope).
+    confiance: haute
+    note: >
+      redactSensitiveInfo (freelancer.controller.ts) masque correctement
+      hourlyRate/bio/email pour un FREELANCER consultant le profil d'un
+      collègue, et CLIENT n'a de toute façon accès à aucune de ces routes
+      (authorize() ne le liste jamais) — ces deux points, déjà confirmés
+      par REFERENTIEL.md §4.7 (lecture du 2026-07-17), tiennent toujours
+      à la relecture directe. Le trou concerne spécifiquement le MANAGER
+      via GET /freelancers/:id (lecture par id direct), jamais couvert
+      par cette lecture antérieure qui ne mentionnait que la liste.
+      Corrigé (session du 2026-07-30) : freelancerService.getById/
+      freelancerRepository.findById acceptent désormais un serviceId,
+      filtrant via user.tasks.some.project.serviceId (mêmes que
+      findAll) quand fourni ; findById passe de findUnique à findFirst
+      dans ce cas (findUnique ne permet pas de filtre de relation).
+      freelancer.controller.ts#getFreelancerById construit et transmet le
+      scope MANAGER. Mêmes 3 cas de
+      server/test/freelancerRatingScopeManager.test.ts (sur les 6, appelle
+      réellement freelancerService contre une base migrée). `verifie:
+      test`.
