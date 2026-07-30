@@ -32,7 +32,7 @@ anomalies:
       retry naïf du client à des messages dupliqués silencieusement.
     classe: ecriture-partielle-sans-etat-echec
     gravite: mineure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Le message USER n'est persisté qu'après succès de callOllama (ou,
       si un enregistrement immédiat est préféré pour ne pas perdre la
@@ -53,8 +53,9 @@ anomalies:
       injoignable dans cet environnement (OLLAMA_URL par défaut
       localhost:11434, aucun serveur Ollama local) pour déclencher le vrai
       chemin d'échec, et assère qu'aucune AiConversation n'est créée.
-      Statut laissé à en_cours : correctif écrit et testé localement mais
-      pas encore commité/vérifié en CI.
+      Commité (f5d0b9f), CI verte confirmée (6/6 checks GitHub Actions
+      completed/success : server, client, e2e, contrast-check, i18n-check,
+      restore-smoke-test) — statut corrigé à resolu.
 
   - id: SEC-033
     titre: >
@@ -73,7 +74,7 @@ anomalies:
       invalide » déjà rencontrée ailleurs dans le dépôt.
     classe: repli-silencieux-id-invalide
     gravite: mineure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       getPersona(id) lève une erreur explicite (ou retourne undefined
       géré par l'appelant) pour un id absent de personas, au lieu de
@@ -90,8 +91,8 @@ anomalies:
       même check a été ajouté dans callAgentWithRetry pour couvrir l'autre
       appelant. Nouveau server/test/personas.test.ts : appelle réellement
       getPersona avec un id inconnu (undefined attendu) et un id connu
-      (persona attendu). Statut laissé à en_cours : correctif écrit et
-      testé localement mais pas encore commité/vérifié en CI.
+      (persona attendu). Commité (f5d0b9f), CI verte confirmée (6/6 checks
+      GitHub Actions completed/success) — statut corrigé à resolu.
 
   - id: SEC-034
     titre: >
@@ -109,7 +110,7 @@ anomalies:
       transmis tel quel à un service externe (Ollama).
     classe: validation-entree-non-bornee
     gravite: mineure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       generateBriefSchema/generateTasksSchema imposent une limite de
       taille sérialisée (ex. JSON.stringify(context).length borné) et/ou
@@ -126,5 +127,6 @@ anomalies:
       texte/objet qu'un agent traite). Nouveau server/test/aiValidator.test.ts :
       appelle réellement generateBriefSchema/generateTasksSchema avec un
       context normal (accepté) et un context de 21000 caractères sérialisés
-      (rejeté sur les deux schémas). Statut laissé à en_cours : correctif
-      écrit et testé localement mais pas encore commité/vérifié en CI.
+      (rejeté sur les deux schémas). Commité (f5d0b9f), CI verte confirmée
+      (6/6 checks GitHub Actions completed/success) — statut corrigé à
+      resolu.

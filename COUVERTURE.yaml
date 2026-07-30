@@ -387,7 +387,7 @@ modules:
 
   "4.11-ia":
     label: "4.11 Module IA (agent-service)"
-    note: "Reclassé GELÉ → ACTIF le 2026-07-30 (décision explicite du porteur, voir REFERENTIEL.md §7). Audit A/B/G du 2026-07-30 : SEC-033 (getPersona fallback silencieux), SEC-034 (context non borné), SEC-035 (message USER persisté avant échec Ollama) — tous ouverts, gravité mineure, non bloquants pour la clôture."
+    note: "Reclassé GELÉ → ACTIF le 2026-07-30 (décision explicite du porteur, voir REFERENTIEL.md §7). Audit A/B/G du 2026-07-30 : SEC-033/034/035 trouvées puis toutes resolu le jour même (commit f5d0b9f, CI verte confirmée 6/6) — module intégralement sain."
     A: "2026-07-30"
     B: "2026-07-30"
     C: null
