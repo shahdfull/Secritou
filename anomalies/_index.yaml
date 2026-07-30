@@ -12,8 +12,23 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-035
+dernier_id: SEC-036
 anomalies:
+  - id: SEC-036
+    titre: >
+      clientPortalRepository.getOutstandingBalance (résumé du portail
+      client, GET /client-portal/summary) calcule
+      Math.max(Number(amount) - Number(amountPaid), 0) en arithmétique
+      flottante brute sans roundMoney(), contrairement au même calcul déjà
+      arrondi dans creditNote.service.ts#167 (roundMoney(Number(invoice.amount)
+      - Number(invoice.amountPaid))) — le solde restant dû affiché au
+      CLIENT peut porter un résidu de précision flottante (ex.
+      1200.0000000000002 au lieu de 1200)
+    perimetre: 4.6-portail-client
+    statut: ouvert
+    gravite: mineure
+    classe: arithmetique-flottante-brute-sur-montant
+
   - id: SEC-035
     titre: >
       aiConversationService.create/addMessage persistent le message USER

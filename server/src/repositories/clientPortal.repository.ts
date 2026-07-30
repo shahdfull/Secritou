@@ -1,4 +1,5 @@
 import { prismaRead } from "../config/prisma.js";
+import { roundMoney } from "../utils/vat.js";
 
 export const clientPortalRepository = {
   async getOutstandingBalance(clientId: string) {
@@ -8,7 +9,7 @@ export const clientPortalRepository = {
     });
     const amount = Number(agg._sum.amount ?? 0);
     const amountPaid = Number(agg._sum.amountPaid ?? 0);
-    return Math.max(amount - amountPaid, 0);
+    return Math.max(roundMoney(amount - amountPaid), 0);
   },
 
   async getNextDueInvoice(clientId: string) {
