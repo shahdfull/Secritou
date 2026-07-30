@@ -25,13 +25,15 @@ export const aiConversationService = {
   async create(userId: string, firstMessage: string, persona?: string) {
     // Auto-generate title from the first message (truncate to 60 chars)
     const title = firstMessage.slice(0, 60) + (firstMessage.length > 60 ? "…" : "");
-    const conv = await aiConversationRepository.create(userId, title, persona);
 
-    // Persist user message, call the LLM, persist reply
-    await aiConversationRepository.addMessage(conv.id, "USER", firstMessage);
-
+    // SEC-035: call the LLM before persisting anything — a failed/timed-out call must leave no
+    // trace (conversation or USER message) rather than an orphaned USER message with no reply,
+    // which a naive client retry would otherwise duplicate on every failed attempt.
     const history = [{ role: "user", content: firstMessage }];
     const reply = await callOllama(history, SYSTEM_PROMPT);
+
+    const conv = await aiConversationRepository.create(userId, title, persona);
+    await aiConversationRepository.addMessage(conv.id, "USER", firstMessage);
     const assistantMsg = await aiConversationRepository.addMessage(conv.id, "ASSISTANT", reply);
 
     return { conversation: conv, reply: assistantMsg };
@@ -41,15 +43,17 @@ export const aiConversationService = {
     const conv = await aiConversationRepository.findById(id, userId);
     if (!conv) throw new HttpError(404, "Conversation not found");
 
-    await aiConversationRepository.addMessage(conv.id, "USER", content);
-
-    // Build history for the LLM (last 20 messages to respect token limits)
+    // SEC-035: call the LLM before persisting the USER message — same rationale as create()
+    // above. History is built from what's already in DB plus the new message in memory, so no
+    // write is needed before the call.
     const recentMessages = conv.messages.slice(-20);
     const history = [
       ...recentMessages.map((m) => ({ role: toChatRole(m.role), content: m.content })),
       { role: "user", content },
     ];
     const reply = await callOllama(history, SYSTEM_PROMPT);
+
+    await aiConversationRepository.addMessage(conv.id, "USER", content);
     const assistantMsg = await aiConversationRepository.addMessage(conv.id, "ASSISTANT", reply);
 
     return { reply: assistantMsg };

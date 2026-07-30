@@ -32,7 +32,7 @@ anomalies:
       retry naïf du client à des messages dupliqués silencieusement.
     classe: ecriture-partielle-sans-etat-echec
     gravite: mineure
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       Le message USER n'est persisté qu'après succès de callOllama (ou,
       si un enregistrement immédiat est préféré pour ne pas perdre la
@@ -45,10 +45,16 @@ anomalies:
     source: lecture_directe
     confiance: haute
     note: >
-      Non bloquant pour le lancement — dégrade l'expérience (historique
-      pollué de messages sans réponse après un timeout Ollama) sans
-      exposer de faille de sécurité ni de calcul métier faux. Backlog
-      post-lancement.
+      Corrigé (session du 2026-07-30) : aiConversationService.create/
+      addMessage appellent désormais callOllama AVANT toute écriture Prisma
+      — aucun message n'est persisté si l'appel échoue. Nouveau
+      server/test/aiConversationOllamaFailure.test.ts : appelle réellement
+      aiConversationService.create contre une vraie base, avec Ollama
+      injoignable dans cet environnement (OLLAMA_URL par défaut
+      localhost:11434, aucun serveur Ollama local) pour déclencher le vrai
+      chemin d'échec, et assère qu'aucune AiConversation n'est créée.
+      Statut laissé à en_cours : correctif écrit et testé localement mais
+      pas encore commité/vérifié en CI.
 
   - id: SEC-033
     titre: >
@@ -67,7 +73,7 @@ anomalies:
       invalide » déjà rencontrée ailleurs dans le dépôt.
     classe: repli-silencieux-id-invalide
     gravite: mineure
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       getPersona(id) lève une erreur explicite (ou retourne undefined
       géré par l'appelant) pour un id absent de personas, au lieu de
@@ -77,9 +83,15 @@ anomalies:
     source: lecture_directe
     confiance: haute
     note: >
-      Non bloquant pour le lancement (aucun appelant actuel ne passe un id
-      utilisateur) — laissé ouvert, gravité mineure, backlog post-lancement
-      sauf si un futur appelant expose personaId au choix de l'utilisateur.
+      Corrigé (session du 2026-07-30) : getPersona retourne désormais
+      Persona | undefined (personas[id], sans fallback) ; le check
+      agentOrchestrator.service.ts#executeAgent (if (!persona) throw
+      HttpError(404)) devient effectif au lieu d'être du code mort, et le
+      même check a été ajouté dans callAgentWithRetry pour couvrir l'autre
+      appelant. Nouveau server/test/personas.test.ts : appelle réellement
+      getPersona avec un id inconnu (undefined attendu) et un id connu
+      (persona attendu). Statut laissé à en_cours : correctif écrit et
+      testé localement mais pas encore commité/vérifié en CI.
 
   - id: SEC-034
     titre: >
@@ -97,7 +109,7 @@ anomalies:
       transmis tel quel à un service externe (Ollama).
     classe: validation-entree-non-bornee
     gravite: mineure
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       generateBriefSchema/generateTasksSchema imposent une limite de
       taille sérialisée (ex. JSON.stringify(context).length borné) et/ou
@@ -108,8 +120,11 @@ anomalies:
     source: lecture_directe
     confiance: haute
     note: >
-      Non bloquant pour le lancement — seuls Admin/Manager authentifiés
-      atteignent cette route (RG-014), et aiRateLimit borne la fréquence.
-      Risque résiduel : un seul appel large peut gonfler le prompt envoyé à
-      Ollama (coût/latence), pas une vulnérabilité d'accès. Backlog
-      post-lancement.
+      Corrigé (session du 2026-07-30) : ai.validator.ts#agentContext ajoute
+      un .refine() rejetant tout context dont la sérialisation JSON dépasse
+      20000 caractères (même borne que cvExtraction.service.ts pour un
+      texte/objet qu'un agent traite). Nouveau server/test/aiValidator.test.ts :
+      appelle réellement generateBriefSchema/generateTasksSchema avec un
+      context normal (accepté) et un context de 21000 caractères sérialisés
+      (rejeté sur les deux schémas). Statut laissé à en_cours : correctif
+      écrit et testé localement mais pas encore commité/vérifié en CI.

@@ -50,6 +50,7 @@ async function callAgentWithRetry<T>(
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const persona = getPersona(personaId);
+      if (!persona) throw new HttpError(404, "Persona not found");
       const systemPrompt = persona.systemPrompt;
 
       // Build user message with context data

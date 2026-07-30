@@ -28,6 +28,8 @@ anomalies:
     statut: ouvert
     gravite: moyenne
     classe: ecriture-multi-etapes-sans-transaction
+
+  - id: SEC-036
     titre: >
       clientPortalRepository.getOutstandingBalance (résumé du portail
       client, GET /client-portal/summary) calcule
@@ -38,7 +40,7 @@ anomalies:
       CLIENT peut porter un résidu de précision flottante (ex.
       1200.0000000000002 au lieu de 1200)
     perimetre: 4.6-portail-client
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: arithmetique-flottante-brute-sur-montant
 
@@ -53,7 +55,7 @@ anomalies:
       USER orphelin dans l'historique de la même conversation, aucun état
       « échoué » n'est jamais écrit
     perimetre: 4.11-ia
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: ecriture-partielle-sans-etat-echec
 
@@ -66,7 +68,7 @@ anomalies:
       seul aiRateLimit (limite de fréquence) protège ce chemin, aucune
       limite de volume
     perimetre: 4.11-ia
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: validation-entree-non-bornee
 
@@ -80,7 +82,7 @@ anomalies:
       directement à getPersona exécuterait silencieusement le mauvais
       persona plutôt que d'échouer
     perimetre: 4.11-ia
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: repli-silencieux-id-invalide
 

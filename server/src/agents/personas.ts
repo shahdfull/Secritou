@@ -81,6 +81,6 @@ Méthodique, précis, orienté résultats. Tu décomposes les tâches de manièr
   }
 };
 
-export function getPersona(id: string): Persona {
-  return personas[id] || Object.values(personas)[0];
+export function getPersona(id: string): Persona | undefined {
+  return personas[id];
 }
