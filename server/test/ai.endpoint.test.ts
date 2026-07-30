@@ -16,7 +16,11 @@ function runMiddleware(middleware: ReturnType<typeof authorize>, req: Partial<Re
   });
 }
 
-test.describe("AI Endpoints", () => {
+// SEC-044: /ai/chat (the endpoint this file originally covered) was removed as dead code — no
+// client/src code ever called it. The only real AI endpoints left are /ai/conversations/*
+// (aiConversation.routes.ts), which use the exact same authorize("ADMIN", "MANAGER") gate this
+// test still exercises.
+test.describe("AI Endpoints (/ai/conversations/*)", () => {
   test("authorize allows ADMIN and MANAGER for AI endpoints", async () => {
     const middleware = authorize("ADMIN", "MANAGER");
 

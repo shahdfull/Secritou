@@ -90,7 +90,7 @@ anomalies:
       agent, avant que SEC-044 ne révèle que /ai/chat était mort aussi).
     classe: affirmation-factuelle-non-sourcee
     gravite: moyenne
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       Les 4 emplacements cités (REFERENTIEL.md §4.11, SEC-040, SEC-043,
       EXPLORATION.md ligne 36) sont corrigés pour refléter l'état réel du
@@ -116,6 +116,22 @@ anomalies:
       la même passe que la correction de SEC-044/SEC-045, pas
       différée.
 
+      Corrigé (même session, même jour 2026-07-30) : REFERENTIEL.md §4.11
+      réécrit pour décrire précisément la vraie chaîne (AIAssistantFloat.tsx
+      délègue à AIAssistantPage.tsx, qui appelle useCreateConversation/
+      useAddMessage → /ai/conversations/*, jamais /ai/chat) et pour
+      documenter le retrait de /ai/chat (SEC-044) au même titre que
+      SEC-040. EXPLORATION.md ligne 36 corrigée pour marquer
+      personas.ts/agentOrchestrator.service.ts/ai.controller.ts/
+      ai.routes.ts/ai.validator.ts comme supprimés, sans les retirer de
+      l'historique (ce sont des faits sur ce qui avait été lu à l'époque,
+      pas une erreur en soi — seule l'absence de mise à jour après
+      suppression était le défaut). SEC-043 (note) et SEC-040 (note,
+      titre laissé inchangé conformément à la règle CLAUDE.md « jamais
+      son titre ») corrigés avec le même luxe de détail. Statut laissé à
+      en_cours : correctifs écrits localement mais pas encore
+      commités/vérifiés en CI.
+
   - id: SEC-045
     titre: >
       businessMetrics.logAgentCall (server/src/observability/businessMetrics.ts)
@@ -132,7 +148,7 @@ anomalies:
       la même passe qui a retiré executeAgent.
     classe: metrique-orpheline-sans-appelant
     gravite: mineure
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       logAgentCall, agentCallCounter et agentCallDuration sont retirés de
       businessMetrics.ts — vérifié par grep confirmant zéro référence
@@ -147,6 +163,14 @@ anomalies:
     note: >
       Rien dans monitoring/ ne référence ces métriques (pas de panneau
       Grafana cassé) — simple nettoyage, non bloquant pour le lancement.
+
+      Corrigé (même session, même jour 2026-07-30) : logAgentCall,
+      agentCallCounter, agentCallDuration retirés de businessMetrics.ts ;
+      import Histogram devenu inutile retiré aussi. Grep confirmant zéro
+      référence restante à agent_call_total/agent_call_duration_seconds/
+      logAgentCall dans server/src. Statut laissé à en_cours : correctif
+      écrit et vérifié (typecheck/lint) localement mais pas encore
+      commité/vérifié en CI.
 
   - id: SEC-044
     titre: >
@@ -169,7 +193,7 @@ anomalies:
       soit son niveau de qualité côté code.
     classe: capacite-serveur-sans-point-dentree-frontend
     gravite: mineure
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       ai.controller.ts#chat, ai.routes.ts (route POST /ai/chat) et
       ai.validator.ts#chatSchema sont retirés dans leur intégralité, ainsi
@@ -188,6 +212,25 @@ anomalies:
       SYSTEM_PROMPT dupliqué à l'identique dans ai.controller.ts et
       aiConversation.service.ts se résorbe automatiquement en retirant
       ai.controller.ts#chat.
+
+      Corrigé (même session, même jour 2026-07-30) : ai.controller.ts,
+      ai.routes.ts, ai.validator.ts supprimés dans leur intégralité (plus
+      seulement generateBrief/generateTasks — chat aussi). Montage
+      apiRoutes.use("/ai", aiRoutes) retiré de routes/index.ts (le
+      montage /ai/conversations reste intact, distinct). Le type
+      ChatMessage n'est plus réexporté par client/src/api/ai.api.ts
+      (fichier supprimé) — AIAssistantFloat.tsx et AdminLayout.tsx
+      importent désormais ce type depuis
+      client/src/features/ai-assistant/AIAssistantPage.tsx, où il était
+      déjà défini et exporté ("Legacy ChatMessage type"). ai.endpoint.test.ts
+      renommé en interne pour refléter qu'il couvre désormais
+      /ai/conversations/* (même authorize("ADMIN","MANAGER")), pas /ai/chat.
+      Vérifié : tsc --noEmit et npm run lint propres côté serveur et
+      client (0 error, mêmes 11 warnings react-refresh déjà documentés
+      comme exception acceptée) ; suite serveur complète 702/702 ; Vite
+      dev démarre sans erreur de résolution de module. Statut laissé à
+      en_cours : correctif écrit et vérifié localement mais pas encore
+      commité/vérifié en CI.
 
   - id: SEC-043
     titre: >
@@ -251,12 +294,22 @@ anomalies:
       plutôt que de le corriger — cf. SEC-040. agentOrchestrator.service.ts
       (et donc ce double-appel) a été supprimé dans son intégralité, ainsi
       que ai.controller.ts#generateBrief/generateTasks et
-      ai.routes.ts#POST /ai/brief,/ai/tasks. Le seul chemin IA restant
-      (/ai/chat → aiConversation.service.ts, utilisé par
-      AIAssistantFloat.tsx) n'a jamais eu ce défaut : create()/addMessage
-      y sont le mécanisme de persistance légitime du chat, pas un
-      archivage détourné. Commité (aebe1b9), CI verte confirmée (6/6
-      checks GitHub Actions completed/success) — statut corrigé à resolu.
+      ai.routes.ts#POST /ai/brief,/ai/tasks. Commité (aebe1b9), CI verte
+      confirmée (6/6 checks GitHub Actions completed/success) — statut
+      corrigé à resolu.
+
+      Correction (SEC-046, contre-vérification du porteur) : la phrase
+      ci-dessus affirmait à tort que /ai/chat (« le seul chemin IA
+      restant ») « utilise aiConversation.service.ts » et est « utilisé
+      par AIAssistantFloat.tsx » — les deux étaient des déductions non
+      revérifiées, pas des observations directes. En réalité,
+      ai.controller.ts#chat appelait callOllama directement sans jamais
+      persister via aiConversationService, et /ai/chat s'est révélé
+      lui-même sans appelant réel côté client/src (SEC-044) — il a été
+      retiré dans la même session que cette correction. Le vrai chemin
+      persistant (via aiConversation.service.ts, consommé par
+      AIAssistantPage.tsx/useCreateConversation-useAddMessage) reste
+      inchangé et n'a jamais eu ce défaut de double appel.
 
   - id: SEC-042
     titre: >
@@ -419,6 +472,15 @@ anomalies:
       (ai.endpoint.test.ts, aiExecutionAccessClient.test.ts gardent
       uniquement ce qui reste pertinent : authorize() sur /ai/chat, et la
       preuve grep RG-016/RG-017 qu'aucune primitive d'exécution n'existe).
+      Correction du titre non appliquée (règle CLAUDE.md « jamais son
+      titre ») : le titre dit « Les 3 endpoints » mais n'en liste que 2
+      (/ai/brief, /ai/tasks) — erreur de comptage à l'origine, jamais
+      corrigée. Voir SEC-046 (constat de la même famille, affirmations
+      factuelles non revérifiées) pour la traçabilité de cette
+      imprécision — /ai/chat, alors présumé vivant, s'est révélé lui
+      aussi sans appelant réel (SEC-044), ce qui aurait fait « 3 » si le
+      titre avait initialement inclus les 3 avec ce sens-là, mais ce
+      n'était pas l'intention au moment de sa rédaction.
       Suite complète (test:unit) : 702/702 verts localement. Décision
       actée ici même, reportée dans REFERENTIEL.md §7 dans la même passe
       de commit (règle CLAUDE.md sur la traçabilité des décisions du

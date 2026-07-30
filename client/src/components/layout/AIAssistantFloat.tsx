@@ -10,8 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AIAssistantPage } from "@/features/ai-assistant/AIAssistantPage";
-import { type ChatMessage } from "@/api/ai.api";
+import { AIAssistantPage, type ChatMessage } from "@/features/ai-assistant/AIAssistantPage";
 
 interface AIAssistantFloatProps {
   open: boolean;

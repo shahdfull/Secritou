@@ -51,7 +51,7 @@ import { GlobalSearch } from "@/components/common/GlobalSearch";
 import { routePrefetch } from "@/routes/routePrefetch";
 import { useTranslation } from "react-i18next";
 import { AIAssistantFloat } from "./AIAssistantFloat";
-import { type ChatMessage } from "@/api/ai.api";
+import { type ChatMessage } from "@/features/ai-assistant/AIAssistantPage";
 
 type MenuItem = { key: string; url: string; icon: React.ElementType; permModule?: Module; group: "manage" | "analytics" | "other"; adminOnly?: boolean };
 

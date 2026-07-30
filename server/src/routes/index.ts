@@ -17,7 +17,6 @@ import notificationRoutes from "./notification.routes.js";
 import documentRoutes from "./document.routes.js";
 import userRoutes from "./user.routes.js";
 import searchRoutes from "./search.routes.js";
-import aiRoutes from "./ai.routes.js";
 import freelancerApplicationRoutes from "./freelancerApplication.routes.js";
 import clientOnboardingRoutes from "./clientOnboarding.routes.js";
 import proposalRoutes from "./proposal.routes.js";
@@ -174,9 +173,8 @@ apiRoutes.use("/analytics", analyticsRoutes);
 // Service Request routes
 apiRoutes.use("/service-requests", serviceRequestRoutes);
 
-// Search & AI routes
+// Search
 apiRoutes.use("/search", searchRoutes);
-apiRoutes.use("/ai", aiRoutes);
 
 // Premium portal routes
 apiRoutes.use("/proposals", proposalRoutes);
