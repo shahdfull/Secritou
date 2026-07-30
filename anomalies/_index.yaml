@@ -12,8 +12,23 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-024
+dernier_id: SEC-025
 anomalies:
+  - id: SEC-025
+    titre: >
+      clientOnboardingService/repository — updateOnboarding, deleteOnboarding,
+      updateStep, addStep et les 14 méthodes create/update de sous-entité
+      (Contract, Payment, Questionnaire, Specifications, Kickoff,
+      Production, Delivery) ne reçoivent ni ne vérifient jamais
+      managerServiceId — seules les 3 méthodes de lecture (findAll/
+      findById/findByProjectId) scopent par pôle ; un MANAGER peut
+      créer/modifier un contrat ou un paiement d'onboarding de n'importe
+      quel client, hors de son pôle
+    perimetre: 4.3-onboarding
+    statut: resolu
+    gravite: bloquant
+    classe: idor-scope-manque
+
   - id: SEC-023
     titre: >
       .github/workflows/ci.yml et backup.yml référencent actions/checkout@v4,

@@ -95,10 +95,12 @@ export const updateOnboarding: RequestHandler[] = [
   async (req, res, next) => {
     try {
       const userClientId = req.user?.clientId;
+      const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
       const onboarding = await clientOnboardingService.updateOnboarding(
         req.params.id as string,
         req.body,
-        userClientId
+        userClientId,
+        scope?.userServiceId
       );
       res.json({ data: onboarding });
     } catch (error) {
@@ -129,10 +131,12 @@ export const updateStep: RequestHandler[] = [
   async (req, res, next) => {
     try {
       const userClientId = req.user?.clientId;
+      const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
       const step = await clientOnboardingService.updateStep(
         req.params.stepId as string,
         req.body,
-        userClientId
+        userClientId,
+        scope?.userServiceId
       );
       res.json({ data: step });
     } catch (error) {
@@ -147,10 +151,12 @@ export const createContract: RequestHandler[] = [
   async (req, res, next) => {
     try {
       const userClientId = req.user?.clientId;
+      const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
       const contract = await clientOnboardingService.createContract(
         req.params.stepId as string,
         req.body,
-        userClientId
+        userClientId,
+        scope?.userServiceId
       );
       res.status(201).json({ data: contract });
     } catch (error) {
@@ -164,10 +170,12 @@ export const updateContract: RequestHandler[] = [
   async (req, res, next) => {
     try {
       const userClientId = req.user?.clientId;
+      const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
       const contract = await clientOnboardingService.updateContract(
         req.params.contractId as string,
         req.body,
-        userClientId
+        userClientId,
+        scope?.userServiceId
       );
       res.json({ data: contract });
     } catch (error) {
@@ -182,10 +190,12 @@ export const createPayment: RequestHandler[] = [
   async (req, res, next) => {
     try {
       const userClientId = req.user?.clientId;
+      const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
       const payment = await clientOnboardingService.createPayment(
         req.params.stepId as string,
         req.body,
-        userClientId
+        userClientId,
+        scope?.userServiceId
       );
       res.status(201).json({ data: payment });
     } catch (error) {
@@ -199,10 +209,12 @@ export const updatePayment: RequestHandler[] = [
   async (req, res, next) => {
     try {
       const userClientId = req.user?.clientId;
+      const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
       const payment = await clientOnboardingService.updatePayment(
         req.params.paymentId as string,
         req.body,
-        userClientId
+        userClientId,
+        scope?.userServiceId
       );
       res.json({ data: payment });
     } catch (error) {
@@ -217,10 +229,12 @@ export const createQuestionnaire: RequestHandler[] = [
   async (req, res, next) => {
     try {
       const userClientId = req.user?.clientId;
+      const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
       const questionnaire = await clientOnboardingService.createQuestionnaire(
         req.params.stepId as string,
         req.body,
-        userClientId
+        userClientId,
+        scope?.userServiceId
       );
       res.status(201).json({ data: questionnaire });
     } catch (error) {
@@ -234,10 +248,12 @@ export const updateQuestionnaire: RequestHandler[] = [
   async (req, res, next) => {
     try {
       const userClientId = req.user?.clientId;
+      const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
       const questionnaire = await clientOnboardingService.updateQuestionnaire(
         req.params.questionnaireId as string,
         req.body,
-        userClientId
+        userClientId,
+        scope?.userServiceId
       );
       res.json({ data: questionnaire });
     } catch (error) {
@@ -252,10 +268,12 @@ export const createSpecifications: RequestHandler[] = [
   async (req, res, next) => {
     try {
       const userClientId = req.user?.clientId;
+      const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
       const specifications = await clientOnboardingService.createSpecifications(
         req.params.stepId as string,
         req.body,
-        userClientId
+        userClientId,
+        scope?.userServiceId
       );
       res.status(201).json({ data: specifications });
     } catch (error) {
@@ -269,10 +287,12 @@ export const updateSpecifications: RequestHandler[] = [
   async (req, res, next) => {
     try {
       const userClientId = req.user?.clientId;
+      const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
       const specifications = await clientOnboardingService.updateSpecifications(
         req.params.specificationsId as string,
         req.body,
-        userClientId
+        userClientId,
+        scope?.userServiceId
       );
       res.json({ data: specifications });
     } catch (error) {
@@ -287,10 +307,12 @@ export const createKickoff: RequestHandler[] = [
   async (req, res, next) => {
     try {
       const userClientId = req.user?.clientId;
+      const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
       const kickoff = await clientOnboardingService.createKickoff(
         req.params.stepId as string,
         req.body,
-        userClientId
+        userClientId,
+        scope?.userServiceId
       );
       res.status(201).json({ data: kickoff });
     } catch (error) {
@@ -304,10 +326,12 @@ export const updateKickoff: RequestHandler[] = [
   async (req, res, next) => {
     try {
       const userClientId = req.user?.clientId;
+      const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
       const kickoff = await clientOnboardingService.updateKickoff(
         req.params.kickoffId as string,
         req.body,
-        userClientId
+        userClientId,
+        scope?.userServiceId
       );
       res.json({ data: kickoff });
     } catch (error) {
@@ -322,10 +346,12 @@ export const createProduction: RequestHandler[] = [
   async (req, res, next) => {
     try {
       const userClientId = req.user?.clientId;
+      const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
       const production = await clientOnboardingService.createProduction(
         req.params.stepId as string,
         req.body,
-        userClientId
+        userClientId,
+        scope?.userServiceId
       );
       res.status(201).json({ data: production });
     } catch (error) {
@@ -339,10 +365,12 @@ export const updateProduction: RequestHandler[] = [
   async (req, res, next) => {
     try {
       const userClientId = req.user?.clientId;
+      const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
       const production = await clientOnboardingService.updateProduction(
         req.params.productionId as string,
         req.body,
-        userClientId
+        userClientId,
+        scope?.userServiceId
       );
       res.json({ data: production });
     } catch (error) {
@@ -357,10 +385,12 @@ export const createDelivery: RequestHandler[] = [
   async (req, res, next) => {
     try {
       const userClientId = req.user?.clientId;
+      const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
       const delivery = await clientOnboardingService.createDelivery(
         req.params.stepId as string,
         req.body,
-        userClientId
+        userClientId,
+        scope?.userServiceId
       );
       res.status(201).json({ data: delivery });
     } catch (error) {
@@ -374,10 +404,12 @@ export const updateDelivery: RequestHandler[] = [
   async (req, res, next) => {
     try {
       const userClientId = req.user?.clientId;
+      const scope = req.user?.role === "MANAGER" ? await buildServiceScope(req) : undefined;
       const delivery = await clientOnboardingService.updateDelivery(
         req.params.deliveryId as string,
         req.body,
-        userClientId
+        userClientId,
+        scope?.userServiceId
       );
       res.json({ data: delivery });
     } catch (error) {

@@ -7,7 +7,70 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : 4.3 Onboarding client
-# 0 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
+# 1 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 
-anomalies: []
+anomalies:
+  - id: SEC-025
+    titre: >
+      clientOnboardingService/repository — updateOnboarding, deleteOnboarding,
+      updateStep, addStep et les 14 méthodes create/update de sous-entité
+      (Contract, Payment, Questionnaire, Specifications, Kickoff,
+      Production, Delivery) ne reçoivent ni ne vérifient jamais
+      managerServiceId — seules les 3 méthodes de lecture (findAll/
+      findById/findByProjectId) scopent par pôle ; un MANAGER peut
+      créer/modifier un contrat ou un paiement d'onboarding de n'importe
+      quel client, hors de son pôle
+    perimetre: 4.3-onboarding
+    regle_violee: >
+      RG-002 (Rattachement mission → pôle → associé) — un Manager (associé)
+      ne peut créer, lire ou modifier des ressources d'un projet/client que
+      dans son propre pôle.
+    classe: idor-scope-manque
+    gravite: bloquant
+    statut: resolu
+    critere_de_resolution: >
+      Un test réel appelle chacune des méthodes d'écriture concernées
+      (updateOnboarding, deleteOnboarding, updateStep, addStep,
+      create/updateContract, create/updatePayment,
+      create/updateQuestionnaire, create/updateSpecifications,
+      create/updateKickoff, create/updateProduction,
+      create/updateDelivery) avec un scope MANAGER dont le serviceId
+      diffère de celui du projet/client propriétaire de l'onboarding
+      ciblé, et observe un rejet (403/404) au lieu d'un succès — pour
+      chacune.
+    detecte_le: "2026-07-30"
+    source: >
+      Lecture intégrale de server/src/services/clientOnboarding.service.ts,
+      server/src/repositories/clientOnboarding.repository.ts,
+      server/src/controllers/clientOnboarding.controller.ts,
+      server/src/routes/clientOnboarding.routes.ts (comparaison entre les
+      3 méthodes de lecture, qui reçoivent bien managerServiceId et
+      filtrent via project.serviceId — commentaire "previously unscoped"
+      confirmant une correction antérieure sur ce point précis côté
+      lecture seule — et les 18 méthodes d'écriture, qui ne reçoivent que
+      userClientId).
+    confiance: haute
+    note: >
+      Toutes les routes d'écriture (POST/PUT sur onboarding, step,
+      contract, payment, questionnaire, specifications, kickoff,
+      production, delivery) sont authorize("ADMIN","MANAGER"[,"CLIENT"])
+      + requirePermission("client-onboarding", <action>) — la garde RBAC
+      granulaire passe, mais aucun scope de pôle n'est jamais revérifié
+      derrière elle, contrairement au pattern assertProjectInScope déjà
+      établi ailleurs (task.service.ts, projectMeeting.service.ts,
+      projectTemplate.service.ts, timeEntry.service.ts — SEC-020).
+      Gravité bloquant (pas seulement eleve) car les entités concernées
+      incluent Contract et Payment — des documents contractuels et
+      financiers, pas seulement des métadonnées de suivi.
+      Corrigé (session du 2026-07-30) : managerServiceId ajouté à
+      updateOnboarding, updateStep, addStep et aux 14 méthodes
+      create/update de sous-entité (repository + service + contrôleur,
+      pattern identique à userClientId déjà en place — where.project ou
+      where.onboarding.project/onboardingStep.onboarding.project selon la
+      profondeur de relation). deleteOnboarding non modifié (route
+      ADMIN-only, aucun MANAGER ne l'atteint). Nouveau
+      server/test/clientOnboardingWriteScopeManager.test.ts (9 cas,
+      appelle réellement clientOnboardingService contre une base migrée —
+      onboarding, step, contract, payment, ADMIN non scopé), enregistré
+      dans test/run-all.test.ts. `verifie: test`.

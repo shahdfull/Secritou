@@ -131,36 +131,40 @@ export const clientOnboardingRepository = {
     });
   },
 
-  async update(id: string, data: { assignedUserId?: string }, userClientId?: string | null): Promise<FullOnboarding> {
+  async update(id: string, data: { assignedUserId?: string }, userClientId?: string | null, managerServiceId?: string | null): Promise<FullOnboarding> {
     const where: Prisma.ClientOnboardingWhereInput = { id };
     if (userClientId) where.clientId = userClientId;
+    if (managerServiceId !== undefined) where.project = { serviceId: managerServiceId ?? "__none__" };
     // First find to make sure it exists and we can get id for update
     const existing = await prismaRead.clientOnboarding.findFirst({ where, select: { id: true } });
     if (!existing) throw new Error("Onboarding not found");
     return prisma.clientOnboarding.update({ where: { id: existing.id }, data, include: fullOnboardingInclude });
   },
 
-  async delete(id: string, userClientId?: string | null): Promise<ClientOnboarding> {
+  async delete(id: string, userClientId?: string | null, managerServiceId?: string | null): Promise<ClientOnboarding> {
     const where: Prisma.ClientOnboardingWhereInput = { id };
     if (userClientId) where.clientId = userClientId;
+    if (managerServiceId !== undefined) where.project = { serviceId: managerServiceId ?? "__none__" };
     const existing = await prismaRead.clientOnboarding.findFirst({ where, select: { id: true } });
     if (!existing) throw new Error("Onboarding not found");
     return prisma.clientOnboarding.delete({ where: { id: existing.id } });
   },
 
-  async addStep(onboardingId: string, data: Omit<Prisma.OnboardingStepCreateInput, "onboarding">, userClientId?: string | null): Promise<OnboardingStep> {
+  async addStep(onboardingId: string, data: Omit<Prisma.OnboardingStepCreateInput, "onboarding">, userClientId?: string | null, managerServiceId?: string | null): Promise<OnboardingStep> {
     const where: Prisma.ClientOnboardingWhereInput = { id: onboardingId };
     if (userClientId) where.clientId = userClientId;
+    if (managerServiceId !== undefined) where.project = { serviceId: managerServiceId ?? "__none__" };
     await prisma.clientOnboarding.findFirstOrThrow({ where, select: { id: true } });
     return prisma.onboardingStep.create({ data: { onboarding: { connect: { id: onboardingId } }, ...data } });
   },
 
-  async updateStep(stepId: string, data: Prisma.OnboardingStepUpdateInput, userClientId?: string | null): Promise<OnboardingStep> {
-    // Find step and check if parent onboarding belongs to userClientId
+  async updateStep(stepId: string, data: Prisma.OnboardingStepUpdateInput, userClientId?: string | null, managerServiceId?: string | null): Promise<OnboardingStep> {
+    // Find step and check if parent onboarding belongs to userClientId / managerServiceId
     const step = await prismaRead.onboardingStep.findFirst({
       where: {
         id: stepId,
-        ...(userClientId ? { onboarding: { clientId: userClientId } } : {})
+        ...(userClientId ? { onboarding: { clientId: userClientId } } : {}),
+        ...(managerServiceId !== undefined ? { onboarding: { project: { serviceId: managerServiceId ?? "__none__" } } } : {}),
       },
       select: { id: true }
     });
@@ -172,11 +176,12 @@ export const clientOnboardingRepository = {
     });
   },
 
-  async createContract(stepId: string, data: Omit<Prisma.ContractCreateInput, "onboardingStep">, userClientId?: string | null): Promise<Contract> {
+  async createContract(stepId: string, data: Omit<Prisma.ContractCreateInput, "onboardingStep">, userClientId?: string | null, managerServiceId?: string | null): Promise<Contract> {
     const step = await prismaRead.onboardingStep.findFirst({
       where: {
         id: stepId,
-        ...(userClientId ? { onboarding: { clientId: userClientId } } : {})
+        ...(userClientId ? { onboarding: { clientId: userClientId } } : {}),
+        ...(managerServiceId !== undefined ? { onboarding: { project: { serviceId: managerServiceId ?? "__none__" } } } : {}),
       },
       select: { id: true }
     });
@@ -184,11 +189,12 @@ export const clientOnboardingRepository = {
     return prisma.contract.create({ data: { onboardingStep: { connect: { id: step.id } }, ...data } });
   },
 
-  async updateContract(contractId: string, data: Prisma.ContractUpdateInput, userClientId?: string | null): Promise<Contract> {
+  async updateContract(contractId: string, data: Prisma.ContractUpdateInput, userClientId?: string | null, managerServiceId?: string | null): Promise<Contract> {
     const contract = await prismaRead.contract.findFirst({
       where: {
         id: contractId,
-        ...(userClientId ? { onboardingStep: { onboarding: { clientId: userClientId } } } : {})
+        ...(userClientId ? { onboardingStep: { onboarding: { clientId: userClientId } } } : {}),
+        ...(managerServiceId !== undefined ? { onboardingStep: { onboarding: { project: { serviceId: managerServiceId ?? "__none__" } } } } : {}),
       },
       select: { id: true }
     });
@@ -196,11 +202,12 @@ export const clientOnboardingRepository = {
     return prisma.contract.update({ where: { id: contract.id }, data });
   },
 
-  async createPayment(stepId: string, data: Omit<Prisma.PaymentCreateInput, "onboardingStep">, userClientId?: string | null): Promise<Payment> {
+  async createPayment(stepId: string, data: Omit<Prisma.PaymentCreateInput, "onboardingStep">, userClientId?: string | null, managerServiceId?: string | null): Promise<Payment> {
     const step = await prismaRead.onboardingStep.findFirst({
       where: {
         id: stepId,
-        ...(userClientId ? { onboarding: { clientId: userClientId } } : {})
+        ...(userClientId ? { onboarding: { clientId: userClientId } } : {}),
+        ...(managerServiceId !== undefined ? { onboarding: { project: { serviceId: managerServiceId ?? "__none__" } } } : {}),
       },
       select: { id: true }
     });
@@ -208,11 +215,12 @@ export const clientOnboardingRepository = {
     return prisma.payment.create({ data: { onboardingStep: { connect: { id: step.id } }, ...data } });
   },
 
-  async updatePayment(paymentId: string, data: Prisma.PaymentUpdateInput, userClientId?: string | null): Promise<Payment> {
+  async updatePayment(paymentId: string, data: Prisma.PaymentUpdateInput, userClientId?: string | null, managerServiceId?: string | null): Promise<Payment> {
     const payment = await prismaRead.payment.findFirst({
       where: {
         id: paymentId,
-        ...(userClientId ? { onboardingStep: { onboarding: { clientId: userClientId } } } : {})
+        ...(userClientId ? { onboardingStep: { onboarding: { clientId: userClientId } } } : {}),
+        ...(managerServiceId !== undefined ? { onboardingStep: { onboarding: { project: { serviceId: managerServiceId ?? "__none__" } } } } : {}),
       },
       select: { id: true }
     });
@@ -223,12 +231,14 @@ export const clientOnboardingRepository = {
   async createQuestionnaire(
     stepId: string,
     data: { serviceType?: string; data?: unknown; isDraft?: boolean },
-    userClientId?: string | null
+    userClientId?: string | null,
+    managerServiceId?: string | null
   ): Promise<Questionnaire> {
     const step = await prismaRead.onboardingStep.findFirst({
       where: {
         id: stepId,
-        ...(userClientId ? { onboarding: { clientId: userClientId } } : {})
+        ...(userClientId ? { onboarding: { clientId: userClientId } } : {}),
+        ...(managerServiceId !== undefined ? { onboarding: { project: { serviceId: managerServiceId ?? "__none__" } } } : {}),
       },
       select: { id: true }
     });
@@ -247,12 +257,14 @@ export const clientOnboardingRepository = {
   async updateQuestionnaire(
     questionnaireId: string,
     data: { serviceType?: string; data?: unknown; isDraft?: boolean },
-    userClientId?: string | null
+    userClientId?: string | null,
+    managerServiceId?: string | null
   ): Promise<Questionnaire> {
     const questionnaire = await prismaRead.questionnaire.findFirst({
       where: {
         id: questionnaireId,
-        ...(userClientId ? { onboardingStep: { onboarding: { clientId: userClientId } } } : {})
+        ...(userClientId ? { onboardingStep: { onboarding: { clientId: userClientId } } } : {}),
+        ...(managerServiceId !== undefined ? { onboardingStep: { onboarding: { project: { serviceId: managerServiceId ?? "__none__" } } } } : {}),
       },
       select: { id: true }
     });
@@ -265,11 +277,12 @@ export const clientOnboardingRepository = {
     return prisma.questionnaire.update({ where: { id: questionnaire.id }, data: updateData });
   },
 
-  async createSpecifications(stepId: string, data: Omit<Prisma.SpecificationsCreateInput, "onboardingStep">, userClientId?: string | null): Promise<Specifications> {
+  async createSpecifications(stepId: string, data: Omit<Prisma.SpecificationsCreateInput, "onboardingStep">, userClientId?: string | null, managerServiceId?: string | null): Promise<Specifications> {
     const step = await prismaRead.onboardingStep.findFirst({
       where: {
         id: stepId,
-        ...(userClientId ? { onboarding: { clientId: userClientId } } : {})
+        ...(userClientId ? { onboarding: { clientId: userClientId } } : {}),
+        ...(managerServiceId !== undefined ? { onboarding: { project: { serviceId: managerServiceId ?? "__none__" } } } : {}),
       },
       select: { id: true }
     });
@@ -277,11 +290,12 @@ export const clientOnboardingRepository = {
     return prisma.specifications.create({ data: { onboardingStep: { connect: { id: step.id } }, ...data } });
   },
 
-  async updateSpecifications(specificationsId: string, data: Prisma.SpecificationsUpdateInput, userClientId?: string | null): Promise<Specifications> {
+  async updateSpecifications(specificationsId: string, data: Prisma.SpecificationsUpdateInput, userClientId?: string | null, managerServiceId?: string | null): Promise<Specifications> {
     const spec = await prismaRead.specifications.findFirst({
       where: {
         id: specificationsId,
-        ...(userClientId ? { onboardingStep: { onboarding: { clientId: userClientId } } } : {})
+        ...(userClientId ? { onboardingStep: { onboarding: { clientId: userClientId } } } : {}),
+        ...(managerServiceId !== undefined ? { onboardingStep: { onboarding: { project: { serviceId: managerServiceId ?? "__none__" } } } } : {}),
       },
       select: { id: true }
     });
@@ -289,11 +303,12 @@ export const clientOnboardingRepository = {
     return prisma.specifications.update({ where: { id: spec.id }, data });
   },
 
-  async createKickoff(stepId: string, data: Omit<Prisma.KickoffMeetingCreateInput, "onboardingStep">, userClientId?: string | null): Promise<KickoffMeeting> {
+  async createKickoff(stepId: string, data: Omit<Prisma.KickoffMeetingCreateInput, "onboardingStep">, userClientId?: string | null, managerServiceId?: string | null): Promise<KickoffMeeting> {
     const step = await prismaRead.onboardingStep.findFirst({
       where: {
         id: stepId,
-        ...(userClientId ? { onboarding: { clientId: userClientId } } : {})
+        ...(userClientId ? { onboarding: { clientId: userClientId } } : {}),
+        ...(managerServiceId !== undefined ? { onboarding: { project: { serviceId: managerServiceId ?? "__none__" } } } : {}),
       },
       select: { id: true }
     });
@@ -301,11 +316,12 @@ export const clientOnboardingRepository = {
     return prisma.kickoffMeeting.create({ data: { onboardingStep: { connect: { id: step.id } }, ...data } });
   },
 
-  async updateKickoff(kickoffId: string, data: Prisma.KickoffMeetingUpdateInput, userClientId?: string | null): Promise<KickoffMeeting> {
+  async updateKickoff(kickoffId: string, data: Prisma.KickoffMeetingUpdateInput, userClientId?: string | null, managerServiceId?: string | null): Promise<KickoffMeeting> {
     const kickoff = await prismaRead.kickoffMeeting.findFirst({
       where: {
         id: kickoffId,
-        ...(userClientId ? { onboardingStep: { onboarding: { clientId: userClientId } } } : {})
+        ...(userClientId ? { onboardingStep: { onboarding: { clientId: userClientId } } } : {}),
+        ...(managerServiceId !== undefined ? { onboardingStep: { onboarding: { project: { serviceId: managerServiceId ?? "__none__" } } } } : {}),
       },
       select: { id: true }
     });
@@ -313,11 +329,12 @@ export const clientOnboardingRepository = {
     return prisma.kickoffMeeting.update({ where: { id: kickoff.id }, data });
   },
 
-  async createProduction(stepId: string, data: Omit<Prisma.ProductionProgressCreateInput, "onboardingStep">, userClientId?: string | null): Promise<ProductionProgress> {
+  async createProduction(stepId: string, data: Omit<Prisma.ProductionProgressCreateInput, "onboardingStep">, userClientId?: string | null, managerServiceId?: string | null): Promise<ProductionProgress> {
     const step = await prismaRead.onboardingStep.findFirst({
       where: {
         id: stepId,
-        ...(userClientId ? { onboarding: { clientId: userClientId } } : {})
+        ...(userClientId ? { onboarding: { clientId: userClientId } } : {}),
+        ...(managerServiceId !== undefined ? { onboarding: { project: { serviceId: managerServiceId ?? "__none__" } } } : {}),
       },
       select: { id: true }
     });
@@ -325,11 +342,12 @@ export const clientOnboardingRepository = {
     return prisma.productionProgress.create({ data: { onboardingStep: { connect: { id: step.id } }, analysis: 0, design: 0, development: 0, testing: 0, deployment: 0, ...data } });
   },
 
-  async updateProduction(productionId: string, data: Prisma.ProductionProgressUpdateInput, userClientId?: string | null): Promise<ProductionProgress> {
+  async updateProduction(productionId: string, data: Prisma.ProductionProgressUpdateInput, userClientId?: string | null, managerServiceId?: string | null): Promise<ProductionProgress> {
     const production = await prismaRead.productionProgress.findFirst({
       where: {
         id: productionId,
-        ...(userClientId ? { onboardingStep: { onboarding: { clientId: userClientId } } } : {})
+        ...(userClientId ? { onboardingStep: { onboarding: { clientId: userClientId } } } : {}),
+        ...(managerServiceId !== undefined ? { onboardingStep: { onboarding: { project: { serviceId: managerServiceId ?? "__none__" } } } } : {}),
       },
       select: { id: true }
     });
@@ -337,11 +355,12 @@ export const clientOnboardingRepository = {
     return prisma.productionProgress.update({ where: { id: production.id }, data });
   },
 
-  async createDelivery(stepId: string, data: Omit<Prisma.DeliveryCreateInput, "onboardingStep">, userClientId?: string | null): Promise<Delivery> {
+  async createDelivery(stepId: string, data: Omit<Prisma.DeliveryCreateInput, "onboardingStep">, userClientId?: string | null, managerServiceId?: string | null): Promise<Delivery> {
     const step = await prismaRead.onboardingStep.findFirst({
       where: {
         id: stepId,
-        ...(userClientId ? { onboarding: { clientId: userClientId } } : {})
+        ...(userClientId ? { onboarding: { clientId: userClientId } } : {}),
+        ...(managerServiceId !== undefined ? { onboarding: { project: { serviceId: managerServiceId ?? "__none__" } } } : {}),
       },
       select: { id: true }
     });
@@ -349,11 +368,12 @@ export const clientOnboardingRepository = {
     return prisma.delivery.create({ data: { onboardingStep: { connect: { id: step.id } }, ...data } });
   },
 
-  async updateDelivery(deliveryId: string, data: Prisma.DeliveryUpdateInput, userClientId?: string | null): Promise<Delivery> {
+  async updateDelivery(deliveryId: string, data: Prisma.DeliveryUpdateInput, userClientId?: string | null, managerServiceId?: string | null): Promise<Delivery> {
     const delivery = await prismaRead.delivery.findFirst({
       where: {
         id: deliveryId,
-        ...(userClientId ? { onboardingStep: { onboarding: { clientId: userClientId } } } : {})
+        ...(userClientId ? { onboardingStep: { onboarding: { clientId: userClientId } } } : {}),
+        ...(managerServiceId !== undefined ? { onboardingStep: { onboarding: { project: { serviceId: managerServiceId ?? "__none__" } } } } : {}),
       },
       select: { id: true }
     });
