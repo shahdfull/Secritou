@@ -122,7 +122,7 @@ describe("projectService.archiveProject / restoreProject — SEC-040", () => {
     const archived = await projectService.archiveProject(project.id);
     assert.ok(archived.archivedAt);
 
-    const listed = await projectService.getAllProjects("admin-id", "ADMIN", { page: 1, pageSize: 50 });
+    const listed = await projectService.getAllProjects("admin-id", "ADMIN", { page: 1, pageSize: 50, orderDir: "asc" });
     assert.ok(!listed.data.some((p) => p.id === project.id));
   });
 
@@ -206,7 +206,7 @@ describe("projectService.unarchiveProject — SEC-078", () => {
     assert.equal(unarchived.archivedAt, null);
     assert.equal(unarchived.status, "IN_PROGRESS", "unarchiving must never touch status, only archivedAt");
 
-    const listed = await projectService.getAllProjects("admin-id", "ADMIN", { page: 1, pageSize: 50, search: uniqueName });
+    const listed = await projectService.getAllProjects("admin-id", "ADMIN", { page: 1, pageSize: 50, orderDir: "asc", search: uniqueName });
     assert.ok(listed.data.some((p) => p.id === project.id), "the project must reappear in findAll once unarchived");
   });
 

@@ -9,7 +9,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "lint": "eslint .",
     "test:unit": "node --test --import tsx test/run-all.test.ts",
     "test:coverage": "c8 --check-coverage --statements 60 --branches 70 --functions 40 --lines 60 node --test --import tsx test/run-all.test.ts",

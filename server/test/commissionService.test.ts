@@ -9,6 +9,7 @@
 import test, { describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { HttpError } from "../src/utils/httpError.js";
+import type { Prisma } from "@prisma/client";
 
 let prisma: typeof import("../src/config/prisma.js").prisma;
 let commissionService: typeof import("../src/services/commission.service.js").commissionService;
@@ -214,7 +215,7 @@ describe("commissionService.markPaid (real code, not a reimplementation)", () =>
     const project = await makeProject(namePrefix);
     const partner = await makePartner(`${namePrefix}-partner`);
     const invoice = await prisma.invoice.create({
-      data: { number: `${namePrefix}-INV-${Date.now()}`, title: "Test", amount: 1000, currency: "TND", projectId: project.id, clientId: project.clientId },
+      data: { number: `${namePrefix}-INV-${Date.now()}`, title: "Test", amount: 1000, currency: "TND", projectId: project.id, clientId: project.clientId! },
     });
     const payment = await prisma.payment.create({ data: { invoiceId: invoice.id, amount: 400 } });
     const commission = await prisma.commission.create({
@@ -269,7 +270,7 @@ describe("commissionService.markPaid (real code, not a reimplementation)", () =>
 // reimplementation — each scenario uses its own isolated Service so unrelated MANAGERs from
 // other tests/seed data can't leak into the "Managers of this pole" count.
 describe("commissionService.recalcAutoSplit / resetToAutoSplit (RG-005-bis, real code)", () => {
-  function byPartner(splits: { partnerId: string; ratePct: number | string }[]) {
+  function byPartner(splits: { partnerId: string; ratePct: number | string | Prisma.Decimal }[]) {
     const map = new Map<string, number>();
     for (const s of splits) map.set(s.partnerId, Number(s.ratePct));
     return map;

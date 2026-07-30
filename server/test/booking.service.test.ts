@@ -1,7 +1,7 @@
 import test, { describe } from "node:test";
 import assert from "node:assert/strict";
 import type { HttpError } from "../src/utils/httpError.js";
-import { createBookingService } from "../src/services/booking.service.js";
+import { createBookingService, type BookingServiceDeps, type DbLike } from "../src/services/booking.service.js";
 
 type FakeBooking = {
   id: string;
@@ -31,8 +31,25 @@ function makeWorld() {
 
   let bookingSeq = 0;
 
-  const db = {
-    $transaction: async <T>(callback: (tx: typeof db) => Promise<T>) => callback(db),
+  type FakeDb = {
+    $transaction: <T>(callback: (tx: FakeDb) => Promise<T>) => Promise<T>;
+    availabilitySlot: {
+      findMany: () => Promise<Array<typeof state.slot>>;
+      findUnique: (args: { where: { id: string } }) => Promise<(typeof state.slot & { booking: null }) | null>;
+      create: (args: { data: { startTime: Date; endTime: Date } }) => Promise<typeof state.slot>;
+      updateMany: (args: { where: { id: string }; data: { isBooked: boolean } }) => Promise<{ count: number }>;
+      delete: (args: { where: { id: string } }) => Promise<typeof state.slot>;
+    };
+    booking: {
+      findMany: () => Promise<FakeBooking[]>;
+      findUnique: (args: { where: { id: string } }) => Promise<FakeBooking | null>;
+      create: (args: { data: { slotId: string; name: string; email: string; phone?: string | null; notes?: string | null } }) => Promise<FakeBooking>;
+      delete: (args: { where: { id: string } }) => Promise<FakeBooking>;
+    };
+  };
+
+  const db: FakeDb = {
+    $transaction: async <T>(callback: (tx: FakeDb) => Promise<T>) => callback(db),
     availabilitySlot: {
       findMany: async () => [state.slot],
       findUnique: async ({ where }: { where: { id: string } }) => (state.slot.id === where.id ? { ...state.slot, booking: null } : null),
@@ -77,11 +94,11 @@ function makeWorld() {
   };
 
   const service = createBookingService({
-    db,
+    db: db as unknown as BookingServiceDeps["db"],
     now: () => new Date(),
-    emailSender: { send: async () => undefined } as unknown as Parameters<typeof createBookingService>[0]["emailSender"],
+    emailSender: { send: async () => undefined } as unknown as BookingServiceDeps["emailSender"],
     adminNotificationEmail: "hello@secritou.com",
-    repositoryFactory: (client) => ({
+    repositoryFactory: ((client: typeof db) => ({
       findOpenSlots: async () => [state.slot],
       findUpcomingSlots: async () => [state.slot],
       findSlotsInRange: async () => [state.slot],
@@ -94,7 +111,7 @@ function makeWorld() {
       findBookingById: async (id: string) => client.booking.findUnique({ where: { id } }),
       createBooking: async (data: { slotId: string; name: string; email: string; phone?: string | null; notes?: string | null }) => client.booking.create({ data }),
       deleteBooking: async (id: string) => client.booking.delete({ where: { id } }),
-    }),
+    })) as unknown as (db: DbLike) => ReturnType<NonNullable<BookingServiceDeps["repositoryFactory"]>>,
   });
 
   return { service, state };

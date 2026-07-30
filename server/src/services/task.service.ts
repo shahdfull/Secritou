@@ -2,7 +2,7 @@
 import { taskRepository } from "../repositories/task.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { enqueueNotification, enqueueNotifications } from "../jobs/queues.js";
-import type { CreateTaskDTO } from "../types/entities.js";
+import type { CreateTaskDTO, UpdateTaskDTO } from "../types/entities.js";
 import { HttpError } from "../utils/httpError.js";
 import type { Role, TaskStatus, Priority } from "@prisma/client";
 import type { ListQueryOptions } from "../utils/listQuery.js";
@@ -233,7 +233,7 @@ export const taskService = {
     return task;
   },
 
-  async updateTask(id: string, data: Partial<CreateTaskDTO>, scope?: ServiceScope) {
+  async updateTask(id: string, data: UpdateTaskDTO, scope?: ServiceScope) {
     const task = await taskRepository.findByIdAdmin(id);
     if (!task) throw new HttpError(404, "Task not found");
     

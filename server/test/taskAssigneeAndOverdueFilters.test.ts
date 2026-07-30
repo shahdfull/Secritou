@@ -76,7 +76,7 @@ describe("assigneeId filter — SEC-056", () => {
     const taskB = await prisma.task.create({ data: { title: "task B", projectId: project.id, assigneeId: freelancerB.id } });
     createdTaskIds.push(taskA.id, taskB.id);
 
-    const result = await taskService.getAllTasks(undefined, "admin-id", "ADMIN", { page: 1, pageSize: 50 }, undefined, { assigneeId: freelancerA.id });
+    const result = await taskService.getAllTasks(undefined, "admin-id", "ADMIN", { page: 1, pageSize: 50, orderDir: "asc" }, undefined, { assigneeId: freelancerA.id });
 
     const ids = result.data.map((tk) => tk.id);
     assert.ok(ids.includes(taskA.id));
@@ -98,7 +98,7 @@ describe("assigneeId filter — SEC-056", () => {
       undefined,
       freelancerSelf.id,
       "FREELANCER",
-      { page: 1, pageSize: 50 },
+      { page: 1, pageSize: 50, orderDir: "asc" },
       undefined,
       { assigneeId: freelancerOther.id }
     );
@@ -121,7 +121,7 @@ describe("overdue filter — SEC-056", () => {
     const notYetDue = await prisma.task.create({ data: { title: "not due yet", projectId: project.id, dueDate: tomorrow, status: "TODO" } });
     createdTaskIds.push(overdueTask.id, overdueButDone.id, notYetDue.id);
 
-    const result = await taskService.getAllTasks(project.id, "admin-id", "ADMIN", { page: 1, pageSize: 50 }, undefined, { overdue: true });
+    const result = await taskService.getAllTasks(project.id, "admin-id", "ADMIN", { page: 1, pageSize: 50, orderDir: "asc" }, undefined, { overdue: true });
 
     const ids = result.data.map((tk) => tk.id);
     assert.ok(ids.includes(overdueTask.id));
@@ -144,7 +144,7 @@ describe("overdue filter — SEC-056", () => {
       project.id,
       "admin-id",
       "ADMIN",
-      { page: 1, pageSize: 50, status: "DONE" },
+      { page: 1, pageSize: 50, orderDir: "asc", status: "DONE" },
       undefined,
       { overdue: true }
     );

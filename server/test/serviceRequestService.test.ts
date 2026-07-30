@@ -171,7 +171,8 @@ describe("serviceRequestService.adminUpdateServiceRequest status transitions (re
     const req = await makeRequest(client.id, (await prisma.project.findFirstOrThrow({ where: { clientId: client.id } })).id, "transition valid");
 
     const updated = await serviceRequestService.adminUpdateServiceRequest(req.id, actorUserId, { status: "IN_REVIEW" });
-    assert.equal(updated.status, "IN_REVIEW");
+    assert.ok(updated, "adminUpdateServiceRequest must return the updated request");
+    assert.equal(updated!.status, "IN_REVIEW");
 
     const history = await prisma.serviceRequestHistory.findMany({ where: { serviceRequestId: req.id, field: "status" } });
     assert.equal(history.length, 1);

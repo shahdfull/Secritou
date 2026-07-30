@@ -87,21 +87,21 @@ describe("archived project task visibility — SEC-041 follow-up", () => {
   test("ADMIN's getAllTasks excludes tasks of an archived project", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { task } = await makeArchivedProjectWithTask();
-    const result = await taskService.getAllTasks(undefined, "admin-id", "ADMIN", { page: 1, pageSize: 100 });
+    const result = await taskService.getAllTasks(undefined, "admin-id", "ADMIN", { page: 1, pageSize: 100, orderDir: "asc" });
     assert.ok(!result.data.some((t) => t.id === task.id));
   });
 
   test("MANAGER's getAllTasks (same pole) excludes tasks of an archived project", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { task } = await makeArchivedProjectWithTask();
-    const result = await taskService.getAllTasks(undefined, "manager-id", "MANAGER", { page: 1, pageSize: 100 }, { userRole: "MANAGER", userServiceId: serviceA });
+    const result = await taskService.getAllTasks(undefined, "manager-id", "MANAGER", { page: 1, pageSize: 100, orderDir: "asc" }, { userRole: "MANAGER", userServiceId: serviceA });
     assert.ok(!result.data.some((t) => t.id === task.id));
   });
 
   test("FREELANCER's getAllTasks excludes their own task once its project is archived", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { task, freelancer } = await makeArchivedProjectWithTask();
-    const result = await taskService.getAllTasks(undefined, freelancer.id, "FREELANCER", { page: 1, pageSize: 100 });
+    const result = await taskService.getAllTasks(undefined, freelancer.id, "FREELANCER", { page: 1, pageSize: 100, orderDir: "asc" });
     assert.ok(!result.data.some((t) => t.id === task.id));
   });
 

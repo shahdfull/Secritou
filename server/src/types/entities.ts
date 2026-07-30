@@ -102,6 +102,12 @@ export interface CreateTaskDTO {
   qualityScore?: number;
 }
 
+// assigneeId: null (distinct from undefined, "don't touch this field") clears the assignment —
+// taskService.updateTask already handles this at runtime (Prisma accepts null to clear a
+// nullable FK); Partial<CreateTaskDTO> alone can't express it since CreateTaskDTO's assigneeId
+// is only ever a create-time string.
+export type UpdateTaskDTO = Omit<Partial<CreateTaskDTO>, "assigneeId"> & { assigneeId?: string | null };
+
 export interface UpdateLeadStatusDTO {
   status: LeadStatus;
 }

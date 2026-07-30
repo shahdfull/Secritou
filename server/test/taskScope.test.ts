@@ -64,7 +64,7 @@ describe("task read scope by role — SEC-087 (real code, not a reimplementation
     const taskA = await makeTaskInService(serviceA, "admin-scope-a");
     const taskB = await makeTaskInService(serviceB, "admin-scope-b");
 
-    const result = await taskService.getAllTasks(undefined, "admin-id", "ADMIN", { page: 1, pageSize: 200 });
+    const result = await taskService.getAllTasks(undefined, "admin-id", "ADMIN", { page: 1, pageSize: 200, orderDir: "asc" });
     const ids = result.data.map((t) => t.id);
     assert.ok(ids.includes(taskA.id));
     assert.ok(ids.includes(taskB.id));
@@ -79,7 +79,7 @@ describe("task read scope by role — SEC-087 (real code, not a reimplementation
       undefined,
       "manager-id",
       "MANAGER",
-      { page: 1, pageSize: 200 },
+      { page: 1, pageSize: 200, orderDir: "asc" },
       { userRole: "MANAGER", userServiceId: serviceA }
     );
     const ids = result.data.map((t) => t.id);

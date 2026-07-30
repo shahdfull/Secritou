@@ -88,7 +88,7 @@ describe("RG-008 : Commission created only when a Payment is actually recorded",
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { project } = await makeProjectWithSplit("rg008-a", 50);
     const invoice = await prisma.invoice.create({
-      data: { number: `RG008-A-${Date.now()}`, title: "Test", amount: 1000, amountPaid: 0, status: "SENT", currency: "TND", projectId: project.id, clientId: project.clientId },
+      data: { number: `RG008-A-${Date.now()}`, title: "Test", amount: 1000, amountPaid: 0, status: "SENT", currency: "TND", projectId: project.id, clientId: project.clientId! },
     });
 
     await invoiceService.addPayment(invoice.id, { amount: 400 }, undefined, undefined);
@@ -108,7 +108,7 @@ describe("RG-008 : Commission created only when a Payment is actually recorded",
     // this invoice is entirely overpayment (rawAmountPaid > invoiceAmount, newAmountPaid capped
     // at invoiceAmount, so appliedAmount = newAmountPaid - previous amountPaid = 0).
     const invoice = await prisma.invoice.create({
-      data: { number: `RG008-B-${Date.now()}`, title: "Test", amount: 500, amountPaid: 500, status: "PARTIAL", currency: "TND", projectId: project.id, clientId: project.clientId },
+      data: { number: `RG008-B-${Date.now()}`, title: "Test", amount: 500, amountPaid: 500, status: "PARTIAL", currency: "TND", projectId: project.id, clientId: project.clientId! },
     });
 
     await invoiceService.addPayment(invoice.id, { amount: 100 }, undefined, undefined);
@@ -127,7 +127,7 @@ describe("RG-008 : Commission created only when a Payment is actually recorded",
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { project, partners } = await makeProjectWithSplits("rg008-c", [50, 30, 20]);
     const invoice = await prisma.invoice.create({
-      data: { number: `RG008-C-${Date.now()}`, title: "Test", amount: 1000, amountPaid: 0, status: "SENT", currency: "TND", projectId: project.id, clientId: project.clientId },
+      data: { number: `RG008-C-${Date.now()}`, title: "Test", amount: 1000, amountPaid: 0, status: "SENT", currency: "TND", projectId: project.id, clientId: project.clientId! },
     });
 
     await invoiceService.addPayment(invoice.id, { amount: 400 }, undefined, undefined);

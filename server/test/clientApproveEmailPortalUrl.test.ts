@@ -17,6 +17,7 @@ import assert from "node:assert/strict";
 let prisma: typeof import("../src/config/prisma.js").prisma;
 let projectService: typeof import("../src/services/project.service.js").projectService;
 let emailService: typeof import("../src/services/email.service.js").emailService;
+type SendEmailOptions = import("../src/services/email.service.js").SendEmailOptions;
 let dbAvailable = true;
 
 let serviceId: string;
@@ -79,7 +80,7 @@ describe("clientApprove's client-facing email uses a real URL, not backslashes (
     // GLOBAL registry reset, and another file's after() hook calling it can wipe out this file's
     // still-active mock. A plain save/restore of the function reference is immune to that.
     const originalSend = emailService.send;
-    emailService.send = async (args: { to: string; subject: string; html?: string; text?: string }) => {
+    emailService.send = async (args: SendEmailOptions) => {
       capturedBody = args.html ?? args.text;
     };
     try {

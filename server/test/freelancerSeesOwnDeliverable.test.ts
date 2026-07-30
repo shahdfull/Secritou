@@ -91,7 +91,7 @@ describe("FREELANCER sees their own project-scoped deliverable (document upload 
     createdDocIds.push(doc.id);
 
     const result = await documentService.getAll(
-      { page: 1, pageSize: 50, projectId: project.id },
+      { page: 1, pageSize: 50, orderDir: "asc", projectId: project.id },
       { role: "FREELANCER", userId: freelancer.id }
     );
 
@@ -129,7 +129,7 @@ describe("FREELANCER sees their own project-scoped deliverable (document upload 
     createdDocIds.push(doc.id);
 
     const result = await documentService.getAll(
-      { page: 1, pageSize: 50 },
+      { page: 1, pageSize: 50, orderDir: "asc" },
       { role: "FREELANCER", userId: freelancer.id }
     );
 

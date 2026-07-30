@@ -7,10 +7,72 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : Transverse (hors modules §4 — CI/infra, docs, RGPD, i18n global, design system, observabilité)
-# 4 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
+# 5 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 
 anomalies:
+  - id: SEC-030
+    titre: >
+      server/tsconfig.json n'inclut que "src/**/*.ts" — npm run typecheck
+      (tsc --noEmit) ne vérifie jamais server/test/**, qui peut donc
+      accumuler des erreurs de type réelles (constaté : deux appels
+      obsolètes de clientOnboardingService.createPayment avec un shape
+      retiré du type PaymentInput, jamais détectés) sans jamais faire
+      échouer la porte CI typecheck ; les tests continuent de s'exécuter
+      via tsx (qui strip les types sans les vérifier), masquant le défaut
+    perimetre: transverse
+    regle_violee: >
+      Zéro warning/erreur lint est une porte obligatoire documentée dans
+      CLAUDE.md ; par analogie directe, une porte typecheck qui n'examine
+      jamais tout le code réellement exécuté (les tests le sont, via tsx)
+      ne peut pas garantir ce qu'elle prétend garantir. client/tsconfig.json
+      n'a pas ce trou : ses tests vivent sous src/**, donc déjà couverts.
+    classe: typecheck-perimetre-incomplet
+    gravite: moyenne
+    statut: resolu
+    critere_de_resolution: >
+      server/tsconfig.json inclut server/test/**/*.ts (ou un tsconfig
+      dédié aux tests avec les mêmes compilerOptions), npm run typecheck
+      --workspace=server échoue si un fichier de test contient une
+      véritable erreur de type, et un commit avec 0 erreur passe la CI.
+    detecte_le: "2026-07-30"
+    source: >
+      Découvert incidemment (CLAUDE.md « Enregistrement immédiat de tout
+      écart constaté ») en corrigeant SEC-029 : après avoir retiré
+      amount/amountPaid/status de PaymentInput
+      (clientOnboarding.validator.ts), `npx tsc --noEmit` sur tout le
+      workspace server restait à 0 erreur alors que
+      test/clientOnboardingWriteScopeManager.test.ts appelait encore
+      createPayment/updatePayment avec ces champs — confirmé en exécutant
+      `npx tsc --noEmit --strict test/clientOnboardingWriteScopeManager.test.ts`
+      directement (TS2353 sur les deux appels). server/tsconfig.json:
+      "include": ["src/**/*.ts"] exclut structurellement tout server/test/.
+    confiance: haute
+    note: >
+      N'affecte pas la fiabilité des tests eux-mêmes (ils s'exécutent
+      normalement, ce ne sont pas des faux positifs de succès) — le risque
+      est que le typecheck CI ne protège jamais contre une dérive de type
+      dans les fichiers de test, qui peuvent donc silencieusement diverger
+      du code réel qu'ils prétendent appeler (risque similaire, en plus
+      subtil, à la classe de défaut décrite dans CLAUDE.md « verifie: test
+      exige un test qui appelle le code réel »).
+      Corrigé (session du 2026-07-30) : nouveau
+      server/tsconfig.typecheck.json (extends tsconfig.json,
+      rootDir: ".", include src/**/*.ts + test/**/*.ts — laisse
+      tsconfig.json/npm run build intacts, aucun risque sur l'émission de
+      dist/). `npm run typecheck` pointe désormais sur ce fichier. Les ~19
+      fichiers de test révélés (erreurs préexistantes, sans rapport avec
+      cette session : ListQueryOptions.orderDir manquant,
+      Decimal vs string|number, req.user JwtPayload incomplet, valeurs
+      possibly null, un fake Prisma client sous-typé dans
+      booking.service.test.ts, assigneeId: null non exprimable par
+      Partial<CreateTaskDTO> — nouveau type UpdateTaskDTO introduit dans
+      server/src/types/entities.ts pour ce dernier cas) corrigés un par un
+      dans la même session — décision du porteur (AskUserQuestion) de ne
+      pas se contenter d'enregistrer l'écart. 695/695 tests server verts,
+      lint 0/0, build (tsc -p tsconfig.json) toujours vert séparément.
+      `verifie: test` (le typecheck lui-même est la porte).
+
   - id: SEC-010
     titre: >
       gdprErasure.test.ts — l'anonymisation d'un Client avec facture

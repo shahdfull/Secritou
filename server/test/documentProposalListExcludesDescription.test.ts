@@ -94,6 +94,7 @@ describe("documentRepository/proposalRepository findAll exclude description from
     assert.equal("description" in found!, false, "description must not be present in the list payload at all");
 
     const detail = await proposalService.getById(proposalId);
-    assert.equal(detail.description, "x".repeat(5000), "the detail view (getById) must still return the full description");
+    assert.ok(detail, "getById must find the proposal");
+    assert.equal(detail!.description, "x".repeat(5000), "the detail view (getById) must still return the full description");
   });
 });

@@ -72,13 +72,13 @@ describe("leadService.createLead — pole scope on manual creation (SEC-102)", (
       assert.equal(lead.assignedManagerId, managerUser.id, "the lead must be assigned to its creating manager");
 
       const ownList = await leadService.getLeads(
-        { page: 1, pageSize: 50 },
+        { page: 1, pageSize: 50, orderDir: "asc" },
         { userRole: "MANAGER", userServiceId: serviceA, userId: managerUser.id }
       );
       assert.ok(ownList.data.some((l) => l.id === lead.id), "the manager must see their own manually-created lead");
 
       const otherPoleList = await leadService.getLeads(
-        { page: 1, pageSize: 50 },
+        { page: 1, pageSize: 50, orderDir: "asc" },
         { userRole: "MANAGER", userServiceId: serviceB, userId: "some-other-manager" }
       );
       assert.ok(!otherPoleList.data.some((l) => l.id === lead.id), "a manager from another pole must not see it");

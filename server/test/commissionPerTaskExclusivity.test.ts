@@ -64,7 +64,7 @@ describe("RG-028 : no PROJECT_PERCENT commission for a PER_TASK project, even wi
     await prisma.projectCommissionSplit.create({ data: { projectId: project.id, partnerId: partner.id, ratePct: 50 } });
 
     const invoice = await prisma.invoice.create({
-      data: { number: `RG028-${Date.now()}`, title: "Test", amount: 1000, amountPaid: 0, status: "SENT", currency: "TND", projectId: project.id, clientId: project.clientId },
+      data: { number: `RG028-${Date.now()}`, title: "Test", amount: 1000, amountPaid: 0, status: "SENT", currency: "TND", projectId: project.id, clientId: project.clientId! },
     });
 
     await invoiceService.addPayment(invoice.id, { amount: 400 }, undefined, undefined);

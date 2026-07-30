@@ -11,9 +11,9 @@ import { notifyN8n } from "../utils/webhook.js";
 // The transaction client the *extended* Prisma client hands to $transaction — structurally
 // distinct from the base Prisma.TransactionClient because of client extensions ($extends).
 type TxClient = Parameters<Parameters<(typeof prisma)["$transaction"]>[0]>[0];
-type DbLike = typeof prisma | TxClient;
+export type DbLike = typeof prisma | TxClient;
 
-type BookingServiceDeps = {
+export type BookingServiceDeps = {
   // The top-level db must be the full client (it opens transactions); only the repository factory
   // also accepts a transaction client, for use inside those transactions.
   db?: typeof prisma;

@@ -136,7 +136,8 @@ describe("commissionRepository.createManyTx via createManyAndReturn (SEC-170)", 
     assert.equal(created.length, 1);
     assert.equal(created[0]!.partner.id, partner.id, "partner relation must be populated");
     assert.equal(created[0]!.project.id, project.id, "project relation must be populated");
-    assert.equal(created[0]!.invoice.id, invoice.id, "invoice relation must be populated");
+    assert.ok(created[0]!.invoice, "invoice relation must be populated");
+    assert.equal(created[0]!.invoice!.id, invoice.id, "invoice relation must be populated");
     assert.equal(Number(created[0]!.amount), 100);
   });
 });

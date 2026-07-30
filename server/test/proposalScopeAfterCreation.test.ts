@@ -81,7 +81,7 @@ describe("assertProposalInScope after creation — SEC-099", () => {
       assert.equal(found!.id, proposal.id);
 
       const list = await proposalService.getAll(
-        { page: 1, pageSize: 50 },
+        { page: 1, pageSize: 50, orderDir: "asc" },
         { userRole: "MANAGER", userServiceId: serviceA }
       );
       assert.ok(list.data.some((p) => p.id === proposal.id), "the manager's own proposal must appear in their own list");
@@ -109,7 +109,7 @@ describe("assertProposalInScope after creation — SEC-099", () => {
       );
 
       const list = await proposalService.getAll(
-        { page: 1, pageSize: 50 },
+        { page: 1, pageSize: 50, orderDir: "asc" },
         { userRole: "MANAGER", userServiceId: serviceB }
       );
       assert.ok(!list.data.some((p) => p.id === proposal.id), "a cross-pole proposal must not appear in the other manager's list");
