@@ -126,7 +126,7 @@ anomalies:
       fourni.
     classe: test-casse-par-changement-non-synchronise
     gravite: majeure
-    statut: resolu
+    statut: resolu # corrigé le 2026-07-30 : était en_cours par erreur, voir note
     critere_de_resolution: >
       Les 8 tests actuellement en échec/annulés de user.service.test.ts
       (describe RG-021 : "changing the role of an Admin is allowed when
@@ -179,7 +179,19 @@ anomalies:
       a non-Admin...") mais pour une cause distincte et déjà tracée par
       ailleurs (SEC-008 : base de dev Postgres inaccessible sur
       localhost:5434, via userRepository.hasFinancialHistory dans
-      deleteUser — code non touché par SEC-006/SEC-009). Statut laissé à
-      en_cours (pas resolu) : correctif non commité, portes CI non vérifiées
-      sur ce commit, cf. CLAUDE.md « un critère de résolution se vérifie sur
-      un commit ».
+      deleteUser — code non touché par SEC-006/SEC-009).
+
+      Mise à jour (session du 2026-07-30, relecture de cohérence du
+      registre lors de l'audit 4.14-auth catégorie B) : le correctif a
+      depuis été commité (de18862, "corrige SEC-006 (serviceId Manager)...
+      corrige SEC-009") et est un ancêtre de main. CI verte confirmée sur
+      le commit descendant fdc1363 (6/6 checks GitHub Actions
+      completed/success : server, client, contrast-check, i18n-check,
+      restore-smoke-test, e2e) — chemin de commits
+      de18862 → d18325a → d37b4c4 → eec7dd8 → b62a9d1 → 9b4d79b → a84fb09
+      → da4618f → 403593e → 954a191 → fdc1363, tous ancêtres directs de
+      main. Statut corrigé à resolu (déjà resolu dans
+      anomalies/_index.yaml depuis de18862 ; seul ce fichier de détail
+      restait à en_cours — même famille de désynchronisation index/détail
+      que SEC-011 (cf. 3fbd76d), cette fois dans l'autre sens : l'index
+      était correct, le détail en retard).
