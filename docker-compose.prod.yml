@@ -61,6 +61,12 @@ services:
   # OLLAMA_URL's default (http://localhost:11434) resolved to the server container itself, not a
   # real Ollama instance. server/.env must set OLLAMA_URL=http://ollama:11434 (compose DNS) in
   # this environment.
+  #
+  # SEC-047: the healthcheck only proves the ollama process answers, not that a model is present
+  # — a fresh volume starts with zero models pulled. ollama-pull below does the actual pull as a
+  # one-shot job; server's own depends_on stays on ollama's healthcheck only (not ollama-pull), so
+  # a server restart never re-waits on a pull that already completed once against the shared
+  # volume.
   ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
@@ -73,6 +79,18 @@ services:
       retries: 5
     # No port published to the host: only the server container needs to reach this, over the
     # compose network (service name "ollama", port 11434).
+
+  # One-shot: pulls OLLAMA_MODEL (default mistral) into the shared ollama_data volume once ollama
+  # is up. Idempotent — a no-op if the model is already present (e.g. after a redeploy).
+  ollama-pull:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["sh", "-c", "ollama pull ${OLLAMA_MODEL:-mistral}"]
+    restart: "no"
 
   server:
     build:

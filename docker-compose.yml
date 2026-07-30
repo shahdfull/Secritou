@@ -65,6 +65,11 @@ services:
   # existed in either compose file, so OLLAMA_URL's default (http://localhost:11434) never
   # resolved to a real Ollama once the server itself ran in a container. This service, plus
   # OLLAMA_URL set in server/.env to http://ollama:11434 (compose DNS), closes that gap for dev.
+  #
+  # SEC-047: the healthcheck only proves the ollama process answers, not that a model is present
+  # — a fresh volume starts with zero models pulled, so a naive healthcheck (or one that greps for
+  # a model name) would either report healthy on an empty store or block forever waiting on a pull
+  # that never runs. ollama-pull below does the actual pull as a one-shot job.
   ollama:
     image: ollama/ollama:latest
     ports:
@@ -76,6 +81,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # One-shot: pulls OLLAMA_MODEL (default mistral) into the shared ollama_data volume once ollama
+  # itself is up. Re-running docker compose up is a no-op once the model is already present
+  # (ollama pull is idempotent). Not part of server's own depends_on — server calling Ollama
+  # before the pull finishes gets a real "model not found" error from Ollama itself rather than a
+  # silently-passing healthcheck masking it.
+  ollama-pull:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["sh", "-c", "ollama pull ${OLLAMA_MODEL:-mistral}"]
+    restart: "no"
 
   n8n:
     image: docker.n8n.io/n8nio/n8n:latest

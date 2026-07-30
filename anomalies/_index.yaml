@@ -46,7 +46,7 @@ anomalies:
       personas.ts et agentOrchestrator.service.ts comme fichiers lus du
       périmètre 4.11 alors qu'ils sont supprimés
     perimetre: 4.11-ia
-    statut: ouvert
+    statut: resolu
     gravite: moyenne
     classe: affirmation-factuelle-non-sourcee
 
@@ -59,7 +59,7 @@ anomalies:
       enregistrées sur le registry et exposées à zéro pour toujours, sans
       aucun code applicatif ne les incrémentant plus jamais
     perimetre: 4.11-ia
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: metrique-orpheline-sans-appelant
 
@@ -77,9 +77,10 @@ anomalies:
       (retirer /ai/brief,/ai/tasks a laissé /ai/chat comme seul survivant
       du fichier, sans revérifier s'il avait, lui, un vrai appelant)
     perimetre: 4.11-ia
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: capacite-serveur-sans-point-dentree-frontend
+
   - id: SEC-043
     titre: >
       agentOrchestratorService.executeAgent persiste son résultat via

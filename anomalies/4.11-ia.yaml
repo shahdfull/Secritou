@@ -37,7 +37,7 @@ anomalies:
       fausse garantie à depends_on: condition: service_healthy.
     classe: healthcheck-ne-verifie-pas-la-vraie-disponibilite
     gravite: moyenne
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       Le modèle Mistral est téléchargé au démarrage (ex. service
       ollama-pull dédié avec entrypoint "ollama pull ${OLLAMA_MODEL}",
@@ -61,6 +61,28 @@ anomalies:
       postgres/redis/minio/server/client en dev comme en prod. Non
       bloquant pour le lancement (0 client actif) mais à surveiller avant
       toute mise en production réelle du module IA.
+
+      Corrigé (session ultérieure, même jour 2026-07-30, AskUserQuestion :
+      « Service ollama-pull dédié (Recommandé) ») : nouveau service
+      ollama-pull dans docker-compose.yml et docker-compose.prod.yml,
+      depends_on: ollama (condition: service_healthy), entrypoint
+      "ollama pull ${OLLAMA_MODEL:-mistral}", restart: "no" (job
+      one-shot, idempotent — un ollama pull sur un modèle déjà présent
+      est un no-op). server ne dépend que du healthcheck d'ollama lui-même
+      (pas d'ollama-pull) pour éviter qu'un redémarrage de server
+      re-attende un pull déjà terminé sur le volume partagé. Les deux
+      fichiers compose validés syntaxiquement (docker compose config).
+      Démarrage réel testé (docker compose up -d ollama ollama-pull) :
+      l'image ollama/ollama (~2 Go) et le téléchargement du modèle
+      mistral (~4 Go supplémentaires) ont débuté avec succès, mais le
+      débit réseau de cet environnement (quelques centaines de Ko/s) rend
+      la vérification complète de bout en bout (confirmer qu'un vrai
+      POST /api/chat répond sans "model not found" une fois le pull
+      terminé) disproportionnément longue pour cette session — non menée
+      à son terme. Statut laissé à en_cours : correctif écrit, validé
+      syntaxiquement et partiellement vérifié en exécution réelle
+      (téléchargement démarré sans erreur), mais pas confirmé de bout en
+      bout ni commité/vérifié en CI.
 
   - id: SEC-046
     titre: >
@@ -90,7 +112,7 @@ anomalies:
       agent, avant que SEC-044 ne révèle que /ai/chat était mort aussi).
     classe: affirmation-factuelle-non-sourcee
     gravite: moyenne
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Les 4 emplacements cités (REFERENTIEL.md §4.11, SEC-040, SEC-043,
       EXPLORATION.md ligne 36) sont corrigés pour refléter l'état réel du
@@ -128,9 +150,9 @@ anomalies:
       pas une erreur en soi — seule l'absence de mise à jour après
       suppression était le défaut). SEC-043 (note) et SEC-040 (note,
       titre laissé inchangé conformément à la règle CLAUDE.md « jamais
-      son titre ») corrigés avec le même luxe de détail. Statut laissé à
-      en_cours : correctifs écrits localement mais pas encore
-      commités/vérifiés en CI.
+      son titre ») corrigés avec le même luxe de détail. Commité
+      (1977a5a), CI verte confirmée (6/6 checks GitHub Actions
+      completed/success) — statut corrigé à resolu.
 
   - id: SEC-045
     titre: >
@@ -148,7 +170,7 @@ anomalies:
       la même passe qui a retiré executeAgent.
     classe: metrique-orpheline-sans-appelant
     gravite: mineure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       logAgentCall, agentCallCounter et agentCallDuration sont retirés de
       businessMetrics.ts — vérifié par grep confirmant zéro référence
@@ -168,9 +190,8 @@ anomalies:
       agentCallCounter, agentCallDuration retirés de businessMetrics.ts ;
       import Histogram devenu inutile retiré aussi. Grep confirmant zéro
       référence restante à agent_call_total/agent_call_duration_seconds/
-      logAgentCall dans server/src. Statut laissé à en_cours : correctif
-      écrit et vérifié (typecheck/lint) localement mais pas encore
-      commité/vérifié en CI.
+      logAgentCall dans server/src. Commité (1977a5a), CI verte confirmée
+      (6/6) — statut corrigé à resolu.
 
   - id: SEC-044
     titre: >
@@ -193,7 +214,7 @@ anomalies:
       soit son niveau de qualité côté code.
     classe: capacite-serveur-sans-point-dentree-frontend
     gravite: mineure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       ai.controller.ts#chat, ai.routes.ts (route POST /ai/chat) et
       ai.validator.ts#chatSchema sont retirés dans leur intégralité, ainsi
@@ -228,9 +249,9 @@ anomalies:
       Vérifié : tsc --noEmit et npm run lint propres côté serveur et
       client (0 error, mêmes 11 warnings react-refresh déjà documentés
       comme exception acceptée) ; suite serveur complète 702/702 ; Vite
-      dev démarre sans erreur de résolution de module. Statut laissé à
-      en_cours : correctif écrit et vérifié localement mais pas encore
-      commité/vérifié en CI.
+      dev démarre sans erreur de résolution de module. Commité (1977a5a),
+      CI verte confirmée (6/6 checks GitHub Actions completed/success) —
+      statut corrigé à resolu.
 
   - id: SEC-043
     titre: >
