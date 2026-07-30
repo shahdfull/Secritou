@@ -166,11 +166,12 @@ derniere_maj: "2026-07-30"
 # trouvée et resolu dans la même session (nouvelle assertClientInScope
 # dans serviceScope.ts, appliquée aux 4 méthodes de gscConnectionService +
 # getClientMetrics, nouveau
-# server/test/gscConnectionScopeManager.test.ts, 6 cas) —
-# 4.8-analytics remplit le critère de clôture "prêt au lancement"
-# (CLAUDE.md), sous réserve de la CI verte sur le commit correspondant. G
-# non balayée (pas de calcul financier propre à ce module) ;
-# C/D/E/F/H/I/J laissées à null.
+# server/test/gscConnectionScopeManager.test.ts, 6 cas) — commit
+# 328a5a8, CI verte confirmée (6/6 checks GitHub Actions
+# completed/success : server, client, restore-smoke-test,
+# contrast-check, e2e, i18n-check) — 4.8-analytics remplit le critère de
+# clôture "prêt au lancement" (CLAUDE.md). G non balayée (pas de calcul
+# financier propre à ce module) ; C/D/E/F/H/I/J laissées à null.
 
 modules:
   "4.1-crm":
