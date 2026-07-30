@@ -68,11 +68,12 @@ export const updateContractValidator = z.object({
 });
 
 // Payment ────────────────────────────────────────────────────────────────────
+// SEC-029: amount/amountPaid/status are derived read-only from the project's real DEPOSIT
+// invoice (clientOnboarding.service.ts) — accepting them here let an ADMIN/MANAGER mark
+// status:"PAID" with an arbitrary amountPaid, shown to the CLIENT as fact with no link to
+// whether that payment actually happened. deadline remains the only caller-writable field.
 const paymentBody = z
   .object({
-    amount: z.number().nonnegative().optional(),
-    amountPaid: z.number().nonnegative().optional(),
-    status: z.enum(["UNPAID", "PARTIAL", "PAID"]).optional(),
     deadline: z.string().optional(),
   })
   .strict();

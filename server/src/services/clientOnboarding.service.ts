@@ -6,6 +6,7 @@ import { enqueueEmails } from "../jobs/queues.js";
 import { onboardingStepCompletedTemplate } from "./emailTemplates/index.js";
 import { prismaRead } from "../config/prisma.js";
 import type { ListQueryOptions } from "../utils/listQuery.js";
+import type { PaymentStatus, Prisma } from "@prisma/client";
 import type {
   UpdateOnboardingInput,
   UpdateStepInput,
@@ -17,6 +18,23 @@ import type {
   ProductionInput,
   DeliveryInput,
 } from "../validators/clientOnboarding.validator.js";
+
+// SEC-029: onboarding's Payment step must reflect the project's real DEPOSIT invoice (created
+// by proposal.service.ts#acceptWithCascade, RG-004a) rather than accept an arbitrary
+// amount/amountPaid/status from the caller — those three fields are derived here, never trusted
+// as input.
+function mapInvoiceStatusToPaymentStatus(invoiceStatus: string): PaymentStatus {
+  if (invoiceStatus === "PAID") return "PAID";
+  if (invoiceStatus === "PARTIAL") return "PARTIAL";
+  return "UNPAID";
+}
+
+async function getDepositInvoiceForProject(projectId: string) {
+  return prismaRead.invoice.findFirst({
+    where: { projectId, invoiceType: "DEPOSIT" },
+    select: { id: true, amount: true, amountPaid: true, status: true },
+  });
+}
 
 export const clientOnboardingService = {
   async getAllOnboardings(options: ListQueryOptions & { search?: string; clientId?: string }, userClientId?: string | null, managerServiceId?: string | null) {
@@ -107,8 +125,37 @@ export const clientOnboardingService = {
 
   async createContract(stepId: string, data: ContractInput, userClientId?: string | null, managerServiceId?: string | null) { return clientOnboardingRepository.createContract(stepId, data, userClientId, managerServiceId); },
   async updateContract(contractId: string, data: ContractInput, userClientId?: string | null, managerServiceId?: string | null) { return clientOnboardingRepository.updateContract(contractId, data, userClientId, managerServiceId); },
-  async createPayment(stepId: string, data: PaymentInput, userClientId?: string | null, managerServiceId?: string | null) { return clientOnboardingRepository.createPayment(stepId, data, userClientId, managerServiceId); },
-  async updatePayment(paymentId: string, data: PaymentInput, userClientId?: string | null, managerServiceId?: string | null) { return clientOnboardingRepository.updatePayment(paymentId, data, userClientId, managerServiceId); },
+  async createPayment(stepId: string, data: PaymentInput, userClientId?: string | null, managerServiceId?: string | null) {
+    const step = await prismaRead.onboardingStep.findUnique({
+      where: { id: stepId },
+      select: { onboarding: { select: { projectId: true } } },
+    });
+    const invoice = step ? await getDepositInvoiceForProject(step.onboarding.projectId) : null;
+    const derived: Omit<Prisma.PaymentCreateInput, "onboardingStep"> = {
+      deadline: data.deadline,
+      status: invoice ? mapInvoiceStatusToPaymentStatus(invoice.status) : "UNPAID",
+      ...(invoice
+        ? { invoice: { connect: { id: invoice.id } }, amount: Number(invoice.amount), amountPaid: Number(invoice.amountPaid) }
+        : {}),
+    };
+    return clientOnboardingRepository.createPayment(stepId, derived, userClientId, managerServiceId);
+  },
+  async updatePayment(paymentId: string, data: PaymentInput, userClientId?: string | null, managerServiceId?: string | null) {
+    const payment = await prismaRead.payment.findUnique({
+      where: { id: paymentId },
+      select: { onboardingStep: { select: { onboarding: { select: { projectId: true } } } } },
+    });
+    const projectId = payment?.onboardingStep?.onboarding.projectId;
+    const invoice = projectId ? await getDepositInvoiceForProject(projectId) : null;
+    const derived: Prisma.PaymentUpdateInput = {
+      deadline: data.deadline,
+      status: invoice ? mapInvoiceStatusToPaymentStatus(invoice.status) : "UNPAID",
+      ...(invoice
+        ? { invoice: { connect: { id: invoice.id } }, amount: Number(invoice.amount), amountPaid: Number(invoice.amountPaid) }
+        : {}),
+    };
+    return clientOnboardingRepository.updatePayment(paymentId, derived, userClientId, managerServiceId);
+  },
   async createQuestionnaire(stepId: string, data: QuestionnaireInput, userClientId?: string | null, managerServiceId?: string | null) { return clientOnboardingRepository.createQuestionnaire(stepId, data, userClientId, managerServiceId); },
   async updateQuestionnaire(questionnaireId: string, data: QuestionnaireInput, userClientId?: string | null, managerServiceId?: string | null) { return clientOnboardingRepository.updateQuestionnaire(questionnaireId, data, userClientId, managerServiceId); },
   async createSpecifications(stepId: string, data: SpecificationsInput, userClientId?: string | null, managerServiceId?: string | null) { return clientOnboardingRepository.createSpecifications(stepId, data, userClientId, managerServiceId); },

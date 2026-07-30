@@ -7,10 +7,77 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : 4.3 Onboarding client
-# 1 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
+# 2 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 
 anomalies:
+  - id: SEC-029
+    titre: >
+      Le modèle Payment de l'étape onboarding (amount/amountPaid/status)
+      n'est jamais rattaché à un Invoice réel (Payment.invoiceId n'est
+      jamais écrit par clientOnboarding.*) ni recalculé/vérifié contre le
+      paiement réellement enregistré côté invoiceService.addPayment — un
+      ADMIN/MANAGER peut définir status:"PAID" avec un amountPaid
+      arbitraire, affiché comme fait acquis au CLIENT
+      (ClientOnboardingPage.tsx), sans aucune garantie que ce paiement
+      existe réellement dans le registre financier
+    perimetre: 4.3-onboarding
+    regle_violee: >
+      Cohérence attendue entre l'affichage client d'un statut de paiement
+      et la réalité du registre financier (Invoice/Payment réels gérés par
+      invoiceService.addPayment, RG-008/RG-012) — aucune règle métier
+      explicite dans REFERENTIEL.md ne couvre ce Payment d'onboarding
+      spécifiquement, ce qui est en soi le symptôme : un champ financier
+      affiché au client existe sans qu'aucune règle ne le gouverne.
+    classe: invariant-financier-absent
+    gravite: eleve
+    statut: resolu
+    critere_de_resolution: >
+      Une décision du porteur du projet tranche l'intention de ce champ
+      (parmi : (a) le lier réellement à Invoice via invoiceId et ne
+      permettre status:"PAID" que si un Payment réel existe côté
+      invoiceService pour le montant correspondant ; (b) le documenter
+      explicitement comme un simple indicateur manuel de suivi, sans
+      valeur probante financière, avec un avertissement UI en ce sens ;
+      (c) le retirer si redondant avec le flux réel acompte/solde de 4.4).
+      Ne pas trancher seul (CLAUDE.md « réparer n'est pas développer » —
+      créer le rattachement à Invoice serait un développement, pas une
+      correction). Décision du porteur (AskUserQuestion, session du
+      2026-07-30) : option (a).
+    detecte_le: "2026-07-30"
+    source: >
+      Lecture intégrale de server/src/validators/clientOnboarding.validator.ts
+      (paymentBody : amount/amountPaid/status tous optionnels et
+      indépendants, aucune contrainte croisée), grep confirmant
+      Payment.invoiceId n'est jamais référencé par clientOnboarding.*
+      (server/src/services/, server/src/repositories/), et
+      client/src/features/client-onboarding/ClientOnboardingPage.tsx
+      (affichage direct amount/amountPaid/status au CLIENT sans aucune
+      réserve).
+    confiance: haute
+    note: >
+      Impact réel dépend de l'usage effectif du champ en production (0
+      client actif à ce jour) — mais le risque métier est réel dès le
+      premier client si ce statut sert de référence pour la suite du
+      pipeline d'onboarding (ex. déblocage d'étapes suivantes) sans
+      correspondre à un encaissement réellement constaté par
+      invoiceService.
+      Corrigé (session du 2026-07-30) : amount/amountPaid/status retirés
+      de paymentBody (validator, serveur ET shared/) — deadline reste seul
+      champ saisissable. clientOnboardingService.createPayment/
+      updatePayment dérivent désormais ces 3 champs (+ invoiceId) depuis
+      la vraie facture DEPOSIT du projet
+      (prisma.invoice.findFirst({ projectId, invoiceType: "DEPOSIT" }),
+      même pattern que project.service.ts#clientApprove) à chaque
+      création/mise à jour — jamais depuis l'entrée appelant.
+      mapInvoiceStatusToPaymentStatus mappe InvoiceStatus → PaymentStatus
+      (PAID/PARTIAL/sinon UNPAID). Nouveau
+      server/test/clientOnboardingPaymentDerivedFromInvoice.test.ts (4
+      cas, appelle réellement clientOnboardingService contre une base
+      migrée — dérivation initiale, PARTIAL, PAID, resynchronisation sur
+      updatePayment après changement de l'invoice), enregistré dans
+      test/run-all.test.ts. `verifie: test`.
+
   - id: SEC-025
     titre: >
       clientOnboardingService/repository — updateOnboarding, deleteOnboarding,

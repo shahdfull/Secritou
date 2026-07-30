@@ -12,8 +12,37 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-028
+dernier_id: SEC-030
 anomalies:
+  - id: SEC-030
+    titre: >
+      server/tsconfig.json n'inclut que "src/**/*.ts" — npm run typecheck
+      (tsc --noEmit) ne vérifie jamais server/test/**, qui peut donc
+      accumuler des erreurs de type réelles (constaté : deux appels
+      obsolètes de clientOnboardingService.createPayment avec un shape
+      retiré du type PaymentInput, jamais détectés) sans jamais faire
+      échouer la porte CI typecheck ; les tests continuent de s'exécuter
+      via tsx (qui strip les types sans les vérifier), masquant le défaut
+    perimetre: transverse
+    statut: resolu
+    gravite: moyenne
+    classe: typecheck-perimetre-incomplet
+
+  - id: SEC-029
+    titre: >
+      Le modèle Payment de l'étape onboarding (amount/amountPaid/status)
+      n'est jamais rattaché à un Invoice réel (Payment.invoiceId n'est
+      jamais écrit par clientOnboarding.*) ni recalculé/vérifié contre le
+      paiement réellement enregistré côté invoiceService.addPayment — un
+      ADMIN/MANAGER peut définir status:"PAID" avec un amountPaid
+      arbitraire, affiché comme fait acquis au CLIENT
+      (ClientOnboardingPage.tsx), sans aucune garantie que ce paiement
+      existe réellement dans le registre financier
+    perimetre: 4.3-onboarding
+    statut: resolu
+    gravite: eleve
+    classe: invariant-financier-absent
+
   - id: SEC-028
     titre: >
       gscConnectionService (startConnect/getStatus/disconnect/

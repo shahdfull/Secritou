@@ -113,14 +113,14 @@ describe("SEC-025: clientOnboardingService write paths enforce Manager pole scop
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { paymentStep } = await makeOnboardingInPole(serviceB, "sec025-create-payment-b");
 
-    await assert.rejects(() => clientOnboardingService.createPayment(paymentStep.id, { status: "UNPAID" }, undefined, serviceA));
+    await assert.rejects(() => clientOnboardingService.createPayment(paymentStep.id, {}, undefined, serviceA));
   });
 
   test("a same-pole Manager can create a payment", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const { paymentStep } = await makeOnboardingInPole(serviceA, "sec025-create-payment-a");
 
-    const payment = await clientOnboardingService.createPayment(paymentStep.id, { status: "UNPAID" }, undefined, serviceA);
+    const payment = await clientOnboardingService.createPayment(paymentStep.id, {}, undefined, serviceA);
     assert.equal(payment.onboardingStepId, paymentStep.id);
   });
 

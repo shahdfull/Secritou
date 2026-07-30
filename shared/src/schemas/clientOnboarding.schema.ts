@@ -37,10 +37,10 @@ export const contractPayloadSchema = z.object({
   status: z.enum(CONTRACT_STATUSES).optional(),
 });
 
+// SEC-029: amount/amountPaid/status are derived server-side from the project's real DEPOSIT
+// invoice (clientOnboarding.service.ts) — never accepted as input. deadline is the only
+// caller-writable field.
 export const paymentPayloadSchema = z.object({
-  amount: z.number().nonnegative().optional(),
-  amountPaid: z.number().nonnegative().optional(),
-  status: z.enum(ONBOARDING_PAYMENT_STATUSES).optional(),
   deadline: z.string().optional(),
 });
 
