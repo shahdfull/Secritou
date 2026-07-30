@@ -34,7 +34,7 @@
 # balayée avec la date du jour, à la fin de la session — jamais une autre
 # cellule par supposition.
 
-derniere_maj: "2026-07-29"
+derniere_maj: "2026-07-30"
 # 4.1-crm : A/B/G balayées le 2026-07-29 (audit réel contre REFERENTIEL.md
 # §3.4/§4.1/§5 RG-002, lead.service.ts/.repository.ts/.controller.ts/
 # .validator.ts, proposal.service.ts/.repository.ts/.controller.ts/
@@ -92,6 +92,24 @@ derniere_maj: "2026-07-29"
 # client, server, contrast-check, i18n-check, restore-smoke-test, e2e). G
 # non balayée (pas de calcul financier direct dans ce module) ;
 # C/D/E/F/H/I/J laissées à null.
+# 4.13-notifications-jobs : A/B balayées le 2026-07-30 (premier audit réel
+# du nouveau registre — jobs/queues.ts, jobs/index.ts,
+# jobs/processors/communication.processor.ts,
+# jobs/processors/documents.processor.ts,
+# jobs/processors/maintenance.processor.ts (markOverdueInvoices,
+# checkInvoiceFollowup via ceoAlerts.processor.ts), utils/webhook.ts,
+# notification.service.ts/.repository.ts/.controller.ts,
+# notification.routes.ts) — jobId déterministe correctement appliqué
+# partout (notificationJobId/documentJobId/21 registrations cron avec
+# jobId statique), aucun `:` dans un jobId, notification.repository.ts
+# scope correctement markAsRead par (id, userId) combiné (IDOR
+# impossible), webhook.ts signe en HMAC-SHA256 + timingSafeEqual +
+# fenêtre de fraîcheur anti-rejeu. Fixes historiques (relances facture sur
+# dueDate pas createdAt, relance après OVERDUE) confirmés toujours en
+# place par lecture directe de checkInvoiceFollowup. Aucune anomalie
+# nouvelle trouvée. G non balayée (pas de calcul financier propre à ce
+# module — les jobs délèguent à invoiceService/commissionService déjà
+# audités ailleurs) ; C/D/E/F/H/I/J laissées à null.
 
 modules:
   "4.1-crm":
@@ -254,8 +272,8 @@ modules:
 
   "4.13-notifications-jobs":
     label: "4.13 Notifications & Automatisations"
-    A: null
-    B: null
+    A: "2026-07-30"
+    B: "2026-07-30"
     C: null
     D: null
     E: null
