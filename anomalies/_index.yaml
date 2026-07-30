@@ -16,17 +16,20 @@ dernier_id: SEC-038
 anomalies:
   - id: SEC-038
     titre: >
-      commissionService.test.ts et commissionAutoSplitTaskTrigger.test.ts
-      passent chacun isolément (node --test sur le seul fichier) mais 6
-      assertions échouent réellement (pas un artefact de cleanup) quand
-      les deux tournent dans la même exécution de test:unit
-      (test/run-all.test.ts) — signe d'un état partagé non isolé entre
-      les deux fichiers (fixture DB résiduelle, compteur Service/User non
-      nettoyé, ou ordre d'exécution dont dépend un des deux)
+      commissionRepository.getAdminPartnerId() sélectionnait le "premier
+      ADMIN" via findFirst sans orderBy (ordre non garanti par Postgres) —
+      avec plusieurs comptes ADMIN (RG-021 les autorise explicitement),
+      l'ADMIN recevant la part de commission dans
+      recalcAutoSplit/resetToAutoSplit pouvait varier d'un appel à
+      l'autre ; découvert via la flakiness de commissionService.test.ts/
+      commissionAutoSplitTaskTrigger.test.ts (passent isolément, 6
+      assertions échouent parfois quand d'autres fichiers de test
+      créaient temporairement un second ADMIN en base pendant
+      test/run-all.test.ts)
     perimetre: transverse
     statut: ouvert
     gravite: moyenne
-    classe: pollution-etat-partage-entre-fichiers-de-test
+    classe: selection-non-deterministe-entite-metier
 
   - id: SEC-037
     titre: >

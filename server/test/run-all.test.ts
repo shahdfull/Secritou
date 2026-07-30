@@ -151,6 +151,7 @@ import "./taskPayoutRules.test.ts";
 import "./taskFixedCommission.test.ts";
 import "./managerProjectFee.test.ts";
 import "./sessionIdleTimeout.test.ts";
+import "./commissionAdminPartnerDeterministic.test.ts";
 import "./personas.test.ts";
 import "./aiValidator.test.ts";
 import "./aiConversationOllamaFailure.test.ts";

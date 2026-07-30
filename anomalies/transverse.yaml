@@ -15,13 +15,16 @@
 anomalies:
   - id: SEC-038
     titre: >
-      commissionService.test.ts et commissionAutoSplitTaskTrigger.test.ts
-      passent chacun isolément (node --test sur le seul fichier) mais 6
-      assertions échouent réellement (pas un artefact de cleanup) quand
-      les deux tournent dans la même exécution de test:unit
-      (test/run-all.test.ts) — signe d'un état partagé non isolé entre
-      les deux fichiers (fixture DB résiduelle, compteur Service/User non
-      nettoyé, ou ordre d'exécution dont dépend un des deux)
+      commissionRepository.getAdminPartnerId() sélectionnait le "premier
+      ADMIN" via findFirst sans orderBy (ordre non garanti par Postgres) —
+      avec plusieurs comptes ADMIN (RG-021 les autorise explicitement),
+      l'ADMIN recevant la part de commission dans
+      recalcAutoSplit/resetToAutoSplit pouvait varier d'un appel à
+      l'autre ; découvert via la flakiness de commissionService.test.ts/
+      commissionAutoSplitTaskTrigger.test.ts (passent isolément, 6
+      assertions échouent parfois quand d'autres fichiers de test
+      créaient temporairement un second ADMIN en base pendant
+      test/run-all.test.ts)
     perimetre: transverse
     regle_violee: >
       Aucune règle explicite de REFERENTIEL.md ne couvre ce cas — constat
@@ -29,9 +32,9 @@ anomalies:
       incidemment en vérifiant que le nouveau test bullBoardAdminOnly.http.test.ts
       (SEC-032) tournait bien dans test:unit une fois ajouté à
       run-all.test.ts.
-    classe: pollution-etat-partage-entre-fichiers-de-test
+    classe: selection-non-deterministe-entite-metier
     gravite: moyenne
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       npm run test:unit --workspace server passe à 0 échec sur
       commissionService.test.ts et commissionAutoSplitTaskTrigger.test.ts
@@ -65,6 +68,30 @@ anomalies:
       la correction de SEC-032 (bull-board) — enregistré et laissé ouvert
       conformément à la règle CLAUDE.md d'enregistrement immédiat de tout
       écart constaté hors audit formel.
+
+      Cause racine identifiée et corrigée (session ultérieure, même jour
+      2026-07-30) : commissionRepository.getAdminPartnerId() faisait
+      findFirst({ where: { role: "ADMIN" } }) sans orderBy — Postgres ne
+      garantit aucun ordre de ligne pour cette requête. Avec plusieurs
+      comptes ADMIN en base (RG-021 autorise explicitement d'en avoir
+      plusieurs, et test:unit en crée temporairement plusieurs via divers
+      fichiers de test — bullBoardAdminOnly.http.test.ts,
+      aiConversationOllamaFailure.test.ts, gdprEraseClientAtomicity.test.ts,
+      etc. — présents en base simultanément le temps de l'exécution
+      complète), le "premier ADMIN" retourné pouvait varier d'un appel à
+      l'autre, changeant silencieusement qui reçoit la part de commission
+      ADMIN dans recalcAutoSplit/resetToAutoSplit — un vrai défaut
+      d'exactitude métier (catégorie G), pas seulement un artefact de
+      test. Corrigé par orderBy: { createdAt: "asc" } (décision du porteur,
+      AskUserQuestion : l'ADMIN le plus ancien reçoit la part). Nouveau
+      server/test/commissionAdminPartnerDeterministic.test.ts : appelle
+      réellement getAdminPartnerId avec deux ADMIN créés à des instants
+      distincts et assère que le plus récent n'est jamais choisi, répété 5
+      fois. Suite complète (test:unit, 710 tests avec ce nouveau test) :
+      710/710 verts sur 2 exécutions consécutives (précédemment 692-698
+      selon la présence d'autres fixtures ADMIN temporaires). Statut laissé
+      à en_cours : correctif écrit et testé localement mais pas encore
+      commité/vérifié en CI.
   - id: SEC-037
     titre: >
       gdprService.eraseClient/eraseUser/eraseLead/eraseContactRequest

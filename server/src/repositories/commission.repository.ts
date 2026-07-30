@@ -96,8 +96,16 @@ export const commissionRepository = {
 
   // RG-005-bis assumes a single ADMIN account in practice (see CLAUDE.md) — the first one
   // found is the sole recipient of the ADMIN share and of any Manager/Freelancer remainder.
+  // SEC-038: findFirst without an orderBy has no guaranteed row order in Postgres — with more
+  // than one ADMIN account (RG-021 explicitly allows several), which one receives the ADMIN
+  // commission share could vary from call to call. Ordered by createdAt asc so the oldest ADMIN
+  // account (the agency's founding admin, first ever created) is always the one picked.
   async getAdminPartnerId() {
-    const admin = await prismaRead.user.findFirst({ where: { role: "ADMIN" }, select: { id: true } });
+    const admin = await prismaRead.user.findFirst({
+      where: { role: "ADMIN" },
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    });
     return admin?.id ?? null;
   },
 
