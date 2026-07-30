@@ -12,9 +12,22 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-036
+dernier_id: SEC-037
 anomalies:
-  - id: SEC-036
+  - id: SEC-037
+    titre: >
+      gdprService.eraseClient/eraseUser/eraseLead/eraseContactRequest
+      exécutent chacune plusieurs écritures Prisma séquentielles (delete
+      des leads liés puis delete du client ; ou update client puis update
+      leads puis update portalUsers) sans les envelopper dans
+      prisma.$transaction — un échec à mi-séquence (crash serveur, erreur
+      réseau DB) laisse l'effacement RGPD partiellement appliqué (ex.
+      leads supprimés mais Client encore présent, ou Client anonymisé
+      mais comptes portail non révoqués/anonymisés)
+    perimetre: transverse
+    statut: ouvert
+    gravite: moyenne
+    classe: ecriture-multi-etapes-sans-transaction
     titre: >
       clientPortalRepository.getOutstandingBalance (résumé du portail
       client, GET /client-portal/summary) calcule

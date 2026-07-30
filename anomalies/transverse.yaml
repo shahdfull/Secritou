@@ -9,8 +9,62 @@
 # Périmètre : Transverse (hors modules §4 — CI/infra, docs, RGPD, i18n global, design system, observabilité)
 # 6 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
+# +1 le 2026-07-30 (audit B).
 
 anomalies:
+  - id: SEC-037
+    titre: >
+      gdprService.eraseClient/eraseUser/eraseLead/eraseContactRequest
+      exécutent chacune plusieurs écritures Prisma séquentielles (delete
+      des leads liés puis delete du client ; ou update client puis update
+      leads puis update portalUsers) sans les envelopper dans
+      prisma.$transaction — un échec à mi-séquence (crash serveur, erreur
+      réseau DB) laisse l'effacement RGPD partiellement appliqué (ex.
+      leads supprimés mais Client encore présent, ou Client anonymisé
+      mais comptes portail non révoqués/anonymisés)
+    perimetre: transverse
+    regle_violee: >
+      RG-025 (RGPD, export/effacement) présuppose que l'effacement d'un
+      sujet atteint un état terminal cohérent (effacé ou anonymisé), pas un
+      état intermédiaire indéfini. Aucune règle explicite de
+      REFERENTIEL.md ne mentionne l'atomicité de cette opération, mais un
+      effacement RGPD partiellement appliqué laisse subsister des PII
+      censées être effacées (ex. portalUsers non anonymisés) — contraire à
+      l'intention de RG-025.
+    classe: ecriture-multi-etapes-sans-transaction
+    gravite: moyenne
+    statut: ouvert
+    critere_de_resolution: >
+      Chaque fonction eraseClient/eraseUser/eraseLead/eraseContactRequest
+      atteint un état terminal cohérent même en cas d'échec à mi-séquence
+      — soit via prisma.$transaction (transactions interactives) autour
+      des seules écritures DB (les appels non-Prisma comme
+      authDenylist.revokeAccessToken restent hors transaction mais
+      idempotents/rejouables après un retry complet de la fonction), soit
+      via une preuve documentée que chaque étape individuelle est déjà
+      idempotente et donc rejouable sans effet de bord en cas de retry
+      complet. Vérifié par un test qui simule un échec Prisma à
+      mi-séquence (ex. mock rejetant le 2e appel) et assère que l'état
+      final reste cohérent (pas de ligne à moitié effacée).
+    detecte_le: "2026-07-30"
+    source: >
+      Lecture intégrale de server/src/services/gdpr.service.ts pendant
+      l'audit B transverse — grep "\$transaction" sur ce fichier : zéro
+      résultat, confirmant qu'aucune des 4 fonctions d'effacement n'utilise
+      de transaction malgré des séquences de plusieurs écritures Prisma
+      chacune.
+    confiance: haute
+    note: >
+      Décision produit non tranchée dans cette session (comme SEC-032) :
+      transactionner proprement nécessite de séparer les écritures Prisma
+      des appels externes (authDenylist, getSignedReadUrl n'existe pas
+      dans les fonctions d'effacement mais authDenylist.revokeAccessToken
+      oui) — pas un simple wrap mécanique. Risque résiduel jugé faible en
+      pratique (RGPD déclenché rarement, 0 client actif au moment de la
+      détection) mais réel dès le premier effacement en production.
+      Laissé ouvert pour discussion avec le porteur plutôt que corrigé
+      précipitamment.
+
   - id: SEC-032
     titre: >
       @bull-board/api et @bull-board/express sont déclarées dans

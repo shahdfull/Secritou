@@ -35,6 +35,21 @@
 # cellule par supposition.
 
 derniere_maj: "2026-07-30"
+# Balayage des G restants (2026-07-30) : 4.7-freelances (hourlyRate confirmé
+# simple champ saisi, updateFreelancerRatingAverage arrondit un score 1-5,
+# pas un montant — sans objet), 4.10-rbac (grep amount/montant/Decimal sur
+# managerPermission.* : zéro résultat — sans objet), 4.12-site-public (idem
+# sur siteContent.service.ts — sans objet), 4.13-notifications-jobs
+# (maintenance.processor.ts : les seuls calculs financiers écrivent
+# directement des Decimal Prisma sans passer par Number() intermédiaire,
+# contrairement au bug de 4.6 ci-dessous — sans objet, déjà couvert par
+# SEC-031). Aucune anomalie nouvelle sur ces 4 périmètres.
+# transverse : B balayée le 2026-07-30 (lecture intégrale de gdpr.service.ts)
+# — SEC-037 (moyenne, eraseClient/eraseUser/eraseLead/eraseContactRequest
+# enchaînent plusieurs écritures Prisma sans $transaction, un échec à
+# mi-séquence laisse un effacement RGPD partiellement appliqué) trouvée et
+# laissée ouverte (décision produit non tranchée, même traitement que
+# SEC-032). C/E/F/G/H/I/J restent à null.
 # 4.14-auth : B balayée le 2026-07-30 (auth.service.ts, auth.repository.ts,
 # auth.middleware.ts, authCookies.ts, authDenylist.ts) — timing-safe login
 # (DUMMY_PASSWORD_HASH), révocation de famille de refresh tokens sur reuse
@@ -312,7 +327,7 @@ modules:
     D: null
     E: null
     F: null
-    G: null
+    G: "2026-07-30"
     H: null
     I: null
     J: null
@@ -352,7 +367,7 @@ modules:
     D: null
     E: null
     F: null
-    G: null
+    G: "2026-07-30"
     H: null
     I: null
     J: null
@@ -379,7 +394,7 @@ modules:
     D: null
     E: null
     F: null
-    G: null
+    G: "2026-07-30"
     H: null
     I: null
     J: null
@@ -392,7 +407,7 @@ modules:
     D: null
     E: null
     F: null
-    G: null
+    G: "2026-07-30"
     H: null
     I: null
     J: null
@@ -413,7 +428,7 @@ modules:
   "transverse":
     label: "Transverse (hors modules §4 — CI/infra, RGPD, docs, i18n global, design system, observabilité)"
     A: "2026-07-30"
-    B: null
+    B: "2026-07-30"
     C: null
     D: "2026-07-30"
     E: null
