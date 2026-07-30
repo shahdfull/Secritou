@@ -142,7 +142,7 @@ anomalies:
       composant, seulement pas branchée sur ce bouton précis.
     classe: validation-cote-client-incomplete
     gravite: moyenne
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       Le bouton "Soumettre le brief" (ClientBriefPage.tsx, JSX de la
       branche isLastStep) doit être desactive quand
@@ -175,6 +175,17 @@ anomalies:
       les vérifications de non-régression de RG-026 (confirmation UX),
       périmètre distinct de celui-ci. Aucune correction appliquée dans
       cette session.
+      Corrigé (commit eec7dd8, 2026-07-29 : « fix(ci): corrige les 4
+      rouges CI restants (SEC-011, i18n, prisma format, e2e S3) ») :
+      ClientBriefPage.tsx ajoute canAdvance/canSubmit, bouton "Soumettre
+      le brief" désormais `disabled={submitMutation.isPending ||
+      !canSubmit}`. Test réel déjà existant
+      (ClientBriefPage.test.tsx) confirmé vert (4/4,
+      `npx vitest run src/features/client-portal/ClientBriefPage.test.tsx`,
+      relecture du 2026-07-30). Ce champ `statut` était resté `ouvert`
+      dans ce fichier de détail après la correction — désynchronisation
+      avec anomalies/_index.yaml (déjà `resolu`) découverte et corrigée
+      lors d'une relecture de cohérence du registre complet.
 
   - id: SEC-012
     titre: >
