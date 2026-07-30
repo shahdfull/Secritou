@@ -35,6 +35,13 @@
 # cellule par supposition.
 
 derniere_maj: "2026-07-30"
+# 4.14-auth : G balayée le 2026-07-30 (grep amount/montant/Decimal/price/
+# tarif sur auth.service.ts et auth.repository.ts : zéro résultat — aucun
+# calcul financier dans le module d'authentification, sans objet). SEC-006/
+# SEC-008/SEC-009 déjà resolu (confirmé CI verte, cf. commit b6a5a2a) —
+# aucune anomalie bloquant/eleve ouverte sur A/B/G : 4.14-auth remplit le
+# critère de clôture "prêt au lancement" (CLAUDE.md). C/D/E/F/H/I/J
+# laissées à null.
 # 4.6-portail-client : G balayée le 2026-07-30 (clientPortal.service.ts,
 # clientPortal.repository.ts) — SEC-036 (mineure, getOutstandingBalance en
 # arithmétique flottante brute sans roundMoney()) trouvée et resolu (commit
@@ -426,7 +433,7 @@ modules:
     D: null
     E: null
     F: null
-    G: null
+    G: "2026-07-30"
     H: null
     I: null
     J: null
