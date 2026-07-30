@@ -28,7 +28,7 @@ anomalies:
       pour l'appelant) alors que businessMetrics.logAgentCall a déjà
       enregistré success:true dans le finally
     perimetre: 4.11-ia
-    statut: ouvert
+    statut: resolu
     gravite: eleve
     classe: cout-latence-doubles-effet-de-bord-persistance
 
@@ -43,7 +43,7 @@ anomalies:
       middleware d'erreur, donc une ZodError de schema.parse sort en 500
       générique au lieu d'un code lisible (422/502)
     perimetre: 4.11-ia
-    statut: ouvert
+    statut: resolu
     gravite: moyenne
     classe: retry-non-borne-a-la-classe-derreur
 
@@ -58,7 +58,7 @@ anomalies:
       sur un Ollama réel ; l'écart est entre le code et le déploiement,
       pas dans le code
     perimetre: 4.11-ia
-    statut: ouvert
+    statut: resolu
     gravite: moyenne
     classe: ecart-code-deploiement
 
@@ -73,7 +73,7 @@ anomalies:
       serveur testé et audité (SEC-033/034) mais structurellement
       inatteignable par un utilisateur du produit
     perimetre: 4.11-ia
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: capacite-serveur-sans-point-dentree-frontend
 
@@ -86,7 +86,7 @@ anomalies:
       (aiConversationRepository.addMessage), indistinguable pour le
       client d'une réponse légitime du modèle
     perimetre: 4.11-ia
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: repli-silencieux-reponse-vide
   - id: SEC-038

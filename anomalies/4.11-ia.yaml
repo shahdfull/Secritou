@@ -40,7 +40,7 @@ anomalies:
       succès/échec de cet archivage.
     classe: cout-latence-doubles-effet-de-bord-persistance
     gravite: eleve
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       executeAgent persiste le résultat (persona, context, result) sans
       déclencher un second appel LLM — soit via un appel direct au
@@ -82,9 +82,8 @@ anomalies:
       (/ai/chat → aiConversation.service.ts, utilisé par
       AIAssistantFloat.tsx) n'a jamais eu ce défaut : create()/addMessage
       y sont le mécanisme de persistance légitime du chat, pas un
-      archivage détourné. Statut laissé à en_cours : suppression écrite
-      et vérifiée (typecheck/lint/tests) localement mais pas encore
-      commitée/vérifiée en CI.
+      archivage détourné. Commité (aebe1b9), CI verte confirmée (6/6
+      checks GitHub Actions completed/success) — statut corrigé à resolu.
 
   - id: SEC-042
     titre: >
@@ -105,7 +104,7 @@ anomalies:
       surtout quand chaque tentative coûte jusqu'à 120s.
     classe: retry-non-borne-a-la-classe-derreur
     gravite: moyenne
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       callAgentWithRetry ne retente que sur une erreur de parsing
       (extractJson, JSON.parse, schema.parse — distinguables par un type
@@ -131,9 +130,8 @@ anomalies:
       Résolu autrement (session ultérieure, même jour 2026-07-30) :
       agentOrchestrator.service.ts (seul emplacement de
       callAgentWithRetry) a été supprimé dans son intégralité — cf.
-      SEC-040/SEC-043. Sans objet. Statut laissé à en_cours : suppression
-      écrite et vérifiée localement mais pas encore commitée/vérifiée en
-      CI.
+      SEC-040/SEC-043. Sans objet. Commité (aebe1b9), CI verte confirmée
+      (6/6) — statut corrigé à resolu.
 
   - id: SEC-041
     titre: >
@@ -154,7 +152,7 @@ anomalies:
       le second non vérifié malgré le statut affiché.
     classe: ecart-code-deploiement
     gravite: moyenne
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Soit un service ollama est ajouté à docker-compose.yml (dev) et
       docker-compose.prod.yml (prod) avec OLLAMA_URL pointant dessus par
@@ -185,10 +183,12 @@ anomalies:
       documente OLLAMA_URL pour les deux cas (localhost:11434 si le
       serveur tourne sur l'hôte, http://ollama:11434 si le serveur est
       lui-même conteneurisé). Les deux fichiers compose validés
-      syntaxiquement (docker compose config). Statut laissé à en_cours :
-      correctif écrit et vérifié localement mais pas encore
-      commité/vérifié en CI (et par nature non vérifiable de bout en bout
-      sans télécharger un vrai modèle Ollama en CI).
+      syntaxiquement (docker compose config). Commité (aebe1b9), CI
+      verte confirmée (6/6) — statut corrigé à resolu. Note : la CI ne
+      télécharge/exécute pas un vrai modèle Ollama (hors scope de ses
+      checks actuels) — la preuve porte sur la syntaxe des compose et le
+      typecheck/lint/tests du serveur, pas sur un test d'intégration
+      Ollama de bout en bout.
 
   - id: SEC-040
     titre: >
@@ -208,7 +208,7 @@ anomalies:
       quel que soit son niveau de qualité/test côté code.
     classe: capacite-serveur-sans-point-dentree-frontend
     gravite: mineure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Décision du porteur tranchée et actée dans REFERENTIEL.md §7 :
       soit un point d'entrée frontend réel est construit pour
@@ -247,10 +247,10 @@ anomalies:
       uniquement ce qui reste pertinent : authorize() sur /ai/chat, et la
       preuve grep RG-016/RG-017 qu'aucune primitive d'exécution n'existe).
       Suite complète (test:unit) : 702/702 verts localement. Décision
-      actée ici même, à reporter dans REFERENTIEL.md §7 dans la même
-      passe de commit (règle CLAUDE.md sur la traçabilité des décisions
-      du porteur). Statut laissé à en_cours : suppression écrite et
-      vérifiée localement mais pas encore commitée/vérifiée en CI.
+      actée ici même, reportée dans REFERENTIEL.md §7 dans la même passe
+      de commit (règle CLAUDE.md sur la traçabilité des décisions du
+      porteur). Commité (aebe1b9), CI verte confirmée (6/6) — statut
+      corrigé à resolu.
 
   - id: SEC-039
     titre: >
@@ -269,7 +269,7 @@ anomalies:
       classe, critère de résolution différent → ID distinct".
     classe: repli-silencieux-reponse-vide
     gravite: mineure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       callOllama lève une erreur explicite (ex. HttpError 502) si
       data.message?.content est vide/absent, au lieu de retomber sur un
@@ -301,8 +301,8 @@ anomalies:
       s'exécute — un override tardif de process.env n'a alors aucun effet
       (confirmé par l'échec initial de ce test en suite complète alors
       qu'il passait isolément). Suite complète (test:unit) : 702/702
-      verts. Statut laissé à en_cours : correctif écrit et testé
-      localement mais pas encore commité/vérifié en CI.
+      verts. Commité (aebe1b9), CI verte confirmée (6/6 checks GitHub
+      Actions completed/success) — statut corrigé à resolu.
 
   - id: SEC-035
     titre: >
