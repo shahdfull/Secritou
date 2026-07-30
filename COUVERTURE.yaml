@@ -134,11 +134,13 @@ derniere_maj: "2026-07-30"
 # méthodes de lecture déjà scopées) trouvée et resolu dans la même
 # session (managerServiceId ajouté sur toute la chaîne repository/
 # service/contrôleur, nouveau
-# server/test/clientOnboardingWriteScopeManager.test.ts, 9 cas) —
-# 4.3-onboarding remplit le critère de clôture "prêt au lancement"
-# (CLAUDE.md), sous réserve de la CI verte sur le commit correspondant. G
-# non balayée (Payment.amount est un champ saisi, pas un calcul propre à
-# ce module) ; C/D/E/F/H/I/J laissées à null.
+# server/test/clientOnboardingWriteScopeManager.test.ts, 9 cas) — commit
+# 61f6619, CI verte confirmée (6/6 checks GitHub Actions
+# completed/success : server, client, restore-smoke-test,
+# contrast-check, e2e, i18n-check) — 4.3-onboarding remplit le critère de
+# clôture "prêt au lancement" (CLAUDE.md). G non balayée (Payment.amount
+# est un champ saisi, pas un calcul propre à ce module) ; C/D/E/F/H/I/J
+# laissées à null.
 
 modules:
   "4.1-crm":
