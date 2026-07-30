@@ -179,8 +179,18 @@ derniere_maj: "2026-07-30"
 # 328a5a8, CI verte confirmée (6/6 checks GitHub Actions
 # completed/success : server, client, restore-smoke-test,
 # contrast-check, e2e, i18n-check) — 4.8-analytics remplit le critère de
-# clôture "prêt au lancement" (CLAUDE.md). G non balayée (pas de calcul
-# financier propre à ce module) ; C/D/E/F/H/I/J laissées à null.
+# clôture "prêt au lancement" (CLAUDE.md).
+# G balayée le 2026-07-30 (audit direct de
+# executiveMetrics.repository.ts) — SEC-031 (moyenne, overdueGrowthMoM/
+# pendingGrowthMoM biaisés vers une amélioration factice — le "snapshot du
+# mois dernier" était recalculé sur le status ACTUEL de la facture, pas
+# son état réel passé) trouvée et resolu (décision du porteur : vrai
+# snapshot historique — nouveau modèle ExecutiveKpiSnapshot, migration
+# 20260730100000, cron quotidien jobNames.snapshotExecutiveKpis, getAll
+# lit désormais ce vrai snapshot), commit 98877dd, CI verte confirmée
+# (9/9 — le job server avait d'abord échoué sur le commit c3388be faute
+# de mise à jour du filtre de dérive de schéma pour le nouvel index
+# partiel, corrigé dans la foulée). C/D/E/F/H/I/J laissées à null.
 # 4.12-site-public : A/B balayées le 2026-07-30 (premier audit réel du
 # nouveau registre — siteContent.service.ts/.repository.ts/.controller.ts/
 # .routes.ts/.validator.ts) — pas de notion de pôle applicable (contenu
@@ -290,7 +300,7 @@ modules:
     D: null
     E: null
     F: null
-    G: null
+    G: "2026-07-30"
     H: null
     I: null
     J: null
