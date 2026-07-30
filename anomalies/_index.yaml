@@ -12,8 +12,24 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-052
+dernier_id: SEC-053
 anomalies:
+  - id: SEC-053
+    titre: >
+      SEC-049 (commentaires de test périmés après suppression de
+      /ai/chat) était marquée resolu alors que son propre critère de
+      résolution n'était pas rempli : aiExecutionAccessClient.test.ts
+      lignes 9-10 affirmait toujours "authorize() covers the one
+      remaining AI route, /ai/chat" — alors que /ai/chat avait été
+      supprimée le même jour (SEC-044), rendant cette ligne fausse
+      exactement comme SEC-049 elle-même le dénonçait. Découvert par un
+      audit indépendant (agent sans mémoire de la session précédente),
+      demandé explicitement pour vérifier si le registre mentait
+      quelque part
+    perimetre: 4.11-ia
+    statut: ouvert
+    gravite: mineure
+    classe: commentaire-de-test-perime
   - id: SEC-052
     titre: >
       La correction initiale proposée pour la dérive OLLAMA_MODEL
@@ -75,7 +91,7 @@ anomalies:
       commentaire affirme une couverture que le test ne prouve pas
       réellement
     perimetre: 4.11-ia
-    statut: resolu
+    statut: ouvert
     gravite: mineure
     classe: commentaire-de-test-perime
 

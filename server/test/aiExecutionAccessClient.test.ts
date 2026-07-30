@@ -3,11 +3,11 @@
 // because no execution primitive exists at all in the codebase — confirmed by direct scan below,
 // not just RG-016's own absence claim.
 //
-// SEC-040: the two AI persona endpoints this file used to gate directly
-// (agentOrchestratorService.executeAgent, /ai/brief and /ai/tasks) were removed as dead code —
-// no client/src code ever called them. Only the grep-level proof remains here; the
-// role-authorization test moved to ai.endpoint.test.ts (authorize() covers the one remaining
-// AI route, /ai/chat).
+// SEC-040/SEC-044: the AI persona endpoints this file used to gate directly
+// (agentOrchestratorService.executeAgent, /ai/brief, /ai/tasks) and /ai/chat itself were all
+// removed as dead code — no client/src code ever called any of them. Only the grep-level proof
+// remains here; the role-authorization test moved to ai.endpoint.test.ts (authorize() covers the
+// one remaining AI route, /ai/conversations/*).
 
 import test, { describe } from "node:test";
 import assert from "node:assert/strict";

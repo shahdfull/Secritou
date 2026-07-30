@@ -19,9 +19,66 @@
 # registre, cf. SEC-046). Nouvelle contre-vérification du porteur sur
 # la traçabilité laissée par les suppressions, même jour : SEC-048 à
 # SEC-052 (dont une nouvelle erreur factuelle hors 4.11, transverse —
-# voir anomalies/transverse.yaml#SEC-051).
+# voir anomalies/transverse.yaml#SEC-051). Audit indépendant demandé
+# explicitement par le porteur le 2026-07-31 (agent sans mémoire de la
+# session, pour vérifier si le registre mentait) : SEC-053, révélant que
+# la clôture de SEC-049 elle-même était prématurée.
 
 anomalies:
+  - id: SEC-053
+    titre: >
+      SEC-049 (commentaires de test périmés après suppression de
+      /ai/chat) était marquée resolu alors que son propre critère de
+      résolution n'était pas rempli : aiExecutionAccessClient.test.ts
+      lignes 9-10 affirmait toujours "authorize() covers the one
+      remaining AI route, /ai/chat" — alors que /ai/chat avait été
+      supprimée le même jour (SEC-044), rendant cette ligne fausse
+      exactement comme SEC-049 elle-même le dénonçait. Découvert par un
+      audit indépendant (agent sans mémoire de la session précédente),
+      demandé explicitement pour vérifier si le registre mentait
+      quelque part
+    perimetre: 4.11-ia
+    regle_violee: >
+      CLAUDE.md « Un critère de résolution se vérifie sur un commit » et
+      « provenance obligatoire de tout statut » — un statut resolu écrit
+      sans relire la preuve après l'avoir affirmée n'est vérifié qu'en
+      apparence. C'est aussi une récidive directe : SEC-049 dénonçait
+      exactement ce défaut (commentaire de test périmé après suppression
+      de code), et sa propre clôture a reproduit le même défaut sur son
+      propre commentaire de clôture.
+    classe: cloture-anomalie-prematuree
+    gravite: mineure
+    statut: en_cours
+    critere_de_resolution: >
+      aiExecutionAccessClient.test.ts ne mentionne plus /ai/chat comme
+      route existante nulle part dans le fichier (vérifié par grep,
+      pas seulement relecture visuelle). SEC-049 elle-même reste
+      cohérente : soit son statut redevient en_cours jusqu'à
+      vérification CI de ce nouveau correctif, soit un nouveau commit
+      la confirme resolu avec la preuve à jour.
+    detecte_le: "2026-07-31"
+    source: >
+      Audit indépendant demandé explicitement par le porteur du projet
+      ("reauditer le module IA d'une maniere independatnte") — agent
+      general-purpose sans contexte de la session précédente, lecture
+      directe de aiExecutionAccessClient.test.ts confirmant la présence
+      de la ligne "authorize() covers the one remaining AI route,
+      /ai/chat" malgré le statut resolu de SEC-049.
+    confiance: haute
+    note: >
+      Corrigé dans la même session que sa découverte : commentaire
+      réécrit (lignes 6-9) pour dire explicitement que /ai/chat a été
+      supprimée avec les endpoints persona, référence à
+      /ai/conversations/* comme seule route IA restante. Statut laissé
+      à en_cours : correctif écrit et vérifié (typecheck/lint)
+      localement mais pas encore commité/vérifié en CI. Ce constat
+      illustre la limite structurelle des relectures par le même agent
+      qui a produit le travail initial — un audit véritablement
+      indépendant (sans mémoire de session) reste le seul moyen fiable
+      de vérifier qu'une clôture affirmée correspond à l'état réel du
+      code, cf. la demande du porteur qui a directement produit cette
+      découverte.
+
   - id: SEC-052
     titre: >
       La correction initiale proposée pour la dérive OLLAMA_MODEL
@@ -133,7 +190,7 @@ anomalies:
       relecture future.
     classe: commentaire-de-test-perime
     gravite: mineure
-    statut: resolu
+    statut: en_cours
     critere_de_resolution: >
       aiExecutionAccessClient.test.ts ne mentionne plus /ai/chat comme
       route existante. ai.endpoint.test.ts documente honnêtement qu'il
@@ -152,6 +209,21 @@ anomalies:
       tout Express juste pour vérifier authorize() serait disproportionné
       face à un test HTTP déjà existant ailleurs si besoin). Commité
       (7de7599), CI verte confirmée (6/6) — statut corrigé à resolu.
+
+      Rouvert (2026-07-31, SEC-053) : un audit indépendant (agent sans
+      mémoire de cette session, demandé explicitement par le porteur
+      pour vérifier si le registre mentait) a trouvé que la correction
+      ci-dessus n'avait en réalité traité que ai.endpoint.test.ts —
+      aiExecutionAccessClient.test.ts lignes 9-10 mentionnait toujours
+      "/ai/chat" comme "the one remaining AI route" au moment de la
+      clôture, alors que /ai/chat avait déjà été supprimée le même jour
+      (SEC-044). Le statut resolu avait donc été écrit sans relire la
+      preuve après l'avoir affirmée — exactement le défaut que SEC-049
+      elle-même dénonçait. Corrigé à nouveau (2026-07-31) : commentaire
+      réécrit pour dire explicitement que /ai/chat a été supprimée,
+      référence à /ai/conversations/* comme seule route restante.
+      Statut laissé à en_cours : correctif écrit et vérifié
+      (typecheck/lint) localement mais pas encore commité/vérifié en CI.
 
   - id: SEC-048
     titre: >
