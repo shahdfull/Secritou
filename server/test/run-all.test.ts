@@ -113,6 +113,7 @@ import "./taskUpdateScopeRefusal.test.ts";
 import "./proposalWriteScopeRefusal.test.ts";
 import "./userDeleteFinancialHistory.test.ts";
 import "./gdprErasure.test.ts";
+import "./gdprEraseClientAtomicity.test.ts";
 import "./gdprSelfServiceHttp.test.ts";
 import "./clientPortalActivationBackfill.test.ts";
 import "./clientPortalOutstandingBalance.test.ts";

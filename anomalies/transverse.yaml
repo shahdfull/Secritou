@@ -86,7 +86,7 @@ anomalies:
       l'intention de RG-025.
     classe: ecriture-multi-etapes-sans-transaction
     gravite: moyenne
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       Chaque fonction eraseClient/eraseUser/eraseLead/eraseContactRequest
       atteint un état terminal cohérent même en cas d'échec à mi-séquence
@@ -108,15 +108,24 @@ anomalies:
       chacune.
     confiance: haute
     note: >
-      Décision produit non tranchée dans cette session (comme SEC-032) :
-      transactionner proprement nécessite de séparer les écritures Prisma
-      des appels externes (authDenylist, getSignedReadUrl n'existe pas
-      dans les fonctions d'effacement mais authDenylist.revokeAccessToken
-      oui) — pas un simple wrap mécanique. Risque résiduel jugé faible en
-      pratique (RGPD déclenché rarement, 0 client actif au moment de la
-      détection) mais réel dès le premier effacement en production.
-      Laissé ouvert pour discussion avec le porteur plutôt que corrigé
-      précipitamment.
+      Corrigé (session du 2026-07-30) : eraseClient/eraseUser groupent
+      désormais chaque séquence de write (delete/anonymize) dans un
+      prisma.$transaction interactif ; authDenylist.revokeAccessToken
+      déplacé après le commit, jamais dans la transaction. eraseLead/
+      eraseContactRequest n'avaient qu'une seule écriture DB par branche
+      (delete OU update, jamais les deux) — déjà atomiques, aucun
+      changement nécessaire là. Nouveau
+      server/test/gdprEraseClientAtomicity.test.ts : appelle réellement
+      gdprService.eraseClient contre une vraie base, avec un second portal
+      User pré-anonymisé à l'email cible du premier (via l'export
+      anonymizedEmail() réel, pas une réimplémentation) pour forcer une
+      vraie violation @@unique([email]) à mi-transaction — assère que le
+      Client lui-même n'a PAS été anonymisé malgré que sa propre écriture
+      soit exécutée en premier dans la transaction, preuve du rollback
+      atomique (pas seulement que l'étape suivante échoue). Suite complète
+      (test:unit, 709 tests) : 709/709 verts localement. Statut laissé à
+      en_cours : correctif écrit et testé localement mais pas encore
+      commité/vérifié en CI.
 
   - id: SEC-032
     titre: >

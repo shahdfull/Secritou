@@ -27,7 +27,10 @@ import crypto from "crypto";
 type Actor = { id?: string; role?: string; ip?: string };
 
 const ANONYMIZED_NAME = "Anonymisé (RGPD)";
-const anonymizedEmail = (id: string) => `anonymized-${id}@deleted.invalid`;
+// Exported so tests can derive the exact same target email a real erasure will write (e.g. to
+// force a genuine @@unique([email]) collision), instead of hardcoding a parallel copy of this
+// derivation that could silently drift from the real one.
+export const anonymizedEmail = (id: string) => `anonymized-${id}@deleted.invalid`;
 
 // A foreign key defined without an explicit onDelete (Prisma default) or with
 // onDelete: Restrict rejects the delete at the database level (P2003) rather than
@@ -92,16 +95,24 @@ export const gdprService = {
 
     const invoiceCount = await clientRepository.countInvoices(id);
 
+    // SEC-037: every DB write for this erasure is grouped in one interactive transaction — a
+    // mid-sequence failure (crash, network) must never leave the Client deleted/anonymized while
+    // its related Leads or portal Users are still untouched (or the reverse). authDenylist calls
+    // stay outside the transaction (not a DB write) but are only reached once the transaction has
+    // actually committed, so a rolled-back erasure never revokes a session for nothing.
     let mode: "deleted" | "anonymized";
+    let portalUserIds: string[] = [];
     if (invoiceCount === 0) {
       try {
-        // Related leads carry the same personal identity — erased together, not left behind.
-        const relatedLeads = await prismaRead.lead.findMany({ where: { convertedClientId: id }, select: { id: true } });
-        for (const lead of relatedLeads) {
-          await prisma.lead.delete({ where: { id: lead.id } });
-        }
-        await prisma.client.delete({ where: { id } });
-        mode = "deleted";
+        mode = await prisma.$transaction(async (tx) => {
+          // Related leads carry the same personal identity — erased together, not left behind.
+          const relatedLeads = await tx.lead.findMany({ where: { convertedClientId: id }, select: { id: true } });
+          for (const lead of relatedLeads) {
+            await tx.lead.delete({ where: { id: lead.id } });
+          }
+          await tx.client.delete({ where: { id } });
+          return "deleted" as const;
+        });
       } catch (err) {
         if (!isRestrictedDeleteError(err)) throw err;
         mode = "anonymized";
@@ -111,25 +122,31 @@ export const gdprService = {
     }
 
     if (mode === "anonymized") {
-      await prisma.client.update({
-        where: { id },
-        data: { name: ANONYMIZED_NAME, email: anonymizedEmail(id), phone: null },
+      portalUserIds = await prisma.$transaction(async (tx) => {
+        await tx.client.update({
+          where: { id },
+          data: { name: ANONYMIZED_NAME, email: anonymizedEmail(id), phone: null },
+        });
+        const relatedLeads = await tx.lead.findMany({ where: { convertedClientId: id }, select: { id: true } });
+        for (const lead of relatedLeads) {
+          await tx.lead.update({
+            where: { id: lead.id },
+            data: { name: ANONYMIZED_NAME, email: null, phone: null, notes: null },
+          });
+        }
+        const portalUsers = await tx.user.findMany({ where: { clientId: id }, select: { id: true } });
+        for (const user of portalUsers) {
+          await tx.user.update({
+            where: { id: user.id },
+            data: { name: ANONYMIZED_NAME, email: anonymizedEmail(user.id), phone: null },
+          });
+        }
+        return portalUsers.map((u) => u.id);
       });
-      const relatedLeads = await prismaRead.lead.findMany({ where: { convertedClientId: id }, select: { id: true } });
-      for (const lead of relatedLeads) {
-        await prisma.lead.update({
-          where: { id: lead.id },
-          data: { name: ANONYMIZED_NAME, email: null, phone: null, notes: null },
-        });
-      }
-      const portalUsers = await prismaRead.user.findMany({ where: { clientId: id }, select: { id: true } });
-      for (const user of portalUsers) {
-        await authDenylist.revokeAccessToken({ sub: user.id });
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { name: ANONYMIZED_NAME, email: anonymizedEmail(user.id), phone: null },
-        });
-      }
+    }
+
+    for (const userId of portalUserIds) {
+      await authDenylist.revokeAccessToken({ sub: userId });
     }
 
     await invalidateTags([cacheTags.company(), cacheTags.dashboard(), cacheTags.client(id)]);
@@ -175,6 +192,9 @@ export const gdprService = {
     const hasFinancialHistory = await userRepository.hasFinancialHistory(id);
     let mode: "deleted" | "anonymized";
 
+    // SEC-037: the anonymize path writes both User and FreelancerProfile — grouped in one
+    // transaction so a mid-sequence failure never leaves the account half-anonymized (e.g.
+    // password invalidated but bio still exposed, or the reverse).
     if (!hasFinancialHistory) {
       try {
         await prisma.user.delete({ where: { id } });
@@ -187,22 +207,24 @@ export const gdprService = {
       mode = "anonymized";
     }
 
-    await authDenylist.revokeAccessToken({ sub: id });
-
     if (mode === "anonymized") {
-      await prisma.user.update({
-        where: { id },
-        data: {
-          name: ANONYMIZED_NAME,
-          email: anonymizedEmail(id),
-          phone: null,
-          // Invalidate the password too — a random value the account owner can never know,
-          // consistent with them no longer being able to authenticate as this identity.
-          passwordHash: crypto.randomUUID(),
-        },
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({
+          where: { id },
+          data: {
+            name: ANONYMIZED_NAME,
+            email: anonymizedEmail(id),
+            phone: null,
+            // Invalidate the password too — a random value the account owner can never know,
+            // consistent with them no longer being able to authenticate as this identity.
+            passwordHash: crypto.randomUUID(),
+          },
+        });
+        await tx.freelancerProfile.updateMany({ where: { userId: id }, data: { bio: null } });
       });
-      await prisma.freelancerProfile.updateMany({ where: { userId: id }, data: { bio: null } });
     }
+
+    await authDenylist.revokeAccessToken({ sub: id });
 
     void auditLogService.record({
       actorId: actor?.id, actorRole: actor?.role, ipAddress: actor?.ip,
