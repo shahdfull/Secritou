@@ -177,7 +177,19 @@ export const gdprService = {
     });
     if (!user) throw new HttpError(404, "User not found");
 
-    return { subjectType: "user" as const, user, exportedAt: new Date().toISOString() };
+    // SEC-064: AiConversation/AiMessage hold CRM data the AI assistant read on this user's
+    // behalf, recopied into message content (see aiTools.ts) — part of "l'intégralité des champs
+    // personnels détenus" per RG-025, and the same rows eraseUser deletes below on anonymization.
+    const aiConversations = await prismaRead.aiConversation.findMany({
+      where: { userId: id },
+      select: {
+        id: true, title: true, createdAt: true, updatedAt: true,
+        messages: { select: { role: true, content: true, createdAt: true }, orderBy: { createdAt: "asc" } },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    return { subjectType: "user" as const, user, aiConversations, exportedAt: new Date().toISOString() };
   },
 
   async eraseUser(id: string, actor?: Actor) {
@@ -221,6 +233,12 @@ export const gdprService = {
           },
         });
         await tx.freelancerProfile.updateMany({ where: { userId: id }, data: { bio: null } });
+        // SEC-064: anonymizing the User row alone leaves AiConversation/AiMessage intact with
+        // CRM data (names, amounts, deadlines) the assistant recopied into its replies — a
+        // secondary copy of personal data surviving an otherwise-anonymized account. Deleted
+        // rather than anonymized in place: AiConversation.userId is onDelete: Cascade, so this
+        // also removes the child AiMessage/AiToolCall rows in the same transaction.
+        await tx.aiConversation.deleteMany({ where: { userId: id } });
       });
     }
 

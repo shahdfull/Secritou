@@ -52,7 +52,7 @@ anomalies:
       correctif ne l'ait suivie dans la même passe.
     classe: donnee-personnelle-hors-perimetre-rgpd
     gravite: moyenne
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       Décision explicite du porteur à demander avant tout correctif
       (cf. CLAUDE.md "Réparer n'est pas développer" — étendre RG-025 à
@@ -71,10 +71,25 @@ anomalies:
       "AiMessage" sur gdpr.service.ts (zéro occurrence).
     confiance: haute
     note: >
-      Non corrigé dans cette session — le porteur a explicitement classé
-      cet item hors des 5 retenus pour la passe "horizon court"
-      (truncated, filtres structurés, AiToolCall, métriques, streaming).
-      Laissé ouvert pour décision produit ultérieure.
+      Résolu (2026-07-31, session ultérieure) : décision du porteur
+      obtenue explicitement via AskUserQuestion — branche anonymisation
+      d'eraseUser supprime désormais les AiConversation du User
+      (prisma.aiConversation.deleteMany({where:{userId}}) dans la même
+      transaction que l'anonymisation User/FreelancerProfile) ; le
+      cascade onDelete existant sur AiConversation.userId supprime en
+      même temps AiMessage/AiToolCall. exportUser inclut désormais
+      aiConversations (titre, dates, messages complets role/content/date)
+      pour rester fidèle à "l'intégralité des champs personnels détenus"
+      (RG-025). Preuve : server/test/gdprErasure.test.ts, 2 nouveaux
+      tests appelant réellement gdprService.eraseUser/exportUser contre
+      une vraie base — l'un vérifie que l'AiConversation est bien
+      supprimée (pas seulement l'User anonymisé), l'autre que l'export
+      contient bien les messages. Suite complète serveur 749/749 verte
+      après le changement (un run intermédiaire avait montré 24 échecs
+      non liés — collision d'email unique dans makeManager/
+      makeFreelancer causée par des lignes User orphelines laissées par
+      un kill de process de test précédent dans la même session ;
+      confirmé non-régression par un second run propre, 749/749).
 
   - id: SEC-063
     titre: >

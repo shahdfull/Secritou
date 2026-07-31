@@ -119,6 +119,39 @@ describe("gdprService.eraseUser (RG-025)", () => {
     assert.ok(entryStillThere, "the TimeEntry must not be touched or deleted");
   });
 
+  // SEC-064: anonymizing the User row alone used to leave AiConversation/AiMessage intact,
+  // carrying CRM data (names, amounts, deadlines) the assistant recopied into its replies —
+  // a secondary copy of personal data surviving an otherwise-anonymized account.
+  test("a user with time-tracking history is anonymized AND has their AiConversation history deleted", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
+    const uniq = Date.now() + 14;
+    const manager = await prisma.user.create({
+      data: { email: `rg025-mgr-ai-${uniq}@test.local`, name: `RG025 Manager AI ${uniq}`, passwordHash: "x", role: "MANAGER" },
+    });
+    createdUserIds.push(manager.id);
+    const client = await prisma.client.create({ data: { name: `RG025 client for AI TE ${uniq}` } });
+    createdClientIds.push(client.id);
+    const project = await prisma.project.create({ data: { name: `RG025 project AI ${uniq}`, clientId: client.id } });
+    createdProjectIds.push(project.id);
+    await prisma.timeEntry.create({
+      data: { projectId: project.id, userId: manager.id, minutes: 15, date: new Date() },
+    });
+    const conversation = await prisma.aiConversation.create({
+      data: { title: "Discussion RG025", userId: manager.id },
+    });
+    await prisma.aiMessage.create({
+      data: { conversationId: conversation.id, role: "USER", content: "Quel est le statut du client Acme ?" },
+    });
+
+    const result = await gdprService.eraseUser(manager.id, { id: "actor-admin", role: "ADMIN" });
+    assert.equal(result.mode, "anonymized");
+
+    const goneConversation = await prisma.aiConversation.findUnique({ where: { id: conversation.id } });
+    assert.equal(goneConversation, null, "the AiConversation must be deleted, not left with recopied CRM data");
+    const messageCount = await prisma.aiMessage.count({ where: { conversationId: conversation.id } });
+    assert.equal(messageCount, 0, "AiMessage rows must be gone too (cascade)");
+  });
+
   test("a user with no financial history is hard-deleted", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     const uniq = Date.now() + 3;
@@ -165,6 +198,33 @@ describe("gdprService export functions (RG-025)", () => {
     const bundle = await gdprService.exportUser(user.id);
     assert.equal(bundle.user.id, user.id);
     assert.equal(bundle.user.email, `rg025-export-user-${uniq}@test.local`);
+  });
+
+  // SEC-064: RG-025 claims to export "l'intégralité des champs personnels détenus" — the AI
+  // chat history recopies CRM data into its messages, so it must appear in the export too.
+  test("exportUser includes the user's AiConversation history with full message content", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
+    const uniq = Date.now() + 15;
+    const user = await prisma.user.create({
+      data: { email: `rg025-export-ai-${uniq}@test.local`, name: `RG025 Export AI User ${uniq}`, passwordHash: "x", role: "MANAGER" },
+    });
+    createdUserIds.push(user.id);
+    const conversation = await prisma.aiConversation.create({
+      data: { title: `RG025 conv ${uniq}`, userId: user.id },
+    });
+    await prisma.aiMessage.create({
+      data: { conversationId: conversation.id, role: "USER", content: `Bonjour ${uniq}` },
+    });
+    await prisma.aiMessage.create({
+      data: { conversationId: conversation.id, role: "ASSISTANT", content: `Réponse ${uniq}` },
+    });
+
+    const bundle = await gdprService.exportUser(user.id);
+    assert.equal(bundle.aiConversations.length, 1);
+    assert.equal(bundle.aiConversations[0]?.id, conversation.id);
+    assert.equal(bundle.aiConversations[0]?.messages.length, 2);
+    assert.equal(bundle.aiConversations[0]?.messages[0]?.content, `Bonjour ${uniq}`);
+    assert.equal(bundle.aiConversations[0]?.messages[1]?.content, `Réponse ${uniq}`);
   });
 
   // SEC-222: metadata-only export was the gap — this proves a document with a fileKey now
