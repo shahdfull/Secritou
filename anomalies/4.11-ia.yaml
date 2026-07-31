@@ -66,6 +66,15 @@ anomalies:
       server/src/services/llm.client.ts (boucle tool calling),
       server/test/aiTools.test.ts.
 
+      Commité (410c736), poussé sur origin/main. Premier run CI
+      (30595688534) rouge sur le job server — diagnostiqué comme un test
+      de timing flaky préexistant (test/taskBulkActions.test.ts, ratio
+      concurrent/séquentiel 6.0x contre une limite 10x), sans rapport
+      avec ce périmètre ni ce commit (fichier non touché). Rerun ciblé
+      (gh run rerun --failed) confirmé vert sur les 6 jobs (server, client,
+      e2e, contrast-check, i18n-check, restore-smoke-test) — statut
+      corrigé à resolu avec CI verte confirmée.
+
   - id: SEC-058
     titre: >
       aiConversation.repository.ts#findById appelé via prismaRead en
@@ -103,6 +112,11 @@ anomalies:
       pas suivie d'écriture) reste sur prismaRead, cohérent avec la
       doctrine.
 
+      Commité (410c736), poussé sur origin/main, CI verte confirmée
+      (rerun 30595688534 — 6/6 jobs, le seul échec initial était un test
+      de timing flaky sans rapport, voir note SEC-059) — statut corrigé
+      à resolu.
+
   - id: SEC-057
     titre: >
       AiConversation.findAll trie par updatedAt desc sans qu'aucun index
@@ -135,6 +149,11 @@ anomalies:
       créée et commitée avec le dossier migration correspondant
       (règle CLAUDE.md sur prisma migrate dev).
 
+      Commité (410c736), poussé sur origin/main, CI verte confirmée
+      (rerun 30595688534 — 6/6 jobs, y compris "Schema drift check" sur
+      le job server ; le seul échec initial était un test de timing
+      flaky sans rapport, voir note SEC-059) — statut corrigé à resolu.
+
   - id: SEC-056
     titre: >
       docker-compose.prod.yml (et docker-compose.yml) attribuaient en
@@ -165,6 +184,9 @@ anomalies:
     note: >
       Corrigé dans la même session que sa découverte : commentaire
       réécrit pour citer SEC-052.
+
+      Commité (410c736), poussé sur origin/main, CI verte confirmée
+      (rerun 30595688534 — 6/6 jobs) — statut corrigé à resolu.
 
   - id: SEC-055
     titre: >
@@ -197,6 +219,9 @@ anomalies:
     note: >
       Corrigé dans la même session que sa découverte : §4.11 mis à jour
       pour citer les 6 routes réelles, pas 5.
+
+      Commité (410c736), poussé sur origin/main, CI verte confirmée
+      (rerun 30595688534 — 6/6 jobs) — statut corrigé à resolu.
 
   - id: SEC-054
     titre: >
@@ -234,6 +259,9 @@ anomalies:
       précision que la ligne précédente décrivait un état intermédiaire
       de la même session (débit réseau insuffisant au moment où elle a
       été écrite), pas l'état final une fois le pull terminé.
+
+      Commité (410c736), poussé sur origin/main, CI verte confirmée
+      (rerun 30595688534 — 6/6 jobs) — statut corrigé à resolu.
 
   - id: SEC-053
     titre: >
