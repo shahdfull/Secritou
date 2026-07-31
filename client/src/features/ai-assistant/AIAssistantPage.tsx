@@ -28,6 +28,8 @@ import {
 } from "@/hooks/useAiConversations";
 import type { AiMessage } from "@/api/aiConversations.api";
 import { cn } from "@/lib/utils";
+import { parseAssistantMessage } from "./actionProposal";
+import { ActionProposalCard } from "./ActionProposalCard";
 
 // No response reached us at all (network down) or the server itself is failing
 // (5xx, e.g. the LLM backend is unreachable) -> "service unavailable". Anything
@@ -367,6 +369,11 @@ function MessageBubble({
   compact?: boolean;
 }) {
   const isUser = msg.role === "user";
+  // Only an ASSISTANT message can carry a proposal marker (encodeActionProposal is only ever
+  // called on the model's own reply) — parsing a USER message would never find one, but skipping
+  // the parse entirely for USER messages avoids running it on every keystroke-driven re-render for
+  // no reason.
+  const { visibleText, proposal } = isUser ? { visibleText: msg.content, proposal: null } : parseAssistantMessage(msg.content);
   return (
     <div className={`flex gap-${compact ? "2" : "3"} ${isUser ? "justify-end" : "justify-start"}`}>
       {!isUser && (
@@ -374,12 +381,15 @@ function MessageBubble({
           <Bot className={`h-${compact ? "3.5" : "4"} w-${compact ? "3.5" : "4"} text-primary`} />
         </div>
       )}
-      <div
-        className={`max-w-[${compact ? "85" : "80"}%] rounded-lg px-${compact ? "3" : "4"} py-2 text-sm ${
-          isUser ? "bg-primary text-primary-foreground" : "bg-muted"
-        }`}
-      >
-        {msg.content}
+      <div className={`max-w-[${compact ? "85" : "80"}%]`}>
+        <div
+          className={`rounded-lg px-${compact ? "3" : "4"} py-2 text-sm ${
+            isUser ? "bg-primary text-primary-foreground" : "bg-muted"
+          }`}
+        >
+          {visibleText}
+        </div>
+        {proposal && <ActionProposalCard proposal={proposal} />}
       </div>
       {isUser && (
         <div className={`flex h-${compact ? "7" : "8"} w-${compact ? "7" : "8"} shrink-0 items-center justify-center rounded-full bg-muted`}>

@@ -2,8 +2,33 @@ import { aiConversationRepository } from "../repositories/aiConversation.reposit
 import { HttpError } from "../utils/httpError.js";
 import { callOllamaWithTools, streamOllamaWithTools, type OllamaChatMessage, type OllamaToolCall } from "./llm.client.js";
 import { AI_TOOL_DEFINITIONS, isKnownAiTool, runAiTool, type AiToolCallerContext } from "./aiTools.js";
+import {
+  AI_ACTION_TOOL_DEFINITIONS,
+  isKnownAiActionTool,
+  runAiActionTool,
+  type AiActionProposal,
+} from "./aiActionProposals.js";
 import logger from "../utils/logger.js";
 import { aiToolCallTotal, aiTurnDuration, aiTurnRoundtrips } from "../observability/businessMetrics.js";
+
+// Every read tool plus the write-action PROPOSAL tools (aiActionProposals.ts) — the model sees
+// both sets in the same tools array, but only the read tools ever touch data directly; a
+// propose* tool call never performs a write (see aiActionProposals.ts's own header doc comment).
+const ALL_TOOL_DEFINITIONS = [...AI_TOOL_DEFINITIONS, ...AI_ACTION_TOOL_DEFINITIONS];
+
+// Marker delimiting a machine-readable action proposal appended after the model's human-readable
+// text, inside the same persisted AiMessage.content — parsed back out client-side to render a
+// confirmation card. Kept out-of-band from the visible text (not a markdown code fence or similar)
+// so the model's own visible reply is never at risk of accidentally containing something that
+// looks like this marker.
+const ACTION_PROPOSAL_MARKER = "\n\n<!--secritou:ai-action-proposal:";
+const ACTION_PROPOSAL_MARKER_END = "-->";
+
+// Exported so the client-side test/component doc can reference the exact same marker without
+// duplicating the string.
+export function encodeActionProposal(text: string, proposal: AiActionProposal): string {
+  return `${text}${ACTION_PROPOSAL_MARKER}${JSON.stringify(proposal)}${ACTION_PROPOSAL_MARKER_END}`;
+}
 
 // SEC-059: the assistant now has real read access to Lead/Client/Project/Task/Freelancer via
 // Ollama tool calling (aiTools.ts) — the system prompt describes exactly that capability, not the
@@ -20,7 +45,15 @@ Pour une question d'ensemble sur l'état de l'agence plutôt qu'une liste préci
 agrégés dédiés au lieu de composer la réponse à partir de plusieurs listes : getAgencyOverview
 (résumé général), getOverdueProjects (projets à risque), getOverdueInvoices (factures impayées),
 getFreelancerWorkload (charge par freelancer), getLeadPipeline (pipeline commercial par statut).
-Tu ne peux rien créer, modifier ni supprimer.
+Tu ne crées, modifies ou supprimes JAMAIS rien toi-même — tu n'as aucun outil d'écriture directe.
+Quand l'utilisateur demande de créer une tâche, de faire avancer un lead ou une tâche dans son
+pipeline, utilise proposeCreateTask/proposeUpdateLeadStatus/proposeUpdateTaskStatus : ces outils ne
+font qu'analyser la demande et préparer une proposition, jamais l'exécuter — l'utilisateur verra une
+carte de confirmation dans l'interface et devra cliquer lui-même pour que l'action ait réellement
+lieu. Après avoir appelé un de ces outils, dis simplement à l'utilisateur que tu as préparé la
+proposition et qu'il peut la confirmer ci-dessous — ne dis jamais que l'action a été faite. Si
+l'outil renvoie "valid": false, explique le motif ("reason") à l'utilisateur au lieu de proposer
+autre chose sans le lui dire.
 Chaque résultat d'outil peut contenir un champ "truncated": true — cela signifie que la liste
 renvoyée est incomplète par rapport au total réel ("total"). Dans ce cas, dis-le explicitement à
 l'utilisateur (ex. "voici les 20 premiers sur 137 leads") au lieu de présenter la liste comme
@@ -85,11 +118,15 @@ async function runConversationTurn(
   history: OllamaChatMessage[],
   callerContext: AiToolCallerContext,
   onChunk?: (text: string) => void
-): Promise<{ reply: string; toolCalls: ToolCallRecord[] }> {
+): Promise<{ reply: string; toolCalls: ToolCallRecord[]; proposal?: AiActionProposal }> {
   const messages: OllamaChatMessage[] = [...history];
   const turnDeadline = AbortSignal.timeout(TURN_TIMEOUT_MS);
   const toolCalls: ToolCallRecord[] = [];
   const endTurnTimer = aiTurnDuration.startTimer();
+  // At most one proposal per turn is ever rendered to the user — if the model somehow calls
+  // several propose* tools in one round trip, the last one wins (same "last write wins" semantics
+  // as messages.push order below), since a single reply can only carry one confirmation card.
+  let proposal: AiActionProposal | undefined;
 
   try {
     for (let roundTrip = 0; roundTrip < MAX_TOOL_ROUNDTRIPS; roundTrip++) {
@@ -97,7 +134,7 @@ async function runConversationTurn(
       let requestedToolCalls: OllamaToolCall[] | undefined;
 
       if (onChunk) {
-        for await (const event of streamOllamaWithTools(messages, AI_TOOL_DEFINITIONS, SYSTEM_PROMPT, turnDeadline)) {
+        for await (const event of streamOllamaWithTools(messages, ALL_TOOL_DEFINITIONS, SYSTEM_PROMPT, turnDeadline)) {
           if (event.type === "tool_calls") {
             requestedToolCalls = event.tool_calls;
           } else {
@@ -106,14 +143,14 @@ async function runConversationTurn(
           }
         }
       } else {
-        const response = await callOllamaWithTools(messages, AI_TOOL_DEFINITIONS, SYSTEM_PROMPT, turnDeadline);
+        const response = await callOllamaWithTools(messages, ALL_TOOL_DEFINITIONS, SYSTEM_PROMPT, turnDeadline);
         content = response.content;
         requestedToolCalls = response.tool_calls;
       }
 
       if (!requestedToolCalls || requestedToolCalls.length === 0) {
         aiTurnRoundtrips.observe(roundTrip + 1);
-        return { reply: content, toolCalls };
+        return { reply: content, toolCalls, proposal };
       }
 
       messages.push({ role: "assistant", content, tool_calls: requestedToolCalls });
@@ -123,6 +160,20 @@ async function runConversationTurn(
         // An unknown tool name (a hallucinated call) never reaches Prisma — reported back to the
         // model as a tool error message instead of thrown, so the model can recover in its next
         // turn rather than the whole request failing on a model mistake.
+        if (isKnownAiActionTool(name)) {
+          try {
+            const result = await runAiActionTool(name, call.function.arguments, callerContext);
+            proposal = result;
+            messages.push({ role: "tool", content: JSON.stringify(result) });
+            toolCalls.push({ tool: name, args: call.function.arguments, outcome: "success", rowCount: null, durationMs: Date.now() - startedAt });
+            aiToolCallTotal.inc({ tool: name, outcome: "success" });
+          } catch (err) {
+            messages.push({ role: "tool", content: JSON.stringify({ error: err instanceof Error ? err.message : "Tool call failed" }) });
+            toolCalls.push({ tool: name, args: call.function.arguments, outcome: "error", rowCount: null, durationMs: Date.now() - startedAt });
+            aiToolCallTotal.inc({ tool: name, outcome: "error" });
+          }
+          continue;
+        }
         if (!isKnownAiTool(name)) {
           messages.push({ role: "tool", content: JSON.stringify({ error: `Unknown tool: ${name}` }) });
           toolCalls.push({ tool: name, args: call.function.arguments, outcome: "unknown_tool", rowCount: null, durationMs: Date.now() - startedAt });
@@ -187,11 +238,12 @@ export const aiConversationService = {
     // trace (conversation or USER message) rather than an orphaned USER message with no reply,
     // which a naive client retry would otherwise duplicate on every failed attempt.
     const history: OllamaChatMessage[] = [{ role: "user", content: firstMessage }];
-    const { reply, toolCalls } = await runConversationTurn(history, callerContext);
+    const { reply, toolCalls, proposal } = await runConversationTurn(history, callerContext);
+    const persistedReply = proposal ? encodeActionProposal(reply, proposal) : reply;
 
     const conv = await aiConversationRepository.create(userId, title, persona);
     await aiConversationRepository.addMessage(conv.id, "USER", firstMessage);
-    const assistantMsg = await aiConversationRepository.addMessage(conv.id, "ASSISTANT", reply);
+    const assistantMsg = await aiConversationRepository.addMessage(conv.id, "ASSISTANT", persistedReply);
     // Only reachable once conv.id exists — create() has no conversation row until the turn already
     // succeeded (SEC-035), so the trace can't be attached any earlier than this.
     await recordToolCallsSafely(conv.id, toolCalls);
@@ -213,10 +265,11 @@ export const aiConversationService = {
       ...recentMessages.map((m) => ({ role: toChatRole(m.role), content: m.content })),
       { role: "user", content },
     ];
-    const { reply, toolCalls } = await runConversationTurn(history, callerContext);
+    const { reply, toolCalls, proposal } = await runConversationTurn(history, callerContext);
+    const persistedReply = proposal ? encodeActionProposal(reply, proposal) : reply;
 
     await aiConversationRepository.addMessage(conv.id, "USER", content);
-    const assistantMsg = await aiConversationRepository.addMessage(conv.id, "ASSISTANT", reply);
+    const assistantMsg = await aiConversationRepository.addMessage(conv.id, "ASSISTANT", persistedReply);
     await recordToolCallsSafely(conv.id, toolCalls);
 
     return { reply: assistantMsg };
@@ -243,10 +296,15 @@ export const aiConversationService = {
       ...recentMessages.map((m) => ({ role: toChatRole(m.role), content: m.content })),
       { role: "user", content },
     ];
-    const { reply, toolCalls } = await runConversationTurn(history, callerContext, onChunk);
+    const { reply, toolCalls, proposal } = await runConversationTurn(history, callerContext, onChunk);
+    // The proposal marker is never streamed via onChunk (it isn't part of the model's visible
+    // text — see runAiActionTool) — appended only to the persisted content, same as the
+    // non-streaming path. The client's SSE "done" event carries this full persisted text, not the
+    // streamed chunks, so the confirmation card only ever appears once the stream has ended.
+    const persistedReply = proposal ? encodeActionProposal(reply, proposal) : reply;
 
     await aiConversationRepository.addMessage(conv.id, "USER", content);
-    const assistantMsg = await aiConversationRepository.addMessage(conv.id, "ASSISTANT", reply);
+    const assistantMsg = await aiConversationRepository.addMessage(conv.id, "ASSISTANT", persistedReply);
     await recordToolCallsSafely(conv.id, toolCalls);
 
     return { reply: assistantMsg };
