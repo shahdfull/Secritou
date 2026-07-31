@@ -1,5 +1,6 @@
 import type { RequestHandler } from "express";
 import { aiConversationService } from "../services/aiConversation.service.js";
+import { buildServiceScope } from "../utils/serviceScope.js";
 
 export const listConversations: RequestHandler = async (req, res, next) => {
   try {
@@ -28,9 +29,11 @@ export const getConversation: RequestHandler = async (req, res, next) => {
 export const createConversation: RequestHandler = async (req, res, next) => {
   try {
     const { message } = req.body as { message: string };
+    const callerContext = await buildServiceScope(req);
     const result = await aiConversationService.create(
       req.user!.sub!,
-      message
+      message,
+      callerContext
     );
     res.status(201).json({ data: result });
   } catch (error) {
@@ -41,10 +44,12 @@ export const createConversation: RequestHandler = async (req, res, next) => {
 export const addMessage: RequestHandler = async (req, res, next) => {
   try {
     const { message } = req.body as { message: string };
+    const callerContext = await buildServiceScope(req);
     const result = await aiConversationService.addMessage(
       req.params.id as string,
       req.user!.sub!,
-      message
+      message,
+      callerContext
     );
     res.json({ data: result });
   } catch (error) {

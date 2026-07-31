@@ -1676,7 +1676,7 @@ model AiConversation {
   updatedAt DateTime    @updatedAt @db.Timestamptz(6)
 
   @@index([userId])
-  @@index([userId, createdAt])
+  @@index([userId, updatedAt])
 }
 
 model AiMessage {

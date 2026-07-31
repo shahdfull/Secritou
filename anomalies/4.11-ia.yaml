@@ -25,6 +25,216 @@
 # la clôture de SEC-049 elle-même était prématurée.
 
 anomalies:
+  - id: SEC-059
+    titre: >
+      SYSTEM_PROMPT (aiConversation.service.ts) affirmait aider à gérer
+      leads/clients/projets/tâches/freelancers sans qu'aucune requête
+      Prisma, RAG ou tool calling n'existe sur ce chemin — l'assistant ne
+      pouvait répondre que sur la base du texte tapé par l'utilisateur.
+      Découvert lors d'un audit indépendant du module 4.11 (2026-07-31)
+    perimetre: 4.11-ia
+    regle_violee: >
+      Aucune règle explicite de REFERENTIEL.md ne couvre ce cas — le
+      SYSTEM_PROMPT affirme une capacité de gestion de données métier
+      réelle que le code ne fournissait jamais, un écart entre la
+      promesse faite au modèle et le comportement réel du système.
+    classe: promesse-prompt-sans-realite-code
+    gravite: mineure
+    statut: resolu
+    critere_de_resolution: >
+      L'assistant IA dispose d'un accès réel (tool calling) aux entités
+      Lead/Client/Project/Task/Freelancer, scopé par rôle (ADMIN
+      illimité, MANAGER restreint à son serviceId, réutilisant les mêmes
+      méthodes de listing/scoping que les endpoints REST existants) —
+      vérifié par un test qui appelle réellement le dispatcher de tools
+      avec un rôle MANAGER et confirme qu'aucune donnée hors pôle n'est
+      renvoyée au modèle.
+    detecte_le: "2026-07-31"
+    source: >
+      Audit indépendant du module 4.11 (agent sans mémoire de session),
+      demandé explicitement par le porteur du projet pour vérifier le
+      registre de bout en bout.
+    confiance: haute
+    note: >
+      Décision du porteur (AskUserQuestion, 2026-07-31) : construire la
+      vraie capacité plutôt que réécrire le prompt pour qu'il promette
+      moins. Mécanisme choisi : tool calling Ollama, 5 tools scopés par
+      rôle (getLeads, getClients, getProjects, getTasks, getFreelancers),
+      réutilisant les services/repositories REST existants (lead/client/
+      project/task/freelancer .service.ts) sans dupliquer leur logique de
+      scoping. Voir server/src/services/aiTools.ts,
+      server/src/services/llm.client.ts (boucle tool calling),
+      server/test/aiTools.test.ts.
+
+  - id: SEC-058
+    titre: >
+      aiConversation.repository.ts#findById appelé via prismaRead en
+      pré-lecture immédiatement suivie d'une écriture dans
+      addMessage/delete (service) — même défaut que SEC-037 (doctrine
+      prisma/prismaRead), site de code distinct, jamais audité sous cet
+      angle. Latent tant que DATABASE_READ_URL n'est pas renseigné.
+      Découvert lors d'un audit indépendant du module 4.11 (2026-07-31)
+    perimetre: 4.11-ia
+    regle_violee: >
+      CLAUDE.md « Conventions de code observées » — client d'écriture
+      prisma requis pour toute pré-lecture immédiatement suivie d'une
+      écriture ; prismaRead réservé aux lectures pures. Même doctrine que
+      SEC-037 (transverse, gdprService), jamais appliquée au module IA.
+    classe: doctrine-prisma-prismaread-violee
+    gravite: moyenne
+    statut: resolu
+    critere_de_resolution: >
+      addMessage et delete (aiConversation.service.ts) appellent
+      aiConversationRepository.findById via le client d'écriture prisma,
+      pas prismaRead — vérifié par lecture directe du repository
+      confirmant qu'aucune pré-lecture suivie d'écriture ne passe plus
+      par prismaRead sur ce chemin.
+    detecte_le: "2026-07-31"
+    source: >
+      Audit indépendant du module 4.11 (agent sans mémoire de session),
+      lecture croisée de aiConversation.repository.ts (findById,
+      prismaRead) et aiConversation.service.ts (addMessage/delete,
+      pré-lecture suivie d'écriture).
+    confiance: haute
+    note: >
+      Corrigé dans la même session que sa découverte :
+      aiConversationRepository.findById utilisé par addMessage/delete
+      bascule sur le client prisma (écriture) — getById (lecture pure,
+      pas suivie d'écriture) reste sur prismaRead, cohérent avec la
+      doctrine.
+
+  - id: SEC-057
+    titre: >
+      AiConversation.findAll trie par updatedAt desc sans qu'aucun index
+      Prisma ne couvre ce couple (filtre userId, tri updatedAt) — seuls
+      [userId] et [userId, createdAt] existent. Découvert lors d'un audit
+      indépendant du module 4.11 (2026-07-31)
+    perimetre: 4.11-ia
+    regle_violee: >
+      Aucune règle explicite de REFERENTIEL.md ne couvre ce cas — un
+      index composé doit couvrir le couple (filtre, tri) réellement
+      exécuté par la requête, pas un couple voisin qui ne correspond à
+      aucun appel réel.
+    classe: index-manquant-sur-tri-reel
+    gravite: mineure
+    statut: resolu
+    critere_de_resolution: >
+      schema.prisma#AiConversation porte un index couvrant [userId,
+      updatedAt] (ou remplace [userId, createdAt] si createdAt n'est
+      trié nulle part ailleurs sur ce modèle) — vérifié par lecture
+      directe du schéma et par une migration appliquée.
+    detecte_le: "2026-07-31"
+    source: >
+      Audit indépendant du module 4.11 — comparaison directe de
+      aiConversation.repository.ts#findAll (orderBy: updatedAt desc) et
+      des index déclarés sur AiConversation dans schema.prisma.
+    confiance: haute
+    note: >
+      Corrigé dans la même session que sa découverte : ajout de
+      @@index([userId, updatedAt]) sur AiConversation, migration Prisma
+      créée et commitée avec le dossier migration correspondant
+      (règle CLAUDE.md sur prisma migrate dev).
+
+  - id: SEC-056
+    titre: >
+      docker-compose.prod.yml (et docker-compose.yml) attribuaient en
+      commentaire de code la correction de la dérive OLLAMA_MODEL
+      ($$OLLAMA_MODEL échappé) à SEC-048 — le registre attribue cette
+      correction précise à SEC-052, SEC-048 portant sur un sujet disjoint
+      (statuts REFERENTIEL.md citant des fichiers supprimés). Découvert
+      lors d'un audit indépendant du module 4.11 (2026-07-31)
+    perimetre: 4.11-ia
+    regle_violee: >
+      CLAUDE.md « Interdiction de reformulation » (cohérence de citation
+      d'ID) — un ID cité en commentaire de code doit désigner la bonne
+      anomalie du registre, pas une anomalie disjointe.
+    classe: mauvaise-citation-id-en-commentaire
+    gravite: mineure
+    statut: resolu
+    critere_de_resolution: >
+      Le commentaire de docker-compose.prod.yml/docker-compose.yml cite
+      SEC-052 (et non SEC-048) pour la correction de la dérive
+      OLLAMA_MODEL — vérifié par grep confirmant zéro occurrence de
+      "SEC-048" à proximité de ce commentaire précis.
+    detecte_le: "2026-07-31"
+    source: >
+      Audit indépendant du module 4.11 — comparaison du commentaire de
+      docker-compose.prod.yml ligne 86 avec anomalies/4.11-ia.yaml#SEC-052
+      et #SEC-048.
+    confiance: haute
+    note: >
+      Corrigé dans la même session que sa découverte : commentaire
+      réécrit pour citer SEC-052.
+
+  - id: SEC-055
+    titre: >
+      POST /ai/conversations/import (importFromLocalStorage, migration
+      one-shot localStorage → backend) n'apparaît nulle part dans
+      REFERENTIEL.md §4.11 ni dans perimetre_code — capacité réelle,
+      appelée réellement par AIAssistantPage.tsx, mais absente de toute
+      documentation du module. Découvert lors d'un audit indépendant du
+      module 4.11 (2026-07-31)
+    perimetre: 4.11-ia
+    regle_violee: >
+      Constat de couverture documentaire — l'esprit de « provenance
+      obligatoire de tout statut » suppose une description complète du
+      périmètre avant d'affirmer un statut IMPLÉMENTÉ dessus ; une route
+      réelle et appelée ne peut pas être absente de la description du
+      module.
+    classe: capacite-reelle-non-documentee
+    gravite: mineure
+    statut: resolu
+    critere_de_resolution: >
+      REFERENTIEL.md §4.11 mentionne explicitement POST
+      /ai/conversations/import et son rôle (migration one-shot de
+      l'historique localStorage vers le backend, consommée par
+      AIAssistantPage.tsx) — vérifié par lecture directe de §4.11.
+    detecte_le: "2026-07-31"
+    source: >
+      Audit indépendant du module 4.11 — chasse « chaîne d'appel réelle
+      de bout en bout » sur les 6 routes de aiConversation.routes.ts.
+    confiance: haute
+    note: >
+      Corrigé dans la même session que sa découverte : §4.11 mis à jour
+      pour citer les 6 routes réelles, pas 5.
+
+  - id: SEC-054
+    titre: >
+      REFERENTIEL.md §7 (ligne 2403, entrée du 2026-07-30 sur SEC-047)
+      affirme que la vérification e2e Ollama n'a pas été menée à son
+      terme, alors qu'anomalies/4.11-ia.yaml#SEC-047 (note) et
+      COUVERTURE.yaml affirment pour la même date qu'elle a réussi
+      (pull mistral confirmé, curl réel réussi) — contradiction factuelle
+      entre deux documents sur le même fait. Découvert lors d'un audit
+      indépendant du module 4.11 (2026-07-31)
+    perimetre: 4.11-ia
+    regle_violee: >
+      CLAUDE.md « Cohérence obligatoire REFERENTIEL.md ↔ anomalies/*.yaml »
+      — portée élargie par analogie au contenu factuel (la règle littérale
+      couvre la citation d'ID, pas la cohérence du récit) : deux documents
+      ne peuvent pas rapporter un résultat opposé sur le même fait daté.
+    classe: contradiction-factuelle-referentiel-anomalies
+    gravite: mineure
+    statut: resolu
+    critere_de_resolution: >
+      REFERENTIEL.md §7 (entrée SEC-047) est aligné sur la version
+      "réussie" du fichier de périmètre et de COUVERTURE.yaml (pull
+      mistral confirmé, curl réel réussi, aucune erreur "model not
+      found") — décision explicite du porteur (AskUserQuestion,
+      2026-07-31) de garder cette version plutôt que de marquer les deux
+      comme incertaines.
+    detecte_le: "2026-07-31"
+    source: >
+      Audit indépendant du module 4.11 — comparaison directe de
+      REFERENTIEL.md:2403 et anomalies/4.11-ia.yaml#SEC-047 (note).
+    confiance: haute
+    note: >
+      Corrigé dans la même session que sa découverte : REFERENTIEL.md §7
+      réécrit pour refléter la vérification e2e réussie, avec une
+      précision que la ligne précédente décrivait un état intermédiaire
+      de la même session (débit réseau insuffisant au moment où elle a
+      été écrite), pas l'état final une fois le pull terminé.
+
   - id: SEC-053
     titre: >
       SEC-049 (commentaires de test périmés après suppression de

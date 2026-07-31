@@ -871,6 +871,15 @@ appelant de `aiConversationService.create` pour un usage détourné
 (archivage, cf. SEC-043) sans rapport avec le CRUD réel. La même erreur
 avait déjà été identifiée et corrigée dans `perimetre_code:` de 4.11 le
 2026-07-17 (voir §7) sans jamais être répercutée ici, au niveau entité.
+Précision ajoutée le 2026-07-31 (SEC-059) : `AiMessage` reste strictement
+l'historique de conversation USER/ASSISTANT — les échanges de tool calling
+(appel d'outil demandé par le modèle, résultat renvoyé) construits par
+`runConversationTurn` (`aiConversation.service.ts`) ne sont jamais
+persistés comme `AiMessage`, seul le contenu final de la réponse du
+modèle l'est. Une conversation qui a déclenché un ou plusieurs appels
+d'outil est donc indiscernable en base d'une conversation qui n'en a
+déclenché aucun — décision de conception assumée pour garder `AiMessage`
+comme historique de chat, pas un journal d'exécution.
 
 ### 3.23 SiteContent
 Contenu éditable du site vitrine public, bilingue (FR/EN).
@@ -1191,26 +1200,43 @@ grille de permissions. Aucune autre anomalie.
 
 ### 4.11 Module IA (agent-service) — **ACTIF** (reclassé de GELÉ le 2026-07-30, voir §7)
 Un seul chemin IA réel aujourd'hui : le chat assistant, exposé par
-`/ai/conversations/*` (CRUD + envoi de message, `aiConversation.service.ts`
-→ `callOllama`) et consommé par `AIAssistantPage.tsx` via
-`useCreateConversation`/`useAddMessage` — `AIAssistantFloat.tsx` ne fait
-que déléguer l'affichage à ce composant, il n'appelle lui-même aucun
-endpoint IA (n'importe que le type `ChatMessage`). Deux chemins ont été
-retirés comme code mort le 2026-07-30, aucun n'ayant jamais eu
-d'appelant réel côté `client/src` : le persona brief-generator/
-task-planner (`agentOrchestrator.service.ts`, `agents/personas.ts`,
-`POST /ai/brief`/`/ai/tasks` — SEC-040) et `POST /ai/chat`
-(`ai.controller.ts`, `ai.routes.ts`, `ai.validator.ts` — SEC-044,
-découvert lors d'une contre-vérification du porteur sur la première
-suppression). Le troisième objectif du module (génération de prototype
-via un code agent en sandbox, RG-016) n'est pas commencé — aucune
-infrastructure Docker de sandboxing n'existe à ce jour ; toute
-implémentation devra respecter RG-016/RG-017 sans dérogation avant
-d'exposer une quelconque capacité d'exécution de code.
+`/ai/conversations/*` (6 routes — CRUD + envoi de message + import,
+`aiConversation.service.ts` → `callOllama`) et consommé par
+`AIAssistantPage.tsx` via `useCreateConversation`/`useAddMessage`/
+`useImportFromLocalStorage` — `AIAssistantFloat.tsx` ne fait que
+déléguer l'affichage à ce composant, il n'appelle lui-même aucun
+endpoint IA (n'importe que le type `ChatMessage`). `POST
+/ai/conversations/import` (`importFromLocalStorage`, contrôleur +
+service + repository) est une migration one-shot : au premier montage
+de `AIAssistantPage.tsx` (mode plein écran), tout historique trouvé dans
+`localStorage["ai_chat_history"]` (ancien mode compact, avant
+l'introduction du CRUD backend) est envoyé à cette route pour créer une
+`AiConversation` persistée, puis la clé locale est retirée — corrigé
+comme absent de cette section jusqu'au 2026-07-31 (SEC-055, audit
+indépendant), bien que réel et appelé depuis la même date que le reste
+du CRUD. Deux chemins ont été retirés comme code mort le 2026-07-30,
+aucun n'ayant jamais eu d'appelant réel côté `client/src` : le persona
+brief-generator/task-planner (`agentOrchestrator.service.ts`,
+`agents/personas.ts`, `POST /ai/brief`/`/ai/tasks` — SEC-040) et `POST
+/ai/chat` (`ai.controller.ts`, `ai.routes.ts`, `ai.validator.ts` —
+SEC-044, découvert lors d'une contre-vérification du porteur sur la
+première suppression). Depuis le 2026-07-31 (SEC-059), l'assistant
+dispose en plus d'un accès réel en lecture aux données CRM
+(Lead/Client/Project/Task/Freelancer) via tool calling Ollama, scopé par
+rôle — voir RG-014 et `server/src/services/aiTools.ts`. Le troisième
+objectif du module (génération de prototype via un code agent en
+sandbox, RG-016) n'est pas commencé — aucune infrastructure Docker de
+sandboxing n'existe à ce jour ; toute implémentation devra respecter
+RG-016/RG-017 sans dérogation avant d'exposer une quelconque capacité
+d'exécution de code. Le tool calling CRM (SEC-059) est une lecture
+seule structurée (requêtes Prisma scopées, pas d'exécution de code
+arbitraire) — il n'entre pas dans le périmètre RG-016/RG-017, qui ne
+couvrent que l'exécution de commande/code.
 
     perimetre_code:
       - server/src/services/llm.client.ts
       - server/src/services/aiConversation.service.ts
+      - server/src/services/aiTools.ts
       - server/src/repositories/aiConversation.repository.ts
       - server/src/controllers/aiConversation.controller.ts
       - server/src/routes/aiConversation.routes.ts
@@ -1619,8 +1645,16 @@ le 2026-07-30 (SEC-048) : la règle citait auparavant `agentOrchestrator
 .service.ts` (persona brief-generator/task-planner) comme double
 vérification middleware + service — ce fichier a été supprimé le
 2026-07-30 (SEC-040, code mort, aucun appelant frontend), et son unique
-appelant réel (`/ai/chat`) a été supprimé le même jour (SEC-044). Seul
-`/ai/conversations/*` reste, protégé par le seul middleware `authorize`,
+appelant réel (`/ai/chat`) a été supprimé le même jour (SEC-044). Mise à
+jour le 2026-07-31 (SEC-059) : l'assistant dispose désormais d'un accès
+réel en lecture (tool calling Ollama, `server/src/services/aiTools.ts`) à
+Lead/Client/Project/Task/Freelancer, scopé par `req.user.role`/`serviceId`
+en réutilisant exactement les mêmes services et le même scoping que les
+endpoints REST (`leadService`, `clientService`, `projectService`,
+`taskService`, `freelancerService`, `buildServiceScope`) — aucun chemin de
+requête parallèle non scopé. Un MANAGER n'obtient donc jamais, via le chat
+IA, une donnée qu'il ne pourrait pas déjà lire par l'API REST équivalente.
+Seul `/ai/conversations/*` reste, protégé par le seul middleware `authorize`,
 sans revérification au niveau service.
 
 **RG-015 — Fournisseur du module IA (état implémenté).**
@@ -2400,4 +2434,6 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-30** | **SEC-041 : un service `ollama` est ajouté à `docker-compose.yml` (dev) et `docker-compose.prod.yml` (prod), fermant l'écart entre RG-015 (marquée `IMPLÉMENTÉ verifie:code_direct` sur le seul code) et son déploiement réel — `OLLAMA_URL` par défaut (`http://localhost:11434`) ne pointait auparavant vers aucun Ollama réel une fois le serveur conteneurisé. `server/.env.example` documente les deux cas (serveur sur l'hôte vs serveur conteneurisé).** | **AskUserQuestion, session du 2026-07-30, même relecture. Choix explicite « Ajouter le service Ollama aux deux compose (Recommandé) » plutôt que documenter l'écart sans corriger.** |
 | **2026-07-30** | **Correction (SEC-046) de l'entrée SEC-040 ci-dessus : elle affirmait à tort que « le seul chemin IA restant est le chat (`/ai/chat`, `/ai/conversations/*`), consommé par `AIAssistantFloat.tsx` » — déduction non revérifiée, jamais une observation directe. `AIAssistantFloat.tsx` n'importe que le type `ChatMessage`, sans appeler aucun endpoint IA lui-même ; la logique réseau réelle vit dans `AIAssistantPage.tsx`, qui n'appelle que `useCreateConversation`/`useAddMessage` (`/ai/conversations/*`), jamais `/ai/chat`. `POST /ai/chat` s'est révélé lui-même sans appelant réel (SEC-044) et a été retiré dans cette même session — voir l'entrée suivante.** | **Contre-vérification directe du porteur du projet sur le commit `aebe1b9`, session du 2026-07-30 — signalée comme le même type d'erreur que celui qui avait piégé RG-017 en v0.2.0 (une déduction écrite comme une observation).** |
 | **2026-07-30** | **SEC-044 : `POST /ai/chat` (`ai.controller.ts`, `ai.routes.ts`, `ai.validator.ts#chatSchema`) est retiré du dépôt comme code mort — grep exhaustif confirmant qu'aucun code de `client/src` ne l'appelait (`client/src/api/ai.api.ts`, seul importateur potentiel, n'était lui-même utilisé que pour le type `ChatMessage`, jamais `aiApi.chat`). `client/src/api/ai.api.ts` supprimé également ; le type `ChatMessage` est désormais importé depuis `client/src/features/ai-assistant/AIAssistantPage.tsx`, où il était déjà défini. Le montage `apiRoutes.use("/ai", aiRoutes)` est retiré de `routes/index.ts` (le montage `/ai/conversations` reste intact, distinct). SEC-045 (métriques Prometheus `agent_call_total`/`agent_call_duration_seconds`, orphelines depuis le retrait d'`executeAgent` par SEC-040) corrigée dans la même passe : `businessMetrics.logAgentCall` et les deux métriques associées retirés de `businessMetrics.ts`. Le module 4.11 ne porte désormais plus qu'un seul chemin IA réel : `/ai/conversations/*`.** | **AskUserQuestion, session du 2026-07-30, en réponse directe à la contre-vérification du porteur sur le commit `aebe1b9`. Choix explicite « Retirer `/ai/chat` aussi (Recommandé) » et « Retirer [les métriques mortes] (Recommandé) ».** |
-| **2026-07-30** | **SEC-047 : nouveau service `ollama-pull` ajouté à `docker-compose.yml` et `docker-compose.prod.yml` — télécharge `OLLAMA_MODEL` (défaut `mistral`) une fois qu'`ollama` répond (`depends_on: ollama, condition: service_healthy`), en job unique idempotent (`restart: "no"`). Corrige le fait que le healthcheck `ollama list` (ajouté par SEC-041) réussissait sur un store de modèles vide, donnant une fausse garantie de disponibilité à `depends_on: condition: service_healthy` côté `server`. Vérification de bout en bout non menée à son terme dans cette session (débit réseau insuffisant pour un téléchargement de plusieurs Go dans un délai raisonnable) — le démarrage réel du service et le début du téléchargement ont été confirmés sans erreur, mais pas la confirmation finale qu'un `POST /api/chat` répond sans « model not found » une fois le pull terminé.** | **AskUserQuestion, session du 2026-07-30, en réponse directe à la contre-vérification du porteur sur le commit `1977a5a`. Choix explicite « Service ollama-pull dédié (Recommandé) » plutôt qu'un healthcheck élargi avec `start_period` long.** |
+| **2026-07-30** | **SEC-047 : nouveau service `ollama-pull` ajouté à `docker-compose.yml` et `docker-compose.prod.yml` — télécharge `OLLAMA_MODEL` (défaut `mistral`) une fois qu'`ollama` répond (`depends_on: ollama, condition: service_healthy`), en job unique idempotent (`restart: "no"`). Corrige le fait que le healthcheck `ollama list` (ajouté par SEC-041) réussissait sur un store de modèles vide, donnant une fausse garantie de disponibilité à `depends_on: condition: service_healthy` côté `server`.** | **AskUserQuestion, session du 2026-07-30, en réponse directe à la contre-vérification du porteur sur le commit `1977a5a`. Choix explicite « Service ollama-pull dédié (Recommandé) » plutôt qu'un healthcheck élargi avec `start_period` long.** |
+| **2026-07-30 (suite, même session)** | **SEC-047 : vérification de bout en bout menée à son terme — le pull du modèle mistral (4.4 GB) a mis plusieurs dizaines de minutes (débit réseau de l'environnement) mais s'est terminé avec succès (`docker logs saas-ollama-pull-1` : "success", exit code 0). `docker exec saas-ollama-1 ollama list` confirme `mistral:latest` présent. `POST http://localhost:11434/api/chat` avec `model:"mistral"` répond avec un vrai contenu généré, `done:true`, aucune erreur "model not found". La ligne précédente de ce journal ne décrivait qu'un état intermédiaire de cette même session (le pull n'avait pas encore fini au moment de sa rédaction), pas l'état final.** | **Confirmation directe du porteur du projet après le téléchargement complet, session du 2026-07-30 — voir `anomalies/4.11-ia.yaml#SEC-047` et `COUVERTURE.yaml#4.11-ia` pour le même récit. Corrigé (SEC-054, audit indépendant du 2026-07-31) : cette entrée du journal n'avait jamais été mise à jour après le succès final, laissant §7 contredire le registre d'anomalies et COUVERTURE.yaml sur le même fait.** |
+| **2026-07-31** | **Audit indépendant du module 4.11 (agent sans mémoire de la session précédente, demandé explicitement par le porteur) — 6 nouveaux constats (SEC-054 à SEC-059), tous mineurs à moyens, tous corrigés dans la même session. SEC-054/SEC-056/SEC-055/SEC-057/SEC-058 : voir leurs entrées `anomalies/4.11-ia.yaml` respectives (contradiction §7/registre sur SEC-047, mauvaise citation d'ID en commentaire docker-compose, route `/ai/conversations/import` non documentée, index Prisma manquant sur le tri réel de `findAll`, doctrine `prisma`/`prismaRead` violée sur `addMessage`/`delete`). SEC-059 (le plus substantiel) : le `SYSTEM_PROMPT` de `aiConversation.service.ts` promettait d'aider à gérer leads/clients/projets/tâches/freelancers sans qu'aucun code ne donne à l'assistant un accès réel à ces données — sur décision explicite du porteur, construit plutôt que documenté comme écart : nouveau module `server/src/services/aiTools.ts` (5 tools en lecture seule, `getLeads`/`getClients`/`getProjects`/`getTasks`/`getFreelancers`, format de déclaration OpenAI-style consommé par Ollama), `llm.client.ts` étendu (`callOllamaWithTools`, garde le contrat existant `callOllama` inchangé), `aiConversation.service.ts` orchestre une boucle de tool calling bornée (`MAX_TOOL_ROUNDTRIPS = 4`) avant de persister la réponse finale. Chaque tool réutilise exactement le service/repository/scoping déjà utilisé par l'endpoint REST équivalent (`leadService`/`clientService`/`projectService`/`taskService`/`freelancerService`, `buildServiceScope`) — aucune requête Prisma nouvelle, aucun chemin de scope parallèle : un MANAGER n'obtient via le chat IA aucune donnée qu'il ne pourrait pas déjà lire par l'API REST. Les échanges de tool calling (appel + résultat) ne sont jamais persistés comme `AiMessage` — seul le contenu final de la réponse l'est, cf. §3.22. RG-014 mise à jour pour documenter cette nouvelle surface. Preuve : nouveaux `server/test/aiTools.test.ts` (appelle réellement `runAiTool`/`isKnownAiTool` contre une vraie base, 2 pôles seedés, MANAGER confirmé restreint à son pôle sur `getProjects`) et `server/test/llmClientToolCalling.test.ts` (appelle réellement `callOllamaWithTools`, mock `globalThis.fetch` uniquement, couvre l'attachement du tableau `tools`, la remontée de `tool_calls`, et le rejet d'une réponse sans contenu ni tool_calls — SEC-039 étendue). Vérification : serveur `npx tsc --noEmit` (clean), `npm run lint` (0/0), client `npx tsc --noEmit` (clean). Migration Prisma `20260731000000_ai_conversation_updated_at_index` créée et appliquée (`prisma migrate deploy`) pour SEC-057.** | **Rapport d'audit produit par une session indépendante (sans mémoire de la session ayant clôturé SEC-033 à SEC-053), demandé explicitement par le porteur. Décisions du porteur via AskUserQuestion : création des 6 ID par cette session (« Oui, créer les 6 IDs ») ; pour SEC-059, construire la vraie capacité plutôt que réécrire le prompt (« Oui — construire l'accès réel aux données CRM ») ; mécanisme tool calling Ollama plutôt que RAG simple (« Tool calling Ollama (Recommandé) ») ; les 4 entités Lead/Client/Projets/Tâches/Freelancers retenues explicitement (multi-sélection) ; ampleur « Tout construire maintenant » plutôt qu'une version minimale ; pour SEC-054, garder la version « réussie » du fichier d'anomalie plutôt que marquer les deux comme incertains.** |

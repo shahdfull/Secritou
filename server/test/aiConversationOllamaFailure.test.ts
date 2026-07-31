@@ -53,7 +53,9 @@ describe("aiConversationService leaves no trace on Ollama failure (SEC-035)", ()
     });
     createdUserIds.push(user.id);
 
-    await assert.rejects(() => aiConversationService.create(user.id, "Bonjour, aide-moi à rédiger un brief."));
+    await assert.rejects(() =>
+      aiConversationService.create(user.id, "Bonjour, aide-moi à rédiger un brief.", { userRole: "ADMIN", userId: user.id })
+    );
 
     const conversations = await prisma.aiConversation.findMany({ where: { userId: user.id } });
     assert.equal(conversations.length, 0, "no conversation (and no orphaned USER message) must be created on Ollama failure");

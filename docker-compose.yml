@@ -88,7 +88,7 @@ services:
   # before the pull finishes gets a real "model not found" error from Ollama itself rather than a
   # silently-passing healthcheck masking it.
   #
-  # SEC-048: OLLAMA_MODEL must come from server/.env (env_file below), not the host shell/a root
+  # SEC-052: OLLAMA_MODEL must come from server/.env (env_file below), not the host shell/a root
   # .env compose would otherwise resolve ${OLLAMA_MODEL} against — server itself reads
   # OLLAMA_MODEL from server/.env. Without env_file here, changing the model in server/.env alone
   # (which server/.env.example explicitly invites) pulls "mistral" while server requests whatever

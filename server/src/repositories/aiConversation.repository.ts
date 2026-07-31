@@ -31,6 +31,17 @@ export const aiConversationRepository = {
     });
   },
 
+  // SEC-058: addMessage/delete (service) use this as a pre-read immediately followed by a write —
+  // must go through the write client (prisma), not prismaRead, per the same doctrine already
+  // applied to gdprService (SEC-037). findById above stays on prismaRead for the pure-read case
+  // (getById).
+  async findByIdForWrite(id: string, userId: string) {
+    return prisma.aiConversation.findFirst({
+      where: { id, userId },
+      include: { messages: { orderBy: { createdAt: "asc" } } },
+    });
+  },
+
   async create(userId: string, title: string, persona?: string) {
     return prisma.aiConversation.create({
       data: { userId, title, persona },

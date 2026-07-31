@@ -398,14 +398,14 @@ modules:
 
   "4.11-ia":
     label: "4.11 Module IA (agent-service)"
-    note: "Reclassé GELÉ → ACTIF le 2026-07-30 (décision explicite du porteur, voir REFERENTIEL.md §7). Audit A/B/G puis relecture approfondie puis contre-vérification du porteur (même jour, 2026-07-30) : SEC-033 à SEC-047 trouvées et toutes resolu. Dernière en date, SEC-047 (healthcheck Ollama ne détectait pas l'absence de modèle) : service ollama-pull ajouté, vérifié de bout en bout — pull du modèle mistral (4.4 GB) mené à son terme, docker exec ollama list confirme le modèle présent, un vrai POST /api/chat contre le service ollama répond avec un contenu généré (pas d'erreur 'model not found'). Module réduit à son seul chemin IA réel : /ai/conversations/* (aiConversation.service.ts), consommé par AIAssistantPage.tsx, avec infra Ollama fonctionnelle en dev et prod. Plus aucune anomalie ouverte sur ce module."
-    A: "2026-07-30"
-    B: "2026-07-30"
+    note: "Reclassé GELÉ → ACTIF le 2026-07-30 (décision explicite du porteur, voir REFERENTIEL.md §7). Audit A/B/G puis relecture approfondie puis contre-vérification du porteur (2026-07-30) : SEC-033 à SEC-047 trouvées et toutes resolu. Audit indépendant du 2026-07-31 (agent sans mémoire de session, demandé explicitement par le porteur pour vérifier le registre) : SEC-054 à SEC-059 trouvées et toutes resolu — dont SEC-059 (le SYSTEM_PROMPT promettait une gestion CRM sans code derrière), résolue en construisant un vrai accès en lecture scopé par rôle (tool calling Ollama, server/src/services/aiTools.ts, 5 outils Lead/Client/Project/Task/Freelancer réutilisant exactement les services/scoping REST existants). Le module ne porte plus un seul chemin IA (/ai/conversations/*) mais ce chemin enrichi d'un accès CRM en lecture seule par tool calling — aucun nouveau chemin d'écriture, aucune route REST supplémentaire. Plus aucune anomalie ouverte sur ce module."
+    A: "2026-07-31"
+    B: "2026-07-31"
     C: null
     D: null
     E: null
     F: null
-    G: "2026-07-30"
+    G: "2026-07-31"
     H: null
     I: null
     J: null

@@ -12,8 +12,78 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-053
+dernier_id: SEC-059
 anomalies:
+  - id: SEC-059
+    titre: >
+      SYSTEM_PROMPT (aiConversation.service.ts) affirmait aider à gérer
+      leads/clients/projets/tâches/freelancers sans qu'aucune requête
+      Prisma, RAG ou tool calling n'existe sur ce chemin — l'assistant ne
+      pouvait répondre que sur la base du texte tapé par l'utilisateur.
+      Découvert lors d'un audit indépendant du module 4.11 (2026-07-31)
+    perimetre: 4.11-ia
+    statut: resolu
+    gravite: mineure
+    classe: promesse-prompt-sans-realite-code
+  - id: SEC-058
+    titre: >
+      aiConversation.repository.ts#findById appelé via prismaRead en
+      pré-lecture immédiatement suivie d'une écriture dans
+      addMessage/delete (service) — même défaut que SEC-037 (doctrine
+      prisma/prismaRead), site de code distinct, jamais audité sous cet
+      angle. Latent tant que DATABASE_READ_URL n'est pas renseigné.
+      Découvert lors d'un audit indépendant du module 4.11 (2026-07-31)
+    perimetre: 4.11-ia
+    statut: resolu
+    gravite: moyenne
+    classe: doctrine-prisma-prismaread-violee
+  - id: SEC-057
+    titre: >
+      AiConversation.findAll trie par updatedAt desc sans qu'aucun index
+      Prisma ne couvre ce couple (filtre userId, tri updatedAt) — seuls
+      [userId] et [userId, createdAt] existent. Découvert lors d'un audit
+      indépendant du module 4.11 (2026-07-31)
+    perimetre: 4.11-ia
+    statut: resolu
+    gravite: mineure
+    classe: index-manquant-sur-tri-reel
+  - id: SEC-056
+    titre: >
+      docker-compose.prod.yml (et docker-compose.yml) attribuaient en
+      commentaire de code la correction de la dérive OLLAMA_MODEL
+      ($$OLLAMA_MODEL échappé) à SEC-048 — le registre attribue cette
+      correction précise à SEC-052, SEC-048 portant sur un sujet disjoint
+      (statuts REFERENTIEL.md citant des fichiers supprimés). Découvert
+      lors d'un audit indépendant du module 4.11 (2026-07-31)
+    perimetre: 4.11-ia
+    statut: resolu
+    gravite: mineure
+    classe: mauvaise-citation-id-en-commentaire
+  - id: SEC-055
+    titre: >
+      POST /ai/conversations/import (importFromLocalStorage, migration
+      one-shot localStorage → backend) n'apparaît nulle part dans
+      REFERENTIEL.md §4.11 ni dans perimetre_code — capacité réelle,
+      appelée réellement par AIAssistantPage.tsx, mais absente de toute
+      documentation du module. Découvert lors d'un audit indépendant du
+      module 4.11 (2026-07-31)
+    perimetre: 4.11-ia
+    statut: resolu
+    gravite: mineure
+    classe: capacite-reelle-non-documentee
+  - id: SEC-054
+    titre: >
+      REFERENTIEL.md §7 (ligne 2403, entrée du 2026-07-30 sur SEC-047)
+      affirme que la vérification e2e Ollama n'a pas été menée à son
+      terme, alors qu'anomalies/4.11-ia.yaml#SEC-047 (note) et
+      COUVERTURE.yaml affirment pour la même date qu'elle a réussi
+      (pull mistral confirmé, curl réel réussi) — contradiction factuelle
+      entre deux documents sur le même fait. Découvert lors d'un audit
+      indépendant du module 4.11 (2026-07-31)
+    perimetre: 4.11-ia
+    statut: resolu
+    gravite: mineure
+    classe: contradiction-factuelle-referentiel-anomalies
   - id: SEC-053
     titre: >
       SEC-049 (commentaires de test périmés après suppression de
