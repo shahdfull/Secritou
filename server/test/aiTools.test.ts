@@ -78,12 +78,17 @@ async function makeFreelancerInService(serviceId: string, namePrefix: string) {
 }
 
 describe("isKnownAiTool", () => {
-  test("recognizes the 5 declared read tools and rejects an unknown name", () => {
+  test("recognizes the 10 declared read tools and rejects an unknown name", () => {
     assert.equal(isKnownAiTool("getLeads"), true);
     assert.equal(isKnownAiTool("getClients"), true);
     assert.equal(isKnownAiTool("getProjects"), true);
     assert.equal(isKnownAiTool("getTasks"), true);
     assert.equal(isKnownAiTool("getFreelancers"), true);
+    assert.equal(isKnownAiTool("getAgencyOverview"), true);
+    assert.equal(isKnownAiTool("getOverdueProjects"), true);
+    assert.equal(isKnownAiTool("getOverdueInvoices"), true);
+    assert.equal(isKnownAiTool("getFreelancerWorkload"), true);
+    assert.equal(isKnownAiTool("getLeadPipeline"), true);
     assert.equal(isKnownAiTool("deleteEverything"), false);
     assert.equal(isKnownAiTool("execCommand"), false);
   });
@@ -265,5 +270,95 @@ describe("aiTools truncated field — signals an incomplete list rather than pre
     };
     assert.ok(result.total > 20);
     assert.equal(result.truncated, true);
+  });
+});
+
+describe("aiTools aggregate tools — delegated to the same scoped services as their REST endpoints (follow-up)", () => {
+  test("getAgencyOverview calls the real dashboardService.getFullDashboard and returns its shape", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const result = (await runAiTool("getAgencyOverview", {}, { userRole: "ADMIN", userId: "admin-id" })) as {
+      pendingApprovalsCount: number;
+      overdueInvoicesCount: number;
+      hotLeadsCount: number;
+    };
+    assert.equal(typeof result.pendingApprovalsCount, "number");
+    assert.equal(typeof result.overdueInvoicesCount, "number");
+    assert.equal(typeof result.hotLeadsCount, "number");
+  });
+
+  test("getOverdueProjects filters executiveMetricsService risks to PROJECT_CRITICAL only", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const result = (await runAiTool("getOverdueProjects", {}, { userRole: "ADMIN", userId: "admin-id" })) as {
+      total: number;
+      projects: { type: string }[];
+    };
+    assert.equal(typeof result.total, "number");
+    assert.ok(result.projects.every((p) => p.type === "PROJECT_CRITICAL"));
+  });
+
+  test("getOverdueInvoices filters executiveMetricsService risks to INVOICE_OVERDUE only", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const result = (await runAiTool("getOverdueInvoices", {}, { userRole: "ADMIN", userId: "admin-id" })) as {
+      total: number;
+      invoices: { type: string }[];
+    };
+    assert.equal(typeof result.total, "number");
+    assert.ok(result.invoices.every((i) => i.type === "INVOICE_OVERDUE"));
+  });
+
+  test("getFreelancerWorkload calls the real timeEntryService.workloadByAssignee with a default 30-day window", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const result = (await runAiTool("getFreelancerWorkload", {}, { userRole: "ADMIN", userId: "admin-id" })) as {
+      total: number;
+      workload: { userId: string; totalMinutes: number; activeTaskCount: number }[];
+    };
+    assert.equal(typeof result.total, "number");
+    assert.ok(Array.isArray(result.workload));
+  });
+
+  test("getFreelancerWorkload ignores a malformed date string and falls back to the default window", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const result = (await runAiTool("getFreelancerWorkload", { from: "not-a-date" }, { userRole: "ADMIN", userId: "admin-id" })) as {
+      total: number;
+    };
+    assert.equal(typeof result.total, "number");
+  });
+
+  test("getLeadPipeline calls the real leadService.getPipelineByStatus and returns all 6 statuses", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const result = (await runAiTool("getLeadPipeline", {}, { userRole: "ADMIN", userId: "admin-id" })) as {
+      pipeline: Record<string, number>;
+    };
+    assert.equal(typeof result.pipeline.NEW, "number");
+    assert.equal(typeof result.pipeline.WON, "number");
+  });
+
+  test("getLeadPipeline for a MANAGER only counts leads in their own pole", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const uniq = Date.now();
+    const client = await prisma.client.create({ data: { name: `pipeline-tool-client-${uniq}`, serviceId: serviceA } });
+    createdClientIds.push(client.id);
+    const lead = await prisma.lead.create({ data: { name: `pipeline-tool-lead-${uniq}`, serviceId: serviceA, status: "PROPOSAL" } });
+
+    try {
+      const managerResult = (await runAiTool("getLeadPipeline", {}, {
+        userRole: "MANAGER",
+        userId: "manager-id",
+        userServiceId: serviceA,
+      })) as { pipeline: Record<string, number> };
+      const otherPoleResult = (await runAiTool("getLeadPipeline", {}, {
+        userRole: "MANAGER",
+        userId: "manager-id",
+        userServiceId: serviceB,
+      })) as { pipeline: Record<string, number> };
+
+      assert.ok(managerResult.pipeline.PROPOSAL >= 1, "manager on the lead's pole must count it");
+      assert.ok(
+        otherPoleResult.pipeline.PROPOSAL < managerResult.pipeline.PROPOSAL,
+        "manager on a different pole must not count this lead"
+      );
+    } finally {
+      await prisma.lead.delete({ where: { id: lead.id } });
+    }
   });
 });

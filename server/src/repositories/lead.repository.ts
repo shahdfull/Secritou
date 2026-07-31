@@ -8,19 +8,26 @@ const SORTABLE_FIELDS = ["name", "email", "status", "source", "createdAt"];
 
 export type LeadScope = { userRole: Role; userServiceId?: string | null; userId?: string };
 
+// A lead's pole scope is an OR (serviceId of the pole OR assignedManagerId == the manager
+// themself) — different from the plain serviceId-only scoping used by project/task/invoice.
+// Was duplicated 3 times in this file (buildWhere, findById, findByIdWithProposals) before this
+// extraction; factored out here so countByStatus (aggregate pipeline tool) reuses the exact same
+// rule rather than risking a 4th, slightly different copy.
+function leadServiceFilter(scope?: LeadScope) {
+  return scope?.userRole === "MANAGER"
+    ? {
+        OR: [
+          { serviceId: scope.userServiceId ?? "__none__" },
+          { assignedManagerId: scope.userId },
+        ],
+      }
+    : {};
+}
+
 function buildWhere(options: ListQueryOptions & { includeArchived?: boolean }, scope?: LeadScope) {
-  const serviceFilter =
-    scope?.userRole === "MANAGER"
-      ? {
-          OR: [
-            { serviceId: scope.userServiceId ?? "__none__" },
-            { assignedManagerId: scope.userId },
-          ],
-        }
-      : {};
   return {
     ...(!options.includeArchived ? { archivedAt: null } : {}),
-    ...serviceFilter,
+    ...leadServiceFilter(scope),
     ...(options.status ? { status: options.status as LeadStatus } : {}),
     ...buildTextSearchFilter(options.search, ["name", "email", "source", "notes"]),
   };
@@ -59,40 +66,22 @@ export const leadRepository = {
   },
 
   async findById(id: string, scope?: LeadScope, includeArchived?: boolean): Promise<Lead | null> {
-    const serviceFilter =
-      scope?.userRole === "MANAGER"
-        ? {
-            OR: [
-              { serviceId: scope.userServiceId ?? "__none__" },
-              { assignedManagerId: scope.userId },
-            ],
-          }
-        : {};
     return prismaRead.lead.findFirst({
       where: {
         id,
         ...(!includeArchived ? { archivedAt: null } : {}),
-        ...serviceFilter
+        ...leadServiceFilter(scope)
       },
       select: leadDetailSelect,
     });
   },
 
   async findByIdWithProposals(id: string, scope?: LeadScope, includeArchived?: boolean) {
-    const serviceFilter =
-      scope?.userRole === "MANAGER"
-        ? {
-            OR: [
-              { serviceId: scope.userServiceId ?? "__none__" },
-              { assignedManagerId: scope.userId },
-            ],
-          }
-        : {};
     return prismaRead.lead.findFirst({
       where: {
         id,
         ...(!includeArchived ? { archivedAt: null } : {}),
-        ...serviceFilter
+        ...leadServiceFilter(scope)
       },
       select: {
         ...leadDetailSelect,
@@ -151,5 +140,25 @@ export const leadRepository = {
 
   async delete(id: string): Promise<Lead> {
     return prisma.lead.delete({ where: { id } });
+  },
+
+  // Follow-up to SEC-059 (AI tool calling): "pipeline by status" has no existing aggregate
+  // anywhere in this repo — a single groupBy reusing the exact same scope rule as findAll/findById
+  // (leadServiceFilter) rather than N findAll(status=X, pageSize:1) calls per status, which would
+  // both cost N round trips and risk a subtly different scope filter drifting from this one.
+  // Archived leads excluded by default (mirrors findAll's own default), same as buildWhere.
+  async countByStatus(scope?: LeadScope, includeArchived?: boolean): Promise<Record<LeadStatus, number>> {
+    const where = {
+      ...(!includeArchived ? { archivedAt: null } : {}),
+      ...leadServiceFilter(scope),
+    };
+    const grouped = await prismaRead.lead.groupBy({ by: ["status"], where, _count: { _all: true } });
+    const counts = Object.fromEntries(
+      (["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "WON", "LOST"] satisfies LeadStatus[]).map((s) => [s, 0])
+    ) as Record<LeadStatus, number>;
+    for (const row of grouped) {
+      counts[row.status] = row._count._all;
+    }
+    return counts;
   },
 };

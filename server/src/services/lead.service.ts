@@ -53,6 +53,10 @@ export const leadService = {
     return leadRepository.findAll(options, scope);
   },
 
+  async getPipelineByStatus(scope?: LeadScope, includeArchived?: boolean) {
+    return leadRepository.countByStatus(scope, includeArchived);
+  },
+
   async getLead(id: string, scope?: LeadScope, includeArchived?: boolean) {
     const lead = await leadRepository.findByIdWithProposals(id, scope, includeArchived);
     if (!lead) throw new HttpError(404, "Lead not found");

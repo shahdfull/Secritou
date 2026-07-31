@@ -11,6 +11,9 @@ import { clientService } from "./client.service.js";
 import { projectService } from "./project.service.js";
 import { taskService } from "./task.service.js";
 import { freelancerService } from "./freelancer.service.js";
+import { dashboardService } from "./dashboard.service.js";
+import { executiveMetricsService } from "./executiveMetrics.service.js";
+import { timeEntryService } from "./timeEntry.service.js";
 import type { ServiceScope } from "../utils/serviceScope.js";
 import type { LeadScope } from "../repositories/lead.repository.js";
 import type { ListQueryOptions } from "../utils/listQuery.js";
@@ -45,6 +48,16 @@ function toServiceScope(ctx: AiToolCallerContext): ServiceScope {
 
 function toLeadScope(ctx: AiToolCallerContext): LeadScope {
   return { userRole: ctx.userRole, userServiceId: ctx.userServiceId, userId: ctx.userId };
+}
+
+// dashboard.service.ts/executiveMetrics.service.ts/timeEntry.service.ts (globalSummary/
+// workloadByAssignee) all take a plain `serviceId?: string` rather than a ServiceScope object —
+// same convention their own REST controllers already follow (dashboard.controller.ts,
+// executiveMetrics.controller.ts, timeEntry.controller.ts): ADMIN gets undefined (unscoped),
+// MANAGER gets their own userServiceId (?? "__none__" so a manager with no pole yet sees nothing,
+// never everything).
+function toPlainServiceId(ctx: AiToolCallerContext): string | undefined {
+  return ctx.userRole === "MANAGER" ? (ctx.userServiceId ?? "__none__") : undefined;
 }
 
 // aiConversation.routes.ts gates the whole router behind authenticate + authorize("ADMIN",
@@ -137,6 +150,53 @@ export const AI_TOOL_DEFINITIONS = [
       },
     },
   },
+  // ── Aggregate tools (follow-up to SEC-059) — "where do we stand", not "list me X" ──────────
+  {
+    type: "function",
+    function: {
+      name: "getAgencyOverview",
+      description: "Résumé synthétique de l'état de l'agence : nombre de leads/clients/projets/tâches par catégorie, approbations en attente, factures en retard, leads chauds. Répond à des questions comme « où en est-on ? » ou « donne-moi un résumé ».",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getOverdueProjects",
+      description: "Liste des projets en risque critique (santé dégradée, en retard, ou bloqués) — répond à « quels projets sont en retard ? » ou « quels projets sont à risque ? ». Limité aux signaux les plus importants (jusqu'à 20 au total, tous types de risques confondus) ; ne pas présenter cette liste comme forcément exhaustive.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getOverdueInvoices",
+      description: "Liste des factures actuellement en retard de paiement — répond à « quelles factures sont impayées ? » ou « quelles factures sont en retard ? ». Limité aux signaux les plus importants (jusqu'à 20 au total, tous types de risques confondus) ; ne pas présenter cette liste comme forcément exhaustive.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getFreelancerWorkload",
+      description: "Charge de travail par freelancer (heures saisies et nombre de tâches actives) sur une période — répond à « qui est le plus chargé en ce moment ? » ou « combien d'heures a fait X ce mois-ci ? ». Par défaut, les 30 derniers jours.",
+      parameters: {
+        type: "object",
+        properties: {
+          from: { type: "string", description: "Date de début (ISO 8601, ex. 2026-07-01). Défaut : il y a 30 jours." },
+          to: { type: "string", description: "Date de fin (ISO 8601). Défaut : aujourd'hui." },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "getLeadPipeline",
+      description: "Nombre de leads par statut (NEW, CONTACTED, QUALIFIED, PROPOSAL, WON, LOST) — répond à « à quoi ressemble le pipeline commercial ? » ou « combien de leads sont qualifiés ? ».",
+      parameters: { type: "object", properties: {} },
+    },
+  },
 ] as const;
 
 export type AiToolName = (typeof AI_TOOL_DEFINITIONS)[number]["function"]["name"];
@@ -226,6 +286,64 @@ async function runGetFreelancers(ctx: AiToolCallerContext, args: { search?: stri
   });
 }
 
+// getFullDashboard already assembles exactly this "where do we stand" view (summary + counts of
+// pending approvals/overdue invoices/hot leads) for the equivalent REST endpoint
+// (dashboard.controller.ts#getFullDashboard) — reused as-is rather than recomposed here, same
+// serviceId convention (undefined for ADMIN, resolved pole for MANAGER).
+async function runGetAgencyOverview(ctx: AiToolCallerContext) {
+  return dashboardService.getFullDashboard(toPlainServiceId(ctx));
+}
+
+// executiveMetricsService.get() already computes a scoped, cached `risks: RiskItem[]` array
+// (executiveMetrics.repository.ts) covering INVOICE_OVERDUE/APPROVAL_BLOCKED/PROJECT_CRITICAL/
+// LEAD_HOT — filtering it here avoids re-deriving a second definition of "overdue"/"critical"
+// that could silently drift from the one already shown on the executive dashboard.
+//
+// Not using withTruncation here: executiveMetricsRepository already caps the WHOLE risks array at
+// 20 entries across all 4 types combined (risks.slice(0, 20)) before this tool ever sees it — this
+// tool's own `total` (risks.length after filtering by type) can never exceed what already survived
+// that upstream cap, so it cannot detect or signal a real truncation the way withTruncation does
+// for getLeads/getProjects/etc. (where this tool's own query controls the page size). Flagged
+// explicitly in the tool description/prompt instead of a `truncated` field that would always read
+// false regardless of the real total.
+async function runGetOverdueProjects(ctx: AiToolCallerContext) {
+  const metrics = await executiveMetricsService.get(toPlainServiceId(ctx));
+  const projects = metrics.risks.filter((r) => r.type === "PROJECT_CRITICAL");
+  return { total: projects.length, projects };
+}
+
+async function runGetOverdueInvoices(ctx: AiToolCallerContext) {
+  const metrics = await executiveMetricsService.get(toPlainServiceId(ctx));
+  const invoices = metrics.risks.filter((r) => r.type === "INVOICE_OVERDUE");
+  return { total: invoices.length, invoices };
+}
+
+const DEFAULT_WORKLOAD_WINDOW_DAYS = 30;
+
+// A malformed/missing ISO date string from the model degrades to the default 30-day window rather
+// than throwing — same doctrine as parseArgs elsewhere in this file (a bad optional field must not
+// take down the whole tool call).
+function parseOptionalDate(value: unknown): Date | undefined {
+  if (typeof value !== "string") return undefined;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+async function runGetFreelancerWorkload(ctx: AiToolCallerContext, args: { from?: string; to?: string }) {
+  const to = parseOptionalDate(args.to) ?? new Date();
+  const from = parseOptionalDate(args.from) ?? new Date(to.getTime() - DEFAULT_WORKLOAD_WINDOW_DAYS * 86_400_000);
+  // Not using withTruncation: timeEntryRepository.getWorkloadByAssignee has no page size to begin
+  // with (one row per freelancer with any activity in the window, never paginated) — there is no
+  // real cutoff this tool's own total could ever detect.
+  const workload = await timeEntryService.workloadByAssignee(from, to, toPlainServiceId(ctx));
+  return { total: workload.length, workload };
+}
+
+async function runGetLeadPipeline(ctx: AiToolCallerContext) {
+  const pipeline = await leadService.getPipelineByStatus(toLeadScope(ctx));
+  return { pipeline };
+}
+
 const LEAD_STATUSES: readonly LeadStatus[] = ["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "WON", "LOST"];
 const PROJECT_STATUSES: readonly ProjectStatus[] = ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED"];
 const TASK_STATUSES: readonly TaskStatus[] = ["TODO", "IN_PROGRESS", "REVIEW", "DONE"];
@@ -241,6 +359,7 @@ function pickEnum<T extends string>(value: unknown, allowed: readonly T[]): T | 
 // fall back to, and one bad field must not take down the whole call.
 function parseArgs(rawArgs: unknown): {
   search?: string; status?: string; priority?: Priority; overdue?: boolean; assigneeId?: string;
+  from?: string; to?: string;
 } {
   if (!rawArgs || typeof rawArgs !== "object") return {};
   const obj = rawArgs as Record<string, unknown>;
@@ -252,6 +371,8 @@ function parseArgs(rawArgs: unknown): {
     priority: pickEnum(obj.priority, PRIORITIES),
     overdue: typeof obj.overdue === "boolean" ? obj.overdue : undefined,
     assigneeId: typeof obj.assigneeId === "string" ? obj.assigneeId : undefined,
+    from: typeof obj.from === "string" ? obj.from : undefined,
+    to: typeof obj.to === "string" ? obj.to : undefined,
   };
 }
 
@@ -278,5 +399,15 @@ export async function runAiTool(
       });
     case "getFreelancers":
       return runGetFreelancers(ctx, { search: args.search });
+    case "getAgencyOverview":
+      return runGetAgencyOverview(ctx);
+    case "getOverdueProjects":
+      return runGetOverdueProjects(ctx);
+    case "getOverdueInvoices":
+      return runGetOverdueInvoices(ctx);
+    case "getFreelancerWorkload":
+      return runGetFreelancerWorkload(ctx, { from: args.from, to: args.to });
+    case "getLeadPipeline":
+      return runGetLeadPipeline(ctx);
   }
 }
