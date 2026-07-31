@@ -8,6 +8,7 @@ import {
   runAiActionTool,
   type AiActionProposal,
 } from "./aiActionProposals.js";
+import { routeToolNames } from "./aiToolRouter.js";
 import logger from "../utils/logger.js";
 import { aiToolCallTotal, aiTurnDuration, aiTurnRoundtrips } from "../observability/businessMetrics.js";
 
@@ -132,13 +133,26 @@ async function runConversationTurn(
   // as messages.push order below), since a single reply can only carry one confirmation card.
   let proposal: AiActionProposal | undefined;
 
+  // Routed ONCE per turn (not per round trip) from the latest user message, and reused for every
+  // round trip in this turn — swapping the tool set mid-turn would risk the model calling a tool
+  // in round 2 that was never offered in round 1's response context. Falls back to every tool if
+  // no keyword category matched (aiToolRouter.ts's own safety doctrine: never guess a narrower set
+  // than "everything" without a positive signal). This exists purely to cut Ollama's prompt_eval
+  // time on CPU-only hosts (see aiToolRouter.ts's header) — it has no bearing on correctness, since
+  // the model still can't do anything the full tool set wouldn't also allow.
+  const lastUserMessage = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
+  const routedNames = routeToolNames(lastUserMessage);
+  const toolDefinitions = routedNames
+    ? ALL_TOOL_DEFINITIONS.filter((t) => routedNames.has(t.function.name))
+    : ALL_TOOL_DEFINITIONS;
+
   try {
     for (let roundTrip = 0; roundTrip < MAX_TOOL_ROUNDTRIPS; roundTrip++) {
       let content = "";
       let requestedToolCalls: OllamaToolCall[] | undefined;
 
       if (onChunk) {
-        for await (const event of streamOllamaWithTools(messages, ALL_TOOL_DEFINITIONS, SYSTEM_PROMPT, turnDeadline)) {
+        for await (const event of streamOllamaWithTools(messages, toolDefinitions, SYSTEM_PROMPT, turnDeadline)) {
           if (event.type === "tool_calls") {
             requestedToolCalls = event.tool_calls;
           } else {
@@ -147,7 +161,7 @@ async function runConversationTurn(
           }
         }
       } else {
-        const response = await callOllamaWithTools(messages, ALL_TOOL_DEFINITIONS, SYSTEM_PROMPT, turnDeadline);
+        const response = await callOllamaWithTools(messages, toolDefinitions, SYSTEM_PROMPT, turnDeadline);
         content = response.content;
         requestedToolCalls = response.tool_calls;
       }

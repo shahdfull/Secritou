@@ -157,4 +157,5 @@ import "./llmClientToolCalling.test.ts";
 import "./aiTools.test.ts";
 import "./aiConversationToolCallTrace.test.ts";
 import "./aiActionProposals.test.ts";
+import "./aiToolRouter.test.ts";
 import "./bullBoardAdminOnly.http.test.ts";
