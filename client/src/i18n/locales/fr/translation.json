@@ -1040,7 +1040,16 @@
     },
     "clearHistory": "Effacer l'historique",
     "deleteConversationTitle": "Supprimer cette conversation ?",
-    "deleteConversationDesc": "Cette action est irréversible. La conversation et tous ses messages seront définitivement supprimés."
+    "deleteConversationDesc": "Cette action est irréversible. La conversation et tous ses messages seront définitivement supprimés.",
+    "proposal": {
+      "confirm": "Confirmer",
+      "cancel": "Annuler",
+      "confirmed": "Action effectuée",
+      "cancelled": "Proposition annulée",
+      "createTask": "Créer la tâche « {{title}} » sur le projet « {{project}} » ?",
+      "updateLeadStatus": "Passer le lead « {{name}} » de {{from}} à {{to}} ?",
+      "updateTaskStatus": "Passer la tâche « {{title}} » de {{from}} à {{to}} ?"
+    }
   },
   "notifications": {
     "open": "Ouvrir les notifications",

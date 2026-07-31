@@ -1040,7 +1040,16 @@
     },
     "clearHistory": "Clear history",
     "deleteConversationTitle": "Delete this conversation?",
-    "deleteConversationDesc": "This action is irreversible. The conversation and all its messages will be permanently deleted."
+    "deleteConversationDesc": "This action is irreversible. The conversation and all its messages will be permanently deleted.",
+    "proposal": {
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "confirmed": "Action completed",
+      "cancelled": "Proposal cancelled",
+      "createTask": "Create the task \"{{title}}\" on project \"{{project}}\"?",
+      "updateLeadStatus": "Move lead \"{{name}}\" from {{from}} to {{to}}?",
+      "updateTaskStatus": "Move task \"{{title}}\" from {{from}} to {{to}}?"
+    }
   },
   "notifications": {
     "open": "Open notifications",
