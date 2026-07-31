@@ -121,7 +121,7 @@ function CompactChat({
             <p className="mt-1 text-xs">{t("aiAssistant.emptyExample")}</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="w-full space-y-3">
             {/* Chat is append-only (no reorder/filter); ChatMessage has no id,
                 so a role+index composite is the stable key here. */}
             {messages.map((msg, i) => (
@@ -341,7 +341,7 @@ function FullChat() {
                   <p className="mt-2 text-xs">{t("aiAssistant.emptyExample")}</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="w-full space-y-4">
                   {messages.map((msg) => (
                     <MessageBubble key={msg.id} msg={msg} durationMs={responseDurations[msg.id]} />
                   ))}
@@ -409,16 +409,25 @@ function MessageBubble({
   // the parse entirely for USER messages avoids running it on every keystroke-driven re-render for
   // no reason.
   const { visibleText, proposal } = isUser ? { visibleText: msg.content, proposal: null } : parseAssistantMessage(msg.content);
+  // Every class below is written as a complete literal in each branch of the ternary (never
+  // built by interpolating just a suffix like `gap-${compact ? "2" : "3"}`) — Tailwind's build-time
+  // scanner only picks up classes it can find as whole tokens in the source text; an interpolated
+  // fragment like that silently never generates the corresponding CSS rule (confirmed missing
+  // max-w-[85%]/max-w-[80%] from the production build before this fix).
   return (
-    <div className={`flex gap-${compact ? "2" : "3"} ${isUser ? "justify-end" : "justify-start"}`}>
+    <div className={`flex ${isUser ? "justify-end" : "justify-start"} ${compact ? "gap-2" : "gap-3"}`}>
       {!isUser && (
-        <div className={`flex h-${compact ? "7" : "8"} w-${compact ? "7" : "8"} shrink-0 items-center justify-center rounded-full bg-primary/10`}>
-          <Bot className={`h-${compact ? "3.5" : "4"} w-${compact ? "3.5" : "4"} text-primary`} />
+        <div
+          className={`flex shrink-0 items-center justify-center rounded-full bg-primary/10 ${
+            compact ? "h-7 w-7" : "h-8 w-8"
+          }`}
+        >
+          <Bot className={`text-primary ${compact ? "h-3.5 w-3.5" : "h-4 w-4"}`} />
         </div>
       )}
-      <div className={`max-w-[${compact ? "85" : "80"}%]`}>
+      <div className={compact ? "max-w-[85%]" : "max-w-[80%]"}>
         <div
-          className={`rounded-lg px-${compact ? "3" : "4"} py-2 text-sm ${
+          className={`rounded-lg py-2 text-sm ${compact ? "px-3" : "px-4"} ${
             isUser ? "bg-primary text-primary-foreground" : "bg-muted"
           }`}
         >
@@ -456,8 +465,12 @@ function MessageBubble({
         {proposal && <ActionProposalCard proposal={proposal} />}
       </div>
       {isUser && (
-        <div className={`flex h-${compact ? "7" : "8"} w-${compact ? "7" : "8"} shrink-0 items-center justify-center rounded-full bg-muted`}>
-          <User className={`h-${compact ? "3.5" : "4"} w-${compact ? "3.5" : "4"}`} />
+        <div
+          className={`flex shrink-0 items-center justify-center rounded-full bg-muted ${
+            compact ? "h-7 w-7" : "h-8 w-8"
+          }`}
+        >
+          <User className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
         </div>
       )}
     </div>
@@ -467,11 +480,15 @@ function MessageBubble({
 function ThinkingBubble({ compact = false }: { compact?: boolean }) {
   const { t } = useTranslation();
   return (
-    <div className={`flex gap-${compact ? "2" : "3"}`}>
-      <div className={`flex h-${compact ? "7" : "8"} w-${compact ? "7" : "8"} items-center justify-center rounded-full bg-primary/10`}>
-        <Loader2 className={`h-${compact ? "3.5" : "4"} w-${compact ? "3.5" : "4"} animate-spin text-primary`} />
+    <div className={`flex ${compact ? "gap-2" : "gap-3"}`}>
+      <div
+        className={`flex items-center justify-center rounded-full bg-primary/10 ${
+          compact ? "h-7 w-7" : "h-8 w-8"
+        }`}
+      >
+        <Loader2 className={`animate-spin text-primary ${compact ? "h-3.5 w-3.5" : "h-4 w-4"}`} />
       </div>
-      <div className={`rounded-lg bg-muted px-${compact ? "3" : "4"} py-2 text-sm text-muted-foreground`}>
+      <div className={`rounded-lg bg-muted py-2 text-sm text-muted-foreground ${compact ? "px-3" : "px-4"}`}>
         {t("aiAssistant.thinking")}
       </div>
     </div>
