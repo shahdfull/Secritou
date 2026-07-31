@@ -10,9 +10,98 @@
 # 3 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 # +1 le 2026-07-31 (découvert incidemment en testant l'assistant IA — le
-# porteur signalait une reconnexion bloquée après déconnexion).
+# porteur signalait une reconnexion bloquée après déconnexion). +1 le
+# 2026-07-31 (même session, porteur signalant ensuite un "session
+# expirée" systématique au F5 après login — diagnostiqué via logs
+# temporaires ajoutés à sa demande, résolu dans la même passe).
 
 anomalies:
+  - id: SEC-068
+    titre: >
+      auth.store.ts (client) persistait status:"authenticated" dans
+      localStorage (partialize) sans persister accessToken (en mémoire
+      uniquement, volontairement, cf. commentaire déjà présent dans le
+      fichier). Au rechargement de page, tout consommateur de
+      state.status voyait "authenticated" avant que
+      useBootstrapSession n'ait obtenu un accessToken réel via
+      POST /auth/refresh. useSessionHeartbeat (useMe().status ===
+      "authenticated") tirait alors un appel usersApi.sendHeartbeat()
+      sans en-tête Authorization (accessToken encore null) → 401
+      "Authentication required" → l'intercepteur axios
+      (api/axios.ts#runRefresh) déclenchait SON PROPRE POST
+      /auth/refresh, en parallèle de celui de useBootstrapSession —
+      deux appels concurrents utilisant le même cookie refresh token
+      HTTP-only à usage unique (rotation à chaque appel,
+      auth.service.ts#refresh ligne "Revoke old token and issue new
+      one"). Le second à atteindre le serveur trouvait le token déjà
+      tourné par le premier → aucune ligne refreshToken correspondante
+      en base → branche "Reuse detected" → revokeTokenFamily(familyId)
+      → toute la famille de refresh tokens de l'utilisateur invalidée.
+      Symptôme observé : login réussi, F5 immédiat, toast "session
+      expirée" et redirection forcée vers /login malgré une
+      authentification qui venait de réussir
+    perimetre: 4.14-auth
+    regle_violee: >
+      Cohérence d'état attendue entre un flag dérivé et sa donnée
+      source : state.status ne doit jamais rester "authenticated" en
+      cache alors que accessToken (dont il dépend fonctionnellement)
+      est explicitement non persisté et vaut donc null au premier
+      render suivant un reload — un consommateur lisant status seul
+      ne peut pas distinguer ce faux "authenticated" d'un vrai.
+    classe: etat-persiste-incoherent-avec-dependance-non-persistee
+    gravite: eleve
+    statut: resolu
+    critere_de_resolution: >
+      status retiré de partialize dans auth.store.ts (même traitement
+      qu'accessToken/bootstrapped, déjà exclus pour une raison
+      analogue) — au reload, status repart systématiquement à
+      "unknown" jusqu'à ce que useBootstrapSession confirme
+      réellement la session via le cookie refresh token, fermant la
+      fenêtre pendant laquelle un consommateur pouvait agir sur un
+      accessToken encore absent. Vérifié par lecture de tous les
+      consommateurs client de state.status
+      (ProtectedRoute.tsx — gère déjà explicitement status==="unknown"
+      || !bootstrapped avec un loader, donc sûr par construction ;
+      MustChangePasswordGuard.tsx — exige status==="authenticated" ET
+      user?.mustChangePassword, jamais vrai tant que le bootstrap n'a
+      pas tourné ; useAuth.ts#useMe ; landing FAQ.tsx — page publique,
+      aucun impact sécurité) confirmant qu'aucun ne suppose un status
+      valide avant la fin du bootstrap. client tsc --noEmit et
+      npm run lint (0 erreur, 11 warnings — exception documentée)
+      après le changement ; suite complète client 133/133 verte
+      (aucun test n'asserte sur l'ancien comportement de persistance
+      de status).
+    detecte_le: "2026-07-31"
+    source: >
+      Diagnostiqué avec des logs temporaires ajoutés à la demande
+      explicite du porteur ("ajouter des logs pourque je comprends"),
+      suite à un rapport répété (connexion réussie puis "session
+      expirée" au premier F5). Logs temporaires : console.warn dans
+      useBootstrapSession (client/src/hooks/useAuth.ts, queryFn +
+      effet de complétion) et logger.warn dans
+      auth.service.ts#refresh (chaque branche : appel reçu, échec
+      jwt.verify, réutilisation détectée, token déjà révoqué/expiré,
+      succès) — tous retirés une fois la cause confirmée, aucun log
+      de diagnostic ne subsiste dans le code livré. La séquence
+      exacte observée dans les logs navigateur : useBootstrapSession
+      réussit son refresh (isSuccess:true, userId confirmé), puis un
+      401 sur /users/me/heartbeat déclenche un second POST
+      /auth/refresh (visible via runRefresh @ axios.ts:161) qui
+      échoue "Refresh token is no longer valid" — exactement la
+      signature d'une course sur rotation de refresh token.
+    confiance: haute
+    note: >
+      Corrigé et vérifié dans la même session que la découverte —
+      auth.store.ts modifié, tests/typecheck/lint verts. Distinct de
+      SEC-067 (logout() révoque tout le compte via userKey sans jti,
+      décision de conception côté serveur non encore tranchée par le
+      porteur) : SEC-068 est une race condition côté client déclenchée
+      par une incohérence de persistance, corrigée sans nécessiter de
+      décision de portée produit — les deux causent des symptômes de
+      "session cassée après authentification" mais par des mécanismes
+      indépendants, jamais fusionnés sous un seul ID (classe distincte,
+      fichiers distincts, correctifs indépendants).
+
   - id: SEC-067
     titre: >
       logout() (auth.service.ts:150-157) appelle

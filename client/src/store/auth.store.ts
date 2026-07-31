@@ -96,16 +96,27 @@ export const useAuthStore = create<AuthStore>()(
     {
       name: "auth-store",
       storage: createJSONStorage(() => localStorage),
-      // FIX: `bootstrapped` and `accessToken` are intentionally NOT persisted.
+      // FIX (SEC-068): `bootstrapped`, `accessToken`, and now `status` are intentionally NOT
+      // persisted.
       // - `accessToken` is an in-memory-only token (short-lived, security best practice).
       // - `bootstrapped` must reset to false on every page reload so that
       //   useBootstrapSession always calls /auth/refresh to obtain a fresh token
       //   via the HTTP-only cookie. Persisting it caused the app to skip the
       //   refresh call, leaving accessToken as null and causing 401 errors on all
       //   protected API requests.
+      // - `status` persisted as "authenticated" let any consumer (e.g.
+      //   useSessionHeartbeat) treat the session as ready on the very first render after a
+      //   reload, before useBootstrapSession had obtained a real accessToken — firing an
+      //   Authorization-less request that 401's, which the axios interceptor "fixed" by
+      //   kicking off its OWN /auth/refresh in parallel with useBootstrapSession's. Two
+      //   refreshes racing for the same single-use refresh token cookie: the loser's rotated
+      //   cookie no longer matches any stored row, tripping the reuse-detection guard in
+      //   auth.service.ts#refresh and revoking the entire refresh token family — the very
+      //   "session expired immediately after reload" symptom this fixes. `status` now starts
+      //   at "unknown" on every reload and only becomes "authenticated" once
+      //   useBootstrapSession's single refresh call actually resolves.
       partialize: (state) => ({
         user: state.user,
-        status: state.status,
       }),
     }
   )
