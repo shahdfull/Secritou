@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialog";
+import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import { AxiosError } from "axios";
 import { useTranslation } from "react-i18next";
@@ -421,7 +422,31 @@ function MessageBubble({
             isUser ? "bg-primary text-primary-foreground" : "bg-muted"
           }`}
         >
-          {visibleText}
+          {isUser ? (
+            visibleText
+          ) : (
+            <div className="space-y-2 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+              <ReactMarkdown
+                components={{
+                  p: ({ children }) => <p className="m-0">{children}</p>,
+                  ul: ({ children }) => <ul className="list-disc space-y-1 pl-5">{children}</ul>,
+                  ol: ({ children }) => <ol className="list-decimal space-y-1 pl-5">{children}</ol>,
+                  li: ({ children }) => <li>{children}</li>,
+                  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                  a: ({ children, href }) => (
+                    <a href={href} target="_blank" rel="noreferrer" className="underline">
+                      {children}
+                    </a>
+                  ),
+                  code: ({ children }) => (
+                    <code className="rounded bg-black/10 px-1 py-0.5 text-xs">{children}</code>
+                  ),
+                }}
+              >
+                {visibleText}
+              </ReactMarkdown>
+            </div>
+          )}
         </div>
         {!isUser && durationMs !== undefined && (
           <p className="mt-1 text-xs text-muted-foreground">
