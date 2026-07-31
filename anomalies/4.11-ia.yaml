@@ -28,9 +28,59 @@
 # SEC-063. Enrichissements horizon court (truncated, filtres structurés,
 # AiToolCall, métriques, streaming SSE) demandés explicitement par le
 # porteur le même jour, révélant SEC-064 (RGPD aggravé, non traité —
-# hors des 5 items retenus).
+# hors des 5 items retenus). SEC-065 (transverse, recherche globale)
+# découverte en comparant search.service.ts et aiTools.ts sur demande du
+# porteur — voir anomalies/transverse.yaml#SEC-065. SEC-066 découverte
+# incidemment en testant l'assistant en conditions réelles (Ollama non
+# lancé localement).
 
 anomalies:
+  - id: SEC-066
+    titre: >
+      Le message d'erreur aiAssistant.errors.unavailable
+      ("Impossible de contacter l'assistant IA. Veuillez vérifier la
+      clé API.") s'affiche pour TOUTE panne 5xx/réseau
+      (isServiceUnavailableError, AIAssistantPage.tsx:38-42), pas
+      spécifiquement un problème de clé API — et le module n'utilise
+      plus de clé API depuis le passage à Ollama auto-hébergé (RG-015,
+      llm.client.ts#OLLAMA_URL/OLLAMA_MODEL). Constaté en conditions
+      réelles : Ollama non lancé localement (ECONNREFUSED sur
+      localhost:11434) déclenche ce message, qui pointe l'utilisateur
+      vers une fausse piste de diagnostic ("vérifier la clé API" — il
+      n'y a pas de clé API à vérifier)
+    perimetre: 4.11-ia
+    regle_violee: >
+      Aucune règle métier stricto sensu, mais un message d'erreur
+      utilisateur doit refléter une cause plausible réelle — celui-ci
+      date probablement d'avant le passage à Ollama (RG-015) et n'a
+      jamais été mis à jour, contrairement au reste du code qui a
+      pourtant traversé plusieurs passes de nettoyage (SEC-040/SEC-044).
+    classe: message-erreur-obsolete-post-migration
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      Décision du porteur sur le nouveau libellé (ex. "Impossible de
+      contacter l'assistant IA. Vérifiez que le service est disponible
+      et réessayez.", sans mention de clé API) — mise à jour de
+      aiAssistant.errors.unavailable dans les deux fichiers de
+      traduction (fr/en), vérifiée par relecture des deux fichiers +
+      node scripts/check-i18n.mjs.
+    detecte_le: "2026-07-31"
+    source: >
+      Découvert incidemment en testant l'assistant IA en conditions
+      réelles à la demande du porteur (capture d'écran fournie) —
+      Ollama non lancé sur cette machine à ce moment, confirmé par
+      curl http://localhost:11434/api/tags (connexion refusée) et
+      tasklist (aucun process ollama.exe). Le message affiché ne
+      correspondait pas à la cause réelle.
+    confiance: haute
+    note: >
+      Non corrigé dans cette session — signalé pendant un test manuel,
+      pas une session de correction. Le problème réel (Ollama non
+      lancé) est résolu séparément par le porteur en démarrant le
+      service ; ce constat porte uniquement sur le texte du message
+      d'erreur affiché, indépendant de la cause sous-jacente.
+
   - id: SEC-064
     titre: >
       Le tool calling CRM (SEC-059) aggrave l'écart RGPD déjà signalé par

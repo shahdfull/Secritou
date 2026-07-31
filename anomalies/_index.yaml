@@ -12,8 +12,36 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-065
+dernier_id: SEC-067
 anomalies:
+  - id: SEC-067
+    titre: >
+      logout() (auth.service.ts:150-157) appelle
+      authDenylist.revokeAccessToken({sub: stored.userId}) sans exp ni
+      jti — bannit TOUT accès du compte (userKey, pas jtiKey) pendant
+      toute la durée JWT_ACCESS_EXPIRES_IN (15 min par défaut), pas
+      seulement le token qui se déconnecte. Toute reconnexion dans
+      cette fenêtre échoue avec 401 "Invalid or expired token" même
+      avec un token fraîchement émis et valide — constaté en conditions
+      réelles (déconnexion puis reconnexion immédiate, bloqué ~15 min)
+    perimetre: 4.14-auth
+    statut: ouvert
+    gravite: eleve
+    classe: revocation-token-trop-large-sub-sans-jti
+  - id: SEC-066
+    titre: >
+      Le message d'erreur aiAssistant.errors.unavailable ("Impossible de
+      contacter l'assistant IA. Veuillez vérifier la clé API.") s'affiche
+      pour TOUTE panne 5xx/réseau (isServiceUnavailableError,
+      AIAssistantPage.tsx), pas spécifiquement un problème de clé API —
+      et le module n'utilise plus de clé API depuis le passage à Ollama
+      auto-hébergé (RG-015). Constaté en conditions réelles : Ollama non
+      lancé localement produit ce message, qui pointe l'utilisateur vers
+      une fausse piste de diagnostic
+    perimetre: 4.11-ia
+    statut: ouvert
+    gravite: mineure
+    classe: message-erreur-obsolete-post-migration
   - id: SEC-065
     titre: >
       search.repository.ts bloque tout MANAGER à zéro résultat

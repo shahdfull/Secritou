@@ -9,8 +9,71 @@
 # Périmètre : 4.14 Authentification & Compte utilisateur
 # 3 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
+# +1 le 2026-07-31 (découvert incidemment en testant l'assistant IA — le
+# porteur signalait une reconnexion bloquée après déconnexion).
 
 anomalies:
+  - id: SEC-067
+    titre: >
+      logout() (auth.service.ts:150-157) appelle
+      authDenylist.revokeAccessToken({sub: stored.userId}) sans exp ni
+      jti — la fonction retombe alors sur defaultAccessTtlSeconds()
+      (durée complète de JWT_ACCESS_EXPIRES_IN, 15 min par défaut) et
+      écrit uniquement userKey(sub), jamais jtiKey — bannissant TOUT
+      accès du compte pendant cette fenêtre, pas seulement le token qui
+      vient de se déconnecter. authenticate (auth.middleware.ts:27)
+      vérifie exists(userKey(sub)) avant tout jti spécifique : un
+      utilisateur qui se déconnecte puis se reconnecte immédiatement
+      reçoit un token neuf et valide (signature/exp corrects), mais ce
+      token est rejeté 401 "Invalid or expired token" jusqu'à
+      expiration du TTL — aucun moyen de s'authentifier à nouveau
+      pendant ~15 minutes après chaque déconnexion
+    perimetre: 4.14-auth
+    regle_violee: >
+      Aucune règle métier écrite ne l'énonce explicitement, mais le
+      contrat implicite d'un logout est d'invalider CE token/CETTE
+      session, pas de verrouiller le compte entier pour tout le monde
+      (y compris l'utilisateur qui vient de se déconnecter) pendant la
+      durée de vie d'un token — un comportement qui rend le produit
+      inutilisable après chaque déconnexion volontaire.
+    classe: revocation-token-trop-large-sub-sans-jti
+    gravite: eleve
+    statut: ouvert
+    critere_de_resolution: >
+      logout() n'empêche plus une reconnexion immédiate de fonctionner :
+      soit revokeAccessToken est appelé avec le jti du token en cours
+      (jtiKey seul, pas userKey) pour ce cas précis — le token qui vient
+      de servir au logout est invalidé, mais un nouveau token émis par
+      un login/refresh ultérieur n'est jamais bloqué par cette entrée —
+      soit une autre stratégie est choisie explicitement par le porteur
+      (ex. ne rien révoquer côté access token au logout, se fier au
+      TTL naturel de 15 min et à la révocation du refresh token
+      family — déjà faite ligne 154 — pour empêcher un renouvellement).
+      Vérifié par un test réel (node:test contre une vraie instance
+      Redis) : login → logout → login immédiat → un appel authentifié
+      avec le second token doit réussir (pas de 401), quel que soit le
+      délai entre les deux logins.
+    detecte_le: "2026-07-31"
+    source: >
+      Signalé par le porteur du projet en testant l'assistant IA dans
+      l'application ("quand je me déconnecte et me reconnecte, il me
+      dit que ma session est invalide") — diagnostiqué en lisant
+      auth.middleware.ts#authenticate et
+      authDenylist.ts#revokeAccessToken/isAccessTokenRevoked, confirmé
+      par lecture directe de la clé Redis bloquante
+      (auth:denylist:access:user:<userId>, existedBefore: 1) avant
+      suppression manuelle pour débloquer le compte de test.
+    confiance: haute
+    note: >
+      Débloqué manuellement pour ce compte précis (suppression directe
+      de la clé Redis auth:denylist:access:user:629db250-9add-459f-80bc-
+      7e1b0948bc4b) — un contournement ponctuel, pas une correction du
+      code. Le défaut sous-jacent (logout() bannit sub sans jti) reste
+      intact et se reproduira à chaque déconnexion pour n'importe quel
+      compte tant que le code n'est pas corrigé. Non corrigé dans cette
+      session : le porteur n'a pas encore tranché entre les deux
+      stratégies proposées dans le critère de résolution.
+
   - id: SEC-006
     titre: >
       Aucun endpoint ni interface ne permet d'assigner ou de modifier le
