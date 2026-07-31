@@ -12,8 +12,21 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-064
+dernier_id: SEC-065
 anomalies:
+  - id: SEC-065
+    titre: >
+      search.repository.ts bloque tout MANAGER à zéro résultat
+      freelancer dans la recherche globale, alors que le REST direct
+      GET /freelancers et le tool IA getFreelancers (aiTools.ts)
+      autorisent tous deux ce rôle — divergence de politique
+      d'exposition entre deux surfaces d'accès à la même donnée,
+      intentionnelle côté search (testée) mais jamais comparée aux deux
+      autres avant cette passe
+    perimetre: transverse
+    statut: ouvert
+    gravite: mineure
+    classe: politiques-exposition-divergentes-memes-donnees
   - id: SEC-064
     titre: >
       Le tool calling CRM (SEC-059) aggrave l'écart RGPD déjà signalé par

@@ -11,9 +11,66 @@
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 # +1 le 2026-07-30 (audit B). +1 le 2026-07-30 (découverte incidente en
 # corrigeant SEC-032). +1 le 2026-07-30 (découverte incidente en
-# contre-vérifiant le nettoyage du module 4.11).
+# contre-vérifiant le nettoyage du module 4.11). +1 le 2026-07-31
+# (comparaison search.service.ts vs aiTools.ts demandée par le porteur).
 
 anomalies:
+  - id: SEC-065
+    titre: >
+      search.repository.ts (recherche globale) bloque tout MANAGER à
+      zéro résultat sur l'annuaire freelancer (isManager ?
+      Promise.resolve([]) : ...), alors que le REST direct GET
+      /freelancers autorise explicitement MANAGER
+      (freelancer.routes.ts) et que le nouveau tool IA getFreelancers
+      (aiTools.ts, SEC-059/SEC-062) transmet fidèlement
+      scope?.userServiceId sans bloquer ce rôle — deux surfaces
+      d'accès à la même donnée avec des politiques d'exposition
+      différentes pour le même rôle. Comportement de search.repository.ts
+      intentionnel et testé (searchScope.test.ts, référence historique
+      "SEC-132" dans un commentaire — identifiant issu du registre
+      archivé avant le reset du 2026-07-27, raisonnement produit
+      d'origine non retrouvable), mais jamais mis en regard des deux
+      autres surfaces avant cette comparaison
+    perimetre: transverse
+    regle_violee: >
+      Aucune règle REFERENTIEL.md n'affirme explicitement que la
+      recherche globale doit être plus restrictive que la liste directe
+      pour un même rôle sur une même entité — l'écart n'est donc pas
+      prouvé comme une violation, mais comme une incohérence non
+      documentée entre deux chemins d'accès à la même donnée.
+    classe: politiques-exposition-divergentes-memes-donnees
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      Décision explicite du porteur : soit la divergence est actée comme
+      politique produit assumée (documentée dans REFERENTIEL.md, avec le
+      motif — ex. la recherche globale est un raccourci UI, pas un canal
+      d'audit exhaustif, donc plus conservatrice par défaut), soit
+      search.repository.ts est aligné sur le comportement REST/aiTools
+      (MANAGER voit l'annuaire freelancer aussi via la recherche
+      globale) — dans les deux cas, ne jamais choisir "aligner" sans
+      confirmation explicite : casser searchScope.test.ts sans décision
+      du porteur serait une correction de test non autorisée (cf.
+      CLAUDE.md "un test rouge est une hypothèse sur le code, pas un
+      défaut du test").
+    detecte_le: "2026-07-31"
+    source: >
+      Comparaison explicitement demandée par le porteur entre
+      search.service.ts/search.repository.ts et les tools CRM de
+      aiTools.ts (SEC-059) pour vérifier une redite possible — les deux
+      fichiers ne sont pas des doublons (mécanismes et objectifs
+      différents : recherche globale multi-entités légère vs tools de
+      liste par entité avec filtres structurés complets), mais la
+      comparaison ligne à ligne a révélé cette divergence de scoping
+      MANAGER sur le seul freelancer, confirmée par grep de
+      freelancer.routes.ts (authorize("ADMIN","MANAGER","FREELANCER")
+      sur GET /freelancers) et lecture de searchScope.test.ts:96-109.
+    confiance: haute
+    note: >
+      Non corrigé sur choix explicite du porteur (AskUserQuestion) :
+      enregistré comme constat à trancher plus tard plutôt que corrigé
+      ou clos sans trace dans cette même passe.
+
   - id: SEC-051
     titre: >
       businessProjectProgressRecalculated (server/src/observability/
