@@ -12,8 +12,60 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-059
+dernier_id: SEC-063
 anomalies:
+  - id: SEC-063
+    titre: >
+      aiTools.test.ts et llmClientToolCalling.test.ts, créés lors de la
+      session SEC-054/SEC-059, n'étaient jamais importés par
+      test/run-all.test.ts — jamais exécutés par npm run test:coverage
+      (la vraie porte CI), seulement par une exécution manuelle ciblée
+      hors de cette porte. Découvert incidemment en vérifiant l'absence
+      de régression après une relecture externe du même travail
+    perimetre: 4.11-ia
+    statut: resolu
+    gravite: moyenne
+    classe: test-non-cable-dans-lagregateur
+  - id: SEC-062
+    titre: >
+      getFreelancers (aiTools.ts) réimplémentait localement la décision
+      de scoping MANAGER (?? "__none__") au lieu de la déléguer au
+      service comme les 4 autres tools — divergence non tracée avec
+      freelancer.controller.ts (scope?.userServiceId, sans fallback), et
+      commentaire d'en-tête du fichier affirmant à tort un scoping
+      "exactly like the equivalent REST endpoints" pour tous les tools.
+      Signalé par une relecture externe du travail SEC-054/SEC-059
+    perimetre: 4.11-ia
+    statut: resolu
+    gravite: mineure
+    classe: scoping-reimplemente-hors-service
+  - id: SEC-061
+    titre: >
+      runConversationTurn (aiConversation.service.ts) bornait le nombre
+      d'aller-retours de tool calling (MAX_TOOL_ROUNDTRIPS = 4) mais pas
+      le temps total — chaque appel Ollama porte son propre timeout de
+      120s indépendant, donc un tour pouvait légitimement durer jusqu'à
+      8 minutes, bien après l'abandon du navigateur, en gardant une
+      connexion Express et un créneau Ollama occupés. Signalé par une
+      relecture externe du travail SEC-054/SEC-059
+    perimetre: 4.11-ia
+    statut: resolu
+    gravite: moyenne
+    classe: absence-echeance-globale-boucle
+  - id: SEC-060
+    titre: >
+      callOllama (llm.client.ts) n'avait plus aucun appelant en
+      production après l'introduction de callOllamaWithTools
+      (SEC-059/runConversationTurn) — seul llmClientEmptyResponse.test.ts
+      l'importait encore, testant une fonction morte plutôt que le
+      chemin réellement vivant. Même classe que SEC-040/SEC-045
+      (capacité/code sans appelant réel), réintroduite par cette même
+      migration. Signalé par une relecture externe du travail
+      SEC-054/SEC-059
+    perimetre: 4.11-ia
+    statut: resolu
+    gravite: mineure
+    classe: capacite-serveur-sans-appelant-reel
   - id: SEC-059
     titre: >
       SYSTEM_PROMPT (aiConversation.service.ts) affirmait aider à gérer

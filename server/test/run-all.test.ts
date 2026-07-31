@@ -153,5 +153,6 @@ import "./managerProjectFee.test.ts";
 import "./sessionIdleTimeout.test.ts";
 import "./commissionAdminPartnerDeterministic.test.ts";
 import "./aiConversationOllamaFailure.test.ts";
-import "./llmClientEmptyResponse.test.ts";
+import "./llmClientToolCalling.test.ts";
+import "./aiTools.test.ts";
 import "./bullBoardAdminOnly.http.test.ts";

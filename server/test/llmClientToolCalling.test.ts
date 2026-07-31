@@ -90,4 +90,47 @@ describe("callOllamaWithTools (SEC-059)", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  test("forwards a shared AbortSignal through to fetch instead of always creating its own per-call timeout", async () => {
+    originalFetch = globalThis.fetch;
+    let capturedSignal: AbortSignal | undefined;
+    mock.method(globalThis, "fetch", async (_url: string, init?: RequestInit) => {
+      capturedSignal = init?.signal ?? undefined;
+      return new Response(JSON.stringify({ message: { role: "assistant", content: "ok" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    const sharedSignal = AbortSignal.timeout(180_000);
+    try {
+      await callOllamaWithTools([{ role: "user", content: "hi" }], AI_TOOL_DEFINITIONS, undefined, sharedSignal);
+      assert.equal(capturedSignal, sharedSignal, "the caller-provided signal must reach fetch as-is, not be replaced by a fresh per-call timeout");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("an already-aborted shared signal rejects the call immediately, mid tool-calling loop", async () => {
+    originalFetch = globalThis.fetch;
+    const controller = new AbortController();
+    controller.abort();
+    mock.method(globalThis, "fetch", async (_url: string, init?: RequestInit) => {
+      // Mirrors real fetch behavior: an already-aborted signal rejects before the request is sent.
+      if (init?.signal?.aborted) throw new DOMException("Aborted", "AbortError");
+      return new Response(JSON.stringify({ message: { role: "assistant", content: "ok" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    try {
+      await assert.rejects(
+        () => callOllamaWithTools([{ role: "user", content: "hi" }], AI_TOOL_DEFINITIONS, undefined, controller.signal),
+        (err: unknown) => err instanceof DOMException && err.name === "AbortError"
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

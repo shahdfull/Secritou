@@ -24,6 +24,13 @@ function toChatRole(role: string): "user" | "assistant" | "system" {
 // before it was removed (SEC-042/SEC-040), but here bounding tool round-trips, not error retries.
 const MAX_TOOL_ROUNDTRIPS = 4;
 
+// Each individual Ollama call already has its own 120s per-request timeout (llm.client.ts), but
+// that only bounds ONE round trip — MAX_TOOL_ROUNDTRIPS round trips at up to 120s each could
+// legitimately take 8 minutes of wall-clock time otherwise, long after the browser has given up,
+// while still holding an Express connection, a DB connection, and an aiRateLimit slot (10/min)
+// occupied. This is a single deadline for the WHOLE turn, shared by every call in the loop.
+const TURN_TIMEOUT_MS = 180_000; // 3 minutes
+
 // Runs the tool-calling loop: calls Ollama, executes any tool_calls the model requests (scoped to
 // the calling user via aiTools.ts, which reuses the exact same services/scoping as the REST
 // endpoints), feeds the results back, and repeats until the model replies with real content or the
@@ -35,9 +42,10 @@ async function runConversationTurn(
   callerContext: AiToolCallerContext
 ): Promise<string> {
   const messages: OllamaChatMessage[] = [...history];
+  const turnDeadline = AbortSignal.timeout(TURN_TIMEOUT_MS);
 
   for (let roundTrip = 0; roundTrip < MAX_TOOL_ROUNDTRIPS; roundTrip++) {
-    const response = await callOllamaWithTools(messages, AI_TOOL_DEFINITIONS, SYSTEM_PROMPT);
+    const response = await callOllamaWithTools(messages, AI_TOOL_DEFINITIONS, SYSTEM_PROMPT, turnDeadline);
 
     if (!response.tool_calls || response.tool_calls.length === 0) {
       return response.content;

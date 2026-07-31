@@ -22,9 +22,200 @@
 # voir anomalies/transverse.yaml#SEC-051). Audit indépendant demandé
 # explicitement par le porteur le 2026-07-31 (agent sans mémoire de la
 # session, pour vérifier si le registre mentait) : SEC-053, révélant que
-# la clôture de SEC-049 elle-même était prématurée.
+# la clôture de SEC-049 elle-même était prématurée. Construction de
+# SEC-059 (tool calling CRM réel) le même jour : SEC-054 à SEC-059.
+# Relecture externe du travail SEC-054/SEC-059, même jour : SEC-060 à
+# SEC-063.
 
 anomalies:
+  - id: SEC-063
+    titre: >
+      aiTools.test.ts et llmClientToolCalling.test.ts, créés lors de la
+      session SEC-054/SEC-059, n'étaient jamais importés par
+      test/run-all.test.ts — jamais exécutés par npm run test:coverage
+      (la vraie porte CI), seulement par une exécution manuelle ciblée
+      hors de cette porte. Découvert incidemment en vérifiant l'absence
+      de régression après une relecture externe du même travail
+    perimetre: 4.11-ia
+    regle_violee: >
+      CLAUDE.md « Un critère de résolution se vérifie sur un commit » —
+      un test qui n'est jamais exécuté par la porte CI réelle n'apporte
+      aucune garantie sur ce que voit réellement le pipeline, quel que
+      soit son contenu ; c'est la même famille de défaut que "vert
+      trompeur" déjà rencontrée ailleurs dans ce dépôt (ex. SEC-100 sur
+      le module CRM), mais côté câblage plutôt que côté contenu du test.
+    classe: test-non-cable-dans-lagregateur
+    gravite: moyenne
+    statut: resolu
+    critere_de_resolution: >
+      test/run-all.test.ts importe aiTools.test.ts et
+      llmClientToolCalling.test.ts — vérifié par l'exécution réelle de
+      npx tsx --test test/run-all.test.ts confirmant que leurs suites
+      apparaissent dans le compte total de tests exécutés.
+    detecte_le: "2026-07-31"
+    source: >
+      Vérification de non-régression après une relecture externe du
+      travail SEC-054/SEC-059 : npx tsx --test test/run-all.test.ts
+      échouait au chargement (ERR_MODULE_NOT_FOUND sur
+      llmClientEmptyResponse.test.ts, retiré par SEC-060), révélant à
+      cette occasion que run-all.test.ts n'importait ni aiTools.test.ts
+      ni llmClientToolCalling.test.ts non plus.
+    confiance: haute
+    note: >
+      Corrigé dans la même session que sa découverte : les deux imports
+      ajoutés à test/run-all.test.ts, à la place de l'import retiré de
+      llmClientEmptyResponse.test.ts (SEC-060). Suite complète repassée
+      de 702 à 714 tests (712 existants moins 1 retiré plus 13 des deux
+      nouveaux fichiers), 714/714 verts.
+
+  - id: SEC-062
+    titre: >
+      getFreelancers (aiTools.ts) réimplémentait localement la décision
+      de scoping MANAGER (?? "__none__") au lieu de la déléguer au
+      service comme les 4 autres tools — divergence non tracée avec
+      freelancer.controller.ts (scope?.userServiceId, sans fallback), et
+      commentaire d'en-tête du fichier affirmant à tort un scoping
+      "exactly like the equivalent REST endpoints" pour tous les tools.
+      Signalé par une relecture externe du travail SEC-054/SEC-059
+    perimetre: 4.11-ia
+    regle_violee: >
+      CLAUDE.md « `verifie: test` exige un test qui appelle le code réel »
+      et l'esprit de la chasse « provenance obligatoire » de l'audit
+      4.11 original — un commentaire de code qui affirme une couverture
+      uniforme ("exactly like ... never a parallel query path") alors
+      qu'un site précis y déroge est le même défaut que les
+      "commentaire-de-test-perime" déjà enregistrés (SEC-049/SEC-053),
+      appliqué ici à un commentaire de code de production plutôt qu'à un
+      commentaire de test.
+    classe: scoping-reimplemente-hors-service
+    gravite: mineure
+    statut: resolu
+    critere_de_resolution: >
+      runGetFreelancers transmet ctx.userServiceId tel quel au service
+      (comme runGetProjects/runGetTasks le font déjà pour leur propre
+      scope), sans réintroduire de fallback local ; le commentaire
+      d'en-tête de aiTools.ts ne prétend plus à une couverture uniforme
+      qu'il ne peut pas garantir par construction. Vérifié par un
+      nouveau test qui appelle réellement runAiTool("getFreelancers", ...)
+      avec un MANAGER dont userServiceId est omis (undefined, pas null)
+      et confirme l'absence de filtre, comme le fait réellement
+      freelancer.controller.ts.
+    detecte_le: "2026-07-31"
+    source: >
+      Relecture externe du travail SEC-054/SEC-059, comparaison directe
+      de aiTools.ts#runGetFreelancers avec
+      freelancer.controller.ts:24-25.
+    confiance: haute
+    note: >
+      Corrigé dans la même session que sa découverte : le fallback local
+      "?? \"__none__\"" retiré, ctx.userServiceId transmis tel quel.
+      Précision du porteur (relecture externe) : pour un MANAGER sans
+      serviceId, ceci fait que le tool est MOINS restrictif qu'avant
+      (aligné sur le comportement REST réel, qui ne filtre rien dans ce
+      cas précis) — la divergence corrigée allait dans le sens le plus
+      sûr avant ce correctif, mais restait un chemin de requête
+      partiellement réimplémenté plutôt que délégué, contraire à la
+      promesse de l'en-tête du fichier. Le comportement REST lui-même
+      (un MANAGER sans pôle voit tous les freelancers) reste
+      potentiellement un bug distinct, non traité ici — hors périmètre
+      de cette anomalie, qui porte sur la fidélité de l'outil IA au
+      comportement REST existant, pas sur la correction de ce dernier.
+
+  - id: SEC-061
+    titre: >
+      runConversationTurn (aiConversation.service.ts) bornait le nombre
+      d'aller-retours de tool calling (MAX_TOOL_ROUNDTRIPS = 4) mais pas
+      le temps total — chaque appel Ollama porte son propre timeout de
+      120s indépendant, donc un tour pouvait légitimement durer jusqu'à
+      8 minutes, bien après l'abandon du navigateur, en gardant une
+      connexion Express et un créneau Ollama occupés. Signalé par une
+      relecture externe du travail SEC-054/SEC-059
+    perimetre: 4.11-ia
+    regle_violee: >
+      Aucune règle explicite de REFERENTIEL.md ne couvre ce cas —
+      constat de conception : un budget temps de requête doit être borné
+      par une échéance absolue partagée par toute une boucle, pas
+      seulement par la somme de bornes indépendantes par itération, sous
+      peine de laisser le pire cas croître linéairement avec le nombre
+      d'itérations sans qu'aucune limite explicite ne l'exprime.
+      aiRateLimit (10/min) aggrave l'impact : un seul utilisateur peut
+      immobiliser une part significative du débit Ollama disponible sur
+      une fenêtre d'une minute.
+    classe: absence-echeance-globale-boucle
+    gravite: moyenne
+    statut: resolu
+    critere_de_resolution: >
+      Un AbortSignal unique, créé une seule fois par appel à
+      runConversationTurn, est transmis à chaque appel
+      callOllamaWithTools de la boucle — vérifié par un test qui appelle
+      réellement callOllamaWithTools avec un signal partagé et confirme
+      qu'il atteint fetch tel quel (pas remplacé par un timeout par
+      appel), et par un test qui confirme qu'un signal déjà expiré
+      rejette immédiatement l'appel.
+    detecte_le: "2026-07-31"
+    source: >
+      Relecture externe du travail SEC-054/SEC-059 — lecture directe de
+      runConversationTurn (boucle de MAX_TOOL_ROUNDTRIPS itérations,
+      chacune appelant callOllamaWithTools sans signal) et de
+      llm.client.ts#postChat (AbortSignal.timeout(120000) recréé à
+      chaque appel).
+    confiance: haute
+    note: >
+      Corrigé dans la même session que sa découverte : TURN_TIMEOUT_MS
+      = 180_000 (3 minutes, budget total du tour) ; turnDeadline =
+      AbortSignal.timeout(TURN_TIMEOUT_MS) créé une fois en tête de
+      runConversationTurn, transmis à callOllamaWithTools à chaque
+      itération de la boucle. callOllamaWithTools/postChat acceptent un
+      paramètre signal optionnel, retombant sur l'ancien timeout de
+      120s par appel seulement si aucun signal n'est fourni (chemin
+      défensif, jamais emprunté par l'appelant réel désormais).
+
+  - id: SEC-060
+    titre: >
+      callOllama (llm.client.ts) n'avait plus aucun appelant en
+      production après l'introduction de callOllamaWithTools
+      (SEC-059/runConversationTurn) — seul llmClientEmptyResponse.test.ts
+      l'importait encore, testant une fonction morte plutôt que le
+      chemin réellement vivant. Même classe que SEC-040/SEC-045
+      (capacité/code sans appelant réel), réintroduite par cette même
+      migration. Signalé par une relecture externe du travail
+      SEC-054/SEC-059
+    perimetre: 4.11-ia
+    regle_violee: >
+      Même classe que SEC-040/SEC-045 (capacite-serveur-sans-appelant-
+      reel / metrique-orpheline-sans-appelant) — une fonction sans
+      appelant réel en production est un résidu d'une migration, pas une
+      capacité vivante, quel que soit le niveau de test qui la couvre
+      encore isolément.
+    classe: capacite-serveur-sans-appelant-reel
+    gravite: mineure
+    statut: resolu
+    critere_de_resolution: >
+      callOllama est retirée de llm.client.ts ; la preuve SEC-039
+      (rejet explicite d'une réponse Ollama vide plutôt qu'un repli
+      silencieux) reste couverte par un test qui appelle le chemin
+      vivant callOllamaWithTools — vérifié par grep confirmant zéro
+      référence restante à callOllama dans server/src et server/test.
+    detecte_le: "2026-07-31"
+    source: >
+      Relecture externe du travail SEC-054/SEC-059 — grep de
+      "callOllama\b" (hors callOllamaWithTools) sur server/src :
+      un seul résultat, la définition elle-même, aucun appelant.
+    confiance: haute
+    note: >
+      Corrigé dans la même session que sa découverte : callOllama
+      retirée de llm.client.ts. llmClientEmptyResponse.test.ts supprimé
+      (son scénario — content vide sans tool_calls — est déjà couvert
+      par llmClientToolCalling.test.ts#"rejects a response with neither
+      content nor tool_calls", contre le chemin vivant
+      callOllamaWithTools). Import correspondant retiré de
+      test/run-all.test.ts (voir SEC-063 pour le défaut de câblage
+      connexe découvert à cette occasion). Commentaire de
+      aiConversationOllamaFailure.test.ts corrigé (il citait callOllama
+      alors qu'il exerce déjà, via aiConversationService.create, le
+      chemin callOllamaWithTools — pas un bug de couverture, seulement
+      un commentaire imprécis).
+
   - id: SEC-059
     titre: >
       SYSTEM_PROMPT (aiConversation.service.ts) affirmait aider à gérer

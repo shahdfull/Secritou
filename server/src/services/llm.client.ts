@@ -24,7 +24,8 @@ export interface OllamaToolDefinition {
 
 async function postChat(
   messages: { role: string; content: string; tool_calls?: OllamaToolCall[] }[],
-  tools?: readonly OllamaToolDefinition[]
+  tools?: readonly OllamaToolDefinition[],
+  signal?: AbortSignal
 ): Promise<OllamaChatMessage> {
   const response = await fetch(`${env.OLLAMA_URL}/api/chat`, {
     method: "POST",
@@ -40,7 +41,9 @@ async function postChat(
         temperature: 0.7,
       },
     }),
-    signal: AbortSignal.timeout(120000), // 2 minutes timeout
+    // callOllamaWithTools always passes one shared AbortSignal for the whole tool-calling loop
+    // (see its own doc comment) — this per-call fallback only applies if a future caller omits it.
+    signal: signal ?? AbortSignal.timeout(120000),
   });
 
   if (!response.ok) {
@@ -53,48 +56,30 @@ async function postChat(
 }
 
 /**
- * Calls Ollama's chat API.
- * @param messages - Array of messages (role: "system" | "user" | "assistant", content: string)
- * @param systemPrompt - Optional system prompt to prepend
- * @returns The assistant's response as a string
- */
-export async function callOllama(
-  messages: { role: string; content: string }[],
-  systemPrompt?: string
-): Promise<string> {
-  const allMessages = systemPrompt
-    ? [{ role: "system", content: systemPrompt }, ...messages]
-    : messages;
-
-  const message = await postChat(allMessages);
-
-  // SEC-039: a 200 with an empty/missing content used to fall back to a fixed placeholder
-  // string, silently persisted as a real ASSISTANT message (aiConversationRepository.addMessage)
-  // indistinguishable from a genuine model reply. Reject explicitly instead.
-  if (!message.content) {
-    throw new HttpError(502, "Ollama provider returned an empty response");
-  }
-
-  return message.content;
-}
-
-/**
- * Calls Ollama's chat API with tool definitions attached (SEC-059). Unlike callOllama, an empty
- * `content` is valid here: a model choosing to call a tool instead of answering directly returns
- * `tool_calls` with no content — the caller (aiConversation.service.ts) is responsible for
- * executing those calls, appending their results as "tool" role messages, and calling this again
- * until the model replies with real content.
+ * Calls Ollama's chat API with tool definitions attached (SEC-059). An empty `content` is valid:
+ * a model choosing to call a tool instead of answering directly returns `tool_calls` with no
+ * content — the caller (aiConversation.service.ts) is responsible for executing those calls,
+ * appending their results as "tool" role messages, and calling this again until the model replies
+ * with real content.
+ *
+ * `signal` is meant to be a single AbortSignal shared across every call in a tool-calling loop
+ * (created once per turn by the caller, not per call) — each individual fetch's own 120s timeout
+ * bounds one Ollama round trip, but says nothing about the total wall-clock time of a turn that
+ * makes several. Without a shared deadline, MAX_TOOL_ROUNDTRIPS round trips at up to 120s each can
+ * legitimately take minutes, long after the browser request has given up, while still holding an
+ * Express connection and an Ollama call slot open.
  */
 export async function callOllamaWithTools(
   messages: (OllamaChatMessage | { role: string; content: string })[],
   tools: readonly OllamaToolDefinition[],
-  systemPrompt?: string
+  systemPrompt?: string,
+  signal?: AbortSignal
 ): Promise<OllamaChatMessage> {
   const allMessages = systemPrompt
     ? [{ role: "system", content: systemPrompt }, ...messages]
     : messages;
 
-  const message = await postChat(allMessages, tools);
+  const message = await postChat(allMessages, tools, signal);
 
   // A response with neither content nor a tool call is the same "silent empty reply" SEC-039
   // already rejects for the no-tools path — reject explicitly rather than persisting/returning an

@@ -29,9 +29,12 @@ export const getConversation: RequestHandler = async (req, res, next) => {
 export const createConversation: RequestHandler = async (req, res, next) => {
   try {
     const { message } = req.body as { message: string };
+    // callerContext.userId is req.user!.id (buildServiceScope), the same value as req.user!.sub —
+    // both are set from the same JWT claim (auth.service.ts) — derived once here rather than
+    // twice under two different names in the same function.
     const callerContext = await buildServiceScope(req);
     const result = await aiConversationService.create(
-      req.user!.sub!,
+      callerContext.userId!,
       message,
       callerContext
     );
@@ -47,7 +50,7 @@ export const addMessage: RequestHandler = async (req, res, next) => {
     const callerContext = await buildServiceScope(req);
     const result = await aiConversationService.addMessage(
       req.params.id as string,
-      req.user!.sub!,
+      callerContext.userId!,
       message,
       callerContext
     );

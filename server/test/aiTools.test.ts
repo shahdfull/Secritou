@@ -18,6 +18,9 @@ let serviceA: string;
 let serviceB: string;
 const createdClientIds: string[] = [];
 const createdProjectIds: string[] = [];
+const createdTaskIds: string[] = [];
+const createdUserIds: string[] = [];
+const createdFreelancerProfileIds: string[] = [];
 
 before(async () => {
   try {
@@ -35,8 +38,11 @@ before(async () => {
 
 after(async () => {
   if (!dbAvailable) return;
+  await prisma.freelancerProfile.deleteMany({ where: { id: { in: createdFreelancerProfileIds } } });
+  await prisma.task.deleteMany({ where: { id: { in: createdTaskIds } } });
   await prisma.project.deleteMany({ where: { id: { in: createdProjectIds } } });
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
+  await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
 });
 
 async function makeProjectInService(serviceId: string, namePrefix: string) {
@@ -45,6 +51,30 @@ async function makeProjectInService(serviceId: string, namePrefix: string) {
   const project = await prisma.project.create({ data: { name: `${namePrefix} project`, clientId: client.id, serviceId } });
   createdProjectIds.push(project.id);
   return project;
+}
+
+// freelancerRepository.findAll scopes MANAGER via user.tasks.some.project.serviceId — a freelancer
+// is only "in" a pole through a task assigned to a project of that pole, never a direct serviceId
+// field on the freelancer itself.
+async function makeFreelancerInService(serviceId: string, namePrefix: string) {
+  const uniq = Date.now() + Math.random();
+  const user = await prisma.user.create({
+    data: {
+      name: `${namePrefix} freelancer`,
+      email: `${namePrefix}-${uniq}@example.com`,
+      passwordHash: "x",
+      role: "FREELANCER",
+    },
+  });
+  createdUserIds.push(user.id);
+  const profile = await prisma.freelancerProfile.create({ data: { userId: user.id } });
+  createdFreelancerProfileIds.push(profile.id);
+  const project = await makeProjectInService(serviceId, `${namePrefix}-project`);
+  const task = await prisma.task.create({
+    data: { title: `${namePrefix} task`, projectId: project.id, assigneeId: user.id },
+  });
+  createdTaskIds.push(task.id);
+  return { user, profile };
 }
 
 describe("isKnownAiTool", () => {
@@ -98,6 +128,52 @@ describe("aiTools getProjects — scoped by role (SEC-059, real code, not a reim
       userId: "admin-id",
     })) as { projects: { id: string }[] };
     assert.deepEqual(result.projects.map((p) => p.id), [project.id]);
+  });
+});
+
+describe("aiTools getFreelancers — scoped by role, delegated to freelancerService (SEC-059/follow-up)", () => {
+  test("ADMIN sees freelancers across every pole", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const { user: userA } = await makeFreelancerInService(serviceA, "ai-tool-freelancer-admin-a");
+    const { user: userB } = await makeFreelancerInService(serviceB, "ai-tool-freelancer-admin-b");
+
+    const result = (await runAiTool("getFreelancers", {}, { userRole: "ADMIN", userId: "admin-id" })) as {
+      freelancers: { id: string; name: string }[];
+    };
+    const names = result.freelancers.map((f) => f.name);
+    assert.ok(names.includes(userA.name));
+    assert.ok(names.includes(userB.name));
+  });
+
+  test("MANAGER only sees freelancers with a task in their own pole", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const { user: userA } = await makeFreelancerInService(serviceA, "ai-tool-freelancer-mgr-a");
+    const { user: userB } = await makeFreelancerInService(serviceB, "ai-tool-freelancer-mgr-b");
+
+    const result = (await runAiTool("getFreelancers", {}, {
+      userRole: "MANAGER",
+      userId: "manager-id",
+      userServiceId: serviceA,
+    })) as { freelancers: { name: string }[] };
+    const names = result.freelancers.map((f) => f.name);
+    assert.ok(names.includes(userA.name), "manager must see a freelancer with a task in their own pole");
+    assert.ok(!names.includes(userB.name), "manager must not see a freelancer scoped to another pole");
+  });
+
+  test("a MANAGER with userServiceId undefined (key omitted) sees every freelancer, mirroring freelancer.controller.ts#getFreelancers exactly (not a stricter reimplementation)", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const { user: userA } = await makeFreelancerInService(serviceA, "ai-tool-freelancer-noscope-a");
+
+    // userServiceId deliberately omitted (undefined), not passed as null — freelancerRepository
+    // treats options.serviceId === undefined as "no filter" (options.serviceId !== undefined check)
+    // but a literal null still builds a real WHERE serviceId = NULL filter, which is a different,
+    // narrower case this test is not exercising.
+    const result = (await runAiTool("getFreelancers", {}, {
+      userRole: "MANAGER",
+      userId: "manager-id",
+    })) as { freelancers: { name: string }[] };
+    const names = result.freelancers.map((f) => f.name);
+    assert.ok(names.includes(userA.name), "a MANAGER with userServiceId undefined gets no filter, same as the REST endpoint — not '__none__'");
   });
 });
 

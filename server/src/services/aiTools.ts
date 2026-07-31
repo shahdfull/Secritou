@@ -1,8 +1,10 @@
 // SEC-059: gives the AI assistant real read access to CRM data (Lead/Client/Project/Task/
-// Freelancer) via Ollama tool calling, scoped by the caller's role exactly like the equivalent
-// REST endpoints — reuses the existing services/scoping (leadService, clientService,
-// projectService, taskService, freelancerService, buildServiceScope), never a parallel query
-// path. Read-only: no create/update/delete tool is exposed here.
+// Freelancer) via Ollama tool calling. Every scoping decision is delegated to the same
+// service/repository the equivalent REST endpoint already uses (leadService, clientService,
+// projectService, taskService, freelancerService) — never a parallel query path, and never a
+// second scoping rule reimplemented here (a tool that re-derives its own filter instead of
+// forwarding the caller's raw scope can silently diverge from the REST behavior it claims to
+// mirror). Read-only: no create/update/delete tool is exposed here.
 import { leadService } from "./lead.service.js";
 import { clientService } from "./client.service.js";
 import { projectService } from "./project.service.js";
@@ -178,9 +180,15 @@ async function runGetTasks(ctx: AiToolCallerContext, args: { search?: string }) 
 }
 
 async function runGetFreelancers(ctx: AiToolCallerContext, args: { search?: string }) {
+  // Mirrors freelancer.controller.ts#getFreelancers exactly (scope?.userServiceId, not
+  // ?? "__none__") — the other 4 tools delegate the scoping decision to their service instead of
+  // re-deriving it here, and this one now does too. Note: for a MANAGER with no serviceId set,
+  // this passes serviceId: undefined, which freelancerRepository.findAll treats as "no filter"
+  // (sees every freelancer) — same as the REST endpoint. Whether that REST behavior is itself
+  // correct is a separate question, not one this tool should silently diverge on.
   const result = await freelancerService.getAll({
     ...baseListOptions(args.search),
-    serviceId: ctx.userRole === "MANAGER" ? (ctx.userServiceId ?? "__none__") : undefined,
+    serviceId: ctx.userRole === "MANAGER" ? ctx.userServiceId : undefined,
   });
   return {
     total: result.total,

@@ -1,12 +1,13 @@
 // SEC-035: aiConversationService.create/addMessage used to persist the USER message BEFORE
 // calling Ollama — a failed/timed-out call left an orphaned USER message with no reply, and a
-// naive client retry duplicated it on every failed attempt. Fixed by calling callOllama first;
+// naive client retry duplicated it on every failed attempt. Fixed by calling Ollama first;
 // nothing is persisted unless the call succeeds.
 //
 // This test calls the real aiConversationService.create/addMessage (not a reimplementation)
-// against the real callOllama, relying on Ollama being unreachable in this environment (default
-// OLLAMA_URL http://localhost:11434, no local Ollama server running here) to trigger the actual
-// failure path — skipped if Ollama happens to be reachable, or if the DB is unreachable.
+// against the real callOllamaWithTools (via runConversationTurn — SEC-059), relying on Ollama
+// being unreachable in this environment (default OLLAMA_URL http://localhost:11434, no local
+// Ollama server running here) to trigger the actual failure path — skipped if Ollama happens to
+// be reachable, or if the DB is unreachable.
 
 import test, { describe, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -43,7 +44,7 @@ after(async () => {
 });
 
 describe("aiConversationService leaves no trace on Ollama failure (SEC-035)", () => {
-  test("create() persists nothing if callOllama fails", async (t) => {
+  test("create() persists nothing if the Ollama call fails", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
     if (ollamaReachable) { t.skip("Ollama is reachable in this environment, cannot exercise the failure path"); return; }
 
