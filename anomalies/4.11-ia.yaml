@@ -116,6 +116,12 @@ anomalies:
       de 702 à 714 tests (712 existants moins 1 retiré plus 13 des deux
       nouveaux fichiers), 714/714 verts.
 
+      Commité (f68bea1), poussé sur origin/main, CI verte confirmée
+      (30595688534 — premier run rouge sur un test de timing flaky sans
+      rapport avec ce périmètre, taskBulkActions.test.ts, non touché
+      par ce commit ; rerun ciblé confirmé 6/6 jobs) — statut corrigé à
+      resolu.
+
   - id: SEC-062
     titre: >
       getFreelancers (aiTools.ts) réimplémentait localement la décision
@@ -169,6 +175,10 @@ anomalies:
       de cette anomalie, qui porte sur la fidélité de l'outil IA au
       comportement REST existant, pas sur la correction de ce dernier.
 
+      Commité (f68bea1), poussé sur origin/main, CI verte confirmée
+      (30595688534 — 6/6 jobs après rerun ciblé, voir note SEC-063) —
+      statut corrigé à resolu.
+
   - id: SEC-061
     titre: >
       runConversationTurn (aiConversation.service.ts) bornait le nombre
@@ -218,6 +228,10 @@ anomalies:
       120s par appel seulement si aucun signal n'est fourni (chemin
       défensif, jamais emprunté par l'appelant réel désormais).
 
+      Commité (f68bea1), poussé sur origin/main, CI verte confirmée
+      (30595688534 — 6/6 jobs après rerun ciblé, voir note SEC-063) —
+      statut corrigé à resolu.
+
   - id: SEC-060
     titre: >
       callOllama (llm.client.ts) n'avait plus aucun appelant en
@@ -263,6 +277,11 @@ anomalies:
       alors qu'il exerce déjà, via aiConversationService.create, le
       chemin callOllamaWithTools — pas un bug de couverture, seulement
       un commentaire imprécis).
+
+      Commité (f68bea1), poussé sur origin/main, CI verte confirmée
+      (30595688534 — premier run rouge sur un test de timing flaky sans
+      rapport avec ce périmètre, taskBulkActions.test.ts ; rerun ciblé
+      confirmé 6/6 jobs) — statut corrigé à resolu.
 
   - id: SEC-059
     titre: >
