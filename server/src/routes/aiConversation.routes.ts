@@ -4,6 +4,7 @@ import {
   getConversation,
   createConversation,
   addMessage,
+  addMessageStream,
   deleteConversation,
   importFromLocalStorage,
 } from "../controllers/aiConversation.controller.js";
@@ -26,6 +27,7 @@ router.post("/", aiRateLimit, validate(createConversationSchema), createConversa
 router.post("/import", sensitiveWriteRateLimit, validate(importSchema), importFromLocalStorage);
 router.get("/:id", validate(deleteConversationSchema), getConversation);
 router.post("/:id/messages", aiRateLimit, validate(addMessageSchema), addMessage);
+router.post("/:id/messages/stream", aiRateLimit, validate(addMessageSchema), addMessageStream);
 router.delete("/:id", sensitiveWriteRateLimit, validate(deleteConversationSchema), deleteConversation);
 
 export default router;

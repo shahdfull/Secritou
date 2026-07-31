@@ -12,11 +12,27 @@ import { HttpError } from "../src/utils/httpError.js";
 import { AI_TOOL_DEFINITIONS } from "../src/services/aiTools.js";
 
 let callOllamaWithTools: typeof import("../src/services/llm.client.js").callOllamaWithTools;
+let streamOllamaWithTools: typeof import("../src/services/llm.client.js").streamOllamaWithTools;
 let originalFetch: typeof fetch;
 
 before(async () => {
-  ({ callOllamaWithTools } = await import("../src/services/llm.client.js"));
+  ({ callOllamaWithTools, streamOllamaWithTools } = await import("../src/services/llm.client.js"));
 });
+
+// Builds a Response whose body streams the given NDJSON lines one chunk at a time — mirrors what
+// Ollama's real /api/chat sends with stream: true (one JSON object per line, no separators).
+function ndjsonResponse(objects: unknown[]): Response {
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const encoder = new TextEncoder();
+      for (const obj of objects) {
+        controller.enqueue(encoder.encode(JSON.stringify(obj) + "\n"));
+      }
+      controller.close();
+    },
+  });
+  return new Response(stream, { status: 200, headers: { "Content-Type": "application/x-ndjson" } });
+}
 
 after(() => {
   mock.reset();
@@ -129,6 +145,110 @@ describe("callOllamaWithTools (SEC-059)", () => {
         () => callOllamaWithTools([{ role: "user", content: "hi" }], AI_TOOL_DEFINITIONS, undefined, controller.signal),
         (err: unknown) => err instanceof DOMException && err.name === "AbortError"
       );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+describe("streamOllamaWithTools (SEC-059 follow-up: streaming)", () => {
+  test("yields content deltas as they stream in, accumulating to the full reply", async () => {
+    originalFetch = globalThis.fetch;
+    mock.method(globalThis, "fetch", async () =>
+      ndjsonResponse([
+        { message: { role: "assistant", content: "Bon" }, done: false },
+        { message: { role: "assistant", content: "jour" }, done: false },
+        { message: { role: "assistant", content: "!" }, done: true },
+      ])
+    );
+
+    try {
+      const events: string[] = [];
+      let reply = "";
+      for await (const event of streamOllamaWithTools([{ role: "user", content: "salut" }], AI_TOOL_DEFINITIONS)) {
+        if (event.type === "content") {
+          events.push(event.text);
+          reply += event.text;
+        }
+      }
+      assert.deepEqual(events, ["Bon", "jour", "!"]);
+      assert.equal(reply, "Bonjour!");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("yields a tool_calls event instead of content when the model requests a tool", async () => {
+    originalFetch = globalThis.fetch;
+    mock.method(globalThis, "fetch", async () =>
+      ndjsonResponse([
+        {
+          message: {
+            role: "assistant",
+            content: "",
+            tool_calls: [{ function: { name: "getTasks", arguments: { overdue: true } } }],
+          },
+          done: true,
+        },
+      ])
+    );
+
+    try {
+      const events: Array<{ type: string }> = [];
+      for await (const event of streamOllamaWithTools([{ role: "user", content: "tâches en retard ?" }], AI_TOOL_DEFINITIONS)) {
+        events.push(event);
+      }
+      assert.equal(events.length, 1);
+      assert.equal(events[0]?.type, "tool_calls");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("rejects a stream that ends with neither content nor tool_calls (SEC-039 doctrine extended)", async () => {
+    originalFetch = globalThis.fetch;
+    mock.method(globalThis, "fetch", async () => ndjsonResponse([{ message: { role: "assistant", content: "" }, done: true }]));
+
+    try {
+      await assert.rejects(
+        async () => {
+          for await (const _event of streamOllamaWithTools([{ role: "user", content: "hi" }], AI_TOOL_DEFINITIONS)) {
+            // drain
+          }
+        },
+        (err: unknown) => {
+          assert.ok(err instanceof HttpError);
+          assert.equal((err as InstanceType<typeof HttpError>).statusCode, 502);
+          return true;
+        }
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("a chunk split across two stream reads is still parsed correctly (partial-line buffering)", async () => {
+    originalFetch = globalThis.fetch;
+    // Simulates a single JSON line arriving split across two separate TCP reads — the NDJSON
+    // parser must buffer the incomplete line rather than trying to JSON.parse a half-line.
+    const fullLine = JSON.stringify({ message: { role: "assistant", content: "Bonjour" }, done: true }) + "\n";
+    const splitPoint = Math.floor(fullLine.length / 2);
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        const encoder = new TextEncoder();
+        controller.enqueue(encoder.encode(fullLine.slice(0, splitPoint)));
+        controller.enqueue(encoder.encode(fullLine.slice(splitPoint)));
+        controller.close();
+      },
+    });
+    mock.method(globalThis, "fetch", async () => new Response(stream, { status: 200 }));
+
+    try {
+      let reply = "";
+      for await (const event of streamOllamaWithTools([{ role: "user", content: "hi" }], AI_TOOL_DEFINITIONS)) {
+        if (event.type === "content") reply += event.text;
+      }
+      assert.equal(reply, "Bonjour");
     } finally {
       globalThis.fetch = originalFetch;
     }

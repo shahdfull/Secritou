@@ -187,4 +187,83 @@ describe("aiTools runAiTool — malformed arguments degrade to no filter (SEC-05
     };
     assert.equal(typeof result.total, "number");
   });
+
+  test("an out-of-enum status string is ignored rather than crashing the underlying Prisma query", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const result = (await runAiTool("getTasks", { status: "NOT_A_REAL_STATUS" }, {
+      userRole: "ADMIN",
+      userId: "admin-id",
+    })) as { total: number };
+    assert.equal(typeof result.total, "number");
+  });
+});
+
+describe("aiTools structured filters — status/priority/overdue on getTasks (follow-up)", () => {
+  test("status filter forwards to the real exact-match filter, not a text search", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const project = await makeProjectInService(serviceA, "ai-tool-task-status");
+    const todoTask = await prisma.task.create({ data: { title: "todo task", status: "TODO", projectId: project.id } });
+    const doneTask = await prisma.task.create({ data: { title: "done task", status: "DONE", projectId: project.id } });
+    createdTaskIds.push(todoTask.id, doneTask.id);
+
+    const result = (await runAiTool("getTasks", { status: "DONE" }, { userRole: "ADMIN", userId: "admin-id" })) as {
+      tasks: { id: string }[];
+    };
+    const ids = result.tasks.map((t) => t.id);
+    assert.ok(ids.includes(doneTask.id));
+    assert.ok(!ids.includes(todoTask.id));
+  });
+
+  test("overdue filter forwards to taskRepository's real overdue logic (dueDate in the past, not DONE)", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const project = await makeProjectInService(serviceA, "ai-tool-task-overdue");
+    const overdueTask = await prisma.task.create({
+      data: { title: "overdue task", status: "TODO", dueDate: new Date(Date.now() - 86_400_000), projectId: project.id },
+    });
+    const futureTask = await prisma.task.create({
+      data: { title: "future task", status: "TODO", dueDate: new Date(Date.now() + 86_400_000), projectId: project.id },
+    });
+    createdTaskIds.push(overdueTask.id, futureTask.id);
+
+    const result = (await runAiTool("getTasks", { overdue: true }, { userRole: "ADMIN", userId: "admin-id" })) as {
+      tasks: { id: string }[];
+    };
+    const ids = result.tasks.map((t) => t.id);
+    assert.ok(ids.includes(overdueTask.id));
+    assert.ok(!ids.includes(futureTask.id));
+  });
+});
+
+describe("aiTools truncated field — signals an incomplete list rather than presenting it as exhaustive (follow-up)", () => {
+  test("truncated is false when total fits within the page size", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    // Scoped by a search term unique to this test, not by pole alone — other tests in this file
+    // (and this describe block runs against a shared DB, not a fresh one per test) also create
+    // projects on serviceA, so asserting on serviceA's raw total would be polluted by them.
+    const uniq = Date.now();
+    await makeProjectInService(serviceA, `ai-tool-truncation-small-${uniq}`);
+
+    const result = (await runAiTool("getProjects", { search: `ai-tool-truncation-small-${uniq}` }, {
+      userRole: "MANAGER",
+      userId: "manager-id",
+      userServiceId: serviceA,
+    })) as { total: number; truncated: boolean };
+    assert.equal(result.total, 1);
+    assert.equal(result.truncated, false);
+  });
+
+  test("truncated is true when total exceeds the tool's page size", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const uniq = Date.now();
+    for (let i = 0; i < 21; i++) {
+      await makeProjectInService(serviceB, `ai-tool-truncation-big-${uniq}-${i}`);
+    }
+
+    const result = (await runAiTool("getProjects", {}, { userRole: "MANAGER", userId: "manager-id", userServiceId: serviceB })) as {
+      total: number;
+      truncated: boolean;
+    };
+    assert.ok(result.total > 20);
+    assert.equal(result.truncated, true);
+  });
 });

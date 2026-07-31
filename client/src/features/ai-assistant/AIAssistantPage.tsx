@@ -22,6 +22,7 @@ import {
   useAiConversation,
   useCreateConversation,
   useAddMessage,
+  useStreamMessage,
   useDeleteConversation,
   useImportFromLocalStorage,
 } from "@/hooks/useAiConversations";
@@ -140,7 +141,7 @@ function FullChat() {
   const { data: convList, isLoading: listLoading } = useAiConversations();
   const { data: activeConv, isLoading: convLoading } = useAiConversation(activeId);
   const createMutation = useCreateConversation();
-  const addMutation = useAddMessage();
+  const streamMutation = useStreamMessage();
   const deleteMutation = useDeleteConversation();
   const importMutation = useImportFromLocalStorage();
 
@@ -176,10 +177,14 @@ function FullChat() {
     setIsLoading(true);
     try {
       if (!activeId) {
+        // First message of a brand-new conversation isn't streamed — create() (server) doesn't
+        // have a conversationId to persist the AiToolCall trace against until after this call
+        // already succeeds, and streaming that specific path isn't worth the added complexity for
+        // a single non-recurring message per conversation.
         const { conversation } = await createMutation.mutateAsync(trimmed);
         setActiveId(conversation.id);
       } else {
-        await addMutation.mutateAsync({ id: activeId, message: trimmed });
+        await streamMutation.mutateAsync({ id: activeId, message: trimmed });
       }
     } catch (error) {
       toast.error(isServiceUnavailableError(error) ? t("aiAssistant.errors.unavailable") : t("aiAssistant.errors.appError"));
@@ -314,7 +319,15 @@ function FullChat() {
                   {messages.map((msg) => (
                     <MessageBubble key={msg.id} msg={msg} />
                   ))}
-                  {isLoading && <ThinkingBubble />}
+                  {streamMutation.isStreaming ? (
+                    streamMutation.streamingText ? (
+                      <MessageBubble msg={{ role: "assistant", content: streamMutation.streamingText }} />
+                    ) : (
+                      <ThinkingBubble />
+                    )
+                  ) : (
+                    isLoading && <ThinkingBubble />
+                  )}
                   <div ref={scrollRef} />
                 </div>
               )}

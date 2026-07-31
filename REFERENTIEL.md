@@ -858,7 +858,7 @@ fonctionnelle. `/me` accessible à tout rôle authentifié,
 `/:userId`/gestion des profils : ADMIN uniquement. Aucune anomalie
 fonctionnelle trouvée.
 
-### 3.22 AiConversation / AiMessage
+### 3.22 AiConversation / AiMessage / AiToolCall
 Historique des échanges du chat IA, par utilisateur.
 **Statut : IMPLÉMENTÉ. `verifie: code_direct`
 (`aiConversation.repository.ts` intégral — `create`/`addMessage`/
@@ -880,6 +880,22 @@ modèle l'est. Une conversation qui a déclenché un ou plusieurs appels
 d'outil est donc indiscernable en base d'une conversation qui n'en a
 déclenché aucun — décision de conception assumée pour garder `AiMessage`
 comme historique de chat, pas un journal d'exécution.
+
+Ajout le 2026-07-31 (follow-up SEC-059, demande directe du porteur) :
+nouveau modèle `AiToolCall` (`conversationId`, `tool`, `args` JSON texte,
+`outcome` — success/error/unknown_tool, `rowCount`, `durationMs`), écrit
+par `aiConversationRepository.recordToolCall`, appelé depuis
+`aiConversation.service.ts#recordToolCallsSafely` après chaque tour de
+conversation. C'est le journal d'exécution que `AiMessage` refuse
+délibérément d'être (voir paragraphe précédent) — les deux entités
+restent complémentaires, jamais fusionnées. Un échec d'écriture
+`AiToolCall` (DB, contrainte) ne fait jamais échouer le tour de
+conversation lui-même : seulement loggé (`logger.warn`), jamais remonté
+au client. `verifie: code_direct` (`aiConversationRepository.ts`,
+`aiConversationToolCallTrace.test.ts` — appelle réellement
+`aiConversationService.addMessage` contre une vraie base, un vrai
+Ollama simulé par mock `fetch`, et vérifie la ligne `AiToolCall`
+persistée).
 
 ### 3.23 SiteContent
 Contenu éditable du site vitrine public, bilingue (FR/EN).
@@ -1235,6 +1251,35 @@ seule structurée (requêtes Prisma scopées, pas d'exécution de code
 arbitraire) — il n'entre pas dans le périmètre RG-016/RG-017, qui ne
 couvrent que l'exécution de commande/code.
 
+Enrichissements du 2026-07-31 (follow-up SEC-054/SEC-059, demande directe
+du porteur) : (1) chaque réponse d'outil porte désormais un champ
+`truncated` (`aiTools.ts#withTruncation`) — vrai si `total` dépasse la
+page de 20 lignes servie au modèle, avec une consigne explicite dans
+`SYSTEM_PROMPT` de le signaler à l'utilisateur plutôt que de présenter la
+liste comme exhaustive. (2) `getTasks`/`getProjects`/`getLeads` acceptent
+désormais des filtres structurés (`status`, `priority`, `overdue`,
+`assigneeId` pour les tâches) en plus de `search` — délégués aux mêmes
+filtres déjà exposés par `taskService.getAllTasks`/`projectService
+.getAllProjects`/`leadService.getLeads`, jamais réimplémentés dans
+`aiTools.ts`. (3) `AiToolCall` (voir §3.22) trace chaque appel d'outil.
+(4) Métriques Prometheus `ai_tool_call_total{tool,outcome}`,
+`ai_turn_roundtrips`, `ai_turn_duration_seconds`
+(`observability/businessMetrics.ts`) — contrairement à SEC-045
+(`agent_call_total`, orphelines), câblées directement dans la boucle
+réelle `runConversationTurn` au moment de leur introduction. (5)
+Streaming SSE du tour final : nouvelle route `POST
+/ai/conversations/:id/messages/stream` (`addMessageStream`,
+`llm.client.ts#streamOllamaWithTools`, NDJSON Ollama reformaté en
+évènements SSE `chunk`/`done`/`error`) — les routes JSON existantes
+(`POST /ai/conversations`, `POST /ai/conversations/:id/messages`) restent
+inchangées, consommées par `AIAssistantFloat`/le premier message d'une
+conversation ; seul `AIAssistantPage.tsx` (mode plein écran, messages
+suivants) consomme la route streaming via `useStreamMessage`. Le prompt
+système précise aussi explicitement que le contenu renvoyé par les outils
+est une donnée, jamais une instruction (durcissement contre l'injection
+indirecte via des champs texte libre du CRM — notes de lead, description
+de projet, bio de freelancer).
+
     perimetre_code:
       - server/src/services/llm.client.ts
       - server/src/services/aiConversation.service.ts
@@ -1242,9 +1287,13 @@ couvrent que l'exécution de commande/code.
       - server/src/repositories/aiConversation.repository.ts
       - server/src/controllers/aiConversation.controller.ts
       - server/src/routes/aiConversation.routes.ts
+      - server/src/observability/businessMetrics.ts
       - server/src/services/cvExtraction.service.ts
       - server/test/ai.endpoint.test.ts
       - server/src/config/env.ts
+      - client/src/api/aiConversations.api.ts
+      - client/src/hooks/useAiConversations.ts
+      - client/src/features/ai-assistant/AIAssistantPage.tsx
       - docker-compose.yml#ollama
       - docker-compose.prod.yml#ollama
       - prisma/schema.prisma#AiConversation,AiMessage
@@ -2440,3 +2489,4 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-30 (suite, même session)** | **SEC-047 : vérification de bout en bout menée à son terme — le pull du modèle mistral (4.4 GB) a mis plusieurs dizaines de minutes (débit réseau de l'environnement) mais s'est terminé avec succès (`docker logs saas-ollama-pull-1` : "success", exit code 0). `docker exec saas-ollama-1 ollama list` confirme `mistral:latest` présent. `POST http://localhost:11434/api/chat` avec `model:"mistral"` répond avec un vrai contenu généré, `done:true`, aucune erreur "model not found". La ligne précédente de ce journal ne décrivait qu'un état intermédiaire de cette même session (le pull n'avait pas encore fini au moment de sa rédaction), pas l'état final.** | **Confirmation directe du porteur du projet après le téléchargement complet, session du 2026-07-30 — voir `anomalies/4.11-ia.yaml#SEC-047` et `COUVERTURE.yaml#4.11-ia` pour le même récit. Corrigé (SEC-054, audit indépendant du 2026-07-31) : cette entrée du journal n'avait jamais été mise à jour après le succès final, laissant §7 contredire le registre d'anomalies et COUVERTURE.yaml sur le même fait.** |
 | **2026-07-31** | **Audit indépendant du module 4.11 (agent sans mémoire de la session précédente, demandé explicitement par le porteur) — 6 nouveaux constats (SEC-054 à SEC-059), tous mineurs à moyens, tous corrigés dans la même session. SEC-054/SEC-056/SEC-055/SEC-057/SEC-058 : voir leurs entrées `anomalies/4.11-ia.yaml` respectives (contradiction §7/registre sur SEC-047, mauvaise citation d'ID en commentaire docker-compose, route `/ai/conversations/import` non documentée, index Prisma manquant sur le tri réel de `findAll`, doctrine `prisma`/`prismaRead` violée sur `addMessage`/`delete`). SEC-059 (le plus substantiel) : le `SYSTEM_PROMPT` de `aiConversation.service.ts` promettait d'aider à gérer leads/clients/projets/tâches/freelancers sans qu'aucun code ne donne à l'assistant un accès réel à ces données — sur décision explicite du porteur, construit plutôt que documenté comme écart : nouveau module `server/src/services/aiTools.ts` (5 tools en lecture seule, `getLeads`/`getClients`/`getProjects`/`getTasks`/`getFreelancers`, format de déclaration OpenAI-style consommé par Ollama), `llm.client.ts` étendu (`callOllamaWithTools`, garde le contrat existant `callOllama` inchangé), `aiConversation.service.ts` orchestre une boucle de tool calling bornée (`MAX_TOOL_ROUNDTRIPS = 4`) avant de persister la réponse finale. Chaque tool réutilise exactement le service/repository/scoping déjà utilisé par l'endpoint REST équivalent (`leadService`/`clientService`/`projectService`/`taskService`/`freelancerService`, `buildServiceScope`) — aucune requête Prisma nouvelle, aucun chemin de scope parallèle : un MANAGER n'obtient via le chat IA aucune donnée qu'il ne pourrait pas déjà lire par l'API REST. Les échanges de tool calling (appel + résultat) ne sont jamais persistés comme `AiMessage` — seul le contenu final de la réponse l'est, cf. §3.22. RG-014 mise à jour pour documenter cette nouvelle surface. Preuve : nouveaux `server/test/aiTools.test.ts` (appelle réellement `runAiTool`/`isKnownAiTool` contre une vraie base, 2 pôles seedés, MANAGER confirmé restreint à son pôle sur `getProjects`) et `server/test/llmClientToolCalling.test.ts` (appelle réellement `callOllamaWithTools`, mock `globalThis.fetch` uniquement, couvre l'attachement du tableau `tools`, la remontée de `tool_calls`, et le rejet d'une réponse sans contenu ni tool_calls — SEC-039 étendue). Vérification : serveur `npx tsc --noEmit` (clean), `npm run lint` (0/0), client `npx tsc --noEmit` (clean). Migration Prisma `20260731000000_ai_conversation_updated_at_index` créée et appliquée (`prisma migrate deploy`) pour SEC-057.** | **Rapport d'audit produit par une session indépendante (sans mémoire de la session ayant clôturé SEC-033 à SEC-053), demandé explicitement par le porteur. Décisions du porteur via AskUserQuestion : création des 6 ID par cette session (« Oui, créer les 6 IDs ») ; pour SEC-059, construire la vraie capacité plutôt que réécrire le prompt (« Oui — construire l'accès réel aux données CRM ») ; mécanisme tool calling Ollama plutôt que RAG simple (« Tool calling Ollama (Recommandé) ») ; les 4 entités Lead/Client/Projets/Tâches/Freelancers retenues explicitement (multi-sélection) ; ampleur « Tout construire maintenant » plutôt qu'une version minimale ; pour SEC-054, garder la version « réussie » du fichier d'anomalie plutôt que marquer les deux comme incertains.** |
 | **2026-07-31 (relecture externe du travail SEC-054/SEC-059, même jour)** | **4 nouveaux constats (SEC-060 à SEC-063), tous corrigés dans la même session. SEC-062 : `getFreelancers` (aiTools.ts) réimplémentait localement sa décision de scoping MANAGER (`?? "__none__"`) au lieu de la déléguer à `freelancerService` comme les 4 autres tools, en désaccord avec `freelancer.controller.ts` (`scope?.userServiceId`, sans fallback) — corrigé en transmettant `ctx.userServiceId` tel quel ; le comportement REST sous-jacent (un MANAGER sans `serviceId` voit tous les freelancers, sans filtre) n'est pas modifié, seulement fidèlement reproduit par l'outil IA. SEC-061 : `runConversationTurn` bornait le nombre d'aller-retours (`MAX_TOOL_ROUNDTRIPS = 4`) mais pas le temps total — un tour pouvait légitimement durer jusqu'à 8 minutes (4 × 120s par appel) — corrigé par `TURN_TIMEOUT_MS = 180_000`, un `AbortSignal` unique créé une fois par tour et transmis à chaque appel `callOllamaWithTools`. SEC-060 : `callOllama` n'avait plus aucun appelant en production après l'introduction de `callOllamaWithTools` (même classe que SEC-040/SEC-045) — retirée de `llm.client.ts` ; sa preuve SEC-039 reste couverte par `llmClientToolCalling.test.ts` contre le chemin vivant. SEC-063 (découvert incidemment en vérifiant l'absence de régression) : `aiTools.test.ts` et `llmClientToolCalling.test.ts`, créés la veille, n'étaient jamais importés par `test/run-all.test.ts` — jamais exécutés par la porte CI réelle (`npm run test:coverage`) — corrigé, suite complète passée de 702 à 714 tests, 714/714 verts. Détail signalé sans anomalie dédiée : `aiConversation.controller.ts` dérivait `userId` par deux chemins distincts dans les mêmes fonctions (`req.user!.sub!` et `callerContext.userId` via `buildServiceScope`) — les deux valent la même chose (`auth.service.ts`), corrigé par cohérence en une seule dérivation.** | **Message technique direct du porteur, listant 3 points à corriger avant d'aller plus loin (getFreelancers réimplémenté hors service ; budget temps de boucle non borné ; callOllama devenue morte) plus un détail mineur (double dérivation de userId) — aucune AskUserQuestion sur cette passe, le porteur a donné les corrections attendues directement dans son message ; le choix `TURN_TIMEOUT_MS = 180_000` est une décision de ce contributeur (Claude), pas une valeur demandée explicitement par le porteur, choisie sous la contrainte `MAX_TOOL_ROUNDTRIPS × 120s = 8 min` maximum sans échéance et l'absence de timeout front-end configuré (`client/src/api/axios.ts`) à aligner dessus.** |
+| **2026-07-31 (enrichissements horizon court, même jour)** | **5 items de l'horizon court du rapport d'audit traités sur demande explicite du porteur (multi-sélection), pendant que la CI du commit précédent (`f68bea1`) tournait. (1) Champ `truncated` (`aiTools.ts#withTruncation`) sur chaque réponse d'outil, `SYSTEM_PROMPT` mis à jour pour imposer de le signaler à l'utilisateur. (2) Filtres structurés `status`/`priority`/`overdue`/`assigneeId` sur `getTasks`, `status` sur `getProjects`/`getLeads` — délégués aux filtres déjà exposés par les services REST, jamais réimplémentés. (3) Nouveau modèle Prisma `AiToolCall` (migration `20260731010000_ai_tool_call`), écrit par `aiConversationRepository.recordToolCall` après chaque tour, jamais bloquant pour la conversation elle-même en cas d'échec d'écriture. (4) Métriques Prometheus `ai_tool_call_total{tool,outcome}`/`ai_turn_roundtrips`/`ai_turn_duration_seconds` (`businessMetrics.ts`), câblées directement dans `runConversationTurn`. (5) Streaming SSE du tour final : `llm.client.ts#streamOllamaWithTools` (parseur NDJSON, distingue événements `content`/`tool_calls`), nouvelle route `POST /ai/conversations/:id/messages/stream` (`addMessageStream`), nouveau `aiConversationsApi.streamMessage`/`useStreamMessage` côté client, consommé par `AIAssistantPage.tsx` (mode plein écran, messages de suivi) — les routes JSON existantes restent inchangées pour le premier message d'une conversation et pour `AIAssistantFloat`. `SYSTEM_PROMPT` durci en même temps contre l'injection indirecte (les résultats d'outils sont des données, jamais des instructions). SEC-064 enregistrée (ouverte, non traitée) : le tool calling aggrave l'écart RGPD déjà connu sur `AiConversation`/`AiMessage`, signalé par le porteur mais explicitement hors des 5 items retenus pour cette passe. Vérifié : `server tsc --noEmit`/`npm run lint` (0/0), client `tsc --noEmit`/`npm run lint` (12 warnings, exception documentée), suite complète serveur 725/725 (en hausse de 714, nouveaux tests `aiConversationToolCallTrace.test.ts` + tests de streaming/filtres/troncature dans les fichiers existants). Commit `f68bea1` confirmé CI verte avant le début de cette passe.** | **AskUserQuestion, choix multi-sélection du porteur : les 4 premiers items retenus explicitement + "Métriques Prometheus + Streaming SSE" groupés, streaming confirmé comme le plus gros des deux à traiter en premier. Aucune décision produit nouvelle sur le périmètre CRM lui-même (RG-025, SEC-064) — laissée ouverte, pas tranchée par ce contributeur.** |

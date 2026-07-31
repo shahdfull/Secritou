@@ -12,8 +12,24 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-063
+dernier_id: SEC-064
 anomalies:
+  - id: SEC-064
+    titre: >
+      Le tool calling CRM (SEC-059) aggrave l'écart RGPD déjà signalé par
+      l'audit indépendant du 2026-07-31 : gdpr.service.ts ne mentionne
+      toujours ni AiConversation ni AiMessage, alors que l'historique de
+      chat contient désormais des données CRM tirées par les outils
+      (noms de clients, montants, deadlines) et recopiées dans les
+      réponses de l'assistant — une copie secondaire de données
+      personnelles, hors du chemin d'export et d'effacement RG-025.
+      Quand un User est anonymisé en place plutôt que supprimé, cet
+      historique enrichi survit intact. Signalé explicitement par le
+      porteur, non traité dans cette session (hors des 5 items retenus)
+    perimetre: 4.11-ia
+    statut: ouvert
+    gravite: moyenne
+    classe: donnee-personnelle-hors-perimetre-rgpd
   - id: SEC-063
     titre: >
       aiTools.test.ts et llmClientToolCalling.test.ts, créés lors de la

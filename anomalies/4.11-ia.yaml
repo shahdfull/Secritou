@@ -25,9 +25,57 @@
 # la clôture de SEC-049 elle-même était prématurée. Construction de
 # SEC-059 (tool calling CRM réel) le même jour : SEC-054 à SEC-059.
 # Relecture externe du travail SEC-054/SEC-059, même jour : SEC-060 à
-# SEC-063.
+# SEC-063. Enrichissements horizon court (truncated, filtres structurés,
+# AiToolCall, métriques, streaming SSE) demandés explicitement par le
+# porteur le même jour, révélant SEC-064 (RGPD aggravé, non traité —
+# hors des 5 items retenus).
 
 anomalies:
+  - id: SEC-064
+    titre: >
+      Le tool calling CRM (SEC-059) aggrave l'écart RGPD déjà signalé par
+      l'audit indépendant du 2026-07-31 : gdpr.service.ts ne mentionne
+      toujours ni AiConversation ni AiMessage, alors que l'historique de
+      chat contient désormais des données CRM tirées par les outils
+      (noms de clients, montants, deadlines) et recopiées dans les
+      réponses de l'assistant — une copie secondaire de données
+      personnelles, hors du chemin d'export et d'effacement RG-025.
+      Quand un User est anonymisé en place plutôt que supprimé, cet
+      historique enrichi survit intact. Signalé explicitement par le
+      porteur, non traité dans cette session (hors des 5 items retenus)
+    perimetre: 4.11-ia
+    regle_violee: >
+      REFERENTIEL.md RG-025 (export/effacement RGPD) affirme couvrir
+      "l'intégralité des champs personnels détenus" pour User — l'ajout
+      du tool calling CRM rend cette affirmation plus fausse qu'avant
+      (plus de surface de données personnelles concernée), sans qu'aucun
+      correctif ne l'ait suivie dans la même passe.
+    classe: donnee-personnelle-hors-perimetre-rgpd
+    gravite: moyenne
+    statut: ouvert
+    critere_de_resolution: >
+      Décision explicite du porteur à demander avant tout correctif
+      (cf. CLAUDE.md "Réparer n'est pas développer" — étendre RG-025 à
+      AiConversation/AiMessage est une décision de portée produit, pas
+      une réparation) : soit gdprService.exportUser/eraseUser couvrent
+      explicitement AiConversation/AiMessage (export des messages,
+      anonymisation ou suppression selon le même critère financier déjà
+      appliqué au reste de User), soit REFERENTIEL.md RG-025 documente
+      explicitement cette exclusion comme un choix assumé plutôt qu'un
+      angle mort silencieux.
+    detecte_le: "2026-07-31"
+    source: >
+      Signalé directement par le porteur du projet, message technique
+      listant les points à traiter après la construction du tool
+      calling CRM (SEC-059) — confirmé par grep de "AiConversation" et
+      "AiMessage" sur gdpr.service.ts (zéro occurrence).
+    confiance: haute
+    note: >
+      Non corrigé dans cette session — le porteur a explicitement classé
+      cet item hors des 5 retenus pour la passe "horizon court"
+      (truncated, filtres structurés, AiToolCall, métriques, streaming).
+      Laissé ouvert pour décision produit ultérieure.
+
   - id: SEC-063
     titre: >
       aiTools.test.ts et llmClientToolCalling.test.ts, créés lors de la

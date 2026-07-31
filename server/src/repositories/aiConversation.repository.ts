@@ -60,4 +60,20 @@ export const aiConversationRepository = {
   async delete(id: string, userId: string) {
     await prisma.aiConversation.deleteMany({ where: { id, userId } });
   },
+
+  // Follow-up to SEC-059: audit/debug trace of a tool call the assistant made on behalf of this
+  // conversation — never blocks the conversation turn on a write failure (see
+  // aiConversation.service.ts#recordToolCallSafely), so this itself stays a plain single insert.
+  async recordToolCall(
+    conversationId: string,
+    tool: string,
+    args: unknown,
+    outcome: "success" | "error" | "unknown_tool",
+    rowCount: number | null,
+    durationMs: number
+  ) {
+    return prisma.aiToolCall.create({
+      data: { conversationId, tool, args: JSON.stringify(args), outcome, rowCount, durationMs },
+    });
+  },
 };
