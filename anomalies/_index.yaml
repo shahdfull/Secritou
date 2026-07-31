@@ -211,7 +211,7 @@ anomalies:
       SEC-045, mais antérieur et hors module IA — découvert incidemment
       lors de la contre-vérification du porteur sur le nettoyage 4.11
     perimetre: transverse
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: metrique-orpheline-sans-appelant
 

@@ -87,7 +87,7 @@ anomalies:
       d'observabilité, seulement du bruit dans le registry.
     classe: metrique-orpheline-sans-appelant
     gravite: mineure
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       businessProjectProgressRecalculated est retiré de
       businessMetrics.ts (ou un vrai appelant lui est trouvé/ajouté si
@@ -103,11 +103,16 @@ anomalies:
       résultat, la définition elle-même.
     confiance: haute
     note: >
-      Hors périmètre 4.11, signalé "au passage" par le porteur — laissé
-      ouvert dans cette session plutôt que corrigé dans la foulée
-      (périmètre distinct du module IA en cours de traitement, cf.
-      CLAUDE.md "auditer un périmètre nommé, ne pas mélanger plusieurs
-      périmètres dans une même passe"). Non bloquant pour le lancement.
+      Résolu (2026-07-31, session ultérieure) : aucun concept de
+      "progress" projet n'existe nulle part dans les services actuels
+      (grep exhaustif) — pas de fonctionnalité à câbler, la métrique
+      est retirée de businessMetrics.ts, même traitement que SEC-045.
+      Vérifié : grep confirmant zéro référence restante à
+      businessProjectProgressRecalculated /
+      business_project_progress_recalculated_total dans server/src,
+      server/test et monitoring/. server tsc --noEmit/npm run lint
+      (0/0) après retrait. Décision confirmée explicitement par le
+      porteur (AskUserQuestion) avant le retrait.
 
   - id: SEC-038
     titre: >

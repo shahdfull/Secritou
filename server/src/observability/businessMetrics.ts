@@ -8,12 +8,6 @@ export const businessDashboardSummaryRecalculated = new Counter({
   registers: [registry],
 });
 
-export const businessProjectProgressRecalculated = new Counter({
-  name: "business_project_progress_recalculated_total",
-  help: "Nombre de recalculs de progress project",
-  registers: [registry],
-});
-
 // ── Module IA (agent-service, SEC-059 follow-up) ───────────────────────────────
 // Unlike the removed agent_call_total/agent_call_duration_seconds (SEC-045, orphaned when
 // agentOrchestrator.service.ts was deleted), these are wired directly into the real, live
