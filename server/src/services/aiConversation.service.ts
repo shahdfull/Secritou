@@ -118,11 +118,15 @@ async function runConversationTurn(
   history: OllamaChatMessage[],
   callerContext: AiToolCallerContext,
   onChunk?: (text: string) => void
-): Promise<{ reply: string; toolCalls: ToolCallRecord[]; proposal?: AiActionProposal }> {
+): Promise<{ reply: string; toolCalls: ToolCallRecord[]; proposal?: AiActionProposal; durationMs: number }> {
   const messages: OllamaChatMessage[] = [...history];
   const turnDeadline = AbortSignal.timeout(TURN_TIMEOUT_MS);
   const toolCalls: ToolCallRecord[] = [];
   const endTurnTimer = aiTurnDuration.startTimer();
+  // Wall-clock duration surfaced to the caller (and eventually the UI) — deliberately separate
+  // from the aiTurnDuration Prometheus histogram (seconds, bucketed, not per-request): this is
+  // the exact per-turn figure a human reads next to "Réponse en Xs", not an observability metric.
+  const turnStartedAt = Date.now();
   // At most one proposal per turn is ever rendered to the user — if the model somehow calls
   // several propose* tools in one round trip, the last one wins (same "last write wins" semantics
   // as messages.push order below), since a single reply can only carry one confirmation card.
@@ -150,7 +154,7 @@ async function runConversationTurn(
 
       if (!requestedToolCalls || requestedToolCalls.length === 0) {
         aiTurnRoundtrips.observe(roundTrip + 1);
-        return { reply: content, toolCalls, proposal };
+        return { reply: content, toolCalls, proposal, durationMs: Date.now() - turnStartedAt };
       }
 
       messages.push({ role: "assistant", content, tool_calls: requestedToolCalls });
@@ -238,7 +242,7 @@ export const aiConversationService = {
     // trace (conversation or USER message) rather than an orphaned USER message with no reply,
     // which a naive client retry would otherwise duplicate on every failed attempt.
     const history: OllamaChatMessage[] = [{ role: "user", content: firstMessage }];
-    const { reply, toolCalls, proposal } = await runConversationTurn(history, callerContext);
+    const { reply, toolCalls, proposal, durationMs } = await runConversationTurn(history, callerContext);
     const persistedReply = proposal ? encodeActionProposal(reply, proposal) : reply;
 
     const conv = await aiConversationRepository.create(userId, title, persona);
@@ -248,7 +252,10 @@ export const aiConversationService = {
     // succeeded (SEC-035), so the trace can't be attached any earlier than this.
     await recordToolCallsSafely(conv.id, toolCalls);
 
-    return { conversation: conv, reply: assistantMsg };
+    // durationMs is deliberately not persisted on AiMessage (no schema change) — it's a per-response
+    // API enrichment for the UI (see aiTools.ts's `truncated` field for the same doctrine), lost on
+    // reload like the rest of the "how this specific reply was produced" metadata.
+    return { conversation: conv, reply: assistantMsg, durationMs };
   },
 
   async addMessage(id: string, userId: string, content: string, callerContext: AiToolCallerContext) {
@@ -265,14 +272,14 @@ export const aiConversationService = {
       ...recentMessages.map((m) => ({ role: toChatRole(m.role), content: m.content })),
       { role: "user", content },
     ];
-    const { reply, toolCalls, proposal } = await runConversationTurn(history, callerContext);
+    const { reply, toolCalls, proposal, durationMs } = await runConversationTurn(history, callerContext);
     const persistedReply = proposal ? encodeActionProposal(reply, proposal) : reply;
 
     await aiConversationRepository.addMessage(conv.id, "USER", content);
     const assistantMsg = await aiConversationRepository.addMessage(conv.id, "ASSISTANT", persistedReply);
     await recordToolCallsSafely(conv.id, toolCalls);
 
-    return { reply: assistantMsg };
+    return { reply: assistantMsg, durationMs };
   },
 
   // SEC-059 follow-up: same contract as addMessage, but the final round trip (once the model has
@@ -296,7 +303,7 @@ export const aiConversationService = {
       ...recentMessages.map((m) => ({ role: toChatRole(m.role), content: m.content })),
       { role: "user", content },
     ];
-    const { reply, toolCalls, proposal } = await runConversationTurn(history, callerContext, onChunk);
+    const { reply, toolCalls, proposal, durationMs } = await runConversationTurn(history, callerContext, onChunk);
     // The proposal marker is never streamed via onChunk (it isn't part of the model's visible
     // text — see runAiActionTool) — appended only to the persisted content, same as the
     // non-streaming path. The client's SSE "done" event carries this full persisted text, not the
@@ -307,7 +314,7 @@ export const aiConversationService = {
     const assistantMsg = await aiConversationRepository.addMessage(conv.id, "ASSISTANT", persistedReply);
     await recordToolCallsSafely(conv.id, toolCalls);
 
-    return { reply: assistantMsg };
+    return { reply: assistantMsg, durationMs };
   },
 
   async delete(id: string, userId: string) {

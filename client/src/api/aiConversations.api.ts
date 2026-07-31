@@ -41,16 +41,16 @@ export const aiConversationsApi = {
     return res.data.data;
   },
 
-  create: async (message: string): Promise<{ conversation: AiConversation; reply: AiMessage }> => {
-    const res = await apiClient.post<{ data: { conversation: AiConversation; reply: AiMessage } }>(
+  create: async (message: string): Promise<{ conversation: AiConversation; reply: AiMessage; durationMs?: number }> => {
+    const res = await apiClient.post<{ data: { conversation: AiConversation; reply: AiMessage; durationMs?: number } }>(
       "/ai/conversations",
       { message }
     );
     return res.data.data;
   },
 
-  addMessage: async (id: string, message: string): Promise<{ reply: AiMessage }> => {
-    const res = await apiClient.post<{ data: { reply: AiMessage } }>(
+  addMessage: async (id: string, message: string): Promise<{ reply: AiMessage; durationMs?: number }> => {
+    const res = await apiClient.post<{ data: { reply: AiMessage; durationMs?: number } }>(
       `/ai/conversations/${id}/messages`,
       { message }
     );
@@ -68,7 +68,7 @@ export const aiConversationsApi = {
     message: string,
     onChunk: (text: string) => void,
     signal?: AbortSignal
-  ): Promise<{ reply: AiMessage }> => {
+  ): Promise<{ reply: AiMessage; durationMs?: number }> => {
     const accessToken = useAuthStore.getState().accessToken;
     const response = await fetch(`${API_BASE_URL}/ai/conversations/${id}/messages/stream`, {
       method: "POST",
@@ -88,7 +88,7 @@ export const aiConversationsApi = {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
-    let result: { reply: AiMessage } | undefined;
+    let result: { reply: AiMessage; durationMs?: number } | undefined;
 
     try {
       for (;;) {
@@ -106,7 +106,7 @@ export const aiConversationsApi = {
           const eventType = eventLine.slice("event:".length).trim();
           const data = JSON.parse(dataLine.slice("data:".length).trim()) as
             | { text: string }
-            | { data: { reply: AiMessage } }
+            | { data: { reply: AiMessage; durationMs?: number } }
             | { message: string };
 
           if (eventType === "chunk" && "text" in data) {

@@ -68,6 +68,9 @@ function CompactChat({
   const createMutation = useCreateConversation();
   const addMutation = useAddMessage();
   const [activeId, setActiveId] = useState<string | null>(null);
+  // Keyed by message index (ChatMessage has no id in this compact/local-state mode) — same
+  // "lost on reload, API enrichment only" doctrine as FullChat's responseDurations.
+  const [responseDurations, setResponseDurations] = useState<Record<number, number>>({});
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -84,12 +87,20 @@ function CompactChat({
 
     try {
       if (!activeId) {
-        const { conversation, reply } = await createMutation.mutateAsync(trimmed);
+        const { conversation, reply, durationMs } = await createMutation.mutateAsync(trimmed);
         setActiveId(conversation.id);
-        onMessagesChange([...messages, userMsg, { role: "assistant", content: reply.content }]);
+        const nextMessages = [...messages, userMsg, { role: "assistant" as const, content: reply.content }];
+        onMessagesChange(nextMessages);
+        if (durationMs !== undefined) {
+          setResponseDurations((prev) => ({ ...prev, [nextMessages.length - 1]: durationMs }));
+        }
       } else {
-        const { reply } = await addMutation.mutateAsync({ id: activeId, message: trimmed });
-        onMessagesChange([...messages, userMsg, { role: "assistant", content: reply.content }]);
+        const { reply, durationMs } = await addMutation.mutateAsync({ id: activeId, message: trimmed });
+        const nextMessages = [...messages, userMsg, { role: "assistant" as const, content: reply.content }];
+        onMessagesChange(nextMessages);
+        if (durationMs !== undefined) {
+          setResponseDurations((prev) => ({ ...prev, [nextMessages.length - 1]: durationMs }));
+        }
       }
     } catch (error) {
       toast.error(isServiceUnavailableError(error) ? t("aiAssistant.errors.unavailable") : t("aiAssistant.errors.appError"));
@@ -113,7 +124,7 @@ function CompactChat({
             {/* Chat is append-only (no reorder/filter); ChatMessage has no id,
                 so a role+index composite is the stable key here. */}
             {messages.map((msg, i) => (
-              <MessageBubble key={`${msg.role}-${i}`} msg={msg} compact />
+              <MessageBubble key={`${msg.role}-${i}`} msg={msg} compact durationMs={responseDurations[i]} />
             ))}
             {isLoading && <ThinkingBubble compact />}
             <div ref={scrollRef} />
@@ -139,6 +150,12 @@ function FullChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // durationMs is a per-response API enrichment, never persisted on AiMessage (see
+  // aiConversation.service.ts) — kept here only for the messages answered during this page's
+  // lifetime; reloading the page or switching conversations loses it, same as the rest of
+  // "how this specific reply was produced" metadata (e.g. the AiToolCall trace isn't shown here
+  // either).
+  const [responseDurations, setResponseDurations] = useState<Record<string, number>>({});
 
   const { data: convList, isLoading: listLoading } = useAiConversations();
   const { data: activeConv, isLoading: convLoading } = useAiConversation(activeId);
@@ -183,10 +200,16 @@ function FullChat() {
         // have a conversationId to persist the AiToolCall trace against until after this call
         // already succeeds, and streaming that specific path isn't worth the added complexity for
         // a single non-recurring message per conversation.
-        const { conversation } = await createMutation.mutateAsync(trimmed);
+        const { conversation, reply, durationMs } = await createMutation.mutateAsync(trimmed);
         setActiveId(conversation.id);
+        if (durationMs !== undefined) {
+          setResponseDurations((prev) => ({ ...prev, [reply.id]: durationMs }));
+        }
       } else {
-        await streamMutation.mutateAsync({ id: activeId, message: trimmed });
+        const { reply, durationMs } = await streamMutation.mutateAsync({ id: activeId, message: trimmed });
+        if (durationMs !== undefined) {
+          setResponseDurations((prev) => ({ ...prev, [reply.id]: durationMs }));
+        }
       }
     } catch (error) {
       toast.error(isServiceUnavailableError(error) ? t("aiAssistant.errors.unavailable") : t("aiAssistant.errors.appError"));
@@ -319,7 +342,7 @@ function FullChat() {
               ) : (
                 <div className="space-y-4">
                   {messages.map((msg) => (
-                    <MessageBubble key={msg.id} msg={msg} />
+                    <MessageBubble key={msg.id} msg={msg} durationMs={responseDurations[msg.id]} />
                   ))}
                   {streamMutation.isStreaming ? (
                     streamMutation.streamingText ? (
@@ -361,13 +384,24 @@ function FullChat() {
 
 // ── Shared sub-components ────────────────────────────────────────────────────
 
+// durationMs formatting: below 1s shown in ms (precise enough to matter at that scale), at or
+// above 1s shown in seconds with one decimal (matches how a human reads "réponse en 2.3s" rather
+// than "2300ms").
+function formatDuration(durationMs: number): string {
+  if (durationMs < 1000) return `${durationMs}ms`;
+  return `${(durationMs / 1000).toFixed(1)}s`;
+}
+
 function MessageBubble({
   msg,
   compact = false,
+  durationMs,
 }: {
   msg: { role: string; content: string };
   compact?: boolean;
+  durationMs?: number;
 }) {
+  const { t } = useTranslation();
   const isUser = msg.role === "user";
   // Only an ASSISTANT message can carry a proposal marker (encodeActionProposal is only ever
   // called on the model's own reply) — parsing a USER message would never find one, but skipping
@@ -389,6 +423,11 @@ function MessageBubble({
         >
           {visibleText}
         </div>
+        {!isUser && durationMs !== undefined && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t("aiAssistant.responseTime", "Réponse en {{duration}}", { duration: formatDuration(durationMs) })}
+          </p>
+        )}
         {proposal && <ActionProposalCard proposal={proposal} />}
       </div>
       {isUser && (

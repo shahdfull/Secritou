@@ -29,7 +29,7 @@ export function useAiConversation(id: string | null) {
 export function useCreateConversation() {
   const qc = useQueryClient();
   return useMutation<
-    { conversation: AiConversation; reply: AiMessage },
+    { conversation: AiConversation; reply: AiMessage; durationMs?: number },
     Error,
     string
   >({
@@ -42,7 +42,7 @@ export function useCreateConversation() {
 
 export function useAddMessage() {
   const qc = useQueryClient();
-  return useMutation<{ reply: AiMessage }, Error, { id: string; message: string }>({
+  return useMutation<{ reply: AiMessage; durationMs?: number }, Error, { id: string; message: string }>({
     mutationFn: ({ id, message }) => aiConversationsApi.addMessage(id, message),
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: KEYS.detail(variables.id) });
@@ -64,7 +64,7 @@ export function useStreamMessage() {
   const [streamingText, setStreamingText] = useState("");
   const abortRef = useRef<AbortController | null>(null);
 
-  const mutation = useMutation<{ reply: AiMessage }, Error, { id: string; message: string }>({
+  const mutation = useMutation<{ reply: AiMessage; durationMs?: number }, Error, { id: string; message: string }>({
     mutationFn: ({ id, message }) => {
       setIsStreaming(true);
       setStreamingText("");

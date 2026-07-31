@@ -1041,6 +1041,7 @@
     "clearHistory": "Effacer l'historique",
     "deleteConversationTitle": "Supprimer cette conversation ?",
     "deleteConversationDesc": "Cette action est irréversible. La conversation et tous ses messages seront définitivement supprimés.",
+    "responseTime": "Réponse en {{duration}}",
     "proposal": {
       "confirm": "Confirmer",
       "cancel": "Annuler",
