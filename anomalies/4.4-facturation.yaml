@@ -8,9 +8,181 @@
 #
 # Périmètre : 4.4 Facturation & Paiements
 # 3 anomalie(s) — premier audit réel du registre remis à zéro le 2026-07-27,
-# session du 2026-07-27.
+# session du 2026-07-27. +3 le 2026-08-01 (Phase 1 point 3, audit
+# performance/fiabilité et couverture de test demandé par le porteur).
 
 anomalies:
+  - id: SEC-077
+    titre: >
+      POST /invoices (invoiceService.create) n'existe-t-elle pas de
+      vérification préalable que clientId (ou projectId/proposalId s'ils
+      sont fournis) correspond à une ligne réelle avant l'écriture Prisma
+      — un clientId inexistant/mal formé fait échouer la contrainte de
+      clé étrangère (P2003), non catchée par error.middleware.ts (seul
+      P2002 y est mappé), et remonte en 500 brut au lieu d'un 404/422
+      propre. Reproduit réellement contre un serveur HTTP réel avec un
+      vrai token ADMIN et un clientId UUID valide mais inexistant
+    perimetre: 4.4-facturation
+    regle_violee: >
+      Cohérence de traitement déjà établie ailleurs dans le même dépôt :
+      task.service.ts#assertAssigneeIsValid convertit explicitement une
+      violation FK (P2003) potentielle en HttpError(422) propre via un
+      findUnique préalable, avec commentaire explicite documentant cette
+      intention ("doubles as the existence check for assigneeId, turning
+      a would-be Prisma FK violation (P2003) into a clean 422").
+      invoice.service.ts#create n'applique pas ce même patron pour
+      clientId.
+    classe: fk-non-validee-500-brut
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      invoiceService.create vérifie l'existence de clientId (findUnique
+      ou équivalent) avant l'écriture, et lève une HttpError 404/422
+      propre si absent — même patron que task.service.ts#assertAssigneeIsValid.
+      Un test réel (HTTP, contre un serveur réel) doit confirmer que
+      POST /invoices avec un clientId UUID syntaxiquement valide mais
+      inexistant renvoie un code d'erreur propre, jamais un 500.
+    detecte_le: "2026-08-01"
+    source: >
+      Phase 1 point 3 (Facturation), audit des contrats API (status
+      codes/erreurs) demandé par le porteur — reproduction HTTP réelle
+      (server temporaire, vrai token ADMIN, POST /invoices avec un
+      clientId UUID syntaxiquement valide mais inexistant en base) :
+      500 brut confirmé, log serveur montrant
+      PrismaClientKnownRequestError code P2003 non catché. Script de
+      reproduction supprimé après usage, jamais committé.
+    confiance: haute
+    note: >
+      Même famille de symptôme que SEC-075 (500 brut sur une entrée mal
+      formée non anticipée par le code), classe distincte (violation FK
+      vs orderBy non whitelisté). error.middleware.ts ne mappe
+      actuellement que P2002 (contrainte unique) — P2003 (clé étrangère)
+      n'a pas d'équivalent centralisé, chaque service devant
+      individuellement prévenir le cas comme le fait déjà
+      task.service.ts. Périmètre volontairement limité à
+      invoice.service.ts#create dans ce constat — une revue plus large de
+      tous les points d'écriture acceptant un FK non vérifié (autres
+      modules) n'a pas été faite dans cette session, hors périmètre de
+      la Phase 1 point 3 (Facturation).
+
+  - id: SEC-076
+    titre: >
+      server/test/invoice.service.test.ts réimplémente intégralement la
+      logique du module (computeNewStatus, computeOverpayment,
+      assertInvoiceDraft, assertCreditAmount, buildInvoiceNumber,
+      isDuplicatePayment — 26 cas de test au total) sans jamais importer
+      ni appeler src/services/invoice.service.ts ou creditNote.service.ts
+      — même classe que SEC-072, sur le module 4.4 cette fois. Symptôme
+      le plus visible : le fixture FakeTx interroge
+      tx.invoice.findUnique({where:{id, companyId}}) — un champ companyId
+      qui n'existe nulle part dans schema.prisma ni dans le vrai code
+      (dépôt mono-tenant, interdiction en tête de CLAUDE.md). La logique
+      recopiée diverge réellement du vrai code sur au moins 2 points :
+      assertCreditAmount ne soustrait jamais les avoirs déjà émis sur la
+      même facture (le vrai creditNoteService.create le fait, SEC-184,
+      remainingCreditable = amountPaid - alreadyCredited) — bien que
+      SEC-184 lui-même soit déjà couvert par un vrai test ailleurs
+      (creditNoteCumulativeAmount.test.ts) — et computeNewStatus/runAddPayment
+      ne testent jamais le garde-fou de statut (invoiceService.addPayment
+      rejette tout paiement si le statut n'est pas SENT/PARTIAL/OVERDUE,
+      HttpError 409 INVOICE_NOT_ACCEPTING_PAYMENTS) ni le chemin
+      idempotencyKey (le vrai chemin préféré, testé nulle part dans ce
+      fichier — seul le repli 10s est mirroré)
+    perimetre: 4.4-facturation
+    regle_violee: >
+      CLAUDE.md « `verifie: test` exige un test qui appelle le code réel »
+      + interdiction de tête « aucune notion de companyId/tenantId à
+      introduire » — ce fichier viole les deux : il ne teste pas le vrai
+      code, et sa fixture porte un champ interdit par construction dans ce
+      dépôt.
+    classe: test-mirror-ne-teste-pas-le-code-reel
+    gravite: moyenne
+    statut: ouvert
+    critere_de_resolution: >
+      invoice.service.test.ts est réécrit (ou remplacé par un/des
+      fichier(s) équivalents) pour importer et appeler réellement
+      src/services/invoice.service.ts#addPayment et
+      src/services/creditNote.service.ts#create contre une vraie base —
+      plus aucune fonction locale "computeNewStatus"/"runAddPayment"/
+      "assertCreditAmount" recopiée. Doit couvrir en plus ce que le
+      miroir actuel ignore : le garde-fou de statut
+      INVOICE_NOT_ACCEPTING_PAYMENTS, le chemin idempotencyKey (pas
+      seulement le repli 10s), et confirmer que la couverture SEC-184
+      (déjà réelle dans creditNoteCumulativeAmount.test.ts) n'est pas
+      dupliquée à l'identique sous une forme plus faible dans ce fichier.
+    detecte_le: "2026-08-01"
+    source: >
+      Phase 1 point 3 (Facturation, catégorie E — qualité des tests)
+      demandé par le porteur — repérage du commentaire d'en-tête
+      explicite "no DB, no imports of service. Pattern: same as
+      rating.service.test.ts" (référence directe au défaut déjà connu
+      SEC-072), confirmé par grep companyId (absent de tout le code réel)
+      et comparaison ligne à ligne de assertCreditAmount/computeNewStatus
+      contre creditNote.service.ts/invoice.service.ts réellement lus dans
+      la même session.
+    confiance: haute
+    note: >
+      Distinct de SEC-072 (même classe, périmètre 4.11/rating) — ID
+      séparé car critère de résolution et fichier concerné différents.
+      SEC-184 (avoirs cumulatifs) reste correctement `resolu` : sa preuve
+      réelle existe ailleurs (creditNoteCumulativeAmount.test.ts,
+      importe et appelle le vrai service) — ce nouveau constat porte sur
+      la présence d'une version affaiblie et non représentative du même
+      calcul dans un fichier différent, pas sur une régression de SEC-184
+      lui-même.
+
+  - id: SEC-075
+    titre: >
+      invoice.repository.ts (findAll/findAllByServiceId/findDeleted)
+      interpole options.orderBy (venant tel quel de req.query.orderBy via
+      parseListQuery, aucune validation) directement dans la clause Prisma
+      orderBy sans passer par buildOrderBy (whitelist déjà utilisée par 8
+      autres repositories, dont proposal.repository.ts corrigé sous
+      SEC-103 pour exactement ce défaut) — un orderBy invalide/inexistant
+      (ex. "client", "nonExistentField") provoque un 500 brut
+      (PrismaClientValidationError non catché spécifiquement par
+      error.middleware.ts) sur GET /invoices (ADMIN/MANAGER),
+      /invoices/my-service, /invoices/trash. Reproduit réellement contre
+      un serveur HTTP réel avec un vrai token ADMIN
+    perimetre: 4.4-facturation
+    regle_violee: >
+      Cohérence de traitement déjà établie ailleurs dans le même dépôt :
+      buildOrderBy (server/src/utils/listQuery.ts) existe précisément pour
+      whitelister un orderBy venant de req.query avant de l'interpoler
+      dans Prisma — 8 repositories l'utilisent déjà (client, clientOnboarding,
+      freelancerApplication, lead, project, proposal, serviceRequest, task).
+      invoice.repository.ts en est l'exception non corrigée.
+    classe: orderby-non-whiteliste-500-brut
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      invoice.repository.ts (findAll/findAllByServiceId/findDeleted)
+      utilise buildOrderBy(options.orderBy, options.orderDir, [liste des
+      champs Invoice réellement triables], "createdAt") au lieu
+      d'interpoler options.orderBy directement. Un test réel (HTTP, contre
+      un serveur réel) doit confirmer qu'un orderBy invalide (ex.
+      "nonExistentField", "client") retombe silencieusement sur le tri par
+      défaut et renvoie 200, pas un 500.
+    detecte_le: "2026-08-01"
+    source: >
+      Phase 1 point 3 (Facturation), cadrage performance/fiabilité (C/D)
+      demandé par le porteur — agent d'exploration dédié à la performance
+      SQL du périmètre 4.4, confirmé par reproduction HTTP réelle
+      (server temporaire, vrai token ADMIN, GET /invoices?orderBy=... sur
+      5 valeurs : "client", "clientId.name", une chaîne au format
+      injection SQL, "amountPaid" (colonne réelle, 200 OK), et
+      "nonExistentField" — 4 des 5 valeurs invalides produisent un 500,
+      script de reproduction supprimé après usage, jamais committé).
+    confiance: haute
+    note: >
+      Pas une faille d'injection SQL : Prisma construit l'orderBy comme
+      objet {[champ]: direction}, jamais interpolé dans du SQL brut — la
+      valeur "1;DROP TABLE Invoice;--" échoue exactement comme les autres
+      valeurs invalides (validation de clé Prisma), sans exécution SQL
+      arbitraire. Le vrai défaut est la disponibilité : un 500 brut sur un
+      paramètre de tri mal formé, alors que le reste du dépôt retombe
+      silencieusement sur un tri par défaut via buildOrderBy.
+
   - id: SEC-001
     titre: >
       GET /invoices/:id/credit-notes ne vérifie aucun scope de pôle pour

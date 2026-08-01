@@ -94,6 +94,11 @@ export const gdprService = {
     if (!client) throw new HttpError(404, "Client not found");
 
     const invoiceCount = await clientRepository.countInvoices(id);
+    // SEC-088: ClientOnboarding cascades on Client before Project's Restrict on onboarding can
+    // ever fire, so a hard-delete here would silently destroy the onboarding record. Checked
+    // up front — same doctrine as the invoiceCount guard above — instead of relying on a P2003
+    // that this exact cascade path never actually raises.
+    const onboardingCount = await clientRepository.countProjectOnboardings(id);
 
     // SEC-037: every DB write for this erasure is grouped in one interactive transaction — a
     // mid-sequence failure (crash, network) must never leave the Client deleted/anonymized while
@@ -102,7 +107,7 @@ export const gdprService = {
     // actually committed, so a rolled-back erasure never revokes a session for nothing.
     let mode: "deleted" | "anonymized";
     let portalUserIds: string[] = [];
-    if (invoiceCount === 0) {
+    if (invoiceCount === 0 && onboardingCount === 0) {
       try {
         mode = await prisma.$transaction(async (tx) => {
           // Related leads carry the same personal identity — erased together, not left behind.

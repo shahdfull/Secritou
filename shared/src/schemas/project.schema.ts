@@ -6,7 +6,7 @@ export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
 // Bounds mirror schema.prisma#Project's actual column widths (SEC-104); description is
 // @db.Text (unbounded in Postgres) but still capped here for the same reason as elsewhere.
 export const projectBaseSchema = z.object({
-  name: z.string().min(1).max(255),
+  name: z.string().trim().min(1).max(255),
   description: z.string().max(5000).optional(),
   status: z.enum(PROJECT_STATUSES).default("PLANNING"),
   clientId: z.string().optional(),

@@ -174,7 +174,7 @@ anomalies:
       strict, pas son équivalent visuel.
     classe: validation-min-sans-trim-contournement-espaces
     gravite: mineure
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       Les champs concernés utilisent z.string().trim().min(1) (Zod
       trim() transforme la valeur avant validation de longueur, donc
@@ -183,6 +183,20 @@ anomalies:
       par grep sur shared/src/schemas/*.ts. Un test réel doit couvrir au
       moins 3 modules distincts (pas seulement les 2 déjà confirmés) et
       vérifier qu'un nom "   " est bien rejeté 422, jamais accepté 201.
+    correctif: >
+      .trim() ajouté avant .min(1) sur les 14 champs texte libre
+      identifiés (client.schema.ts, document.schema.ts,
+      invoice.schema.ts, lead.schema.ts, project.schema.ts,
+      proposal.schema.ts, task.schema.ts, user.schema.ts,
+      clientOnboarding.schema.ts) — task.projectId et user.serviceId
+      délibérément exclus (identifiants, pas du texte affiché, un espace
+      autour les invaliderait déjà comme UUID). Vérifié réellement,
+      re-testant les 2 cas exacts de la découverte : POST /leads
+      {"name":"   "} et POST /clients {"name":"   "} répondent désormais
+      422 (Validation failed, "String must contain at least 1
+      character(s)") au lieu de 201. 783/785 tests server verts (seul
+      échec : SEC-069, pré-existant, sans rapport). En attente de
+      commit + CI verte avant passage à resolu.
     detecte_le: "2026-08-01"
     source: >
       Phase 1, point 6 du mandat QA (validation Zod cas limites) —

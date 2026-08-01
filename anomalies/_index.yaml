@@ -94,7 +94,7 @@ anomalies:
       créés avec succès, invisibles dans toute liste/recherche basée sur
       le nom
     perimetre: transverse
-    statut: ouvert
+    statut: en_cours
     gravite: mineure
     classe: validation-min-sans-trim-contournement-espaces
   - id: SEC-088
@@ -116,7 +116,7 @@ anomalies:
       IN_PROGRESS survit mais son ClientOnboarding a disparu
       silencieusement, sans aucune erreur ni trace
     perimetre: 4.3-onboarding
-    statut: ouvert
+    statut: en_cours
     gravite: eleve
     classe: cascade-schema-contourne-restrict-documente
   - id: SEC-087

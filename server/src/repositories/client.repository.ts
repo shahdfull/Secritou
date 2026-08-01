@@ -99,6 +99,14 @@ export const clientRepository = {
     return prismaRead.invoice.count({ where: { clientId: id } });
   },
 
+  // SEC-088: ClientOnboarding.client has onDelete: Cascade, so a hard-delete of this Client would
+  // silently cascade-delete any onboarding record before Project's own onDelete: Restrict on
+  // onboarding ever gets a chance to fire — same guard deleteProject already applies, checked here
+  // from the client side instead.
+  async countProjectOnboardings(id: string): Promise<number> {
+    return prismaRead.clientOnboarding.count({ where: { project: { clientId: id } } });
+  },
+
   async archive(id: string): Promise<Client> {
     return prisma.client.update({
       where: { id },

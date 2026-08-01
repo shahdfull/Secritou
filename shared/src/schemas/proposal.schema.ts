@@ -2,13 +2,13 @@ import { z } from "zod";
 import { currencyCode } from "./common.schema.js";
 
 export const proposalSectionSchema = z.object({
-  title: z.string().min(1).max(255),
+  title: z.string().trim().min(1).max(255),
   content: z.string().max(10000).optional(),
   orderIndex: z.number().int().nonnegative().default(0),
 });
 
 export const proposalBaseSchema = z.object({
-  title: z.string().min(1).max(255),
+  title: z.string().trim().min(1).max(255),
   description: z.string().max(5000).optional(),
   amount: z.number().nonnegative().optional(),
   currency: currencyCode.default("TND"),

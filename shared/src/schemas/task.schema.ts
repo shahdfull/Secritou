@@ -25,7 +25,7 @@ export const ALLOWED_TASK_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
 // commentFormSchema's max(2000) mirrors the bound already enforced server-side
 // (task.validator.ts), which this shared form-only schema had never matched.
 export const taskBaseSchema = z.object({
-  title: z.string().min(1).max(255),
+  title: z.string().trim().min(1).max(255),
   description: z.string().max(5000).optional(),
   status: TaskStatusEnum,
   priority: z.enum(TASK_PRIORITIES).optional(),
@@ -43,7 +43,7 @@ export const taskBaseSchema = z.object({
 export const createTaskSchema = taskBaseSchema;
 export const updateTaskSchema = createTaskSchema.partial();
 export const commentFormSchema = z.object({
-  content: z.string().min(1).max(2000),
+  content: z.string().trim().min(1).max(2000),
 });
 
 export type CreateTaskForm = z.input<typeof createTaskSchema>;

@@ -5,7 +5,7 @@ import { z } from "zod";
 // would otherwise fail on a DB-level truncation; notes is @db.Text (unbounded in Postgres) but
 // still capped here for the same reason every other free-text field in the repo is (SEC-104).
 export const leadBaseSchema = z.object({
-  name: z.string().min(1).max(255),
+  name: z.string().trim().min(1).max(255),
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().max(50).optional(),
   source: z.string().max(100).optional(),

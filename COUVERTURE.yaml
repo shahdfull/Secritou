@@ -99,6 +99,72 @@ derniere_maj: "2026-07-30"
 # 4.4-facturation : A/B/G balayées le 2026-07-27 (premier audit réel du
 # nouveau registre) — C/D/E/F/H/I/J laissées à null, non vérifiées cette
 # passe.
+# 4.4-facturation : C/E/F balayées le 2026-08-01 (Phase 1 point 3, demande
+# explicite du porteur — performance SQL, couverture de test réelle,
+# contrats API) — invoice.service.ts/.repository.ts/.controller.ts,
+# creditNote.service.ts, invoice.validator.ts, invoice.routes.ts,
+# schema.prisma (Invoice/InvoiceItem/InvoiceCounter/InvoiceReminder/
+# CreditNote), invoice.service.test.ts. 3 anomalies mineures trouvées
+# (SEC-075 orderBy non whitelisté → 500 brut, SEC-076 test miroir sur la
+# logique de paiement/avoir la plus critique du module, SEC-077 clientId
+# non validé → 500 brut sur violation FK), toutes ouvertes, aucune
+# bloquant/eleve. Test de charge à échelle réduite (20 requêtes
+# concurrentes) : GET /invoices a produit des 500 intermittents
+# (P2037, saturation Postgres locale) — confirmé rattaché à SEC-074
+# (défaut d'environnement local déjà connu, pas un défaut du code) ;
+# addPayment non testé sous charge réelle (bloqué par
+# sensitiveWriteRateLimit à 10/min, comportement attendu du middleware,
+# pas un défaut). D/H/I/J restent à null.
+# transverse : D reballayée le 2026-08-01 (Phase 1, items 5/12/9/13 du
+# mandat QA — migrations Prisma, résilience Redis/BullMQ, upload
+# malveillant, logs — demande explicite du porteur, remplace le
+# balayage D partiel du 2026-07-30 qui ne portait que sur un seul job).
+# Migrations : les 59 migrations s'appliquent proprement sur une base
+# vide, re-déploiement idempotent, aucun pattern NOT NULL risqué trouvé,
+# drift de schéma limité aux 3 index partiels déjà connus (SEC-193/
+# SEC-031). Résilience Redis/BullMQ (arrêt réel du conteneur, pas un
+# mock) : 3 anomalies sévères trouvées — SEC-083 (bloquant, un
+# healthcheck peut planter tout le process), SEC-084 (eleve, une requête
+# peut rester bloquée indéfiniment), SEC-085 (eleve, Redis down casse
+# l'authentification de toute l'application). Sécurité upload : SEC-086
+# (mineure, bypass text/plain). Logs : SEC-087 (mineure, cache Redis
+# silencieux) ; confirmé que les vraies erreurs 500 sont bien
+# journalisées avec contexte (error.middleware.ts). Injection
+# SQL/XSS/prompt : aucune anomalie trouvée sur les points vérifiés
+# (raw SQL correctement paramétré ou allowlisté, react-markdown sans
+# rehype-raw, pas de dangerouslySetInnerHTML dans tout client/src).
+# C/E/F/G/H/I/J restent à null.
+# 4.11-ia : D balayée le 2026-08-01 (Phase 1 point 4, items 14/15 du mandat
+# QA explicitement demandés par le porteur — tests SSE sous interruption
+# de connexion et injection de prompt) — aiConversation.controller.ts,
+# aiConversation.service.ts, aiTools.ts, executiveMetrics.repository.ts.
+# SEC-082 trouvée (mineure, SSE sans annulation liée à la connexion —
+# distinct du risque initialement redouté par le mandat, qui est déjà
+# couvert par SEC-035 : aucune corruption de donnée, seulement gaspillage
+# de ressource Ollama). Injection de prompt testée en conditions réelles
+# (Ollama réel, qwen2.5:3b-instruct) sur la vraie surface d'exposition
+# (project.name/client.name via getOverdueProjects — pas Lead.notes,
+# jamais transmis au modèle par aucun tool, confirmé par lecture directe
+# d'aiTools.ts) : défense confirmée tenir (donnée affichée telle quelle,
+# instruction embarquée jamais suivie). C/E/F/H/I/J restent à null.
+# 4.5-commissions : C/E/F balayées le 2026-08-01 (Phase 1 point 3, demande
+# explicite du porteur, même grille que 4.4-facturation) —
+# commission.service.ts/.repository.ts/.controller.ts,
+# commission.validator.ts, commission.routes.ts, schema.prisma
+# (ProjectCommissionSplit/Commission/CommissionSplitHistory/
+# ProjectManagerFee). 4 anomalies mineures trouvées (SEC-078 ternaire
+# mort dans le message de notification markPaid, SEC-079 orderBy non
+# whitelisté → 500 brut même classe que SEC-075, SEC-080 dette technique
+# perf non mesurable à la volumétrie actuelle, SEC-081 partnerId non
+# validé → 500 brut sur violation FK même classe que SEC-077), toutes
+# ouvertes, aucune bloquant/eleve — 4.5-commissions ne remplit PAS le
+# critère de clôture (anomalies A/B/G déjà closes le 2026-07-29, mais ce
+# critère ne couvre que A/B/G, pas C/E/F : la clôture reste acquise,
+# ces 4 nouvelles anomalies mineures n'y changent rien). Test miroir
+# analyticsCommissionScope.test.ts identifié (helper resolveAnalyticsServiceId,
+# 1 ligne, dupliqué dans 5+ controllers) mais jugé hors périmètre
+# strict/faible risque, non enregistré comme anomalie séparée. D/H/I/J
+# restent à null.
 # 4.6-portail-client : A/B balayées le 2026-07-27 — G non balayée (pas de
 # calcul financier direct dans ce module) ; C/D/E/F/H/I/J laissées à null.
 # 4.14-auth : A balayée le 2026-07-28 (vérification ciblée RBAC/rôles sur
@@ -308,10 +374,10 @@ modules:
     label: "4.4 Facturation & Paiements"
     A: "2026-07-27"
     B: "2026-07-27"
-    C: null
+    C: "2026-08-01"
     D: null
-    E: null
-    F: null
+    E: "2026-08-01"
+    F: "2026-08-01"
     G: "2026-07-27"
     H: null
     I: null
@@ -321,10 +387,10 @@ modules:
     label: "4.5 Rémunération des associés (Commissions)"
     A: "2026-07-29"
     B: "2026-07-29"
-    C: null
+    C: "2026-08-01"
     D: null
-    E: null
-    F: null
+    E: "2026-08-01"
+    F: "2026-08-01"
     G: "2026-07-29"
     H: null
     I: null
@@ -402,7 +468,7 @@ modules:
     A: "2026-07-31"
     B: "2026-07-31"
     C: null
-    D: null
+    D: "2026-08-01"
     E: null
     F: null
     G: "2026-07-31"
@@ -454,7 +520,7 @@ modules:
     A: "2026-07-30"
     B: "2026-07-30"
     C: null
-    D: "2026-07-30"
+    D: "2026-08-01"
     E: null
     F: null
     G: null

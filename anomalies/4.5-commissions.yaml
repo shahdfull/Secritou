@@ -9,8 +9,194 @@
 # Périmètre : 4.5 Rémunération des associés (Commissions)
 # 3 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
+# +4 le 2026-08-01 (Phase 1 point 3, audit demandé par le porteur).
 
 anomalies:
+  - id: SEC-081
+    titre: >
+      PUT /commissions/projects/:id/splits (commissionService.setSplits)
+      valide la somme des ratePct, les doublons et le mode PER_TASK, mais
+      jamais que chaque partnerId fourni correspond à un User réel avant
+      l'écriture — un partnerId UUID syntaxiquement valide mais
+      inexistant fait échouer la contrainte de clé étrangère (P2003), non
+      catchée par error.middleware.ts, remontant en 500 brut. Même classe
+      que SEC-077 (invoice.service.ts#create), site de code distinct.
+      Reproduit réellement contre un serveur HTTP réel avec un vrai token
+      ADMIN et un projet réel
+    perimetre: 4.5-commissions
+    regle_violee: >
+      Même incohérence que SEC-077 : task.service.ts#assertAssigneeIsValid
+      établit déjà le patron (findUnique préalable convertissant une
+      violation FK potentielle en erreur propre) — setSplits ne l'applique
+      pas pour partnerId.
+    classe: fk-non-validee-500-brut
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      commissionService.setSplits vérifie l'existence de chaque partnerId
+      (ex. un seul findMany({where:{id:{in:partnerIds}}}) comparé au
+      nombre attendu) avant l'écriture, et lève une HttpError 404/422
+      propre si un ou plusieurs partnerId n'existent pas. Un test réel
+      (HTTP) doit confirmer qu'un partnerId inexistant renvoie un code
+      d'erreur propre, jamais un 500.
+    detecte_le: "2026-08-01"
+    source: >
+      Phase 1 point 3 (Commissions), audit des contrats API demandé par
+      le porteur — reproduction HTTP réelle (server temporaire, vrai
+      token ADMIN, projet réel créé en base, PUT splits avec un partnerId
+      UUID syntaxiquement valide mais inexistant) : 500 brut confirmé,
+      log serveur montrant PrismaClientKnownRequestError code P2003 non
+      catché. Script de reproduction supprimé après usage, jamais
+      committé.
+    confiance: haute
+    note: >
+      Même classe que SEC-077 (fk-non-validee-500-brut), fichier
+      différent — non fusionné sous un seul ID (règle CLAUDE.md : classe
+      identique n'implique pas fusion si le site de code et le correctif
+      diffèrent). setManagerFee (commission.service.ts:217-228) présente
+      potentiellement le même défaut sur managerId — non vérifié par
+      reproduction dans cette session, à confirmer avant de l'inclure
+      dans le même correctif si jamais traité.
+
+  - id: SEC-080
+    titre: >
+      Trois points de performance mineurs, non mesurables à la
+      volumétrie actuelle (0 client actif), regroupés sous un même
+      constat de dette technique : (1) generateManagerFeesOnDeliveryTx
+      (commission.service.ts:203-211) boucle un await Prisma par manager
+      au lieu d'un createMany, alors que le pattern createMany est déjà
+      appliqué juste au-dessus dans le même fichier pour un cas
+      équivalent (commentaire SEC-170) ; (2) commissionRepository.markPaid/
+      findById chargent include:{partner,project,invoice} en entier alors
+      que le service ne lit jamais project pour ces deux usages (markPaid
+      ne lit que status avant l'update) ; (3) getSplitsByProjectTx/
+      getManagerFeesByProjectTx n'ont pas de select explicite,
+      chargent id/createdAt/updatedAt jamais utilisés par les deux seuls
+      appelants
+    perimetre: 4.5-commissions
+    regle_violee: >
+      Aucune règle métier — cohérence de patron de code interne (le
+      createMany est déjà le patron établi ailleurs dans le même
+      fichier, cf. commentaire SEC-170 dans le repository) et principe
+      général de ne charger que ce qui est consommé.
+    classe: dette-technique-perf-non-mesurable-volumetrie-actuelle
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      Non prioritaire tant que la volumétrie réelle ne le justifie pas
+      (agence à 0 client actif au moment de ce constat) — à traiter sur
+      signal fort (nombre de managers de pôle par projet dépassant une
+      poignée, ou volumétrie de Commission par partenaire dépassant
+      quelques centaines de lignes), pas par défaut. Si traité : (1)
+      remplacer la boucle par tx.commission.createMany ; (2) select
+      minimal ({status: true} pour findById avant markPaid,
+      retirer project de l'include de markPaid) ; (3) select explicite
+      sur getSplitsByProjectTx/getManagerFeesByProjectTx limité aux
+      champs réellement lus par les appelants.
+    detecte_le: "2026-08-01"
+    source: >
+      Phase 1 point 3 (Commissions), audit performance SQL demandé par
+      le porteur — agent d'exploration dédié, confirmé par lecture
+      directe de commission.service.ts/.repository.ts dans la même
+      session.
+    confiance: haute
+    note: >
+      Regroupé sous un seul ID (pas 3 IDs distincts) : les 3 points
+      partagent le même statut (dette technique non actionnable
+      actuellement) et le même déclencheur de traitement (signal de
+      volumétrie réelle), contrairement à SEC-075/SEC-079 (orderBy) qui
+      sont des défauts de disponibilité déjà reproductibles aujourd'hui,
+      indépendants du volume de données.
+
+  - id: SEC-079
+    titre: >
+      commission.repository.ts#getAll (server/src/repositories/commission.repository.ts:263)
+      interpole options.orderBy directement dans la clause Prisma sans
+      passer par buildOrderBy — même classe que SEC-075 (invoice.repository.ts),
+      site de code distinct. En plus de l'absence de whitelist, aucun
+      index n'existe sur Commission.createdAt (seuls partnerId/projectId/
+      invoiceId/status sont indexés individuellement, schema.prisma
+      ~lignes 1508-1511) — le tri par défaut de getMyCommissions/getAll
+      force un scan+sort non couvert par index dès quelques milliers de
+      lignes par partenaire
+    perimetre: 4.5-commissions
+    regle_violee: >
+      Même incohérence que SEC-075 : buildOrderBy existe précisément pour
+      whitelister un orderBy venant de req.query, 8+ repositories
+      l'utilisent déjà — commission.repository.ts en est une exception de
+      plus.
+    classe: orderby-non-whiteliste-500-brut
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      commission.repository.ts#getAll utilise buildOrderBy(options.orderBy,
+      options.orderDir, [liste des champs Commission réellement
+      triables], "createdAt"). Un test réel (HTTP) doit confirmer qu'un
+      orderBy invalide retombe sur le tri par défaut et renvoie 200, pas
+      500.
+    detecte_le: "2026-08-01"
+    source: >
+      Phase 1 point 3 (Commissions), audit performance SQL (agent
+      d'exploration dédié) confirmé par reproduction HTTP réelle (server
+      temporaire, vrai token ADMIN) : GET /commissions?orderBy=partner →
+      500, GET /commissions?orderBy=nonExistentField → 500,
+      GET /commissions?orderBy=amount (colonne réelle) → 200. Script de
+      reproduction supprimé après usage, jamais committé.
+    confiance: haute
+    note: >
+      Même classe que SEC-075 (même défaut, même critère de résolution,
+      fichier différent) — non fusionné sous un seul ID car chaque
+      correctif touche un repository distinct (règle CLAUDE.md : classe
+      identique n'implique pas ID unique si le site de code diffère).
+      Index composite (partnerId, createdAt) ou (status, createdAt)
+      absent également — non enregistré comme anomalie séparée, la
+      whitelist d'orderBy est le point d'entrée prioritaire (un champ
+      arbitraire non whitelisté rend de toute façon tout index composite
+      inefficace tant que n'importe quel champ peut être demandé).
+
+  - id: SEC-078
+    titre: >
+      commissionService.markPaid (server/src/services/commission.service.ts:515)
+      construit le message de notification COMMISSION_PAID avec
+      `${updatedCommission.invoice?.number ? "" : ""}` — les deux branches
+      du ternaire retournent la même chaîne vide, donc le numéro de
+      facture n'apparaît jamais dans le message quel que soit son
+      existence, malgré commissionRepository.markPaid (repository.ts:295)
+      qui charge bien invoice:{select:{id,number}} explicitement pour cet
+      usage. Message final toujours "Votre commission de X.XXX  a été
+      versée." (double espace, aucune référence à la facture)
+    perimetre: 4.5-commissions
+    regle_violee: >
+      Aucune règle métier écrite — défaut de fond dans un message destiné
+      à l'utilisateur : la donnée est chargée spécifiquement pour cet
+      usage (include explicite dans le repository) mais jamais utilisée,
+      signe d'un refactor incomplet plutôt que d'un choix délibéré.
+    classe: expression-morte-message-notification
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      Le message de notification COMMISSION_PAID inclut réellement le
+      numéro de facture quand updatedCommission.invoice existe (ex.
+      `${updatedCommission.invoice?.number ? \` (facture ${updatedCommission.invoice.number})\` : ""}`),
+      et reste sans référence facture propre (pas de double espace) quand
+      absent. Un test réel doit créer une commission avec et sans facture
+      liée, appeler markPaid, et vérifier le contenu du message enfilé.
+    detecte_le: "2026-08-01"
+    source: >
+      Phase 1 point 3 (Commissions), lecture directe de
+      commission.service.ts#markPaid pendant l'audit performance/tests —
+      confirmé par lecture croisée de
+      commissionRepository.markPaid (server/src/repositories/commission.repository.ts:291-297)
+      montrant que invoice:{select:{id,number}} est bien chargé pour cet
+      appel précis, donc la donnée existe et le ternaire mort n'est pas
+      une simple absence de champ.
+    confiance: haute
+    note: >
+      Défaut cosmétique (message de notification), aucun impact sur le
+      calcul ou l'enregistrement de la commission elle-même — le montant,
+      le statut PAID et paidAt sont tous corrects. N'affecte que le texte
+      lu par le partenaire dans l'application.
+
   - id: SEC-007
     titre: >
       Aucun chemin API réel ne permet de retirer l'assigneeId d'une Task

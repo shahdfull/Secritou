@@ -9,8 +9,100 @@
 # Périmètre : 4.3 Onboarding client
 # 2 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
+# +1 le 2026-08-01 (Phase 1 point 4 du mandat QA, tests réels de
+# contraintes FK/cascade demandés par le porteur).
 
 anomalies:
+  - id: SEC-088
+    titre: >
+      gdprService.eraseClient (server/src/services/gdpr.service.ts:95-116)
+      hard-delete réellement un Client (tx.client.delete) quand
+      invoiceCount === 0, avec un catch(isRestrictedDeleteError) prévu
+      pour retomber en mode "anonymized" si Postgres lève P2003 — mais
+      ClientOnboarding a onDelete:Cascade sur client (schema.prisma:968),
+      donc la ligne ClientOnboarding est supprimée EN CASCADE avant que
+      la contrainte Restrict sur Project (schema.prisma:966, documentée
+      "deleting a project must not silently destroy its onboarding
+      record") n'ait la moindre chance de se déclencher — aucune
+      violation FK ne se produit, isRestrictedDeleteError n'est jamais
+      atteint, mode reste "deleted". Reproduit réellement via l'endpoint
+      réel POST /gdpr/clients/:id/erase sur un client sans facture ayant
+      un projet IN_PROGRESS avec un onboarding actif : réponse 200
+      {"mode":"deleted"}, le Client est bien supprimé, le Project
+      IN_PROGRESS survit mais son ClientOnboarding a disparu
+      silencieusement, sans aucune erreur ni trace
+    perimetre: 4.3-onboarding
+    regle_violee: >
+      Le commentaire du schéma lui-même (schema.prisma:965 "Restrict (not
+      Cascade): deleting a project must not silently destroy its
+      onboarding record") énonce l'intention exacte que ce cas viole —
+      juste par un chemin différent (suppression du Client, pas du
+      Project). Le garde-fou applicatif (isRestrictedDeleteError,
+      gdpr.service.ts:39-41, commentaire "silently cascading") montre que
+      les auteurs avaient conscience du risque de cascade silencieuse
+      mais n'ont protégé que contre le cas où Postgres lève une erreur
+      P2003 — pas contre le cas, ici réel, où aucune erreur ne se
+      produit parce qu'une cascade en amont a déjà supprimé la ligne qui
+      aurait dû déclencher le Restrict.
+    classe: cascade-schema-contourne-restrict-documente
+    gravite: eleve
+    statut: en_cours
+    critere_de_resolution: >
+      eraseClient vérifie explicitement l'existence d'un ClientOnboarding
+      actif lié à un projet du client AVANT de tenter tx.client.delete
+      (même patron que la vérification invoiceCount déjà en place) et
+      retombe en mode "anonymized" dans ce cas — pas seulement en cas
+      d'exception P2003 remontée par Postgres. Un test réel doit créer un
+      client sans facture avec un projet ayant un onboarding actif,
+      appeler POST /gdpr/clients/:id/erase, et vérifier soit un mode
+      "anonymized" soit un rejet explicite — jamais "deleted" avec
+      l'onboarding disparu sans trace.
+    correctif: >
+      clientRepository.countProjectOnboardings(id) ajoutée (compte les
+      ClientOnboarding liés via project.clientId) et appelée dans
+      eraseClient avant le hard-delete — le mode bascule sur
+      "anonymized" dès que onboardingCount > 0, même patron exact que le
+      garde invoiceCount déjà en place (if (invoiceCount === 0 &&
+      onboardingCount === 0)). Vérifié réellement, reproduisant le
+      scénario exact de la découverte : client réel sans facture créé,
+      projet IN_PROGRESS réel créé, ClientOnboarding réel créé et lié —
+      POST /gdpr/clients/:id/erase répond désormais 200
+      {"mode":"anonymized"} (au lieu de {"mode":"deleted"} avant le
+      correctif) ; relecture de la base confirme le Client anonymisé
+      (nom/email remplacés, pas supprimé), le Project IN_PROGRESS
+      intact, et surtout le ClientOnboarding toujours présent (n'a plus
+      disparu silencieusement). 783/785 tests server verts (seul échec :
+      SEC-069, pré-existant, sans rapport). En attente de commit + CI
+      verte avant passage à resolu.
+    detecte_le: "2026-08-01"
+    source: >
+      Phase 1, point 4 du mandat QA (tests DB : contraintes, FK,
+      cascades, rollback de transaction réel) — reproduit en 3 temps sur
+      une base réelle : (1) DELETE SQL brut sur Project avec onboarding
+      lié → correctement bloqué par Postgres (P2003) ; (2) DELETE SQL
+      brut sur Client avec projet+onboarding liés → réussi, onboarding
+      supprimé en cascade, projet survivant orphelin ; (3) confirmé que
+      ce n'est pas un artefact du SQL brut : le vrai endpoint
+      POST /gdpr/clients/:id/erase produit exactement le même résultat
+      ({"mode":"deleted"}, 200), avec le Project IN_PROGRESS confirmé
+      toujours présent et son ClientOnboarding confirmé disparu par
+      lecture directe post-appel.
+    confiance: haute
+    note: >
+      Distinct de SEC-037 (déjà résolu, transaction atomique sur les
+      effacements RGPD — regroupe plusieurs écritures dans un seul
+      $transaction pour éviter un effacement partiel en cas de crash
+      mi-séquence) : SEC-037 protège contre une panne pendant la
+      séquence, ce nouveau constat se produit même quand la transaction
+      réussit intégralement et de façon parfaitement atomique — c'est le
+      RÉSULTAT de la cascade Postgres qui est en cause, pas une
+      défaillance d'exécution. deleteProject (le chemin direct,
+      client.service.ts n'est pas concerné) bloque déjà correctement ce
+      même cas via un contrôle applicatif explicite
+      (PROJECT_HAS_ONBOARDING, 409, vérifié dans cette même session) —
+      eraseClient est le seul chemin qui l'esquive, via un client
+      différent du projet lui-même.
+
   - id: SEC-029
     titre: >
       Le modèle Payment de l'étape onboarding (amount/amountPaid/status)

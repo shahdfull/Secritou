@@ -24,7 +24,7 @@ export const documentAccessLevel = z.enum([
 ]);
 
 export const documentBaseSchema = z.object({
-  name: z.string().min(1).max(255),
+  name: z.string().trim().min(1).max(255),
   // SEC-068: Document.title is required (String, no default) on the Prisma model, but this
   // schema never declared it — Zod silently strips any undeclared key by default (no .strict()),
   // so validate() was dropping the client's title from req.body before it ever reached
@@ -32,7 +32,7 @@ export const documentBaseSchema = z.object({
   // required Prisma field. Required here too (every existing caller already sends it — the
   // client always sets title: data.name) so a future caller that omits it fails with a clear 400
   // instead of an opaque Prisma error.
-  title: z.string().min(1).max(255),
+  title: z.string().trim().min(1).max(255),
   description: z.string().max(2000).optional(),
   type: documentType.default("OTHER"),
   url: z.string().url().max(500),
@@ -50,7 +50,7 @@ export const createDocumentSchema = documentBaseSchema;
 export const updateDocumentSchema = documentBaseSchema.partial();
 
 export const documentSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().trim().min(1),
   type: documentType,
   url: z.string().url(),
 });

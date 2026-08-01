@@ -25,7 +25,7 @@ export const updateOnboardingPayloadSchema = z.object({
 
 export const updateStepPayloadSchema = z.object({
   status: z.enum(ONBOARDING_STEP_STATUSES).optional(),
-  title: z.string().min(1).max(255).optional(),
+  title: z.string().trim().min(1).max(255).optional(),
   description: z.string().max(5000).optional(),
   deadline: z.string().optional(),
   completedAt: z.string().optional().nullable(),
