@@ -12,8 +12,80 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-070
+dernier_id: SEC-074
 anomalies:
+  - id: SEC-074
+    titre: >
+      npm run test:coverage --workspace=server échoue de façon non
+      déterministe sur cette machine de dev locale (6 à 8 tests différents
+      à chaque exécution, jamais les mêmes) avec l'erreur "Timed out
+      fetching a new connection from the connection pool" / "Prisma
+      Accelerate has built-in connection pooling to prevent such errors"
+      — un épuisement du pool de connexions Postgres local (limite par
+      défaut num_cpus*2+1, aucun connection_limit explicite dans
+      DATABASE_URL), pas une régression du code testé. Confirmé
+      pré-existant : le même épuisement se reproduit à l'identique sur le
+      commit précédant toute la session du 2026-08-01 (avant le câblage
+      SEC-071 et la réécriture SEC-072), donc n'est causé par aucun
+      changement de cette session
+    perimetre: transverse
+    statut: ouvert
+    gravite: mineure
+    classe: fiabilite-suite-test-locale-pool-connexions
+  - id: SEC-073
+    titre: >
+      Tout fichier server/test/*.test.ts qui importe (directement ou
+      transitivement) un service passant par jobs/queues.ts
+      (enqueueEmails/enqueueNotifications/etc., qui ouvre une connexion
+      BullMQ/ioredis à l'import) ne peut pas s'exécuter de façon fiable en
+      isolation (npx tsx --test <fichier>) — le process ne se termine pas
+      proprement (node --test marque le fichier "failed" après un long
+      délai d'attente sur une connexion ouverte, malgré des assertions
+      100% vertes). run-all.test.ts documente et corrige ce point pour
+      lui-même (after() global fermant communicationQueue/maintenanceQueue/
+      documentsQueue + Redis), mais rien n'existe pour un fichier exécuté
+      seul, hors de l'agrégateur — constaté concrètement sur
+      approvalAuditLog.test.ts (SEC-071) et logoutRevokesTokenNotAccount.test.ts
+      (SEC-067), deux fichiers distincts touchés par le même symptôme
+    perimetre: transverse
+    statut: ouvert
+    gravite: mineure
+    classe: dette-technique-cleanup-test-isolation-bullmq
+  - id: SEC-072
+    titre: >
+      rating.service.test.ts et ratingRequestNotification.test.ts
+      réimplémentent localement la logique qu'ils prétendent tester
+      (validateScore/computeAverageRating recopiées en tête de fichier,
+      selectFreelancersToNotify/runClientApprove "mirrors the Prisma
+      query"/"mirrors clientApprove's already-completed guard") au lieu
+      d'importer src/services/rating.service.ts ou
+      src/services/project.service.ts — ces deux fichiers resteraient
+      verts si le code réel divergeait, donc ne prouvent rien sur lui,
+      distinct du seul défaut de câblage CI (SEC-071) que les 3 autres
+      fichiers de ce lot n'ont pas puisqu'ils importent bien du code
+      réel (appSetting.repository.js, projectMeeting.repository.js,
+      approval.service.js)
+    perimetre: transverse
+    statut: ouvert
+    gravite: moyenne
+    classe: test-mirror-ne-teste-pas-le-code-reel
+  - id: SEC-071
+    titre: >
+      5 fichiers de test existent sous server/test/ mais ne sont importés
+      par aucune ligne de server/test/run-all.test.ts, donc jamais
+      exécutés par npm run test:coverage --workspace=server ni par le job
+      "server" de la CI (.github/workflows/ci.yml) : appSetting.repository.test.ts,
+      approvalAuditLog.test.ts (couverture prétendue de SEC-005, donc
+      SEC-005 n'a en réalité aucune preuve CI active malgré son statut
+      resolu), meetingRecurrence.test.ts, rating.service.test.ts,
+      ratingRequestNotification.test.ts — même défaut de classe que
+      SEC-063 (déjà résolu pour 2 autres fichiers, aiTools.test.ts et
+      llmClientToolCalling.test.ts, redevenu vrai ici sur un lot distinct
+      jamais vérifié depuis)
+    perimetre: transverse
+    statut: ouvert
+    gravite: moyenne
+    classe: test-non-cable-dans-lagregateur
   - id: SEC-070
     titre: >
       RAG sémantique (embeddings pgvector + nomic-embed-text) pour le

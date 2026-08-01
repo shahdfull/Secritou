@@ -13,8 +13,302 @@
 # corrigeant SEC-032). +1 le 2026-07-30 (découverte incidente en
 # contre-vérifiant le nettoyage du module 4.11). +1 le 2026-07-31
 # (comparaison search.service.ts vs aiTools.ts demandée par le porteur).
+# +2 le 2026-08-01 (Phase 0 de l'audit QA complet — audit de la porte CI
+# réelle server/test/run-all.test.ts contre les fichiers *.test.ts
+# existant réellement sur disque sous server/test/). +1 le 2026-08-01
+# (découverte incidente en exécutant isolément les 5 fichiers de
+# SEC-071 avant câblage, sur demande explicite du porteur). +1 le
+# 2026-08-01 (découverte incidente en relançant npm run test:coverage
+# après câblage SEC-071/réécriture SEC-072, pour confirmer la CI verte
+# avant commit).
 
 anomalies:
+  - id: SEC-074
+    titre: >
+      npm run test:coverage --workspace=server échoue de façon non
+      déterministe sur cette machine de dev locale (6 à 8 tests différents
+      à chaque exécution, jamais les mêmes) avec l'erreur "Timed out
+      fetching a new connection from the connection pool" / "Prisma
+      Accelerate has built-in connection pooling to prevent such errors"
+      — un épuisement du pool de connexions Postgres local (limite par
+      défaut num_cpus*2+1, aucun connection_limit explicite dans
+      DATABASE_URL), pas une régression du code testé. Confirmé
+      pré-existant : le même épuisement se reproduit à l'identique sur le
+      commit précédant toute la session du 2026-08-01 (avant le câblage
+      SEC-071 et la réécriture SEC-072), donc n'est causé par aucun
+      changement de cette session
+    perimetre: transverse
+    regle_violee: >
+      Aucune règle métier — fiabilité de l'environnement de test local.
+      Une porte CI dont le résultat dépend de la charge concurrente
+      instantanée plutôt que du code testé produit des faux rouges
+      (perte de confiance dans "rouge = régression réelle") et des faux
+      verts (une exécution chanceuse masque un vrai défaut si l'un des
+      tests concernés couvrait justement un cas réel).
+    classe: fiabilite-suite-test-locale-pool-connexions
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      npm run test:coverage --workspace=server exécuté 3 fois de suite sur
+      cette machine sans aucune erreur "connection pool"/"Timed out
+      fetching a new connection" dans la sortie — soit via un
+      connection_limit explicite dans DATABASE_URL dimensionné pour la
+      taille réelle de la suite, soit via une autre stratégie choisie par
+      le porteur (réduction de la concurrence Prisma, fermeture plus
+      agressive des connexions par les tests qui en ouvrent beaucoup).
+      Décision de stratégie non tranchée dans cette session.
+    detecte_le: "2026-08-01"
+    source: >
+      Découvert en relançant npm run test:coverage --workspace=server
+      pour confirmer la CI verte après le câblage SEC-071 et la
+      réécriture SEC-072 (session du 2026-08-01) — 2 exécutions
+      consécutives ont chacune produit un ensemble différent de 6 à 8
+      tests échoués (noms différents entre les deux runs), tous avec le
+      même message Prisma Accelerate. Vérifié non causé par cette
+      session : après avoir remis de côté (git stash) le câblage
+      run-all.test.ts de SEC-071 pour revenir à l'état du commit
+      précédent (5926a60, avant tout travail SEC-071/072/073), la même
+      exécution a produit 8 échecs de la même nature (mêmes noms de test
+      que l'un des deux runs post-changement) — confirmant que le défaut
+      préexiste à cette session sur cette machine.
+    confiance: haute
+    note: >
+      La CI GitHub Actions (postgres:16 en service natif, pas cette
+      machine de dev) peut se comporter différemment selon ses propres
+      ressources/limites — ce constat porte spécifiquement sur
+      l'exécution locale, pas une affirmation sur le comportement réel de
+      la CI distante, qui n'a pas pu être observée dans cette session
+      (aucun accès à un run GitHub Actions déclenché). Ne pas confondre
+      avec SEC-069 (test executiveKpiSnapshotGrowth non idempotent,
+      classe distincte — collision de clé unique, pas un épuisement de
+      pool) ni SEC-073 (défaut de lifecycle process en isolation, classe
+      distincte également).
+
+  - id: SEC-073
+    titre: >
+      Tout fichier server/test/*.test.ts qui importe (directement ou
+      transitivement) un service passant par jobs/queues.ts
+      (enqueueEmails/enqueueNotifications/etc., qui ouvre une connexion
+      BullMQ/ioredis à l'import) ne peut pas s'exécuter de façon fiable en
+      isolation (npx tsx --test <fichier>) — le process ne se termine pas
+      proprement (node --test marque le fichier "failed" après un long
+      délai d'attente sur une connexion ouverte, malgré des assertions
+      100% vertes). run-all.test.ts documente et corrige ce point pour
+      lui-même (after() global fermant communicationQueue/maintenanceQueue/
+      documentsQueue + Redis), mais rien n'existe pour un fichier exécuté
+      seul, hors de l'agrégateur — constaté concrètement sur
+      approvalAuditLog.test.ts (SEC-071) et logoutRevokesTokenNotAccount.test.ts
+      (SEC-067), deux fichiers distincts touchés par le même symptôme
+    perimetre: transverse
+    regle_violee: >
+      Aucune règle métier — dette technique de confort de développement/CI.
+      Un fichier de test qui ne peut pas tourner seul de façon fiable rend
+      le débogage local plus lent (chaque investigation d'un test isolé
+      doit d'abord écarter ce faux signal) et complique la vérification
+      demandée par CLAUDE.md avant tout câblage dans l'agrégateur
+      ("exécuter chacun des N tests isolément" devient un exercice qui
+      produit régulièrement un faux "failed" à trier manuellement).
+    classe: dette-technique-cleanup-test-isolation-bullmq
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      Un helper de test réutilisable (ex. server/test/testCleanup.ts ou
+      équivalent) que n'importe quel fichier de test peut appeler dans son
+      propre after() pour fermer proprement les connexions BullMQ/ioredis
+      ouvertes par l'import de jobs/queues.ts — sans dépendre du after()
+      global de run-all.test.ts pour tourner correctement en isolation.
+      Vérifié : au moins un des deux fichiers concernés (approvalAuditLog.test.ts
+      ou logoutRevokesTokenNotAccount.test.ts) exécuté seul via
+      npx tsx --test après application du helper, sortie propre (pas de
+      délai d'attente anormal, fichier marqué réussi).
+    detecte_le: "2026-08-01"
+    source: >
+      Découvert en exécutant isolément les 5 fichiers de SEC-071 un par
+      un via npx tsx --test, sur demande explicite du porteur avant tout
+      câblage dans run-all.test.ts ("vérifie d'abord que chacun des 5
+      passe réellement en isolation"). Reconfirmé sur
+      logoutRevokesTokenNotAccount.test.ts (nouveau fichier écrit pour
+      SEC-067 le même jour), qui présente exactement le même symptôme —
+      confirmant qu'il s'agit d'un défaut générique de la suite, pas d'un
+      cas isolé propre à approvalAuditLog.test.ts.
+    confiance: haute
+    note: >
+      Ne pas implémenter maintenant — documentation seulement, sur
+      instruction explicite du porteur (même traitement que SEC-072 avant
+      sa réécriture). Les deux fichiers concernés ont été câblés dans
+      run-all.test.ts (SEC-071/SEC-067), ce qui masque mécaniquement le
+      symptôme pour eux via l'after() global déjà existant — mais
+      n'importe quel futur fichier de test isolé important un service
+      branché sur jobs/queues.ts reproduira ce même symptôme tant que ce
+      helper générique n'existe pas.
+
+  - id: SEC-072
+    titre: >
+      rating.service.test.ts et ratingRequestNotification.test.ts
+      réimplémentent localement la logique qu'ils prétendent tester
+      (validateScore/computeAverageRating recopiées en tête de fichier,
+      selectFreelancersToNotify/runClientApprove "mirrors the Prisma
+      query"/"mirrors clientApprove's already-completed guard") au lieu
+      d'importer src/services/rating.service.ts ou
+      src/services/project.service.ts — ces deux fichiers resteraient
+      verts si le code réel divergeait, donc ne prouvent rien sur lui,
+      distinct du seul défaut de câblage CI (SEC-071) que les 3 autres
+      fichiers de ce lot n'ont pas puisqu'ils importent bien du code
+      réel (appSetting.repository.js, projectMeeting.repository.js,
+      approval.service.js)
+    perimetre: transverse
+    regle_violee: >
+      CLAUDE.md « `verifie: test` exige un test qui appelle le code réel » —
+      un test qui réimplémente sa cible ne prouve rien, il resterait vert
+      si le code réel dérivait.
+    classe: test-mirror-ne-teste-pas-le-code-reel
+    gravite: moyenne
+    statut: en_cours
+    critere_de_resolution: >
+      rating.service.test.ts importe et appelle réellement
+      src/services/rating.service.ts (pas une fonction locale recopiée) ;
+      ratingRequestNotification.test.ts importe et appelle réellement la
+      logique de sélection/notification de src/services/project.service.ts
+      (clientApprove), pas des fonctions locales "mirrors…" — dans les
+      deux cas, le test doit pouvoir échouer si le code source réel change
+      de comportement.
+    detecte_le: "2026-08-01"
+    source: >
+      Phase 0 (cadrage) d'une mission QA complète demandée par le porteur
+      — agent d'exploration dédié à l'audit CI/scripts/tests, lecture
+      intégrale de server/test/run-all.test.ts comparée à la liste réelle
+      de server/test/*.test.ts (comm -23 sur les deux listes triées),
+      puis lecture directe des 5 fichiers non câblés trouvés pour
+      distinguer ce qui importe du code réel de ce qui le réimplémente.
+    confiance: haute
+    note: >
+      Distinct de SEC-071 : SEC-071 est un défaut de câblage CI qui
+      touche les 5 fichiers indifféremment de leur contenu ; SEC-072 est
+      un défaut de fond sur le contenu de 2 de ces 5 fichiers, qui
+      persisterait même après correction de SEC-071 (les câbler dans
+      run-all.test.ts les ferait passer en CI, mais ils resteraient
+      verts face à une régression réelle du code source).
+
+      Réécrit le 2026-08-01 (décision explicite du porteur : combler la
+      lacune plutôt que documenter seulement). rating.service.test.ts
+      importe désormais réellement src/services/rating.service.ts et
+      couvre en plus : le code HttpError(422) réel (pas une Error
+      générique), le déclenchement de notifyN8n sur score <=
+      LOW_RATING_ALERT_THRESHOLD (2) — vérifié contre un vrai serveur
+      HTTP local jouant le rôle de n8n, payload complet asserté —, le
+      fan-out enqueueNotifications vers chaque ADMIN (job BullMQ réel
+      recherché par jobId), et l'enchaînement réel addRating ->
+      updateFreelancerRatingAverage (relecture de la ligne
+      FreelancerProfile après coup, pas un calcul local). Aucune
+      divergence comportementale trouvée entre l'ancien miroir et le
+      code réel (cf. rapport d'analyse pré-Phase 1 du même jour) :
+      validateScore et computeAverageRating étaient fidèles au vrai
+      code — seule la preuve manquait, pas la justesse.
+      ratingRequestNotification.test.ts importe désormais réellement
+      src/services/project.service.ts#clientApprove (même patron de
+      fixture que clientApproveEmailPortalUrl.test.ts/SEC-168, déjà
+      dans le dépôt) et vérifie le vrai fan-out
+      managers.flatMap(m => freelancers.map(f => ...)) via un job
+      BullMQ réel (jobId notification|RATING_REQUESTED|{freelancerProfileId}|{adminId}),
+      plus le cas zéro-freelancer et la garde anti-double-déclenchement
+      (PROJECT_ALREADY_APPROVED/PROJECT_ALREADY_COMPLETED). 11
+      assertions au total entre les deux fichiers, toutes vertes sur 3
+      exécutions consécutives de la suite complète le 2026-08-01
+      (voir SEC-074 pour les échecs sans rapport observés dans ces
+      mêmes runs). statut laissé en_cours (pas resolu) : correctif non
+      encore poussé/CI non encore confirmée au moment de cette mise à
+      jour — cf. CLAUDE.md "un critère de résolution se vérifie sur un
+      commit".
+
+  - id: SEC-071
+    titre: >
+      5 fichiers de test existent sous server/test/ mais ne sont importés
+      par aucune ligne de server/test/run-all.test.ts, donc jamais
+      exécutés par npm run test:coverage --workspace=server ni par le job
+      "server" de la CI (.github/workflows/ci.yml) : appSetting.repository.test.ts,
+      approvalAuditLog.test.ts (couverture prétendue de SEC-005, donc
+      SEC-005 n'a en réalité aucune preuve CI active malgré son statut
+      resolu), meetingRecurrence.test.ts, rating.service.test.ts,
+      ratingRequestNotification.test.ts — même défaut de classe que
+      SEC-063 (déjà résolu pour 2 autres fichiers, aiTools.test.ts et
+      llmClientToolCalling.test.ts, redevenu vrai ici sur un lot distinct
+      jamais vérifié depuis)
+    perimetre: transverse
+    regle_violee: >
+      Un fichier de test non exécuté par la porte CI réelle n'apporte
+      aucune preuve de non-régression, quelle que soit sa qualité interne
+      — cf. CLAUDE.md « Un critère de résolution se vérifie sur un
+      commit » : la CI verte est la seule preuve reconnue, or ces 5
+      fichiers ne sont jamais soumis à cette porte.
+    classe: test-non-cable-dans-lagregateur
+    gravite: moyenne
+    statut: en_cours
+    critere_de_resolution: >
+      Les 5 fichiers (ou leurs remplaçants si SEC-072 impose une réécriture
+      pour rating.service.test.ts/ratingRequestNotification.test.ts) sont
+      importés dans server/test/run-all.test.ts, et
+      npm run test:coverage --workspace=server les exécute réellement
+      (confirmé par une exécution locale montrant leurs describe() dans
+      la sortie), avec CI verte sur le commit qui fait ce câblage.
+    detecte_le: "2026-08-01"
+    source: >
+      Phase 0 (cadrage) d'une mission QA complète demandée par le porteur
+      — agent d'exploration dédié à l'audit CI/scripts/tests : comparaison
+      exhaustive (comm -23) entre les imports de
+      server/test/run-all.test.ts et la liste réelle de
+      server/test/*.test.ts sur disque (151 fichiers, 145 importés, 5
+      absents), vérifiée indépendamment par grep direct sur chacun des 5
+      noms.
+    confiance: haute
+    note: >
+      Ne pas confondre avec SEC-063 (statut resolu) : SEC-063 portait sur
+      aiTools.test.ts et llmClientToolCalling.test.ts, tous deux
+      aujourd'hui bien présents dans run-all.test.ts (vérifié) — SEC-063
+      reste donc correctement resolu, SEC-071 est un lot distinct de 5
+      fichiers jamais audité sous cet angle jusqu'à cette session.
+      approvalAuditLog.test.ts est le cas le plus notable : il porte
+      spécifiquement sur SEC-005 (audit log des décisions d'approbation),
+      marquée resolu dans ce même registre — la correction de code existe
+      bien, mais sa seule preuve de non-régression tourne dans le vide
+      depuis sa création.
+
+      Vérifié le 2026-08-01 (demande explicite du porteur : exécuter
+      chacun des 5 fichiers isolément via npx tsx --test avant tout
+      câblage) : 4/5 passent proprement en isolation
+      (appSetting.repository 1/1, meetingRecurrence 4/4, rating.service
+      14/14, ratingRequestNotification 11/11). Le 5e,
+      approvalAuditLog.test.ts, révèle un défaut distinct non documenté
+      jusqu'ici : ses 2 tests réels passent (approve/reject écrivent bien
+      un AuditLog, reproductible sur 2 runs consécutifs), mais node --test
+      marque le fichier entier "failed" après ~28s d'attente (vs <150ms
+      d'assertions). Cause : approval.service.ts importe jobs/queues.js
+      en tête de fichier (enqueueEmails/enqueueNotifications), ouvrant une
+      connexion BullMQ/ioredis réelle — exactement le cas déjà documenté
+      dans le commentaire de run-all.test.ts lignes 5-7 ("Without closing
+      it, node --test never exits after the last test"). run-all.test.ts
+      ferme cette connexion dans son after() global, ce qui masquerait le
+      symptôme une fois ce fichier câblé — mais le même mode de
+      défaillance peut resurgir sur tout futur fichier de test isolé qui
+      importe un service branché sur BullMQ. Pas un bug fonctionnel dans
+      approval.service.ts ni dans SEC-005 : un défaut de lifecycle du
+      fichier de test lui-même.
+
+      Câblé le 2026-08-01 dans server/test/run-all.test.ts (les 5
+      fichiers d'origine + logoutRevokesTokenNotAccount.test.ts, nouveau
+      fichier écrit le même jour pour SEC-067, touché par le même
+      symptôme d'isolation) — confirmé mécaniquement résolu pour
+      approvalAuditLog.test.ts et logoutRevokesTokenNotAccount.test.ts
+      une fois dans l'agrégateur (sortie propre, plus de délai
+      d'attente anormal, cf. SEC-073 ouverte séparément pour le défaut
+      générique sous-jacent). npm run test:coverage --workspace=server
+      exécuté 3 fois de suite le 2026-08-01 : les 6 fichiers nouvellement
+      câblés apparaissent et passent systématiquement (799/785 tests
+      selon le run, 1 seul échec pré-existant et sans rapport à chaque
+      fois — SEC-069 ou le nouveau SEC-074, jamais un des 6 fichiers
+      câblés ici). statut laissé en_cours (pas resolu) : correctif non
+      encore poussé/CI GitHub Actions non encore confirmée au moment de
+      cette mise à jour.
+
   - id: SEC-065
     titre: >
       search.repository.ts (recherche globale) bloque tout MANAGER à

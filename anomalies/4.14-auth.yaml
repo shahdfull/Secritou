@@ -163,6 +163,26 @@ anomalies:
       session : le porteur n'a pas encore tranché entre les deux
       stratégies proposées dans le critère de résolution.
 
+      Reconfirmé le 2026-08-01 (analyse pré-Phase 1 demandée par le
+      porteur, aucun correctif appliqué) : reproduction end-to-end via
+      un script jetable (supprimé après usage, jamais commité) contre
+      Postgres/Redis locaux — login → GET /auth/me (200) → logout (204)
+      → lecture Redis immédiate confirmant auth:denylist:access:user:
+      <id> avec TTL=900s exact, aucune clé jti → login immédiat (200,
+      nouveau token jamais révoqué individuellement) → GET /auth/me
+      avec ce nouveau token → 401 "Invalid or expired token". Origine
+      du réemploi identifiée par git log -S sur authDenylist.ts#revokeAccessToken :
+      commit 370fd45 (SEC-174, 2026-07-22), motivé explicitement par un
+      "compte supprimé ou rétrogradé" — 6 des 7 sites d'appel actuels de
+      revokeAccessToken({sub}) sans jti ont un motif métier réel de
+      révocation compte-large (resetPassword, changePassword, GDPR
+      erase ×2, changement de rôle, suppression d'utilisateur) ; logout()
+      est le seul des 7 où la prémisse ne tient pas — rien n'a changé
+      sur le compte, l'utilisateur veut fermer une session, pas perdre
+      tout accès. Aucune trace (commentaire, test, entrée §7) d'un
+      arbitrage assumé pour ce cas précis — confirme le classement bug
+      plutôt que décision de sécurité délibérée.
+
   - id: SEC-006
     titre: >
       Aucun endpoint ni interface ne permet d'assigner ou de modifier le
