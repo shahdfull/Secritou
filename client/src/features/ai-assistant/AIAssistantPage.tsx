@@ -112,8 +112,8 @@ function CompactChat({
   };
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
-      <ScrollArea className="flex-1 p-3">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <ScrollArea className="min-h-0 flex-1 p-3">
         {messages.length === 0 ? (
           <div className="flex min-h-[200px] flex-col items-center justify-center text-center text-muted-foreground">
             <Bot className="mb-3 h-10 w-10 opacity-50" />
@@ -121,7 +121,7 @@ function CompactChat({
             <p className="mt-1 text-xs">{t("aiAssistant.emptyExample")}</p>
           </div>
         ) : (
-          <div className="w-full space-y-3">
+          <div className="space-y-3">
             {/* Chat is append-only (no reorder/filter); ChatMessage has no id,
                 so a role+index composite is the stable key here. */}
             {messages.map((msg, i) => (
@@ -293,7 +293,7 @@ function FullChat() {
       </aside>
 
       {/* Main chat area */}
-      <div className="flex flex-1 flex-col min-w-0">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="mb-4 flex items-center gap-3">
           <Button
             variant="ghost"
@@ -327,9 +327,9 @@ function FullChat() {
           )}
         </div>
 
-        <Card className="flex flex-1 flex-col overflow-hidden">
-          <CardContent className="flex flex-1 flex-col p-0">
-            <ScrollArea className="flex-1 p-4">
+        <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+            <ScrollArea className="min-h-0 flex-1 p-4">
               {convLoading ? (
                 <div className="flex min-h-[300px] items-center justify-center">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -341,7 +341,7 @@ function FullChat() {
                   <p className="mt-2 text-xs">{t("aiAssistant.emptyExample")}</p>
                 </div>
               ) : (
-                <div className="w-full space-y-4">
+                <div className="space-y-4">
                   {messages.map((msg) => (
                     <MessageBubble key={msg.id} msg={msg} durationMs={responseDurations[msg.id]} />
                   ))}
@@ -414,8 +414,15 @@ function MessageBubble({
   // scanner only picks up classes it can find as whole tokens in the source text; an interpolated
   // fragment like that silently never generates the corresponding CSS rule (confirmed missing
   // max-w-[85%]/max-w-[80%] from the production build before this fix).
+  //
+  // w-full lives HERE, on each bubble's own row, not on the message-list wrapper one level up.
+  // Radix ScrollArea wraps that wrapper in an internal `display: table; min-width: 100%` div to
+  // size itself off content — putting w-full on the wrapper fights that table sizing and breaks
+  // vertical scroll detection entirely (confirmed: the wrapper is exactly what must stay
+  // unconstrained for Radix to detect overflow). Each individual flex row can safely claim the
+  // table's full measured width without affecting how that width is computed in the first place.
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"} ${compact ? "gap-2" : "gap-3"}`}>
+    <div className={`flex w-full ${isUser ? "justify-end" : "justify-start"} ${compact ? "gap-2" : "gap-3"}`}>
       {!isUser && (
         <div
           className={`flex shrink-0 items-center justify-center rounded-full bg-primary/10 ${

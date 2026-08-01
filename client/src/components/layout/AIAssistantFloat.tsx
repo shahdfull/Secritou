@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Bot, Maximize2, Trash2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,9 +26,25 @@ export function AIAssistantFloat({
   onMessagesChange,
 }: AIAssistantFloatProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
+  // The full AIAssistantPage already lives at /app/ai — showing the floating launcher there too
+  // would let a user open a second, separate chat instance (its own draft input, its own
+  // "compact" ChatMessage[] state, no shared history) stacked on top of the real one. Ctrl+J is
+  // suppressed here for the same reason: toggling `open` on this route would only ever pop the
+  // redundant dialog over the page that already does the exact same thing.
+  const isOnFullPage = location.pathname === "/app/ai";
+
+  // Closes the dialog's boolean state too (not just skipping the render below) — otherwise
+  // arriving here via a direct link/back-button while `open` was already true from a previous
+  // route would leave it true in the parent, popping the dialog back open the instant the user
+  // navigates away from /app/ai to anywhere else.
+  useEffect(() => {
+    if (isOnFullPage && open) onOpenChange(false);
+  }, [isOnFullPage, open, onOpenChange]);
 
   useEffect(() => {
+    if (isOnFullPage) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "j") {
         e.preventDefault();
@@ -37,12 +53,14 @@ export function AIAssistantFloat({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onOpenChange]);
+  }, [open, onOpenChange, isOnFullPage]);
 
   const handleFullScreen = () => {
     onOpenChange(false);
     navigate("/app/ai");
   };
+
+  if (isOnFullPage) return null;
 
   return (
     <>
@@ -97,7 +115,7 @@ export function AIAssistantFloat({
             </div>
           </DialogHeader>
 
-          <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <AIAssistantPage
               compact
               messages={messages}
