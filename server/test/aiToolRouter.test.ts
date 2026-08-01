@@ -62,10 +62,24 @@ describe("routeToolNames (SEC-068 follow-up)", () => {
     assert.ok(routed.has("getOverdueProjects"));
   });
 
+  test("an invoice question routes to getOverdueInvoices without needing 'retard'/'impayé' wording", () => {
+    const routed = routeToolNames("Montre-moi les factures");
+    assert.ok(routed);
+    assert.ok(routed.has("getOverdueInvoices"));
+    assert.equal(routed.has("getOverdueProjects"), false);
+  });
+
+  test("a lead-outcome word alone (e.g. 'gagné') routes to lead status tools", () => {
+    const routed = routeToolNames("Ce lead est gagné");
+    assert.ok(routed);
+    assert.ok(routed.has("proposeUpdateLeadStatus"));
+    assert.ok(routed.has("getLeads"));
+  });
+
   test("every routed tool name is a real tool name (no typo in the router's own tables)", () => {
     const messages = [
       "leads", "clients", "projets", "taches", "freelancers", "agence",
-      "retard", "charge", "cree une tache",
+      "retard", "charge", "cree une tache", "factures", "gagne", "perdu", "qualifie",
     ];
     for (const message of messages) {
       const routed = routeToolNames(message);

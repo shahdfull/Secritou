@@ -26,6 +26,20 @@ const CATEGORY_KEYWORDS: Record<string, readonly string[]> = {
   ],
   overdue: ["retard", "retards", "en retard", "impaye", "impayé", "impayés", "impayees", "impayées"],
   workload: ["charge", "chargé", "charge de travail", "disponibilite", "disponibilité"],
+  // getOverdueInvoices was previously reachable only via "overdue" keywords (retard/impayé) — a
+  // plain "facture"/"factures"/"invoice" mention with neither word matched no category at all,
+  // correctly falling back to the full set (safe) but never narrowing for the most common phrasing
+  // of this exact question ("montre-moi les factures").
+  invoices: ["facture", "factures", "invoice", "invoices"],
+  // proposeUpdateLeadStatus's own status enum (NEW/CONTACTED/QUALIFIED/PROPOSAL/WON/LOST) has
+  // French equivalents a user would plausibly say ("passe ce lead en gagné") that the generic
+  // "write" verbs (cree/change/marque...) already catch structurally, but not the status words
+  // themselves in isolation (e.g. "marque-le comme gagné" matches "marque" already — this adds the
+  // outcome words alone, e.g. "ce lead est gagné", which "write" verbs alone would miss).
+  leadStatus: [
+    "gagne", "gagné", "perdu", "perdue", "qualifie", "qualifié", "qualifiee", "qualifiée",
+    "nouveau lead", "prospect qualifie", "prospect qualifié",
+  ],
   write: [
     "cree", "crée", "creer", "créer", "ajoute", "ajouter", "change", "changer",
     "passe", "passer", "avance", "avancer", "fait avancer", "deplace", "déplace",
@@ -42,6 +56,8 @@ const CATEGORY_TOOLS: Record<string, readonly ToolName[]> = {
   overview: ["getAgencyOverview"],
   overdue: ["getOverdueProjects", "getOverdueInvoices"],
   workload: ["getFreelancerWorkload"],
+  invoices: ["getOverdueInvoices"],
+  leadStatus: ["getLeads", "proposeUpdateLeadStatus"],
   write: ["proposeCreateTask", "proposeUpdateLeadStatus", "proposeUpdateTaskStatus"],
 };
 
