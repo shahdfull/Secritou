@@ -7,10 +7,70 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : 4.8 Analytics & Performance
-# 2 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
+# 3 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 
 anomalies:
+  - id: SEC-069
+    titre: >
+      server/test/executiveKpiSnapshotGrowth.test.ts (2e cas, SEC-031) crée
+      un ExecutiveKpiSnapshot via prisma.executiveKpiSnapshot.create() (pas
+      upsert) pour un serviceId réel partagé (premier Service trouvé en
+      base) et un monthStart calculé sur le mois calendaire réel — si une
+      ligne existe déjà pour ce (serviceId, monthStart), la contrainte
+      unique échoue (Unique constraint failed sur
+      COALESCE(serviceId,'__company_wide__')+monthStart). Reproduit de
+      façon déterministe en isolation sur cette machine (pas un flake
+      ponctuel) — le premier cas de la même suite écrit déjà une ligne
+      company-wide pour le mois courant et la nettoie, mais rien ne
+      garantit qu'aucune ligne pour le (service réel, mois précédent) du
+      2e cas n'existe déjà (job cron réel déjà exécuté, run de test
+      antérieur interrompu avant son cleanup after())
+    perimetre: 4.8-analytics
+    regle_violee: >
+      Aucune règle métier — fiabilité de la suite de tests elle-même
+      (catégorie B, intégrité des données, appliquée ici aux données de
+      test). Un test qui utilise create() contre une ressource partagée
+      identifiée par une clé métier réelle (service réel + mois calendaire
+      réel) au lieu d'upsert() ou d'une donnée entièrement possédée par le
+      test (ex. Service créé et détruit par le test lui-même) n'est pas
+      idempotent : son succès dépend de l'état laissé par d'autres
+      exécutions (cron réel, runs de test antérieurs), pas seulement du
+      code qu'il prétend vérifier.
+    classe: test-isolation-cle-unique-partagee
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      Décision du porteur sur l'approche (ex. (a) upsert() au lieu de
+      create() dans ce test, avec nettoyage explicite après ; (b) créer un
+      Service dédié et jetable pour ce test au lieu de réutiliser
+      prisma.service.findFirst() ; (c) autre). Vérifié par 3 exécutions
+      consécutives de node --test --import tsx
+      test/executiveKpiSnapshotGrowth.test.ts (isolément, pas seulement
+      dans test/run-all.test.ts) sans échec de contrainte unique.
+    detecte_le: "2026-08-01"
+    source: >
+      Découvert incidemment en lançant la suite complète server
+      (npm run test:unit) après un changement sans rapport (module IA,
+      docker-compose, i18n) — 758/760 tests verts, 1 skip, 1 échec sur ce
+      test précis. Reproduit ensuite en isolation
+      (node --test --import tsx test/executiveKpiSnapshotGrowth.test.ts) :
+      même échec, même stack, confirmant que ce n'est pas un artefact du
+      run complet (ex. contention DB entre suites parallèles) mais bien
+      l'état réel de la base locale au moment du test.
+    confiance: haute
+    note: >
+      Non corrigé dans cette session — hors périmètre de la tâche en cours
+      (optimisation du module IA), et CLAUDE.md interdit de modifier un
+      test pour le faire passer sans autorisation explicite ("un test
+      rouge est une hypothèse sur le code, pas un défaut du test" — ici
+      l'hypothèse la plus probable est un défaut du TEST lui-même, pas du
+      code applicatif qu'il vérifie, mais trancher lequel des deux et
+      choisir le correctif reste une décision du porteur, pas la mienne).
+      Sans rapport avec SEC-031 (même fichier de test, mais SEC-031 est le
+      bug métier déjà résolu que ce test vérifie — SEC-069 est un défaut
+      du harnais de test lui-même, critère de résolution distinct).
+
   - id: SEC-031
     titre: >
       executiveMetricsRepository.getAll — overdueGrowthMoM/pendingGrowthMoM

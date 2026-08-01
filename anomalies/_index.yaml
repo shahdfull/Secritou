@@ -12,8 +12,28 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-068
+dernier_id: SEC-069
 anomalies:
+  - id: SEC-069
+    titre: >
+      server/test/executiveKpiSnapshotGrowth.test.ts (2e cas, SEC-031) crée
+      un ExecutiveKpiSnapshot via prisma.executiveKpiSnapshot.create() (pas
+      upsert) pour un serviceId réel partagé (premier Service trouvé en
+      base) et un monthStart calculé sur le mois calendaire réel — si une
+      ligne existe déjà pour ce (serviceId, monthStart), la contrainte
+      unique échoue (Unique constraint failed sur
+      COALESCE(serviceId,'__company_wide__')+monthStart). Reproduit de
+      façon déterministe en isolation sur cette machine (pas un flake
+      ponctuel) — le premier cas de la même suite écrit déjà une ligne
+      company-wide pour le mois courant et la nettoie, mais rien ne
+      garantit qu'aucune ligne pour le (service réel, mois précédent) du
+      2e cas n'existe déjà (job cron réel déjà exécuté, run de test
+      antérieur interrompu avant son cleanup after())
+    perimetre: 4.8-analytics
+    statut: ouvert
+    gravite: mineure
+    classe: test-isolation-cle-unique-partagee
+
   - id: SEC-068
     titre: >
       auth.store.ts persistait status:"authenticated" dans localStorage
