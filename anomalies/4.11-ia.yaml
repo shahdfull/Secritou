@@ -35,6 +35,58 @@
 # lancé localement).
 
 anomalies:
+  - id: SEC-070
+    titre: >
+      RAG sémantique (embeddings pgvector + nomic-embed-text) pour le
+      module IA — décision produit assumée de ne pas implémenter tant
+      que le corpus réel (notes/descriptions substantielles sur
+      leads/projets) est trop faible pour mesurer un gain. 3 questions
+      restées ouvertes au moment du report : choix de l'image Docker
+      pgvector, nouvelle entité Prisma à valider avec le porteur,
+      volume de données réel à indexer
+    perimetre: 4.11-ia
+    regle_violee: >
+      Aucune règle métier — constat de priorisation produit. Proposé
+      lors d'une session antérieure (contrainte 100% gratuit/local
+      stricte respectée : pgvector est une extension PostgreSQL
+      open-source, nomic-embed-text tourne via Ollama auto-hébergé,
+      aucune dépendance payante/cloud), jamais codé. CLAUDE.md interdit
+      de laisser un tel report comme un TODO flou non tracé — d'où cet
+      enregistrement explicite avec un critère de déclenchement
+      vérifiable plutôt qu'un silence.
+    classe: decision-produit-reportee
+    gravite: mineure
+    statut: gelé
+    critere_de_resolution: >
+      À réévaluer (pas à corriger — c'est une décision produit, pas un
+      bug) quand la base compte plus de 50 leads OU 50 projets (premier
+      atteint) avec un champ notes/description non vide d'au moins 200
+      caractères — seuil choisi pour indiquer un contenu textuel
+      substantiel plutôt que des entrées quasi vides, cohérent avec le
+      schéma Prisma actuel (`Lead.notes`, `Project.description`).
+      Vérifiable par une requête directe (COUNT avec LENGTH(notes) >=
+      200 / LENGTH(description) >= 200) sur chacune des deux tables. Une
+      fois ce seuil atteint, statut repasse à `ouvert` pour rouvrir la
+      décision avec le porteur — pas de correctif à apporter avant.
+    detecte_le: "2026-08-01"
+    source: >
+      Proposition de RAG local faite lors d'une session antérieure sur
+      le module IA (pgvector + nomic-embed-text), jamais implémentée —
+      3 questions ouvertes (image Docker pgvector, nouvelle entité
+      Prisma, volume de données) restées sans réponse. Tranché
+      explicitement dans cette session (2026-08-01, demande directe du
+      porteur de ne plus reporter sans trancher) : ne pas implémenter
+      maintenant (0 client actif, corpus non mesurable), documenter
+      comme décision assumée plutôt que TODO flou.
+    confiance: haute
+    note: >
+      Voir REFERENTIEL.md §4.11 pour la décision documentée en détail
+      (même critère de déclenchement, dupliqué à dessein entre les deux
+      documents comme le veut CLAUDE.md § « Cohérence obligatoire
+      REFERENTIEL.md ↔ anomalies/*.yaml »). Aucun code, migration ou
+      nouvelle dépendance liés au RAG n'a été introduit dans cette
+      session — décision documentaire uniquement.
+
   - id: SEC-066
     titre: >
       Le message d'erreur aiAssistant.errors.unavailable

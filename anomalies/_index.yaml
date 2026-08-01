@@ -12,8 +12,22 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-069
+dernier_id: SEC-070
 anomalies:
+  - id: SEC-070
+    titre: >
+      RAG sémantique (embeddings pgvector + nomic-embed-text) pour le
+      module IA — décision produit assumée de ne pas implémenter tant
+      que le corpus réel (notes/descriptions substantielles sur
+      leads/projets) est trop faible pour mesurer un gain. 3 questions
+      restées ouvertes au moment du report : choix de l'image Docker
+      pgvector, nouvelle entité Prisma à valider avec le porteur,
+      volume de données réel à indexer
+    perimetre: 4.11-ia
+    statut: gelé
+    gravite: mineure
+    classe: decision-produit-reportee
+
   - id: SEC-069
     titre: >
       server/test/executiveKpiSnapshotGrowth.test.ts (2e cas, SEC-031) crée

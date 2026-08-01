@@ -1360,6 +1360,35 @@ MANAGER voit l'annuaire freelancer via `getFreelancers`/`GET
 regard des deux autres surfaces avant cette passe) — laissé ouvert
 pour décision du porteur, pas corrigé sans confirmation.
 
+RAG sémantique — décision assumée de ne pas implémenter (2026-08-01) :
+le tool calling CRM (SEC-059) donne déjà à l'assistant un accès
+structuré en lecture aux entités métier (requêtes Prisma scopées),
+mais aucune recherche sémantique/vectorielle (embeddings, pgvector) sur
+le texte libre (notes de lead, description de projet, bio freelancer)
+n'existe. Envisagé (pgvector + `nomic-embed-text` via Ollama, 100%
+local/gratuit) puis explicitement reporté plutôt que construit ou
+laissé en TODO flou : sur un corpus quasi vide (0 client actif), le
+gain d'une recherche sémantique n'est pas mesurable face à son coût
+(nouvelle dépendance d'infra, nouvelle entité Prisma, temps
+d'indexation) — construire un RAG maintenant serait une capacité sans
+utilisateur réel pour la juger, le même défaut que SEC-040/SEC-045/
+SEC-060 (capacité/métrique sans appelant réel), appliqué ici en amont
+plutôt qu'après coup.
+Critère de déclenchement explicite pour reconsidérer cette décision :
+quand la base compte plus de **50 leads OU 50 projets** (au choix,
+premier atteint) avec un champ notes/description non vide d'au moins
+**200 caractères** — seuil choisi pour indiquer un contenu textuel
+substantiel plutôt que des entrées quasi vides, où une recherche par
+mots-clés simple (déjà existante via `search.service.ts`, voir SEC-065
+ci-dessus) reste suffisante. Tant que ce seuil n'est pas atteint, ne
+pas rouvrir cette question sans demande explicite du porteur (même
+esprit que la règle GELÉ de CLAUDE.md : un chantier non commencé sur
+signal fort explicite, jamais par défaut). Les 3 questions ouvertes
+restées sans réponse au moment du report (choix de l'image Docker
+pgvector, nouvelle entité Prisma à valider avec le porteur, volume de
+données réel à indexer) sont enregistrées dans
+`anomalies/4.11-ia.yaml#SEC-070`, statut `gelé` (ni ouvert, ni résolu).
+
     perimetre_code:
       - server/src/services/llm.client.ts
       - server/src/services/aiConversation.service.ts
