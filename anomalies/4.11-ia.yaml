@@ -75,11 +75,13 @@ anomalies:
       correspondait pas à la cause réelle.
     confiance: haute
     note: >
-      Non corrigé dans cette session — signalé pendant un test manuel,
-      pas une session de correction. Le problème réel (Ollama non
-      lancé) est résolu séparément par le porteur en démarrant le
-      service ; ce constat porte uniquement sur le texte du message
-      d'erreur affiché, indépendant de la cause sous-jacente.
+      Correctif appliqué dans le working tree de cette session (2026-08-01) :
+      aiAssistant.errors.unavailable mis à jour dans fr/translation.json et
+      en/translation.json avec le libellé proposé ci-dessus (sans mention de
+      clé API), vérifié par node scripts/check-i18n.mjs (OK). statut reste
+      "ouvert" tant que ce correctif n'est pas commité et vert en CI (voir
+      règle "un critère de résolution se vérifie sur un commit", CLAUDE.md) —
+      ne pas repasser à resolu avant confirmation du commit + CI verte.
 
   - id: SEC-064
     titre: >

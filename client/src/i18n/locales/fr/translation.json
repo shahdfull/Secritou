@@ -1025,7 +1025,7 @@
     "placeholder": "Écrivez votre message...",
     "send": "Envoyer",
     "errors": {
-      "unavailable": "Impossible de contacter l'assistant IA. Veuillez vérifier la clé API.",
+      "unavailable": "Impossible de contacter l'assistant IA. Vérifiez que le service est disponible et réessayez.",
       "appError": "Une erreur est survenue lors du traitement de votre message. Veuillez réessayer.",
       "localHistoryLost": "Votre historique de discussion local n'a pas pu être récupéré.",
       "deleteFailed": "Impossible de supprimer cette conversation. Veuillez réessayer."

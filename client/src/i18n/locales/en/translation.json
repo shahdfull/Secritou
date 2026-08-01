@@ -1025,7 +1025,7 @@
     "placeholder": "Write your message...",
     "send": "Send",
     "errors": {
-      "unavailable": "Unable to contact the AI assistant. Please check the API key.",
+      "unavailable": "Unable to contact the AI assistant. Check that the service is available and try again.",
       "appError": "Something went wrong while processing your message. Please try again.",
       "localHistoryLost": "Your local chat history could not be recovered.",
       "deleteFailed": "Unable to delete this conversation. Please try again."
