@@ -157,6 +157,12 @@ function FullChat() {
   // "how this specific reply was produced" metadata (e.g. the AiToolCall trace isn't shown here
   // either).
   const [responseDurations, setResponseDurations] = useState<Record<string, number>>({});
+  // The real AiMessage list only ever updates once the server has both persisted the user's
+  // message AND finished generating a reply — activeConv is re-fetched (invalidated) only after
+  // create()/addMessage() resolve. Without this, the user's own message would only appear at the
+  // same instant as the assistant's, alongside a 10-70s wait for a slow local Ollama — this shows
+  // it the instant "Envoyer" is pressed, cleared once the real list includes it.
+  const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
 
   const { data: convList, isLoading: listLoading } = useAiConversations();
   const { data: activeConv, isLoading: convLoading } = useAiConversation(activeId);
@@ -195,6 +201,7 @@ function FullChat() {
     if (!trimmed || isLoading) return;
     setInput("");
     setIsLoading(true);
+    setPendingUserMessage(trimmed);
     try {
       if (!activeId) {
         // First message of a brand-new conversation isn't streamed — create() (server) doesn't
@@ -216,6 +223,7 @@ function FullChat() {
       toast.error(isServiceUnavailableError(error) ? t("aiAssistant.errors.unavailable") : t("aiAssistant.errors.appError"));
     } finally {
       setIsLoading(false);
+      setPendingUserMessage(null);
     }
   };
 
@@ -334,7 +342,7 @@ function FullChat() {
                 <div className="flex min-h-[300px] items-center justify-center">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
-              ) : messages.length === 0 ? (
+              ) : messages.length === 0 && !pendingUserMessage ? (
                 <div className="flex min-h-[300px] flex-col items-center justify-center text-center text-muted-foreground">
                   <Bot className="mb-4 h-12 w-12 opacity-50" />
                   <p className="text-sm">{t("aiAssistant.emptyTitle")}</p>
@@ -345,6 +353,9 @@ function FullChat() {
                   {messages.map((msg) => (
                     <MessageBubble key={msg.id} msg={msg} durationMs={responseDurations[msg.id]} />
                   ))}
+                  {pendingUserMessage && (
+                    <MessageBubble msg={{ role: "user", content: pendingUserMessage }} />
+                  )}
                   {streamMutation.isStreaming ? (
                     streamMutation.streamingText ? (
                       <MessageBubble msg={{ role: "assistant", content: streamMutation.streamingText }} />
@@ -403,7 +414,12 @@ function MessageBubble({
   durationMs?: number;
 }) {
   const { t } = useTranslation();
-  const isUser = msg.role === "user";
+  // Two role conventions meet here: the local-only ChatMessage type (CompactChat's in-memory
+  // state) uses lowercase "user"/"assistant", while AiMessage.role comes straight from Prisma's
+  // AiMessageRole enum (server/prisma/schema.prisma) and is always uppercase "USER"/"ASSISTANT" —
+  // a strict lowercase comparison silently matched neither for every real (server-backed)
+  // message on /app/ai, so every bubble rendered as if it were the assistant's.
+  const isUser = msg.role.toUpperCase() === "USER";
   // Only an ASSISTANT message can carry a proposal marker (encodeActionProposal is only ever
   // called on the model's own reply) — parsing a USER message would never find one, but skipping
   // the parse entirely for USER messages avoids running it on every keystroke-driven re-render for
