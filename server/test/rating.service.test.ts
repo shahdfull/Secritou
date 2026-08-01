@@ -143,7 +143,10 @@ describe("ratingService.addRating: admin notification fan-out (SEC-072 gap)", ()
     }
     assert.ok(job, "addRating must enqueue a real notification job for this admin");
     assert.match(String(job!.data.message), /4\/5/);
-    await job!.remove();
+    // Best-effort cleanup only: a real worker (env.JOBS_ENABLED) may already be processing this
+    // job by the time we try to remove it — "locked by another worker" is not a test failure,
+    // the assertions above already ran.
+    await job!.remove().catch(() => {});
   });
 });
 
@@ -151,6 +154,7 @@ describe("ratingService.addRating: low-rating n8n alert (SEC-072 gap)", () => {
   let server: http.Server;
   let received: { event: string; payload: Record<string, unknown> } | undefined;
   let originalBaseUrl: string | undefined;
+  let originalSecret: string | undefined;
 
   before(async () => {
     if (!dbAvailable) return;
@@ -167,12 +171,18 @@ describe("ratingService.addRating: low-rating n8n alert (SEC-072 gap)", () => {
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     const port = (server.address() as AddressInfo).port;
     originalBaseUrl = env.N8N_WEBHOOK_BASE_URL;
+    originalSecret = env.N8N_WEBHOOK_SECRET;
     env.N8N_WEBHOOK_BASE_URL = `http://127.0.0.1:${port}`;
+    // env.ts enforces N8N_WEBHOOK_BASE_URL/N8N_WEBHOOK_SECRET must both be set or both unset
+    // (webhook.ts#sign also throws on a missing secret) — CI does not configure either, so this
+    // must be set here regardless of what the environment already has, not just swapped.
+    env.N8N_WEBHOOK_SECRET = "sec072-test-secret-0123456789";
   });
 
   after(async () => {
     if (!dbAvailable) return;
     env.N8N_WEBHOOK_BASE_URL = originalBaseUrl;
+    env.N8N_WEBHOOK_SECRET = originalSecret;
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 

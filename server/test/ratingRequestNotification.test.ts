@@ -47,7 +47,8 @@ after(async () => {
   if (!dbAvailable) return;
   for (const jobId of createdJobIds) {
     const job = await communicationQueue.getJob(jobId);
-    await job?.remove();
+    // Best-effort: a real worker (env.JOBS_ENABLED) may already have this job locked.
+    await job?.remove().catch(() => {});
   }
   await prisma.task.deleteMany({ where: { id: { in: createdTaskIds } } });
   await prisma.project.deleteMany({ where: { id: { in: createdProjectIds } } });
