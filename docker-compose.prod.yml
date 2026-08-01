@@ -80,8 +80,9 @@ services:
     # No port published to the host: only the server container needs to reach this, over the
     # compose network (service name "ollama", port 11434).
 
-  # One-shot: pulls OLLAMA_MODEL (default mistral) into the shared ollama_data volume once ollama
-  # is up. Idempotent — a no-op if the model is already present (e.g. after a redeploy).
+  # One-shot: pulls OLLAMA_MODEL (default qwen2.5:3b-instruct, see server/.env.example) into the
+  # shared ollama_data volume once ollama is up. Idempotent — a no-op if the model is already
+  # present (e.g. after a redeploy).
   #
   # SEC-052: OLLAMA_MODEL must come from server/.env (env_file below) — server itself reads
   # OLLAMA_MODEL from the same file. ${OLLAMA_MODEL} written directly in entrypoint/environment
@@ -89,6 +90,10 @@ services:
   # ever injected into the container — confirmed by testing: it silently ignores server/.env
   # entirely. $$OLLAMA_MODEL (escaped) is left for the container's own shell to expand at
   # runtime, using whatever env_file actually injected.
+  # Disk-space guard added on top of the pull itself: ollama_data is a named Docker volume on the
+  # host disk, so a pull can fail messily (or fill the host disk) if free space is already tight.
+  # `df -Pk` reports available KB on the filesystem backing /root/.ollama inside this container,
+  # which is the same underlying host disk the volume lives on. 10 Go = 10 * 1024 * 1024 Ko.
   ollama-pull:
     image: ollama/ollama:latest
     depends_on:
@@ -98,7 +103,19 @@ services:
       - server/.env
     environment:
       OLLAMA_HOST: http://ollama:11434
-    entrypoint: ["sh", "-c", "ollama pull \"$${OLLAMA_MODEL:-mistral}\""]
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+        AVAILABLE_KB=$$(df -Pk /root/.ollama | tail -1 | awk '{print $$4}')
+        MIN_KB=$$((10 * 1024 * 1024))
+        if [ "$$AVAILABLE_KB" -lt "$$MIN_KB" ]; then
+          AVAILABLE_GB=$$((AVAILABLE_KB / 1024 / 1024))
+          echo "ollama-pull: espace disque insuffisant pour lancer 'ollama pull' ($${AVAILABLE_GB} Go libres, 10 Go minimum requis sur le volume ollama_data). Libere de l'espace disque puis relance 'docker compose -f docker-compose.prod.yml up ollama-pull'." >&2
+          exit 1
+        fi
+        ollama pull "$${OLLAMA_MODEL:-qwen2.5:3b-instruct}"
     restart: "no"
 
   server:
