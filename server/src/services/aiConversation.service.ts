@@ -17,6 +17,13 @@ import { aiToolCallTotal, aiTurnDuration, aiTurnRoundtrips } from "../observabil
 // propose* tool call never performs a write (see aiActionProposals.ts's own header doc comment).
 const ALL_TOOL_DEFINITIONS = [...AI_TOOL_DEFINITIONS, ...AI_ACTION_TOOL_DEFINITIONS];
 
+// SEC-090: addMessage/addMessageStreaming both read recentMessages, then run a full Ollama turn,
+// then persist USER+ASSISTANT — a second call on the same conversation started before the first
+// finishes reads an identical history and never sees the concurrent turn. In-memory Set is
+// sufficient here (single Node process per instance, no cluster/PM2 config in this repo) — this
+// is not a distributed-lock problem.
+const conversationsInFlight = new Set<string>();
+
 // Marker delimiting a machine-readable action proposal appended after the model's human-readable
 // text, inside the same persisted AiMessage.content — parsed back out client-side to render a
 // confirmation card. Kept out-of-band from the visible text (not a markdown code fence or similar)
@@ -122,10 +129,16 @@ function extractRowCount(result: unknown): number | null {
 async function runConversationTurn(
   history: OllamaChatMessage[],
   callerContext: AiToolCallerContext,
-  onChunk?: (text: string) => void
+  onChunk?: (text: string) => void,
+  externalSignal?: AbortSignal
 ): Promise<{ reply: string; toolCalls: ToolCallRecord[]; proposal?: AiActionProposal; durationMs: number }> {
   const messages: OllamaChatMessage[] = [...history];
-  const turnDeadline = AbortSignal.timeout(TURN_TIMEOUT_MS);
+  // SEC-082: the wall-clock deadline alone never reacted to the client disconnecting mid-stream —
+  // combined here with an externally supplied signal (SSE controller's res.on("close")) so a client
+  // abandoning the connection stops the Ollama round trip in progress, not just the wall clock.
+  const turnDeadline = externalSignal
+    ? AbortSignal.any([AbortSignal.timeout(TURN_TIMEOUT_MS), externalSignal])
+    : AbortSignal.timeout(TURN_TIMEOUT_MS);
   const toolCalls: ToolCallRecord[] = [];
   const endTurnTimer = aiTurnDuration.startTimer();
   // Wall-clock duration surfaced to the caller (and eventually the UI) — deliberately separate
@@ -277,27 +290,37 @@ export const aiConversationService = {
   },
 
   async addMessage(id: string, userId: string, content: string, callerContext: AiToolCallerContext) {
-    // SEC-058: pre-read immediately followed by a write below (addMessage) — must use the write
-    // client, not prismaRead, per the same doctrine already applied to gdprService (SEC-037).
-    const conv = await aiConversationRepository.findByIdForWrite(id, userId);
-    if (!conv) throw new HttpError(404, "Conversation not found");
+    // SEC-090: reject a second concurrent turn on the same conversation rather than let it read
+    // a history that doesn't yet include the in-flight turn's reply.
+    if (conversationsInFlight.has(id)) {
+      throw new HttpError(409, "A message is already being processed for this conversation", "CONVERSATION_TURN_IN_PROGRESS");
+    }
+    conversationsInFlight.add(id);
+    try {
+      // SEC-058: pre-read immediately followed by a write below (addMessage) — must use the write
+      // client, not prismaRead, per the same doctrine already applied to gdprService (SEC-037).
+      const conv = await aiConversationRepository.findByIdForWrite(id, userId);
+      if (!conv) throw new HttpError(404, "Conversation not found");
 
-    // SEC-035: call the LLM before persisting the USER message — same rationale as create()
-    // above. History is built from what's already in DB plus the new message in memory, so no
-    // write is needed before the call.
-    const recentMessages = conv.messages.slice(-20);
-    const history: OllamaChatMessage[] = [
-      ...recentMessages.map((m) => ({ role: toChatRole(m.role), content: m.content })),
-      { role: "user", content },
-    ];
-    const { reply, toolCalls, proposal, durationMs } = await runConversationTurn(history, callerContext);
-    const persistedReply = proposal ? encodeActionProposal(reply, proposal) : reply;
+      // SEC-035: call the LLM before persisting the USER message — same rationale as create()
+      // above. History is built from what's already in DB plus the new message in memory, so no
+      // write is needed before the call.
+      const recentMessages = conv.messages.slice(-20);
+      const history: OllamaChatMessage[] = [
+        ...recentMessages.map((m) => ({ role: toChatRole(m.role), content: m.content })),
+        { role: "user", content },
+      ];
+      const { reply, toolCalls, proposal, durationMs } = await runConversationTurn(history, callerContext);
+      const persistedReply = proposal ? encodeActionProposal(reply, proposal) : reply;
 
-    await aiConversationRepository.addMessage(conv.id, "USER", content);
-    const assistantMsg = await aiConversationRepository.addMessage(conv.id, "ASSISTANT", persistedReply);
-    await recordToolCallsSafely(conv.id, toolCalls);
+      await aiConversationRepository.addMessage(conv.id, "USER", content);
+      const assistantMsg = await aiConversationRepository.addMessage(conv.id, "ASSISTANT", persistedReply);
+      await recordToolCallsSafely(conv.id, toolCalls);
 
-    return { reply: assistantMsg, durationMs };
+      return { reply: assistantMsg, durationMs };
+    } finally {
+      conversationsInFlight.delete(id);
+    }
   },
 
   // SEC-059 follow-up: same contract as addMessage, but the final round trip (once the model has
@@ -311,28 +334,39 @@ export const aiConversationService = {
     userId: string,
     content: string,
     callerContext: AiToolCallerContext,
-    onChunk: (text: string) => void
+    onChunk: (text: string) => void,
+    externalSignal?: AbortSignal
   ) {
-    const conv = await aiConversationRepository.findByIdForWrite(id, userId);
-    if (!conv) throw new HttpError(404, "Conversation not found");
+    // SEC-090: same guard as addMessage — shares the same in-flight set since both methods
+    // read/write the same conversation history and must never overlap on the same id.
+    if (conversationsInFlight.has(id)) {
+      throw new HttpError(409, "A message is already being processed for this conversation", "CONVERSATION_TURN_IN_PROGRESS");
+    }
+    conversationsInFlight.add(id);
+    try {
+      const conv = await aiConversationRepository.findByIdForWrite(id, userId);
+      if (!conv) throw new HttpError(404, "Conversation not found");
 
-    const recentMessages = conv.messages.slice(-20);
-    const history: OllamaChatMessage[] = [
-      ...recentMessages.map((m) => ({ role: toChatRole(m.role), content: m.content })),
-      { role: "user", content },
-    ];
-    const { reply, toolCalls, proposal, durationMs } = await runConversationTurn(history, callerContext, onChunk);
-    // The proposal marker is never streamed via onChunk (it isn't part of the model's visible
-    // text — see runAiActionTool) — appended only to the persisted content, same as the
-    // non-streaming path. The client's SSE "done" event carries this full persisted text, not the
-    // streamed chunks, so the confirmation card only ever appears once the stream has ended.
-    const persistedReply = proposal ? encodeActionProposal(reply, proposal) : reply;
+      const recentMessages = conv.messages.slice(-20);
+      const history: OllamaChatMessage[] = [
+        ...recentMessages.map((m) => ({ role: toChatRole(m.role), content: m.content })),
+        { role: "user", content },
+      ];
+      const { reply, toolCalls, proposal, durationMs } = await runConversationTurn(history, callerContext, onChunk, externalSignal);
+      // The proposal marker is never streamed via onChunk (it isn't part of the model's visible
+      // text — see runAiActionTool) — appended only to the persisted content, same as the
+      // non-streaming path. The client's SSE "done" event carries this full persisted text, not the
+      // streamed chunks, so the confirmation card only ever appears once the stream has ended.
+      const persistedReply = proposal ? encodeActionProposal(reply, proposal) : reply;
 
-    await aiConversationRepository.addMessage(conv.id, "USER", content);
-    const assistantMsg = await aiConversationRepository.addMessage(conv.id, "ASSISTANT", persistedReply);
-    await recordToolCallsSafely(conv.id, toolCalls);
+      await aiConversationRepository.addMessage(conv.id, "USER", content);
+      const assistantMsg = await aiConversationRepository.addMessage(conv.id, "ASSISTANT", persistedReply);
+      await recordToolCallsSafely(conv.id, toolCalls);
 
-    return { reply: assistantMsg, durationMs };
+      return { reply: assistantMsg, durationMs };
+    } finally {
+      conversationsInFlight.delete(id);
+    }
   },
 
   async delete(id: string, userId: string) {

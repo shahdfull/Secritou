@@ -68,6 +68,16 @@ export const addMessage: RequestHandler = async (req, res, next) => {
 export const addMessageStream: RequestHandler = async (req, res, next) => {
   const { message } = req.body as { message: string };
   let headersSent = false;
+  // SEC-082: the client closing the connection (browser tab closed, network drop, or the new
+  // frontend cancel button — SEC-092) previously left the Ollama round trip running to completion
+  // regardless, wasting the only Ollama worker on this CPU-only host on a request nobody is
+  // waiting for anymore. res.on("close") fires on both a clean end() and an abrupt disconnect, so
+  // it's guarded by headersSent below — aborting after the stream already finished normally is a
+  // harmless no-op (the request is done either way).
+  const abortController = new AbortController();
+  res.on("close", () => {
+    if (headersSent) abortController.abort();
+  });
   try {
     const callerContext = await buildServiceScope(req);
     res.writeHead(200, {
@@ -85,7 +95,8 @@ export const addMessageStream: RequestHandler = async (req, res, next) => {
       callerContext,
       (text) => {
         res.write(`event: chunk\ndata: ${JSON.stringify({ text })}\n\n`);
-      }
+      },
+      abortController.signal
     );
 
     res.write(`event: done\ndata: ${JSON.stringify({ data: result })}\n\n`);
@@ -95,6 +106,11 @@ export const addMessageStream: RequestHandler = async (req, res, next) => {
       next(error);
       return;
     }
+    // A client-initiated abort (tab closed, cancel button) races res.write/res.end against an
+    // already-closed socket — Express/Node throw ERR_STREAM_WRITE_AFTER_END in that case, which
+    // would otherwise crash this handler with an unhandled rejection. Nothing to write back to a
+    // socket that's already gone.
+    if (res.writableEnded || res.destroyed) return;
     // Same doctrine as the rest of this API (error.middleware.ts's HttpError branch): the raw
     // error message reaches the client verbatim, including whatever llm.client.ts interpolated
     // from Ollama's own response body on a provider error — a pre-existing pattern in this

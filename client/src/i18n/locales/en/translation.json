@@ -1024,6 +1024,7 @@
     "thinking": "Thinking...",
     "placeholder": "Write your message...",
     "send": "Send",
+    "cancel": "Stop",
     "errors": {
       "unavailable": "Unable to contact the AI assistant. Check that the service is available and try again.",
       "appError": "Something went wrong while processing your message. Please try again.",

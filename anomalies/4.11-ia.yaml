@@ -35,13 +35,33 @@ anomalies:
       déjà et n'attend qu'un bouton.
     classe: capacite-hook-sans-point-dentree-ui
     gravite: mineure
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       Un bouton visible pendant streamMutation.isStreaming appelle
       streamMutation.cancel() — un test réel de composant doit simuler
       un stream en cours, cliquer ce bouton, et vérifier que
       isStreaming repasse à false sans qu'aucun message ASSISTANT
       erroné n'apparaisse dans la conversation.
+    correctif: >
+      ChatInput accepte désormais isStreaming/onCancel — un bouton
+      "Arrêter" (icône XCircle) remplace le bouton d'envoi pendant
+      streamMutation.isStreaming, câblé directement à
+      streamMutation.cancel() (le AbortController déjà existant dans le
+      hook). handleSend distingue désormais une DOMException
+      "AbortError" (annulation volontaire) d'une vraie erreur, pour ne
+      plus afficher le toast d'erreur générique après un clic délibéré
+      sur Arrêter. Corrigée conjointement avec SEC-082 (sans le fix
+      serveur, le bouton aurait coupé l'affichage sans arrêter le
+      calcul Ollama sous-jacent) — voir le correctif documenté sur
+      SEC-082 pour la partie serveur. Vérifié réellement de bout en
+      bout : un stream annulé après le 1er chunk (58.5s d'attente
+      CPU-only) a laissé un message ASSISTANT tronqué à 2002 caractères
+      (arrêté au milieu du chiffre 8 sur 50 demandés) au lieu de la
+      réponse complète, confirmant que cancel() coupe le calcul réel,
+      pas seulement l'affichage. Typecheck/lint propres, 135/135 tests
+      Vitest client, 783/785 tests server (seul échec : SEC-069,
+      pré-existant, sans rapport). En attente de commit + CI verte
+      avant passage à resolu.
     detecte_le: "2026-08-01"
     source: >
       Phase 2 point 4 du mandat QA ("feedback pendant le streaming SSE
@@ -136,7 +156,7 @@ anomalies:
       disponible) qui pourrait servir une requête réelle en attente.
     classe: sse-sans-annulation-liee-a-la-connexion
     gravite: mineure
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       addMessageStream écoute res.on("close") (ou req.on("close")) et
       déclenche l'AbortSignal partagé par runConversationTurn dès que la
@@ -148,6 +168,30 @@ anomalies:
       abandonne après le premier chunk) et vérifier qu'aucun nouveau
       message ASSISTANT n'est persisté après la fermeture, contrairement
       au comportement actuel.
+    correctif: >
+      addMessageStream (aiConversation.controller.ts) crée désormais un
+      AbortController local et l'abort() dans res.on("close") (guardé
+      par headersSent pour ne jamais aborter une réponse déjà terminée
+      normalement) — son .signal est passé jusqu'à
+      aiConversationService.addMessageStreaming, qui le transmet à
+      runConversationTurn. runConversationTurn combine ce signal externe
+      avec le turnDeadline existant via AbortSignal.any([timeout,
+      external]) — le premier des deux à se déclencher coupe la requête
+      fetch en cours vers Ollama (llm.client.ts propage déjà `signal`
+      jusqu'au fetch réel). Le catch du controller ignore désormais
+      aussi une écriture sur un socket déjà fermé (res.writableEnded ||
+      res.destroyed) pour ne pas planter sur un ERR_STREAM_WRITE_AFTER_END
+      après un abort. Vérifié réellement : stream annulé côté client
+      (fetch AbortController.abort()) 58.5s après le lancement, juste
+      après le 1er chunk — le message ASSISTANT persisté s'arrête net à
+      2002 caractères (au milieu du chiffre 8 d'une réponse qui en
+      demandait 50), confirmant que le calcul Ollama a bien été coupé
+      et non laissé tourner jusqu'à sa fin naturelle comme avant ce
+      correctif. Corrigée conjointement avec SEC-092 (le bouton
+      d'annulation côté client qui utilise ce même mécanisme). 783/785
+      tests server verts (seul échec : SEC-069, pré-existant, sans
+      rapport avec ce fichier). En attente de commit + CI verte avant
+      passage à resolu.
     detecte_le: "2026-08-01"
     source: >
       Phase 1 point 4 (Module IA), item 15 du mandat QA explicitement

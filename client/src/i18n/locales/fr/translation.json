@@ -1024,6 +1024,7 @@
     "thinking": "Réflexion...",
     "placeholder": "Écrivez votre message...",
     "send": "Envoyer",
+    "cancel": "Arrêter",
     "errors": {
       "unavailable": "Impossible de contacter l'assistant IA. Vérifiez que le service est disponible et réessayez.",
       "appError": "Une erreur est survenue lors du traitement de votre message. Veuillez réessayer.",

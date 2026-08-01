@@ -8,6 +8,7 @@ import {
   Plus,
   MessageSquare,
   ChevronLeft,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -220,7 +221,15 @@ function FullChat() {
         }
       }
     } catch (error) {
-      toast.error(isServiceUnavailableError(error) ? t("aiAssistant.errors.unavailable") : t("aiAssistant.errors.appError"));
+      // SEC-092: cancel() aborts the underlying fetch, which rejects with a real DOMException
+      // named "AbortError" — a user-initiated stop, not a failure, so it must never surface as
+      // the generic error toast below (that would read as "something went wrong" right after the
+      // user deliberately clicked Stop).
+      if (error instanceof DOMException && error.name === "AbortError") {
+        // no-op: the user cancelled on purpose
+      } else {
+        toast.error(isServiceUnavailableError(error) ? t("aiAssistant.errors.unavailable") : t("aiAssistant.errors.appError"));
+      }
     } finally {
       setIsLoading(false);
       setPendingUserMessage(null);
@@ -374,6 +383,8 @@ function FullChat() {
               onChange={setInput}
               onSend={handleSend}
               isLoading={isLoading}
+              isStreaming={streamMutation.isStreaming}
+              onCancel={streamMutation.cancel}
             />
           </CardContent>
         </Card>
@@ -524,12 +535,16 @@ function ChatInput({
   onSend,
   isLoading,
   compact = false,
+  isStreaming = false,
+  onCancel,
 }: {
   value: string;
   onChange: (v: string) => void;
   onSend: () => void;
   isLoading: boolean;
   compact?: boolean;
+  isStreaming?: boolean;
+  onCancel?: () => void;
 }) {
   const { t } = useTranslation();
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -545,22 +560,41 @@ function ChatInput({
         disabled={isLoading}
         className={compact ? "text-sm" : ""}
       />
-      <Button
-        size={compact ? "sm" : "default"}
-        onClick={onSend}
-        disabled={isLoading || !value.trim()}
-      >
-        {isLoading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : compact ? (
-          <Send className="h-4 w-4" />
-        ) : (
-          <>
-            <Send className="mr-2 h-4 w-4" />
-            {t("aiAssistant.send")}
-          </>
-        )}
-      </Button>
+      {/* SEC-092: cancel() already existed on useStreamMessage (real AbortController.abort()) but
+          had no UI entry point — only ever wired to the send button's disabled state, never to an
+          action the user could take mid-stream. */}
+      {isStreaming && onCancel ? (
+        <Button
+          type="button"
+          size={compact ? "sm" : "default"}
+          variant="outline"
+          onClick={onCancel}
+        >
+          {compact ? <XCircle className="h-4 w-4" /> : (
+            <>
+              <XCircle className="mr-2 h-4 w-4" />
+              {t("aiAssistant.cancel")}
+            </>
+          )}
+        </Button>
+      ) : (
+        <Button
+          size={compact ? "sm" : "default"}
+          onClick={onSend}
+          disabled={isLoading || !value.trim()}
+        >
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : compact ? (
+            <Send className="h-4 w-4" />
+          ) : (
+            <>
+              <Send className="mr-2 h-4 w-4" />
+              {t("aiAssistant.send")}
+            </>
+          )}
+        </Button>
+      )}
     </div>
   );
 }

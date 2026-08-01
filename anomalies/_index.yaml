@@ -39,7 +39,7 @@ anomalies:
       d'annulation est déjà entièrement implémenté et fonctionnel côté
       hook, juste jamais câblé à une action utilisateur
     perimetre: 4.11-ia
-    statut: ouvert
+    statut: en_cours
     gravite: mineure
     classe: capacite-hook-sans-point-dentree-ui
   - id: SEC-091
@@ -238,7 +238,7 @@ anomalies:
       l'utilisateur retape le même message après avoir vu son
       abandon côté client
     perimetre: 4.11-ia
-    statut: ouvert
+    statut: en_cours
     gravite: mineure
     classe: sse-sans-annulation-liee-a-la-connexion
   - id: SEC-081
