@@ -18,6 +18,8 @@ import type { ServiceScope } from "../utils/serviceScope.js";
 import type { LeadScope } from "../repositories/lead.repository.js";
 import type { ListQueryOptions } from "../utils/listQuery.js";
 import { HttpError } from "../utils/httpError.js";
+import { cacheGet, cacheSet, cacheTTL } from "../cache/cacheService.js";
+import { cacheKeys, cacheTags } from "../cache/cacheKeys.js";
 
 // Reuses ServiceScope as-is (same shape buildServiceScope already produces from a request) rather
 // than declaring a near-identical type that would drift from it — the caller context for tool
@@ -376,11 +378,7 @@ function parseArgs(rawArgs: unknown): {
   };
 }
 
-export async function runAiTool(
-  name: AiToolName,
-  rawArgs: unknown,
-  ctx: AiToolCallerContext
-): Promise<unknown> {
+async function dispatchAiTool(name: AiToolName, rawArgs: unknown, ctx: AiToolCallerContext): Promise<unknown> {
   const args = parseArgs(rawArgs);
   switch (name) {
     case "getLeads":
@@ -410,4 +408,33 @@ export async function runAiTool(
     case "getLeadPipeline":
       return runGetLeadPipeline(ctx);
   }
+}
+
+// Cache-then-dispatch: the assistant can plausibly call the same read tool twice in one turn (a
+// tool-calling round trip followed by a clarifying follow-up) or across two close-together user
+// messages ("mes leads ?" then "et les qualifiés ?") — a short TTL avoids re-running the same
+// scoped DB query for the same answer. Keyed on (tool name, caller scope, parsed+re-serialized
+// args) rather than rawArgs so that two semantically identical calls that differ only in argument
+// key order or an ignored/unknown field still hit the same cache entry — the same normalization
+// dispatchAiTool itself already applies via parseArgs before the args ever reach a service.
+// Tagged with cacheTags.company() (see cacheKeys.ts) — every real write path in this codebase
+// already calls invalidateTags([cacheTags.company(), ...]) after a create/update/delete
+// (lead.service.ts, task.service.ts, etc.), so a propose*/confirm write invalidates this cache
+// too, without adding any invalidation call on the write side specifically for the AI module.
+// Known gap: freelancer.service.ts's own writes (createMyProfile/updateMyProfile) invalidate no
+// cache tag at all today, in or out of the AI module — getFreelancers/getFreelancerWorkload here
+// share that same pre-existing staleness window (bounded to cacheTTL.aiToolRead, 45s), not a
+// regression introduced by this cache.
+export async function runAiTool(name: AiToolName, rawArgs: unknown, ctx: AiToolCallerContext): Promise<unknown> {
+  const scopeKey = `${ctx.userRole}:${ctx.userServiceId ?? "__none__"}:${ctx.userId ?? "__none__"}`;
+  const parsedArgs = parseArgs(rawArgs);
+  const argsKey = JSON.stringify(parsedArgs, Object.keys(parsedArgs).sort());
+  const cacheKey = cacheKeys.aiToolResult(name, argsKey, scopeKey);
+
+  const cached = await cacheGet<unknown>(cacheKey);
+  if (cached !== null) return cached;
+
+  const result = await dispatchAiTool(name, rawArgs, ctx);
+  await cacheSet(cacheKey, result, cacheTTL.aiToolRead, [cacheTags.company()]);
+  return result;
 }

@@ -63,4 +63,8 @@ export const cacheTTL = {
   successSummary: 300,
   onboardingSummary: 300,
   authMe: 30,
+  // Short on purpose: the assistant asking the same read tool twice within a turn/minute (e.g.
+  // "mes leads ?" then a follow-up filtering question) should hit cache, but a longer TTL would
+  // let the AI answer from data that's gone stale relative to what a human sees on the real page.
+  aiToolRead: 45,
 };

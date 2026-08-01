@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 let prisma: typeof import("../src/config/prisma.js").prisma;
 let runAiTool: typeof import("../src/services/aiTools.js").runAiTool;
 let isKnownAiTool: typeof import("../src/services/aiTools.js").isKnownAiTool;
+let leadService: typeof import("../src/services/lead.service.js").leadService;
 let dbAvailable = true;
 
 let serviceA: string;
@@ -21,11 +22,13 @@ const createdProjectIds: string[] = [];
 const createdTaskIds: string[] = [];
 const createdUserIds: string[] = [];
 const createdFreelancerProfileIds: string[] = [];
+const createdLeadIds: string[] = [];
 
 before(async () => {
   try {
     ({ prisma } = await import("../src/config/prisma.js"));
     ({ runAiTool, isKnownAiTool } = await import("../src/services/aiTools.js"));
+    ({ leadService } = await import("../src/services/lead.service.js"));
     await prisma.$queryRaw`SELECT 1`;
     const services = await prisma.service.findMany({ take: 2 });
     if (services.length < 2) throw new Error("need at least 2 seeded Service rows");
@@ -43,6 +46,13 @@ after(async () => {
   await prisma.project.deleteMany({ where: { id: { in: createdProjectIds } } });
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
   await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
+  await prisma.lead.deleteMany({ where: { id: { in: createdLeadIds } } });
+
+  // Same documented cause as projectModuleCacheInvalidation.test.ts: this file now exercises the
+  // real Redis-backed cache (runAiTool's own cacheGet/cacheSet), opening the `redis` package
+  // client separately from the ioredis/BullMQ connection run-all.test.ts already closes.
+  const { closeRedisClient } = await import("../src/cache/redis.js");
+  await closeRedisClient();
 });
 
 async function makeProjectInService(serviceId: string, namePrefix: string) {
@@ -360,5 +370,84 @@ describe("aiTools aggregate tools — delegated to the same scoped services as t
     } finally {
       await prisma.lead.delete({ where: { id: lead.id } });
     }
+  });
+});
+
+// Every test above calls runAiTool through the same cache runAiTool now wraps itself in
+// (aiTools.ts). Cache keys are unique per test by construction — either a `search`/name argument
+// seeded with Date.now(), or (for the fixed-args aggregate tools like getAgencyOverview) an
+// assertion that only checks shape (typeof/array), never an exact count — so a stale hit within
+// cacheTTL.aiToolRead (45s) cannot make any of them flaky. A test that needs an exact count on a
+// no-args tool call must follow the same pattern: vary the scope, or accept that two calls to the
+// *same* (tool, args, scope) within 45s intentionally return the same cached answer (that's the
+// feature, not a bug) — see the invalidation test below for how to prove a write busts it.
+describe("runAiTool caching (session du 2026-08-01)", () => {
+  test("a second identical call within the TTL returns a cached result without re-querying the DB", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const uniq = Date.now();
+    const project = await makeProjectInService(serviceA, `ai-tool-cache-hit-${uniq}`);
+
+    const first = (await runAiTool("getProjects", { search: `ai-tool-cache-hit-${uniq}` }, {
+      userRole: "ADMIN",
+      userId: "admin-id",
+    })) as { projects: { id: string }[] };
+    assert.deepEqual(first.projects.map((p) => p.id), [project.id]);
+
+    // Deleted directly (bypassing projectService, which would invalidate the cache tag) so a
+    // second runAiTool call can only still see it if the first call's result was actually cached
+    // rather than re-queried.
+    await prisma.project.delete({ where: { id: project.id } });
+    createdProjectIds.splice(createdProjectIds.indexOf(project.id), 1);
+
+    const second = (await runAiTool("getProjects", { search: `ai-tool-cache-hit-${uniq}` }, {
+      userRole: "ADMIN",
+      userId: "admin-id",
+    })) as { projects: { id: string }[] };
+    assert.deepEqual(second.projects.map((p) => p.id), [project.id], "second call must be served from cache, not re-query the now-deleted project");
+  });
+
+  test("two different caller scopes for the same tool+args never share a cache entry", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const uniq = Date.now();
+    const projectA = await makeProjectInService(serviceA, `ai-tool-cache-scope-a-${uniq}`);
+    const projectB = await makeProjectInService(serviceB, `ai-tool-cache-scope-b-${uniq}`);
+
+    const managerA = (await runAiTool("getProjects", {}, {
+      userRole: "MANAGER",
+      userId: "manager-a",
+      userServiceId: serviceA,
+    })) as { projects: { id: string }[] };
+    const managerB = (await runAiTool("getProjects", {}, {
+      userRole: "MANAGER",
+      userId: "manager-b",
+      userServiceId: serviceB,
+    })) as { projects: { id: string }[] };
+
+    const idsA = managerA.projects.map((p) => p.id);
+    const idsB = managerB.projects.map((p) => p.id);
+    assert.ok(idsA.includes(projectA.id) && !idsA.includes(projectB.id), "pole A manager's cached result must not leak pole B");
+    assert.ok(idsB.includes(projectB.id) && !idsB.includes(projectA.id), "pole B manager's cached result must not leak pole A");
+  });
+
+  test("leadService.createLead invalidates the AI tool cache (real write, real invalidateTags call)", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const uniq = Date.now();
+
+    // Same probe pattern as projectModuleCacheInvalidation.test.ts (SEC-098): seed a real cache
+    // entry the same way runAiTool itself would (through the tool call, not cacheSet directly, so
+    // this proves the actual key/tag runAiTool uses, not a hand-picked one), then run the real
+    // service mutation and confirm the entry no longer answers from cache.
+    const before = (await runAiTool("getLeadPipeline", {}, { userRole: "ADMIN", userId: "admin-id" })) as {
+      pipeline: Record<string, number>;
+    };
+    const newCount = (before.pipeline.NEW ?? 0) + 1;
+
+    const lead = await leadService.createLead({ name: `ai-tool-cache-invalidation-${uniq}`, status: "NEW" });
+    createdLeadIds.push(lead.id);
+
+    const after = (await runAiTool("getLeadPipeline", {}, { userRole: "ADMIN", userId: "admin-id" })) as {
+      pipeline: Record<string, number>;
+    };
+    assert.equal(after.pipeline.NEW, newCount, "createLead must invalidate the cached getLeadPipeline result, not leave the pre-write count cached");
   });
 });

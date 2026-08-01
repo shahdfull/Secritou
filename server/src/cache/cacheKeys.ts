@@ -11,6 +11,12 @@ export const cacheKeys = {
   onboardingSummary: (clientId: string) => `cache:onboarding:summary:${COMPANY_ID}:${clientId}`,
   authMe: (userId: string) => `cache:auth:me:${userId}`,
   managerPermissions: (userId: string) => `cache:manager:permissions:${userId}`,
+  // AI tool-call reads (aiTools.ts) are cached per (tool name, args, caller scope) — scope is
+  // included so a MANAGER's cached result is never served to a different pole, and ADMIN/MANAGER
+  // results never collide with each other even for the same tool+args. argsKey must be a stable,
+  // deterministic serialization of the tool's parsed args (sorted keys) — see aiToolCache.ts.
+  aiToolResult: (toolName: string, argsKey: string, scopeKey: string) =>
+    `cache:ai:tool:${COMPANY_ID}:${toolName}:${scopeKey}:${argsKey}`,
 };
 
 export const cacheTags = {
