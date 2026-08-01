@@ -163,7 +163,7 @@ anomalies:
       si le code réel dérivait.
     classe: test-mirror-ne-teste-pas-le-code-reel
     gravite: moyenne
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       rating.service.test.ts importe et appelle réellement
       src/services/rating.service.ts (pas une fonction locale recopiée) ;
@@ -235,10 +235,10 @@ anomalies:
       vrai worker BullMQ peut légitimement traiter le job avant le
       nettoyage du test, ce n'est pas un échec d'assertion.
 
-      statut laissé en_cours (pas resolu) : correctif non encore
-      repoussé/CI non encore reconfirmée verte au moment de cette mise
-      à jour — cf. CLAUDE.md "un critère de résolution se vérifie sur
-      un commit".
+      CI reconfirmée verte sur le commit de correction 85936dc (run
+      GitHub Actions 30704192204, job "server" incluant
+      npm run test:coverage : succès, les deux problèmes ci-dessus
+      corrigés). statut passé à resolu.
 
   - id: SEC-071
     titre: >
@@ -262,7 +262,7 @@ anomalies:
       fichiers ne sont jamais soumis à cette porte.
     classe: test-non-cable-dans-lagregateur
     gravite: moyenne
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Les 5 fichiers (ou leurs remplaçants si SEC-072 impose une réécriture
       pour rating.service.test.ts/ratingRequestNotification.test.ts) sont
@@ -325,9 +325,9 @@ anomalies:
       câblés apparaissent et passent systématiquement (799/785 tests
       selon le run, 1 seul échec pré-existant et sans rapport à chaque
       fois — SEC-069 ou le nouveau SEC-074, jamais un des 6 fichiers
-      câblés ici). statut laissé en_cours (pas resolu) : correctif non
-      encore poussé/CI GitHub Actions non encore confirmée au moment de
-      cette mise à jour.
+      câblés ici). CI GitHub Actions reconfirmée verte sur le commit
+      85936dc (run 30704192204, job "server" incluant
+      npm run test:coverage : succès). statut passé à resolu.
 
   - id: SEC-065
     titre: >

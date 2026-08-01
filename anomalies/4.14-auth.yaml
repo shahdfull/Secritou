@@ -127,7 +127,7 @@ anomalies:
       inutilisable après chaque déconnexion volontaire.
     classe: revocation-token-trop-large-sub-sans-jti
     gravite: eleve
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       logout() n'empêche plus une reconnexion immédiate de fonctionner :
       soit revokeAccessToken est appelé avec le jti du token en cours
@@ -182,6 +182,23 @@ anomalies:
       tout accès. Aucune trace (commentaire, test, entrée §7) d'un
       arbitrage assumé pour ce cas précis — confirme le classement bug
       plutôt que décision de sécurité délibérée.
+
+      Corrigé le 2026-08-01 (autorisation explicite du porteur, périmètre
+      limité fourni : revoquer uniquement le token courant par jti, ne
+      jamais toucher les 6 autres sites revokeAccessToken({sub}) déjà
+      légitimes). Nouvelle fonction authDenylist.revokeAccessTokenByJti
+      (jtiKey uniquement, jamais userKey), appelée uniquement par
+      auth.service.ts#logout avec le jti/exp du token qui se déconnecte
+      (types/auth.ts#JwtPayload étendu avec exp). Les 6 autres sites
+      inchangés. Nouveau test
+      server/test/logoutRevokesTokenNotAccount.test.ts (HTTP réel,
+      Postgres/Redis réels) : confirme le fix (login immédiat après
+      logout → 200, une 2e session active non affectée par le logout de
+      la 1ère) et la non-régression (changement de rôle et suppression
+      continuent de révoquer tous les tokens du compte). Commit
+      5926a60, CI verte confirmée sur le commit ultérieur 85936dc (run
+      GitHub Actions 30704192204, job "server" incluant
+      npm run test:coverage : succès).
 
   - id: SEC-006
     titre: >
