@@ -34,6 +34,20 @@ export async function revokeAccessToken(input: { sub: string; exp?: number; jti?
   }
 }
 
+// Revokes only the single token identified by jti — never the whole account (userKey).
+// For cases where nothing about the account changed and only one session is ending (logout):
+// unlike revokeAccessToken, this must never block a different, not-yet-revoked token issued to
+// the same user by a subsequent login/refresh.
+export async function revokeAccessTokenByJti(input: { jti: string; exp: number }) {
+  const redis = await getRedisClient();
+  if (!redis) return;
+
+  const ttl = ttlSecondsFromExp(input.exp);
+  if (ttl <= 0) return;
+
+  await redis.set(jtiKey(input.jti), "1", { EX: ttl });
+}
+
 export async function isAccessTokenRevoked(input: { sub: string; jti?: string }) {
   const redis = await getRedisClient();
   if (!redis) return false;
@@ -45,5 +59,6 @@ export async function isAccessTokenRevoked(input: { sub: string; jti?: string })
 
 export const authDenylist = {
   revokeAccessToken,
+  revokeAccessTokenByJti,
   isAccessTokenRevoked,
 };

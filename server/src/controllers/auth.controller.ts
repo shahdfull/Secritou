@@ -76,7 +76,7 @@ export const logout: RequestHandler = async (req, res, next) => {
   try {
     const refreshToken = getRefreshTokenFromRequest(req);
     if (refreshToken) {
-      await authService.logout(refreshToken);
+      await authService.logout(refreshToken, { jti: req.user?.jti, exp: req.user?.exp });
     }
     if (req.user?.sub) {
       await cacheDel(cacheKeys.authMe(req.user.sub));

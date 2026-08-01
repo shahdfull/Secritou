@@ -147,12 +147,18 @@ export class AuthService {
     return toAuthUser(user);
   }
 
-  async logout(refreshToken: string) {
+  async logout(refreshToken: string, accessToken?: { jti?: string; exp?: number }) {
     const tokenHash = hashToken(refreshToken);
     const stored = await this.repo.findRefreshToken(tokenHash);
     if (stored) {
       await this.repo.revokeTokenFamily(stored.familyId);
-      await authDenylist.revokeAccessToken({ sub: stored.userId });
+      // Only the token that just logged out is revoked (by jti) — never the whole account
+      // (by sub), unlike resetPassword/changePassword/role-change/delete, which legitimately
+      // need every session gone. A logout changes nothing about the account itself, so a
+      // fresh login moments later must not be blocked by this entry (SEC-067).
+      if (accessToken?.jti && accessToken.exp) {
+        await authDenylist.revokeAccessTokenByJti({ jti: accessToken.jti, exp: accessToken.exp });
+      }
     }
   }
 
