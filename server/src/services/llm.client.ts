@@ -39,6 +39,8 @@ async function postChat(
       ...(tools && tools.length > 0 ? { tools } : {}),
       options: {
         temperature: 0.7,
+        num_ctx: env.OLLAMA_NUM_CTX,
+        num_predict: env.OLLAMA_NUM_PREDICT,
       },
     }),
     // callOllamaWithTools always passes one shared AbortSignal for the whole tool-calling loop
@@ -127,7 +129,11 @@ export async function* streamOllamaWithTools(
       messages: allMessages,
       stream: true,
       ...(tools.length > 0 ? { tools } : {}),
-      options: { temperature: 0.7 },
+      options: {
+        temperature: 0.7,
+        num_ctx: env.OLLAMA_NUM_CTX,
+        num_predict: env.OLLAMA_NUM_PREDICT,
+      },
     }),
     signal: signal ?? AbortSignal.timeout(120000),
   });

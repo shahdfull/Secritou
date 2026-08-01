@@ -72,7 +72,25 @@ const envSchema = z.object({
   UPLOAD_MAX_BYTES: z.coerce.number().default(20 * 1024 * 1024),
   SENTRY_DSN: z.string().url().optional(),
   OLLAMA_URL: z.string().url().default("http://localhost:11434"),
-  OLLAMA_MODEL: z.string().default("mistral"),
+  // qwen2.5:3b-instruct chosen over mistral (7B) after live comparison on CPU-only hardware
+  // (Ryzen 7 5800HS, 16 Go RAM) using the project's real tool schemas (session du 2026-08-01) :
+  // mistral occasionally returned a raw JSON tool call inside `content` instead of the structured
+  // `tool_calls` field callOllamaWithTools actually parses, and once spent 114s emitting all 4
+  // tool signatures as prose instead of answering a plain "Bonjour" — qwen2.5:3b answered the same
+  // greeting correctly in ~2.6s with zero false-positive tool calls, and was ~4-5x faster warm on
+  // tool-calling turns (also compared against llama3.2:3b, which called getAgencyOverview() on
+  // every single "Bonjour" in 3/3 runs — a deterministic false positive, not a fluke). mistral
+  // stays documented as a fallback in server/.env.example if a future model swap regresses
+  // tool-calling reliability.
+  OLLAMA_MODEL: z.string().default("qwen2.5:3b-instruct"),
+  // Context window (tokens) requested from Ollama for each /api/chat call. Conversation history is
+  // already capped at the last 20 messages (aiConversation.service.ts), and the turn additionally
+  // carries SYSTEM_PROMPT + up to 13 tool definitions — 4096 leaves headroom for that combination
+  // on CPU-only hosts without over-allocating RAM for context the module never actually uses.
+  OLLAMA_NUM_CTX: z.coerce.number().int().positive().default(4096),
+  // Max tokens Ollama will generate per reply. SYSTEM_PROMPT asks for concise replies — this caps
+  // worst-case CPU generation time per turn rather than relying on the model to self-limit length.
+  OLLAMA_NUM_PREDICT: z.coerce.number().int().positive().default(512),
   // Google OAuth (Search Console connector). Redirect URI must be registered
   // exactly as-is in the Google Cloud OAuth client's "Authorized redirect URIs".
   GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),

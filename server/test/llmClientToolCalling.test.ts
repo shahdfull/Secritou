@@ -13,10 +13,12 @@ import { AI_TOOL_DEFINITIONS } from "../src/services/aiTools.js";
 
 let callOllamaWithTools: typeof import("../src/services/llm.client.js").callOllamaWithTools;
 let streamOllamaWithTools: typeof import("../src/services/llm.client.js").streamOllamaWithTools;
+let env: typeof import("../src/config/env.js").env;
 let originalFetch: typeof fetch;
 
 before(async () => {
   ({ callOllamaWithTools, streamOllamaWithTools } = await import("../src/services/llm.client.js"));
+  ({ env } = await import("../src/config/env.js"));
 });
 
 // Builds a Response whose body streams the given NDJSON lines one chunk at a time — mirrors what
@@ -54,6 +56,27 @@ describe("callOllamaWithTools (SEC-059)", () => {
       await callOllamaWithTools([{ role: "user", content: "salut" }], AI_TOOL_DEFINITIONS);
       assert.ok(capturedBody?.tools, "the tools array must be attached to the request body");
       assert.equal((capturedBody!.tools as unknown[]).length, AI_TOOL_DEFINITIONS.length);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("sends num_ctx and num_predict from env in the request options (context-window/generation-length tuning)", async () => {
+    originalFetch = globalThis.fetch;
+    let capturedOptions: { num_ctx?: number; num_predict?: number } | undefined;
+    mock.method(globalThis, "fetch", async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(init!.body as string) as { options?: { num_ctx?: number; num_predict?: number } };
+      capturedOptions = body.options;
+      return new Response(JSON.stringify({ message: { role: "assistant", content: "bonjour" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    try {
+      await callOllamaWithTools([{ role: "user", content: "salut" }], AI_TOOL_DEFINITIONS);
+      assert.equal(capturedOptions?.num_ctx, env.OLLAMA_NUM_CTX);
+      assert.equal(capturedOptions?.num_predict, env.OLLAMA_NUM_PREDICT);
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -152,6 +175,26 @@ describe("callOllamaWithTools (SEC-059)", () => {
 });
 
 describe("streamOllamaWithTools (SEC-059 follow-up: streaming)", () => {
+  test("sends num_ctx and num_predict from env in the request options (context-window/generation-length tuning)", async () => {
+    originalFetch = globalThis.fetch;
+    let capturedOptions: { num_ctx?: number; num_predict?: number } | undefined;
+    mock.method(globalThis, "fetch", async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(init!.body as string) as { options?: { num_ctx?: number; num_predict?: number } };
+      capturedOptions = body.options;
+      return ndjsonResponse([{ message: { role: "assistant", content: "Bonjour" }, done: true }]);
+    });
+
+    try {
+      for await (const _event of streamOllamaWithTools([{ role: "user", content: "salut" }], AI_TOOL_DEFINITIONS)) {
+        // drain
+      }
+      assert.equal(capturedOptions?.num_ctx, env.OLLAMA_NUM_CTX);
+      assert.equal(capturedOptions?.num_predict, env.OLLAMA_NUM_PREDICT);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   test("yields content deltas as they stream in, accumulating to the full reply", async () => {
     originalFetch = globalThis.fetch;
     mock.method(globalThis, "fetch", async () =>
