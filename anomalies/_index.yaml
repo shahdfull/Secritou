@@ -12,8 +12,357 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-074
+dernier_id: SEC-093
 anomalies:
+  - id: SEC-093
+    titre: >
+      GlobalSearch.tsx (barre de recherche globale du header AdminLayout)
+      utilise une largeur fixe insuffisante sur mobile — sur un viewport
+      iPhone 12 (390px), le champ mesure réellement 214px (bounding box
+      Playwright confirmée) pour afficher le placeholder FR "Rechercher
+      les leads, clients, projets..." (37 caractères), qui déborde
+      visuellement et se retrouve coupé net par les icônes
+      notification/avatar juste à droite (aucun gap, aucune troncature
+      CSS propre type text-overflow:ellipsis visible sur la capture),
+      rendant le champ illisible sur mobile
+    perimetre: transverse
+    statut: en_cours
+    gravite: mineure
+    classe: responsive-champ-trop-etroit-pour-placeholder
+  - id: SEC-092
+    titre: >
+      useStreamMessage (client/src/hooks/useAiConversations.ts:61-93)
+      expose un cancel() réel (AbortController.abort()) mais
+      AIAssistantPage.tsx ne l'appelle jamais nulle part — aucun bouton
+      "arrêter la génération" n'existe dans l'UI pendant un stream SSE en
+      cours (streamMutation.isStreaming true), alors que le mécanisme
+      d'annulation est déjà entièrement implémenté et fonctionnel côté
+      hook, juste jamais câblé à une action utilisateur
+    perimetre: 4.11-ia
+    statut: ouvert
+    gravite: mineure
+    classe: capacite-hook-sans-point-dentree-ui
+  - id: SEC-091
+    titre: >
+      /app/booking (BookingAdminPage.tsx) n'a aucune garde de route par
+      rôle — accessible en render direct par URL à un MANAGER connecté
+      malgré adminOnly:true sur l'item de menu correspondant
+      (AdminLayout.tsx:63, qui masque seulement le lien, pas la route
+      elle-même). Reproduit réellement : GET /booking/admin/slots avec un
+      token MANAGER réel retourne 403 (Insufficient permissions) côté
+      backend — aucune fuite de données — mais BookingAdminPage.tsx
+      n'inspecte jamais le rôle ni la réponse 403 pour rediriger ou
+      bloquer l'affichage, se contentant d'un toast d'erreur générique
+      ("Impossible de charger les réservations.") sur chaque requête
+      échouée, laissant la coquille de page (layout, formulaires vides)
+      visible à un rôle qui n'a jamais accès aux données réelles
+    perimetre: transverse
+    statut: en_cours
+    gravite: mineure
+    classe: garde-route-frontend-absente-menu-seul-filtre
+  - id: SEC-090
+    titre: >
+      addMessageStreaming (aiConversation.service.ts:309-336) ne pose
+      aucun verrou/marqueur "tour en cours" sur la conversation — deux
+      appels POST /:id/messages/stream sur le même id, lancés à quelques
+      centaines de ms d'écart, lisent chacun recentMessages via
+      findByIdForWrite avant que l'autre n'ait persisté son propre
+      message ASSISTANT, donc chaque tour Ollama tourne sur un historique
+      qui ne contient pas le tour concurrent. Reproduit réellement : 2
+      requêtes SSE simultanées sur la même conversation (écart de départ
+      0.3s), chacune complète sans erreur (200, chunks cohérents,
+      "POMME" puis "BANANE" bien reçus séparément) — aucune corruption
+      DB (SEC-035 tient, les 3 paires USER/ASSISTANT sont intactes et
+      dans un ordre net en base), mais aucune des deux réponses IA n'a
+      pu tenir compte du tour de l'autre puisque son historique était
+      déjà figé au moment de sa propre lecture
+    perimetre: 4.11-ia
+    statut: ouvert
+    gravite: mineure
+    classe: sse-tours-concurrents-non-exclusifs
+  - id: SEC-089
+    titre: >
+      Au moins 14 champs texte à travers shared/src/schemas/*.ts (Lead.name,
+      Client.name, Document.name/title, Invoice.description/number/title,
+      CreditNote.reason, Project.name, Proposal.title, Task.title/content,
+      User.name, entre autres) valident via z.string().min(1) sans
+      .trim() — une chaîne composée uniquement d'espaces passe la
+      validation de longueur (min(1) compte les caractères bruts, pas le
+      contenu après trim). Reproduit réellement sur 2 modules distincts
+      via l'API réelle : POST /leads {"name":"   "} → 201, POST /clients
+      {"name":"   "} → 201 — deux enregistrements visuellement vides
+      créés avec succès, invisibles dans toute liste/recherche basée sur
+      le nom
+    perimetre: transverse
+    statut: ouvert
+    gravite: mineure
+    classe: validation-min-sans-trim-contournement-espaces
+  - id: SEC-088
+    titre: >
+      gdprService.eraseClient (server/src/services/gdpr.service.ts:95-116)
+      hard-delete réellement un Client (tx.client.delete) quand
+      invoiceCount === 0, avec un catch(isRestrictedDeleteError) prévu
+      pour retomber en mode "anonymized" si Postgres lève P2003 — mais
+      ClientOnboarding a onDelete:Cascade sur client (schema.prisma:968),
+      donc la ligne ClientOnboarding est supprimée EN CASCADE avant que
+      la contrainte Restrict sur Project (schema.prisma:966, documentée
+      "deleting a project must not silently destroy its onboarding
+      record") n'ait la moindre chance de se déclencher — aucune
+      violation FK ne se produit, isRestrictedDeleteError n'est jamais
+      atteint, mode reste "deleted". Reproduit réellement via l'endpoint
+      réel POST /gdpr/clients/:id/erase sur un client sans facture ayant
+      un projet IN_PROGRESS avec un onboarding actif : réponse 200
+      {"mode":"deleted"}, le Client est bien supprimé, le Project
+      IN_PROGRESS survit mais son ClientOnboarding a disparu
+      silencieusement, sans aucune erreur ni trace
+    perimetre: 4.3-onboarding
+    statut: ouvert
+    gravite: eleve
+    classe: cascade-schema-contourne-restrict-documente
+  - id: SEC-087
+    titre: >
+      Les 4 fonctions de server/src/cache/cacheService.ts (cacheGet,
+      cacheSet, cacheDel, invalidateTags) catchent silencieusement toute
+      erreur (échec Redis, timeout, exception) sans jamais appeler
+      logger.warn/logger.error — contrairement à getRedisClient
+      lui-même (src/cache/redis.ts:31, qui journalise via
+      .on("error", ...)), une panne DANS un appel de commande Redis
+      (redis.get/set/del/sMembers échouant après une connexion déjà
+      établie, ou toute exception levée avant que le listener d'erreur
+      ne s'applique) ne laisse absolument aucune trace exploitable —
+      aggrave directement le diagnostic de SEC-084/SEC-085 : un opérateur
+      qui verrait des requêtes lentes/bloquées ou des rejets
+      d'authentification n'aurait aucune ligne de log pointant vers "les
+      appels de cache échouent silencieusement" comme cause
+    perimetre: transverse
+    statut: ouvert
+    gravite: mineure
+    classe: erreur-cache-avalee-sans-log
+  - id: SEC-086
+    titre: >
+      looksLikePlainText (server/src/services/upload.service.ts:47-54),
+      seule vérification appliquée aux types déclarés sans signature
+      magique (NO_MAGIC_BYTES_MIME, dont text/plain), ne détecte que des
+      octets binaires (nul, contrôle) — n'importe quel contenu HTML/JS
+      valide en texte imprimable (ex. "&lt;html&gt;&lt;script&gt;alert(1)&lt;/script&gt;...")
+      la passe trivialement. Reproduit réellement contre un serveur réel :
+      upload d'un fichier HTML contenant un &lt;script&gt; déclaré
+      Content-Type: text/plain, filename notes.txt — accepté (201),
+      stocké et re-servi tel quel par MinIO. Sévérité limitée par 2
+      mitigations déjà en place : le fichier est reservi avec
+      Content-Type: text/plain réel (pas text/html, donc pas d'exécution
+      de &lt;script&gt; par un navigateur qui le charge directement), et
+      le frontend (ex. DocumentsClientPage.tsx) utilise
+      a.download/target=_blank pour forcer un téléchargement plutôt
+      qu'un rendu inline
+    perimetre: transverse
+    statut: ouvert
+    gravite: mineure
+    classe: upload-bypass-verification-contenu-texte-libre
+  - id: SEC-085
+    titre: >
+      authDenylist.isAccessTokenRevoked (server/src/cache/authDenylist.ts:51-56)
+      appelle getRedisClient() sans try/catch — si Redis est simplement
+      injoignable (conteneur arrêté, ECONNREFUSED immédiat, pas
+      seulement le cas mid-connexion de SEC-084), getRedisClient()
+      rejette (aucun try/catch autour de next.connect() dans
+      redis.ts#getRedisClient), la rejection remonte jusqu'au catch générique
+      de authenticate (auth.middleware.ts:32-34), qui la transforme en
+      HttpError(401, "Invalid or expired token") — indiscernable pour
+      l'utilisateur d'un vrai token expiré/invalide. Reproduit réellement :
+      conteneur Redis arrêté proprement (pas en cours de redémarrage),
+      token JWT fraîchement émis et valide, requête authentifiée rejetée
+      401 en ~5s (ECONNREFUSED, pas un hang) — CHAQUE requête
+      authentifiée de l'application échoue de la même façon tant que
+      Redis reste indisponible, pas seulement les écritures passant par
+      invalidateTags
+    perimetre: transverse
+    statut: ouvert
+    gravite: eleve
+    classe: authentification-faussement-rejetee-si-redis-indisponible
+  - id: SEC-084
+    titre: >
+      getRedisClient (server/src/cache/redis.ts:24-39) n'a aucun timeout
+      sur next.connect() ni sur le reconnectStrategy par défaut du client
+      redis v4 — si l'appel de connexion est en cours au moment où Redis
+      devient injoignable (conteneur arrêté), la promesse
+      connecting/next.connect() ne se résout ni ne rejette jamais.
+      Reproduit réellement : POST /clients déclenche
+      invalidateTags -> getRedisClient() pendant un redémarrage réel du
+      conteneur Redis — la requête HTTP reste bloquée indéfiniment
+      (aucune réponse après plus d'une minute, y compris après le retour
+      de Redis à un état sain), alors que TOUTE requête suivante sur le
+      même process réussit normalement en millisecondes (un nouvel appel
+      crée une nouvelle promesse connecting, la précédente reste orpheline
+      pour toujours). Écriture DB déjà commitée (le Client est bien créé
+      en base) mais le client HTTP n'obtient jamais de réponse
+    perimetre: transverse
+    statut: ouvert
+    gravite: eleve
+    classe: redis-connect-sans-timeout-requete-orpheline
+  - id: SEC-083
+    titre: >
+      GET /health/ready (server/src/routes/index.ts:109-138) crée un
+      NOUVEAU client Redis ad hoc (createClient) à CHAQUE appel, sans
+      jamais attacher de listener .on("error", ...) — contrairement au
+      client Redis partagé (src/cache/redis.ts:31) qui en a un. Un
+      EventEmitter Node qui émet "error" sans listener attaché lève une
+      exception non catchée qui fait planter tout le process — reproduit
+      réellement : conteneur Redis arrêté puis redémarré pendant qu'un
+      appel à /health/ready était en cours de connexion → ECONNRESET sur
+      le socket Redis ad hoc → process Node entier terminé, plus aucune
+      route ne répond, y compris pour tous les autres utilisateurs
+      connectés au même moment. Aggravé par l'absence de tout timeout de
+      connexion (aucun socket.connectTimeout ni reconnectStrategy:false)
+      — un Redis injoignable fait aussi rester GET /health/ready bloqué
+      indéfiniment (pas de réponse rapide 503) avant même d'atteindre le
+      cas de crash
+    perimetre: transverse
+    statut: ouvert
+    gravite: bloquant
+    classe: healthcheck-crash-process-entier
+  - id: SEC-082
+    titre: >
+      addMessageStream (aiConversation.controller.ts) et
+      runConversationTurn (aiConversation.service.ts) n'écoutent jamais
+      la fermeture de la connexion client (aucun res.on("close")/req.on("close"))
+      — le seul AbortSignal utilisé est turnDeadline
+      (AbortSignal.timeout(TURN_TIMEOUT_MS), 180s), jamais lié à l'état de
+      la connexion HTTP. Reproduit réellement : un client qui abandonne
+      la connexion SSE juste après le premier chunk n'empêche pas le tour
+      Ollama de continuer à s'exécuter côté serveur jusqu'à sa fin
+      naturelle, ni le message ASSISTANT complet d'être persisté 15s plus
+      tard — aucune corruption de donnée (SEC-035 empêche déjà toute
+      persistance partielle), mais gaspillage de calcul/tokens Ollama sur
+      un client absent, et aucune protection contre un double tour si
+      l'utilisateur retape le même message après avoir vu son
+      abandon côté client
+    perimetre: 4.11-ia
+    statut: ouvert
+    gravite: mineure
+    classe: sse-sans-annulation-liee-a-la-connexion
+  - id: SEC-081
+    titre: >
+      PUT /commissions/projects/:id/splits (commissionService.setSplits)
+      valide la somme des ratePct, les doublons et le mode PER_TASK, mais
+      jamais que chaque partnerId fourni correspond à un User réel avant
+      l'écriture — un partnerId UUID syntaxiquement valide mais
+      inexistant fait échouer la contrainte de clé étrangère (P2003), non
+      catchée par error.middleware.ts, remontant en 500 brut. Même classe
+      que SEC-077 (invoice.service.ts#create), site de code distinct.
+      Reproduit réellement contre un serveur HTTP réel avec un vrai token
+      ADMIN et un projet réel
+    perimetre: 4.5-commissions
+    statut: ouvert
+    gravite: mineure
+    classe: fk-non-validee-500-brut
+  - id: SEC-080
+    titre: >
+      Trois points de performance mineurs, non mesurables à la
+      volumétrie actuelle (0 client actif), regroupés sous un même
+      constat de dette technique : (1) generateManagerFeesOnDeliveryTx
+      (commission.service.ts:203-211) boucle un await Prisma par manager
+      au lieu d'un createMany, alors que le pattern createMany est déjà
+      appliqué juste au-dessus dans le même fichier pour un cas
+      équivalent (commentaire SEC-170) ; (2) commissionRepository.markPaid/
+      findById chargent include:{partner,project,invoice} en entier alors
+      que le service ne lit jamais project pour ces deux usages (markPaid
+      ne lit que status avant l'update) ; (3) getSplitsByProjectTx/
+      getManagerFeesByProjectTx n'ont pas de select explicite,
+      chargent id/createdAt/updatedAt jamais utilisés par les deux seuls
+      appelants
+    perimetre: 4.5-commissions
+    statut: ouvert
+    gravite: mineure
+    classe: dette-technique-perf-non-mesurable-volumetrie-actuelle
+  - id: SEC-079
+    titre: >
+      commission.repository.ts#getAll (server/src/repositories/commission.repository.ts:263)
+      interpole options.orderBy directement dans la clause Prisma sans
+      passer par buildOrderBy — même classe que SEC-075 (invoice.repository.ts),
+      site de code distinct. En plus de l'absence de whitelist, aucun
+      index n'existe sur Commission.createdAt (seuls partnerId/projectId/
+      invoiceId/status sont indexés individuellement, schema.prisma
+      ~lignes 1508-1511) — le tri par défaut de getMyCommissions/getAll
+      force un scan+sort non couvert par index dès quelques milliers de
+      lignes par partenaire
+    perimetre: 4.5-commissions
+    statut: ouvert
+    gravite: mineure
+    classe: orderby-non-whiteliste-500-brut
+  - id: SEC-078
+    titre: >
+      commissionService.markPaid (server/src/services/commission.service.ts:515)
+      construit le message de notification COMMISSION_PAID avec
+      `${updatedCommission.invoice?.number ? "" : ""}` — les deux branches
+      du ternaire retournent la même chaîne vide, donc le numéro de
+      facture n'apparaît jamais dans le message quel que soit son
+      existence, malgré commissionRepository.markPaid (repository.ts:295)
+      qui charge bien invoice:{select:{id,number}} explicitement pour cet
+      usage. Message final toujours "Votre commission de X.XXX  a été
+      versée." (double espace, aucune référence à la facture)
+    perimetre: 4.5-commissions
+    statut: ouvert
+    gravite: mineure
+    classe: expression-morte-message-notification
+  - id: SEC-077
+    titre: >
+      POST /invoices (invoiceService.create) n'existe-t-elle pas de
+      vérification préalable que clientId (ou projectId/proposalId s'ils
+      sont fournis) correspond à une ligne réelle avant l'écriture Prisma
+      — un clientId inexistant/mal formé fait échouer la contrainte de
+      clé étrangère (P2003), non catchée par error.middleware.ts (seul
+      P2002 y est mappé), et remonte en 500 brut au lieu d'un 404/422
+      propre. Reproduit réellement contre un serveur HTTP réel avec un
+      vrai token ADMIN et un clientId UUID valide mais inexistant
+    perimetre: 4.4-facturation
+    statut: ouvert
+    gravite: mineure
+    classe: fk-non-validee-500-brut
+  - id: SEC-076
+    titre: >
+      server/test/invoice.service.test.ts réimplémente intégralement la
+      logique du module (computeNewStatus, computeOverpayment,
+      assertInvoiceDraft, assertCreditAmount, buildInvoiceNumber,
+      isDuplicatePayment — 26 cas de test au total) sans jamais importer
+      ni appeler src/services/invoice.service.ts ou creditNote.service.ts
+      — même classe que SEC-072, sur le module 4.4 cette fois. Symptôme
+      le plus visible : le fixture FakeTx interroge
+      tx.invoice.findUnique({where:{id, companyId}}) — un champ companyId
+      qui n'existe nulle part dans schema.prisma ni dans le vrai code
+      (dépôt mono-tenant, interdiction en tête de CLAUDE.md). La logique
+      recopiée diverge réellement du vrai code sur au moins 2 points :
+      assertCreditAmount ne soustrait jamais les avoirs déjà émis sur la
+      même facture (le vrai creditNoteService.create le fait, SEC-184,
+      remainingCreditable = amountPaid - alreadyCredited) — bien que
+      SEC-184 lui-même soit déjà couvert par un vrai test ailleurs
+      (creditNoteCumulativeAmount.test.ts) — et computeNewStatus/runAddPayment
+      ne testent jamais le garde-fou de statut (invoiceService.addPayment
+      rejette tout paiement si le statut n'est pas SENT/PARTIAL/OVERDUE,
+      HttpError 409 INVOICE_NOT_ACCEPTING_PAYMENTS) ni le chemin
+      idempotencyKey (le vrai chemin préféré, testé nulle part dans ce
+      fichier — seul le repli 10s est mirroré)
+    perimetre: 4.4-facturation
+    statut: ouvert
+    gravite: moyenne
+    classe: test-mirror-ne-teste-pas-le-code-reel
+  - id: SEC-075
+    titre: >
+      invoice.repository.ts (findAll/findAllByServiceId/findDeleted)
+      interpole options.orderBy (venant tel quel de req.query.orderBy via
+      parseListQuery, aucune validation) directement dans la clause Prisma
+      orderBy sans passer par buildOrderBy (whitelist déjà utilisée par 8
+      autres repositories, dont proposal.repository.ts corrigé sous
+      SEC-103 pour exactement ce défaut) — un orderBy invalide/inexistant
+      (ex. "client", "nonExistentField") provoque un 500 brut
+      (PrismaClientValidationError non catché spécifiquement par
+      error.middleware.ts) sur GET /invoices (ADMIN/MANAGER),
+      /invoices/my-service, /invoices/trash. Reproduit réellement contre
+      un serveur HTTP réel avec un vrai token ADMIN
+    perimetre: 4.4-facturation
+    statut: ouvert
+    gravite: mineure
+    classe: orderby-non-whiteliste-500-brut
   - id: SEC-074
     titre: >
       npm run test:coverage --workspace=server échoue de façon non

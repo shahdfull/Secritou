@@ -889,7 +889,7 @@
     "contactBody": "Pour toute question relative à cette politique : contact@secritou.tn"
   },
   "search": {
-    "placeholder": "Rechercher les leads, clients, projets...",
+    "placeholder": "Rechercher...",
     "minCharacters": "Tapez au moins 2 caractères",
     "noResults": "Aucun résultat",
     "leads": "Leads",

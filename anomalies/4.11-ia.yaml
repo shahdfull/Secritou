@@ -9,6 +9,169 @@
 # Périmètre : 4.11 Module IA (agent-service)
 # 0 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
+# +1 le 2026-08-01 (Phase 1 point 4, tests SSE demandés explicitement par
+# le porteur — item 15 du mandat QA).
+# +1 le 2026-08-01 (même session, item 15 du mandat QA — sous-scénario
+# "double requête simultanée sur la même conversation"). +1 le
+# 2026-08-01 (Phase 2 point 4 du mandat QA, feedback UX pendant le
+# streaming SSE).
+
+anomalies:
+  - id: SEC-092
+    titre: >
+      useStreamMessage (client/src/hooks/useAiConversations.ts:61-93)
+      expose un cancel() réel (AbortController.abort()) mais
+      AIAssistantPage.tsx ne l'appelle jamais nulle part — aucun bouton
+      "arrêter la génération" n'existe dans l'UI pendant un stream SSE en
+      cours (streamMutation.isStreaming true), alors que le mécanisme
+      d'annulation est déjà entièrement implémenté et fonctionnel côté
+      hook, juste jamais câblé à une action utilisateur
+    perimetre: 4.11-ia
+    regle_violee: >
+      Aucune règle métier écrite — attente UX du mandat QA (Phase 2
+      point 4) : un utilisateur qui déclenche une génération longue
+      (jusqu'à 180s sur cette machine CPU-only, TURN_TIMEOUT_MS) doit
+      pouvoir l'interrompre, surtout quand le mécanisme technique existe
+      déjà et n'attend qu'un bouton.
+    classe: capacite-hook-sans-point-dentree-ui
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      Un bouton visible pendant streamMutation.isStreaming appelle
+      streamMutation.cancel() — un test réel de composant doit simuler
+      un stream en cours, cliquer ce bouton, et vérifier que
+      isStreaming repasse à false sans qu'aucun message ASSISTANT
+      erroné n'apparaisse dans la conversation.
+    detecte_le: "2026-08-01"
+    source: >
+      Phase 2 point 4 du mandat QA ("feedback pendant le streaming SSE
+      du module IA") — lecture directe de
+      client/src/hooks/useAiConversations.ts (cancel exporté par le
+      hook) et de client/src/features/ai-assistant/AIAssistantPage.tsx
+      en entier (578 lignes) : aucune occurrence de
+      streamMutation.cancel ni de cancel nulle part dans ce fichier.
+    confiance: haute
+    note: >
+      Distinct de SEC-082/SEC-090 (tous deux côté backend/service) —
+      ici le défaut est entièrement côté frontend : le hook fait déjà
+      tout le travail nécessaire (AbortController réel, pas un mock),
+      il ne manque qu'un <button> et un onClick.
+  - id: SEC-090
+    titre: >
+      addMessageStreaming (aiConversation.service.ts:309-336) ne pose
+      aucun verrou/marqueur "tour en cours" sur la conversation — deux
+      appels POST /:id/messages/stream sur le même id, lancés à quelques
+      centaines de ms d'écart, lisent chacun recentMessages via
+      findByIdForWrite avant que l'autre n'ait persisté son propre
+      message ASSISTANT, donc chaque tour Ollama tourne sur un historique
+      qui ne contient pas le tour concurrent. Reproduit réellement : 2
+      requêtes SSE simultanées sur la même conversation (écart de départ
+      0.3s), chacune complète sans erreur (200, chunks cohérents,
+      "POMME" puis "BANANE" bien reçus séparément) — aucune corruption
+      DB (SEC-035 tient, les 3 paires USER/ASSISTANT sont intactes et
+      dans un ordre net en base), mais aucune des deux réponses IA n'a
+      pu tenir compte du tour de l'autre puisque son historique était
+      déjà figé au moment de sa propre lecture
+    perimetre: 4.11-ia
+    regle_violee: >
+      Aucune règle métier écrite — cohérence conversationnelle attendue
+      implicitement : un fil de conversation suppose que chaque réponse
+      IA tient compte de tous les messages précédents, y compris ceux
+      envoyés quelques centaines de ms plus tôt sur le même fil.
+    classe: sse-tours-concurrents-non-exclusifs
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      addMessageStreaming refuse (409) ou met en file un second tour
+      démarré sur une conversation dont un tour précédent n'est pas
+      encore persisté — un test réel doit reproduire exactement ce
+      scénario (2 requêtes SSE sur la même conversation, écart de
+      départ <1s) et vérifier que la seconde attend la persistance de
+      la première avant de lire l'historique, contrairement au
+      comportement actuel.
+    detecte_le: "2026-08-01"
+    source: >
+      Phase 1 point 4 (Module IA), item 15 du mandat QA ("double requête
+      simultanée sur la même conversation") — reproduction réelle contre
+      un serveur HTTP réel et Ollama réel (qwen2.5:3b-instruct, machine
+      CPU-only) : conversation créée, 2 requêtes POST
+      /ai/conversations/:id/messages/stream lancées avec 0.3s d'écart
+      ("Dis uniquement POMME" / "Dis uniquement BANANE"), les deux
+      streams se terminent avec succès et leur contenu respectif est
+      correct ; relecture de la conversation ensuite confirme 3 paires
+      USER/ASSISTANT intactes et non entrelacées. Script de reproduction
+      supprimé après usage, jamais committé.
+    confiance: haute
+    note: >
+      Distinct de SEC-082 : SEC-082 porte sur l'absence d'annulation liée
+      à la fermeture de connexion (gaspillage de ressource sur un client
+      absent) ; SEC-090 porte sur l'absence d'exclusion mutuelle entre
+      deux tours concurrents sur la MÊME conversation, un défaut de
+      cohérence du contexte conversationnel, pas de la gestion de
+      connexion. Aucune corruption de donnée dans les deux cas (SEC-035
+      tient) — les deux anomalies partagent cette même garantie sans être
+      la même classe de défaut.
+  - id: SEC-082
+    titre: >
+      addMessageStream (aiConversation.controller.ts) et
+      runConversationTurn (aiConversation.service.ts) n'écoutent jamais
+      la fermeture de la connexion client (aucun res.on("close")/req.on("close"))
+      — le seul AbortSignal utilisé est turnDeadline
+      (AbortSignal.timeout(TURN_TIMEOUT_MS), 180s), jamais lié à l'état de
+      la connexion HTTP. Reproduit réellement : un client qui abandonne
+      la connexion SSE juste après le premier chunk n'empêche pas le tour
+      Ollama de continuer à s'exécuter côté serveur jusqu'à sa fin
+      naturelle, ni le message ASSISTANT complet d'être persisté 15s plus
+      tard — aucune corruption de donnée (SEC-035 empêche déjà toute
+      persistance partielle), mais gaspillage de calcul/tokens Ollama sur
+      un client absent, et aucune protection contre un double tour si
+      l'utilisateur retape le même message après avoir vu son
+      abandon côté client
+    perimetre: 4.11-ia
+    regle_violee: >
+      Aucune règle métier écrite — fiabilité opérationnelle : sur une
+      machine CPU-only où chaque tour Ollama coûte des dizaines de
+      secondes de calcul réel, laisser tourner un tour pour un client
+      disparu gaspille une ressource rare (le seul worker Ollama
+      disponible) qui pourrait servir une requête réelle en attente.
+    classe: sse-sans-annulation-liee-a-la-connexion
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      addMessageStream écoute res.on("close") (ou req.on("close")) et
+      déclenche l'AbortSignal partagé par runConversationTurn dès que la
+      connexion client se ferme avant l'événement "done" — le tour
+      Ollama en cours s'interrompt au prochain point de contrôle
+      (round-trip suivant, ou immédiatement si l'implémentation
+      d'Ollama respecte le signal en cours de streaming). Un test réel
+      doit reproduire exactement le scénario de cette anomalie (client
+      abandonne après le premier chunk) et vérifier qu'aucun nouveau
+      message ASSISTANT n'est persisté après la fermeture, contrairement
+      au comportement actuel.
+    detecte_le: "2026-08-01"
+    source: >
+      Phase 1 point 4 (Module IA), item 15 du mandat QA explicitement
+      demandé par le porteur ("connexion interrompue en cours de
+      stream... vérifie qu'aucun état incohérent n'est persisté") —
+      reproduction réelle contre un serveur HTTP réel et Ollama réel
+      (qwen2.5:3b-instruct, machine CPU-only) : conversation créée, un
+      message streamé lancé, connexion client abandonnée
+      (AbortController.abort()) juste après réception du premier
+      événement SSE "chunk", puis 15s d'observation. Résultat : le
+      message ASSISTANT complet apparaît en base à la fin des 15s malgré
+      l'abandon client. Script de reproduction supprimé après usage,
+      jamais committé.
+    confiance: haute
+    note: >
+      Distinct du risque initialement redouté par l'item 15 du mandat
+      (un message ASSISTANT partiel enregistré comme complet) : SEC-035
+      empêche déjà ce cas précis, en ne persistant qu'une fois la réponse
+      entièrement connue. Le défaut réel trouvé ici est différent :
+      absence totale d'annulation liée à la connexion, donc gaspillage de
+      ressource (le tour continue pour rien) plutôt que corruption de
+      donnée. Gravité mineure : pas de risque d'intégrité, mais un risque
+      réel de contention sur la seule ressource Ollama partagée si
+      plusieurs utilisateurs abandonnent des tours en parallèle.
 #
 # Reclassé GELÉ → ACTIF le 2026-07-30 (décision explicite du porteur, voir
 # REFERENTIEL.md §7) — audit A/B/G démarré le jour même. Relecture
@@ -34,7 +197,6 @@
 # incidemment en testant l'assistant en conditions réelles (Ollama non
 # lancé localement).
 
-anomalies:
   - id: SEC-070
     titre: >
       RAG sémantique (embeddings pgvector + nomic-embed-text) pour le

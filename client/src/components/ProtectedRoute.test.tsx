@@ -53,3 +53,56 @@ describe("ProtectedRoute redirect propagation (audit 03 #8)", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("ProtectedRoute MANAGER guard on ADMIN-only routes (SEC-091)", () => {
+  beforeEach(() => {
+    useAuthStore.setState({
+      user: { id: "m1", email: "m@test.local", name: "M", role: "MANAGER", serviceId: "s1" },
+      status: "authenticated",
+      bootstrapped: true,
+      accessToken: "x",
+    } as never);
+  });
+
+  test("MANAGER navigating directly to /app/booking is redirected to /app instead of rendering the page", () => {
+    render(
+      <MemoryRouter initialEntries={["/app/booking"]}>
+        <Routes>
+          <Route
+            path="/app/booking"
+            element={
+              <ProtectedRoute>
+                <div>Booking admin page (should never render for MANAGER)</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/app" element={<div>Dashboard</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(
+      screen.queryByText("Booking admin page (should never render for MANAGER)")
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Dashboard")).toBeInTheDocument();
+  });
+
+  test("MANAGER navigating to /app/commissions (not ADMIN-only) still renders normally", () => {
+    render(
+      <MemoryRouter initialEntries={["/app/commissions"]}>
+        <Routes>
+          <Route
+            path="/app/commissions"
+            element={
+              <ProtectedRoute>
+                <div>Commissions page</div>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText("Commissions page")).toBeInTheDocument();
+  });
+});

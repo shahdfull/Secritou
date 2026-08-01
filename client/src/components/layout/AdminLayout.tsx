@@ -325,7 +325,10 @@ export const AdminLayout = memo(function AdminLayout() {
           {/* Topbar */}
           <header className="safe-top sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background px-5 gap-4">
             <SidebarTrigger className="md:hidden shrink-0" />
-            <div className="flex-1 max-w-sm">
+            {/* SEC-093: no max-w cap below sm — on a narrow viewport the fixed 24rem cap left far
+                less room than that once the sidebar trigger, gap, and right-side icons claimed
+                their share, truncating the search placeholder against the icons next to it. */}
+            <div className="flex-1 min-w-0 sm:max-w-sm">
               <GlobalSearch />
             </div>
             <div className="flex items-center gap-2 shrink-0">

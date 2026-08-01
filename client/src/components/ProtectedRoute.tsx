@@ -64,6 +64,18 @@ export function ProtectedRoute({ children, redirectTo = "/login" }: ProtectedRou
         return <Navigate to="/app/freelancer-dashboard" replace />;
       }
     }
+
+    // SEC-091: routes whose backend is 100% authorize("ADMIN") (booking.routes.ts) have no
+    // legitimate MANAGER data to show — unlike commissions, where MANAGER gets a real /my
+    // variant. Blocked here the same way FREELANCER's out-of-scope routes are, instead of
+    // relying on the page component to notice its own 403s.
+    if (user.role === "MANAGER") {
+      const adminOnlyRoutes = ["/app/booking"];
+      const isBlockedRoute = adminOnlyRoutes.some(route => currentPath === route || currentPath.startsWith(route + "/"));
+      if (isBlockedRoute) {
+        return <Navigate to="/app" replace />;
+      }
+    }
   }
 
   return children;
