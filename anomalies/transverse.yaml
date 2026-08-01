@@ -345,7 +345,7 @@ anomalies:
       mécanisme principal.
     classe: authentification-faussement-rejetee-si-redis-indisponible
     gravite: eleve
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       isAccessTokenRevoked catche l'échec de getRedisClient()/next.connect()
       et retombe sur son comportement déjà existant pour "pas de client"
@@ -356,6 +356,19 @@ anomalies:
       down, mais l'authentification normale continue). Un test réel doit
       arrêter Redis, présenter un token JWT valide et non révoqué, et
       vérifier un 200 sur une route protégée, pas un 401.
+    correctif: >
+      isAccessTokenRevoked (authDenylist.ts) enveloppe désormais l'appel
+      à getRedisClient() dans un try/catch, retombant sur return false
+      (même comportement que le cas "pas de client" déjà existant) si
+      l'appel rejette. Vérifié réellement dans les 2 scénarios les plus
+      difficiles : (1) conteneur Redis jamais joignable dès le départ —
+      GET /leads avec un JWT valide répond 200 en 74ms ; (2) conteneur
+      arrêté PENDANT qu'une connexion Redis était déjà établie (le
+      client partagé avait isOpen:true, socket coupée après coup) — même
+      requête répond 200 en 5.05s (le socketTimeout ajouté sous SEC-084,
+      dont ce fix dépend). 783/785 tests server verts (seul échec :
+      SEC-069, pré-existant, sans rapport). En attente de commit + CI
+      verte avant passage à resolu.
     detecte_le: "2026-08-01"
     source: >
       Phase 1, item 12 du mandat QA (résilience Redis/BullMQ) — reproduit
@@ -402,7 +415,7 @@ anomalies:
       principal (l'écriture DB) a déjà réussi.
     classe: redis-connect-sans-timeout-requete-orpheline
     gravite: eleve
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       getRedisClient borne next.connect() par un timeout explicite (ex.
       Promise.race avec un délai de quelques secondes, ou
@@ -414,6 +427,40 @@ anomalies:
       est en cours d'envoi, et vérifier que cette requête reçoit une
       réponse HTTP dans un délai borné (quelques secondes), pas un hang
       indéfini.
+    correctif: >
+      3 changements dans redis.ts, découverts nécessaires par
+      itération sur des reproductions réelles (le premier essai,
+      connectTimeout seul, ne suffisait pas) : (1) socket.connectTimeout
+      (5s) sur buildClient — borne la première tentative de connexion ;
+      (2) socket.reconnectStrategy: false — sans ce réglage, le
+      reconnectStrategy par défaut du client redis v6 retry indéfiniment
+      en arrière-plan après un échec, empêchant connect() de jamais
+      rejeter malgré le connectTimeout (confirmé : sans ce réglage, un
+      appel contre un conteneur arrêté ne s'est ni résolu ni rejeté
+      après plusieurs minutes d'observation réelle) ; (3) le bloc
+      connecting = (async () => {...})() enveloppe désormais son corps
+      dans try/finally { connecting = null } — sans ça, une promesse
+      rejetée restait la valeur de connecting pour toujours, chaque
+      appel suivant re-attendant (et re-rejetant depuis) cette même
+      tentative périmée au lieu d'en retenter une nouvelle une fois
+      Redis redevenu joignable. Un 4e ajout, socket.socketTimeout (5s),
+      couvre un second scénario distinct découvert en testant : un
+      client déjà connecté (isOpen resté true) dont la socket meurt
+      après coup (conteneur arrêté PENDANT l'usage, pas avant) — sans
+      lui, une commande envoyée à cette socket morte restait bloquée
+      indéfiniment malgré connectTimeout/reconnectStrategy (qui ne
+      s'appliquent qu'à connect(), jamais aux commandes). Vérifié
+      réellement dans les 2 scénarios : requête HTTP réelle répond en
+      ~5s (503/dégradé) dans les deux cas au lieu de ne jamais répondre,
+      confirmé stable sur plusieurs appels consécutifs, process jamais
+      tombé. 783/785 tests server verts (seul échec : SEC-069,
+      pré-existant, sans rapport — les 6 échecs commissionService/
+      taskService observés en cours de route étaient une pollution de
+      données de test antérieure — 3 comptes ADMIN de test jamais
+      nettoyés d'une session précédente rendant SEC-038 réel — pas une
+      régression de ce correctif ; confirmé en supprimant ces comptes
+      et en re-exécutant). En attente de commit + CI verte avant
+      passage à resolu.
     detecte_le: "2026-08-01"
     source: >
       Phase 1, item 12 du mandat QA (résilience Redis/BullMQ, arrêt réel
@@ -468,7 +515,7 @@ anomalies:
       d'erreur pour cette raison précise.
     classe: healthcheck-crash-process-entier
     gravite: bloquant
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       GET /health/ready n'utilise plus un createClient ad hoc par appel
       — soit il réutilise getRedisClient() (le client partagé, déjà
@@ -482,6 +529,23 @@ anomalies:
       — jamais un timeout HTTP ni un crash process ; (2) confirmer par un
       arrêt du conteneur PENDANT une connexion en cours (scénario exact de
       cette anomalie) que le process survit.
+    correctif: >
+      Option retenue : GET /health/ready réutilise désormais
+      getRedisClient() (le client partagé de redis.ts, déjà doté d'un
+      .on("error", ...) et, depuis le correctif SEC-084 ci-dessus, d'un
+      connectTimeout+reconnectStrategy:false+socketTimeout) au lieu de
+      créer un createClient ad hoc par appel — plus jamais de client
+      sans listener d'erreur, et .quit() n'est plus appelé (le client
+      partagé reste vivant pour le reste de l'app). Vérifié réellement
+      dans les 2 scénarios exigés par le critère de résolution : (1)
+      conteneur arrêté puis appels répétés (×3) — chacun répond en ~5s
+      exactement, 503 degraded, checks.redis:"error", process confirmé
+      vivant après chaque appel (GET /health répond toujours) ; (2)
+      conteneur arrêté PENDANT qu'une connexion était déjà établie
+      (scénario exact de la découverte originale) — même résultat, 5s,
+      503, process vivant, plus aucun ECONNRESET non catché. 783/785
+      tests server verts (seul échec : SEC-069, pré-existant, sans
+      rapport). En attente de commit + CI verte avant passage à resolu.
     detecte_le: "2026-08-01"
     source: >
       Phase 1, item 12 du mandat QA explicitement demandé par le porteur

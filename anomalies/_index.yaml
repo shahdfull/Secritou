@@ -177,7 +177,7 @@ anomalies:
       Redis reste indisponible, pas seulement les écritures passant par
       invalidateTags
     perimetre: transverse
-    statut: ouvert
+    statut: en_cours
     gravite: eleve
     classe: authentification-faussement-rejetee-si-redis-indisponible
   - id: SEC-084
@@ -197,7 +197,7 @@ anomalies:
       pour toujours). Écriture DB déjà commitée (le Client est bien créé
       en base) mais le client HTTP n'obtient jamais de réponse
     perimetre: transverse
-    statut: ouvert
+    statut: en_cours
     gravite: eleve
     classe: redis-connect-sans-timeout-requete-orpheline
   - id: SEC-083
@@ -218,7 +218,7 @@ anomalies:
       indéfiniment (pas de réponse rapide 503) avant même d'atteindre le
       cas de crash
     perimetre: transverse
-    statut: ouvert
+    statut: en_cours
     gravite: bloquant
     classe: healthcheck-crash-process-entier
   - id: SEC-082
@@ -538,7 +538,7 @@ anomalies:
       avec un token fraîchement émis et valide — constaté en conditions
       réelles (déconnexion puis reconnexion immédiate, bloqué ~15 min)
     perimetre: 4.14-auth
-    statut: ouvert
+    statut: resolu
     gravite: eleve
     classe: revocation-token-trop-large-sub-sans-jti
   - id: SEC-066

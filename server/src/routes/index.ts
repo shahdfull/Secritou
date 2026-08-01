@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { createClient } from "redis";
 import { prisma } from "../config/prisma.js";
+import { getRedisClient } from "../cache/redis.js";
 import { authRoutes } from "./auth.routes.js";
 import { contactRoutes } from "./contact.routes.js";
 import bookingRoutes from "./booking.routes.js";
@@ -117,22 +117,20 @@ apiRoutes.get("/health/ready", async (_req, res) => {
   }
 
   if (process.env.REDIS_URL || process.env.REDIS_HOST) {
+    // SEC-083: previously created a brand-new ad hoc client on every single call with no
+    // .on("error", ...) listener — an EventEmitter that emits "error" with no listener attached
+    // throws and crashes the whole process, and this endpoint (an orchestrator healthcheck) is
+    // called repeatedly by design. Reuses the shared client instead: already has an error
+    // listener and a bounded connectTimeout (SEC-084), and is never closed here since other parts
+    // of the app keep using the same shared connection.
     try {
-      const redis = process.env.REDIS_URL
-        ? createClient({ url: process.env.REDIS_URL })
-        : createClient({
-            socket: {
-              host: process.env.REDIS_HOST ?? "127.0.0.1",
-              port: Number(process.env.REDIS_PORT ?? 6379),
-            },
-            username: process.env.REDIS_USERNAME,
-            password: process.env.REDIS_PASSWORD,
-            database: Number(process.env.REDIS_DB ?? 0),
-          });
-      await redis.connect();
-      const pong = await redis.ping();
-      checks.redis = pong === "PONG" ? "ok" : "error";
-      await redis.quit();
+      const redis = await getRedisClient();
+      if (!redis) {
+        checks.redis = "skipped";
+      } else {
+        const pong = await redis.ping();
+        checks.redis = pong === "PONG" ? "ok" : "error";
+      }
     } catch {
       checks.redis = "error";
     }

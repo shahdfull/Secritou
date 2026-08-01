@@ -49,7 +49,16 @@ export async function revokeAccessTokenByJti(input: { jti: string; exp: number }
 }
 
 export async function isAccessTokenRevoked(input: { sub: string; jti?: string }) {
-  const redis = await getRedisClient();
+  // SEC-085: the denylist is a defense-in-depth check on top of JWT signature/expiry (the actual
+  // authentication mechanism) — its own unavailability must never reject an otherwise-valid token.
+  // Without this catch, Redis being down (or even mid-connect past SEC-084's timeout) turned every
+  // authenticated request into a 401, not just the cache-dependent ones.
+  let redis;
+  try {
+    redis = await getRedisClient();
+  } catch {
+    return false;
+  }
   if (!redis) return false;
 
   if (await redis.exists(userKey(input.sub))) return true;
