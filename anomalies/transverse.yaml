@@ -30,9 +30,95 @@
 # mobile réel via Playwright une fois le navigateur réinstallé). +1 le
 # 2026-08-02 (découverte incidente en écrivant un test end-to-end
 # pour SEC-083, demande explicite du porteur d'écrire les tests
-# manquants avant de clore le registre).
+# manquants avant de clore le registre). +3 le 2026-08-03 (formalisation
+# du backlog post-lancement en dette technique tracée, demande explicite
+# du porteur avant validation du GO définitif — Lighthouse, WCAG formel,
+# catégorie H — statut gelé avec déclencheur de réexamen écrit, même
+# doctrine que SEC-070).
 
 anomalies:
+  - id: SEC-097
+    titre: >
+      Dette technique — Catégorie H (UX/UI et accessibilité) jamais
+      ouverte comme audit dédié dans COUVERTURE.yaml, sur aucun des 15
+      périmètres (colonne H à null partout, sans exception). Backlog
+      post-lancement formalisé le 2026-08-03 (clôture Phase 3 du mandat
+      QA) : ne bloque pas le GO au sens du critère de clôture CLAUDE.md
+      (seules A/B/G conditionnent la clôture), mais reste un angle mort
+      d'audit réel tant qu'aucune session ne balaie H sur un périmètre
+      donné.
+    perimetre: transverse
+    regle_violee: >
+      Aucune règle de REFERENTIEL.md n'exige un audit H avant lancement
+      (seules A/B/G conditionnent la clôture) — ceci n'est donc pas un
+      manquement à une règle existante, seulement un backlog explicite
+      pour éviter que "jamais audité" ne se confonde avec "audité et
+      sain".
+    classe: dette-technique
+    gravite: mineure
+    statut: gelé
+    declencheur_reexamen: >
+      Premier des deux : (1) un incident réel d'accessibilité remonté
+      par un utilisateur/testeur après lancement, ou (2) toute demande
+      explicite du porteur d'ouvrir un audit catégorie H sur un
+      périmètre nommé — jamais par défaut ni pour "compléter la
+      matrice".
+    critere_de_resolution: >
+      Un audit H réel est mené sur au moins un périmètre nommé (navigation
+      clavier, contraste au-delà du contrôle couleur existant, ARIA sur
+      les composants interactifs testés directement), avec anomalies
+      trouvées enregistrées sous leurs propres IDs et la cellule
+      (périmètre, H) de COUVERTURE.yaml mise à jour avec une date réelle.
+  - id: SEC-096
+    titre: >
+      Dette technique — Aucune mesure formelle de contraste WCAG via un
+      outil dédié (axe-core ou équivalent). scripts/check-contrast.mjs
+      (étape CI contrast-check) vérifie un contrôle de contraste couleur
+      ciblé, pas un audit WCAG complet (ne couvre pas navigation clavier,
+      ARIA, focus visible, lecteurs d'écran). Backlog post-lancement
+      formalisé le 2026-08-03 (clôture Phase 3 du mandat QA).
+    perimetre: transverse
+    regle_violee: >
+      Aucune règle de REFERENTIEL.md n'exige une certification WCAG
+      formelle avant lancement — backlog explicite, pas un manquement.
+    classe: dette-technique
+    gravite: mineure
+    statut: gelé
+    declencheur_reexamen: >
+      Premier des deux : (1) un incident réel d'accessibilité remonté
+      après lancement, ou (2) demande explicite du porteur d'intégrer
+      axe-core (ou équivalent) à la CI — jamais par défaut.
+    critere_de_resolution: >
+      axe-core (ou équivalent) intégré à la CI sur les écrans principaux,
+      0 violation de niveau critique/sérieux non justifiée par une
+      exception documentée (même doctrine que l'exception
+      react-refresh/only-export-components de CLAUDE.md).
+  - id: SEC-095
+    titre: >
+      Dette technique — Aucun audit Lighthouse (performance/
+      accessibilité/bonnes pratiques) jamais exécuté sur le frontend, à
+      aucun stade du projet. Aucune trace dans le dépôt (scripts, CI,
+      config) d'un run Lighthouse, historique ou programmé. Backlog
+      post-lancement formalisé le 2026-08-03 (clôture Phase 3 du mandat
+      QA) — 0 client actif au moment du lancement rend la mesure de
+      performance réelle sous charge non représentative de toute façon
+      tant qu'il n'y a pas de trafic réel à observer.
+    perimetre: transverse
+    regle_violee: >
+      Aucune règle de REFERENTIEL.md n'exige un audit Lighthouse avant
+      lancement — backlog explicite, pas un manquement.
+    classe: dette-technique
+    gravite: mineure
+    statut: gelé
+    declencheur_reexamen: >
+      Premier des deux : (1) un signal de performance réel remonté après
+      lancement (temps de chargement perçu comme lent par un
+      utilisateur/testeur), ou (2) demande explicite du porteur
+      d'intégrer un run Lighthouse à la CI — jamais par défaut.
+    critere_de_resolution: >
+      Un run Lighthouse réel exécuté sur les routes principales
+      (production build, pas dev server), résultats consignés, toute
+      anomalie de score critique enregistrée sous son propre ID.
   - id: SEC-094
     titre: >
       redisConnection.ts#getBullRedisConnection instancie un client

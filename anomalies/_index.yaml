@@ -12,8 +12,62 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-094
+dernier_id: SEC-097
 anomalies:
+  - id: SEC-097
+    titre: >
+      Dette technique — Catégorie H (UX/UI et accessibilité) jamais
+      ouverte comme audit dédié dans COUVERTURE.yaml, sur aucun des 15
+      périmètres (colonne H à null partout, sans exception). Backlog
+      post-lancement formalisé le 2026-08-03 (clôture Phase 3 du mandat
+      QA) : ne bloque pas le GO au sens du critère de clôture CLAUDE.md
+      (seules A/B/G conditionnent la clôture), mais reste un angle mort
+      d'audit réel tant qu'aucune session ne balaie H sur un périmètre
+      donné.
+    perimetre: transverse
+    statut: gelé
+    gravite: mineure
+    classe: dette-technique
+    declencheur_reexamen: >
+      Premier des deux : (1) un incident réel d'accessibilité remonté par
+      un utilisateur/testeur après lancement, ou (2) toute demande
+      explicite du porteur d'ouvrir un audit catégorie H sur un
+      périmètre nommé — jamais par défaut ni pour "compléter la matrice".
+  - id: SEC-096
+    titre: >
+      Dette technique — Aucune mesure formelle de contraste WCAG via un
+      outil dédié (axe-core ou équivalent). scripts/check-contrast.mjs
+      (étape CI contrast-check) vérifie un contrôle de contraste couleur
+      ciblé, pas un audit WCAG complet (ne couvre pas navigation clavier,
+      ARIA, focus visible, lecteurs d'écran). Backlog post-lancement
+      formalisé le 2026-08-03 (clôture Phase 3 du mandat QA).
+    perimetre: transverse
+    statut: gelé
+    gravite: mineure
+    classe: dette-technique
+    declencheur_reexamen: >
+      Premier des deux : (1) un incident réel d'accessibilité remonté
+      après lancement, ou (2) demande explicite du porteur d'intégrer
+      axe-core (ou équivalent) à la CI — jamais par défaut.
+  - id: SEC-095
+    titre: >
+      Dette technique — Aucun audit Lighthouse (performance/
+      accessibilité/bonnes pratiques) jamais exécuté sur le frontend,
+      à aucun stade du projet. Aucune trace dans le dépôt (scripts, CI,
+      config) d'un run Lighthouse, historique ou programmé. Backlog
+      post-lancement formalisé le 2026-08-03 (clôture Phase 3 du mandat
+      QA) — 0 client actif au moment du lancement rend la mesure de
+      performance réelle sous charge non représentative de toute façon
+      tant qu'il n'y a pas de trafic réel à observer.
+    perimetre: transverse
+    statut: gelé
+    gravite: mineure
+    classe: dette-technique
+    declencheur_reexamen: >
+      Premier des deux : (1) un signal de performance réel remonté après
+      lancement (temps de chargement perçu comme lent par un
+      utilisateur/testeur), ou (2) demande explicite du porteur
+      d'intégrer un run Lighthouse à la CI — jamais par défaut.
   - id: SEC-094
     titre: >
       redisConnection.ts#getBullRedisConnection instancie un client
