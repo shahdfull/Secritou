@@ -165,3 +165,8 @@ import "./meetingRecurrence.test.ts";
 import "./rating.service.test.ts";
 import "./ratingRequestNotification.test.ts";
 import "./logoutRevokesTokenNotAccount.test.ts";
+import "./sharedSchemasTrimWhitespace.test.ts";
+import "./redisClientResilienceConfig.test.ts";
+import "./gdprEraseClientPreservesOnboarding.test.ts";
+import "./aiConversationConcurrentTurns.test.ts";
+import "./aiConversationStreamCancellation.test.ts";

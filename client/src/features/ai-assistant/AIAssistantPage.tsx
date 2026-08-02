@@ -529,7 +529,9 @@ function ThinkingBubble({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function ChatInput({
+// Exported for unit testing (SEC-092): asserting the Cancel button appears/disappears and calls
+// onCancel is easier against this component directly than against the full AIAssistantPage tree.
+export function ChatInput({
   value,
   onChange,
   onSend,

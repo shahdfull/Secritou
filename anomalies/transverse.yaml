@@ -27,9 +27,81 @@
 # (item 6 du mandat QA, cas limites de validation Zod). +1 le
 # 2026-08-01 (Phase 2 point 2 du mandat QA, accès direct par URL testé
 # au-delà du seul menu). +1 le 2026-08-01 (Phase 2 point 5, responsive
-# mobile réel via Playwright une fois le navigateur réinstallé).
+# mobile réel via Playwright une fois le navigateur réinstallé). +1 le
+# 2026-08-02 (découverte incidente en écrivant un test end-to-end
+# pour SEC-083, demande explicite du porteur d'écrire les tests
+# manquants avant de clore le registre).
 
 anomalies:
+  - id: SEC-094
+    titre: >
+      redisConnection.ts#getBullRedisConnection instancie un client
+      ioredis (new Redis(...)) avec maxRetriesPerRequest:null et aucun
+      retryStrategy borné, appelé au niveau module par queues.ts:19
+      (const connection = getBullRedisConnection() — pas paresseux,
+      s'exécute à l'import du fichier). Reproduit réellement : pointer
+      REDIS_HOST/REDIS_PORT vers un hôte injoignable puis importer
+      app.js (donc queues.ts transitivement) fait rester le process
+      Node ouvert indéfiniment (connexions ioredis en retry perpétuel
+      dans l'event loop) — un simple import, avant toute requête HTTP,
+      a mesuré 10.3s avant de résoudre, puis empêché le process de test
+      de se terminer proprement des dizaines de minutes après malgré
+      des assertions déjà passées
+    perimetre: transverse
+    regle_violee: >
+      Même principe que SEC-084 (une dépendance externe dont
+      l'indisponibilité ne doit jamais bloquer indéfiniment), appliqué
+      ici à un second client Redis distinct (ioredis via BullMQ) que
+      SEC-083/084/085 n'avaient pas couvert — ces trois-là ne
+      documentaient que redis.ts#getRedisClient (le package `redis`),
+      pas redisConnection.ts#getBullRedisConnection (le package
+      `ioredis`, utilisé uniquement par BullMQ).
+    classe: ioredis-retry-non-borne-bloque-terminaison-process
+    gravite: mineure
+    statut: en_cours
+    critere_de_resolution: >
+      getBullRedisConnection borne ses tentatives de connexion (ex.
+      retryStrategy avec un nombre maximal de tentatives, ou
+      connectTimeout explicite sur les options ioredis) au lieu de
+      laisser maxRetriesPerRequest:null retenter indéfiniment sans
+      jamais abandonner. Un test réel doit importer app.js (donc
+      queues.ts) avec REDIS_HOST/REDIS_PORT pointant vers un hôte
+      injoignable et vérifier que le process se termine proprement
+      dans un délai borné, sans rester ouvert indéfiniment.
+    correctif: >
+      getBullRedisConnection passe désormais retryStrategy:
+      boundedRetryStrategy (5 tentatives maximum, backoff jusqu'à 2s,
+      puis abandon — return null) sur les deux branches (REDIS_URL et
+      REDIS_HOST/PORT). maxRetriesPerRequest reste null délibérément
+      (exigence réelle de BullMQ pour ses commandes bloquantes, non
+      liée à ce défaut). Vérifié réellement : server/test/
+      redisUnreachableEndToEnd.test.ts importe app.js (donc queues.ts)
+      avec REDIS_HOST/REDIS_PORT/REDIS_URL pointés vers un vrai port
+      fermé — le process se termine désormais proprement (exit 0,
+      13.3s au total pour les 2 tests), contre un blocage de plusieurs
+      dizaines de minutes avant ce correctif. En attente de CI verte
+      sur ce commit avant passage à resolu.
+    detecte_le: "2026-08-02"
+    source: >
+      Découverte incidente en écrivant un test end-to-end réel pour
+      SEC-083 (GET /health/ready sous Redis injoignable) — le test
+      lui-même bloquait des dizaines de minutes après que ses
+      assertions avaient déjà réussi ; diagnostic par un fichier de
+      test minimal isolant le seul import de app.js (sans aucune
+      requête HTTP), confirmant 10.3s avant résolution de l'import puis
+      un process qui ne se termine jamais. Lecture de
+      redisConnection.ts et queues.ts confirmant l'appel non paresseux
+      à getBullRedisConnection() au niveau module et
+      maxRetriesPerRequest:null sans aucun retryStrategy.
+    confiance: haute
+    note: >
+      Distinct de SEC-073 (déjà connue : les fichiers de test qui
+      importent des services passant par jobs/queues.ts ne se
+      terminent pas proprement en isolation) — SEC-073 documente le
+      symptôme observable (le process de test ne se termine pas) sans
+      identifier sa cause racine exacte ; SEC-094 documente cette cause
+      racine précise (ioredis sans retry borné). Les deux seront
+      probablement résolues par le même correctif.
   - id: SEC-093
     titre: >
       GlobalSearch.tsx (barre de recherche globale du header AdminLayout)
@@ -381,8 +453,13 @@ anomalies:
       client partagé avait isOpen:true, socket coupée après coup) — même
       requête répond 200 en 5.05s (le socketTimeout ajouté sous SEC-084,
       dont ce fix dépend). 783/785 tests server verts (seul échec :
-      SEC-069, pré-existant, sans rapport). En attente de commit + CI
-      verte avant passage à resolu.
+      SEC-069, pré-existant, sans rapport).
+
+      Test permanent ajouté : server/test/redisUnreachableEndToEnd.test.ts
+      (step CI dédié) — GET /leads avec un vrai JWT valide contre le
+      vrai app.js répond réellement 200 en 371ms malgré Redis
+      réellement injoignable (port fermé). En attente de CI verte sur
+      ce commit avant passage à resolu.
     detecte_le: "2026-08-01"
     source: >
       Phase 1, item 12 du mandat QA (résilience Redis/BullMQ) — reproduit
@@ -473,8 +550,15 @@ anomalies:
       données de test antérieure — 3 comptes ADMIN de test jamais
       nettoyés d'une session précédente rendant SEC-038 réel — pas une
       régression de ce correctif ; confirmé en supprimant ces comptes
-      et en re-exécutant). En attente de commit + CI verte avant
-      passage à resolu.
+      et en re-exécutant).
+
+      2 tests permanents ajoutés : server/test/redisClientResilienceConfig.test.ts
+      (câblé dans run-all.test.ts — un vrai client redis avec exactement
+      la config buildClient() contre un vrai port fermé, connect()
+      rejette en 43ms) et server/test/redisUnreachableEndToEnd.test.ts
+      (step CI dédié — la vraie route HTTP /health/ready via un vrai
+      app.js contre Redis réellement injoignable, 503 en 33ms). En
+      attente de CI verte sur ce commit avant passage à resolu.
     detecte_le: "2026-08-01"
     source: >
       Phase 1, item 12 du mandat QA (résilience Redis/BullMQ, arrêt réel
@@ -559,7 +643,22 @@ anomalies:
       (scénario exact de la découverte originale) — même résultat, 5s,
       503, process vivant, plus aucun ECONNRESET non catché. 783/785
       tests server verts (seul échec : SEC-069, pré-existant, sans
-      rapport). En attente de commit + CI verte avant passage à resolu.
+      rapport).
+
+      Test permanent ajouté : server/test/redisUnreachableEndToEnd.test.ts,
+      exécuté par un step CI dédié (pas run-all.test.ts — REDIS_HOST/
+      REDIS_PORT/REDIS_URL sont un singleton partagé process-wide,
+      pointer un port fermé dans l'agrégateur casserait tous les autres
+      tests Redis). Ce fichier appelle réellement app.js (pas une
+      réimplémentation) avec REDIS_URL/REDIS_HOST/REDIS_PORT pointés
+      vers un vrai port fermé (bind+close d'un port éphémère, pas un
+      port fixe — un port fixe bas comme 1 s'est révélé bloqué de façon
+      non déterministe par le pare-feu Windows en local) : confirme
+      réellement GET /health/ready -> 503 en 33ms et GET /leads avec un
+      JWT valide -> 200 malgré Redis injoignable, sans exception ni
+      hang. A d'abord échoué à cause de SEC-094 (découverte en écrivant
+      ce test), corrigée avant de pouvoir le faire passer. En attente
+      de CI verte sur ce commit avant passage à resolu.
     detecte_le: "2026-08-01"
     source: >
       Phase 1, item 12 du mandat QA explicitement demandé par le porteur

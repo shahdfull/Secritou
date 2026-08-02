@@ -100,7 +100,7 @@ anomalies:
       envoyés quelques centaines de ms plus tôt sur le même fil.
     classe: sse-tours-concurrents-non-exclusifs
     gravite: mineure
-    statut: ouvert
+    statut: en_cours
     critere_de_resolution: >
       addMessageStreaming refuse (409) ou met en file un second tour
       démarré sur une conversation dont un tour précédent n'est pas
@@ -109,6 +109,26 @@ anomalies:
       départ <1s) et vérifier que la seconde attend la persistance de
       la première avant de lire l'historique, contrairement au
       comportement actuel.
+    correctif: >
+      Un Set conversationsInFlight (module-level, in-memory — suffisant
+      ici : un seul process Node par instance, aucune config
+      cluster/PM2 dans ce dépôt) partagé entre addMessage et
+      addMessageStreaming — un second appel sur un id déjà présent
+      rejette immédiatement avec HttpError(409,
+      "CONVERSATION_TURN_IN_PROGRESS") avant même de lire l'historique,
+      au lieu de le lire prématurément. Committé avec SEC-082/SEC-092
+      (commit 7cea195), CI verte confirmée sur ce commit (run
+      30720103880, tous les jobs verts).
+
+      Test permanent ajouté : server/test/aiConversationConcurrentTurns.test.ts
+      (câblé dans run-all.test.ts) — appelle le vrai
+      aiConversationService.addMessageStreaming (pas une
+      réimplémentation) deux fois sur la même conversation, la seconde
+      démarrée 50ms après la première pendant que fetch est mocké pour
+      simuler un stream artificiellement lent (500ms), confirmant
+      réellement le rejet 409 CONVERSATION_TURN_IN_PROGRESS et que
+      seule la paire USER/ASSISTANT du premier tour est persistée. En
+      attente de CI verte sur ce commit avant passage à resolu.
     detecte_le: "2026-08-01"
     source: >
       Phase 1 point 4 (Module IA), item 15 du mandat QA ("double requête
@@ -190,8 +210,23 @@ anomalies:
       correctif. Corrigée conjointement avec SEC-092 (le bouton
       d'annulation côté client qui utilise ce même mécanisme). 783/785
       tests server verts (seul échec : SEC-069, pré-existant, sans
-      rapport avec ce fichier). En attente de commit + CI verte avant
-      passage à resolu.
+      rapport avec ce fichier).
+
+      Test permanent ajouté : server/test/aiConversationStreamCancellation.test.ts
+      (câblé dans run-all.test.ts) — un vrai serveur HTTP écoutant sur
+      un port éphémère, un vrai client http.request() dont la socket
+      est détruite (req.destroy()) juste après réception du premier
+      octet de la vraie réponse SSE (fetch mocké en amont pour simuler
+      Ollama, mais la couche HTTP/Express/controller est réelle de bout
+      en bout) : confirme réellement que le signal passé à fetch est
+      aborted:true une fois la socket détruite — pas une simulation du
+      comportement de res.on("close"), la vraie fermeture de connexion.
+      supertest/superagent's req.abort() a été essayé en premier mais
+      ne fermait jamais réellement le socket sous-jacent, donc
+      res.on("close") ne se déclenchait jamais — un serveur écoutant
+      réel + une socket réellement détruite est ce qui reproduit
+      effectivement ce scénario. En attente de CI verte sur ce commit
+      avant passage à resolu.
     detecte_le: "2026-08-01"
     source: >
       Phase 1 point 4 (Module IA), item 15 du mandat QA explicitement

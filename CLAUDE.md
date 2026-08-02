@@ -406,3 +406,7 @@ inspiration de structure/prompts.
   migration créé (`git add server/prisma/migrations/<nom>/`) avant de
   pusher. Sans ça, `prisma migrate deploy` échoue sur les autres
   environnements.
+- `gh` (GitHub CLI) n'est pas dans le `PATH` sur cette machine mais est
+  installé et déjà authentifié — utiliser le chemin complet
+  `"/c/Program Files/GitHub CLI/gh.exe"` (Bash) pour consulter les runs CI
+  (`gh run list`, `gh run view <id>`) sans avoir à le rechercher à nouveau.

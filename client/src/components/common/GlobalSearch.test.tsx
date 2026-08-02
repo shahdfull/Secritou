@@ -32,3 +32,22 @@ describe("GlobalSearch accessibility (SEC-204)", () => {
     expect(screen.getByRole("searchbox", { name: expectedName })).toBeInTheDocument();
   });
 });
+
+// SEC-093: the header's search field wrapper (AdminLayout.tsx) leaves at most ~160px of usable
+// width for this input on a narrow phone viewport (390px) once the sidebar trigger, gaps, and
+// notification/avatar icons take their share — confirmed by a real Playwright bounding-box
+// measurement during the original investigation. A long placeholder ("Rechercher les leads,
+// clients, projets...", 37 chars) visually truncated against the icons at that width. This test
+// can't reproduce the real layout math without a browser, but it does assert the one thing that
+// actually matters and IS checkable here: the placeholder text itself stays short enough to have
+// a chance of fitting — regressing back to a long placeholder would fail this even though the
+// dynamic i18n.t() lookup above would stay green regardless of length.
+describe("GlobalSearch placeholder length (SEC-093)", () => {
+  test("fr and en placeholders stay short enough to fit a narrow mobile header", () => {
+    const MAX_LENGTH = 20;
+    for (const lng of ["fr", "en"]) {
+      const placeholder = i18n.getFixedT(lng)("search.placeholder");
+      expect(placeholder.length).toBeLessThanOrEqual(MAX_LENGTH);
+    }
+  });
+});

@@ -211,6 +211,13 @@ jobs:
         # dependency) passed cleanly with real DB traffic throughout the same run.
         run: npm run prisma:seed --workspace=server
       - run: npm run test:coverage --workspace=server
+      - name: Redis unreachable resilience test (SEC-083/084/085)
+        # Deliberately not part of run-all.test.ts: this file points REDIS_HOST/REDIS_PORT/
+        # REDIS_URL at a closed port before importing app.js, and env.ts's REDIS_* singleton is
+        # shared process-wide by every file in that same run — doing this inside run-all.test.ts
+        # would break every other test needing the real Redis service above. Run alone instead.
+        run: npx tsx --test test/redisUnreachableEndToEnd.test.ts
+        working-directory: server
       - run: npm run build --workspace=server
       - name: Circular dependency check
         run: npx --yes madge --circular --extensions ts src/

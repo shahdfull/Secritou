@@ -7,6 +7,20 @@ const Redis = ((IORedis as unknown as { default?: typeof IORedis.Redis }).defaul
 
 let connection: InstanceType<typeof Redis> | null = null;
 
+// SEC-094: no retryStrategy meant ioredis's own default (unbounded exponential backoff) kept
+// retrying forever against an unreachable host — this connection is created eagerly at
+// queues.ts's module scope (not lazily like redis.ts#getRedisClient), so an unreachable Redis at
+// import time left the process with a live, endlessly-retrying socket in its event loop,
+// confirmed by direct reproduction: importing app.js alone (before any HTTP request) took 10.3s,
+// and the process never exited afterward. maxRetriesPerRequest stays null — that one is a real
+// BullMQ requirement (blocking commands must not be silently abandoned mid-request), distinct
+// from the connection-level retry this fixes.
+const MAX_CONNECTION_RETRIES = 5;
+function boundedRetryStrategy(retries: number): number | null {
+  if (retries > MAX_CONNECTION_RETRIES) return null;
+  return Math.min(retries * 200, 2000);
+}
+
 export function getBullRedisConnection() {
   if (connection) return connection;
 
@@ -14,6 +28,7 @@ export function getBullRedisConnection() {
     connection = new Redis(env.REDIS_URL, {
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
+      retryStrategy: boundedRetryStrategy,
     });
     return connection;
   }
@@ -26,6 +41,7 @@ export function getBullRedisConnection() {
     db: env.REDIS_DB ?? 0,
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
+    retryStrategy: boundedRetryStrategy,
   });
   return connection;
 }
