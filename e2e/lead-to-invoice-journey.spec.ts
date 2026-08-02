@@ -50,7 +50,13 @@ test("lead becomes a client, gets a project and a task, and is invoiced (full jo
   const leadRow = page.getByRole("row", { name: new RegExp(leadName) });
   await expect(leadRow).toBeVisible({ timeout: 15000 });
   await leadRow.getByTitle(/[Cc]onvertir/).click();
-  const convertDialog = page.getByRole("dialog").filter({ hasText: leadName });
+  // Scoped on the "Convertir" button inside, not just `hasText: leadName` — GlobalSearch.tsx's
+  // CommandDialog (cmdk, always mounted in the header) also renders role="dialog" and can contain
+  // this same lead name in its own search results, making an unscoped hasText match the wrong
+  // dialog and hang forever waiting for a close that already happened (confirmed via a real CI
+  // failure: the page snapshot at timeout showed GlobalSearch's "Leads (1)" result list, not the
+  // conversion dialog, which had already closed).
+  const convertDialog = page.getByRole("dialog").filter({ has: page.getByRole("button", { name: /[Cc]onvertir/i }) });
   await expect(convertDialog).toBeVisible();
   await convertDialog.getByRole("button", { name: /[Cc]onvertir/i }).click();
   // The mutation itself (real API round trip + 2 cache invalidations) can take longer than
