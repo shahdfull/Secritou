@@ -56,7 +56,11 @@ anomalies:
       sain".
     classe: dette-technique
     gravite: mineure
-    statut: gelé
+    statut: actif
+    note_degel: >
+      Dégelé le 2026-08-03, demande explicite du porteur — cf. mission QA
+      close, déclencheur de réexamen rempli (option 2 : demande explicite
+      du porteur d'ouvrir un audit catégorie H).
     declencheur_reexamen: >
       Premier des deux : (1) un incident réel d'accessibilité remonté
       par un utilisateur/testeur après lancement, ou (2) toute demande
@@ -83,7 +87,11 @@ anomalies:
       formelle avant lancement — backlog explicite, pas un manquement.
     classe: dette-technique
     gravite: mineure
-    statut: gelé
+    statut: actif
+    note_degel: >
+      Dégelé le 2026-08-03, demande explicite du porteur — cf. mission QA
+      close, déclencheur de réexamen rempli (option 2 : demande explicite
+      du porteur d'intégrer axe-core à la CI).
     declencheur_reexamen: >
       Premier des deux : (1) un incident réel d'accessibilité remonté
       après lancement, ou (2) demande explicite du porteur d'intégrer
@@ -109,7 +117,11 @@ anomalies:
       lancement — backlog explicite, pas un manquement.
     classe: dette-technique
     gravite: mineure
-    statut: gelé
+    statut: actif
+    note_degel: >
+      Dégelé le 2026-08-03, demande explicite du porteur — cf. mission QA
+      close, déclencheur de réexamen rempli (option 2 : demande explicite
+      du porteur d'intégrer un run Lighthouse à la CI).
     declencheur_reexamen: >
       Premier des deux : (1) un signal de performance réel remonté après
       lancement (temps de chargement perçu comme lent par un

@@ -25,7 +25,11 @@ anomalies:
       d'audit réel tant qu'aucune session ne balaie H sur un périmètre
       donné.
     perimetre: transverse
-    statut: gelé
+    statut: actif
+    note_degel: >
+      Dégelé le 2026-08-03, demande explicite du porteur — cf. mission QA
+      close, déclencheur de réexamen rempli (option 2 : demande explicite
+      du porteur d'ouvrir un audit catégorie H).
     gravite: mineure
     classe: dette-technique
     declencheur_reexamen: >
@@ -42,7 +46,11 @@ anomalies:
       ARIA, focus visible, lecteurs d'écran). Backlog post-lancement
       formalisé le 2026-08-03 (clôture Phase 3 du mandat QA).
     perimetre: transverse
-    statut: gelé
+    statut: actif
+    note_degel: >
+      Dégelé le 2026-08-03, demande explicite du porteur — cf. mission QA
+      close, déclencheur de réexamen rempli (option 2 : demande explicite
+      du porteur d'intégrer axe-core à la CI).
     gravite: mineure
     classe: dette-technique
     declencheur_reexamen: >
@@ -60,7 +68,11 @@ anomalies:
       performance réelle sous charge non représentative de toute façon
       tant qu'il n'y a pas de trafic réel à observer.
     perimetre: transverse
-    statut: gelé
+    statut: actif
+    note_degel: >
+      Dégelé le 2026-08-03, demande explicite du porteur — cf. mission QA
+      close, déclencheur de réexamen rempli (option 2 : demande explicite
+      du porteur d'intégrer un run Lighthouse à la CI).
     gravite: mineure
     classe: dette-technique
     declencheur_reexamen: >
