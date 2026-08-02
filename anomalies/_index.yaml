@@ -29,7 +29,7 @@ anomalies:
       de se terminer proprement des dizaines de minutes après malgré
       des assertions déjà passées
     perimetre: transverse
-    statut: en_cours
+    statut: resolu
     gravite: mineure
     classe: ioredis-retry-non-borne-bloque-terminaison-process
   - id: SEC-093
@@ -44,7 +44,7 @@ anomalies:
       CSS propre type text-overflow:ellipsis visible sur la capture),
       rendant le champ illisible sur mobile
     perimetre: transverse
-    statut: en_cours
+    statut: resolu
     gravite: mineure
     classe: responsive-champ-trop-etroit-pour-placeholder
   - id: SEC-092
@@ -57,7 +57,7 @@ anomalies:
       d'annulation est déjà entièrement implémenté et fonctionnel côté
       hook, juste jamais câblé à une action utilisateur
     perimetre: 4.11-ia
-    statut: en_cours
+    statut: resolu
     gravite: mineure
     classe: capacite-hook-sans-point-dentree-ui
   - id: SEC-091
@@ -75,7 +75,7 @@ anomalies:
       échouée, laissant la coquille de page (layout, formulaires vides)
       visible à un rôle qui n'a jamais accès aux données réelles
     perimetre: transverse
-    statut: en_cours
+    statut: resolu
     gravite: mineure
     classe: garde-route-frontend-absente-menu-seul-filtre
   - id: SEC-090
@@ -95,7 +95,7 @@ anomalies:
       pu tenir compte du tour de l'autre puisque son historique était
       déjà figé au moment de sa propre lecture
     perimetre: 4.11-ia
-    statut: en_cours
+    statut: resolu
     gravite: mineure
     classe: sse-tours-concurrents-non-exclusifs
   - id: SEC-089
@@ -112,7 +112,7 @@ anomalies:
       créés avec succès, invisibles dans toute liste/recherche basée sur
       le nom
     perimetre: transverse
-    statut: en_cours
+    statut: resolu
     gravite: mineure
     classe: validation-min-sans-trim-contournement-espaces
   - id: SEC-088
@@ -134,7 +134,7 @@ anomalies:
       IN_PROGRESS survit mais son ClientOnboarding a disparu
       silencieusement, sans aucune erreur ni trace
     perimetre: 4.3-onboarding
-    statut: en_cours
+    statut: resolu
     gravite: eleve
     classe: cascade-schema-contourne-restrict-documente
   - id: SEC-087
@@ -195,7 +195,7 @@ anomalies:
       Redis reste indisponible, pas seulement les écritures passant par
       invalidateTags
     perimetre: transverse
-    statut: en_cours
+    statut: resolu
     gravite: eleve
     classe: authentification-faussement-rejetee-si-redis-indisponible
   - id: SEC-084
@@ -215,7 +215,7 @@ anomalies:
       pour toujours). Écriture DB déjà commitée (le Client est bien créé
       en base) mais le client HTTP n'obtient jamais de réponse
     perimetre: transverse
-    statut: en_cours
+    statut: resolu
     gravite: eleve
     classe: redis-connect-sans-timeout-requete-orpheline
   - id: SEC-083
@@ -236,7 +236,7 @@ anomalies:
       indéfiniment (pas de réponse rapide 503) avant même d'atteindre le
       cas de crash
     perimetre: transverse
-    statut: en_cours
+    statut: resolu
     gravite: bloquant
     classe: healthcheck-crash-process-entier
   - id: SEC-082
@@ -256,7 +256,7 @@ anomalies:
       l'utilisateur retape le même message après avoir vu son
       abandon côté client
     perimetre: 4.11-ia
-    statut: en_cours
+    statut: resolu
     gravite: mineure
     classe: sse-sans-annulation-liee-a-la-connexion
   - id: SEC-081

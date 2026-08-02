@@ -58,7 +58,7 @@ anomalies:
       `ioredis`, utilisé uniquement par BullMQ).
     classe: ioredis-retry-non-borne-bloque-terminaison-process
     gravite: mineure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       getBullRedisConnection borne ses tentatives de connexion (ex.
       retryStrategy avec un nombre maximal de tentatives, ou
@@ -122,7 +122,7 @@ anomalies:
       dernier point est confirmé sain par ailleurs).
     classe: responsive-champ-trop-etroit-pour-placeholder
     gravite: mineure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Sur un viewport de 390px (iPhone 12), le champ de recherche
       globale affiche son placeholder sans troncature visuelle brutale
@@ -189,7 +189,7 @@ anomalies:
       refusé" et agit en conséquence.
     classe: garde-route-frontend-absente-menu-seul-filtre
     gravite: mineure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Un MANAGER connecté qui navigue directement vers /app/booking (URL
       tapée à la main, pas via le menu) est soit redirigé (comme le fait
@@ -246,7 +246,7 @@ anomalies:
       strict, pas son équivalent visuel.
     classe: validation-min-sans-trim-contournement-espaces
     gravite: mineure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Les champs concernés utilisent z.string().trim().min(1) (Zod
       trim() transforme la valeur avant validation de longueur, donc
@@ -431,7 +431,7 @@ anomalies:
       mécanisme principal.
     classe: authentification-faussement-rejetee-si-redis-indisponible
     gravite: eleve
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       isAccessTokenRevoked catche l'échec de getRedisClient()/next.connect()
       et retombe sur son comportement déjà existant pour "pas de client"
@@ -506,7 +506,7 @@ anomalies:
       principal (l'écriture DB) a déjà réussi.
     classe: redis-connect-sans-timeout-requete-orpheline
     gravite: eleve
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       getRedisClient borne next.connect() par un timeout explicite (ex.
       Promise.race avec un délai de quelques secondes, ou
@@ -613,7 +613,7 @@ anomalies:
       d'erreur pour cette raison précise.
     classe: healthcheck-crash-process-entier
     gravite: bloquant
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       GET /health/ready n'utilise plus un createClient ad hoc par appel
       — soit il réutilise getRedisClient() (le client partagé, déjà

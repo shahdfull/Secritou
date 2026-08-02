@@ -46,7 +46,7 @@ anomalies:
       aurait dû déclencher le Restrict.
     classe: cascade-schema-contourne-restrict-documente
     gravite: eleve
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       eraseClient vérifie explicitement l'existence d'un ClientOnboarding
       actif lié à un projet du client AVANT de tenter tx.client.delete

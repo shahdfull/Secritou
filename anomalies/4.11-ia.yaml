@@ -35,7 +35,7 @@ anomalies:
       déjà et n'attend qu'un bouton.
     classe: capacite-hook-sans-point-dentree-ui
     gravite: mineure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       Un bouton visible pendant streamMutation.isStreaming appelle
       streamMutation.cancel() — un test réel de composant doit simuler
@@ -100,7 +100,7 @@ anomalies:
       envoyés quelques centaines de ms plus tôt sur le même fil.
     classe: sse-tours-concurrents-non-exclusifs
     gravite: mineure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       addMessageStreaming refuse (409) ou met en file un second tour
       démarré sur une conversation dont un tour précédent n'est pas
@@ -176,7 +176,7 @@ anomalies:
       disponible) qui pourrait servir une requête réelle en attente.
     classe: sse-sans-annulation-liee-a-la-connexion
     gravite: mineure
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       addMessageStream écoute res.on("close") (ou req.on("close")) et
       déclenche l'AbortSignal partagé par runConversationTurn dès que la
