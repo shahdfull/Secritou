@@ -242,8 +242,14 @@ derniere_maj: "2026-07-30"
 # vérifiable de bout en bout avant l'existence d'un vrai serveur de
 # production (SEC-217). Aucune des deux n'est bloquant/eleve, donc ne
 # bloque pas la clôture "prêt au lancement" de ce périmètre au sens du
-# critère CLAUDE.md. B/G non balayées (pas d'entité propre à ce
-# périmètre) ; C/D/E/F/H/I/J laissées à null.
+# critère CLAUDE.md. G non balayée (pas de calcul financier propre à ce
+# périmètre — "transverse" est un fourre-tout CI/infra/RGPD/docs/i18n/
+# design system/observabilité, sans entité financière propre, même
+# motif que 4.6/4.10/4.12/4.13/4.14) — sans objet, corrigé le 2026-08-03
+# (défaut de documentation relevé par l'audit indépendant de clôture du
+# mandat QA : G était à null sans motif écrit, contrairement aux autres
+# périmètres). B a depuis été balayée le 2026-07-30 (voir plus bas, note
+# "transverse : B balayée le 2026-07-30") ; C/D/E/F/H/I/J laissées à null.
 # 4.3-onboarding : A/B balayées le 2026-07-30 (premier audit réel du
 # nouveau registre — clientOnboarding.service.ts/.repository.ts/
 # .controller.ts, clientOnboarding.routes.ts) — SEC-025 (bloquant,
@@ -523,7 +529,7 @@ modules:
     D: "2026-08-01"
     E: null
     F: null
-    G: null
+    G: "sans_objet"
     H: null
     I: null
     J: null
