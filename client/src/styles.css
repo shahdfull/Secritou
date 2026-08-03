@@ -207,10 +207,34 @@ html.dark {
   }
   .animate-spin,
   .animate-pulse,
-  .animate-bounce {
+  .animate-bounce,
+  .animate-alert-pulse {
     animation-duration: 1.5ms !important;
     animation-iteration-count: 1 !important;
   }
+}
+
+/* SEC-098: Tailwind's animate-pulse (opacity 1 -> 0.5 -> 1) makes the notification badge's
+   destructive-foreground-on-destructive text (4.63:1 at full opacity, see
+   scripts/check-contrast.mjs) drop to ~2.5:1 at the 50% opacity trough — well under WCAG
+   1.4.3's 4.5:1, confirmed by axe-core (2.77:1 measured, animation-timing-dependent). Raising
+   the opacity floor alone would need >=0.94 to clear 4.5:1, making the "pulse" visually
+   imperceptible and defeating its purpose (drawing attention to a critical notification).
+   This keyframe pulses box-shadow/scale instead of opacity — the badge's own colors never
+   change, so the text stays at its already-conforming 4.63:1 for the entire animation cycle. */
+@keyframes alert-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--destructive) 60%, transparent);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--destructive) 0%, transparent);
+    transform: scale(1.08);
+  }
+}
+.animate-alert-pulse {
+  animation: alert-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 /* Remove internal scrollbar from shadcn Sidebar content */

@@ -25,7 +25,7 @@ function getNotificationIcon(type: NotificationType) {
     case "APPROVAL_ACCEPTED":
       return <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />;
     case "APPROVAL_REJECTED":
-      return <XCircle className="h-4 w-4 text-red-500 shrink-0" />;
+      return <XCircle className="h-4 w-4 text-red-600 shrink-0" />;
     case "INVOICE_SENT":
     case "INVOICE_OVERDUE":
       return <CreditCard className="h-4 w-4 text-orange-500 shrink-0" />;
@@ -49,11 +49,11 @@ function getNotificationIcon(type: NotificationType) {
       return <Users className="h-4 w-4 text-violet-500 shrink-0" />;
     case "PROJECT_STALE":
     case "PROJECT_DEADLINE_SOON":
-      return <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />;
+      return <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />;
     case "TASK_DEADLINE_SOON":
       return <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0" />;
     case "TASK_OVERDUE":
-      return <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />;
+      return <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />;
     case "INVOICE_FOLLOWUP":
       return <CreditCard className="h-4 w-4 text-red-400 shrink-0" />;
     case "RATING_REQUESTED":
@@ -136,7 +136,7 @@ export function NotificationBell() {
           {unreadCount > 0 && (
             <Badge
               variant="destructive"
-              className={`absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center${hasCritical ? " animate-pulse" : ""}`}
+              className={`absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center${hasCritical ? " animate-alert-pulse" : ""}`}
             >
               {unreadCount}
             </Badge>
