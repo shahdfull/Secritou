@@ -12,8 +12,33 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-097
+dernier_id: SEC-098
 anomalies:
+  - id: SEC-098
+    titre: >
+      Le badge compteur de notifications non lues (NotificationBell.tsx:137-142,
+      Badge variant="destructive", visible sur toutes les pages
+      authentifiées via le header) et les icônes d'alerte de la liste
+      déroulante (XCircle/AlertTriangle, classe text-red-500,
+      NotificationBell.tsx:28/52/56, pour APPROVAL_REJECTED/PROJECT_STALE/
+      PROJECT_DEADLINE_SOON/TASK_OVERDUE) mesurent un contraste sous le
+      seuil WCAG 1.4.3 (4.5:1) : badge compteur 4.07:1 (dashboard-admin),
+      3.77:1 (crm), 2.77:1 (ai-assistant), 3.24:1 (dashboard-manager) —
+      variabilité due à animate-pulse (NotificationBell.tsx:139, actif
+      quand hasCritical est vrai) qui fait osciller l'opacité réelle au
+      moment précis de la mesure, donc le pire cas mesurable descend sous
+      2.8:1 en creux de pulsation. Icônes d'alerte (liste déroulante,
+      #fb2c36 sur #fdfbfa) mesurées à 3.69:1. Angle mort du premier audit
+      SEC-096 (2026-08-03) : le scan initial (scroll bas de page + retour
+      haut) ne capturait la cloche de notifications qu'au repos, sans
+      déclencher l'ouverture du popover ni garantir une notification non
+      lue présente au moment du scan — un badge qui n'existe dans le DOM
+      que conditionnellement (unreadCount > 0) est invisible à un scan
+      qui ne force jamais cet état applicatif.
+    perimetre: transverse
+    statut: ouvert
+    gravite: moyenne
+    classe: contraste-badge-alerte-anime-sous-seuil
   - id: SEC-097
     titre: >
       Dette technique — Catégorie H (UX/UI et accessibilité) jamais

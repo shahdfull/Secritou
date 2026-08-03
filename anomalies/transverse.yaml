@@ -34,9 +34,90 @@
 # du backlog post-lancement en dette technique tracée, demande explicite
 # du porteur avant validation du GO définitif — Lighthouse, WCAG formel,
 # catégorie H — statut gelé avec déclencheur de réexamen écrit, même
-# doctrine que SEC-070).
+# doctrine que SEC-070). +1 le 2026-08-03 (découverte incidente en
+# vérifiant par axe-core les 4 corrections SEC-095/096 autorisées par le
+# porteur — badge de notification non lue manqué au premier scan car
+# conditionnel à unreadCount > 0, jamais forcé pendant l'audit initial).
 
 anomalies:
+  - id: SEC-098
+    titre: >
+      Le badge compteur de notifications non lues
+      (NotificationBell.tsx:137-142, Badge variant="destructive", visible
+      sur toutes les pages authentifiées via le header) et les icônes
+      d'alerte de la liste déroulante (XCircle/AlertTriangle, classe
+      text-red-500, NotificationBell.tsx:28/52/56, pour
+      APPROVAL_REJECTED/PROJECT_STALE/PROJECT_DEADLINE_SOON/TASK_OVERDUE)
+      mesurent un contraste sous le seuil WCAG 1.4.3 (4.5:1). Confirmé
+      réellement via axe-core (@axe-core/playwright) sur build de
+      production : badge compteur 4.07:1 (dashboard-admin), 3.77:1 (crm),
+      2.77:1 (ai-assistant), 3.24:1 (dashboard-manager) ; icône d'alerte
+      3.69:1 (#fb2c36 sur #fdfbfa). Variabilité du badge compteur
+      expliquée par animate-pulse (NotificationBell.tsx:139, actif
+      seulement quand hasCritical est vrai — au moins une notification
+      non lue d'un type critique) : la pulsation CSS fait osciller
+      l'opacité réelle de l'élément dans le temps, donc le ratio mesuré
+      dépend de l'instant exact de la capture, avec un pire cas sous
+      2.8:1 en creux de pulsation.
+    perimetre: transverse
+    regle_violee: >
+      WCAG 1.4.3 (contraste minimum 4.5:1 pour du texte normal) — le
+      badge affiche un nombre (texte), pas un simple indicateur visuel
+      sans contenu textuel, donc le seuil texte s'applique bien, pas le
+      seuil 3:1 réservé aux éléments non-textuels.
+    classe: contraste-badge-alerte-anime-sous-seuil
+    gravite: moyenne
+    statut: ouvert
+    detecte_le: "2026-08-03"
+    source: >
+      Découverte incidente en vérifiant par axe-core les 4 corrections
+      SEC-095/096 autorisées par le porteur (2026-08-03) — un scan
+      complémentaire sur dashboard-admin/crm/dashboard-manager/
+      ai-assistant a révélé cette violation résiduelle, absente du
+      premier rapport d'audit SEC-095/096 du même jour.
+    confiance: >
+      Élevée — ratio mesuré directement par axe-core (moteur WCAG
+      standard) sur un build de production réel, à 4 reprises sur 4
+      pages distinctes, cause de la variabilité (animate-pulse)
+      identifiée par lecture directe du code (NotificationBell.tsx:139).
+    note: >
+      Fonction réelle du composant confirmée par lecture directe (pas
+      une supposition) : Badge variant="destructive" ne s'affiche que
+      lorsque unreadCount > 0 (NotificationBell.tsx:136), affiche le
+      nombre de notifications non lues, et devient animate-pulse
+      lorsqu'au moins une notification non lue est de type critique
+      (hasCritical, ligne 95, testé contre CRITICAL_TYPES) — ce n'est pas
+      un élément décoratif mais un indicateur d'alerte fonctionnel lu par
+      l'utilisateur pour décider s'il doit consulter ses notifications.
+      Un ratio illisible sur ce badge précis dégrade directement
+      l'accessibilité d'un signal d'urgence, ce qui justifie une gravité
+      moyenne (pas mineure) : contrairement à un badge purement
+      décoratif, l'impact ici est qu'un utilisateur malvoyant peut ne pas
+      percevoir qu'une notification critique (ex. TASK_OVERDUE,
+      PROJECT_DEADLINE_SOON) est en attente.
+
+      Angle mort de méthode du premier audit SEC-096 (2026-08-03) à
+      documenter explicitement pour éviter la même omission sur un futur
+      audit : le protocole de scan appliqué (scroll vers le bas + retour
+      en haut, attente réseau) ne force jamais l'état applicatif
+      "au moins une notification non lue" ni l'ouverture du popover de
+      notifications — un badge conditionnellement rendu (ici sur
+      unreadCount > 0) est structurellement invisible à un scan qui ne
+      déclenche pas explicitement les conditions de son rendu, quel que
+      soit le nombre de fois où la page est scrollée. Un futur audit
+      d'accessibilité sur un composant à rendu conditionnel doit forcer
+      l'état (ici : au moins une notification non lue en base pour le
+      compte scanné) avant de scanner, pas seulement attendre le réseau
+      et scroller.
+    critere_de_resolution: >
+      Le badge compteur et les icônes d'alerte atteignent 4.5:1 quel que
+      soit l'instant de la pulsation (animate-pulse ne doit jamais faire
+      descendre l'opacité réelle sous le seuil qui garantit 4.5:1, pas
+      seulement au repos) — vérifié par un test réel qui force
+      unreadCount > 0 et hasCritical à true, scanne à plusieurs instants
+      du cycle de pulsation (ou désactive temporairement l'animation pour
+      la mesure), confirme 0 violation axe-core color-contrast sur ces
+      deux éléments.
   - id: SEC-097
     titre: >
       Dette technique — Catégorie H (UX/UI et accessibilité) jamais
