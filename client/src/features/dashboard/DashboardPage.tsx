@@ -79,7 +79,7 @@ function GrowthBadge({ pct }: { pct: number }) {
   if (pct === 0) return <span className="text-xs text-muted-foreground">—</span>;
   const positive = pct > 0;
   return (
-    <span className={`flex items-center text-xs font-semibold ${positive ? "text-emerald-600" : "text-red-500"}`}>
+    <span className={`flex items-center text-xs font-semibold ${positive ? "text-emerald-600" : "text-red-600"}`}>
       {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
       {positive ? "+" : ""}{pct}%
     </span>
