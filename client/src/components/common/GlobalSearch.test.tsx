@@ -28,8 +28,11 @@ describe("GlobalSearch accessibility (SEC-204)", () => {
       </MemoryRouter>
     );
 
+    // role="combobox" since SEC-095/096 (8e9da93): the field opens a results popover, and
+    // aria-expanded is only a valid attribute on combobox/similar roles, not on the input's
+    // default implicit "searchbox" role — axe-core's aria-allowed-attr flagged this before the fix.
     const expectedName = i18n.t("search.placeholder");
-    expect(screen.getByRole("searchbox", { name: expectedName })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: expectedName })).toBeInTheDocument();
   });
 });
 
