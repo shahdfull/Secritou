@@ -157,6 +157,7 @@
       "calendarSubtitle": "Sélectionnez un jour puis un créneau disponible.",
       "monthView": "Mois",
       "weekView": "Semaine",
+      "viewToggleLabel": "Vue du calendrier",
       "selectedDay": "Jour sélectionné",
       "slots": "créneaux",
       "bookSlot": "Réserver",

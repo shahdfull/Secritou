@@ -583,7 +583,7 @@ export function LeadsPage() {
               {t('leadsPage.showArchived')}
             </Button>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[180px]" aria-label={t('leadsPage.filterByStatus')}>
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder={t('leadsPage.filterByStatus')} />
               </SelectTrigger>

@@ -102,7 +102,7 @@ export function ContactPage() {
     <>
       <section className="bg-gradient-to-b from-surface-warm/70 to-background pt-20 pb-16 sm:pt-28">
         <div className="container-page max-w-3xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary-strong">
             {t("nav.contact")}
           </p>
           <h1 className="mt-3 font-display text-4xl font-bold text-ink sm:text-5xl lg:text-6xl">

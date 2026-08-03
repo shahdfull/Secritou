@@ -28,7 +28,7 @@ export function PoleSelect({ value, onChange }: PoleSelectProps) {
       value={value ?? ALL_POLES_VALUE}
       onValueChange={(v) => onChange(v === ALL_POLES_VALUE ? undefined : v)}
     >
-      <SelectTrigger className="w-[180px] h-8 text-xs">
+      <SelectTrigger className="w-[180px] h-8 text-xs" aria-label="Filtrer par pôle">
         <SelectValue placeholder="Pôle" />
       </SelectTrigger>
       <SelectContent>

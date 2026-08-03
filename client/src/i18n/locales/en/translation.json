@@ -157,6 +157,7 @@
       "calendarSubtitle": "Pick a day, then select an open slot.",
       "monthView": "Month",
       "weekView": "Week",
+      "viewToggleLabel": "Calendar view",
       "selectedDay": "Selected day",
       "slots": "slots",
       "bookSlot": "Book",

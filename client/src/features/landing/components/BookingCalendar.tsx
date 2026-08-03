@@ -7,8 +7,8 @@ import { z } from "zod";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Calendar as UiCalendar } from "@/components/ui/calendar";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -145,7 +145,7 @@ export function BookingCalendar() {
       <div className="container-page">
         <div className="grid gap-6 lg:grid-cols-[1fr_1.35fr] lg:items-start">
           <div className="space-y-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary-strong">
               {t("contact.booking.badge")}
             </p>
             <h2 className="font-display text-3xl font-bold text-ink sm:text-4xl">
@@ -182,12 +182,34 @@ export function BookingCalendar() {
                 <CardTitle className="font-display text-2xl text-ink">{t("contact.booking.calendarTitle", "Choose a time")}</CardTitle>
                 <p className="mt-1 text-sm text-muted-foreground">{t("contact.booking.calendarSubtitle", "Pick a day, then select an open slot.")}</p>
               </div>
-              <Tabs value={view} onValueChange={(value) => setView(value as "month" | "week")}> 
-                <TabsList>
-                  <TabsTrigger value="month">{t("contact.booking.monthView")}</TabsTrigger>
-                  <TabsTrigger value="week">{t("contact.booking.weekView")}</TabsTrigger>
-                </TabsList>
-              </Tabs>
+              <div
+                role="radiogroup"
+                aria-label={t("contact.booking.viewToggleLabel", "Calendar view")}
+                className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground"
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                    e.preventDefault();
+                    setView(view === "month" ? "week" : "month");
+                  }
+                }}
+              >
+                {(["month", "week"] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    role="radio"
+                    aria-checked={view === v}
+                    tabIndex={view === v ? 0 : -1}
+                    onClick={() => setView(v)}
+                    className={cn(
+                      "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                      view === v && "bg-background text-foreground shadow",
+                    )}
+                  >
+                    {t(v === "month" ? "contact.booking.monthView" : "contact.booking.weekView")}
+                  </button>
+                ))}
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               {loading ? (

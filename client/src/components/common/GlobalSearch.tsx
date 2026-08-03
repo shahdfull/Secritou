@@ -97,35 +97,31 @@ export function GlobalSearch() {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <div className="relative flex-1 max-w-md" onClick={() => {
-          setOpen(true);
-          inputRef.current?.focus();
-        }}>
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+      <div className="relative flex-1 max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+        <PopoverTrigger asChild>
           <Input
             ref={inputRef}
             type="search"
+            role="combobox"
+            aria-controls={debouncedQuery.length >= 2 ? "global-search-results" : undefined}
+            aria-expanded={open && debouncedQuery.length >= 2}
             placeholder={t("search.placeholder")}
             aria-label={t("search.placeholder")}
-            className="pl-10 bg-muted/50 border-muted-foreground/20 cursor-pointer"
+            className="pl-10 bg-muted/50 border-muted-foreground/20"
             value={query}
+            onFocus={() => setOpen(true)}
             onChange={(e) => {
               setQuery(e.target.value);
               if (e.target.value.length > 0) {
                 setOpen(true);
               }
             }}
-            onFocus={() => {
-              if (query.length > 0) {
-                setOpen(true);
-              }
-            }}
           />
-        </div>
-      </PopoverTrigger>
+        </PopoverTrigger>
+      </div>
       {debouncedQuery.length >= 2 && (
-        <PopoverContent className="w-96 p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <PopoverContent id="global-search-results" className="w-96 p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
