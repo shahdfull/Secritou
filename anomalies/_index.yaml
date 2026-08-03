@@ -12,8 +12,83 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-098
+dernier_id: SEC-100
 anomalies:
+  - id: SEC-100
+    titre: >
+      Le wrapper Toaster (client/src/components/ui/sonner.tsx) active
+      richColors (App.tsx:45) sans définir de classNames pour les
+      couleurs sémantiques success/error/info (toastOptions.classNames ne
+      couvre que toast/description/actionButton/cancelButton génériques)
+      — Sonner applique donc ses propres couleurs par défaut (palette
+      HSL intégrée à la librairie, non alignée avec les tokens du projet)
+      à TOUT toast utilisant toast.success/error/info. Les 3 palettes
+      mesurent toutes sous le seuil WCAG 1.4.3 (4.5:1), à un écart
+      cohérent et faible : success #008a2e sur #ecfdf3 = 4.26:1, info
+      #0973dc sur #f0f8ff = 4.35:1, error #e60000 sur #fff0f0 = 4.35:1.
+      data-description hérite de la même couleur que le titre
+      (color: inherit sous richColors), donc le texte descriptif des
+      toasts est également concerné, pas seulement le titre. Portée
+      confirmée par grep : 115 appels toast.* dans client/src (80
+      toast.error, 33 toast.success, 2 toast.info) — aucun usage de
+      toast.warning/loading/promise. Défaut à la source (un seul point
+      de configuration non stylisé), pas 115 défauts isolés — un
+      correctif centralisé dans sonner.tsx corrigerait potentiellement
+      tous les usages en un seul point, mais aucune stratégie de
+      correction n'est encore tranchée à ce stade (rapport seul, aucune
+      proposition de fix).
+    perimetre: transverse
+    statut: ouvert
+    gravite: elevee
+    classe: contraste-composant-tiers-non-stylise-large-portee
+  - id: SEC-099
+    titre: >
+      GrowthBadge (client/src/features/dashboard/DashboardPage.tsx:78-87)
+      — indicateur de croissance/décroissance affiché sur les KPI du
+      tableau de bord exécutif (ex. "Trésorerie MTD", HeroStat ligne
+      244-249 ; usages HeroStat lignes 244/251/257 sur fond --card
+      blanc, CompactStat lignes 310/316/322/327 sur fond --background) —
+      utilise text-red-500 pour une valeur négative, mesuré sous le
+      seuil WCAG 1.4.3 (4.5:1) : 3.76:1 sur --card (blanc pur), 3.65:1
+      sur --background (#fdfbfa), cohérent avec la mesure axe-core de
+      3.69:1 obtenue lors de l'investigation SEC-098 (composant
+      initialement confondu avec NotificationBell.tsx car partageant la
+      même classe text-red-500, avant vérification directe du HTML remonté
+      par axe qui a révélé qu'il s'agissait en fait de ce composant
+      distinct sur DashboardPage).
+    perimetre: transverse
+    regle_violee: >
+      WCAG 1.4.3 — la valeur de croissance est un texte numérique
+      informatif (ex. "-12%"), pas un simple ornement, donc le seuil
+      texte 4.5:1 s'applique.
+    classe: contraste-kpi-financier-sous-seuil
+    gravite: moyenne
+    statut: ouvert
+    detecte_le: "2026-08-03"
+    source: >
+      Découverte incidente en vérifiant par axe-core le correctif
+      SEC-098 (2026-08-03) — un scan sur dashboard-admin a remonté ce
+      composant distinct, confondu au départ avec NotificationBell.tsx à
+      cause de la classe CSS identique (text-red-500).
+    confiance: >
+      Élevée — ratio calculé directement depuis les valeurs hex réelles
+      de Tailwind (red-500 #ef4444) contre les tokens --card/--background
+      du projet, cohérent avec le ratio mesuré par axe-core sur le HTML
+      réel remonté pendant l'investigation SEC-098.
+    note: >
+      Fonction réelle confirmée par lecture directe : GrowthBadge affiche
+      un pourcentage de variation (calculateGrowth, DashboardPage.tsx:89-96)
+      pour un KPI financier de premier plan (le premier des 3 "hero
+      stats" est la trésorerie du mois en cours) — pas un indicateur
+      décoratif, un utilisateur malvoyant ne percevrait pas qu'un KPI
+      financier est en baisse. Même famille de défaut que SEC-098
+      (composant fonctionnel d'alerte/statut, pas cosmétique), gravité
+      alignée en conséquence (moyenne).
+    critere_de_resolution: >
+      La couleur utilisée pour une variation négative atteint 4.5:1 sur
+      les deux fonds réels où le composant apparaît (--card et
+      --background), vérifié par un test réel qui force une valeur de
+      croissance négative et scanne via axe-core.
   - id: SEC-098
     titre: >
       Le badge compteur de notifications non lues (NotificationBell.tsx:137-142,
@@ -21,12 +96,12 @@ anomalies:
       authentifiées via le header) et les icônes d'alerte de la liste
       déroulante (XCircle/AlertTriangle, classe text-red-500,
       NotificationBell.tsx:28/52/56, pour APPROVAL_REJECTED/PROJECT_STALE/
-      PROJECT_DEADLINE_SOON/TASK_OVERDUE) mesurent un contraste sous le
+      PROJECT_DEADLINE_SOON/TASK_OVERDUE) mesuraient un contraste sous le
       seuil WCAG 1.4.3 (4.5:1) : badge compteur 4.07:1 (dashboard-admin),
       3.77:1 (crm), 2.77:1 (ai-assistant), 3.24:1 (dashboard-manager) —
       variabilité due à animate-pulse (NotificationBell.tsx:139, actif
-      quand hasCritical est vrai) qui fait osciller l'opacité réelle au
-      moment précis de la mesure, donc le pire cas mesurable descend sous
+      quand hasCritical est vrai) qui faisait osciller l'opacité réelle au
+      moment précis de la mesure, donc le pire cas mesurable descendait sous
       2.8:1 en creux de pulsation. Icônes d'alerte (liste déroulante,
       #fb2c36 sur #fdfbfa) mesurées à 3.69:1. Angle mort du premier audit
       SEC-096 (2026-08-03) : le scan initial (scroll bas de page + retour
@@ -36,7 +111,7 @@ anomalies:
       que conditionnellement (unreadCount > 0) est invisible à un scan
       qui ne force jamais cet état applicatif.
     perimetre: transverse
-    statut: ouvert
+    statut: resolu
     gravite: moyenne
     classe: contraste-badge-alerte-anime-sous-seuil
   - id: SEC-097
