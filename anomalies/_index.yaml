@@ -41,7 +41,11 @@ anomalies:
       déjà une (E2E_RELAXED_RATE_LIMITS, SEC-212).
     classe: rate-limit-partage-sans-echappatoire-test
     gravite: moyenne
-    statut: en_cours
+    statut: resolu
+    note_resolution: >
+      CI verte confirmée : run GitHub Actions 30953695348 sur
+      2af0a82c11c1e85b34b9bf87196b0ebaa9af857d, tous les jobs success
+      (dont "server", celui où l'échec s'était produit).
     critere_de_resolution: >
       authRateLimit dispose d'un opt-in explicite et étroit (jamais actif
       en production, jamais élargi au-delà de sa propre limite) activable
@@ -619,9 +623,14 @@ anomalies:
       propre. Reproduit réellement contre un serveur HTTP réel avec un
       vrai token ADMIN et un clientId UUID valide mais inexistant
     perimetre: 4.4-facturation
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: fk-non-validee-500-brut
+    note_resolution: >
+      Correctif commité 44b4573, CI verte confirmée sur 2af0a82 (run
+      30953695348) — l'échec CI initial sur 44b4573 était sans rapport
+      (SEC-102). Détail complet dans
+      anomalies/4.4-facturation.yaml#SEC-077.
   - id: SEC-076
     titre: >
       server/test/invoice.service.test.ts réimplémente intégralement la
@@ -672,9 +681,14 @@ anomalies:
       /invoices/my-service, /invoices/trash. Reproduit réellement contre
       un serveur HTTP réel avec un vrai token ADMIN
     perimetre: 4.4-facturation
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: orderby-non-whiteliste-500-brut
+    note_resolution: >
+      Correctif commité 44b4573, CI verte confirmée sur 2af0a82 (run
+      30953695348) — l'échec CI initial sur 44b4573 était sans rapport
+      (SEC-102). Détail complet dans
+      anomalies/4.4-facturation.yaml#SEC-075.
   - id: SEC-074
     titre: >
       npm run test:coverage --workspace=server échoue de façon non

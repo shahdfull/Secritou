@@ -34,7 +34,20 @@ anomalies:
       clientId.
     classe: fk-non-validee-500-brut
     gravite: mineure
-    statut: ouvert
+    statut: resolu
+    note_resolution: >
+      Correctif commité (44b4573, assertClientExists ajoutée à
+      invoiceService.create) le même jour que SEC-075 (même fichier de
+      test). La CI sur ce commit précis a échoué, mais sur un job
+      totalement sans rapport (SEC-102, authRateLimit saturé par
+      l'accumulation de logins entre fichiers de test — voir
+      anomalies/transverse.yaml#SEC-102) : le test HTTP réel de SEC-077
+      lui-même (POST /invoices, clientId inexistant → 404
+      CLIENT_NOT_FOUND) était vert dans ce même run CI. CI verte
+      confirmée sur le commit correctif de SEC-102 (2af0a82, run
+      30953695348, tous jobs success) — le code de invoiceService.create
+      n'a pas été retouché entre les deux commits, la preuve porte donc
+      sur le même code.
     critere_de_resolution: >
       invoiceService.create vérifie l'existence de clientId (findUnique
       ou équivalent) avant l'écriture, et lève une HttpError 404/422
@@ -169,7 +182,18 @@ anomalies:
       invoice.repository.ts en est l'exception non corrigée.
     classe: orderby-non-whiteliste-500-brut
     gravite: mineure
-    statut: ouvert
+    statut: resolu
+    note_resolution: >
+      Correctif commité (44b4573, buildOrderBy appliqué aux 3 méthodes
+      de invoice.repository.ts). La CI sur ce commit précis a échoué,
+      mais sur un job sans rapport (SEC-102, authRateLimit saturé par
+      l'accumulation de logins entre fichiers de test — voir
+      anomalies/transverse.yaml#SEC-102) : le test HTTP réel de SEC-075
+      lui-même (orderBy invalide → 200 fallback) était vert dans ce même
+      run CI. CI verte confirmée sur le commit correctif de SEC-102
+      (2af0a82, run 30953695348, tous jobs success) — le code de
+      invoice.repository.ts n'a pas été retouché entre les deux commits,
+      la preuve porte donc sur le même code.
     critere_de_resolution: >
       invoice.repository.ts (findAll/findAllByServiceId/findDeleted)
       utilise buildOrderBy(options.orderBy, options.orderDir, [liste des

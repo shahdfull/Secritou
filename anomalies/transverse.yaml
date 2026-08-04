@@ -72,7 +72,7 @@ anomalies:
       déjà une (E2E_RELAXED_RATE_LIMITS, SEC-212).
     classe: rate-limit-partage-sans-echappatoire-test
     gravite: moyenne
-    statut: en_cours
+    statut: resolu
     critere_de_resolution: >
       authRateLimit dispose d'un opt-in explicite et étroit (jamais actif
       en production, jamais élargi au-delà de sa propre limite) activable
@@ -136,9 +136,10 @@ anomalies:
       Preuve locale avant commit : `E2E_RELAXED_AUTH_RATE_LIMIT=true
       npx tsx --test test/run-all.test.ts` → 787 pass, 1 fail (SEC-069
       uniquement), taskUpdateRateLimit.test.ts toujours vert (`ratelimit-limit`
-      confirmé à 10/60 selon la route, pas 200). CI verte à confirmer
-      sur le commit poussé — statut resolu conditionné à cette
-      confirmation, comme tout le reste du registre.
+      confirmé à 10/60 selon la route, pas 200). CI verte confirmée : run
+      GitHub Actions 30953695348 sur 2af0a82c11c1e85b34b9bf87196b0ebaa9af857d,
+      tous les jobs success (dont "server", celui où l'échec s'était
+      produit).
 
   - id: SEC-101
     titre: >
