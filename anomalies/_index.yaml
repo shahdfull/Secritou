@@ -567,6 +567,13 @@ anomalies:
     statut: ouvert
     gravite: moyenne
     classe: test-mirror-ne-teste-pas-le-code-reel
+    note: >
+      Ne pas confondre avec SEC-072 (statut resolu, transverse) : SEC-072
+      portait sur rating.service.test.ts/ratingRequestNotification.test.ts
+      (module 4.7/4.2), déjà réécrits pour importer le vrai code. SEC-076
+      porte sur invoice.service.test.ts (module 4.4), jamais traité par
+      ce correctif — lot distinct, jamais audité sous cet angle jusqu'à
+      cette session.
   - id: SEC-075
     titre: >
       invoice.repository.ts (findAll/findAllByServiceId/findDeleted)
@@ -636,9 +643,24 @@ anomalies:
       réel (appSetting.repository.js, projectMeeting.repository.js,
       approval.service.js)
     perimetre: transverse
-    statut: ouvert
+    statut: resolu
     gravite: moyenne
     classe: test-mirror-ne-teste-pas-le-code-reel
+    note_resolution: >
+      Statut jamais synchronisé avec anomalies/transverse.yaml, mis à
+      jour vers resolu dès le 2026-08-01 par le commit 7c0ab6e (message :
+      "SEC-067/SEC-071/SEC-072 passees resolu, CI verte confirmee") —
+      lui-même n'a touché que transverse.yaml et 4.14-auth.yaml, oubliant
+      _index.yaml. Vérifié à l'instant sur le code réel : rating.service.test.ts
+      et ratingRequestNotification.test.ts importent et appellent
+      dynamiquement src/services/rating.service.ts et
+      src/services/project.service.ts (plus de mirror local). Commits de
+      preuve : 9fd28b8 (réécriture), 85936dc (correctif CI
+      N8N_WEBHOOK_SECRET, run GitHub Actions 30704192204, conclusion
+      success), tous deux ancêtres de HEAD sur main. Découvert lors du
+      traitement du lot des 17 anomalies restantes (session du
+      2026-08-04), même défaut que SEC-066 (oubli de synchronisation de
+      statut).
   - id: SEC-071
     titre: >
       5 fichiers de test existent sous server/test/ mais ne sont importés
@@ -653,9 +675,20 @@ anomalies:
       llmClientToolCalling.test.ts, redevenu vrai ici sur un lot distinct
       jamais vérifié depuis)
     perimetre: transverse
-    statut: ouvert
+    statut: resolu
     gravite: moyenne
     classe: test-non-cable-dans-lagregateur
+    note_resolution: >
+      Statut jamais synchronisé avec anomalies/transverse.yaml, mis à
+      jour vers resolu dès le 2026-08-01 par le commit 7c0ab6e (même
+      oubli de synchronisation que SEC-072 ci-dessus — voir sa note_resolution
+      pour le détail des commits de preuve). Vérifié à l'instant : les 5
+      fichiers (appSetting.repository.test.ts, approvalAuditLog.test.ts,
+      meetingRecurrence.test.ts, rating.service.test.ts,
+      ratingRequestNotification.test.ts) sont bien importés dans
+      server/test/run-all.test.ts:162-166. CI verte confirmée sur
+      85936dc (run GitHub Actions 30704192204, conclusion success),
+      ancêtre de HEAD sur main.
   - id: SEC-070
     titre: >
       RAG sémantique (embeddings pgvector + nomic-embed-text) pour le
