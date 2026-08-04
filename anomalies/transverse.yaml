@@ -1953,3 +1953,11 @@ anomalies:
       un vrai hôte SSH, impossible tant que SEC-217 reste vraie (aucun
       serveur de production). Ne pas repasser `resolu` sur la seule lecture
       du YAML — attendre l'activation réelle du workflow.
+    declencheur_reexamen: >
+      Existence d'un vrai serveur de production (activation de SEC-217)
+      permettant un run réel du step SSH de backup.yml, confirmant la
+      connexion via UserKnownHostsFile — jamais par lecture seule du
+      YAML ni par une date automatique. Champ ajouté le 2026-08-04 pour
+      homogénéiser avec SEC-095/096/097 (même style de blocage
+      structurel documenté), sur demande explicite du porteur — aucun
+      changement de statut ni de fond.

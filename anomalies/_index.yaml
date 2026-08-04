@@ -1436,6 +1436,19 @@ anomalies:
     statut: ouvert
     gravite: moyenne
     classe: ssh-host-key-non-verifiee
+    note: >
+      Correctif déjà écrit et commité (0a26794, ancêtre de HEAD sur
+      main) : StrictHostKeyChecking=no remplacé par UserKnownHostsFile
+      + secret SSH_KNOWN_HOSTS — vérifié à l'instant, la ligne
+      StrictHostKeyChecking=no n'existe plus dans backup.yml. `statut`
+      volontairement laissé `ouvert` : le critère de résolution exige
+      une vérification de bout en bout contre un vrai hôte SSH,
+      impossible tant que SEC-217 reste vraie (aucun serveur de
+      production). Détail complet dans anomalies/transverse.yaml#SEC-024.
+    declencheur_reexamen: >
+      Existence d'un vrai serveur de production (activation de
+      SEC-217) permettant un run réel du step SSH de backup.yml —
+      jamais par lecture seule du YAML.
 
   - id: SEC-022
     titre: >
