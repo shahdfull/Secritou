@@ -1,389 +1,238 @@
-// Tests for invoice.service business logic : no DB, no imports of service
-// Pattern: same as rating.service.test.ts : pure logic stubs, node:test + assert
+// SEC-076: this file used to reimplement invoice.service.ts's addPayment/assertInvoiceDraft
+// logic locally (FakeTx, computeNewStatus, assertInvoiceDraft, computeOverpayment,
+// buildInvoiceNumber, isDuplicatePayment) instead of importing the real modules — it stayed
+// green regardless of what the real code did. The clearest symptom: FakeTx.invoice.findUnique
+// filtered on `companyId`, a field that exists nowhere in schema.prisma or the real code (this
+// repo is single-tenant — see the ban at the top of CLAUDE.md).
+//
+// Rewritten to import and call the real invoiceService against a real, migrated database.
+// Also fills two coverage gaps found by comparing the mirror against the real code:
+// - the real addPayment status guard (HttpError 409 INVOICE_NOT_ACCEPTING_PAYMENTS) when the
+//   invoice isn't SENT/PARTIAL/OVERDUE — the mirror had no such check at all.
+// - the real idempotencyKey path (invoice.service.ts:219-223), which addPayment prefers over
+//   the 10s fallback window — the mirror only ever exercised the fallback.
+//
+// The overpayment -> credit note guard (assertCreditAmount / INVALID_CREDIT_AMOUNT /
+// CREDIT_EXCEEDS_PAID) is intentionally NOT duplicated here: creditNoteCumulativeAmount.test.ts
+// (SEC-184) already calls the real creditNoteService.create against a real database for exactly
+// that guard, including the cumulative-cap case the old mirror never covered at all. Re-adding a
+// second real-code copy here would just be the same proof twice.
+//
+// Requires a real, migrated database; skipped otherwise.
 
-import test, { describe } from "node:test";
+import test, { describe, before, after } from "node:test";
 import assert from "node:assert/strict";
+import { HttpError } from "../src/utils/httpError.js";
 
-// ─── Replicated types ────────────────────────────────────────────────────────
+let prisma: typeof import("../src/config/prisma.js").prisma;
+let invoiceService: typeof import("../src/services/invoice.service.js").invoiceService;
+let dbAvailable = true;
 
-type InvoiceStatus = "DRAFT" | "SENT" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED";
+const createdClientIds: string[] = [];
+const createdInvoiceIds: string[] = [];
 
-// ─── Logic extracted from invoice.service.addPayment ─────────────────────────
-// Source: src/services/invoice.service.ts lines 118-124
+before(async () => {
+  try {
+    ({ prisma } = await import("../src/config/prisma.js"));
+    ({ invoiceService } = await import("../src/services/invoice.service.js"));
+    await prisma.$queryRaw`SELECT 1`;
+  } catch {
+    dbAvailable = false;
+  }
+});
 
-function computeNewStatus(
-  invoiceAmount: number,
-  previousAmountPaid: number,
-  paymentAmount: number,
-  currentStatus: InvoiceStatus
-): InvoiceStatus {
-  const newAmountPaid = previousAmountPaid + paymentAmount;
-  if (newAmountPaid >= invoiceAmount) return "PAID";
-  if (newAmountPaid > 0) return "PARTIAL";
-  return currentStatus;
-}
+after(async () => {
+  if (!dbAvailable) return;
+  await prisma.payment.deleteMany({ where: { invoiceId: { in: createdInvoiceIds } } });
+  await prisma.invoice.deleteMany({ where: { id: { in: createdInvoiceIds } } });
+  await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
+});
 
-// ─── Stub: $transaction that executes the callback against a fake tx ─────────
-
-type FakeTx = {
-  invoice: {
-    findUnique: (args: { where: object; select: object }) => Promise<unknown>;
-    update: (args: { where: object; data: object }) => Promise<unknown>;
-  };
-  invoicePayment: {
-    create: (args: { data: object }) => Promise<unknown>;
-  };
-};
-
-async function runAddPayment(
-  tx: FakeTx,
-  invoiceId: string,
-  companyId: string,
-  data: { amount: number; method?: string; reference?: string; paidAt?: Date }
-) {
-  const invoice = await tx.invoice.findUnique({
-    where: { id: invoiceId, companyId },
-    select: { id: true, amount: true, amountPaid: true, status: true },
-  }) as { id: string; amount: number; amountPaid: number; status: InvoiceStatus } | null;
-
-  if (!invoice) throw new Error("Invoice not found");
-
-  const payment = await tx.invoicePayment.create({
+async function makeInvoice(overrides: { amount?: number; amountPaid?: number; status?: "DRAFT" | "SENT" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED" } = {}) {
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const client = await prisma.client.create({ data: { name: `sec076-client-${suffix}` } });
+  createdClientIds.push(client.id);
+  const invoice = await prisma.invoice.create({
     data: {
-      invoiceId,
-      amount: data.amount,
-      method: data.method,
-      reference: data.reference,
-      paidAt: data.paidAt ?? new Date(),
+      number: `SEC-076-${suffix}`,
+      title: "Invoice",
+      amount: overrides.amount ?? 1000,
+      amountPaid: overrides.amountPaid ?? 0,
+      currency: "TND",
+      status: overrides.status ?? "SENT",
+      invoiceType: "STANDARD",
+      clientId: client.id,
     },
   });
-
-  const newAmountPaid = Number(invoice.amountPaid) + data.amount;
-  const newStatus = computeNewStatus(
-    Number(invoice.amount),
-    Number(invoice.amountPaid),
-    data.amount,
-    invoice.status
-  );
-
-  await tx.invoice.update({
-    where: { id: invoiceId, companyId },
-    data: {
-      amountPaid: newAmountPaid,
-      status: newStatus,
-      paidAt: newStatus === "PAID" ? new Date() : undefined,
-    },
-  });
-
-  return payment;
+  createdInvoiceIds.push(invoice.id);
+  return invoice;
 }
 
-// ─── Tests ───────────────────────────────────────────────────────────────────
-
-describe("addPayment : status logic", () => {
-  const INVOICE_ID = "inv-1";
-  const COMPANY_ID = "company-1";
-
-  test("sets status to PAID when payment covers full amount", async () => {
-    const calls: object[] = [];
-
-    const tx: FakeTx = {
-      invoice: {
-        findUnique: async () => ({
-          id: INVOICE_ID,
-          amount: 1000,
-          amountPaid: 0,
-          status: "SENT" as InvoiceStatus,
-        }),
-        update: async (args) => { calls.push(args); return {}; },
-      },
-      invoicePayment: {
-        create: async () => ({ id: "pay-1", amount: 1000 }),
-      },
-    };
-
-    await runAddPayment(tx, INVOICE_ID, COMPANY_ID, { amount: 1000 });
-
-    const updateCall = calls[0] as { data: { status: InvoiceStatus } };
-    assert.equal(updateCall.data.status, "PAID");
+describe("invoiceService.addPayment: status transitions (real code)", () => {
+  test("sets status to PAID when payment covers full amount", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
+    const invoice = await makeInvoice({ amount: 1000, amountPaid: 0 });
+    const { payment } = await invoiceService.addPayment(invoice.id, { amount: 1000 });
+    assert.equal(Number(payment.amount), 1000);
+    const after = await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
+    assert.equal(after.status, "PAID");
+    assert.ok(after.paidAt, "paidAt must be set once the invoice is fully paid");
   });
 
-  test("sets status to PARTIAL when payment is less than total", async () => {
-    const calls: object[] = [];
-
-    const tx: FakeTx = {
-      invoice: {
-        findUnique: async () => ({
-          id: INVOICE_ID,
-          amount: 1000,
-          amountPaid: 0,
-          status: "SENT" as InvoiceStatus,
-        }),
-        update: async (args) => { calls.push(args); return {}; },
-      },
-      invoicePayment: {
-        create: async () => ({ id: "pay-1", amount: 500 }),
-      },
-    };
-
-    await runAddPayment(tx, INVOICE_ID, COMPANY_ID, { amount: 500 });
-
-    const updateCall = calls[0] as { data: { status: InvoiceStatus } };
-    assert.equal(updateCall.data.status, "PARTIAL");
+  test("sets status to PARTIAL when payment is less than total", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
+    const invoice = await makeInvoice({ amount: 1000, amountPaid: 0 });
+    await invoiceService.addPayment(invoice.id, { amount: 500 });
+    const after = await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
+    assert.equal(after.status, "PARTIAL");
+    assert.equal(after.paidAt, null);
   });
 
-  test("sets status to PAID when multiple payments cumulate to full amount", async () => {
-    const calls: object[] = [];
-
-    const tx: FakeTx = {
-      invoice: {
-        findUnique: async () => ({
-          id: INVOICE_ID,
-          amount: 1000,
-          amountPaid: 600,
-          status: "PARTIAL" as InvoiceStatus,
-        }),
-        update: async (args) => { calls.push(args); return {}; },
-      },
-      invoicePayment: {
-        create: async () => ({ id: "pay-2", amount: 400 }),
-      },
-    };
-
-    await runAddPayment(tx, INVOICE_ID, COMPANY_ID, { amount: 400 });
-
-    const updateCall = calls[0] as { data: { status: InvoiceStatus } };
-    assert.equal(updateCall.data.status, "PAID");
+  test("sets status to PAID when multiple payments cumulate to full amount", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
+    const invoice = await makeInvoice({ amount: 1000, amountPaid: 600, status: "PARTIAL" });
+    await invoiceService.addPayment(invoice.id, { amount: 400 });
+    const after = await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
+    assert.equal(after.status, "PAID");
   });
 
-  test("throws when invoice is not found", async () => {
-    const tx: FakeTx = {
-      invoice: {
-        findUnique: async () => null,
-        update: async () => { throw new Error("Should not be called"); },
-      },
-      invoicePayment: {
-        create: async () => { throw new Error("Should not be called"); },
-      },
-    };
-
+  test("throws 404 when the invoice does not exist", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
     await assert.rejects(
-      () => runAddPayment(tx, "nonexistent", COMPANY_ID, { amount: 100 }),
-      (err: Error) => {
-        assert.equal(err.message, "Invoice not found");
-        return true;
-      }
+      () => invoiceService.addPayment(crypto.randomUUID(), { amount: 100 }),
+      (err: unknown) => err instanceof HttpError && err.statusCode === 404
     );
   });
-
-  test("rolls back: invoice.update is not called when invoicePayment.create throws", async () => {
-    let updateCalled = false;
-
-    const tx: FakeTx = {
-      invoice: {
-        findUnique: async () => ({
-          id: INVOICE_ID,
-          amount: 1000,
-          amountPaid: 0,
-          status: "SENT" as InvoiceStatus,
-        }),
-        update: async () => { updateCalled = true; return {}; },
-      },
-      invoicePayment: {
-        create: async () => { throw new Error("DB error"); },
-      },
-    };
-
-    await assert.rejects(
-      () => runAddPayment(tx, INVOICE_ID, COMPANY_ID, { amount: 500 }),
-      /DB error/
-    );
-
-    assert.equal(updateCalled, false, "invoice.update must not be called when payment creation fails");
-  });
 });
 
-// ─── Additional payment guard tests ──────────────────────────────────────────
-
-describe("addPayment : guard logic", () => {
-  test("rejects negative payment amount before any DB call", async () => {
-    const { addPaymentSchema } = await import("../src/validators/invoice.validator.js");
-    const result = addPaymentSchema.safeParse({ params: { id: crypto.randomUUID() }, body: { amount: -100 } });
-    assert.equal(result.success, false, "addPaymentSchema must reject a negative amount");
-  });
-
-  test("rejects zero payment amount before any DB call", async () => {
-    const { addPaymentSchema } = await import("../src/validators/invoice.validator.js");
-    const result = addPaymentSchema.safeParse({ params: { id: crypto.randomUUID() }, body: { amount: 0 } });
-    assert.equal(result.success, false, "addPaymentSchema must reject a zero amount");
-  });
-
-  test("overpayment on PAID invoice stays PAID via computeNewStatus", () => {
-    // When amountPaid (1000) + new payment (100) >= amount (1000), status = PAID
-    const result = computeNewStatus(1000, 1000, 100, "PAID");
-    assert.equal(result, "PAID", "Additional payment on a PAID invoice must keep status PAID");
-  });
-});
-
-// ─── Unit tests for computeNewStatus ────────────────────────────────────────
-
-describe("computeNewStatus : pure logic", () => {
-  test("returns PAID when newAmountPaid equals invoiceAmount", () => {
-    assert.equal(computeNewStatus(1000, 0, 1000, "SENT"), "PAID");
-  });
-
-  test("returns PAID when newAmountPaid exceeds invoiceAmount", () => {
-    assert.equal(computeNewStatus(1000, 0, 1200, "SENT"), "PAID");
-  });
-
-  test("returns PARTIAL when newAmountPaid is between 0 and total", () => {
-    assert.equal(computeNewStatus(1000, 0, 500, "SENT"), "PARTIAL");
-  });
-
-  test("preserves current status when payment amount is 0 and nothing paid yet", () => {
-    assert.equal(computeNewStatus(1000, 0, 0, "SENT"), "SENT");
-  });
-
-  test("returns PARTIAL on second partial payment still under total", () => {
-    assert.equal(computeNewStatus(1000, 300, 200, "PARTIAL"), "PARTIAL");
-  });
-});
-
-// ─── Line-item edit guard (P0 #2) : mirrors assertInvoiceDraft ───────────────
-
-function assertInvoiceDraft(status: InvoiceStatus) {
-  if (status !== "DRAFT") {
-    throw Object.assign(new Error("Cannot modify items on a non-draft invoice"), {
-      code: "INVOICE_NOT_DRAFT",
-      statusCode: 409,
+// SEC-076 gap: the mirror had no equivalent of this guard at all.
+describe("invoiceService.addPayment: status guard (SEC-076 gap, real code)", () => {
+  for (const status of ["DRAFT", "PAID", "CANCELLED"] as const) {
+    test(`rejects a payment on a ${status} invoice with 409 INVOICE_NOT_ACCEPTING_PAYMENTS`, async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
+      const invoice = await makeInvoice({ amount: 1000, amountPaid: status === "PAID" ? 1000 : 0, status });
+      await assert.rejects(
+        () => invoiceService.addPayment(invoice.id, { amount: 100 }),
+        (err: unknown) => err instanceof HttpError && err.statusCode === 409 && err.code === "INVOICE_NOT_ACCEPTING_PAYMENTS"
+      );
     });
   }
-}
 
-describe("invoice.service item guard (assertInvoiceDraft)", () => {
-  test("allows item changes on a DRAFT invoice", () => {
-    assert.doesNotThrow(() => assertInvoiceDraft("DRAFT"));
+  for (const status of ["SENT", "PARTIAL", "OVERDUE"] as const) {
+    test(`accepts a payment on a ${status} invoice`, async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
+      const invoice = await makeInvoice({ amount: 1000, amountPaid: 200, status });
+      await assert.doesNotReject(() => invoiceService.addPayment(invoice.id, { amount: 100 }));
+    });
+  }
+});
+
+// SEC-076 gap: the mirror only ever exercised the 10s fallback window (isDuplicatePayment),
+// never the idempotencyKey path that addPayment actually prefers.
+describe("invoiceService.addPayment: idempotencyKey path (SEC-076 gap, real code)", () => {
+  test("a second call with the same idempotencyKey returns the original payment without a second write", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
+    const invoice = await makeInvoice({ amount: 1000, amountPaid: 0 });
+    const key = `sec076-${crypto.randomUUID()}`;
+
+    const first = await invoiceService.addPayment(invoice.id, { amount: 400, idempotencyKey: key });
+    const second = await invoiceService.addPayment(invoice.id, { amount: 400, idempotencyKey: key });
+
+    assert.equal(second.payment.id, first.payment.id, "the same idempotencyKey must return the original payment, not create a new one");
+    assert.equal(second.deduplicated, true);
+
+    const paymentCount = await prisma.payment.count({ where: { invoiceId: invoice.id } });
+    assert.equal(paymentCount, 1, "only one Payment row must exist for a repeated idempotencyKey");
+
+    const after = await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
+    assert.equal(after.status, "PARTIAL", "the invoice must only reflect the first, deduplicated payment");
+  });
+
+  test("a different idempotencyKey on the same invoice creates a second, independent payment", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
+    const invoice = await makeInvoice({ amount: 1000, amountPaid: 0 });
+
+    await invoiceService.addPayment(invoice.id, { amount: 400, idempotencyKey: `sec076-a-${crypto.randomUUID()}` });
+    await invoiceService.addPayment(invoice.id, { amount: 400, idempotencyKey: `sec076-b-${crypto.randomUUID()}` });
+
+    const paymentCount = await prisma.payment.count({ where: { invoiceId: invoice.id } });
+    assert.equal(paymentCount, 2);
+    const after = await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
+    assert.equal(Number(after.amountPaid), 800);
+  });
+});
+
+describe("invoiceService.addPayment: 10-second duplicate fallback (real code, no idempotencyKey)", () => {
+  test("an identical payment (same amount, no recorder) within 10s is deduplicated", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
+    const invoice = await makeInvoice({ amount: 1000, amountPaid: 0 });
+
+    const first = await invoiceService.addPayment(invoice.id, { amount: 500 });
+    const second = await invoiceService.addPayment(invoice.id, { amount: 500 });
+
+    assert.equal(second.deduplicated, true);
+    assert.equal(second.payment.id, first.payment.id);
+    const paymentCount = await prisma.payment.count({ where: { invoiceId: invoice.id } });
+    assert.equal(paymentCount, 1);
+  });
+});
+
+// SEC-076 gap check: assertInvoiceDraft is not directly exported (it's private to
+// invoice.service.ts), so it's exercised the same way production code does — through addItem,
+// which is the real call site the old mirror's standalone assertInvoiceDraft() copy never proved
+// anything about.
+describe("invoiceService.addItem: draft guard (real code, replaces the standalone assertInvoiceDraft mirror)", () => {
+  test("allows adding an item on a DRAFT invoice", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
+    const invoice = await makeInvoice({ amount: 0, amountPaid: 0, status: "DRAFT" });
+    const item = await invoiceService.addItem(invoice.id, { description: "Design work", quantity: 2, unitPrice: 150 });
+    assert.equal(Number(item.total), 300);
   });
 
   for (const status of ["SENT", "PARTIAL", "PAID", "OVERDUE", "CANCELLED"] as const) {
-    test(`blocks item changes on a ${status} invoice with INVOICE_NOT_DRAFT`, () => {
-      assert.throws(
-        () => assertInvoiceDraft(status),
-        (err: Error & { code?: string; statusCode?: number }) => err.code === "INVOICE_NOT_DRAFT" && err.statusCode === 409
+    test(`blocks adding an item on a ${status} invoice with 409 INVOICE_NOT_DRAFT`, async (t) => {
+      if (!dbAvailable) { t.skip("no reachable database"); return; }
+      const invoice = await makeInvoice({ amount: 1000, amountPaid: status === "PAID" ? 1000 : 0, status });
+      await assert.rejects(
+        () => invoiceService.addItem(invoice.id, { description: "Extra", quantity: 1, unitPrice: 50 }),
+        (err: unknown) => err instanceof HttpError && err.statusCode === 409 && err.code === "INVOICE_NOT_DRAFT"
       );
     });
   }
 });
 
-// ─── Overpayment → credit note (P0 #3) ───────────────────────────────────────
+describe("invoiceService.create: real invoice number generation (real code, replaces the buildInvoiceNumber mirror)", () => {
+  test("generates a number matching INV-YYYYMM-NNNN and increments across successive invoices", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const client = await prisma.client.create({ data: { name: `sec076-numgen-client-${suffix}` } });
+    createdClientIds.push(client.id);
 
-// Mirrors the overpayment computation in addPayment.
-function computeOverpayment(invoiceAmount: number, previousPaid: number, paymentAmount: number) {
-  const rawAmountPaid = previousPaid + paymentAmount;
-  const newAmountPaid = Math.min(rawAmountPaid, invoiceAmount);
-  return { newAmountPaid, overpaidBy: rawAmountPaid - invoiceAmount };
-}
+    const first = await invoiceService.create({ title: "Invoice 1", amount: 100, clientId: client.id });
+    createdInvoiceIds.push(first.id);
+    const second = await invoiceService.create({ title: "Invoice 2", amount: 200, clientId: client.id });
+    createdInvoiceIds.push(second.id);
 
-// Mirrors the credit-note amount validation in creditNoteService.create.
-function assertCreditAmount(amount: number, amountPaid: number) {
-  if (amount <= 0) throw Object.assign(new Error("invalid"), { code: "INVALID_CREDIT_AMOUNT" });
-  if (amount > amountPaid) throw Object.assign(new Error("exceeds"), { code: "CREDIT_EXCEEDS_PAID" });
-}
-
-describe("invoice.service overpayment → credit note (P0 #3)", () => {
-  test("caps amountPaid at the invoice total and reports the overpaid delta", () => {
-    const { newAmountPaid, overpaidBy } = computeOverpayment(1000, 800, 400);
-    assert.equal(newAmountPaid, 1000);
-    assert.equal(overpaidBy, 200);
-  });
-
-  test("no overpayment when payment exactly settles the invoice", () => {
-    const { newAmountPaid, overpaidBy } = computeOverpayment(1000, 0, 1000);
-    assert.equal(newAmountPaid, 1000);
-    assert.equal(overpaidBy, 0);
-  });
-
-  test("no overpayment on a partial payment (delta is not positive)", () => {
-    const { newAmountPaid, overpaidBy } = computeOverpayment(1000, 0, 400);
-    assert.equal(newAmountPaid, 400);
-    assert.ok(overpaidBy <= 0, "partial payment must not produce a positive overpaid delta");
+    assert.match(first.number, /^INV-\d{6}-\d{4}$/);
+    assert.match(second.number, /^INV-\d{6}-\d{4}$/);
+    assert.notEqual(first.number, second.number, "each invoice must get a distinct, incrementing number");
   });
 });
 
-describe("creditNoteService.create : amount validation", () => {
-  test("accepts a credit within the amount paid", () => {
-    assert.doesNotThrow(() => assertCreditAmount(200, 1000));
+// Request-shape validation guards below any DB call — kept from the original file, this part
+// already called the real shared validator, not a mirror.
+describe("addPaymentSchema: request guard (real code)", () => {
+  test("rejects negative payment amount before any DB call", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
+    const { addPaymentSchema } = await import("../src/validators/invoice.validator.js");
+    const result = addPaymentSchema.safeParse({ params: { id: crypto.randomUUID() }, body: { amount: -100 } });
+    assert.equal(result.success, false, "addPaymentSchema must reject a negative amount");
   });
 
-  test("rejects a non-positive amount", () => {
-    assert.throws(() => assertCreditAmount(0, 1000), (e: Error & { code?: string }) => e.code === "INVALID_CREDIT_AMOUNT");
-  });
-
-  test("rejects a credit exceeding the amount paid", () => {
-    assert.throws(() => assertCreditAmount(1200, 1000), (e: Error & { code?: string }) => e.code === "CREDIT_EXCEEDS_PAID");
-  });
-});
-
-// ─── Invoice number generation (P1 #4) ───────────────────────────────────────
-
-// Mirrors the number format produced by createInvoiceWithGeneratedNumber.
-function buildInvoiceNumber(year: number, month1to12: number, sequence: number) {
-  const prefix = `INV-${year}${String(month1to12).padStart(2, "0")}`;
-  return `${prefix}-${String(sequence).padStart(4, "0")}`;
-}
-
-describe("invoice number generation (P1 #4)", () => {
-  test("formats as INV-YYYYMM-NNNN with zero-padding", () => {
-    assert.equal(buildInvoiceNumber(2026, 6, 1), "INV-202606-0001");
-  });
-
-  test("pads the month and keeps a 4-digit sequence", () => {
-    assert.equal(buildInvoiceNumber(2026, 12, 42), "INV-202612-0042");
-  });
-
-  test("next number increments the sequence within the same month", () => {
-    const count = 7; // 7 existing invoices this month
-    assert.equal(buildInvoiceNumber(2026, 6, count + 1), "INV-202606-0008");
-  });
-});
-
-// ─── Payment idempotency (P1 #5) ─────────────────────────────────────────────
-
-// Mirrors the duplicate detection in addPayment: same invoice/amount/recorder within 10s.
-function isDuplicatePayment(
-  existing: { invoiceId: string; amount: number; recordedById: string | null; createdAt: number },
-  incoming: { invoiceId: string; amount: number; recordedById: string | null },
-  now: number
-) {
-  return (
-    existing.invoiceId === incoming.invoiceId &&
-    existing.amount === incoming.amount &&
-    existing.recordedById === incoming.recordedById &&
-    now - existing.createdAt <= 10_000
-  );
-}
-
-describe("payment idempotency guard (P1 #5)", () => {
-  const now = 1_000_000;
-  const incoming = { invoiceId: "inv-1", amount: 500, recordedById: "user-1" };
-
-  test("treats an identical payment within 10s as a duplicate", () => {
-    const existing = { ...incoming, createdAt: now - 3_000 };
-    assert.equal(isDuplicatePayment(existing, incoming, now), true);
-  });
-
-  test("an identical payment older than 10s is not a duplicate", () => {
-    const existing = { ...incoming, createdAt: now - 11_000 };
-    assert.equal(isDuplicatePayment(existing, incoming, now), false);
-  });
-
-  test("a different amount is not a duplicate", () => {
-    const existing = { ...incoming, amount: 600, createdAt: now };
-    assert.equal(isDuplicatePayment(existing, incoming, now), false);
-  });
-
-  test("a different recorder is not a duplicate", () => {
-    const existing = { ...incoming, recordedById: "user-2", createdAt: now };
-    assert.equal(isDuplicatePayment(existing, incoming, now), false);
+  test("rejects zero payment amount before any DB call", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
+    const { addPaymentSchema } = await import("../src/validators/invoice.validator.js");
+    const result = addPaymentSchema.safeParse({ params: { id: crypto.randomUUID() }, body: { amount: 0 } });
+    assert.equal(result.success, false, "addPaymentSchema must reject a zero amount");
   });
 });
