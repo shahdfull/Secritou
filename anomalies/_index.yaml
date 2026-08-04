@@ -117,27 +117,38 @@ anomalies:
     classe: contraste-badge-alerte-anime-sous-seuil
   - id: SEC-097
     titre: >
-      Dette technique — Catégorie H (UX/UI et accessibilité) jamais
-      ouverte comme audit dédié dans COUVERTURE.yaml, sur aucun des 15
-      périmètres (colonne H à null partout, sans exception). Backlog
-      post-lancement formalisé le 2026-08-03 (clôture Phase 3 du mandat
-      QA) : ne bloque pas le GO au sens du critère de clôture CLAUDE.md
-      (seules A/B/G conditionnent la clôture), mais reste un angle mort
-      d'audit réel tant qu'aucune session ne balaie H sur un périmètre
-      donné.
+      Dette technique — Catégorie H (UX/UI et accessibilité), PÉRIMÈTRE
+      RESTREINT après le dégel du 2026-08-03 : seuls 3 sous-points
+      restent jamais traités — Tests Offline (comportement de l'app en
+      perte de connexion, notamment pendant un stream SSE IA), Tests PWA
+      (installabilité — manifest/service worker jamais vérifiés), Tests
+      des notifications Toast/Alert au-delà du contraste (rôle
+      role="alert"/aria-live, pas seulement la couleur). Le reste de la
+      catégorie H (contraste, garde de route, permissions UI, i18n) a
+      été couvert ou explicitement traité lors du dégel du 2026-08-03,
+      pas seulement discuté : voir SEC-098/099/100 (3 anomalies réelles
+      trouvées et résolues, commits 01cbc1e/d249f93/570f949/1e0035c, CI
+      verte confirmée sur chacun). Ce n'est donc plus "colonne H à null
+      partout" — le regel porte sur un reliquat nommé, pas sur l'absence
+      totale d'audit d'origine.
     perimetre: transverse
-    statut: actif
+    statut: gelé
     note_degel: >
-      Dégelé le 2026-08-03, demande explicite du porteur — cf. mission QA
-      close, déclencheur de réexamen rempli (option 2 : demande explicite
-      du porteur d'ouvrir un audit catégorie H).
+      Dégelé le 2026-08-03 (demande explicite du porteur), a produit
+      3 correctifs réels (SEC-098/099/100, tous resolu avec CI verte).
+      Regelé le 2026-08-04 (demande explicite du porteur) : le
+      périmètre initialement visé par le dégel est traité, seuls les
+      3 sous-points listés ci-dessus n'ont jamais été audités et
+      restent en gel, pas la catégorie H entière sur les 14 périmètres.
     gravite: mineure
     classe: dette-technique
     declencheur_reexamen: >
-      Premier des deux : (1) un incident réel d'accessibilité remonté par
-      un utilisateur/testeur après lancement, ou (2) toute demande
-      explicite du porteur d'ouvrir un audit catégorie H sur un
-      périmètre nommé — jamais par défaut ni pour "compléter la matrice".
+      Identique aux deux entrées voisines de ce backlog (SEC-095/096) :
+      premier des deux — (1) un incident réel remonté par un
+      utilisateur/testeur après lancement sur l'un des 3 sous-points
+      (offline, PWA, notifications non-contraste), ou (2) une nouvelle
+      demande explicite du porteur — jamais de date automatique, jamais
+      "pour compléter la matrice".
   - id: SEC-096
     titre: >
       Dette technique — Aucune mesure formelle de contraste WCAG via un

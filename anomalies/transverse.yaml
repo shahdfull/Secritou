@@ -285,40 +285,67 @@ anomalies:
       confirmée sur d249f93 (run 30853761388, 6/6 jobs).
   - id: SEC-097
     titre: >
-      Dette technique — Catégorie H (UX/UI et accessibilité) jamais
-      ouverte comme audit dédié dans COUVERTURE.yaml, sur aucun des 15
-      périmètres (colonne H à null partout, sans exception). Backlog
-      post-lancement formalisé le 2026-08-03 (clôture Phase 3 du mandat
-      QA) : ne bloque pas le GO au sens du critère de clôture CLAUDE.md
-      (seules A/B/G conditionnent la clôture), mais reste un angle mort
-      d'audit réel tant qu'aucune session ne balaie H sur un périmètre
-      donné.
+      Dette technique — Catégorie H (UX/UI et accessibilité), PÉRIMÈTRE
+      RESTREINT après le dégel du 2026-08-03. À l'origine (créée le
+      2026-08-03) : "colonne H à null partout, sans exception" sur les
+      15 périmètres. Le dégel du même jour (demande explicite du
+      porteur) a produit un audit axe-core/Lighthouse réel qui a trouvé
+      et résolu 3 anomalies concrètes — SEC-098 (badge notification +
+      icônes d'alerte, commits 01cbc1e/d249f93), SEC-099 (GrowthBadge
+      dashboard, commit 570f949), SEC-100 (palette Sonner success/error/
+      info, portée 115 sites d'appel, commit 1e0035c) — toutes CI verte
+      confirmée. Ce n'était donc pas un audit resté sans suite : le
+      contraste couleur, une bonne part du contenu réel de la catégorie
+      H, a été audité et corrigé. Seuls 3 sous-points n'ont jamais été
+      traités et restent dans le périmètre de cette entrée après son
+      regel : Tests Offline (comportement de l'app en perte de
+      connexion, notamment pendant un stream SSE IA — lien direct avec
+      SEC-082/SEC-090 déjà résolues sur un autre angle), Tests PWA
+      (installabilité — manifest.json/service worker jamais vérifiés,
+      ni confirmés absents ni confirmés présents), Tests des
+      notifications Toast/Alert au-delà du contraste (role="alert"/
+      aria-live sur les toasts réellement déclenchés — SEC-100 a
+      couvert la couleur, pas la sémantique ARIA du composant).
     perimetre: transverse
     regle_violee: >
-      Aucune règle de REFERENTIEL.md n'exige un audit H avant lancement
-      (seules A/B/G conditionnent la clôture) — ceci n'est donc pas un
-      manquement à une règle existante, seulement un backlog explicite
-      pour éviter que "jamais audité" ne se confonde avec "audité et
-      sain".
+      Aucune règle de REFERENTIEL.md n'exige un audit H complet avant
+      lancement (seules A/B/G conditionnent la clôture) — ceci reste un
+      backlog explicite, pas un manquement à une règle existante. Le
+      dégel du 2026-08-03 a montré que le sous-ensemble contraste de H
+      contenait des défauts réels (SEC-098/099/100), donc "jamais
+      audité" aurait été un vrai risque s'il n'avait pas été vérifié —
+      mais ce risque est maintenant traité pour le contraste, pas pour
+      les 3 sous-points restants.
     classe: dette-technique
     gravite: mineure
-    statut: actif
+    statut: gelé
     note_degel: >
-      Dégelé le 2026-08-03, demande explicite du porteur — cf. mission QA
-      close, déclencheur de réexamen rempli (option 2 : demande explicite
-      du porteur d'ouvrir un audit catégorie H).
+      Dégelé le 2026-08-03 (demande explicite du porteur), a produit
+      3 correctifs réels (SEC-098/099/100, tous resolu avec CI verte
+      confirmée sur chaque commit). Regelé le 2026-08-04 (demande
+      explicite du porteur) : le périmètre qui avait motivé le dégel
+      (impact réel, mesurable, corrigeable) est traité. Le regel porte
+      sur les 3 sous-points jamais audités listés dans le titre — pas
+      sur la catégorie H entière ni sur les 14 autres périmètres §4.
     declencheur_reexamen: >
-      Premier des deux : (1) un incident réel d'accessibilité remonté
-      par un utilisateur/testeur après lancement, ou (2) toute demande
-      explicite du porteur d'ouvrir un audit catégorie H sur un
-      périmètre nommé — jamais par défaut ni pour "compléter la
-      matrice".
+      Identique aux entrées voisines de ce backlog (SEC-095/096) :
+      premier des deux — (1) un incident réel remonté par un
+      utilisateur/testeur après lancement sur l'un des 3 sous-points
+      (offline, PWA, notifications non-contraste), ou (2) une nouvelle
+      demande explicite du porteur — jamais de date automatique, jamais
+      "pour compléter la matrice".
     critere_de_resolution: >
-      Un audit H réel est mené sur au moins un périmètre nommé (navigation
-      clavier, contraste au-delà du contrôle couleur existant, ARIA sur
-      les composants interactifs testés directement), avec anomalies
-      trouvées enregistrées sous leurs propres IDs et la cellule
-      (périmètre, H) de COUVERTURE.yaml mise à jour avec une date réelle.
+      Pour chacun des 3 sous-points restants : un test réel (pas une
+      lecture de code statique) tranchant la question factuelle avant
+      tout jugement — PWA : manifest/service worker présents ou non,
+      documenté explicitement comme "non applicable" si absents plutôt
+      que "non testé" ; Offline : coupure réseau simulée pendant un tour
+      SSE IA en cours, vérifie qu'aucun état incohérent n'est persisté ;
+      Notifications : scan role="alert"/aria-live sur un toast
+      réellement déclenché, pas une lecture statique du composant.
+      Anomalies trouvées enregistrées sous leurs propres IDs, cellule
+      (transverse, H) de COUVERTURE.yaml mise à jour avec la date réelle
+      du jour où ces 3 sous-points auront été effectivement testés.
   - id: SEC-096
     titre: >
       Dette technique — Aucune mesure formelle de contraste WCAG via un
