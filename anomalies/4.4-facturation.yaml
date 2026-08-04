@@ -97,7 +97,7 @@ anomalies:
       dépôt.
     classe: test-mirror-ne-teste-pas-le-code-reel
     gravite: moyenne
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       invoice.service.test.ts est réécrit (ou remplacé par un/des
       fichier(s) équivalents) pour importer et appeler réellement
@@ -130,6 +130,21 @@ anomalies:
       la présence d'une version affaiblie et non représentative du même
       calcul dans un fichier différent, pas sur une régression de SEC-184
       lui-même.
+    note_resolution: >
+      Réécrit le 2026-08-04 (commit 1ed4366) : invoice.service.test.ts
+      importe et appelle désormais réellement invoiceService (statuts
+      PAID/PARTIAL/multi-paiements, garde-fou INVOICE_NOT_ACCEPTING_PAYMENTS
+      — absent du mirror, chemin idempotencyKey préféré — jamais testé
+      avant, addItem/garde DRAFT via le vrai appelant puisque
+      assertInvoiceDraft n'est pas exportée, génération réelle du numéro
+      de facture). Le volet assertCreditAmount/CREDIT_EXCEEDS_PAID n'est
+      pas dupliqué : déjà couvert par du vrai code dans
+      creditNoteCumulativeAmount.test.ts (SEC-184), documenté en tête du
+      fichier pour éviter une redécouverte future. Vérifié en isolation
+      (npx tsx --test --test-reporter=tap) : 29/29 tests verts. tsc
+      --noEmit et npm run lint propres sur server. CI verte confirmée :
+      run GitHub Actions 30946172107 sur 1ed4366e0516f14da0994330c1fcb5b37735f16f,
+      conclusion success.
 
   - id: SEC-075
     titre: >

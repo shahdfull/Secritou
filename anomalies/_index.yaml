@@ -564,16 +564,18 @@ anomalies:
       idempotencyKey (le vrai chemin préféré, testé nulle part dans ce
       fichier — seul le repli 10s est mirroré)
     perimetre: 4.4-facturation
-    statut: ouvert
+    statut: resolu
     gravite: moyenne
     classe: test-mirror-ne-teste-pas-le-code-reel
-    note: >
-      Ne pas confondre avec SEC-072 (statut resolu, transverse) : SEC-072
-      portait sur rating.service.test.ts/ratingRequestNotification.test.ts
-      (module 4.7/4.2), déjà réécrits pour importer le vrai code. SEC-076
-      porte sur invoice.service.test.ts (module 4.4), jamais traité par
-      ce correctif — lot distinct, jamais audité sous cet angle jusqu'à
-      cette session.
+    note_resolution: >
+      Réécrit le 2026-08-04 (commit 1ed4366) pour importer et appeler
+      réellement invoiceService, couvrant en plus le garde-fou de statut
+      et le chemin idempotencyKey absents du mirror. Le volet
+      assertCreditAmount reste couvert ailleurs (SEC-184,
+      creditNoteCumulativeAmount.test.ts), non dupliqué ici. Vérifié en
+      isolation : 29/29 tests verts, tsc/lint propres. CI verte
+      confirmée : run 30946172107 sur 1ed4366e. Détail complet dans
+      anomalies/4.4-facturation.yaml#SEC-076.
   - id: SEC-075
     titre: >
       invoice.repository.ts (findAll/findAllByServiceId/findDeleted)
