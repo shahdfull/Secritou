@@ -356,7 +356,7 @@ anomalies:
       pourtant traversé plusieurs passes de nettoyage (SEC-040/SEC-044).
     classe: message-erreur-obsolete-post-migration
     gravite: mineure
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
       Décision du porteur sur le nouveau libellé (ex. "Impossible de
       contacter l'assistant IA. Vérifiez que le service est disponible
@@ -364,6 +364,23 @@ anomalies:
       aiAssistant.errors.unavailable dans les deux fichiers de
       traduction (fr/en), vérifiée par relecture des deux fichiers +
       node scripts/check-i18n.mjs.
+    note_resolution: >
+      Correctif déjà présent dans le code au moment de cette
+      vérification (client/src/i18n/locales/fr/translation.json:1030 et
+      en/translation.json:1030 — libellé sans mention de clé API), mais
+      jamais reporté à resolu dans le registre : commit d8a652e46
+      ("fix(i18n): corrige aiAssistant.errors.unavailable pour ne plus
+      citer une clé API (SEC-066)", 2026-08-01) documentait lui-même
+      l'intention de rester ouvert jusqu'à confirmation CI, jamais faite
+      depuis. Même défaut que SEC-095/096 (oubli de mise à jour de
+      statut après correctif réel). CI verte confirmée a posteriori :
+      run c8bb610450e (2026-08-04, conclusion success), postérieur au
+      commit du correctif et à tout commit ultérieur touchant ces deux
+      fichiers de traduction (aucun depuis d8a652e46 sur
+      client/src/i18n/locales/{fr,en}/translation.json). Détecté lors
+      d'une vérification demandée explicitement par le porteur avant le
+      traitement du lot des 17 anomalies restantes (session du
+      2026-08-04).
     detecte_le: "2026-07-31"
     source: >
       Découvert incidemment en testant l'assistant IA en conditions
