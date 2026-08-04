@@ -12,8 +12,28 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-100
+dernier_id: SEC-101
 anomalies:
+  - id: SEC-101
+    titre: >
+      Le registre n'a aucune vérification automatique qui rapproche un
+      statut "resolu" déclaré d'une preuve réelle (commit cité, CI verte
+      associée) au moment où le statut change — la seule garantie est
+      la discipline manuelle de l'agent qui fait l'édition YAML. Pattern
+      confirmé sur 5 anomalies distinctes dans cette seule mission :
+      SEC-095/SEC-096 (statut jamais mis à jour après dégel/correctif
+      réel, découvert le 2026-08-03) puis SEC-066/SEC-071/SEC-072
+      (statut resolu écrit dans anomalies/transverse.yaml et
+      anomalies/4.11-ia.yaml par des commits antérieurs — d8a652e46 et
+      7c0ab6e — mais jamais répercuté dans anomalies/_index.yaml,
+      découvert le 2026-08-04 sur demande explicite du porteur avant le
+      traitement du lot des 17 anomalies restantes). Rapport seul à ce
+      stade — aucun correctif engagé, la nature du mécanisme de garde
+      reste à trancher avec le porteur.
+    perimetre: transverse
+    statut: ouvert
+    gravite: moyenne
+    classe: registre-statut-resolu-sans-verification-automatique
   - id: SEC-100
     titre: >
       Le wrapper Toaster (client/src/components/ui/sonner.tsx) active

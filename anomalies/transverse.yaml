@@ -7,7 +7,7 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : Transverse (hors modules §4 — CI/infra, docs, RGPD, i18n global, design system, observabilité)
-# 6 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
+# 7 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 # +1 le 2026-07-30 (audit B). +1 le 2026-07-30 (découverte incidente en
 # corrigeant SEC-032). +1 le 2026-07-30 (découverte incidente en
@@ -43,9 +43,100 @@
 # SEC-098 : SEC-099 GrowthBadge du dashboard exécutif, confondu au départ
 # avec NotificationBell.tsx par classe CSS identique ; SEC-100 palette
 # par défaut du wrapper Sonner, portée élargie confirmée sur 115 appels
-# toast.* du projet).
+# toast.* du projet). +1 le 2026-08-04 (constat de process demandé
+# explicitement par le porteur après la 3e occurrence du même défaut de
+# traçabilité dans cette mission — SEC-101, statut "resolu" écrit dans
+# un fichier de détail sans jamais être répercuté dans _index.yaml).
 
 anomalies:
+  - id: SEC-101
+    titre: >
+      Le registre n'a aucune vérification automatique qui rapproche un
+      statut "resolu" déclaré d'une preuve réelle (commit cité, CI verte
+      associée) au moment où le statut change — la seule garantie
+      actuelle est la discipline manuelle de l'agent qui fait l'édition
+      YAML, dans les deux fichiers (anomalies/_index.yaml et le fichier
+      de détail par périmètre) qui doivent pourtant se livrer ensemble
+      selon CLAUDE.md. Rien dans le dépôt (CI, script, hook) ne détecte
+      une divergence entre les deux, ni ne vérifie qu'un commit_id cité
+      comme preuve existe réellement dans l'historique git avant
+      d'accepter un statut "resolu".
+    perimetre: transverse
+    regle_violee: >
+      CLAUDE.md « Cohérence obligatoire REFERENTIEL.md ↔ anomalies/*.yaml »
+      et « Un critère de résolution se vérifie sur un commit » énoncent
+      la règle mais ne sont vérifiées par aucun outil — seulement relues
+      manuellement par l'agent au moment de l'édition, donc aussi
+      fiables que la vigilance de la session qui édite le fichier ce
+      jour-là.
+    classe: registre-statut-resolu-sans-verification-automatique
+    gravite: moyenne
+    statut: ouvert
+    critere_de_resolution: >
+      NON TRANCHÉ À CE STADE — rapport seul, décision du porteur
+      attendue avant toute implémentation (voir proposition dans
+      `note` ci-dessous). Provisoirement : un mécanisme (script CI ou
+      hook) existe qui, pour toute anomalie passée à `resolu` dans un
+      commit, vérifie automatiquement que (a) `_index.yaml` et le
+      fichier de détail du périmètre portent le même statut pour cet ID
+      (pas de divergence), et (b) tout commit cité comme preuve dans le
+      texte de l'anomalie existe réellement dans l'historique git
+      (`git cat-file -e <sha>` ou équivalent) — sans vérifier le
+      contenu du commit ni la substance de la preuve, seulement son
+      existence matérielle.
+    detecte_le: "2026-08-04"
+    source: >
+      Demande explicite du porteur après la vérification SEC-066 (session
+      du 2026-08-04, avant le traitement du lot des 17 anomalies
+      restantes) : le porteur a noté qu'il s'agissait de la 3e
+      occurrence du même mécanisme de défaut dans cette mission
+      (SEC-095/SEC-096 le 2026-08-03, puis SEC-066/SEC-071/SEC-072 le
+      2026-08-04 — 5 anomalies distinctes touchées au total), demandant
+      l'ouverture d'une anomalie sur le mécanisme lui-même plutôt que de
+      continuer à corriger les symptômes un par un sans jamais adresser
+      la cause commune.
+    confiance: haute
+    note: >
+      Proposition de mécanisme (non implémentée, à valider par le
+      porteur avant tout correctif — cette anomalie est un rapport,
+      pas une décision d'implémentation) :
+
+      Un script `scripts/check-anomaly-registry.mjs` (ou équivalent),
+      exécuté comme étape CI dédiée (nouveau job dans
+      .github/workflows/ci.yml, à côté de contrast-check et
+      restore-smoke-test qui suivent déjà ce modèle de vérification
+      ciblée), qui :
+
+      1. Parse anomalies/_index.yaml et chaque anomalies/<perimetre>.yaml
+      référencé, et échoue si un même ID porte un `statut` différent
+      entre les deux fichiers — aurait détecté SEC-066/071/072
+      immédiatement au moment du commit 7c0ab6e (2026-08-01) plutôt que
+      3 jours plus tard sur une relecture manuelle demandée par le
+      porteur.
+
+      2. Pour toute anomalie `statut: resolu` dont le texte (titre, note,
+      note_resolution, critere_de_resolution) contient un motif
+      ressemblant à un SHA de commit (regex sur hex 7-40 caractères
+      précédé d'un mot-clé "commit"), vérifie que ce SHA existe dans
+      l'historique git du dépôt (`git cat-file -e` ou
+      `git merge-base --is-ancestor <sha> HEAD`) — pas plus. N'évalue
+      pas si le commit contient réellement le correctif décrit, ni si
+      la CI a réellement tourné verte dessus (ça resterait à la
+      discipline de l'agent au moment de la rédaction) : seulement que
+      la preuve citée n'est pas un SHA halluciné ou une faute de frappe.
+
+      3. Volontairement PAS de vérification de contenu/sémantique (trop
+      coûteux à maintenir, hors de portée d'un script de garde simple)
+      — seulement l'existence matérielle de la preuve citée et la
+      cohérence inter-fichiers du statut, les deux points qui ont
+      concrètement fait défaut sur les 5 occurrences de cette mission.
+
+      Alternative plus légère envisageable si le porteur juge un nouveau
+      job CI disproportionné à ce stade (0 client actif, backlog
+      post-lancement) : un hook `pre-commit` local plutôt qu'une porte
+      CI bloquante — détecte le même défaut avant qu'il n'entre dans
+      l'historique, mais ne protège pas contre un commit qui contourne
+      le hook. Arbitrage à faire avec le porteur, pas tranché ici.
   - id: SEC-100
     titre: >
       Le wrapper Toaster (client/src/components/ui/sonner.tsx) active
