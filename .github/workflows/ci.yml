@@ -80,6 +80,14 @@ jobs:
       S3_SECRET_ACCESS_KEY: secritou-ci-secret
       S3_REGION: us-east-1
       S3_PUBLIC_URL: http://localhost:9000/secritou-ci
+      # SEC-102: 24+ real /auth/login calls accumulate across this job's .http.test.ts files,
+      # sharing authRateLimit's one in-memory 30/15min counter — a later, unrelated test 429s once
+      # the suite grows past that shared ceiling. Separate, narrower opt-in than E2E_RELAXED_RATE_LIMITS
+      # (SEC-212, e2e job only) — this one only widens authRateLimit, never
+      # sensitiveWriteRateLimit/frequentInteractionRateLimit, which taskUpdateRateLimit.test.ts
+      # asserts stay at their real limits in this exact job. env.ts refuses this if
+      # NODE_ENV=production.
+      E2E_RELAXED_AUTH_RATE_LIMIT: "true"
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0

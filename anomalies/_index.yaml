@@ -12,8 +12,70 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-101
+dernier_id: SEC-102
 anomalies:
+  - id: SEC-102
+    titre: >
+      authRateLimit (server/src/middlewares/rateLimit.middleware.ts, 30
+      requêtes/15min, compteur en mémoire partagé par IP, sans exception
+      pour l'environnement de test) est partagé par TOUS les fichiers
+      server/test/*.http.test.ts d'une même exécution
+      npm run test:coverage --workspace=server — 24+ appels réels à
+      POST /auth/login cumulés dans server/test/run-all.test.ts avant
+      même l'ajout du fichier SEC-075/077, chaque nouveau fichier de
+      test HTTP rapproche silencieusement la suite du seuil de 30.
+      Découvert en poussant le commit SEC-075/077 (44b4573) : le job CI
+      "server" a échoué (429 confirmé par diagnostic temporaire) sur
+      aiConversationStreamCancellation.test.ts, un fichier totalement
+      sans rapport avec invoice.repository.ts/invoice.service.ts — testé
+      et confirmé en isolation (passe seul) et par un test de contrôle
+      strict (repasse au vert sur le commit parent sans le nouveau
+      fichier de test).
+    perimetre: transverse
+    regle_violee: >
+      Un test de non-régression réel ne doit jamais échouer par
+      accumulation d'un état global partagé entre fichiers indépendants
+      — le rate-limit de sécurité (légitime en production) n'a aucune
+      échappatoire dédiée à la suite de tests CI, contrairement à
+      sensitiveWriteRateLimit/frequentInteractionRateLimit qui en ont
+      déjà une (E2E_RELAXED_RATE_LIMITS, SEC-212).
+    classe: rate-limit-partage-sans-echappatoire-test
+    gravite: moyenne
+    statut: en_cours
+    critere_de_resolution: >
+      authRateLimit dispose d'un opt-in explicite et étroit (jamais actif
+      en production, jamais élargi au-delà de sa propre limite) activable
+      pour la suite de tests CI, sans élargir aucune autre limite déjà
+      couverte par un mécanisme distinct testé (taskUpdateRateLimit.test.ts
+      vérifie que sensitiveWriteRateLimit/frequentInteractionRateLimit
+      restent à leur valeur réelle dans ce même job — un correctif qui
+      les élargirait aussi casserait cette preuve). Vérifié par un run
+      complet local (npx tsx --test test/run-all.test.ts) avec le flag
+      actif : 787 pass, 1 fail restant (SEC-069, pré-existant et
+      indépendant, confirmé par un test de contrôle sans le flag ni le
+      nouveau fichier de test).
+    detecte_le: "2026-08-04"
+    source: >
+      Échec CI réel sur le run 30947979863 (commit 44b4573, job "server"),
+      confirmé par un diagnostic temporaire (console.error retiré après
+      capture) montrant "429 Too many authentication attempts" sur le
+      login de aiConversationStreamCancellation.test.ts. Cause isolée par
+      test de contrôle : checkout du commit parent (1ed4366) sans le
+      nouveau fichier invoiceFkAndOrderByGuards.http.test.ts fait
+      repasser ce même test au vert sur un run local identique.
+    confiance: haute
+    note: >
+      E2E_RELAXED_RATE_LIMITS (SEC-212) existait déjà mais élargit aussi
+      sensitiveWriteRateLimit/frequentInteractionRateLimit — l'activer
+      globalement sur le job "server" a été testé et rejeté (casse
+      taskUpdateRateLimit.test.ts, qui asserte que ces deux limites
+      restent à leur valeur réelle dans ce job). Nouveau flag
+      E2E_RELAXED_AUTH_RATE_LIMIT introduit spécifiquement pour
+      authRateLimit seul, activé uniquement dans le bloc env: du job
+      "server" (pas "e2e", pas de portée globale). Corrige au passage un
+      message d'erreur de garde en production (env.ts) qui mentionnait
+      à tort authRateLimit sous l'ancien flag E2E_RELAXED_RATE_LIMITS,
+      alors que ce dernier ne l'a jamais réellement couvert dans le code.
   - id: SEC-101
     titre: >
       Le registre n'a aucune vérification automatique qui rapproche un

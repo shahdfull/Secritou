@@ -47,8 +47,99 @@
 # explicitement par le porteur après la 3e occurrence du même défaut de
 # traçabilité dans cette mission — SEC-101, statut "resolu" écrit dans
 # un fichier de détail sans jamais être répercuté dans _index.yaml).
+# +1 le 2026-08-04 (échec CI réel découvert en poussant le correctif
+# SEC-075/077 — SEC-102, authRateLimit partagé sans échappatoire test,
+# résolu le même jour par un flag distinct E2E_RELAXED_AUTH_RATE_LIMIT).
 
 anomalies:
+  - id: SEC-102
+    titre: >
+      authRateLimit (server/src/middlewares/rateLimit.middleware.ts, 30
+      requêtes/15min, compteur en mémoire partagé par IP, sans exception
+      pour l'environnement de test) est partagé par TOUS les fichiers
+      server/test/*.http.test.ts d'une même exécution
+      npm run test:coverage --workspace=server — 24+ appels réels à
+      POST /auth/login cumulés dans server/test/run-all.test.ts avant
+      même l'ajout du fichier SEC-075/077, chaque nouveau fichier de
+      test HTTP rapproche silencieusement la suite du seuil de 30.
+    perimetre: transverse
+    regle_violee: >
+      Un test de non-régression réel ne doit jamais échouer par
+      accumulation d'un état global partagé entre fichiers indépendants
+      — le rate-limit de sécurité (légitime en production) n'a aucune
+      échappatoire dédiée à la suite de tests CI, contrairement à
+      sensitiveWriteRateLimit/frequentInteractionRateLimit qui en ont
+      déjà une (E2E_RELAXED_RATE_LIMITS, SEC-212).
+    classe: rate-limit-partage-sans-echappatoire-test
+    gravite: moyenne
+    statut: en_cours
+    critere_de_resolution: >
+      authRateLimit dispose d'un opt-in explicite et étroit (jamais actif
+      en production, jamais élargi au-delà de sa propre limite) activable
+      pour la suite de tests CI, sans élargir aucune autre limite déjà
+      couverte par un mécanisme distinct testé (taskUpdateRateLimit.test.ts
+      vérifie que sensitiveWriteRateLimit/frequentInteractionRateLimit
+      restent à leur valeur réelle dans ce même job — un correctif qui
+      les élargirait aussi casserait cette preuve).
+    detecte_le: "2026-08-04"
+    source: >
+      Découvert en poussant le commit SEC-075/077 (44b4573, whitelist
+      orderBy + validation FK clientId sur invoice) : le run CI
+      30947979863 (job "server") a échoué avec conclusion failure,
+      relancé une fois (gh run rerun --failed, run identique) — le
+      premier échec (taskBulkActions.test.ts, timing) a disparu au
+      rerun, confirmant un flake indépendant ; le second
+      (aiConversationStreamCancellation.test.ts,
+      "Cannot read properties of undefined (reading 'tokens')") a
+      persisté à l'identique sur les deux runs. Diagnostic temporaire
+      (console.error inséré puis retiré après capture) sur le corps de
+      réponse du login de ce test : "429 Too many authentication
+      attempts, please try again later". Cause confirmée par un test de
+      contrôle strict : `git checkout 1ed4366 -- server/test/run-all.test.ts
+      server/src/repositories/invoice.repository.ts
+      server/src/services/invoice.service.ts` (retour à l'état
+      immédiatement avant le commit SEC-075/077) puis
+      `npx tsx --test test/run-all.test.ts` en local fait repasser
+      aiConversationStreamCancellation.test.ts au vert, seul SEC-069
+      (pré-existant, sans rapport) subsistant en échec — confirmant que
+      le nouveau fichier invoiceFkAndOrderByGuards.http.test.ts
+      (un login de plus, 24e+ dans la séquence cumulée) est bien la
+      cause du dépassement du seuil de 30/15min, pas mon code
+      applicatif lui-même (les 2 suites SEC-075/SEC-077 elles-mêmes
+      étaient vertes dans le run CI en échec).
+    confiance: haute
+    note: >
+      E2E_RELAXED_RATE_LIMITS (SEC-212) existait déjà comme mécanisme
+      d'opt-in pour la CI, mais élargit aussi
+      sensitiveWriteRateLimit/frequentInteractionRateLimit — l'activer
+      globalement sur le job "server" a été testé et rejeté (fait
+      échouer taskUpdateRateLimit.test.ts, qui asserte explicitement que
+      ces deux limites restent à leur valeur réelle 10/min et 60/min
+      dans ce même job — un des tests que ce correctif aurait
+      silencieusement rendu incapable de détecter une vraie régression
+      de sécurité sur ces routes).
+
+      Nouveau flag E2E_RELAXED_AUTH_RATE_LIMIT introduit spécifiquement
+      pour authRateLimit seul (server/src/config/env.ts, garde de
+      production ajoutée symétriquement à celle de
+      E2E_RELAXED_RATE_LIMITS), activé uniquement dans le bloc `env:` du
+      job "server" de .github/workflows/ci.yml (pas "e2e", pas de portée
+      globale, pas au niveau d'une étape isolée). Corrige au passage un
+      message d'erreur de garde en production (env.ts:154) qui
+      mentionnait à tort "authRateLimit" comme couvert par
+      E2E_RELAXED_RATE_LIMITS, alors que le code ne l'a jamais
+      réellement lu sous ce flag avant ce correctif — écart entre
+      commentaire et code déjà présent avant cette session, corrigé en
+      cohérence avec le nouveau flag distinct plutôt que laissé tel
+      quel.
+
+      Preuve locale avant commit : `E2E_RELAXED_AUTH_RATE_LIMIT=true
+      npx tsx --test test/run-all.test.ts` → 787 pass, 1 fail (SEC-069
+      uniquement), taskUpdateRateLimit.test.ts toujours vert (`ratelimit-limit`
+      confirmé à 10/60 selon la route, pas 200). CI verte à confirmer
+      sur le commit poussé — statut resolu conditionné à cette
+      confirmation, comme tout le reste du registre.
+
   - id: SEC-101
     titre: >
       Le registre n'a aucune vérification automatique qui rapproche un

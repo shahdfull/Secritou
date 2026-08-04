@@ -55,6 +55,17 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => v === "true" || v === "1"),
+  // SEC-102: set only by .github/workflows/ci.yml's "server" job (npm run test:coverage) — that
+  // suite's .http.test.ts files accumulate 24+ real /auth/login calls sharing authRateLimit's one
+  // in-memory 30/15min counter, eventually 429ing a later, unrelated test as more HTTP test files
+  // are added. Deliberately separate from E2E_RELAXED_RATE_LIMITS: that flag also widens
+  // sensitiveWriteRateLimit/frequentInteractionRateLimit, which taskUpdateRateLimit.test.ts
+  // asserts stay at their real limits during this exact job — widening those too would break that
+  // test's own proof. Never set in a real deployment or in local `npm run dev`.
+  E2E_RELAXED_AUTH_RATE_LIMIT: z
+    .string()
+    .optional()
+    .transform((v) => v === "true" || v === "1"),
   JOBS_ENABLED: z
     .string()
     .optional()
@@ -140,7 +151,13 @@ if (
 
 if (env.NODE_ENV === "production" && env.E2E_RELAXED_RATE_LIMITS) {
   throw new Error(
-    "E2E_RELAXED_RATE_LIMITS must never be set in production — it widens sensitiveWriteRateLimit/authRateLimit for the e2e CI suite only."
+    "E2E_RELAXED_RATE_LIMITS must never be set in production — it widens sensitiveWriteRateLimit/frequentInteractionRateLimit for the e2e CI suite only."
+  );
+}
+
+if (env.NODE_ENV === "production" && env.E2E_RELAXED_AUTH_RATE_LIMIT) {
+  throw new Error(
+    "E2E_RELAXED_AUTH_RATE_LIMIT must never be set in production — it widens authRateLimit for the server CI job's test suite only."
   );
 }
 

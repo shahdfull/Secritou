@@ -5,9 +5,15 @@ import { env } from "../config/env.js";
 export const rateLimitKeyGenerator = (req: Request) =>
   `${ipKeyGenerator(req.ip ?? "unknown")}:${req.user?.sub ?? "anonymous"}`;
 
+// SEC-102: the real "server" CI job (npm run test:coverage) fires 24+ real /auth/login calls
+// across its .http.test.ts files, all sharing this one in-memory 30/15min counter — it grows
+// every time a new HTTP test file is added and eventually 429s a later, unrelated test.
+// E2E_RELAXED_AUTH_RATE_LIMIT is a separate opt-in from E2E_RELAXED_RATE_LIMITS (SEC-212):
+// widening sensitiveWriteRateLimit/frequentInteractionRateLimit too would break
+// taskUpdateRateLimit.test.ts, which asserts those stay at their real limits during this same job.
 export const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 30,
+  limit: env.E2E_RELAXED_AUTH_RATE_LIMIT ? 200 : 30,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: rateLimitKeyGenerator,
