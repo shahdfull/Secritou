@@ -349,22 +349,34 @@ anomalies:
   - id: SEC-096
     titre: >
       Dette technique — Aucune mesure formelle de contraste WCAG via un
-      outil dédié (axe-core ou équivalent). scripts/check-contrast.mjs
+      outil dédié (axe-core ou équivalent), REGELÉE le 2026-08-04 après
+      avoir produit un correctif concret. scripts/check-contrast.mjs
       (étape CI contrast-check) vérifie un contrôle de contraste couleur
       ciblé, pas un audit WCAG complet (ne couvre pas navigation clavier,
-      ARIA, focus visible, lecteurs d'écran). Backlog post-lancement
-      formalisé le 2026-08-03 (clôture Phase 3 du mandat QA).
+      ARIA, focus visible, lecteurs d'écran). Le dégel du 2026-08-03 a
+      permis un premier scan axe-core réel qui a directement mené à la
+      découverte et à la résolution de SEC-098 (badge notification +
+      icônes d'alerte, commits 01cbc1e/d249f93), SEC-099 (GrowthBadge
+      dashboard, commit 570f949) et SEC-100 (palette Sonner, portée 115
+      sites d'appel, commit 1e0035c) — toutes CI verte confirmée. Ce
+      n'est donc pas un audit resté sans suite. L'intégration d'axe-core
+      en continu à la CI n'a pas de valeur ajoutée immédiate identifiée
+      et ne rejoint pas le critère de clôture du projet — reste en
+      backlog.
     perimetre: transverse
     regle_violee: >
       Aucune règle de REFERENTIEL.md n'exige une certification WCAG
       formelle avant lancement — backlog explicite, pas un manquement.
     classe: dette-technique
     gravite: mineure
-    statut: actif
+    statut: gelé
     note_degel: >
-      Dégelé le 2026-08-03, demande explicite du porteur — cf. mission QA
-      close, déclencheur de réexamen rempli (option 2 : demande explicite
-      du porteur d'intégrer axe-core à la CI).
+      Dégelé le 2026-08-03 (demande explicite du porteur), a produit un
+      scan axe-core réel qui a mené à SEC-098/099/100 (tous resolu, CI
+      verte confirmée). Regelé le 2026-08-04 (demande explicite du
+      porteur) : le dégel a produit ce qu'il pouvait produire, l'audit
+      exhaustif complet (axe-core en continu à la CI) n'a pas de valeur
+      ajoutée immédiate identifiée.
     declencheur_reexamen: >
       Premier des deux : (1) un incident réel d'accessibilité remonté
       après lancement, ou (2) demande explicite du porteur d'intégrer
@@ -377,24 +389,35 @@ anomalies:
   - id: SEC-095
     titre: >
       Dette technique — Aucun audit Lighthouse (performance/
-      accessibilité/bonnes pratiques) jamais exécuté sur le frontend, à
-      aucun stade du projet. Aucune trace dans le dépôt (scripts, CI,
-      config) d'un run Lighthouse, historique ou programmé. Backlog
-      post-lancement formalisé le 2026-08-03 (clôture Phase 3 du mandat
-      QA) — 0 client actif au moment du lancement rend la mesure de
-      performance réelle sous charge non représentative de toute façon
-      tant qu'il n'y a pas de trafic réel à observer.
+      accessibilité/bonnes pratiques) jamais exécuté sur le frontend,
+      REGELÉE le 2026-08-04 après un premier passage réel. À l'origine
+      (2026-08-03) : aucune trace dans le dépôt (scripts, CI, config)
+      d'un run Lighthouse, historique ou programmé. Le dégel du
+      2026-08-03 a permis un run Lighthouse réel sur 8 pages (login,
+      dashboard Admin/Manager, CRM, module IA, portail client, contact,
+      join-us), qui a contribué à la découverte de SEC-098
+      (aria-allowed-attr sur GlobalSearch) et alimenté l'investigation
+      ayant mené à SEC-099/100 — toutes trois resolu, CI verte confirmée
+      (commits 01cbc1e/d249f93/570f949/1e0035c). Ce n'est donc pas un
+      audit resté sans suite. L'audit Lighthouse répété/étendu à
+      d'autres pages n'a pas de valeur ajoutée immédiate identifiée — 0
+      client actif au moment du regel rend la mesure de performance
+      réelle sous charge non représentative de toute façon tant qu'il
+      n'y a pas de trafic réel à observer.
     perimetre: transverse
     regle_violee: >
       Aucune règle de REFERENTIEL.md n'exige un audit Lighthouse avant
       lancement — backlog explicite, pas un manquement.
     classe: dette-technique
     gravite: mineure
-    statut: actif
+    statut: gelé
     note_degel: >
-      Dégelé le 2026-08-03, demande explicite du porteur — cf. mission QA
-      close, déclencheur de réexamen rempli (option 2 : demande explicite
-      du porteur d'intégrer un run Lighthouse à la CI).
+      Dégelé le 2026-08-03 (demande explicite du porteur), a produit un
+      run Lighthouse réel sur 8 pages qui a contribué à la découverte de
+      SEC-098/099/100 (tous resolu, CI verte confirmée). Regelé le
+      2026-08-04 (demande explicite du porteur) : le dégel a produit ce
+      qu'il pouvait produire, l'audit exhaustif répété n'a pas de valeur
+      ajoutée immédiate identifiée.
     declencheur_reexamen: >
       Premier des deux : (1) un signal de performance réel remonté après
       lancement (temps de chargement perçu comme lent par un

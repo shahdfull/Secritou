@@ -298,6 +298,12 @@ anomalies:
     classe: decision-produit-reportee
     gravite: mineure
     statut: gelé
+    declencheur_reexamen: >
+      La base compte plus de 50 leads OU 50 projets (premier atteint)
+      avec un champ notes/description non vide d'au moins 200
+      caractères — vérifiable par une requête directe (COUNT avec
+      LENGTH(notes) >= 200 / LENGTH(description) >= 200). Détail complet
+      ci-dessous (critere_de_resolution).
     critere_de_resolution: >
       À réévaluer (pas à corriger — c'est une décision produit, pas un
       bug) quand la base compte plus de 50 leads OU 50 projets (premier
