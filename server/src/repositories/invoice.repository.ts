@@ -1,6 +1,14 @@
 import { prisma, prismaRead } from "../config/prisma.js";
 import type { Invoice, InvoiceStatus, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
+import { buildOrderBy } from "../utils/listQuery.js";
+
+// SEC-075: options.orderBy comes straight from req.query.orderBy via parseListQuery, never
+// validated — interpolating it directly into Prisma's orderBy turns an unknown field into a 500
+// instead of falling back to the default sort, unlike 8 other repositories that already
+// whitelist via buildOrderBy (client, clientOnboarding, freelancerApplication, lead, project,
+// proposal, serviceRequest, task).
+const SORTABLE_FIELDS = ["number", "title", "amount", "amountPaid", "status", "dueDate", "sentAt", "paidAt", "createdAt"];
 
 interface InvoiceCreateData {
   number: string;
@@ -65,7 +73,7 @@ export const invoiceRepository = {
         where,
         skip,
         take: options.pageSize,
-        orderBy: { [options.orderBy || "createdAt"]: options.orderDir || "desc" },
+        orderBy: buildOrderBy(options.orderBy, options.orderDir || "desc", SORTABLE_FIELDS, "createdAt"),
         include: { client: { select: { name: true } } },
       }),
       prismaRead.invoice.count({ where }),
@@ -134,7 +142,7 @@ export const invoiceRepository = {
         where,
         skip,
         take: options.pageSize,
-        orderBy: { [options.orderBy || "createdAt"]: options.orderDir || "desc" },
+        orderBy: buildOrderBy(options.orderBy, options.orderDir || "desc", SORTABLE_FIELDS, "createdAt"),
         include: { client: { select: { name: true } } },
       }),
       prismaRead.invoice.count({ where }),
@@ -192,7 +200,7 @@ export const invoiceRepository = {
         where,
         skip,
         take: options.pageSize,
-        orderBy: { [options.orderBy || "createdAt"]: options.orderDir || "desc" },
+        orderBy: buildOrderBy(options.orderBy, options.orderDir || "desc", SORTABLE_FIELDS, "createdAt"),
         include: { client: { select: { name: true } } },
       }),
       prismaRead.invoice.count({ where }),

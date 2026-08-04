@@ -33,6 +33,15 @@ function assertInvoiceDraft(status: InvoiceStatus) {
   if (status !== "DRAFT") throw new HttpError(409, "Cannot modify items on a non-draft invoice", "INVOICE_NOT_DRAFT");
 }
 
+// SEC-077: without this check, a syntactically valid but nonexistent clientId only surfaces as a
+// raw Prisma P2003 foreign-key violation (uncaught by error.middleware.ts, which only maps
+// P2002) — a 500 instead of a clean 404. Same pattern as
+// task.service.ts#assertAssigneeIsValid.
+async function assertClientExists(clientId: string) {
+  const client = await prisma.client.findUnique({ where: { id: clientId }, select: { id: true } });
+  if (!client) throw new HttpError(404, "Client not found", "CLIENT_NOT_FOUND");
+}
+
 /**
  * Once the invoice PDF has been generated (Document.invoiceId set — see
  * documentGenerator.service.ts), the amount/items are already baked into a file that may be
@@ -106,6 +115,7 @@ export const invoiceService = {
   // gapless per month) — never accepted as caller input, which would bypass the counter
   // entirely (SEC-031).
   async create(data: { title: string; description?: string; amount: number; currency?: string; dueDate?: Date; pdfUrl?: string; clientId: string; projectId?: string; proposalId?: string }, actorId?: string, actorRole?: string) {
+    await assertClientExists(data.clientId);
     const created = await createInvoiceWithGeneratedNumber(data);
     await invalidateFinanceCaches();
     void auditLogService.record({ actorId, actorRole, action: "invoice.create", entityType: "Invoice", entityId: created.id, after: { amount: created.amount, clientId: created.clientId } });
