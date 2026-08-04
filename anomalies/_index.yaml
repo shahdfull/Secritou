@@ -36,9 +36,10 @@ anomalies:
       correctif centralisé dans sonner.tsx corrigerait potentiellement
       tous les usages en un seul point, mais aucune stratégie de
       correction n'est encore tranchée à ce stade (rapport seul, aucune
-      proposition de fix).
+      proposition de fix) — depuis résolu par un correctif centralisé
+      dans sonner.tsx, validé par le porteur avant implémentation.
     perimetre: transverse
-    statut: ouvert
+    statut: resolu
     gravite: elevee
     classe: contraste-composant-tiers-non-stylise-large-portee
   - id: SEC-099
@@ -63,7 +64,7 @@ anomalies:
       texte 4.5:1 s'applique.
     classe: contraste-kpi-financier-sous-seuil
     gravite: moyenne
-    statut: ouvert
+    statut: resolu
     detecte_le: "2026-08-03"
     source: >
       Découverte incidente en vérifiant par axe-core le correctif

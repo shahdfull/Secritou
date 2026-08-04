@@ -65,7 +65,7 @@ anomalies:
       texte informatif, pas un ornement.
     classe: contraste-composant-tiers-non-stylise-large-portee
     gravite: elevee
-    statut: ouvert
+    statut: resolu
     detecte_le: "2026-08-03"
     source: >
       Découverte incidente en investiguant SEC-098 (2026-08-03) — un scan
@@ -119,11 +119,31 @@ anomalies:
       ratio (tous à moins de 0.25 point du seuil, un écart faible pris
       composant par composant).
     critere_de_resolution: >
-      Les 3 couleurs sémantiques utilisées (success/error/info) atteignent
-      4.5:1 pour le texte ET la description sur leur fond respectif,
-      vérifié par un test réel qui déclenche chaque type de toast
-      (toast.success/error/info) et scanne via axe-core — pas une seule
-      couleur vérifiée puis extrapolée aux 2 autres.
+      Rempli. Palette validée par le porteur avant implémentation
+      (red-700/red-50, emerald-700/emerald-50, blue-600/blue-50 inchangé),
+      dérivée de la convention -600/-700-sur--50 déjà utilisée ailleurs
+      dans le projet plutôt que de couleurs inventées. Correctif
+      centralisé dans sonner.tsx (toastOptions.classNames.success/error/
+      info), un seul point de configuration plutôt que les 115 sites
+      d'appel. Ratios vérifiés après implémentation (pas seulement en
+      théorie) : error 3.65:1 -> 5.91:1, success 3.58:1 -> 5.21:1
+      (jamais mesuré avant ce correctif), info déjà conforme (4.75:1,
+      inchangé). Grep préalable confirmé : aucun des 115 sites d'appel
+      ne passe de className custom en conflit avec ce changement
+      centralisé. Héritage data-description -> couleur du titre confirmé
+      par test réel après le changement (pas seulement supposé de la
+      lecture du CSS de la librairie). 3 types testés réellement :
+      success/error via e2e (login réussi/échoué, axe-core sur le DOM
+      réel) — info via test unitaire (sonner.test.tsx, vrai import du
+      module sonner, pas un mock) car ses 2 seuls sites d'appel réels
+      (ClientOnboardingPage.tsx/ClientBriefPage.tsx) dépendent d'une
+      étape questionnaire/brief en cours, trop profonde à monter pour un
+      test de contraste isolé — décision prise en autonomie pendant le
+      correctif, confirmée a posteriori par le porteur. warning/loading/
+      promise non stylisés (aucun usage réel dans le projet, confirmé
+      par grep — pas de code mort anticipé). Commit de preuve : 1e0035c,
+      CI verte confirmée (run 30938645198, 6/6 jobs, 11/11 tests e2e
+      dont les 2 nouveaux sonner-palette-contrast.spec.ts).
   - id: SEC-099
     titre: >
       GrowthBadge (client/src/features/dashboard/DashboardPage.tsx:78-87)
@@ -145,7 +165,7 @@ anomalies:
       4.5:1 s'applique.
     classe: contraste-kpi-financier-sous-seuil
     gravite: moyenne
-    statut: ouvert
+    statut: resolu
     detecte_le: "2026-08-03"
     source: >
       Découverte incidente en vérifiant par axe-core le correctif
@@ -167,10 +187,14 @@ anomalies:
       à SEC-100, ce défaut touche un seul composant à 2 sites d'usage,
       pas 115 points d'appel partageant une source commune).
     critere_de_resolution: >
-      La couleur utilisée pour une variation négative atteint 4.5:1 sur
-      les deux fonds réels où le composant apparaît (--card et
-      --background), vérifié par un test réel qui force une valeur de
-      croissance négative et scanne via axe-core.
+      Rempli. text-red-500 -> text-red-600, même correctif que les icônes
+      d'alerte de SEC-098 (cohérence de palette). Vérifié réellement sur
+      les deux fonds où le composant apparaît (pas seulement l'un des
+      deux) : 3.76:1 -> 4.83:1 sur --card, 3.65:1 -> 4.68:1 sur
+      --background. Test e2e dédié (growth-badge-contrast.spec.ts) force
+      une valeur de croissance négative réelle (-12%) via mock de
+      GET /analytics/executive, scanne via axe-core. Commit de preuve :
+      570f949, CI verte confirmée (run 30938645198, 6/6 jobs).
   - id: SEC-098
     titre: >
       Le badge compteur de notifications non lues
