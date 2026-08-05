@@ -141,6 +141,7 @@ import "./executiveMetricsCriticalCountUnbounded.test.ts";
 import "./proposalInvoiceListEnvelopeFlat.http.test.ts";
 import "./invoiceFkAndOrderByGuards.http.test.ts";
 import "./commissionFkAndOrderByGuards.http.test.ts";
+import "./commissionMarkPaidNotificationMessage.test.ts";
 import "./invoiceTimbreFiscalNoOverpay.test.ts";
 import "./taskListExcludesDescription.test.ts";
 import "./taskUpdateRateLimit.test.ts";

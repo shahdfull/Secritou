@@ -520,7 +520,10 @@ export const commissionService = {
     await enqueueNotifications([{
       userId: updatedCommission.partnerId,
       title: "Commission versée",
-      message: `Votre commission de ${Number(updatedCommission.amount).toFixed(3)} ${updatedCommission.invoice?.number ? "" : ""} a été versée.`,
+      // SEC-078: both ternary branches used to return "" — the invoice number never appeared
+      // despite commissionRepository.markPaid loading it specifically for this message, and the
+      // currency was missing entirely (unlike every other money notification in the codebase).
+      message: `Votre commission de ${Number(updatedCommission.amount).toFixed(3)} ${updatedCommission.invoice?.currency ?? "TND"}${updatedCommission.invoice?.number ? ` (facture ${updatedCommission.invoice.number})` : ""} a été versée.`,
       type: "COMMISSION_PAID" as const,
       entityId: updatedCommission.id,
       link: commissionUrl,

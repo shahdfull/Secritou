@@ -299,7 +299,10 @@ export const commissionRepository = {
     return prisma.commission.update({
       where: { id },
       data: { status: "PAID", paidAt: new Date() },
-      include: { partner: { select: { id: true, name: true, email: true } }, project: { select: { id: true, name: true } }, invoice: { select: { id: true, number: true } } }
+      // SEC-078: currency added alongside number — the COMMISSION_PAID notification needs both
+      // to build a message consistent with every other money notification in the codebase
+      // (e.g. invoice.service.ts's "${amount} ${currency ?? 'TND'}" pattern).
+      include: { partner: { select: { id: true, name: true, email: true } }, project: { select: { id: true, name: true } }, invoice: { select: { id: true, number: true, currency: true } } }
     });
   },
 };
