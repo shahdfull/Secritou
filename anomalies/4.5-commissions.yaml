@@ -184,7 +184,22 @@ anomalies:
       signe d'un refactor incomplet plutôt que d'un choix délibéré.
     classe: expression-morte-message-notification
     gravite: mineure
-    statut: ouvert
+    statut: resolu
+    note_resolution: >
+      Correctif commité (0e89fac) exactement conforme au critère écrit
+      ci-dessous. Portée étendue à la devise, hors périmètre écrit
+      initial de cet ID : le message n'incluait aucune devise
+      (Number(...).toFixed(3) seul), contrairement au pattern cohérent
+      du reste du dépôt (invoice.service.ts:209,341,345,
+      `${amount} ${currency ?? "TND"}`) — découvert pendant la
+      vérification du correctif, extension validée explicitement par le
+      porteur avant implémentation plutôt que traitée comme un
+      correctif silencieux hors mandat. commissionRepository.markPaid
+      charge désormais invoice.currency en plus de invoice.number. Test
+      réel (commissionMarkPaidNotificationMessage.test.ts) appelle le
+      vrai commissionService.markPaid et lit le job BullMQ réellement
+      enfilé. CI verte confirmée : run GitHub Actions 30999069327, tous
+      jobs success (dont "server").
     critere_de_resolution: >
       Le message de notification COMMISSION_PAID inclut réellement le
       numéro de facture quand updatedCommission.invoice existe (ex.

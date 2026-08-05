@@ -615,9 +615,14 @@ anomalies:
       usage. Message final toujours "Votre commission de X.XXX  a été
       versée." (double espace, aucune référence à la facture)
     perimetre: 4.5-commissions
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: expression-morte-message-notification
+    note_resolution: >
+      Correctif commité 0e89fac, CI verte confirmée run 30999069327.
+      Portée étendue à la devise manquante (hors périmètre écrit
+      initial, validé explicitement avant implémentation). Détail
+      complet dans anomalies/4.5-commissions.yaml#SEC-078.
   - id: SEC-077
     titre: >
       POST /invoices (invoiceService.create) n'existe-t-elle pas de
