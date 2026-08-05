@@ -560,9 +560,12 @@ anomalies:
       Reproduit réellement contre un serveur HTTP réel avec un vrai token
       ADMIN et un projet réel
     perimetre: 4.5-commissions
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: fk-non-validee-500-brut
+    note_resolution: >
+      Correctif commité f7b3e33, CI verte confirmée run 30995001782.
+      Détail complet dans anomalies/4.5-commissions.yaml#SEC-081.
   - id: SEC-080
     titre: >
       Trois points de performance mineurs, non mesurables à la
@@ -594,9 +597,12 @@ anomalies:
       force un scan+sort non couvert par index dès quelques milliers de
       lignes par partenaire
     perimetre: 4.5-commissions
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: orderby-non-whiteliste-500-brut
+    note_resolution: >
+      Correctif commité f7b3e33, CI verte confirmée run 30995001782.
+      Détail complet dans anomalies/4.5-commissions.yaml#SEC-079.
   - id: SEC-078
     titre: >
       commissionService.markPaid (server/src/services/commission.service.ts:515)

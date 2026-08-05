@@ -31,7 +31,13 @@ anomalies:
       pas pour partnerId.
     classe: fk-non-validee-500-brut
     gravite: mineure
-    statut: ouvert
+    statut: resolu
+    note_resolution: >
+      Correctif commité (f7b3e33, findMany d'existence + HttpError 404
+      PARTNER_NOT_FOUND dans commissionService.setSplits), test HTTP
+      réel (commissionFkAndOrderByGuards.http.test.ts). CI verte
+      confirmée : run GitHub Actions 30995001782, tous jobs success
+      (dont "server").
     critere_de_resolution: >
       commissionService.setSplits vérifie l'existence de chaque partnerId
       (ex. un seul findMany({where:{id:{in:partnerIds}}}) comparé au
@@ -127,7 +133,12 @@ anomalies:
       plus.
     classe: orderby-non-whiteliste-500-brut
     gravite: mineure
-    statut: ouvert
+    statut: resolu
+    note_resolution: >
+      Correctif commité (f7b3e33, SORTABLE_FIELDS + buildOrderBy sur
+      commission.repository.ts#getAll), test HTTP réel
+      (commissionFkAndOrderByGuards.http.test.ts). CI verte confirmée :
+      run GitHub Actions 30995001782, tous jobs success (dont "server").
     critere_de_resolution: >
       commission.repository.ts#getAll utilise buildOrderBy(options.orderBy,
       options.orderDir, [liste des champs Commission réellement
