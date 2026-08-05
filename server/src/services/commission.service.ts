@@ -354,6 +354,14 @@ export const commissionService = {
     if (partnerIds.size !== splits.length) {
       throw new HttpError(422, "Duplicate partner in commission splits", "DUPLICATE_COMMISSION_PARTNER");
     }
+    // SEC-081: without this check, a syntactically valid but nonexistent partnerId only surfaces
+    // as a raw Prisma P2003 foreign-key violation (uncaught by error.middleware.ts) — a 500
+    // instead of a clean 404. Same pattern as task.service.ts#assertAssigneeIsValid /
+    // invoice.service.ts#assertClientExists (SEC-077).
+    const existingPartners = await prismaRead.user.findMany({ where: { id: { in: [...partnerIds] } }, select: { id: true } });
+    if (existingPartners.length !== partnerIds.size) {
+      throw new HttpError(404, "One or more partners not found", "PARTNER_NOT_FOUND");
+    }
 
     const previousSplits = await commissionRepository.getSplitsByProject(projectId);
     return prisma.$transaction(async (tx) => {

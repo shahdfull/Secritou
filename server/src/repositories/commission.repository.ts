@@ -1,8 +1,15 @@
 import { prisma, prismaRead } from "../config/prisma.js";
 import type { CommissionStatus, Prisma } from "@prisma/client";
 import type { ListQueryOptions, PaginatedResult } from "../utils/listQuery.js";
+import { buildOrderBy } from "../utils/listQuery.js";
 
 type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+// SEC-079: options.orderBy comes straight from req.query.orderBy via parseListQuery, never
+// validated — interpolating it directly into Prisma's orderBy turns an unknown field into a 500
+// instead of falling back to the default sort, unlike 8+ other repositories already whitelisting
+// via buildOrderBy.
+const SORTABLE_FIELDS = ["partnerId", "amount", "ratePct", "status", "paidAt", "createdAt"];
 
 export const commissionRepository = {
   // ─── Splits ───────────────────────────────────────────────────────────────
@@ -260,7 +267,7 @@ export const commissionRepository = {
         where,
         skip,
         take: options.pageSize,
-        orderBy: { [options.orderBy || "createdAt"]: options.orderDir || "desc" },
+        orderBy: buildOrderBy(options.orderBy, options.orderDir || "desc", SORTABLE_FIELDS, "createdAt"),
         include: {
           partner: { select: { id: true, name: true, email: true } },
           project: { select: { id: true, name: true } },
