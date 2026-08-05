@@ -39,7 +39,20 @@ anomalies:
       code qu'il prétend vérifier.
     classe: test-isolation-cle-unique-partagee
     gravite: mineure
-    statut: ouvert
+    statut: resolu
+    note_resolution: >
+      Option (b) retenue par le porteur : le test crée et détruit
+      désormais son propre Service dédié et jetable au lieu de réutiliser
+      prisma.service.findFirst() — par construction, aucune ligne
+      ExecutiveKpiSnapshot préexistante ne peut exister pour ce service,
+      quel que soit le mois. Vérifié par 3 exécutions consécutives
+      isolées (npx tsx --test test/executiveKpiSnapshotGrowth.test.ts),
+      toutes vertes — exactement le critère de résolution ci-dessous.
+      Commit 5ec8eb6. CI : premier push en échec sur taskBulkActions.test.ts
+      (flake de timing sans rapport, fichier non touché par ce commit,
+      même symptôme déjà observé et confirmé indépendant lors du push
+      SEC-075/077), CI verte confirmée sur rerun --failed : run GitHub
+      Actions 31001548991, tous jobs success (dont "server").
     critere_de_resolution: >
       Décision du porteur sur l'approche (ex. (a) upsert() au lieu de
       create() dans ce test, avec nettoyage explicite après ; (b) créer un

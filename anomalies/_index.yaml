@@ -836,9 +836,15 @@ anomalies:
       2e cas n'existe déjà (job cron réel déjà exécuté, run de test
       antérieur interrompu avant son cleanup after())
     perimetre: 4.8-analytics
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: test-isolation-cle-unique-partagee
+    note_resolution: >
+      Option (b) retenue : Service jetable dédié au test. 3 exécutions
+      consécutives isolées vertes. Commit 5ec8eb6, CI verte confirmée
+      run 31001548991 (après rerun --failed sur un flake taskBulkActions
+      sans rapport). Détail complet dans
+      anomalies/4.8-analytics.yaml#SEC-069.
 
   - id: SEC-068
     titre: >
