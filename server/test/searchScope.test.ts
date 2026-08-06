@@ -8,8 +8,9 @@
 // This test imports and calls the real searchRepository.search against a real database instead,
 // proving pole scoping and role restrictions on a representative sample of categories: leads
 // (direct serviceId filter), clients (via projects.some.serviceId), tasks (via project's
-// serviceId), proposals (via viaProject/linkedProject), and the freelancer directory (MANAGER
-// excluded entirely, regardless of pole).
+// serviceId), proposals (via viaProject/linkedProject), and the freelancer directory (SEC-065:
+// scoped to the MANAGER's own pole via user.tasks.some.project.serviceId, aligned with
+// GET /freelancers and the getFreelancers AI tool — not excluded entirely as it was before).
 //
 // Requires a real, migrated database; skipped if unreachable.
 
@@ -93,20 +94,41 @@ describe("searchRepository.search — real code, pole scope and role restriction
     assert.ok(!taskResults.tasks.some((t) => (t as { id: string }).id === otherPoleTask.id), "cross-pole task must not be found");
   });
 
-  test("a MANAGER never receives the freelancer directory, regardless of pole; ADMIN does", async (t) => {
+  // SEC-065: search.repository.ts used to block every MANAGER to zero freelancer results,
+  // regardless of pole — diverging from both GET /freelancers (freelancer.controller.ts) and the
+  // getFreelancers AI tool (aiTools.ts, SEC-062), which both scope by pole instead. Realigned to
+  // the same scoping mechanism those two paths already use (user.tasks.some.project.serviceId),
+  // decided explicitly by the porteur rather than left as an undocumented divergence.
+  test("a MANAGER finds a freelancer from their own pole via the freelancer directory; ADMIN sees all", async (t) => {
     if (!dbAvailable) { t.skip("no reachable database"); return; }
+    // A freelancer is "in" a pole through an assigned task on a project of that pole
+    // (freelancerRepository.findAll's own scoping, mirrored here) — a bare FreelancerProfile with
+    // no task has no pole at all under this mechanism.
     const freelancer = await prisma.user.create({
-      data: { email: `sec132-freelancer-${uniq}@test.local`, name: `SEC132-freelancer-${uniq}`, passwordHash: "x", role: "FREELANCER" },
+      data: { email: `sec065-freelancer-${uniq}@test.local`, name: `SEC065-freelancer-${uniq}`, passwordHash: "x", role: "FREELANCER" },
     });
     const profile = await prisma.freelancerProfile.create({ data: { userId: freelancer.id } });
+    const client = await prisma.client.create({ data: { name: `sec065-client-${uniq}` } });
+    createdClientIds.push(client.id);
+    const project = await prisma.project.create({ data: { name: `sec065-project-${uniq}`, clientId: client.id, serviceId: serviceA } });
+    createdProjectIds.push(project.id);
+    const task = await prisma.task.create({ data: { title: `sec065-task-${uniq}`, projectId: project.id, assigneeId: freelancer.id } });
+    createdTaskIds.push(task.id);
 
     const managerA = { role: "MANAGER" as const, clientId: null, userId: "mgr-a", serviceId: serviceA };
-    const managerResults = await searchRepository.search(managerA, `SEC132-freelancer-${uniq}`);
-    assert.deepEqual(managerResults.freelancers, [], "MANAGER must never see the freelancer directory");
+    const managerAResults = await searchRepository.search(managerA, `SEC065-freelancer-${uniq}`);
+    assert.ok(
+      managerAResults.freelancers.some((f) => (f as { id: string }).id === profile.id),
+      "a MANAGER must find a freelancer staffed on a task in their own pole, not zero results"
+    );
+
+    const managerB = { role: "MANAGER" as const, clientId: null, userId: "mgr-b", serviceId: serviceB };
+    const managerBResults = await searchRepository.search(managerB, `SEC065-freelancer-${uniq}`);
+    assert.deepEqual(managerBResults.freelancers, [], "a MANAGER from a different pole must not see this freelancer");
 
     const admin = { role: "ADMIN" as const, clientId: null, userId: "admin-id" };
-    const adminResults = await searchRepository.search(admin, `SEC132-freelancer-${uniq}`);
-    assert.ok(adminResults.freelancers.length > 0, "ADMIN must see the freelancer directory");
+    const adminResults = await searchRepository.search(admin, `SEC065-freelancer-${uniq}`);
+    assert.ok(adminResults.freelancers.length > 0, "ADMIN must see the freelancer directory regardless of pole");
 
     await prisma.freelancerProfile.delete({ where: { id: profile.id } });
     await prisma.user.delete({ where: { id: freelancer.id } });

@@ -1353,12 +1353,18 @@ sont pas des doublons à fusionner — mécanismes et objectifs différents
 (recherche globale multi-entités légère, 5 résultats/entité, scope
 réimplémenté localement dans `search.repository.ts`, vs tools de liste
 par entité avec filtres structurés complets, scope délégué aux
-services REST). La comparaison a révélé SEC-065 (ouverte) : un
-MANAGER voit l'annuaire freelancer via `getFreelancers`/`GET
-/freelancers`, mais en est bloqué via la recherche globale
-(comportement intentionnel et testé côté search, mais jamais mis en
-regard des deux autres surfaces avant cette passe) — laissé ouvert
-pour décision du porteur, pas corrigé sans confirmation.
+services REST). La comparaison a révélé SEC-065 (résolue le
+2026-08-06) : un MANAGER voyait l'annuaire freelancer via
+`getFreelancers`/`GET /freelancers`, mais en était bloqué via la
+recherche globale — divergence non documentée entre trois surfaces
+d'accès à la même donnée. Décision explicite du porteur (2026-08-06) :
+aligner `search.repository.ts` sur le comportement REST/aiTools plutôt
+que d'acter la divergence — un MANAGER voit désormais l'annuaire
+freelancer de son propre pôle via la recherche globale aussi, avec le
+même mécanisme de scope que `freelancerRepository.findAll`
+(`user.tasks.some.project.serviceId`, pas une nouvelle logique
+inventée pour ce cas). `searchScope.test.ts` réécrit en conséquence
+(vérifie pôle propre trouvé, pôle différent exclu, ADMIN voit tout).
 
 RAG sémantique — décision assumée de ne pas implémenter (2026-08-01) :
 le tool calling CRM (SEC-059) donne déjà à l'assistant un accès
