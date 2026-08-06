@@ -53,6 +53,16 @@ function looksLikePlainText(buffer: Buffer): boolean {
   return true;
 }
 
+// SEC-086: looksLikePlainText alone only screens out binary content — any printable HTML/JS text
+// (a real XSS vector, since MinIO re-serves this content as-is) passed it trivially. Targeted
+// detection, not a full HTML sanitizer/parser dependency: this is defense against a text/plain
+// upload smuggling exploitable markup, not a general-purpose sanitizer for legitimate HTML content
+// (this repo never accepts legitimate HTML uploads at all).
+const SUSPICIOUS_HTML_PATTERN = /<script[\s>]|<iframe[\s>]|\bon\w+\s*=/i;
+function looksLikeHtmlOrScript(buffer: Buffer): boolean {
+  return SUSPICIOUS_HTML_PATTERN.test(buffer.subarray(0, 8000).toString("utf8"));
+}
+
 // Per-context allowed MIME subsets
 export const UPLOAD_CONTEXTS = {
   cv: ["application/pdf"],
@@ -212,6 +222,12 @@ export async function uploadFile(
     if (mimeType === "text/plain" && !looksLikePlainText(buffer)) {
       throw Object.assign(
         new Error("File content does not look like plain text"),
+        { statusCode: 415 }
+      );
+    }
+    if (mimeType === "text/plain" && looksLikeHtmlOrScript(buffer)) {
+      throw Object.assign(
+        new Error("File declared as text/plain contains HTML or script content"),
         { statusCode: 415 }
       );
     }
