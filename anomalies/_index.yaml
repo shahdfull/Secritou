@@ -942,9 +942,13 @@ anomalies:
       intentionnelle côté search (testée) mais jamais comparée aux deux
       autres avant cette passe
     perimetre: transverse
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: politiques-exposition-divergentes-memes-donnees
+    note_resolution: >
+      Décision du porteur : aligné sur REST/aiTools. Commit 06bcb04, CI
+      verte confirmée run 31104773631. Détail complet dans
+      anomalies/transverse.yaml#SEC-065.
   - id: SEC-064
     titre: >
       Le tool calling CRM (SEC-059) aggrave l'écart RGPD déjà signalé par

@@ -1603,7 +1603,22 @@ anomalies:
       documentée entre deux chemins d'accès à la même donnée.
     classe: politiques-exposition-divergentes-memes-donnees
     gravite: mineure
-    statut: ouvert
+    statut: resolu
+    note_resolution: >
+      Décision explicite du porteur (2026-08-06) : aligner
+      search.repository.ts sur REST/aiTools plutôt qu'acter la
+      divergence. searchForStaff reprend exactement le mécanisme de
+      scope de freelancerRepository.findAll
+      (user.tasks.some.project.serviceId), même source
+      (actor.serviceId = userRepository.findServiceId, déjà identique à
+      buildServiceScope) — pas de nouvelle logique inventée. Un MANAGER
+      sans serviceId voit tous les freelancers, comme GET /freelancers
+      (pas de fail-safe plus restrictif inventé). searchScope.test.ts
+      réécrit (MANAGER pôle propre trouvé, pôle différent exclu, ADMIN
+      voit tout) — 4/4 tests verts en isolation, requête SQL vérifiée
+      dans les logs Prisma. REFERENTIEL.md §4.11 mis à jour. Commit
+      06bcb04, CI verte confirmée : run GitHub Actions 31104773631,
+      tous jobs success (dont "server").
     critere_de_resolution: >
       Décision explicite du porteur : soit la divergence est actée comme
       politique produit assumée (documentée dans REFERENTIEL.md, avec le
