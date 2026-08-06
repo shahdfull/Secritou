@@ -200,16 +200,10 @@ export const commissionService = {
     const alreadyGenerated = await commissionRepository.projectHasManagerFeeCommission(projectId);
     if (alreadyGenerated) return [];
 
-    const rows = [];
-    for (const fee of fees) {
-      const row = await commissionRepository.createManagerFeeCommissionTx(tx, {
-        partnerId: fee.managerId,
-        projectId,
-        amount: Number(fee.amount),
-      });
-      rows.push(row);
-    }
-    return rows;
+    return commissionRepository.createManagerFeeCommissionsManyTx(
+      tx,
+      fees.map((fee) => ({ partnerId: fee.managerId, projectId, amount: Number(fee.amount) }))
+    );
   },
 
   // RG-030 (rappel LOT 5) : écriture d'un ProjectManagerFee, soumise au même contrôle
@@ -510,7 +504,7 @@ export const commissionService = {
   },
 
   async markPaid(id: string) {
-    const commission = await commissionRepository.findById(id);
+    const commission = await commissionRepository.findStatusById(id);
     if (!commission) throw new HttpError(404, "Commission not found");
     if (commission.status === "PAID") throw new HttpError(409, "Commission already marked as paid", "COMMISSION_ALREADY_PAID");
     const updatedCommission = await commissionRepository.markPaid(id);

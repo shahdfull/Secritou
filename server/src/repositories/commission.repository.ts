@@ -22,8 +22,11 @@ export const commissionRepository = {
     });
   },
 
+  // SEC-080: explicit select — the one caller (computeForPaymentTx) only ever reads
+  // .partnerId/.ratePct, never .id/.createdAt/.updatedAt that the implicit full-row select
+  // otherwise loaded for every row.
   async getSplitsByProjectTx(tx: TxClient, projectId: string) {
-    return tx.projectCommissionSplit.findMany({ where: { projectId } });
+    return tx.projectCommissionSplit.findMany({ where: { projectId }, select: { partnerId: true, ratePct: true } });
   },
 
   // A single partner's own split on a project — used for the MANAGER "your share"
@@ -234,18 +237,22 @@ export const commissionRepository = {
 
   // RG-035 : les ProjectManagerFee fixés à l'avance par le CEO, lus au moment de la livraison
   // pour générer une Commission MANAGER_PROJECT_FEE par fee — jamais avant.
+  // SEC-080: explicit select — the one caller (generateManagerFeesOnDeliveryTx) only ever reads
+  // .managerId/.amount.
   async getManagerFeesByProjectTx(tx: TxClient, projectId: string) {
-    return tx.projectManagerFee.findMany({ where: { projectId } });
+    return tx.projectManagerFee.findMany({ where: { projectId }, select: { managerId: true, amount: true } });
   },
 
-  async createManagerFeeCommissionTx(tx: TxClient, row: { partnerId: string; projectId: string; amount: number }) {
-    return tx.commission.create({
-      data: {
-        partnerId: row.partnerId,
-        projectId: row.projectId,
-        amount: row.amount,
-        source: "MANAGER_PROJECT_FEE",
-      },
+  // SEC-080: was a one-row-per-manager await-in-a-loop (createManagerFeeCommissionTx) — the
+  // createMany pattern is already established just above in this file for the equivalent
+  // PROJECT_PERCENT case (SEC-170, createManyTx). The single caller
+  // (generateManagerFeesOnDeliveryTx) never reads the returned rows, so no relations are selected
+  // here (unlike createManyTx, whose caller does consume them).
+  async createManagerFeeCommissionsManyTx(tx: TxClient, rows: { partnerId: string; projectId: string; amount: number }[]) {
+    if (rows.length === 0) return [];
+    return tx.commission.createManyAndReturn({
+      data: rows.map((row) => ({ ...row, source: "MANAGER_PROJECT_FEE" as const })),
+      select: { id: true, partnerId: true, projectId: true, amount: true },
     });
   },
 
@@ -288,10 +295,13 @@ export const commissionRepository = {
     });
   },
 
-  async findById(id: string) {
-    return prismaRead.commission.findUnique({ 
+  // SEC-080: markPaid's own pre-check only ever reads .status — the full partner/project/invoice
+  // include was never consumed by its one caller (commissionService.markPaid reads the freshly
+  // updated row from commissionRepository.markPaid below for that, not this pre-check).
+  async findStatusById(id: string) {
+    return prismaRead.commission.findUnique({
       where: { id },
-      include: { partner: { select: { id: true, name: true, email: true } }, project: { select: { id: true, name: true } }, invoice: { select: { id: true, number: true } } }
+      select: { status: true },
     });
   },
 
@@ -302,7 +312,9 @@ export const commissionRepository = {
       // SEC-078: currency added alongside number — the COMMISSION_PAID notification needs both
       // to build a message consistent with every other money notification in the codebase
       // (e.g. invoice.service.ts's "${amount} ${currency ?? 'TND'}" pattern).
-      include: { partner: { select: { id: true, name: true, email: true } }, project: { select: { id: true, name: true } }, invoice: { select: { id: true, number: true, currency: true } } }
+      // SEC-080: project dropped — commissionService.markPaid never reads .project on the
+      // returned row (only .partnerId/.amount/.invoice/.partner/.id).
+      include: { partner: { select: { id: true, name: true, email: true } }, invoice: { select: { id: true, number: true, currency: true } } }
     });
   },
 };
