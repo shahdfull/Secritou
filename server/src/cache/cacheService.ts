@@ -1,5 +1,6 @@
 import { recordCacheHit, recordCacheMiss } from "../observability/collectors.js";
 import { getRedisClient } from "./redis.js";
+import logger from "../utils/logger.js";
 
 export async function cacheGet<T>(key: string): Promise<T | null> {
   try {
@@ -12,7 +13,12 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
     }
     recordCacheHit(key);
     return JSON.parse(raw) as T;
-  } catch {
+  } catch (err) {
+    // SEC-087: this is best-effort — the caller must proceed without the cache, never throw —
+    // but a command failing on an already-open connection (unlike getRedisClient's own
+    // .on("error", ...), which only covers connection-level errors) previously left no trace at
+    // all, aggravating the diagnosis of SEC-084/085-style Redis outages.
+    logger.warn({ err, key }, "[cacheService] cacheGet failed, falling back to no cache");
     recordCacheMiss(key);
     return null;
   }
@@ -26,8 +32,8 @@ export async function cacheSet(key: string, value: unknown, ttlSeconds: number, 
     for (const tag of tags) {
       await redis.sAdd(tag, key);
     }
-  } catch {
-    return;
+  } catch (err) {
+    logger.warn({ err, key, tags }, "[cacheService] cacheSet failed, value was not cached");
   }
 }
 
@@ -36,8 +42,8 @@ export async function cacheDel(key: string) {
     const redis = await getRedisClient();
     if (!redis) return;
     await redis.del(key);
-  } catch {
-    return;
+  } catch (err) {
+    logger.warn({ err, key }, "[cacheService] cacheDel failed, stale value may remain cached");
   }
 }
 
@@ -51,8 +57,8 @@ export async function invalidateTags(tags: string[]) {
       if (keys.length > 0) await redis.del(keys);
       await redis.del(tag);
     }
-  } catch {
-    return;
+  } catch (err) {
+    logger.warn({ err, tags }, "[cacheService] invalidateTags failed, stale cached values may remain");
   }
 }
 

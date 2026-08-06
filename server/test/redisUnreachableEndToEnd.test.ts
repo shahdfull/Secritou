@@ -13,7 +13,7 @@
 //
 // Requires a real, migrated database (DATABASE_URL) — skipped automatically if unreachable.
 
-import test, { describe, before, after } from "node:test";
+import test, { describe, before, after, mock } from "node:test";
 import assert from "node:assert/strict";
 import bcrypt from "bcryptjs";
 import request from "supertest";
@@ -126,5 +126,52 @@ describe("real HTTP resilience against an unreachable Redis (SEC-083/084/085)", 
       "a valid, non-revoked JWT must be accepted even when Redis (a defense-in-depth revocation check) is unreachable"
     );
     assert.ok(elapsedMs < 8000, `must respond within a bounded time (${elapsedMs}ms elapsed)`);
+  });
+
+  // SEC-087: cacheGet/cacheSet/cacheDel/invalidateTags used to swallow every command error with
+  // an empty catch — no trace at all of a Redis outage on an already-open connection, aggravating
+  // the diagnosis of SEC-084/085-style incidents. Only logger.warn is mocked here (an observability
+  // sink, not the dependency under test) — Redis itself is genuinely unreachable via the same
+  // closed-port setup as the rest of this file, not simulated.
+  test("a real cache miss against unreachable Redis logs a warning instead of failing silently", async (t) => {
+    if (!dbAvailable) { t.skip("no reachable database"); return; }
+
+    const uniq = Date.now();
+    const email = `sec087-${uniq}@test.local`;
+    const passwordHash = await bcrypt.hash("Password123!", 10);
+    const user = await prisma.user.create({
+      data: { name: `SEC087 user ${uniq}`, email, passwordHash, role: "ADMIN" },
+    });
+    createdUserIds.push(user.id);
+
+    const loginRes = await request(app)
+      .post("/api/v1/auth/login")
+      .send({ email, password: "Password123!" })
+      .timeout(10000);
+    const accessToken = loginRes.body.data.tokens.accessToken;
+
+    const { default: logger } = await import("../src/utils/logger.js");
+    const warnMock = mock.method(logger, "warn");
+
+    try {
+      // GET /dashboard/full -> dashboardService.getFullDashboard -> getSummary, which calls
+      // both cacheGet (miss) and cacheSet (write) against the real, unreachable Redis.
+      const res = await request(app)
+        .get("/api/v1/dashboard/full")
+        .set("Authorization", `Bearer ${accessToken}`)
+        .timeout(10000);
+
+      assert.equal(res.status, 200, "the dashboard must still respond normally without the cache");
+
+      const cacheWarnings = warnMock.mock.calls.filter((call) => {
+        const msg = call.arguments[1];
+        return typeof msg === "string" && msg.startsWith("[cacheService]");
+      });
+      assert.ok(cacheWarnings.length > 0, "a Redis command failure must be logged, not swallowed silently");
+      const [context] = cacheWarnings[0]!.arguments;
+      assert.ok((context as { err?: unknown }).err, "the logged warning must carry the real error, not just a generic message");
+    } finally {
+      warnMock.mock.restore();
+    }
   });
 });
