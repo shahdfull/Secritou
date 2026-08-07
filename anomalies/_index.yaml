@@ -442,9 +442,12 @@ anomalies:
       d'authentification n'aurait aucune ligne de log pointant vers "les
       appels de cache échouent silencieusement" comme cause
     perimetre: transverse
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: erreur-cache-avalee-sans-log
+    note_resolution: >
+      Correctif commité df96117, CI verte confirmée run 31184201796.
+      Détail complet dans anomalies/transverse.yaml#SEC-087.
   - id: SEC-086
     titre: >
       looksLikePlainText (server/src/services/upload.service.ts:47-54),
@@ -463,9 +466,12 @@ anomalies:
       a.download/target=_blank pour forcer un téléchargement plutôt
       qu'un rendu inline
     perimetre: transverse
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: upload-bypass-verification-contenu-texte-libre
+    note_resolution: >
+      Correctif commité 199c23e, CI verte confirmée run 31184201796.
+      Détail complet dans anomalies/transverse.yaml#SEC-086.
   - id: SEC-085
     titre: >
       authDenylist.isAccessTokenRevoked (server/src/cache/authDenylist.ts:51-56)
@@ -582,9 +588,14 @@ anomalies:
       chargent id/createdAt/updatedAt jamais utilisés par les deux seuls
       appelants
     perimetre: 4.5-commissions
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: dette-technique-perf-non-mesurable-volumetrie-actuelle
+    note_resolution: >
+      Décision explicite du porteur de traiter en avance du
+      déclencheur. Correctif commité 229a720, CI verte confirmée run
+      31184201796. Détail complet dans
+      anomalies/4.5-commissions.yaml#SEC-080.
   - id: SEC-079
     titre: >
       commission.repository.ts#getAll (server/src/repositories/commission.repository.ts:263)
@@ -715,9 +726,13 @@ anomalies:
       SEC-071 et la réécriture SEC-072), donc n'est causé par aucun
       changement de cette session
     perimetre: transverse
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: fiabilite-suite-test-locale-pool-connexions
+    note_resolution: >
+      Correctif commité 16ac768, 3 exécutions consécutives vertes sur
+      base réinitialisée. CI verte confirmée run 31184201796. Détail
+      complet dans anomalies/transverse.yaml#SEC-074.
   - id: SEC-073
     titre: >
       Tout fichier server/test/*.test.ts qui importe (directement ou
@@ -734,9 +749,14 @@ anomalies:
       approvalAuditLog.test.ts (SEC-071) et logoutRevokesTokenNotAccount.test.ts
       (SEC-067), deux fichiers distincts touchés par le même symptôme
     perimetre: transverse
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: dette-technique-cleanup-test-isolation-bullmq
+    note_resolution: >
+      Correctif commité 3ec3a02 (avec régression détectée et corrigée
+      en cours de route sur __RUN_ALL_AGGREGATOR__). CI verte
+      confirmée run 31184201796. Détail complet dans
+      anomalies/transverse.yaml#SEC-073.
   - id: SEC-072
     titre: >
       rating.service.test.ts et ratingRequestNotification.test.ts

@@ -893,7 +893,18 @@ anomalies:
       qui n'en fait rien.
     classe: erreur-cache-avalee-sans-log
     gravite: mineure
-    statut: ouvert
+    statut: resolu
+    note_resolution: >
+      Correctif commité (df96117) : logger.warn ajouté aux 4 fonctions,
+      contexte clé/tags inclus, comportement fonctionnel inchangé
+      (best-effort préservé, jamais de throw). Test réel dans
+      redisUnreachableEndToEnd.test.ts (même méthode que SEC-083/084/085
+      — Redis réellement injoignable via port fermé, pas un mock ; seul
+      logger.warn est mocké pour observer l'émission) : GET
+      /dashboard/full déclenche cacheGet+cacheSet contre Redis
+      indisponible, vérifie l'émission réelle du warning avec l'erreur
+      en contexte. 3/3 tests verts en isolation. CI verte confirmée :
+      run GitHub Actions 31184201796, tous jobs success (dont "server").
     critere_de_resolution: >
       Chaque catch de cacheGet/cacheSet/cacheDel/invalidateTags appelle
       logger.warn({ err, key/tags }, "[cache] <opération> failed") avant
@@ -946,7 +957,17 @@ anomalies:
       est le vecteur XSS réel visé par l'item 9 du mandat QA.
     classe: upload-bypass-verification-contenu-texte-libre
     gravite: mineure
-    statut: ouvert
+    statut: resolu
+    note_resolution: >
+      Correctif commité (199c23e) : looksLikeHtmlOrScript ajoutée
+      (détection ciblée <script>, <iframe>, gestionnaires on*= inline —
+      pas de dépendance de sanitization HTML complète), branchée sur le
+      chemin text/plain, HttpError 415. Test HTTP réel
+      (uploadRejectsHtmlDisguisedAsText.http.test.ts, contre l'app
+      Express + MinIO réels) : <script> → 415, onerror= → 415, texte
+      légitime → 201 non-régression. 3/3 tests verts en isolation. CI
+      verte confirmée : run GitHub Actions 31184201796, tous jobs
+      success (dont "server").
     critere_de_resolution: >
       looksLikePlainText (ou une vérification additionnelle appliquée
       spécifiquement à text/plain) rejette un contenu qui ressemble à du
@@ -1285,7 +1306,23 @@ anomalies:
       tests concernés couvrait justement un cas réel).
     classe: fiabilite-suite-test-locale-pool-connexions
     gravite: mineure
-    statut: ouvert
+    statut: resolu
+    note_resolution: >
+      connect_timeout=30&pool_timeout=30 ajouté à DATABASE_URL, même
+      correctif déjà appliqué côté CI. Documenté dans server/.env.example
+      (commit 16ac768). Critère de résolution exact rempli : 3
+      exécutions consécutives de npm run test:coverage --workspace=server
+      sur une base locale réinitialisée (npx prisma migrate reset,
+      confirmé explicitement par le porteur — base de développement
+      locale, jamais de production), 0 erreur "connection pool"/"Timed
+      out fetching a new connection" sur les 3 runs (794 pass, 0 fail à
+      chaque fois). Découverte en cours de route : la vraie instabilité
+      locale observée avant ce nettoyage venait autant de résidus de
+      test accumulés inter-sessions (centaines de leads/projects/users
+      orphelins, dont plusieurs comptes ADMIN faussant SEC-038) que du
+      pool_timeout lui-même — la base de test locale n'a pas de
+      garantie d'isolation entre sessions, contrairement à la CI qui
+      repart d'une base neuve à chaque run.
     critere_de_resolution: >
       npm run test:coverage --workspace=server exécuté 3 fois de suite sur
       cette machine sans aucune erreur "connection pool"/"Timed out
@@ -1359,7 +1396,29 @@ anomalies:
       produit régulièrement un faux "failed" à trier manuellement).
     classe: dette-technique-cleanup-test-isolation-bullmq
     gravite: mineure
-    statut: ouvert
+    statut: resolu
+    note_resolution: >
+      server/test/testCleanup.ts#closeJobQueueConnections créé,
+      appliqué à approvalAuditLog.test.ts et
+      logoutRevokesTokenNotAccount.test.ts (les deux fichiers cités par
+      le critère). Régression détectée et corrigée en cours de route :
+      le premier essai fermait la connexion inconditionnellement, y
+      compris quand le fichier tourne dans run-all.test.ts — bloquant
+      silencieusement tous les fichiers importés après lui dans
+      l'agrégateur (découvert en relançant la suite complète après ce
+      changement, jamais en isolation seule). Corrigé par un signal
+      explicite (process.env.__RUN_ALL_AGGREGATOR__, positionné par
+      run-all.test.ts avant ses propres imports) que
+      closeJobQueueConnections vérifie pour no-op dans ce contexte.
+      Vérifié : approvalAuditLog.test.ts (8.3s, ERR: none, 2/2 pass) et
+      logoutRevokesTokenNotAccount.test.ts (22.5s, ERR: none, 4/4 pass)
+      se terminent proprement en isolation stricte — exactement le
+      critère de résolution. run-all.test.ts complet retesté après le
+      correctif de régression : se termine naturellement (plus de
+      blocage), 791/794 pass — les 3 échecs restants sont SEC-102
+      (rate-limit auth, flag non positionné dans cet essai local), sans
+      rapport. Commit 3ec3a02, CI verte confirmée : run GitHub Actions
+      31184201796, tous jobs success (dont "server").
     critere_de_resolution: >
       Un helper de test réutilisable (ex. server/test/testCleanup.ts ou
       équivalent) que n'importe quel fichier de test peut appeler dans son

@@ -87,7 +87,25 @@ anomalies:
       général de ne charger que ce qui est consommé.
     classe: dette-technique-perf-non-mesurable-volumetrie-actuelle
     gravite: mineure
-    statut: ouvert
+    statut: resolu
+    note_resolution: >
+      Décision explicite du porteur de traiter cette dette en avance de
+      son propre déclencheur (0 client actif toujours vrai au moment du
+      traitement). Les 3 points appliqués : (1) createManagerFeeCommissionsManyTx
+      (createManyAndReturn) remplace la boucle await-par-manager,
+      patron déjà établi par SEC-170 ; (2) commissionRepository.findById
+      renommée findStatusById avec select:{status:true} (seul appelant :
+      markPaid), et markPaid (l'update) perd .project de son include
+      (jamais lu) ; (3) select explicite sur getSplitsByProjectTx
+      (partnerId/ratePct) et getManagerFeesByProjectTx
+      (managerId/amount), limité aux champs réellement lus par leurs
+      seuls appelants. Pas de nouveau test : optimisation interne sans
+      changement de comportement observable, vérifiée par les suites
+      existantes (commissionService.test.ts#markPaid : 26/26 verts ;
+      managerProjectFee.test.ts#generateManagerFeesOnDeliveryTx : 9/9
+      verts) — tsc --noEmit confirmant qu'aucun appelant ne lisait les
+      champs retirés. Commit 229a720, CI verte confirmée : run GitHub
+      Actions 31184201796, tous jobs success (dont "server").
     critere_de_resolution: >
       Non prioritaire tant que la volumétrie réelle ne le justifie pas
       (agence à 0 client actif au moment de ce constat) — à traiter sur
