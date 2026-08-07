@@ -1,3 +1,10 @@
+// SEC-073: tells testCleanup.ts#closeJobQueueConnections (used by individual files' own after()
+// so they can also run correctly in isolation, e.g. approvalAuditLog.test.ts,
+// logoutRevokesTokenNotAccount.test.ts) that the shared BullMQ/ioredis connection is owned by
+// THIS file's own after() below, not by any individual file — closing it mid-run would hang
+// every file imported afterward. Must be set before any of the imports below run.
+process.env.__RUN_ALL_AGGREGATOR__ = "true";
+
 import { after } from "node:test";
 import { communicationQueue, maintenanceQueue, documentsQueue } from "../src/jobs/queues.js";
 import { getBullRedisConnection } from "../src/jobs/redisConnection.js";

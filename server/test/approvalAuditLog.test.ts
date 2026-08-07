@@ -1,6 +1,7 @@
 import test, { describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import bcrypt from "bcryptjs";
+import { closeJobQueueConnections } from "./testCleanup.js";
 
 let prisma: typeof import("../src/config/prisma.js").prisma;
 let approvalService: typeof import("../src/services/approval.service.js").approvalService;
@@ -37,6 +38,12 @@ after(async () => {
   await prisma.client.deleteMany({ where: { id: { in: createdClientIds } } });
   await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } }).catch(() => {});
 });
+
+// SEC-073: closes the BullMQ/ioredis connection approval.service.ts opens transitively (via
+// jobs/queues.ts) at import time — without this, node --test never exits when this file runs
+// alone (npx tsx --test approvalAuditLog.test.ts), even though run-all.test.ts's own global
+// after() already covers this file when it's imported through the aggregator.
+after(closeJobQueueConnections);
 
 async function findAuditLogFor(entityType: string, entityId: string, action: string) {
   for (let i = 0; i < 20; i++) {

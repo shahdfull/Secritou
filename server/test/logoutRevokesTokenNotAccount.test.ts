@@ -18,6 +18,7 @@ import test, { describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import bcrypt from "bcryptjs";
 import request from "supertest";
+import { closeJobQueueConnections } from "./testCleanup.js";
 
 process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET ?? "a".repeat(32);
 process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET ?? "b".repeat(32);
@@ -56,6 +57,12 @@ after(async () => {
   await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
   await prisma.service.deleteMany({ where: { id: { in: createdServiceIds } } });
 });
+
+// SEC-073: closes the BullMQ/ioredis connection auth.service.ts opens transitively (via
+// jobs/queues.ts) at import time — without this, node --test never exits when this file runs
+// alone (npx tsx --test logoutRevokesTokenNotAccount.test.ts), even though run-all.test.ts's own
+// global after() already covers this file when it's imported through the aggregator.
+after(closeJobQueueConnections);
 
 function extractCookie(setCookieHeader: string[] | undefined, name: string): string | undefined {
   const header = setCookieHeader?.find((c) => c.startsWith(`${name}=`));
