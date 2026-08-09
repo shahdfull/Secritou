@@ -287,27 +287,28 @@ model TaskTemplate {
 
 // Lead model for potential clients/sales pipeline
 model Lead {
-  id                String          @id @default(uuid())
-  name              String          @db.VarChar(255)
-  email             String?         @db.VarChar(255)
-  phone             String?         @db.VarChar(50)
-  source            String?         @db.VarChar(100)
-  status            LeadStatus      @default(NEW)
-  notes             String?         @db.Text
+  id                String           @id @default(uuid())
+  name              String           @db.VarChar(255)
+  email             String?          @db.VarChar(255)
+  phone             String?          @db.VarChar(50)
+  source            String?          @db.VarChar(100)
+  status            LeadStatus       @default(NEW)
+  notes             String?          @db.Text
   serviceId         String?
-  service           Service?        @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  service           Service?         @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   convertedClientId String?
-  convertedClient   Client?         @relation("ConvertedLead", fields: [convertedClientId], references: [id], onDelete: SetNull)
-  archivedAt        DateTime?       @db.Timestamptz(6)
-  sourceContactId   String?         @unique
-  sourceContact     ContactRequest? @relation(fields: [sourceContactId], references: [id])
+  convertedClient   Client?          @relation("ConvertedLead", fields: [convertedClientId], references: [id], onDelete: SetNull)
+  archivedAt        DateTime?        @db.Timestamptz(6)
+  sourceContactId   String?          @unique
+  sourceContact     ContactRequest?  @relation(fields: [sourceContactId], references: [id])
   assignedManagerId String?
-  assignedManager   User?           @relation("ManagerLeads", fields: [assignedManagerId], references: [id])
-  department        String?         @db.VarChar(255)
-  lostReason        String?         @db.VarChar(500)
+  assignedManager   User?            @relation("ManagerLeads", fields: [assignedManagerId], references: [id])
+  department        String?          @db.VarChar(255)
+  lostReason        String?          @db.VarChar(500)
   proposal          Proposal?
-  createdAt         DateTime        @default(now()) @db.Timestamptz(6)
-  updatedAt         DateTime        @updatedAt @db.Timestamptz(6)
+  searchEmbedding   SearchEmbedding?
+  createdAt         DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime         @updatedAt @db.Timestamptz(6)
 
   @@index([status])
   @@index([createdAt])
@@ -615,6 +616,7 @@ model Project {
   clientApprovedBy        User?                    @relation("ProjectClientApprovals", fields: [clientApprovedById], references: [id], onDelete: SetNull)
   archivedAt              DateTime?                @db.Timestamptz(6)
   deletedAt               DateTime?                @db.Timestamptz(6)
+  searchEmbedding         SearchEmbedding?
   createdAt               DateTime                 @default(now()) @db.Timestamptz(6)
   updatedAt               DateTime                 @updatedAt @db.Timestamptz(6)
 
@@ -633,51 +635,52 @@ model Project {
 }
 
 model Task {
-  id             String              @id @default(uuid())
-  title          String              @db.VarChar(255)
-  description    String?             @db.Text
-  status         TaskStatus          @default(TODO)
-  priority       Priority            @default(NORMAL)
+  id              String              @id @default(uuid())
+  title           String              @db.VarChar(255)
+  description     String?             @db.Text
+  status          TaskStatus          @default(TODO)
+  priority        Priority            @default(NORMAL)
   // Assignment window used for freelancer double-booking checks (overlap = [startDate, dueDate]
   // intersecting another task assigned to the same freelancer). startDate is optional so existing
   // tasks with only a dueDate keep working; a task without a startDate is never checked for overlap.
-  startDate      DateTime?           @db.Timestamptz(6)
-  dueDate        DateTime?           @db.Timestamptz(6)
+  startDate       DateTime?           @db.Timestamptz(6)
+  dueDate         DateTime?           @db.Timestamptz(6)
   // SEC-070: set exactly when status transitions to DONE (task.service.ts#updateTask), cleared if
   // it transitions away from DONE — unlike updatedAt, never touched by unrelated field edits.
-  completedAt    DateTime?           @db.Timestamptz(6)
+  completedAt     DateTime?           @db.Timestamptz(6)
   // RG-030/RG-031 (refonte paiement à la tâche, LOT 3) : montant de base fixé par le CEO avant
   // exécution — RG-031 interdit à une tâche de quitter TODO sans cette valeur, sur un projet en
   // mode non-AUTO (PER_TASK). Jamais recalculé automatiquement une fois une Commission générée
   // (RG-032, LOT 4) : modifier payoutAmount après validation n'affecte aucune commission passée.
-  payoutAmount   Decimal?            @db.Decimal(14, 3)
+  payoutAmount    Decimal?            @db.Decimal(14, 3)
   // RG-032 (barème) : saisi à la validation (passage à DONE), 1 à 5. Sert au calcul du
   // coefficient, jamais recalculé rétroactivement si modifié après coup.
-  qualityScore   Int?
-  reworkCount    Int                 @default(0)
+  qualityScore    Int?
+  reworkCount     Int                 @default(0)
   // RG-033 : horodatage/auteur de la validation qui a fait passer la tâche à DONE. validatedById
   // doit être un ADMIN si assigneeId est un MANAGER du pôle du projet (conflit d'intérêt,
   // SELF_VALIDATION_FORBIDDEN) — voir task.service.ts.
-  validatedAt    DateTime?           @db.Timestamptz(6)
-  validatedById  String?
-  validatedBy    User?               @relation("TaskValidator", fields: [validatedById], references: [id], onDelete: SetNull)
-  projectId      String
-  project        Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  assigneeId     String?
-  assignee       User?               @relation("AssignedTasks", fields: [assigneeId], references: [id], onDelete: SetNull)
-  comments       Comment[]
-  timeEntries    TimeEntry[]
+  validatedAt     DateTime?           @db.Timestamptz(6)
+  validatedById   String?
+  validatedBy     User?               @relation("TaskValidator", fields: [validatedById], references: [id], onDelete: SetNull)
+  projectId       String
+  project         Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assigneeId      String?
+  assignee        User?               @relation("AssignedTasks", fields: [assigneeId], references: [id], onDelete: SetNull)
+  comments        Comment[]
+  timeEntries     TimeEntry[]
   // SEC-060: attachments directly on a task (distinct from a project-level Document) — Document
   // already supports an optional projectId, taskId follows the same optional-FK pattern.
-  documents      Document[]
+  documents       Document[]
   // SEC-060 (sous-tâches, décision du porteur 2026-07-19): a checklist, not a nested Task — a
   // single flat level, no independent assignee/status/dueDate. TaskChecklistItem is a distinct,
   // lighter model rather than a self-referencing Task.parentId, to avoid implying a subtask is a
   // full task (which the porteur explicitly ruled out).
-  checklistItems TaskChecklistItem[]
-  commissions    Commission[]
-  createdAt      DateTime            @default(now()) @db.Timestamptz(6)
-  updatedAt      DateTime            @updatedAt @db.Timestamptz(6)
+  checklistItems  TaskChecklistItem[]
+  commissions     Commission[]
+  searchEmbedding SearchEmbedding?
+  createdAt       DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime            @updatedAt @db.Timestamptz(6)
 
   // Indexes for faster queries
   @@index([projectId, status])
@@ -1897,4 +1900,45 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([actorId])
   @@index([createdAt])
+}
+
+// SEC-070 (RAG sémantique, dégelé le 2026-08-09, voir REFERENTIEL.md §4.11 pour le détail complet
+// de la décision) : un embedding par entité indexée (Lead.notes / Project.description /
+// Task.description), jamais plus d'un — @unique sur chaque FK optionnelle fait qu'une
+// réindexation est un upsert, pas une accumulation de lignes obsolètes. Modèle séparé plutôt
+// qu'une colonne embedding directement sur Lead/Project/Task (même patron que Document : FK
+// optionnelles multiples vers les entités cibles) parce que l'objectif est une recherche
+// cross-entité en une seule requête (ORDER BY embedding <-> :query sur une seule table), pas une
+// recherche par entité isolée — et reste extensible à une future 4e/5e entité indexée sans
+// toucher aux tables métier.
+//
+// `embedding vector(768)` : Prisma n'a pas de type natif pour pgvector — Unsupported() déclare la
+// colonne pour que `prisma migrate dev` génère le SQL correct, mais ni le client Prisma généré ni
+// `select`/`include` normaux peuvent lire ou écrire cette colonne ; tout accès passe par
+// $queryRaw/$executeRaw (searchEmbedding.repository.ts). 768 = la dimension produite par
+// nomic-embed-text (OLLAMA_EMBEDDING_MODEL, env.ts) — changer de modèle d'embedding sans migrer
+// cette dimension casserait toute comparaison de distance contre les lignes déjà stockées.
+model SearchEmbedding {
+  id         String                     @id @default(uuid())
+  leadId     String?                    @unique
+  lead       Lead?                      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  projectId  String?                    @unique
+  project    Project?                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId     String?                    @unique
+  task       Task?                      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  // The exact text embedded at indexing time — lets a caller show a snippet without a second
+  // read of the source entity, and lets a future re-indexing job detect drift by comparing
+  // against the entity's current field value.
+  sourceText String                     @db.Text
+  embedding  Unsupported("vector(768)")
+  // Which embedding model produced this row (e.g. "nomic-embed-text") — needed before ever
+  // switching models, since a mixed-model table would silently compare distances across two
+  // incompatible vector spaces.
+  model      String                     @db.VarChar(100)
+  createdAt  DateTime                   @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime                   @updatedAt @db.Timestamptz(6)
+
+  @@index([leadId])
+  @@index([projectId])
+  @@index([taskId])
 }
