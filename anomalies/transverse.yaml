@@ -229,6 +229,21 @@ anomalies:
       CI bloquante — détecte le même défaut avant qu'il n'entre dans
       l'historique, mais ne protège pas contre un commit qui contourne
       le hook. Arbitrage à faire avec le porteur, pas tranché ici.
+
+      Observation additionnelle (2026-08-10, SEC-070 Phase A, pas une
+      nouvelle anomalie — même pattern de fond, notée ici pour référence
+      si ce chantier de garde est un jour repris) : le changement
+      d'image `postgres` pour pgvector n'a été appliqué qu'à
+      `docker-compose.yml`/`docker-compose.prod.yml` dans un premier
+      temps — `.github/workflows/ci.yml` déclare son propre service
+      Postgres pour 3 jobs (`server`, `restore-smoke-test`, `e2e`),
+      totalement indépendant de ces deux fichiers compose, et n'a été
+      découvert en divergence que par l'échec réel du run CI ("extension
+      \"vector\" is not available"), pas anticipé au moment du plan.
+      Même défaut structurel que le registre d'anomalies : une
+      configuration dupliquée dans plusieurs fichiers sans garde qui
+      détecte automatiquement une divergence entre eux — ici entre
+      fichiers d'infrastructure plutôt qu'entre fichiers du registre.
   - id: SEC-100
     titre: >
       Le wrapper Toaster (client/src/components/ui/sonner.tsx) active
