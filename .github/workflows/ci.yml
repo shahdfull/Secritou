@@ -35,8 +35,14 @@ jobs:
   server:
     runs-on: ubuntu-latest
     services:
+      # SEC-070: pgvector/pgvector:pg16 instead of plain postgres:16 — the migration
+      # 20260810000000_add_search_embedding_pgvector runs CREATE EXTENSION vector, which the
+      # base postgres image doesn't ship (confirmed by direct reproduction: this job failed with
+      # "extension \"vector\" is not available" the first time this workflow ran against
+      # postgres:16 after that migration was added). Same PostgreSQL 16 major version, same image
+      # family already used by docker-compose.yml/docker-compose.prod.yml (SEC-070 Phase A).
       postgres:
-        image: postgres:16
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: secritou
           POSTGRES_PASSWORD: secritou
@@ -234,8 +240,14 @@ jobs:
   restore-smoke-test:
     runs-on: ubuntu-latest
     services:
+      # SEC-070: pgvector/pgvector:pg16 instead of plain postgres:16 — the migration
+      # 20260810000000_add_search_embedding_pgvector runs CREATE EXTENSION vector, which the
+      # base postgres image doesn't ship (confirmed by direct reproduction: this job failed with
+      # "extension \"vector\" is not available" the first time this workflow ran against
+      # postgres:16 after that migration was added). Same PostgreSQL 16 major version, same image
+      # family already used by docker-compose.yml/docker-compose.prod.yml (SEC-070 Phase A).
       postgres:
-        image: postgres:16
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: secritou
           POSTGRES_PASSWORD: secritou
@@ -308,8 +320,14 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     services:
+      # SEC-070: pgvector/pgvector:pg16 instead of plain postgres:16 — the migration
+      # 20260810000000_add_search_embedding_pgvector runs CREATE EXTENSION vector, which the
+      # base postgres image doesn't ship (confirmed by direct reproduction: this job failed with
+      # "extension \"vector\" is not available" the first time this workflow ran against
+      # postgres:16 after that migration was added). Same PostgreSQL 16 major version, same image
+      # family already used by docker-compose.yml/docker-compose.prod.yml (SEC-070 Phase A).
       postgres:
-        image: postgres:16
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: secritou
           POSTGRES_PASSWORD: secritou
