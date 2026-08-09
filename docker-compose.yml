@@ -1,8 +1,17 @@
 version: "3.9"
 
 services:
+  # SEC-070: pgvector/pgvector:pg16 (Debian-based) instead of the plain postgres:16-alpine image —
+  # tested directly: a real `prisma migrate deploy` against pgvector/pgvector:pg16 applies every
+  # existing migration cleanly, and CREATE EXTENSION vector + a real similarity query (<->) both
+  # work. The Alpine alternative was tried and rejected: Alpine's precompiled `postgresql-pgvector`
+  # package pulls in postgresql18 as a dependency and installs the extension's files under that
+  # version's directory, invisible to the actual PostgreSQL 16 server running in postgres:16-alpine
+  # — CREATE EXTENSION vector fails with "extension is not available" (confirmed by direct
+  # reproduction, not assumed). Same major version (16) as before, so no other behavior change
+  # expected — only the base OS moved from Alpine to Debian.
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: secritou
       POSTGRES_PASSWORD: secritou
@@ -130,6 +139,10 @@ services:
           exit 1
         fi
         ollama pull "$${OLLAMA_MODEL:-qwen2.5:3b-instruct}"
+        # SEC-070: same $$-escaping trap as OLLAMA_MODEL above — must stay in the container's own
+        # shell, never interpolated by Compose against the host/a root .env. nomic-embed-text is
+        # ~274MB, small next to the 10GB guard already covering the chat model pull above.
+        ollama pull "$${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}"
     restart: "no"
 
   n8n:

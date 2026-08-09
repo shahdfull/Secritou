@@ -13,8 +13,12 @@ version: "3.9"
 # tunnel or a separately-protected internal route if you need it.
 
 services:
+  # SEC-070: pgvector/pgvector:pg16 instead of postgres:16-alpine — see the identical comment in
+  # docker-compose.yml (same image, tested the same way: real migrate deploy + CREATE EXTENSION
+  # vector + a real similarity query, all confirmed working; the Alpine precompiled package was
+  # tried and rejected due to a real PG16/PG18 mismatch).
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER}

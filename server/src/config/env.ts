@@ -102,6 +102,11 @@ const envSchema = z.object({
   // Max tokens Ollama will generate per reply. SYSTEM_PROMPT asks for concise replies — this caps
   // worst-case CPU generation time per turn rather than relying on the model to self-limit length.
   OLLAMA_NUM_PREDICT: z.coerce.number().int().positive().default(512),
+  // SEC-070: semantic search (RAG, pgvector) — a separate embedding model from OLLAMA_MODEL above.
+  // nomic-embed-text produces 768-dimension vectors (SearchEmbedding.embedding, schema.prisma) —
+  // swapping this without also migrating the schema's vector(768) dimension would break every
+  // already-stored embedding.
+  OLLAMA_EMBEDDING_MODEL: z.string().default("nomic-embed-text"),
   // Google OAuth (Search Console connector). Redirect URI must be registered
   // exactly as-is in the Google Cloud OAuth client's "Authorized redirect URIs".
   GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
