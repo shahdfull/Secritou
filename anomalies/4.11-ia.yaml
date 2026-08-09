@@ -297,42 +297,35 @@ anomalies:
       vérifiable plutôt qu'un silence.
     classe: decision-produit-reportee
     gravite: mineure
-    statut: gelé
-    declencheur_reexamen: >
-      La base compte plus de 50 leads OU 50 projets (premier atteint)
-      avec un champ notes/description non vide d'au moins 200
-      caractères — vérifiable par une requête directe (COUNT avec
-      LENGTH(notes) >= 200 / LENGTH(description) >= 200). Détail complet
-      ci-dessous (critere_de_resolution).
-    critere_de_resolution: >
-      À réévaluer (pas à corriger — c'est une décision produit, pas un
-      bug) quand la base compte plus de 50 leads OU 50 projets (premier
-      atteint) avec un champ notes/description non vide d'au moins 200
-      caractères — seuil choisi pour indiquer un contenu textuel
-      substantiel plutôt que des entrées quasi vides, cohérent avec le
-      schéma Prisma actuel (`Lead.notes`, `Project.description`).
-      Vérifiable par une requête directe (COUNT avec LENGTH(notes) >=
-      200 / LENGTH(description) >= 200) sur chacune des deux tables. Une
-      fois ce seuil atteint, statut repasse à `ouvert` pour rouvrir la
-      décision avec le porteur — pas de correctif à apporter avant.
+    statut: ouvert
     detecte_le: "2026-08-01"
     source: >
       Proposition de RAG local faite lors d'une session antérieure sur
       le module IA (pgvector + nomic-embed-text), jamais implémentée —
       3 questions ouvertes (image Docker pgvector, nouvelle entité
       Prisma, volume de données) restées sans réponse. Tranché
-      explicitement dans cette session (2026-08-01, demande directe du
-      porteur de ne plus reporter sans trancher) : ne pas implémenter
-      maintenant (0 client actif, corpus non mesurable), documenter
-      comme décision assumée plutôt que TODO flou.
+      explicitement le 2026-08-01 (demande directe du porteur de ne
+      plus reporter sans trancher) : ne pas implémenter alors (0 client
+      actif, corpus non mesurable), documenté comme décision assumée
+      plutôt que TODO flou, statut gelé.
     confiance: haute
     note: >
-      Voir REFERENTIEL.md §4.11 pour la décision documentée en détail
-      (même critère de déclenchement, dupliqué à dessein entre les deux
-      documents comme le veut CLAUDE.md § « Cohérence obligatoire
-      REFERENTIEL.md ↔ anomalies/*.yaml »). Aucun code, migration ou
-      nouvelle dépendance liés au RAG n'a été introduit dans cette
-      session — décision documentaire uniquement.
+      Dégelé le 2026-08-09 (demande explicite du porteur — exactement
+      le déclencheur de réexamen prévu au moment du gel : "nouvelle
+      demande explicite du porteur", pas le seuil de volumétrie qui
+      reste non atteint). Les 3 questions ouvertes tranchées avant tout
+      code, voir REFERENTIEL.md §4.11 pour le détail complet :
+      (1) image pgvector/pgvector:pg16 (testée réellement — migrations
+      Prisma + extension + requête vectorielle fonctionnelles ;
+      alternative Alpine testée et rejetée, désalignement PG16/PG18
+      réel) ; (2) schéma SearchEmbedding séparé (patron Document,
+      Unsupported("vector(768)"), à valider par migration) ; (3) volume
+      réel reconfirmé par requête directe le 2026-08-09 : 0/12 leads et
+      0/25 projects atteignent 200 caractères, très loin du seuil de
+      50 — le dégel est acté malgré ce chiffre, décision explicite du
+      porteur indépendante de la volumétrie. Aucun code, migration ou
+      nouvelle dépendance n'a encore été introduit à ce stade —
+      décision documentaire + tests de faisabilité Docker uniquement.
 
   - id: SEC-066
     titre: >

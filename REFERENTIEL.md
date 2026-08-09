@@ -1366,34 +1366,91 @@ même mécanisme de scope que `freelancerRepository.findAll`
 inventée pour ce cas). `searchScope.test.ts` réécrit en conséquence
 (vérifie pôle propre trouvé, pôle différent exclu, ADMIN voit tout).
 
-RAG sémantique — décision assumée de ne pas implémenter (2026-08-01) :
-le tool calling CRM (SEC-059) donne déjà à l'assistant un accès
-structuré en lecture aux entités métier (requêtes Prisma scopées),
-mais aucune recherche sémantique/vectorielle (embeddings, pgvector) sur
-le texte libre (notes de lead, description de projet, bio freelancer)
-n'existe. Envisagé (pgvector + `nomic-embed-text` via Ollama, 100%
-local/gratuit) puis explicitement reporté plutôt que construit ou
-laissé en TODO flou : sur un corpus quasi vide (0 client actif), le
-gain d'une recherche sémantique n'est pas mesurable face à son coût
-(nouvelle dépendance d'infra, nouvelle entité Prisma, temps
-d'indexation) — construire un RAG maintenant serait une capacité sans
-utilisateur réel pour la juger, le même défaut que SEC-040/SEC-045/
-SEC-060 (capacité/métrique sans appelant réel), appliqué ici en amont
-plutôt qu'après coup.
-Critère de déclenchement explicite pour reconsidérer cette décision :
-quand la base compte plus de **50 leads OU 50 projets** (au choix,
-premier atteint) avec un champ notes/description non vide d'au moins
-**200 caractères** — seuil choisi pour indiquer un contenu textuel
-substantiel plutôt que des entrées quasi vides, où une recherche par
-mots-clés simple (déjà existante via `search.service.ts`, voir SEC-065
-ci-dessus) reste suffisante. Tant que ce seuil n'est pas atteint, ne
-pas rouvrir cette question sans demande explicite du porteur (même
-esprit que la règle GELÉ de CLAUDE.md : un chantier non commencé sur
-signal fort explicite, jamais par défaut). Les 3 questions ouvertes
-restées sans réponse au moment du report (choix de l'image Docker
-pgvector, nouvelle entité Prisma à valider avec le porteur, volume de
-données réel à indexer) sont enregistrées dans
-`anomalies/4.11-ia.yaml#SEC-070`, statut `gelé` (ni ouvert, ni résolu).
+RAG sémantique — dégelé le 2026-08-09 (demande explicite du porteur,
+déclencheur de réexamen prévu dès le gel initial) : le tool calling CRM
+(SEC-059) donne déjà à l'assistant un accès structuré en lecture aux
+entités métier (requêtes Prisma scopées), mais aucune recherche
+sémantique/vectorielle (embeddings, pgvector) sur le texte libre
+(notes de lead, description de projet, description de tâche) n'existe
+encore. Initialement reporté le 2026-08-01 (voir historique complet
+dans `anomalies/4.11-ia.yaml#SEC-070`) faute de corpus mesurable —
+volume réévalué au moment du dégel par requête directe sur la base
+réelle : 0 ligne (sur 12 leads, 25 projects) atteint le seuil de 200
+caractères posé au moment du gel, très loin des 50 requises. Le dégel
+reste néanmoins la décision explicite du porteur, indépendante de ce
+chiffre.
+
+Les 3 questions laissées ouvertes au moment du gel sont tranchées ici :
+
+1. **Image Docker** : `pgvector/pgvector:pg16` (Debian, PostgreSQL
+   16.14, extension `vector` 0.8.6 préinstallée) — testé réellement :
+   `prisma migrate deploy` contre un conteneur de cette image applique
+   la totalité des migrations existantes sans erreur ; `CREATE
+   EXTENSION vector` + une requête de similarité réelle (`<->`)
+   fonctionnent de bout en bout. L'alternative (compiler/installer
+   pgvector sur `postgres:16-alpine`, l'image actuellement utilisée)
+   a été testée et rejetée : le paquet Alpine précompilé
+   `postgresql-pgvector` tire `postgresql18` comme dépendance et
+   installe les fichiers de l'extension dans le répertoire de
+   PostgreSQL 18, introuvables par le serveur PostgreSQL 16 réellement
+   en cours d'exécution (`CREATE EXTENSION vector` échoue avec
+   "extension is not available"). `docker-compose.yml` et
+   `docker-compose.prod.yml` doivent basculer le service `postgres`
+   vers `pgvector/pgvector:pg16`.
+
+2. **Schéma Prisma** : nouveau modèle `SearchEmbedding` séparé (pas de
+   colonne `embedding` directement sur `Lead`/`Project`/`Task`) —
+   reprend le patron déjà établi par `Document` dans ce même schéma
+   (FK optionnelles multiples vers les entités cibles, `leadId`/
+   `projectId`/`taskId`, une ligne = un embedding pour une entité).
+   Choisi plutôt qu'une colonne par table parce que l'objectif de
+   SEC-070 est une recherche **cross-entité** (une seule requête
+   `ORDER BY embedding <-> :query` sur une table dédiée, extensible à
+   une future 4e/5e entité sans toucher aux tables métier centrales) :
+
+   ```prisma
+   model SearchEmbedding {
+     id          String   @id @default(uuid())
+     leadId      String?  @unique
+     lead        Lead?    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+     projectId   String?  @unique
+     project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+     taskId      String?  @unique
+     task        Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+     sourceText  String   @db.Text
+     embedding   Unsupported("vector(768)")
+     model       String   @db.VarChar(100)
+     createdAt   DateTime @default(now()) @db.Timestamptz(6)
+     updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+     @@index([leadId])
+     @@index([projectId])
+     @@index([taskId])
+   }
+   ```
+
+   Premier usage de `Unsupported(...)` dans ce schéma (Prisma n'a pas
+   de type natif pour `vector` — la colonne existe côté DB via la
+   migration générée, mais toute lecture/écriture passe par
+   `$queryRaw`/`$executeRaw`, jamais par le client Prisma normal).
+   `sourceText` conserve le texte exact indexé (permet d'afficher un
+   extrait sans relecture de l'entité source, et de détecter une
+   dérive si le champ source change depuis l'indexation) ; `model`
+   trace quel modèle d'embedding a produit la ligne (migration future
+   si le modèle change).
+
+3. **Volume réel** : vérifié par requête directe au moment du dégel
+   (voir ci-dessus) — 0/12 leads et 0/25 projects atteignent 200
+   caractères. Le dégel est acté malgré ce chiffre, sur décision
+   explicite du porteur.
+
+Reste à trancher avant implémentation : nom exact et scoping RBAC du
+nouvel outil IA de recherche sémantique (même pattern
+`toLeadScope`/`toServiceScope` que les 13 tools existants d'`aiTools.ts`,
+jamais de requête vectorielle non filtrée par pôle/rôle), et le
+mécanisme d'indexation (job BullMQ à la création/mise à jour d'une
+entité, `jobId` déterministe obligatoire — cf. la checklist BullMQ de
+CLAUDE.md et la leçon de SEC-094 sur les retries non bornés).
 
     perimetre_code:
       - server/src/services/llm.client.ts
