@@ -584,6 +584,65 @@ anomalies:
       0 violation de niveau critique/sérieux non justifiée par une
       exception documentée (même doctrine que l'exception
       react-refresh/only-export-components de CLAUDE.md).
+  - id: SEC-103
+    titre: >
+      Le texte de SEC-095 affirme qu'un run Lighthouse réel a eu lieu le
+      2026-08-03 sur 8 pages et a contribué à la découverte de
+      SEC-098/099/100, sans preuve trouvable pour cette affirmation
+      précise — aucun rapport Lighthouse archivé, aucun fichier de
+      résultats dans le dépôt, et les commits datés de ce jour
+      (8e9da93 notamment) ne documentent que des corrections
+      axe-core/contraste, aucun score Lighthouse. Un artifact externe
+      retrouvé ("Secritou — Clôture Phase 2 QA", daté 2026-08-01)
+      indique au contraire explicitement que l'audit Lighthouse complet
+      n'a jamais été lancé faute de temps dans cette session.
+    perimetre: transverse
+    regle_violee: >
+      CLAUDE.md § « Provenance obligatoire de tout statut » — toute
+      affirmation factuelle sur un comportement passé doit porter sa
+      provenance dans REFERENTIEL.md/le registre ; ici l'affirmation
+      était présente sans source vérifiable.
+    classe: registre-affirmation-non-sourcee
+    gravite: moyenne
+    statut: ouvert
+    detecte_le: "2026-08-10"
+    source: >
+      Découverte incidente pendant le dégel demandé par le porteur de
+      SEC-095 (2026-08-10) : investigation du contenu technique attendu
+      (bundle, LCP, chunks) n'a rien trouvé de sourcé dans le registre ;
+      remontée jusqu'aux commits du 2026-08-03 (8e9da93 et voisins) et à
+      un artifact externe du 2026-08-01 ("Clôture Phase 2 QA") qui
+      contredit explicitement l'affirmation d'un run Lighthouse complet
+      réellement exécuté le 2026-08-03.
+    confiance: >
+      Élevée sur l'absence de preuve (recherche exhaustive : grep
+      jspdf/exceljs/LCP/lighthouse sur tout anomalies/, git log --all
+      --grep sur les mots-clés pertinents, lecture des commits du
+      2026-08-03, liste des artifacts publiés). Ne prouve pas que le run
+      n'a jamais eu lieu — seulement qu'aucune preuve n'est trouvable
+      dans les sources consultables aujourd'hui.
+    note: >
+      Distinct de SEC-101 (absence de vérification automatique
+      statut/preuve pour des statuts "resolu") : SEC-101 porte sur un
+      statut non rapproché d'une preuve qui existe ailleurs ; ici la
+      preuve elle-même de l'affirmation factuelle ("un run Lighthouse
+      réel a eu lieu") est introuvable, qu'il y ait ou non un statut
+      "resolu" en jeu. Texte de SEC-095 corrigé dans la même session pour
+      remplacer l'affirmation par une mention NON VÉRIFIABLE, sans
+      toucher à son titre ni aux 3 correctifs d'accessibilité réels
+      (SEC-098/099/100) qui restent sourcés par des commits CI vérifiés.
+    critere_de_resolution: >
+      Soit une preuve matérielle du run Lighthouse du 2026-08-03 est
+      retrouvée (rapport archivé, log CI, commit citant des scores
+      perf/a11y/bonnes pratiques) et rattachée à SEC-095/SEC-103, soit
+      l'affirmation reste durablement documentée comme NON VÉRIFIABLE
+      dans SEC-095 — dans les deux cas SEC-103 passe resolu une fois le
+      texte de SEC-095 mis en cohérence avec la conclusion retenue.
+    declencheur_reexamen: >
+      Découverte d'une source datée du 2026-08-03 (rapport, log CI,
+      artifact) confirmant ou infirmant explicitement l'exécution d'un
+      run Lighthouse complet ce jour-là — jamais par supposition.
+
   - id: SEC-095
     titre: >
       Dette technique — Aucun audit Lighthouse (performance/
@@ -591,17 +650,21 @@ anomalies:
       REGELÉE le 2026-08-04 après un premier passage réel. À l'origine
       (2026-08-03) : aucune trace dans le dépôt (scripts, CI, config)
       d'un run Lighthouse, historique ou programmé. Le dégel du
-      2026-08-03 a permis un run Lighthouse réel sur 8 pages (login,
-      dashboard Admin/Manager, CRM, module IA, portail client, contact,
-      join-us), qui a contribué à la découverte de SEC-098
-      (aria-allowed-attr sur GlobalSearch) et alimenté l'investigation
-      ayant mené à SEC-099/100 — toutes trois resolu, CI verte confirmée
-      (commits 01cbc1e/d249f93/570f949/1e0035c). Ce n'est donc pas un
-      audit resté sans suite. L'audit Lighthouse répété/étendu à
-      d'autres pages n'a pas de valeur ajoutée immédiate identifiée — 0
-      client actif au moment du regel rend la mesure de performance
-      réelle sous charge non représentative de toute façon tant qu'il
-      n'y a pas de trafic réel à observer.
+      2026-08-03 a produit 4 correctifs d'accessibilité réels (aria,
+      contraste — commit 8e9da93), qui ont contribué à la découverte de
+      SEC-098 (aria-allowed-attr sur GlobalSearch) et alimenté
+      l'investigation ayant mené à SEC-099/100 — toutes trois resolu, CI
+      verte confirmée (commits 01cbc1e/d249f93/570f949/1e0035c). NON
+      VÉRIFIABLE : l'affirmation qu'un run Lighthouse complet (scores
+      perf/a11y/bonnes pratiques) a réellement eu lieu ce jour-là —
+      aucune preuve trouvée (ni rapport, ni fichier de résultats, ni
+      commit citant un score) ; cf. SEC-103. Ce n'est donc pas un audit
+      resté sans suite sur son volet accessibilité, mais son volet
+      Lighthouse/performance proprement dit reste non prouvé. L'audit
+      Lighthouse répété/étendu à d'autres pages n'a pas de valeur ajoutée
+      immédiate identifiée — 0 client actif au moment du regel rend la
+      mesure de performance réelle sous charge non représentative de
+      toute façon tant qu'il n'y a pas de trafic réel à observer.
     perimetre: transverse
     regle_violee: >
       Aucune règle de REFERENTIEL.md n'exige un audit Lighthouse avant
@@ -610,9 +673,11 @@ anomalies:
     gravite: mineure
     statut: gelé
     note_degel: >
-      Dégelé le 2026-08-03 (demande explicite du porteur), a produit un
-      run Lighthouse réel sur 8 pages qui a contribué à la découverte de
-      SEC-098/099/100 (tous resolu, CI verte confirmée). Regelé le
+      Dégelé le 2026-08-03 (demande explicite du porteur), a produit 4
+      correctifs d'accessibilité réels (commit 8e9da93) qui ont
+      contribué à la découverte de SEC-098/099/100 (tous resolu, CI
+      verte confirmée). L'affirmation d'un run Lighthouse complet réel ce
+      jour-là n'a aucune preuve trouvée — cf. SEC-103. Regelé le
       2026-08-04 (demande explicite du porteur) : le dégel a produit ce
       qu'il pouvait produire, l'audit exhaustif répété n'a pas de valeur
       ajoutée immédiate identifiée.

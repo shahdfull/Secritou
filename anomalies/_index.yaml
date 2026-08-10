@@ -12,8 +12,27 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-102
+dernier_id: SEC-103
 anomalies:
+  - id: SEC-103
+    titre: >
+      Le texte de SEC-095 affirme qu'un run Lighthouse réel a eu lieu le
+      2026-08-03 sur 8 pages et a contribué à la découverte de
+      SEC-098/099/100, sans preuve trouvable pour cette affirmation
+      précise — aucun rapport Lighthouse archivé, aucun fichier de
+      résultats dans le dépôt, et les commits datés de ce jour
+      (8e9da93 notamment) ne documentent que des corrections
+      axe-core/contraste, aucun score Lighthouse. Un artifact externe
+      retrouvé ("Secritou — Clôture Phase 2 QA", daté 2026-08-01)
+      indique au contraire explicitement que l'audit Lighthouse complet
+      n'a jamais été lancé faute de temps dans cette session. Distinct de
+      SEC-101 (absence de vérification automatique statut/preuve) : ici
+      la preuve elle-même de l'affirmation factuelle est introuvable, pas
+      seulement non rapprochée automatiquement d'un statut.
+    perimetre: transverse
+    statut: ouvert
+    gravite: moyenne
+    classe: registre-affirmation-non-sourcee
   - id: SEC-102
     titre: >
       authRateLimit (server/src/middlewares/rateLimit.middleware.ts, 30
@@ -275,14 +294,18 @@ anomalies:
       REGELÉE le 2026-08-04 après un premier passage réel. À l'origine
       (2026-08-03) : aucune trace dans le dépôt (scripts, CI, config)
       d'un run Lighthouse, historique ou programmé. Le dégel du
-      2026-08-03 a permis un run Lighthouse réel sur 8 pages (login,
-      dashboard Admin/Manager, CRM, module IA, portail client, contact,
-      join-us), qui a directement contribué à la découverte de SEC-098
+      2026-08-03 a produit 4 correctifs d'accessibilité réels (aria,
+      contraste — commit 8e9da93), dont la découverte de SEC-098
       (aria-allowed-attr sur GlobalSearch, cf. rapport SEC-095/096 du
-      2026-08-03) et alimenté l'investigation ayant mené à SEC-099/100 —
-      toutes trois resolu, CI verte confirmée (commits
-      01cbc1e/d249f93/570f949/1e0035c). Ce n'est donc pas un audit resté
-      sans suite. L'audit Lighthouse répété/étendu à d'autres pages n'a
+      2026-08-03) et l'investigation ayant mené à SEC-099/100 — toutes
+      trois resolu, CI verte confirmée (commits
+      01cbc1e/d249f93/570f949/1e0035c). NON VÉRIFIABLE : l'affirmation
+      qu'un run Lighthouse complet (scores perf/a11y/bonnes pratiques)
+      a réellement eu lieu ce jour-là — aucune preuve trouvée (ni
+      rapport, ni fichier de résultats, ni commit citant un score) ; cf.
+      SEC-103. Ce n'est donc pas un audit resté sans suite sur son volet
+      accessibilité, mais son volet Lighthouse/performance proprement dit
+      reste non prouvé. L'audit Lighthouse répété/étendu à d'autres pages n'a
       pas de valeur ajoutée immédiate identifiée — 0 client actif au
       moment du regel rend la mesure de performance réelle sous charge
       non représentative de toute façon tant qu'il n'y a pas de trafic
