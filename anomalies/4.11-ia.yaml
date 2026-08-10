@@ -297,7 +297,7 @@ anomalies:
       vérifiable plutôt qu'un silence.
     classe: decision-produit-reportee
     gravite: mineure
-    statut: ouvert
+    statut: en_cours
     detecte_le: "2026-08-01"
     source: >
       Proposition de RAG local faite lors d'une session antérieure sur
@@ -309,6 +309,18 @@ anomalies:
       actif, corpus non mesurable), documenté comme décision assumée
       plutôt que TODO flou, statut gelé.
     confiance: haute
+    critere_de_resolution: >
+      Phase A (infrastructure) : schéma SearchEmbedding + migration
+      pgvector, job BullMQ d'indexation (jobId déterministe), tool IA
+      searchSemantic scopé RBAC (filtrage dans le WHERE SQL avant
+      l'ORDER BY distance vectorielle, jamais un post-filtrage), tests
+      réels dont un test RBAC multi-pôle prouvant qu'un MANAGER ne voit
+      jamais une entité sémantiquement proche mais hors pôle — verifie:
+      test. Phase B (examen de la pertinence réelle des résultats une
+      fois un volume substantiel de notes/descriptions présent en
+      production, cf. declencheur_reexamen dans _index.yaml) reste un
+      critère distinct, non rempli — c'est pourquoi le statut reste
+      en_cours et non resolu malgré la Phase A complète.
     note: >
       Dégelé le 2026-08-09 (demande explicite du porteur — exactement
       le déclencheur de réexamen prévu au moment du gel : "nouvelle
@@ -323,9 +335,45 @@ anomalies:
       réel reconfirmé par requête directe le 2026-08-09 : 0/12 leads et
       0/25 projects atteignent 200 caractères, très loin du seuil de
       50 — le dégel est acté malgré ce chiffre, décision explicite du
-      porteur indépendante de la volumétrie. Aucun code, migration ou
-      nouvelle dépendance n'a encore été introduit à ce stade —
-      décision documentaire + tests de faisabilité Docker uniquement.
+      porteur indépendante de la volumétrie.
+
+      Phase A implémentée et vérifiée en CI le 2026-08-10 (7
+      sous-étapes, une par commit, rapport + validation explicite du
+      porteur avant chacune) :
+      1. e7d8513 — modèle SearchEmbedding + migration pgvector
+      2. 15e1abf — bascule des 3 images Postgres CI vers
+         pgvector/pgvector:pg16 (écart découvert après le 1er push :
+         ci.yml déclare ses propres services Postgres, indépendants de
+         docker-compose.yml)
+      3. b8a8383 — client d'embedding Ollama (embedText), modèle
+         nomic-embed-text confirmé tiré (274 Mo) et fonctionnel,
+         dimension produite (768) confirmée conforme au schéma migré
+      4. 74e8819 — job BullMQ d'indexation (jobId déterministe
+         search-embedding|type|id, stratégie remove-if-pending-then-add,
+         upsert SQL paramétré), câblé sur create/update
+         lead/project/task (tout texte non vide, sans seuil de longueur
+         — décision porteur)
+      5. bccd097 — searchEmbeddingRepository/Service : requête SQL
+         scopée RBAC, chaque branche (lead/project/task) reproduisant
+         exactement la règle de scoping déjà appliquée par son propre
+         repository, filtrage dans le WHERE avant l'ORDER BY distance
+      6. 44a10b6 — tool IA searchSemantic dans aiTools.ts, scoping
+         entièrement délégué au repository (aucune logique réinventée)
+      7. 75ae0fb — tests réels : test RBAC critique (2 leads réels dans
+         2 pôles différents, texte quasi-identique pour forcer une
+         distance vectorielle faible, MANAGER du pôle A ne voit jamais
+         le lead du pôle B, ADMIN non scopé voit les deux)
+
+      CI verte confirmée sur le commit final : run 31405101976
+      (2026-08-10, conclusion success, tous les jobs — server, client,
+      e2e, restore-smoke-test, contrast-check, i18n-check).
+
+      Phase B (examen de pertinence sur volume réel) reste backlog,
+      volontairement non entamée — le corpus réel est toujours quasi
+      nul (0/12 leads, 0/25 projects ≥200 caractères au 2026-08-09).
+      Statut du registre laissé en_cours (pas resolu) sur décision
+      explicite du porteur : ne pas clôturer tant que Phase B n'est pas
+      traitée, même si Phase A est complète et vérifiée.
 
   - id: SEC-066
     titre: >

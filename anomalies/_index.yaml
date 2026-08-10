@@ -828,17 +828,21 @@ anomalies:
       pgvector, nouvelle entité Prisma à valider avec le porteur,
       volume de données réel à indexer
     perimetre: 4.11-ia
-    statut: gelé
+    statut: en_cours
     gravite: mineure
     classe: decision-produit-reportee
     declencheur_reexamen: >
-      La base compte plus de 50 leads OU 50 projets (premier atteint)
-      avec un champ notes/description non vide d'au moins 200 caractères
-      — seuil choisi pour indiquer un contenu textuel substantiel
-      plutôt que des entrées quasi vides. Vérifiable par une requête
-      directe (COUNT avec LENGTH(notes) >= 200 / LENGTH(description) >=
-      200). Détail complet et justification dans
-      anomalies/4.11-ia.yaml#SEC-070 (critere_de_resolution).
+      Dégelé le 2026-08-09 (demande explicite du porteur). Phase A
+      (infrastructure : schéma pgvector, job d'indexation BullMQ, tool
+      IA searchSemantic scopé RBAC, tests réels) terminée et vérifiée en
+      CI (commit 75ae0fb, run CI 31405101976, succès sur tous les jobs)
+      — mais l'ID reste en_cours : la Phase B (examen de la pertinence
+      réelle des résultats une fois un volume substantiel de
+      notes/descriptions présent en production) n'est pas commencée,
+      volontairement, sur décision du porteur. Ne pas rouvrir Phase B
+      sans signal fort explicite (volume réel atteint, ou demande directe
+      du porteur) — jamais par défaut. Détail complet dans
+      anomalies/4.11-ia.yaml#SEC-070 (note).
 
   - id: SEC-069
     titre: >
