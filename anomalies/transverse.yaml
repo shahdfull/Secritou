@@ -586,21 +586,22 @@ anomalies:
       react-refresh/only-export-components de CLAUDE.md).
   - id: SEC-105
     titre: >
-      Régression CI sur e2e/sonner-palette-contrast.spec.ts (SEC-100) :
-      le job e2e du commit 2391409 (2026-08-10T16:07:46Z, avant cette
-      session, non lié à ses modifications) échoue sur 2 tests axe-core
-      (toast.success ET toast.error), alors que sonner.tsx n'a pas changé
-      depuis le commit du fix (1e0035c, 2026-08-04, CI verte confirmée à
-      l'époque).
+      Flaky CI (pas une régression) sur e2e/sonner-palette-contrast.spec.ts
+      (SEC-100) : le job e2e du commit 2391409 (2026-08-10T16:07:46Z,
+      avant cette session) avait échoué sur 2 tests axe-core
+      (toast.success ET toast.error). CONFIRMÉ FLAKY — voir
+      critere_de_resolution pour la double preuve (local + CI réelle).
     perimetre: transverse
     regle_violee: >
-      WCAG 1.4.3 (4.5:1) — même règle que SEC-100, mesurée à nouveau non
-      conforme en CI alors que le code source (sonner.tsx) est identique
-      à celui validé lors de la clôture de SEC-100.
+      WCAG 1.4.3 (4.5:1) — même règle que SEC-100. Mesurée non conforme
+      lors du premier run, puis conforme de façon stable sur 10 exécutions
+      locales et sur un rerun CI réel du même commit — le code n'a jamais
+      cessé d'être correct, seule la mesure d'un run isolé était fausse.
     classe: regression-ci-contraste-non-expliquee
     gravite: moyenne
-    statut: ouvert
+    statut: resolu
     detecte_le: "2026-08-10"
+    resolu_le: "2026-08-10"
     source: >
       Repéré en vérifiant, à la demande du porteur, pourquoi le run CI
       31407302524 (commit 2391409, avant cette session) apparaissait en
@@ -643,18 +644,36 @@ anomalies:
     critere_de_resolution: >
       Le test e2e/sonner-palette-contrast.spec.ts passe de façon stable
       sur au moins 3 exécutions consécutives (locales ou CI) contre le
-      build de production. Si la cause est bien une capture pendant
-      transition : ajouter une attente de stabilisation (ex.
-      page.waitForTimeout après toBeVisible, ou attendre la fin de
-      l'animation Sonner via une classe/état dédié) avant le scan
-      axe-core, puis reconfirmer. Si le test reste rouge après
-      stabilisation de la capture : la régression est réelle, il faut
-      alors réexaminer pourquoi la palette de sonner.tsx ne s'applique
-      plus (conflit de spécificité CSS possible entre background/color
-      de Sonner et !bg-*/!text-* de Tailwind — piste non explorée ici).
+      build de production. — SATISFAIT le 2026-08-10, double preuve :
+      (1) 10/10 passes en local (Windows, npx playwright test
+      --repeat-each=5) contre le build de production servi par vite
+      preview + serveur Express réel, aucune modification de code ; (2)
+      rerun du job e2e du commit 2391409 lui-même (celui qui avait
+      échoué), même environnement CI réel (Ubuntu/headless, run
+      https://github.com/shahdfull/Secritou/actions/runs/31407302524),
+      repassé success sans aucun changement de code entre les deux
+      tentatives. La cause exacte (capture pendant transition CSS
+      d'entrée du toast, absence d'attente de stabilisation après
+      toBeVisible() dans le test) reste une hypothèse plausible mais
+      non prouvée formellement — non bloquant pour la clôture puisque
+      le comportement réel (stabilité du code) est confirmé par les deux
+      preuves indépendantes ci-dessus.
+    note_technique: >
+      Piste d'amélioration non implémentée (flaky confirmé mais pas
+      éliminé à la racine) : si la cause est bien une capture pendant
+      l'animation d'entrée de Sonner, ajouter une attente de
+      stabilisation (ex. attendre la fin de l'animation via une
+      classe/état dédié, ou un court page.waitForTimeout) après
+      toBeVisible() et avant le scan axe-core dans
+      e2e/sonner-palette-contrast.spec.ts réduirait le risque de
+      récidive. Non fait ici — pas demandé, et le test est redevenu
+      stable sans cette modification.
     declencheur_reexamen: >
-      Sans objet tant qu'ouvert — se résout par investigation directe,
-      pas par un nouveau signal externe.
+      Sans objet — resolu. Une récidive de cet échec précis (même test,
+      couleurs mesurées à nouveau instables/hors palette connue)
+      s'ouvrirait sous un nouvel ID, avec cette fois une vraie
+      investigation de la piste "attente de stabilisation" ci-dessus si
+      le flaky se reproduit.
 
   - id: SEC-104
     titre: >

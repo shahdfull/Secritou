@@ -16,21 +16,21 @@ dernier_id: SEC-105
 anomalies:
   - id: SEC-105
     titre: >
-      Régression CI sur e2e/sonner-palette-contrast.spec.ts (SEC-100) :
-      le job e2e du commit 2391409 (2026-08-10T16:07:46Z, avant cette
-      session, non lié à ses modifications) échoue sur 2 tests axe-core
-      (toast.success ET toast.error), alors que sonner.tsx n'a pas changé
-      depuis le commit du fix (1e0035c, 2026-08-04, CI verte confirmée à
-      l'époque). Couleurs mesurées en CI (#1e8b69/#eefdf6 puis
-      #128461/#edfdf5 pour success ; #d7575c/#fef5f5 pour error) ne
-      correspondent NI à la palette Tailwind du code (emerald-700/50,
-      red-700/50) NI à la palette par défaut de Sonner (HSL native) —
-      signe possible d'un scan axe-core capturé pendant une transition
-      CSS d'entrée du toast plutôt qu'à l'état stable, hypothèse non
-      vérifiée. lockfile/package.json inchangés dans l'intervalle
-      (npm ci utilisé en CI, pas de dérive de version possible).
+      Flaky CI (pas une régression) sur e2e/sonner-palette-contrast.spec.ts
+      (SEC-100) : le job e2e du commit 2391409 (2026-08-10T16:07:46Z,
+      avant cette session) avait échoué sur 2 tests axe-core
+      (toast.success ET toast.error). CONFIRMÉ FLAKY, pas une régression
+      réelle : 10/10 passes en local (Windows) sans aucun changement de
+      code, ET rerun du même job sur le même commit en environnement CI
+      réel (Ubuntu/headless, run 31407302524) repassé success. Cause
+      probable : scan axe-core capturé pendant la transition CSS
+      d'entrée du toast (pas d'attente de stabilisation après
+      toBeVisible() dans le test), pas un défaut de palette — les 2
+      couleurs mesurées lors de l'échec ne correspondaient à aucune
+      palette stable connue (ni Tailwind du code, ni défaut Sonner) et
+      variaient entre les 2 tentatives d'un même test.
     perimetre: transverse
-    statut: ouvert
+    statut: resolu
     gravite: moyenne
     classe: regression-ci-contraste-non-expliquee
   - id: SEC-104
