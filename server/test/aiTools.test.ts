@@ -88,7 +88,7 @@ async function makeFreelancerInService(serviceId: string, namePrefix: string) {
 }
 
 describe("isKnownAiTool", () => {
-  test("recognizes the 10 declared read tools and rejects an unknown name", () => {
+  test("recognizes the 11 declared read tools and rejects an unknown name", () => {
     assert.equal(isKnownAiTool("getLeads"), true);
     assert.equal(isKnownAiTool("getClients"), true);
     assert.equal(isKnownAiTool("getProjects"), true);
@@ -99,6 +99,7 @@ describe("isKnownAiTool", () => {
     assert.equal(isKnownAiTool("getOverdueInvoices"), true);
     assert.equal(isKnownAiTool("getFreelancerWorkload"), true);
     assert.equal(isKnownAiTool("getLeadPipeline"), true);
+    assert.equal(isKnownAiTool("searchSemantic"), true);
     assert.equal(isKnownAiTool("deleteEverything"), false);
     assert.equal(isKnownAiTool("execCommand"), false);
   });
@@ -449,5 +450,64 @@ describe("runAiTool caching (session du 2026-08-01)", () => {
       pipeline: Record<string, number>;
     };
     assert.equal(after.pipeline.NEW, newCount, "createLead must invalidate the cached getLeadPipeline result, not leave the pre-write count cached");
+  });
+});
+
+// SEC-070: searchSemantic is the only tool whose scoping is NOT delegated to
+// toLeadScope/toServiceScope (see aiTools.ts's own comment on runSearchSemantic) — it goes
+// straight to searchEmbeddingRepository.searchSimilar, which applies the scope filter itself in
+// the SQL WHERE clause of each entity branch, before the ORDER BY distance. This test creates two
+// leads in two different poles with near-identical text (both about the same topic, so their
+// embeddings land close together) — if scoping were ever applied AFTER the similarity query
+// instead of inside it, a MANAGER would still see both, since nothing about the distance itself
+// would exclude the out-of-pole lead. Requires a real Ollama embeddings endpoint reachable at
+// OLLAMA_URL; skipped (not failed) if indexing doesn't succeed, same dbAvailable-style guard as
+// the rest of this file for an unreachable dependency.
+describe("aiTools searchSemantic — RBAC scoped in SQL before distance ordering (SEC-070)", () => {
+  async function indexLead(serviceId: string | undefined, namePrefix: string, notes: string) {
+    const lead = await prisma.lead.create({ data: { name: `${namePrefix} lead`, serviceId, notes } });
+    createdLeadIds.push(lead.id);
+    const { processSearchEmbeddingJob } = await import("../src/jobs/processors/maintenance.processor.js");
+    await processSearchEmbeddingJob({ entityType: "lead", entityId: lead.id, sourceText: notes });
+    return lead;
+  }
+
+  test("a MANAGER never sees a semantically-close lead from another pole", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const uniq = Date.now();
+    const sharedText = `Client intéressé par une refonte complète de sa boutique en ligne, projet ${uniq}.`;
+    let leadA: Awaited<ReturnType<typeof indexLead>>;
+    let leadB: Awaited<ReturnType<typeof indexLead>>;
+    try {
+      leadA = await indexLead(serviceA, `sec070-rbac-a-${uniq}`, sharedText);
+      leadB = await indexLead(serviceB, `sec070-rbac-b-${uniq}`, sharedText);
+    } catch (err) {
+      return t.skip(`Ollama embeddings endpoint unavailable: ${(err as Error).message}`);
+    }
+
+    const asManagerA = (await runAiTool("searchSemantic", { query: sharedText }, {
+      userRole: "MANAGER",
+      userId: "manager-a",
+      userServiceId: serviceA,
+    })) as { results: { entityType: string; entityId: string }[] };
+
+    const idsA = asManagerA.results.filter((r) => r.entityType === "lead").map((r) => r.entityId);
+    assert.ok(idsA.includes(leadA.id), "MANAGER must see the lead in their own pole");
+    assert.ok(!idsA.includes(leadB.id), "MANAGER must never see a semantically-close lead from another pole");
+
+    const asAdmin = (await runAiTool("searchSemantic", { query: sharedText }, {
+      userRole: "ADMIN",
+      userId: "admin-id",
+    })) as { results: { entityType: string; entityId: string }[] };
+    const idsAdmin = asAdmin.results.filter((r) => r.entityType === "lead").map((r) => r.entityId);
+    assert.ok(idsAdmin.includes(leadA.id) && idsAdmin.includes(leadB.id), "ADMIN (unscoped) must see both poles");
+  });
+
+  test("a missing query degrades to an empty result set rather than throwing", async (t) => {
+    if (!dbAvailable) return t.skip("no database available");
+    const result = (await runAiTool("searchSemantic", {}, { userRole: "ADMIN", userId: "admin-id" })) as {
+      results: unknown[];
+    };
+    assert.deepEqual(result.results, []);
   });
 });
