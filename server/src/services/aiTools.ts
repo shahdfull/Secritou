@@ -14,6 +14,7 @@ import { freelancerService } from "./freelancer.service.js";
 import { dashboardService } from "./dashboard.service.js";
 import { executiveMetricsService } from "./executiveMetrics.service.js";
 import { timeEntryService } from "./timeEntry.service.js";
+import { searchEmbeddingService } from "./searchEmbedding.service.js";
 import type { ServiceScope } from "../utils/serviceScope.js";
 import type { LeadScope } from "../repositories/lead.repository.js";
 import type { ListQueryOptions } from "../utils/listQuery.js";
@@ -199,6 +200,20 @@ export const AI_TOOL_DEFINITIONS = [
       parameters: { type: "object", properties: {} },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "searchSemantic",
+      description: "Recherche sémantique (par sens, pas seulement par mot-clé exact) dans les notes de leads, descriptions de projets et descriptions de tâches — répond à des questions comme « quels leads ont mentionné un budget serré ? » ou « quel projet parlait de refonte e-commerce ? ». Contrairement à `search` sur getLeads/getProjects/getTasks (correspondance texte), ceci trouve un contenu proche par le sens même sans les mots exacts. Le corpus indexé est encore réduit (SEC-070, phase de mise en place) — un résultat vide ne signifie pas forcément qu'aucune entité pertinente n'existe.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Le texte ou la question dont on cherche le sens dans les notes/descriptions." },
+        },
+        required: ["query"],
+      },
+    },
+  },
 ] as const;
 
 export type AiToolName = (typeof AI_TOOL_DEFINITIONS)[number]["function"]["name"];
@@ -346,6 +361,26 @@ async function runGetLeadPipeline(ctx: AiToolCallerContext) {
   return { pipeline };
 }
 
+// SEC-070: unlike every other tool above, this delegates scoping to
+// searchEmbeddingRepository.searchSimilar directly (role/userServiceId/userId), not
+// toLeadScope/toServiceScope — those two return identically-shaped objects for this caller
+// context, but a semantic search spans 3 entity types in one query, so the scope is applied once
+// per branch inside the repository itself rather than mapped through an entity-specific helper.
+async function runSearchSemantic(ctx: AiToolCallerContext, args: { query: string }) {
+  const results = await searchEmbeddingService.searchSimilar(args.query, {
+    userRole: ctx.userRole,
+    userServiceId: ctx.userServiceId,
+    userId: ctx.userId,
+  });
+  return {
+    results: results.map((r) => ({
+      entityType: r.entityType,
+      entityId: r.entityId,
+      excerpt: r.sourceText,
+    })),
+  };
+}
+
 const LEAD_STATUSES: readonly LeadStatus[] = ["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "WON", "LOST"];
 const PROJECT_STATUSES: readonly ProjectStatus[] = ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED"];
 const TASK_STATUSES: readonly TaskStatus[] = ["TODO", "IN_PROGRESS", "REVIEW", "DONE"];
@@ -361,7 +396,7 @@ function pickEnum<T extends string>(value: unknown, allowed: readonly T[]): T | 
 // fall back to, and one bad field must not take down the whole call.
 function parseArgs(rawArgs: unknown): {
   search?: string; status?: string; priority?: Priority; overdue?: boolean; assigneeId?: string;
-  from?: string; to?: string;
+  from?: string; to?: string; query?: string;
 } {
   if (!rawArgs || typeof rawArgs !== "object") return {};
   const obj = rawArgs as Record<string, unknown>;
@@ -375,6 +410,7 @@ function parseArgs(rawArgs: unknown): {
     assigneeId: typeof obj.assigneeId === "string" ? obj.assigneeId : undefined,
     from: typeof obj.from === "string" ? obj.from : undefined,
     to: typeof obj.to === "string" ? obj.to : undefined,
+    query: typeof obj.query === "string" ? obj.query : undefined,
   };
 }
 
@@ -407,6 +443,12 @@ async function dispatchAiTool(name: AiToolName, rawArgs: unknown, ctx: AiToolCal
       return runGetFreelancerWorkload(ctx, { from: args.from, to: args.to });
     case "getLeadPipeline":
       return runGetLeadPipeline(ctx);
+    case "searchSemantic":
+      // query is declared required in the tool schema, but a malformed tool call from the model
+      // is still possible (see parseArgs's own doc comment on this class of failure) — degrade to
+      // an empty result set rather than throwing and aborting the whole tool-calling turn.
+      if (!args.query) return { results: [] };
+      return runSearchSemantic(ctx, { query: args.query });
   }
 }
 

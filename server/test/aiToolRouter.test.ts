@@ -10,7 +10,7 @@ import { routeToolNames } from "../src/services/aiToolRouter.js";
 const ALL_TOOL_NAMES = [
   "getLeads", "getClients", "getProjects", "getTasks", "getFreelancers",
   "getAgencyOverview", "getOverdueProjects", "getOverdueInvoices",
-  "getFreelancerWorkload", "getLeadPipeline",
+  "getFreelancerWorkload", "getLeadPipeline", "searchSemantic",
   "proposeCreateTask", "proposeUpdateLeadStatus", "proposeUpdateTaskStatus",
 ];
 

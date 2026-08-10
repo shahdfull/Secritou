@@ -47,11 +47,15 @@ const CATEGORY_KEYWORDS: Record<string, readonly string[]> = {
   ],
 };
 
+// SEC-070: searchSemantic spans all 3 entity types (Lead.notes/Project.description/
+// Task.description) in a single query — no category maps to it alone, so it rides along on
+// leads/projects/tasks (the entity categories it actually searches across) rather than needing
+// its own keyword list. Same "include more rather than fewer" doctrine as the module comment.
 const CATEGORY_TOOLS: Record<string, readonly ToolName[]> = {
-  leads: ["getLeads", "getLeadPipeline"],
+  leads: ["getLeads", "getLeadPipeline", "searchSemantic"],
   clients: ["getClients"],
-  projects: ["getProjects", "getOverdueProjects"],
-  tasks: ["getTasks"],
+  projects: ["getProjects", "getOverdueProjects", "searchSemantic"],
+  tasks: ["getTasks", "searchSemantic"],
   freelancers: ["getFreelancers", "getFreelancerWorkload"],
   overview: ["getAgencyOverview"],
   overdue: ["getOverdueProjects", "getOverdueInvoices"],
