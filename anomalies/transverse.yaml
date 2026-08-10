@@ -584,6 +584,78 @@ anomalies:
       0 violation de niveau critique/sérieux non justifiée par une
       exception documentée (même doctrine que l'exception
       react-refresh/only-export-components de CLAUDE.md).
+  - id: SEC-105
+    titre: >
+      Régression CI sur e2e/sonner-palette-contrast.spec.ts (SEC-100) :
+      le job e2e du commit 2391409 (2026-08-10T16:07:46Z, avant cette
+      session, non lié à ses modifications) échoue sur 2 tests axe-core
+      (toast.success ET toast.error), alors que sonner.tsx n'a pas changé
+      depuis le commit du fix (1e0035c, 2026-08-04, CI verte confirmée à
+      l'époque).
+    perimetre: transverse
+    regle_violee: >
+      WCAG 1.4.3 (4.5:1) — même règle que SEC-100, mesurée à nouveau non
+      conforme en CI alors que le code source (sonner.tsx) est identique
+      à celui validé lors de la clôture de SEC-100.
+    classe: regression-ci-contraste-non-expliquee
+    gravite: moyenne
+    statut: ouvert
+    detecte_le: "2026-08-10"
+    source: >
+      Repéré en vérifiant, à la demande du porteur, pourquoi le run CI
+      31407302524 (commit 2391409, avant cette session) apparaissait en
+      failure dans `gh run list`. Log complet récupéré via
+      `gh run view 31407302524 --log-failed`. 4 échecs (2 tests × retry)
+      sur 13 tests du job e2e, 9 passed au total.
+    confiance: >
+      Élevée sur le FAIT de la régression (log CI cité, commit isolé via
+      git log -- sonner.tsx confirmant zéro changement de code entre le
+      fix (1e0035c, CI verte) et l'échec (2391409, CI failure)). Basse
+      sur la CAUSE : hypothèse de capture axe-core pendant une transition
+      CSS d'entrée du toast (Sonner anime l'apparition, le test scanne
+      immédiately après toBeVisible() sans attente de stabilisation,
+      contrairement au pattern déjà documenté pour SEC-096/NotificationBell
+      — badge conditionnel capturé au mauvais instant) N'A PAS été
+      vérifiée par une relance locale du test — pas de serveur de dev
+      actif au moment de cette investigation, relance non effectuée pour
+      ne pas engager un nouveau cycle serveur/build/test sans validation
+      du porteur.
+    note: >
+      Couleurs mesurées en CI : success #1e8b69/#eefdf6 (contraste 4.04,
+      1ère tentative) puis #128461/#edfdf5 (contraste 4.43, retry) ;
+      error #d7575c/#fef5f5 (contraste 3.62, 2 tentatives identiques).
+      Aucune de ces couleurs ne correspond à la palette Tailwind du code
+      actuel (client/src/components/ui/sonner.tsx : emerald-700 #047857
+      / emerald-50 #ecfdf5 pour success, red-700 #b91c1c / red-50
+      #fef2f2 pour error — ratios documentés 5.21:1/5.91:1 dans SEC-100,
+      donc conformes si appliqués). Ne correspond pas non plus aux
+      variables CSS natives --success-bg/--error-bg de Sonner
+      (node_modules/sonner/dist/styles.css, HSL). Les 2 tentatives du
+      test success donnent des couleurs LÉGÈREMENT différentes l'une de
+      l'autre (4.04 vs 4.43) — cohérent avec un état transitoire
+      capturé à 2 instants différents d'une même animation, pas avec une
+      valeur stable et reproductible (un vrai défaut de palette donnerait
+      la même mesure à chaque tentative). Le test unitaire
+      sonner.test.tsx (vitest) ne couvre que la présence de la classe
+      CSS sur l'élément, jamais la couleur RENDUE/calculée — ne peut donc
+      pas détecter ce type de régression, contrairement à
+      e2e/sonner-palette-contrast.spec.ts qui scanne le DOM réel.
+    critere_de_resolution: >
+      Le test e2e/sonner-palette-contrast.spec.ts passe de façon stable
+      sur au moins 3 exécutions consécutives (locales ou CI) contre le
+      build de production. Si la cause est bien une capture pendant
+      transition : ajouter une attente de stabilisation (ex.
+      page.waitForTimeout après toBeVisible, ou attendre la fin de
+      l'animation Sonner via une classe/état dédié) avant le scan
+      axe-core, puis reconfirmer. Si le test reste rouge après
+      stabilisation de la capture : la régression est réelle, il faut
+      alors réexaminer pourquoi la palette de sonner.tsx ne s'applique
+      plus (conflit de spécificité CSS possible entre background/color
+      de Sonner et !bg-*/!text-* de Tailwind — piste non explorée ici).
+    declencheur_reexamen: >
+      Sans objet tant qu'ouvert — se résout par investigation directe,
+      pas par un nouveau signal externe.
+
   - id: SEC-104
     titre: >
       SEC-095/SEC-103 ont été marquées resolu (commit f2e1c01,
