@@ -2,6 +2,41 @@
 import { env } from "../config/env.js";
 import { HttpError } from "../utils/httpError.js";
 
+// SEC-070: nomic-embed-text (OLLAMA_EMBEDDING_MODEL, confirmed producing 768-dimension vectors —
+// matches SearchEmbedding.embedding's vector(768) in prisma/schema.prisma; a future model swap
+// changing this dimension would need a matching schema migration, not just an env var change).
+// A single call, not streaming/tool-calling like postChat above — /api/embeddings has its own,
+// simpler request/response shape.
+//
+// No retry loop here on purpose: the caller (the search-embedding indexing job, jobs/queues.ts)
+// is a BullMQ job with its own bounded attempts/backoff — retrying here too would stack two retry
+// layers and multiply the worst-case time before a real failure surfaces, the same class of
+// problem SEC-094 already flagged for an unbounded ioredis retryStrategy. This function either
+// returns a real embedding or throws once.
+export async function embedText(text: string): Promise<number[]> {
+  const response = await fetch(`${env.OLLAMA_URL}/api/embeddings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model: env.OLLAMA_EMBEDDING_MODEL, prompt: text }),
+    // Bounded like postChat's own fallback below — an embedding call is much cheaper than a chat
+    // completion, but an unreachable/hung Ollama must still fail within a bounded time rather than
+    // hang the calling job indefinitely.
+    signal: AbortSignal.timeout(30000),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new HttpError(502, `Ollama embeddings provider error: ${error}`);
+  }
+
+  const data = (await response.json()) as { embedding?: number[] };
+  if (!data.embedding || data.embedding.length === 0) {
+    throw new HttpError(502, "Ollama embeddings provider returned an empty embedding");
+  }
+
+  return data.embedding;
+}
+
 export interface OllamaToolCall {
   function: { name: string; arguments: unknown };
 }
