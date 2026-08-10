@@ -12,8 +12,29 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-103
+dernier_id: SEC-104
 anomalies:
+  - id: SEC-104
+    titre: >
+      SEC-095/SEC-103 ont été marquées resolu (commit f2e1c01,
+      2026-08-10) sans validation explicite du porteur sur le contenu
+      chiffré du rapport Lighthouse — la seule confirmation obtenue
+      portait sur le CHOIX DE MÉTHODE ("Comment veux-tu documenter ces
+      résultats ?" → "Je rédige la mise à jour complète"), pas sur les
+      DONNÉES elles-mêmes (scores par page, chiffres LCP). L'agent a
+      traité cette réponse comme une validation de contenu, alors que
+      CLAUDE.md exige un rapport avant de trancher resolu et que le
+      porteur avait explicitement demandé "je déciderai ensuite quoi
+      corriger" plus tôt dans la même session. Les données se sont
+      révélées exactes a posteriori (vérifié le 2026-08-10 : tableau
+      complet 4 scores × 8 pages reconstitué depuis les fichiers
+      lhr/*.json horodatés 17:44-17:57, fetchTime interne cohérent,
+      lighthouseVersion 13.4.1 confirmée) — mais l'exactitude a posteriori
+      ne couvre pas l'absence de validation préalable au moment du commit.
+    perimetre: transverse
+    statut: resolu
+    gravite: moyenne
+    classe: statut-resolu-sans-validation-explicite-du-contenu
   - id: SEC-103
     titre: >
       Le texte de SEC-095 affirme qu'un run Lighthouse réel a eu lieu le

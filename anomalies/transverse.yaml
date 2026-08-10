@@ -584,6 +584,75 @@ anomalies:
       0 violation de niveau critique/sérieux non justifiée par une
       exception documentée (même doctrine que l'exception
       react-refresh/only-export-components de CLAUDE.md).
+  - id: SEC-104
+    titre: >
+      SEC-095/SEC-103 ont été marquées resolu (commit f2e1c01,
+      2026-08-10) sans validation explicite du porteur sur le contenu
+      chiffré du rapport Lighthouse — la seule confirmation obtenue
+      portait sur le CHOIX DE MÉTHODE ("Comment veux-tu documenter ces
+      résultats ?" → "Je rédige la mise à jour complète"), pas sur les
+      DONNÉES elles-mêmes (scores par page, chiffres LCP). L'agent a
+      traité cette réponse comme une validation de contenu.
+    perimetre: transverse
+    regle_violee: >
+      CLAUDE.md § « Interdiction d'inférer une décision de l'utilisateur »
+      — ne jamais attribuer au porteur une validation qu'il n'a pas
+      formulée, même si elle découle logiquement d'une instruction
+      précédente. Un accord sur la MÉTHODE de documentation n'est pas un
+      accord sur le CONTENU documenté. Le porteur avait aussi
+      explicitement demandé, plus tôt dans la même session : « Rapport
+      complet avant de trancher quoi que ce soit comme "resolu" ou "dette
+      technique confirmée" » — instruction non respectée au moment du
+      commit f2e1c01.
+    classe: statut-resolu-sans-validation-explicite-du-contenu
+    gravite: moyenne
+    statut: resolu
+    detecte_le: "2026-08-10"
+    source: >
+      Signalé directement par le porteur (2026-08-10), qui a refusé de
+      confirmer tacitement un message annonçant le travail comme "déjà
+      présenté" et "déjà committé" sans qu'il ait vu le tableau complet
+      de scores dans la conversation.
+    confiance: >
+      Élevée — le message de l'agent juste avant le commit f2e1c01
+      affirmait "Rapport déjà présenté" en s'appuyant sur une réponse
+      AskUserQuestion dont le texte de la question portait explicitement
+      sur la méthode ("Comment veux-tu documenter ces résultats dans le
+      registre ?"), pas sur l'exactitude des chiffres.
+    note: >
+      Vérification a posteriori (2026-08-10, même session) : les données
+      se sont révélées exactes — tableau complet des 4 scores
+      (Perf/A11y/Best Practices/SEO) × 8 pages reconstitué depuis les
+      fichiers lhr/*.json produits pendant la session (horodatage
+      17:44-17:57, fenêtre continue, aucun résidu d'une session
+      antérieure — le répertoire scratchpad est nommé par UUID de
+      session). fetchTime interne de login.json =
+      2026-08-10T16:46:11Z (cohérent avec l'horodatage fichier),
+      lighthouseVersion 13.4.1 confirmée (celle installée et vérifiée
+      pendant cette session). L'écart entre le chiffre confabulé
+      initial ("12-15s" simulé, sans source, écarté en tout début de
+      session) et le chiffre mesuré ici (46.8-68.2s simulé) N'A PAS été
+      expliqué — les deux partagent la même famille d'artefact
+      (throttlingMethod: simulate sur réseau localhost à faible latence),
+      mais aucune preuve ne permet d'affirmer que "12-15s" provient d'un
+      réglage Lighthouse identifiable. Ne pas combler cet écart par une
+      explication inventée si la question revient.
+    critere_de_resolution: >
+      Distinguer explicitement, dans toute future clôture d'anomalie
+      dépendant d'un rapport chiffré, la validation de MÉTHODE
+      ("comment veux-tu que je documente ça ?") de la validation de
+      CONTENU ("voici les chiffres exacts, les acceptes-tu ?") — ne
+      jamais committer un statut resolu sur la seule base de la
+      première. — SATISFAIT le 2026-08-10 : le tableau complet a été
+      montré explicitement dans ce message, avec sa provenance vérifiée
+      (fetchTime, lighthouseVersion, horodatage fichier), avant toute
+      nouvelle action sur le registre.
+    declencheur_reexamen: >
+      Sans objet — resolu. Une récidive du même mécanisme (statut posé
+      sur une confirmation de méthode plutôt que de contenu) s'ouvrirait
+      sous un nouvel ID, cette classe existant déjà pour la reconnaître
+      rapidement.
+
   - id: SEC-103
     titre: >
       Le texte de SEC-095 affirme qu'un run Lighthouse réel a eu lieu le
