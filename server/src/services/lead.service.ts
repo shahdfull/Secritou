@@ -8,7 +8,7 @@ import { prisma } from "../config/prisma.js";
 import { invalidateTags } from "../cache/cacheService.js";
 import { cacheTags } from "../cache/cacheKeys.js";
 import { userRepository } from "../repositories/user.repository.js";
-import { enqueueNotifications } from "../jobs/queues.js";
+import { enqueueNotifications, enqueueSearchEmbedding } from "../jobs/queues.js";
 import { env } from "../config/env.js";
 import { clientService } from "./client.service.js";
 import { notifyN8n } from "../utils/webhook.js";
@@ -127,6 +127,12 @@ export const leadService = {
       agencyEmail: env.CONTACT_RECEIVER_EMAIL,
     });
 
+    // SEC-070 (RAG sémantique) : indexe dès la création si notes est renseigné — pas de seuil de
+    // longueur (voir REFERENTIEL.md §4.11, décision porteur), tout texte non vide est indexé.
+    if (lead.notes) {
+      void enqueueSearchEmbedding({ entityType: "lead", entityId: lead.id, sourceText: lead.notes });
+    }
+
     return lead;
   },
 
@@ -164,6 +170,12 @@ export const leadService = {
         entityId: id,
         link: `${env.FRONTEND_URL}/app/leads`,
       })));
+    }
+
+    // SEC-070 (RAG sémantique) : réindexe uniquement si notes a réellement changé — un update qui
+    // touche d'autres champs (status, assignedManagerId, ...) ne doit pas ré-enqueuer inutilement.
+    if (data.notes !== undefined && data.notes !== lead.notes && updated.notes) {
+      void enqueueSearchEmbedding({ entityType: "lead", entityId: id, sourceText: updated.notes });
     }
 
     return updated;

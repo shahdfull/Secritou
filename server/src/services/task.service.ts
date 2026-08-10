@@ -1,7 +1,7 @@
 // Service for Tasks - SaaS business logic
 import { taskRepository } from "../repositories/task.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
-import { enqueueNotification, enqueueNotifications } from "../jobs/queues.js";
+import { enqueueNotification, enqueueNotifications, enqueueSearchEmbedding } from "../jobs/queues.js";
 import type { CreateTaskDTO, UpdateTaskDTO } from "../types/entities.js";
 import { HttpError } from "../utils/httpError.js";
 import type { Role, TaskStatus, Priority } from "@prisma/client";
@@ -230,6 +230,13 @@ export const taskService = {
     const tagsToInvalidate = [cacheTags.company(), cacheTags.dashboard(), cacheTags.project(data.projectId)];
     if (project?.clientId) tagsToInvalidate.push(cacheTags.client(project.clientId));
     await invalidateTags(tagsToInvalidate);
+
+    // SEC-070 (RAG sémantique) : indexe dès la création si description est renseignée — pas de
+    // seuil de longueur (voir REFERENTIEL.md §4.11, décision porteur).
+    if (task.description) {
+      void enqueueSearchEmbedding({ entityType: "task", entityId: task.id, sourceText: task.description });
+    }
+
     return task;
   },
 
@@ -432,6 +439,11 @@ export const taskService = {
           }))
         );
       }
+    }
+
+    // SEC-070 (RAG sémantique) : réindexe uniquement si description a réellement changé.
+    if (data.description !== undefined && data.description !== task.description && updated.description) {
+      void enqueueSearchEmbedding({ entityType: "task", entityId: id, sourceText: updated.description });
     }
 
     const tagsToInvalidate = [cacheTags.company(), cacheTags.dashboard(), cacheTags.project(task.projectId)];

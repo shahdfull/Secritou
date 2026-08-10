@@ -30,4 +30,5 @@ export const jobNames = {
   checkApprovalSla: "check-approval-sla",
   weeklyHealthBoardDigest: "weekly-health-board-digest",
   snapshotExecutiveKpis: "snapshot-executive-kpis",
+  indexSearchEmbedding: "index-search-embedding",
 } as const;

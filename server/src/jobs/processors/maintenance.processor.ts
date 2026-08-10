@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma.js";
 import { recordBullMQJob } from "../../observability/collectors.js";
 import { dashboardService } from "../../services/dashboard.service.js";
@@ -6,10 +7,12 @@ import { userRepository } from "../../repositories/user.repository.js";
 import { userSessionRepository } from "../../repositories/userSession.repository.js";
 import { analyticsEventService } from "../../services/analyticsEvent.service.js";
 import { enqueueNotifications } from "../queues.js";
+import type { SearchEmbeddingJob } from "../queues.js";
 import { env } from "../../config/env.js";
 import { notifyN8n } from "../../utils/webhook.js";
 import { auditLogService } from "../../services/auditLog.service.js";
 import { DEFAULT_CURRENCY } from "../../constants/currency.js";
+import { embedText } from "../../services/llm.client.js";
 
 export async function cleanupExpiredRefreshTokens() {
   const start = performance.now();
@@ -449,4 +452,49 @@ export async function snapshotExecutiveKpis() {
 
   recordBullMQJob("maintenance", "snapshot-executive-kpis", "completed", (performance.now() - start) / 1000);
   return scopes.length;
+}
+
+// SEC-070: SearchEmbedding.embedding is declared Unsupported("vector(768)") in schema.prisma —
+// Prisma Client can create/migrate the column but cannot read/write it via normal
+// create/update/upsert calls, only via $queryRaw/$executeRaw. The embedding array is bound as a
+// parameter (not string-interpolated) and cast with ::vector on the Postgres side, so this stays
+// a normal parameterized query, not string-built SQL.
+//
+// Upsert (not create/update) because a "waiting" job can be removed and re-added by
+// enqueueSearchEmbedding on a fast second edit, but an already-"active" job (picked up by the
+// worker) cannot be cancelled — a stale run finishing after a newer one started could otherwise
+// overwrite fresher data with older text; ON CONFLICT here just means "this entity's row always
+// reflects whichever indexing run happens to commit last," consistent with the "corrected by the
+// next edit's own enqueue" behavior already documented on enqueueSearchEmbedding.
+// SECURITY: the column name below is picked from this fixed 3-way switch, never
+// string-interpolated from job.entityType directly — the same allowlist doctrine as
+// assertSafeArchiveTable above, applied to an identifier instead of a table name.
+// ON CONFLICT targets the column itself (not a named CONSTRAINT): leadId/projectId/taskId are
+// each backed by a single-column UNIQUE INDEX, not a named UNIQUE CONSTRAINT (see migration
+// 20260810000000) — Postgres accepts ON CONFLICT (column) against a unique index directly.
+function searchEmbeddingColumn(entityType: SearchEmbeddingJob["entityType"]) {
+  switch (entityType) {
+    case "lead":
+      return Prisma.raw(`"leadId"`);
+    case "project":
+      return Prisma.raw(`"projectId"`);
+    case "task":
+      return Prisma.raw(`"taskId"`);
+  }
+}
+
+export async function processSearchEmbeddingJob(job: SearchEmbeddingJob): Promise<void> {
+  const start = performance.now();
+  const embedding = await embedText(job.sourceText);
+  const vectorLiteral = `[${embedding.join(",")}]`;
+  const column = searchEmbeddingColumn(job.entityType);
+
+  await prisma.$executeRaw`
+    INSERT INTO "SearchEmbedding" (id, ${column}, "sourceText", embedding, model, "createdAt", "updatedAt")
+    VALUES (gen_random_uuid(), ${job.entityId}, ${job.sourceText}, ${vectorLiteral}::vector, ${env.OLLAMA_EMBEDDING_MODEL}, NOW(), NOW())
+    ON CONFLICT (${column})
+    DO UPDATE SET "sourceText" = ${job.sourceText}, embedding = ${vectorLiteral}::vector, model = ${env.OLLAMA_EMBEDDING_MODEL}, "updatedAt" = NOW()
+  `;
+
+  recordBullMQJob("maintenance", "index-search-embedding", "completed", (performance.now() - start) / 1000);
 }

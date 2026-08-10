@@ -22,6 +22,7 @@ import {
   pruneAnalyticsEvents,
   closeStaleUserSessions,
   snapshotExecutiveKpis,
+  processSearchEmbeddingJob,
 } from "./processors/maintenance.processor.js";
 import {
   checkStaleProjects,
@@ -38,7 +39,7 @@ import {
   weeklyHealthBoardDigest,
 } from "./processors/ceoAlerts.processor.js";
 import { userRepository } from "../repositories/user.repository.js";
-import type { NotificationJob, EmailJob, DocumentJob } from "./queues.js";
+import type { NotificationJob, EmailJob, DocumentJob, SearchEmbeddingJob } from "./queues.js";
 
 // bullmq bundles its own ioredis copy whose Redis type is structurally distinct from ours; the
 // instance is compatible at runtime, so bridge through bullmq's ConnectionOptions.
@@ -206,6 +207,9 @@ function startWorkers() {
       }
       if (job.name === jobNames.snapshotExecutiveKpis) {
         return snapshotExecutiveKpis();
+      }
+      if (job.name === jobNames.indexSearchEmbedding) {
+        return processSearchEmbeddingJob(job.data as SearchEmbeddingJob);
       }
       throw new Error(`Unknown job: ${job.name}`);
     },

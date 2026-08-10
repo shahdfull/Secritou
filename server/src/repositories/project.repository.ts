@@ -135,7 +135,7 @@ export const projectRepository = {
   async findByIdAdmin(id: string) {
     return prisma.project.findFirst({
       where: { id, archivedAt: null, deletedAt: null },
-      select: { id: true, name: true, status: true, clientId: true, serviceId: true },
+      select: { id: true, name: true, status: true, clientId: true, serviceId: true, description: true },
     });
   },
 

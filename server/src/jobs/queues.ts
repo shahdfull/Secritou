@@ -207,3 +207,47 @@ export async function enqueueDocumentGeneration(jobs: DocumentJob[]): Promise<vo
     }
   }
 }
+
+// ─── Search embedding indexing job (SEC-070) ──────────────────────────────────
+
+export type SearchEmbeddingJob = {
+  entityType: "lead" | "project" | "task";
+  entityId: string;
+  sourceText: string;
+};
+
+// One embedding row per entity (leadId/projectId/taskId are @unique on SearchEmbedding) — the
+// jobId is keyed on entity identity alone, never on content, so it stays stable across edits.
+// BullMQ rejects a custom jobId containing ":" — see notificationJobId's comment above.
+function searchEmbeddingJobId(entityType: SearchEmbeddingJob["entityType"], entityId: string): string {
+  return `search-embedding|${entityType}|${entityId}`;
+}
+
+// SEC-070: an entity's notes/description can change again before the previous indexing job has
+// run (e.g. two quick edits to the same lead). A plain queue.add() with a fixed jobId would be a
+// silent no-op on the second call (BullMQ treats a duplicate jobId already pending/active as a
+// no-op, it does NOT overwrite the first job's data — verified by reading BullMQ's own
+// addStandardJob/handleDuplicatedJob Lua source), so the second edit's text would never reach
+// the processor. Removing any still-pending job for this entity before re-adding ensures the
+// LAST write before the job actually runs is always the one indexed — an already-active job
+// (picked up by the worker, no longer in the "waiting" state) can't be removed this way and is
+// left to finish; its result is stale by one edit at worst, corrected by the next
+// create/update's own enqueue.
+export async function enqueueSearchEmbedding(data: SearchEmbeddingJob): Promise<void> {
+  const jobId = searchEmbeddingJobId(data.entityType, data.entityId);
+  try {
+    const existing = await maintenanceQueue.getJob(jobId);
+    if (existing) {
+      const state = await existing.getState();
+      if (state === "waiting" || state === "delayed") {
+        await existing.remove();
+      }
+    }
+    await maintenanceQueue.add(jobNames.indexSearchEmbedding, data, { jobId });
+  } catch (error) {
+    logger.error({ err: error }, "[jobs] Failed to enqueue search embedding indexing");
+    if (env.SENTRY_DSN) {
+      Sentry.captureException(error);
+    }
+  }
+}

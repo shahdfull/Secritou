@@ -3,7 +3,7 @@ import logger from "../utils/logger.js";
 import { projectRepository } from "../repositories/project.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { clientRepository } from "../repositories/client.repository.js";
-import { enqueueNotifications, enqueueDocumentGeneration } from "../jobs/queues.js";
+import { enqueueNotifications, enqueueDocumentGeneration, enqueueSearchEmbedding } from "../jobs/queues.js";
 import type { CreateProjectDTO } from "../types/entities.js";
 import { HttpError } from "../utils/httpError.js";
 import type { Role, ProjectStatus } from "@prisma/client";
@@ -76,6 +76,12 @@ export const projectService = {
       agencyEmail: env.CONTACT_RECEIVER_EMAIL,
     });
 
+    // SEC-070 (RAG sémantique) : indexe dès la création si description est renseignée — pas de
+    // seuil de longueur (voir REFERENTIEL.md §4.11, décision porteur).
+    if (project.description) {
+      void enqueueSearchEmbedding({ entityType: "project", entityId: project.id, sourceText: project.description });
+    }
+
     return project;
   },
 
@@ -136,6 +142,11 @@ export const projectService = {
           }))
         );
       }
+    }
+
+    // SEC-070 (RAG sémantique) : réindexe uniquement si description a réellement changé.
+    if (safeData.description !== undefined && safeData.description !== project.description && updated.description) {
+      void enqueueSearchEmbedding({ entityType: "project", entityId: id, sourceText: updated.description });
     }
 
     const tagsToInvalidate = [cacheTags.company(), cacheTags.dashboard(), cacheTags.project(id)];
