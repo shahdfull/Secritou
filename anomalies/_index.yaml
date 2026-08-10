@@ -30,9 +30,14 @@ anomalies:
       la preuve elle-même de l'affirmation factuelle est introuvable, pas
       seulement non rapprochée automatiquement d'un statut.
     perimetre: transverse
-    statut: ouvert
+    statut: resolu
     gravite: moyenne
     classe: registre-affirmation-non-sourcee
+    note: >
+      Résolu le 2026-08-10 : l'affirmation non sourcée a été retirée du
+      texte de SEC-095 (remplacée par une mention NON VÉRIFIABLE puis par
+      les données du run réel du 2026-08-10, qui rend la question sans
+      objet). Détail complet dans anomalies/transverse.yaml#SEC-103.
   - id: SEC-102
     titre: >
       authRateLimit (server/src/middlewares/rateLimit.middleware.ts, 30
@@ -290,42 +295,36 @@ anomalies:
   - id: SEC-095
     titre: >
       Dette technique — Aucun audit Lighthouse (performance/
-      accessibilité/bonnes pratiques) jamais exécuté sur le frontend,
-      REGELÉE le 2026-08-04 après un premier passage réel. À l'origine
-      (2026-08-03) : aucune trace dans le dépôt (scripts, CI, config)
-      d'un run Lighthouse, historique ou programmé. Le dégel du
-      2026-08-03 a produit 4 correctifs d'accessibilité réels (aria,
-      contraste — commit 8e9da93), dont la découverte de SEC-098
-      (aria-allowed-attr sur GlobalSearch, cf. rapport SEC-095/096 du
-      2026-08-03) et l'investigation ayant mené à SEC-099/100 — toutes
-      trois resolu, CI verte confirmée (commits
-      01cbc1e/d249f93/570f949/1e0035c). NON VÉRIFIABLE : l'affirmation
-      qu'un run Lighthouse complet (scores perf/a11y/bonnes pratiques)
-      a réellement eu lieu ce jour-là — aucune preuve trouvée (ni
-      rapport, ni fichier de résultats, ni commit citant un score) ; cf.
-      SEC-103. Ce n'est donc pas un audit resté sans suite sur son volet
-      accessibilité, mais son volet Lighthouse/performance proprement dit
-      reste non prouvé. L'audit Lighthouse répété/étendu à d'autres pages n'a
-      pas de valeur ajoutée immédiate identifiée — 0 client actif au
-      moment du regel rend la mesure de performance réelle sous charge
-      non représentative de toute façon tant qu'il n'y a pas de trafic
-      réel à observer.
+      accessibilité/bonnes pratiques) jamais exécuté sur le frontend.
+      RÉOUVERTE le 2026-08-10 (demande explicite du porteur, déclencheur
+      2 déjà documenté), un run Lighthouse complet réel a cette fois été
+      exécuté sur les 8 pages prioritaires (build de production,
+      throttlingMethod simulate ET provided) — voir note_degel pour les
+      chiffres. Historique : à l'origine (2026-08-03) aucune trace d'un
+      run Lighthouse dans le dépôt. Le dégel du 2026-08-03 avait produit
+      4 correctifs d'accessibilité réels (commit 8e9da93), contribuant à
+      SEC-098/099/100 (resolu, CI verte) — mais l'affirmation qu'un run
+      Lighthouse complet avait eu lieu ce jour-là restait sans preuve
+      (cf. SEC-103, ouverte le 2026-08-10 puis resolue par le run du
+      2026-08-10 documenté ci-dessous).
     perimetre: transverse
-    statut: gelé
+    statut: resolu
     note_degel: >
-      Dégelé le 2026-08-03 (demande explicite du porteur), a produit un
-      run Lighthouse réel sur 8 pages qui a contribué à la découverte de
-      SEC-098/099/100 (tous resolu, CI verte confirmée). Regelé le
-      2026-08-04 (demande explicite du porteur) : le dégel a produit ce
-      qu'il pouvait produire, l'audit exhaustif répété n'a pas de valeur
-      ajoutée immédiate identifiée.
+      Dégelé le 2026-08-03 (demande explicite du porteur), a produit 4
+      correctifs d'accessibilité réels (commit 8e9da93) qui ont
+      contribué à la découverte de SEC-098/099/100 (tous resolu, CI
+      verte confirmée) — mais l'affirmation d'un run Lighthouse complet
+      réel ce jour-là n'avait aucune preuve trouvée (cf. SEC-103).
+      Regelé le 2026-08-04, puis réouvert le 2026-08-10 (demande
+      explicite du porteur) : run Lighthouse complet réel exécuté sur
+      les 8 pages (login, dashboard-admin, dashboard-manager, crm,
+      module-ia, portail-client, contact, join-us), build de production,
+      détail complet dans anomalies/transverse.yaml#SEC-095.
     gravite: mineure
     classe: dette-technique
     declencheur_reexamen: >
-      Premier des deux : (1) un signal de performance réel remonté après
-      lancement (temps de chargement perçu comme lent par un
-      utilisateur/testeur), ou (2) demande explicite du porteur
-      d'intégrer un run Lighthouse à la CI — jamais par défaut.
+      Sans objet — resolu. Un audit futur (nouvelles pages, régression
+      de score) s'ouvrirait sous un nouvel ID.
   - id: SEC-094
     titre: >
       redisConnection.ts#getBullRedisConnection instancie un client

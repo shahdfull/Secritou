@@ -604,8 +604,9 @@ anomalies:
       était présente sans source vérifiable.
     classe: registre-affirmation-non-sourcee
     gravite: moyenne
-    statut: ouvert
+    statut: resolu
     detecte_le: "2026-08-10"
+    resolu_le: "2026-08-10"
     source: >
       Découverte incidente pendant le dégel demandé par le porteur de
       SEC-095 (2026-08-10) : investigation du contenu technique attendu
@@ -637,59 +638,146 @@ anomalies:
       perf/a11y/bonnes pratiques) et rattachée à SEC-095/SEC-103, soit
       l'affirmation reste durablement documentée comme NON VÉRIFIABLE
       dans SEC-095 — dans les deux cas SEC-103 passe resolu une fois le
-      texte de SEC-095 mis en cohérence avec la conclusion retenue.
+      texte de SEC-095 mis en cohérence avec la conclusion retenue. —
+      SATISFAIT le 2026-08-10 (seconde branche) : aucune preuve du run du
+      2026-08-03 n'a été retrouvée, mais la question est devenue sans
+      objet pratique — un nouveau run Lighthouse complet réel a été
+      exécuté le 2026-08-10 (cf. SEC-095, resolu), rendant le litige sur
+      l'authenticité du run de 2026-08-03 non bloquant pour la clôture du
+      backlog Lighthouse.
     declencheur_reexamen: >
-      Découverte d'une source datée du 2026-08-03 (rapport, log CI,
-      artifact) confirmant ou infirmant explicitement l'exécution d'un
-      run Lighthouse complet ce jour-là — jamais par supposition.
+      Sans objet — resolu. Une découverte tardive d'une preuve du run du
+      2026-08-03 pourrait être ajoutée en note ici à titre historique,
+      mais ne rouvrirait pas cet ID.
 
   - id: SEC-095
     titre: >
       Dette technique — Aucun audit Lighthouse (performance/
-      accessibilité/bonnes pratiques) jamais exécuté sur le frontend,
-      REGELÉE le 2026-08-04 après un premier passage réel. À l'origine
-      (2026-08-03) : aucune trace dans le dépôt (scripts, CI, config)
-      d'un run Lighthouse, historique ou programmé. Le dégel du
-      2026-08-03 a produit 4 correctifs d'accessibilité réels (aria,
-      contraste — commit 8e9da93), qui ont contribué à la découverte de
-      SEC-098 (aria-allowed-attr sur GlobalSearch) et alimenté
-      l'investigation ayant mené à SEC-099/100 — toutes trois resolu, CI
-      verte confirmée (commits 01cbc1e/d249f93/570f949/1e0035c). NON
-      VÉRIFIABLE : l'affirmation qu'un run Lighthouse complet (scores
-      perf/a11y/bonnes pratiques) a réellement eu lieu ce jour-là —
-      aucune preuve trouvée (ni rapport, ni fichier de résultats, ni
-      commit citant un score) ; cf. SEC-103. Ce n'est donc pas un audit
-      resté sans suite sur son volet accessibilité, mais son volet
-      Lighthouse/performance proprement dit reste non prouvé. L'audit
-      Lighthouse répété/étendu à d'autres pages n'a pas de valeur ajoutée
-      immédiate identifiée — 0 client actif au moment du regel rend la
-      mesure de performance réelle sous charge non représentative de
-      toute façon tant qu'il n'y a pas de trafic réel à observer.
+      accessibilité/bonnes pratiques) jamais exécuté sur le frontend.
+      RÉOUVERTE le 2026-08-10 (demande explicite du porteur, déclencheur
+      2 déjà documenté), RESOLU le même jour par un run Lighthouse
+      complet réel sur les 8 pages prioritaires — voir critere_de_resolution
+      pour le détail des chiffres. Historique : à l'origine (2026-08-03)
+      aucune trace d'un run Lighthouse dans le dépôt. Le dégel du
+      2026-08-03 avait produit 4 correctifs d'accessibilité réels (aria,
+      contraste — commit 8e9da93), contribuant à la découverte de SEC-098
+      (aria-allowed-attr sur GlobalSearch) et à l'investigation ayant
+      mené à SEC-099/100 — toutes trois resolu, CI verte confirmée
+      (commits 01cbc1e/d249f93/570f949/1e0035c) — mais l'affirmation
+      qu'un run Lighthouse complet avait eu lieu ce jour-là restait sans
+      preuve trouvable (cf. SEC-103, ouverte puis resolue le 2026-08-10).
     perimetre: transverse
     regle_violee: >
       Aucune règle de REFERENTIEL.md n'exige un audit Lighthouse avant
       lancement — backlog explicite, pas un manquement.
     classe: dette-technique
     gravite: mineure
-    statut: gelé
+    statut: resolu
     note_degel: >
       Dégelé le 2026-08-03 (demande explicite du porteur), a produit 4
       correctifs d'accessibilité réels (commit 8e9da93) qui ont
       contribué à la découverte de SEC-098/099/100 (tous resolu, CI
       verte confirmée). L'affirmation d'un run Lighthouse complet réel ce
-      jour-là n'a aucune preuve trouvée — cf. SEC-103. Regelé le
-      2026-08-04 (demande explicite du porteur) : le dégel a produit ce
-      qu'il pouvait produire, l'audit exhaustif répété n'a pas de valeur
-      ajoutée immédiate identifiée.
+      jour-là n'avait aucune preuve trouvée (cf. SEC-103, resolue).
+      Regelé le 2026-08-04, réouvert le 2026-08-10 (demande explicite du
+      porteur) pour exécuter le run complet manquant.
     declencheur_reexamen: >
-      Premier des deux : (1) un signal de performance réel remonté après
-      lancement (temps de chargement perçu comme lent par un
-      utilisateur/testeur), ou (2) demande explicite du porteur
-      d'intégrer un run Lighthouse à la CI — jamais par défaut.
+      Sans objet — resolu. Une régression de score constatée après
+      lancement, ou l'ajout de nouvelles pages prioritaires, s'ouvrirait
+      sous un nouvel ID plutôt que de rouvrir celui-ci.
     critere_de_resolution: >
       Un run Lighthouse réel exécuté sur les routes principales
       (production build, pas dev server), résultats consignés, toute
-      anomalie de score critique enregistrée sous son propre ID.
+      anomalie de score critique enregistrée sous son propre ID. —
+      SATISFAIT le 2026-08-10.
+    source: >
+      Run Lighthouse 13.4.1 exécuté le 2026-08-10 contre le build de
+      production réel (npm run build, client/dist servi par vite preview
+      port 5173) et le serveur Express réel (port 5000, DB Postgres
+      réelle, comptes de test seedés admin@secritou.tn/manager@secritou.tn/
+      client3@example.tn). Pilotage programmatique via Puppeteer 25.3.0 +
+      module lighthouse en mode module (pas le CLI seul — le CLI avec
+      --user-data-dir s'est révélé peu fiable pour réutiliser un profil
+      Chrome authentifié, cf. note technique ci-dessous). Rapports JSON
+      complets conservés (hors dépôt, scratchpad de session) pour chacune
+      des 8 pages.
+    confiance: >
+      Élevée — mesures réelles sur build de production, authentification
+      confirmée par finalDisplayedUrl correspondant à la page cible (pas
+      de redirection /login) pour les 5 pages protégées, vérifié
+      individuellement pour chacune.
+    note: >
+      RÉSULTATS — scores (throttlingMethod simulate, mobile, profil
+      standard) : login 50/94/100/69 (perf/a11y/best-practices/seo),
+      dashboard-admin 16/100/100/66, dashboard-manager 26/100/96/66, crm
+      27/100/100/66, module-ia 36/100/100/66, portail-client 35/96/100/66,
+      contact 21/99/100/100, join-us 38/98/100/100. Scores Performance
+      uniformément bas (16-50) et LCP simulé uniformément élevé (46.8s à
+      68.2s) sur les 8 pages — signal caractéristique d'un artefact de
+      méthode plutôt que d'un problème de performance réel par page.
+
+      ÉCART LCP SIMULÉ VS RÉEL — confirmé et mesuré (pas hérité d'une
+      estimation antérieure) : sur login, throttlingMethod=simulate donne
+      LCP 46.8-50.1s (score perf 45-50) contre throttlingMethod=provided
+      (mesure réelle, sans modèle réseau simulé) qui donne LCP 1.2s
+      (score perf 100). Confirmé indépendamment par l'audit
+      lcp-breakdown-insight (existe réellement dans Lighthouse 13.4.1,
+      vérifié via --list-all-audits avant utilisation) : login = TTFB
+      306ms + element render delay 957ms ≈ 1.26s réel ; dashboard-admin
+      = TTFB 5.7ms + element render delay 1410ms ≈ 1.4s réel — cohérent
+      avec le mode provided, très loin des 46-68s en mode simulate. Cause
+      probable : le modèle de simulation réseau de Lighthouse suppose une
+      latence réseau réaliste (mobile 4G typique) inexistante sur
+      localhost. Consistant avec l'observation déjà notée dans l'artifact
+      "Clôture Phase 2 QA" (2026-08-01) sur le blocage d'environnement
+      Chromium de l'époque, mais mesuré ici pour la première fois avec
+      des chiffres réels et sourcés.
+
+      BUNDLE — mesures réelles sur le build actuel (client/dist, npm run
+      build) : bundle initial 334 kB brut / 107 kB gzip
+      (index-C-GOF40f.js) + vendor 231 kB / 74 kB gzip
+      (vendor-gds-jnxs.js), 2 chunks séparés du bundle initial. Chunks
+      lourds hors bundle initial (dynamic import, déjà lazy) : AG Grid
+      (index.esm-DyEwnT83.js) 1084 kB / 303 kB gzip — le plus lourd du
+      projet ; TextLayer (pdf.js, lecture de PDF) 422 kB / 125 kB gzip ;
+      jspdf+jspdf-autotable (jspdf.es.min-43wZwb7W.js) 386 kB / 126 kB
+      gzip, usage confirmé par lecture directe de
+      client/src/features/reports/exportPdf.ts : 2 tableaux simples
+      (leads, projets) via autoTable, aucune image/manipulation PDF
+      avancée ; exceljs (exceljs.min-61eo3SJe.js) 936 kB / 270 kB gzip,
+      usage confirmé par lecture directe de
+      client/src/features/reports/exportExcel.ts : écriture seule
+      (jamais de lecture), export XLSX 2 feuilles à colonnes textuelles
+      simples, aucun style/formule avancé. Les deux (jspdf, exceljs) sont
+      déjà en import() dynamique — confirmés absents de index.html et du
+      bundle initial par grep direct.
+
+      CORRECTION D'UNE CONFUSION ANTÉRIEURE (session du 2026-08-10, avant
+      ce run) : un chiffre de ~1084 kB/303 kB gzip avait été
+      provisoirement attribué à jspdf dans la conversation ayant motivé
+      ce dégel — vérification directe du contenu du chunk (grep de
+      marqueurs "AG Grid"/"ag-grid"/"agGrid") a confirmé qu'il s'agit en
+      réalité d'AG Grid (ag-grid-community, utilisé par 19 fichiers
+      applicatifs), pas de jspdf. jspdf est en réalité le plus léger des
+      chunks lourds mesurés (386 kB/126 kB gzip).
+
+      NOTE TECHNIQUE (pour un futur run) : Lighthouse CLI avec
+      --chrome-flags="--user-data-dir=..." s'est révélé peu fiable pour
+      réutiliser un profil Chrome pré-authentifié (2 tentatives
+      échouées, redirection systématique vers /login malgré cookie +
+      marqueur localStorage hasSession correctement posés et vérifiés
+      persistants via Puppeteer seul). Cause probable : chrome-launcher
+      (dépendance interne de Lighthouse CLI) ne relance pas le profil de
+      façon strictement identique à un lancement Puppeteer direct.
+      Contournement qui a fonctionné : piloter Puppeteer soi-même
+      (browser.launch() sans userDataDir, cookie posé en mémoire via
+      context.setCookie() juste avant chaque run) et connecter Lighthouse
+      en mode module (pas CLI) au port de debug de cette instance déjà
+      ouverte. Point additionnel découvert : le refresh token
+      (secritou_refresh) tourne avec détection de réutilisation
+      (auth.service.ts) — poser le même token pour 2 pages successives
+      du même rôle échoue (le premier run le consomme/rotate), un login
+      frais est nécessaire par page.
   - id: SEC-094
     titre: >
       redisConnection.ts#getBullRedisConnection instancie un client
