@@ -653,12 +653,20 @@ anomalies:
         - workbook.addWorksheet(name) × 2 feuilles nommées → VÉRIFIÉ
           équivalent (noms "Leads"/"Projets" confirmés dans
           xl/workbook.xml du fichier généré, inspection ZIP directe).
-        - .columns avec header+width → PARTIELLEMENT vérifié : les
-          en-têtes texte sont confirmés présents (sharedStrings.xml),
-          mais les LARGEURS de colonnes n'ont été vérifiées que par la
-          présence de la structure XML (xl/styles.xml valide), jamais
-          par une ouverture visuelle du fichier dans un tableur pour
-          confirmer un rendu identique à l'ancien.
+        - .columns avec header+width → VÉRIFIÉ équivalent (mise à jour
+          2026-08-11, après investigation complémentaire demandée par
+          le porteur) : en-têtes texte confirmés (sharedStrings.xml) ET
+          largeurs de colonnes confirmées par lecture directe de
+          xl/worksheets/sheet1.xml et sheet2.xml — <cols><col width=.../>
+          — Leads: 30/30/15/20, Projets: 30/50/15, avec
+          customWidth="1" (flag OOXML standard indiquant une largeur
+          explicite). Valeurs strictement identiques à celles du code
+          exceljs d'origine (width: 30/30/15/20 et 30/50/15). Le format
+          <cols><col width>/> est la représentation OOXML standard
+          qu'Excel/LibreOffice/Google Sheets interprètent tous de la
+          même façon — cette lecture directe du XML constitue une
+          vérification définitive, pas une approximation en attente
+          d'un rendu visuel.
         - .addRows(objects[]) → VÉRIFIÉ équivalent (données réelles de
           la DB confirmées dans sharedStrings.xml).
         - xlsx.writeBuffer() → Blob → téléchargement → VÉRIFIÉ
@@ -680,8 +688,9 @@ anomalies:
       SATISFAIT le 2026-08-11 : les 3 points ont été répondus
       explicitement dans cette même session (process reconnu comme
       manquant, fiabilité de la lib vérifiée après coup, équivalence
-      fonctionnelle listée précisément y compris ce qui reste
-      partiellement vérifié).
+      fonctionnelle listée précisément — le point des largeurs de
+      colonnes, initialement partiel, a ensuite été fermé par lecture
+      directe du XML OOXML généré).
     declencheur_reexamen: >
       Sans objet — resolu. Une récidive du même mécanisme (option de
       question incluant une implémentation directe malgré une
