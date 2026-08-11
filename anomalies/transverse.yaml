@@ -584,6 +584,70 @@ anomalies:
       0 violation de niveau critique/sérieux non justifiée par une
       exception documentée (même doctrine que l'exception
       react-refresh/only-export-components de CLAUDE.md).
+  - id: SEC-107
+    titre: >
+      write-excel-file (dépendance client, migration SEC-106) est
+      maintenue par un mainteneur unique (catamphetamine) et ~20x moins
+      téléchargée que les alternatives comparées lors de son adoption
+      — risque de bus factor à moyen terme, pas un défaut de code
+      actuel.
+    perimetre: transverse
+    regle_violee: >
+      Aucune règle de REFERENTIEL.md — dette technique de dépendance,
+      pas un manquement métier ou de sécurité actif. Suivi préventif.
+    classe: risque-dependance-mainteneur-unique
+    gravite: mineure
+    statut: surveillance
+    detecte_le: "2026-08-11"
+    source: >
+      Demande explicite du porteur (2026-08-11), après la clôture de
+      SEC-106 (migration exceljs → write-excel-file) : le constat de
+      fiabilité (mainteneur unique, téléchargements hebdomadaires
+      nettement inférieurs aux alternatives) avait été documenté dans
+      SEC-106#note comme réponse à une question ponctuelle, mais
+      méritait un suivi dédié plutôt que de rester noyé dans le detail
+      d'une anomalie de process déjà résolue.
+    confiance: >
+      Élevée sur les chiffres eux-mêmes (npm view write-excel-file,
+      api.npmjs.org/downloads, GitLab API — tous consultés directement
+      le 2026-08-11, cf. SEC-106 pour le détail). Le risque réel de bus
+      factor lui-même (probabilité d'abandon) n'est pas quantifiable
+      avec les données disponibles — c'est un jugement de prudence, pas
+      une mesure.
+    note: >
+      Chiffres de référence au moment de l'adoption (2026-08-11, cf.
+      SEC-106 pour le détail complet) : write-excel-file v4.1.1,
+      dernière publication 2026-06-08, licence MIT, dépôt GitLab
+      catamphetamine/write-excel-file, 1 seul mainteneur listé,
+      602 209 téléchargements/semaine. Comparé à exceljs (13 171 980/
+      semaine) et xlsx (12 119 995/semaine) au même instant — environ
+      20x moins téléchargé que les deux alternatives les plus établies
+      du même écosystème. 28 issues ouvertes sur GitLab, dernière
+      activité de dépôt le 2026-07-06 (un mois avant l'adoption) :
+      signal d'un projet actif à ce jour, mais avec un lectorat et une
+      probable équipe de contribution nettement plus restreints.
+      PREMIER USAGE DU STATUT "surveillance" dans ce registre (5e
+      valeur, les 4 précédentes étant resolu/ouvert/gelé/en_cours) —
+      distinct de "gelé" : gelé signale un audit reporté (le travail
+      d'inspection n'a pas eu lieu), surveillance signale un risque
+      identifié et accepté en connaissance de cause, à réévaluer
+      seulement si un signal concret apparaît. Ne pas traiter ce
+      statut comme équivalent à "gelé" dans un audit futur.
+    critere_de_resolution: >
+      Sans objet en l'état — ce n'est pas une anomalie à corriger mais
+      un risque à surveiller. Passe à "ouvert" (ou déclenche une
+      décision de migration vers une alternative) si le déclencheur de
+      réexamen se produit.
+    declencheur_reexamen: >
+      Premier des trois : (1) absence de toute publication npm de
+      write-excel-file depuis 12 mois consécutifs (dernière publication
+      connue : 2026-06-08 — donc réexamen si aucune publication d'ici
+      2027-06-08), ou (2) une CVE ouverte et non corrigée sur ce
+      package (vérifiable via `npm audit` ou GitHub/GitLab advisory
+      database), ou (3) une régression fonctionnelle constatée dans le
+      module Rapports imputable à cette dépendance — jamais par
+      simple doute ou date automatique en dehors de ces 3 signaux.
+
   - id: SEC-106
     titre: >
       La migration exceljs → write-excel-file (commit 692154f,

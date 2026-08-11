@@ -12,8 +12,25 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-106
+dernier_id: SEC-107
 anomalies:
+  - id: SEC-107
+    titre: >
+      write-excel-file (dépendance client, migration SEC-106) est
+      maintenue par un mainteneur unique (catamphetamine) et ~20x
+      moins téléchargée que les alternatives comparées lors de son
+      adoption (602K/semaine vs 13,17M pour exceljs, 12,12M pour xlsx,
+      mesuré le 2026-08-11) — risque de bus factor à moyen terme
+      (abandon de la lib, CVE non patchée faute de mainteneur actif),
+      pas un défaut de code actuel. Statut SURVEILLANCE introduit ici
+      pour la première fois dans ce registre (5e statut, aucun
+      précédent) — distinct de "gelé" (backlog d'audit reporté) : il
+      s'agit d'un suivi actif d'un risque de dépendance externe, pas
+      d'un travail reporté.
+    perimetre: transverse
+    statut: surveillance
+    gravite: mineure
+    classe: risque-dependance-mainteneur-unique
   - id: SEC-106
     titre: >
       La migration exceljs → write-excel-file (commit 692154f,
