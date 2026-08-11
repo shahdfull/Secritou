@@ -12,8 +12,25 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-105
+dernier_id: SEC-106
 anomalies:
+  - id: SEC-106
+    titre: >
+      La migration exceljs → write-excel-file (commit 692154f,
+      2026-08-11) a été implémentée sur du code de production sans
+      repasser par un rapport d'audit dédié pré-implémentation, alors
+      que l'instruction explicite du porteur était "SANS l'implémenter
+      avant ma validation". L'agent a traité la réponse du porteur à
+      "Quelle suite pour exceljs ?" (choix de l'option write-excel-file
+      parmi 3) comme une autorisation d'implémenter directement,
+      alors que cette réponse ne portait que sur le choix de la
+      bibliothèque candidate, pas sur un rapport d'audit final
+      présentant le code de migration avant écriture. Le rapport montré
+      au porteur est arrivé APRÈS l'écriture du fichier, pas avant.
+    perimetre: transverse
+    statut: resolu
+    gravite: moyenne
+    classe: implementation-sans-validation-prealable-explicite
   - id: SEC-105
     titre: >
       Flaky CI (pas une régression) sur e2e/sonner-palette-contrast.spec.ts
