@@ -1,51 +1,50 @@
 import type { Lead } from "@/types/lead";
 import type { Project } from "@/types/project";
 
+const HEADER_STYLE = { fontWeight: "bold" as const };
+
 export async function exportReportsExcel(input: {
   leads: Lead[];
   projects: Project[];
 }) {
-  const ExcelJS = (await import("exceljs")).default;
-  const workbook = new ExcelJS.Workbook();
+  const writeXlsxFile = (await import("write-excel-file/browser")).default;
 
-  const leadsSheet = workbook.addWorksheet("Leads");
-  leadsSheet.columns = [
-    { header: "Nom", key: "nom", width: 30 },
-    { header: "Email", key: "email", width: 30 },
-    { header: "Statut", key: "statut", width: 15 },
-    { header: "Date de création", key: "date", width: 20 },
-  ];
-  leadsSheet.addRows(
-    input.leads.map((lead) => ({
-      nom: lead.name,
-      email: lead.email ?? "",
-      statut: lead.status,
-      date: new Date(lead.createdAt).toLocaleDateString("fr-FR"),
-    }))
-  );
+  const leadsSheet = {
+    sheet: "Leads",
+    columns: [{ width: 30 }, { width: 30 }, { width: 15 }, { width: 20 }],
+    data: [
+      [
+        { value: "Nom", ...HEADER_STYLE },
+        { value: "Email", ...HEADER_STYLE },
+        { value: "Statut", ...HEADER_STYLE },
+        { value: "Date de création", ...HEADER_STYLE },
+      ],
+      ...input.leads.map((lead) => [
+        { value: lead.name },
+        { value: lead.email ?? "" },
+        { value: lead.status },
+        { value: new Date(lead.createdAt).toLocaleDateString("fr-FR") },
+      ]),
+    ],
+  };
 
-  const projectsSheet = workbook.addWorksheet("Projets");
-  projectsSheet.columns = [
-    { header: "Nom", key: "nom", width: 30 },
-    { header: "Description", key: "description", width: 50 },
-    { header: "Statut", key: "statut", width: 15 },
-  ];
-  projectsSheet.addRows(
-    input.projects.map((project) => ({
-      nom: project.name,
-      description: project.description ?? "",
-      statut: project.status,
-    }))
-  );
+  const projectsSheet = {
+    sheet: "Projets",
+    columns: [{ width: 30 }, { width: 50 }, { width: 15 }],
+    data: [
+      [
+        { value: "Nom", ...HEADER_STYLE },
+        { value: "Description", ...HEADER_STYLE },
+        { value: "Statut", ...HEADER_STYLE },
+      ],
+      ...input.projects.map((project) => [
+        { value: project.name },
+        { value: project.description ?? "" },
+        { value: project.status },
+      ]),
+    ],
+  };
 
-  const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = "rapport-secritou.xlsx";
-  anchor.click();
-  URL.revokeObjectURL(url);
+  const result = await writeXlsxFile([leadsSheet, projectsSheet]);
+  await result.toFile("rapport-secritou.xlsx");
 }
