@@ -659,15 +659,19 @@ anomalies:
       le comportement réel (stabilité du code) est confirmé par les deux
       preuves indépendantes ci-dessus.
     note_technique: >
-      Piste d'amélioration non implémentée (flaky confirmé mais pas
-      éliminé à la racine) : si la cause est bien une capture pendant
-      l'animation d'entrée de Sonner, ajouter une attente de
-      stabilisation (ex. attendre la fin de l'animation via une
-      classe/état dédié, ou un court page.waitForTimeout) après
-      toBeVisible() et avant le scan axe-core dans
-      e2e/sonner-palette-contrast.spec.ts réduirait le risque de
-      récidive. Non fait ici — pas demandé, et le test est redevenu
-      stable sans cette modification.
+      MISE À JOUR (2026-08-11, demande explicite du porteur) : correctif
+      implémenté dans e2e/sonner-palette-contrast.spec.ts — helper
+      waitForAnimationSettled() qui poll getComputedStyle(toast).opacity +
+      .transform jusqu'à ce que 2 lectures espacées de 100ms soient
+      identiques (timeout 2s via expect.toPass), appelé après
+      toBeVisible() et avant le scan axe-core dans les 2 tests. Corrige
+      le symptôme (scan pris pendant une transition, quelle qu'en soit
+      la cause exacte — animation Sonner, charge CI, timing réseau)
+      sans dépendre de la preuve formelle de la cause. Périmètre limité
+      au test lui-même, aucune modification de sonner.tsx (déjà confirmé
+      correct). Vérifié : 10/10 passes en local après le correctif
+      (--repeat-each=5), durée par test passée de ~1.7-1.9s à
+      ~2.6-3.2s (coût de l'attente de stabilisation, acceptable).
     declencheur_reexamen: >
       Sans objet — resolu. Une récidive de cet échec précis (même test,
       couleurs mesurées à nouveau instables/hors palette connue)

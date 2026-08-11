@@ -1,5 +1,31 @@
+import { Locator } from "@playwright/test";
 import { test, expect } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
+
+// SEC-105: the toast's entry animation (400ms opacity/transform transition, sonner's own
+// styles.css) can still be mid-transition right after toBeVisible() resolves — a color-contrast
+// scan taken at that instant reads an interpolated, momentary color rather than the toast's real
+// resting palette. Confirmed as the likely cause of a one-off CI flake (see anomalies/transverse.yaml
+// #SEC-105): 2 runs of the same commit in the same CI environment gave different results with zero
+// code change. Poll computed opacity+transform until they repeat across two reads spaced 100ms apart
+// (animation has settled) instead of a fixed waitForTimeout, which would be both flaky under CI load
+// variance (too short) and slower than necessary under normal load (too long).
+async function waitForAnimationSettled(locator: Locator) {
+  const readStyle = () =>
+    locator.evaluate((el) => {
+      const style = getComputedStyle(el);
+      return `${style.opacity}|${style.transform}`;
+    });
+
+  await expect(async () => {
+    const before = await readStyle();
+    // A real gap between reads (not same-tick) — Sonner's transition is 400ms, so two reads
+    // 100ms apart land on different animation progress unless it has actually settled.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const after = await readStyle();
+    expect(after).toBe(before);
+  }).toPass({ timeout: 2000 });
+}
 
 // SEC-100: Sonner's Toaster (sonner.tsx) enabled richColors without styling the
 // success/error/info variants — the library's own default palette measured under WCAG 1.4.3
@@ -16,6 +42,7 @@ test.describe("Sonner richColors palette meets 4.5:1 (SEC-100)", () => {
 
     const toast = page.locator("[data-sonner-toast]").first();
     await expect(toast).toBeVisible({ timeout: 10000 });
+    await waitForAnimationSettled(toast);
 
     // Confirm data-description really does inherit the title's color after this change (not
     // assumed from reading styles.css alone) — this toast has no description, so verify the
@@ -41,6 +68,7 @@ test.describe("Sonner richColors palette meets 4.5:1 (SEC-100)", () => {
 
     const toast = page.locator("[data-sonner-toast]").first();
     await expect(toast).toBeVisible({ timeout: 10000 });
+    await waitForAnimationSettled(toast);
 
     const scan = await new AxeBuilder({ page }).include("[data-sonner-toast]").withTags(["wcag2a", "wcag2aa"]).analyze();
     expect(scan.violations.filter((v) => v.id === "color-contrast"), JSON.stringify(scan.violations)).toHaveLength(0);
