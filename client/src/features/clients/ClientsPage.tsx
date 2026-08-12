@@ -6,9 +6,8 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgGridReact } from "ag-grid-react";
+import "@/lib/agGridModules";
 import {
-  ModuleRegistry,
-  AllCommunityModule,
   type ColDef,
   type ICellRendererParams,
 } from "ag-grid-community";
@@ -76,7 +75,6 @@ import { useCrudDialogState } from "@/hooks/shared/useCrudDialogState";
 import { usePermission } from "@/hooks/usePermission";
 import { ClientDetailDialog } from "./ClientDetailDialog";
 
-ModuleRegistry.registerModules([AllCommunityModule]);
 
 export function ClientsPage() {
   const { t } = useTranslation();

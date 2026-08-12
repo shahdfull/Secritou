@@ -3,9 +3,8 @@ import { useTranslation } from "react-i18next";
 import { formatDate } from "@/utils/format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AgGridReact } from "ag-grid-react";
+import "@/lib/agGridModules";
 import {
-  ModuleRegistry,
-  AllCommunityModule,
   themeQuartz,
   type ColDef,
   type ICellRendererParams,
@@ -59,7 +58,6 @@ function formatDuration(seconds: number | undefined): string {
   return `${hours}h ${minutes}min`;
 }
 
-ModuleRegistry.registerModules([AllCommunityModule]);
 
 // Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
 const gridTheme = themeQuartz.withParams({

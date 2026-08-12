@@ -10,7 +10,8 @@ import { useProjects } from "@/hooks/useProjects";
 import { useInvoices } from "@/hooks/useInvoices";
 import { FileText, FileSpreadsheet, Loader2, Users, Briefcase, TrendingUp } from "lucide-react";
 import { AgGridReact } from "ag-grid-react";
-import { ModuleRegistry, AllCommunityModule, themeQuartz, type ColDef } from "ag-grid-community";
+import "@/lib/agGridModules";
+import { themeQuartz, type ColDef } from "ag-grid-community";
 import type { Lead } from "@/types/lead";
 import type { Project } from "@/types/project";
 import type { Invoice } from "@/api/invoices.api";
@@ -18,8 +19,6 @@ import type { TFunction } from "i18next";
 
 const formatStatus = (status: string, t: TFunction): string =>
   t(`reportsPage.statuses.${status}`, status);
-
-ModuleRegistry.registerModules([AllCommunityModule]);
 
 // Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
 const gridTheme = themeQuartz.withParams({

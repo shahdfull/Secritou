@@ -20,9 +20,8 @@ import type {
   AdminListServiceRequestsParams,
 } from "@/types/serviceRequest";
 import { AgGridReact } from "ag-grid-react";
+import "@/lib/agGridModules";
 import {
-  ModuleRegistry,
-  AllCommunityModule,
   themeQuartz,
   type ColDef,
   type ICellRendererParams,
@@ -83,7 +82,6 @@ import { useDebouncedValue } from "@/hooks/shared/useDebouncedValue";
 import { useAuthStore } from "@/store/auth.store";
 import { DataTablePagination } from "@/components/common/DataTablePagination";
 
-ModuleRegistry.registerModules([AllCommunityModule]);
 
 // Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
 const gridTheme = themeQuartz.withParams({

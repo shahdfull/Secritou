@@ -1,11 +1,10 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { AgGridReact } from "ag-grid-react";
-import { ModuleRegistry, AllCommunityModule, themeQuartz, type ColDef } from "ag-grid-community";
+import "@/lib/agGridModules";
+import { themeQuartz, type ColDef } from "ag-grid-community";
 import { formatDate } from "@/utils/format";
 import type { MetricSnapshotRow } from "@/api/gscConnection.api";
-
-ModuleRegistry.registerModules([AllCommunityModule]);
 
 // Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
 const gridTheme = themeQuartz.withParams({

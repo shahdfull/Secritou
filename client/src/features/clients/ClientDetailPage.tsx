@@ -53,9 +53,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { AgGridReact } from "ag-grid-react";
+import "@/lib/agGridModules";
 import {
-  ModuleRegistry,
-  AllCommunityModule,
   themeQuartz,
   type ColDef,
   type ICellRendererParams,
@@ -101,7 +100,6 @@ const INVOICE_STATUS_COLORS: Record<string, string> = {
   CANCELLED: "bg-gray-100 text-gray-500",
 };
 
-ModuleRegistry.registerModules([AllCommunityModule]);
 
 // Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
 const gridTheme = themeQuartz.withParams({

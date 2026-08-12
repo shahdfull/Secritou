@@ -7,13 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AgGridReact } from "ag-grid-react";
-import {
-  ModuleRegistry,
-  AllCommunityModule,
-  type ColDef,
-  type ICellRendererParams,
-  type SortChangedEvent,
-} from "ag-grid-community";
+import type { ColDef, ICellRendererParams, SortChangedEvent } from "ag-grid-community";
+import "@/lib/agGridModules";
 import { gridTheme } from "@/lib/agGridTheme";
 import {
   Dialog,
@@ -82,8 +77,6 @@ import { usePermission } from "@/hooks/usePermission";
 import { ConfirmDeleteDialog } from "@/components/shared/crud/ConfirmDeleteDialog";
 import { ConfirmActionDialog } from "@/components/shared/crud/ConfirmActionDialog";
 import { toast } from "sonner";
-
-ModuleRegistry.registerModules([AllCommunityModule]);
 
 // Mêmes noms de colonnes que côté serveur (lead.repository.ts) — pas de tri client, AG Grid
 // n'émet que l'intention de tri (comme dans TasksListView.tsx).

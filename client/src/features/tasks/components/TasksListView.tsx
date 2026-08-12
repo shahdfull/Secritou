@@ -2,9 +2,8 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { format, isPast } from "date-fns";
 import { AgGridReact } from "ag-grid-react";
+import "@/lib/agGridModules";
 import {
-  ModuleRegistry,
-  AllCommunityModule,
   themeQuartz,
   type ColDef,
   type ICellRendererParams,
@@ -38,7 +37,6 @@ import type { User } from "@/types/auth";
 import { useBulkUpdateTaskStatus, useBulkDeleteTasks } from "@/hooks/useTasks";
 import { getInitials, getStatusLabel, STATUS_OPTIONS, PRIORITY_OPTIONS, PRIORITY_BADGE } from "../taskUtils";
 
-ModuleRegistry.registerModules([AllCommunityModule]);
 
 // SEC-056 follow-up (migration AG Grid) : thème clair unique, cohérent avec le reste de
 // l'application qui n'a pas de mode sombre. Couleurs alignées sur les tokens Tailwind déjà

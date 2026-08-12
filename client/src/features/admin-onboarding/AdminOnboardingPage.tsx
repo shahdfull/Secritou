@@ -3,9 +3,8 @@ import { formatDate } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { AgGridReact } from "ag-grid-react";
+import "@/lib/agGridModules";
 import {
-  ModuleRegistry,
-  AllCommunityModule,
   themeQuartz,
   type ColDef,
   type ICellRendererParams,
@@ -38,7 +37,6 @@ import {
 import { Plus, Eye } from "lucide-react";
 import { useListParams } from "@/hooks/useListParams";
 
-ModuleRegistry.registerModules([AllCommunityModule]);
 
 // Cohérent avec la migration AG Grid de TasksListView.tsx (mêmes tokens, thème clair unique).
 const gridTheme = themeQuartz.withParams({
