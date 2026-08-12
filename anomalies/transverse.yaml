@@ -584,6 +584,128 @@ anomalies:
       0 violation de niveau critique/sérieux non justifiée par une
       exception documentée (même doctrine que l'exception
       react-refresh/only-export-components de CLAUDE.md).
+  - id: SEC-108
+    titre: >
+      19 fichiers appelaient chacun indépendamment
+      ModuleRegistry.registerModules([AllCommunityModule]) pour AG Grid,
+      sans point central — un module manquant échoue totalement
+      silencieusement à toutes les étapes de la chaîne d'outillage.
+      CORRIGÉ par un point d'enregistrement centralisé + protection dev
+      + 2 tests qui détectent réellement la régression.
+    perimetre: transverse
+    regle_violee: >
+      Aucune règle de REFERENTIEL.md — risque d'architecture/outillage,
+      pas un manquement métier. Rejoint la famille SEC-094/SEC-101 (un
+      défaut de garde-fou qui laisse une régression silencieuse
+      possible), gravité alignée en conséquence (élevée, pas moyenne —
+      confirmée par test réel, pas supposée).
+    classe: echec-silencieux-registre-module-non-centralise
+    gravite: elevee
+    statut: resolu
+    detecte_le: "2026-08-11"
+    resolu_le: "2026-08-12"
+    source: >
+      Repéré pendant l'audit bundle AG Grid (chantier jspdf/exceljs
+      étendu à AG Grid, demande explicite du porteur) : les 19 fichiers
+      utilisant AG Grid appelaient tous ModuleRegistry.registerModules
+      indépendamment. Le porteur a explicitement demandé de vérifier le
+      comportement réel en cas de module manquant avant de trancher la
+      gravité, plutôt que de la supposer.
+    confiance: >
+      Élevée — comportement reproduit deux fois par test réel (Puppeteer,
+      login admin, navigation réelle) : sans enableDevValidations(), 0
+      message console/erreur à aucune étape (typecheck, build, chargement
+      runtime), la fonctionnalité de sélection disparaît silencieusement
+      (0 checkbox rendue) ; avec enableDevValidations() actif, le même
+      scénario produit un warning explicite et actionnable (AG Grid error
+      #200). Les deux comportements ont été vérifiés directement, pas
+      déduits de la documentation seule.
+    note: >
+      INVESTIGATION COMPLÈTE (2026-08-11/12) :
+
+      1. MÉCANISME DE PROTECTION DISPONIBLE — enableDevValidations()
+      (exporté par ag-grid-community depuis plusieurs versions majeures,
+      confirmé présent en 36.0.2) est le mécanisme officiel d'AG Grid
+      pour ce cas précis : "surfaces extended development-time
+      diagnostics [...] intentionally excluded from AllCommunityModule
+      [...] Not intended for production builds". Testé réellement (mode
+      dev, Puppeteer) : émet AG Grid: error #200 avec le code exact à
+      copier-coller pour corriger. AG Grid a donc délibérément conçu cet
+      échec silencieux par défaut, avec ce garde-fou opt-in pour le dev
+      — la correction consiste à activer ce garde-fou existant, pas à en
+      inventer un.
+
+      2. JEU DE MODULES CONFIRMÉ EXHAUSTIVEMENT PAR TEST RÉEL, PAS PAR
+      AUDIT MANUEL — la découverte la plus significative de cette
+      investigation : l'audit manuel du code (grep + lecture des 19
+      fichiers) a raté 4 des 6 modules réellement nécessaires même en
+      cherchant spécifiquement les props "avancées". 1er passage
+      (ClientSideRowModelModule, RowSelectionModule) : gain mesuré mais
+      incomplet. 2e passage après relecture (+ TooltipModule,
+      CellStyleModule) : toujours incomplet. Seule la navigation réelle
+      des 14 routes/onglets consommateurs avec enableDevValidations()
+      actif a révélé RowAutoHeightModule (ProposalsPage.tsx, prop
+      autoHeight) et RowStyleModule (AdminQuestionsPage.tsx, prop
+      rowStyle) — un 2e passage de validation après correction a confirmé
+      0 erreur sur les 14 routes. Jeu final : ClientSideRowModelModule,
+      RowSelectionModule, TooltipModule, CellStyleModule,
+      RowAutoHeightModule, RowStyleModule.
+
+      3. CORRECTIF IMPLÉMENTÉ — client/src/lib/agGridModules.ts : point
+      d'enregistrement unique (enableDevValidations() conditionné à
+      import.meta.env.DEV + registerModules du jeu de 6 modules), importé
+      par les 19 fichiers (effet de bord) au lieu de leur appel
+      individuel. ModuleRegistry est un registre process-global (pas
+      per-grid, confirmé par les types AG Grid eux-mêmes :
+      "Globally register the given modules for all grids") — l'import
+      centralisé suffit, aucun changement de logique de montage requis.
+
+      4. DEUX TESTS QUI DÉTECTENT RÉELLEMENT LA RÉGRESSION (pas
+      seulement écrits, vérifiés à l'envers) :
+        - client/src/lib/agGridModules.test.tsx : rend un <AgGridReact>
+          réel exerçant rowSelection/tooltipField/cellClass/rowStyle,
+          capture les vraies erreurs console AG Grid. Vérifié rouge en
+          retirant RowStyleModule du fichier centralisé (message
+          d'erreur #200 exact), vert après restauration.
+        - e2e/tasks-row-selection.spec.ts : login admin réel, navigue
+          vers /app/tasks, vérifie la présence ET le fonctionnement réel
+          des checkboxes (header select-all + ligne), et que la sélection
+          déclenche la barre d'actions en masse. Vérifié rouge en
+          retirant RowSelectionModule (rebuild + reload, échec net et
+          explicite sur le sélecteur de checkbox), vert après
+          restauration (3/3 stable).
+
+      5. GAIN BUNDLE MESURÉ (objectif initial du chantier, réalisé une
+      fois SEC-108 fermée, comme demandé par le porteur) : chunk AG Grid
+      1084.36 kB brut / 302.79 kB gzip (AllCommunityModule) → 719.42 kB
+      brut / 203.26 kB gzip (jeu de 6 modules confirmé) — gain net
+      -364.94 kB brut (-34%) / -99.53 kB gzip (-33%). Chunk confirmé
+      mutualisé en un seul exemplaire entre les 15 pages consommatrices
+      (vérifié via rollup-plugin-visualizer, nodeMetas/nodeParts — les 2
+      modules ag-grid-community/ag-grid-react n'apparaissent qu'une seule
+      fois dans le graphe de dépendances) — le code splitting
+      supplémentaire n'aurait apporté aucun gain, seul le jeu de modules
+      réduit en apportait un.
+
+      6. POINT ANNEXE, HORS SCOPE — AdminOnboardingPage.tsx (l'un des 19
+      fichiers) n'est référencé par aucune route active dans
+      AppRoutes.tsx (seul un import de prefetch jamais appelé) —
+      potentiellement du code mort. Signalé mais non investigué
+      davantage ici.
+    critere_de_resolution: >
+      Enregistrement des modules AG Grid centralisé en un seul point,
+      protection dev active qui détecte un module manquant, au moins un
+      test automatisé qui échoue réellement (vérifié, pas supposé) quand
+      un module nécessaire est absent. — SATISFAIT le 2026-08-12, commit
+      15eb6d9, CI verte confirmée (run
+      https://github.com/shahdfull/Secritou/actions/runs/31589916499).
+    declencheur_reexamen: >
+      Sans objet — resolu. Un nouveau fichier AG Grid qui n'importe pas
+      client/src/lib/agGridModules.ts, ou une nouvelle prop AG Grid dont
+      le module manque, serait détecté par enableDevValidations() en dev
+      avant même d'atteindre ce registre — pas besoin d'un nouveau signal
+      externe pour rouvrir ce point précis.
+
   - id: SEC-107
     titre: >
       write-excel-file (dépendance client, migration SEC-106) est

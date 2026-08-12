@@ -12,8 +12,27 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-107
+dernier_id: SEC-108
 anomalies:
+  - id: SEC-108
+    titre: >
+      19 fichiers appelaient chacun indépendamment
+      ModuleRegistry.registerModules([AllCommunityModule]) pour AG Grid,
+      sans point central — un module manquant (oubli lors d'un futur
+      ajout de fonctionnalité) échoue TOTALEMENT SILENCIEUSEMENT :
+      confirmé par test réel (rowSelection retiré de TasksListView.tsx),
+      0 warning/erreur à aucune étape (typecheck, build, chargement
+      runtime en dev sans protection), la fonctionnalité de sélection
+      disparaît sans aucune trace détectable autrement qu'un test
+      fonctionnel ciblé. CORRIGÉ (commit 15eb6d9) : enregistrement
+      centralisé dans client/src/lib/agGridModules.ts +
+      enableDevValidations() actif en dev + 2 tests qui détectent
+      réellement la régression (vérifiés rouge sans le module, vert
+      avec).
+    perimetre: transverse
+    statut: resolu
+    gravite: elevee
+    classe: echec-silencieux-registre-module-non-centralise
   - id: SEC-107
     titre: >
       write-excel-file (dépendance client, migration SEC-106) est
