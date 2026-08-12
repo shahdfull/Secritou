@@ -65,12 +65,18 @@ fi
 
 # sshd's privilege-separation directory — present on a full Ubuntu install but missing in a
 # minimal container image (observed failure: "Missing privilege separation directory: /run/sshd").
-# sshd itself also needs root to run at all in this environment (observed: it starts under a
-# plain user but every connection is then rejected) — both need sudo on the GitHub Actions
-# runner, which runs as a non-root "runner" user with passwordless sudo available.
 if [ ! -d /run/sshd ]; then
   sudo mkdir -p /run/sshd
 fi
+
+# The GitHub Actions "runner" account (and a freshly useradd'd account in a minimal container)
+# has no password set, which OpenSSH's own account-status check treats as locked — independent of
+# UsePAM/StrictModes, confirmed via sshd -e logs: "User runner not allowed because account is
+# locked" (auth_shadow_acctexpired), rejecting publickey auth before it even inspects the key.
+# Setting a placeholder crypt string ('*', standard "no valid password, pubkey-only" convention —
+# never a real password) unlocks the account for this throwaway local sshd without touching how
+# the real production host's account is provisioned (unrelated to this check).
+sudo usermod -p '*' "$(whoami)"
 
 echo "==> Starting local sshd on 127.0.0.1:$SSHD_PORT"
 sudo "$SSHD_BIN" -f "$SSHD_CONFIG" -D &
