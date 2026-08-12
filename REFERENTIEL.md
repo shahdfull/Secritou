@@ -2686,3 +2686,59 @@ pour la conséquence opérationnelle sur les audits).
 | **2026-07-31 (test manuel de l'assistant IA, révélant 3 anomalies auth, même jour)** | **Le porteur a testé l'assistant IA dans l'application, révélant 3 anomalies indépendantes du module IA lui-même. SEC-066 (ouverte) : le message d'erreur `aiAssistant.errors.unavailable` ("vérifier la clé API") s'affiche sur toute panne 5xx/réseau et date d'avant le passage à Ollama — aucune clé API n'existe plus à vérifier. SEC-067 (ouverte) : `logout()` (`auth.service.ts`) révoque tout le compte (`userKey`, jamais `jtiKey`) pendant `JWT_ACCESS_EXPIRES_IN` (15 min) au lieu du seul token courant — toute reconnexion dans cette fenêtre échoue en 401, décision de stratégie de correction laissée au porteur. SEC-068 (résolue, corrigée dans la même passe) : `auth.store.ts` persistait `status:"authenticated"` sans persister `accessToken` — au F5 après login, `useSessionHeartbeat` lisait `status` en cache avant que `useBootstrapSession` n'ait obtenu un vrai token, déclenchant une requête sans en-tête `Authorization`, dont le 401 faisait partir un second `/auth/refresh` via l'intercepteur axios EN PARALLÈLE de celui du bootstrap — deux rotations concurrentes sur le même cookie refresh token à usage unique, la seconde toujours rejetée "reuse detected" et révoquant toute la famille. Corrigé en retirant `status` du `partialize` de `auth.store.ts` : il repart à `"unknown"` à chaque reload jusqu'à confirmation réelle du bootstrap. Diagnostiqué via des logs temporaires (`console.warn`/`logger.warn`) ajoutés puis retirés dans la même session, à la demande explicite du porteur. Vérifié : client `tsc --noEmit`/`npm run lint` (0/0, 11 warnings exception documentée), suite complète client 133/133 verte, server `tsc --noEmit`/`npm run lint` (0/0) après retrait des logs de diagnostic.** | **Signalé directement par le porteur en testant l'application (capture d'écran, puis message "session a expiré" au F5 répété), avec la demande explicite « ajouter des logs pourque je comprends ». SEC-068 corrigé sans AskUserQuestion supplémentaire — un seul chemin de correction cohérent avec le commentaire déjà présent dans le fichier (accessToken/bootstrapped déjà exclus du partialize pour la même classe de raison). SEC-066/SEC-067 laissées ouvertes, aucune décision de correctif prise sur ces deux-là dans cette passe.** |
 | **2026-07-31 (temps de réponse affiché + optimisation vitesse CPU, même jour)** | **Champ "Réponse en Xs/Xms" ajouté sous chaque réponse de l'assistant : `runConversationTurn` mesure la durée réelle du tour (distincte de la métrique Prometheus `aiTurnDuration`, déjà en secondes bucketées) et la propage via `create`/`addMessage`/`addMessageStreaming` — jamais persistée sur `AiMessage` (même doctrine que le champ `truncated` des tools), perdue au rechargement de page. Le porteur a ensuite signalé une lenteur réelle (83.9s pour "Bonjour !"). Diagnostic quantifié : sur ce CPU sans GPU, `prompt_eval` (le modèle lisant le SYSTEM_PROMPT + les définitions JSON des tools) prend ~40-80s avec les 13 tools réels contre <1s sans aucun tool — la génération de la réponse elle-même ne prend qu'~1s, quasi indépendamment du nombre de tools. Corrigé par un routage léger, mot-clé → catégorie (`server/src/services/aiToolRouter.ts#routeToolNames`) : le dernier message utilisateur est classé une seule fois par tour (jamais par round trip, pour ne pas changer l'ensemble de tools offert au modèle en cours de tour) en un sous-ensemble pertinent de tools (ex. "leads" → `getLeads`+`getLeadPipeline` seuls) ; **aucun mot-clé reconnu → repli sur les 13 tools complets**, jamais un sous-ensemble arbitraire — la doctrine du fichier est explicite : une inclusion en trop ne coûte que de la latence, une exclusion en trop retire silencieusement une capacité. Gain mesuré : ~8.3s (2 tools, question sur les leads) contre ~40.5s (13 tools, même contenu de message). Le SYSTEM_PROMPT n'a pas eu besoin d'être modifié : il ne prétend jamais que « tous les outils sont toujours disponibles », et le modèle ne peut de toute façon halluciner un tool absent du tableau `tools:` réellement transmis à l'appel API. Preuve : nouveau `server/test/aiToolRouter.test.ts` (7 tests appelant réellement `routeToolNames`, pas une réimplémentation — couvre le fallback complet sur message non reconnu, le routage par catégorie simple et combinée, la normalisation des accents, et une vérification croisée que chaque nom routé existe bien parmi les 13 vrais noms de tools), câblé dans `run-all.test.ts` dans la même passe (leçon de SEC-063 : ne jamais oublier ce câblage). Vérifié : `server tsc --noEmit`/`npm run lint` (0/0), suite complète serveur 755/756 (1 skip légitime déjà connu, en hausse de 749 avant cette passe — 7 nouveaux tests du routeur).** | **Demande explicite du porteur : « ajouter un champs qui affiche le temps de reponse » (implémenté directement, pas d'AskUserQuestion nécessaire — un seul design cohérent avec la doctrine déjà établie pour `truncated`). Puis, face à la lenteur mesurée, AskUserQuestion sur l'approche : choix explicite « Router par mots-clés simples (Recommandé) » plutôt que ne rien changer ou retirer définitivement des tools (perte de capacité permanente, refusée).** |
 | **2026-07-31 (test manuel post-routeur, même jour)** | **Après déploiement du routeur (commit `e4f3553`), le porteur a retesté en conditions réelles : "Quels sont mes leads en cours ?" → réponse correcte (12 leads listés) mais toujours 69.4s. Diagnostic complémentaire : le routeur fonctionne bien (confirmé 2 tools sélectionnés pour cette question, pas 13), mais un tour complet reste 2 appels Ollama (round 1 : décision d'appeler `getLeads` ; round 2 : génération de la réponse finale à partir du JSON des 12 leads renvoyés) — mesuré isolément à ~8s + ~23s ≈ 31s pour un scénario équivalent, l'écart avec les 69.4s réels restant attribuable à la variance CPU et à un historique de conversation plus long en pratique. Hypothèse testée séparément : raccourcir le SYSTEM_PROMPT (2781 caractères) apporterait-il un gain ? Mesuré : avec seulement 2 tools déjà routés, le prompt complet ajoute ~2.5s, un chiffre du même ordre que la variance observée sans aucun system prompt dans le même test — aucun gain réel démontré. Conclusion : ne pas toucher au SYSTEM_PROMPT (risque de dégrader les règles de comportement déjà validées cette session — interdiction d'écriture directe, signalement de troncature, traitement des données comme données jamais comme instructions — pour un gain non prouvé). Le reste de la lenteur est acté comme une limite matérielle (CPU sans GPU sur cette machine de développement), pas un défaut de code à corriger davantage dans cette session.** | **AskUserQuestion : choix explicite « Réduire aussi la taille du SYSTEM_PROMPT » pour investiguer, suivi d'un second AskUserQuestion après mesure : choix explicite « Ne pas toucher au SYSTEM_PROMPT, s'arrêter là (Recommandé) » une fois le résultat (aucun gain) présenté.** |
+
+---
+
+## 8. Infrastructure
+
+Section créée le 2026-08-12 (demande explicite du porteur) pour les procédures
+opérationnelles techniques qui n'ont pas leur place dans les sections §3-§5
+(métier) ni §7 (journal chronologique) — checklists à exécuter au moment où
+une pièce d'infrastructure encore absente est mise en place.
+
+### 8.1 Premier déploiement — épinglage de la clé d'hôte SSH (SEC-024)
+
+**Contexte** : `.github/workflows/backup.yml` se connecte en SSH à un serveur
+de production pour déclencher une sauvegarde distante. Le mécanisme
+`StrictHostKeyChecking=no` (qui accepte silencieusement n'importe quelle clé
+d'hôte, exposant la connexion à un MITM) a été remplacé par un épinglage via
+`-o UserKnownHostsFile=/tmp/ssh/known_hosts`, alimenté par un secret GitHub
+`SSH_KNOWN_HOSTS` — commit `0a26794`. Le workflow entier est **actuellement
+inerte** (cron désactivé, secrets non définis) : aucun serveur de production
+n'existe encore. Voir `anomalies/transverse.yaml#SEC-024` pour le détail
+complet ; cette anomalie reste `ouvert` tant que le mécanisme n'a jamais été
+exercé contre un vrai hôte — ne pas la repasser `resolu` sur la seule lecture
+de cette checklist.
+
+**Comportement fail-closed déjà vérifié sans serveur réel** : le job CI
+`ssh-known-hosts-check` (`.github/workflows/ci.yml`,
+`scripts/check-ssh-known-hosts-failclosed.sh`) prouve, contre un `sshd` local
+démarré pour ce seul test, que la connexion échoue proprement (exit non nul,
+« Host key verification failed ») quand `known_hosts` est vide — donc que
+l'état actuel (`SSH_KNOWN_HOSTS` non défini) est sûr par construction, pas
+par supposition.
+
+**Checklist à exécuter le jour où un premier serveur de production existe**
+(avant toute réactivation du cron de `backup.yml`) :
+
+1. Obtenir l'IP ou le hostname définitif du serveur.
+2. Depuis une machine de confiance (jamais depuis le serveur lui-même),
+   exécuter `ssh-keyscan -H <host>` pour récupérer la clé d'hôte publique.
+3. **Vérifier cette clé hors bande** avant de lui faire confiance — comparer
+   son empreinte avec celle affichée par le fournisseur d'hébergement
+   (console web, CLI du provider) ou obtenue par un canal séparé du réseau
+   utilisé pour le `ssh-keyscan` lui-même. `ssh-keyscan` seul ne protège pas
+   contre un MITM actif au moment de la capture — c'est cette étape de
+   vérification indépendante qui ferme ce risque.
+4. Coller le résultat vérifié comme secret GitHub `SSH_KNOWN_HOSTS`, dans
+   l'environnement `production` du dépôt (Settings → Environments →
+   production → Secrets).
+5. Définir les 3 autres secrets requis par `backup.yml` :
+   `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY`, `BACKUP_ENV_PATH`.
+6. Réactiver le cron dans `backup.yml` (actuellement commenté avec une
+   référence à SEC-217 — absence de serveur de production).
+7. Déclencher un run manuel (`workflow_dispatch`) et confirmer une sauvegarde
+   réelle réussie avant de compter sur le cron quotidien.
+8. Seulement après cette vérification de bout en bout réussie : repasser
+   `SEC-024` à `resolu` dans `anomalies/transverse.yaml` et
+   `anomalies/_index.yaml`, en citant le run qui l'a confirmé.

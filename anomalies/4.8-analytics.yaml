@@ -11,6 +11,70 @@
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 
 anomalies:
+  - id: SEC-109
+    titre: >
+      Collision d'ID découverte le 2026-08-12 : REFERENTIEL.md §7
+      (entrée du 2026-07-17) documente sous "SEC-024" un bug
+      executiveMetricsRepository.getAll, totalement distinct du SEC-024
+      du registre anomalies/*.yaml actuel (SSH backup.yml, ouvert depuis
+      le 2026-07-30). Enregistré ici sous un ID propre.
+    perimetre: 4.8-analytics
+    regle_violee: >
+      CLAUDE.md § « Cohérence obligatoire REFERENTIEL.md ↔
+      anomalies/*.yaml » — REFERENTIEL.md ne peut référencer un ID
+      d'anomalie qui n'existe pas dans anomalies/_index.yaml. Ici
+      l'inverse aussi posait problème : un ID utilisé dans
+      REFERENTIEL.md pour un sujet totalement absent du registre actuel,
+      et un numéro déjà repris ailleurs pour un sujet sans rapport.
+    classe: registre-collision-id-referentiel
+    gravite: mineure
+    statut: resolu
+    detecte_le: "2026-08-12"
+    resolu_le: "2026-08-12"
+    source: >
+      Découvert en cherchant où placer, dans REFERENTIEL.md, la
+      checklist manuelle SEC-024 (SSH backup.yml) demandée par le
+      porteur — grep "SEC-024" dans REFERENTIEL.md a fait remonter une
+      entrée §7 du 2026-07-17 sur un sujet entièrement différent
+      (executiveMetricsRepository.getAll / RiskItem), jamais reporté
+      dans le registre éclaté actuel malgré la remise à zéro du
+      2026-07-27.
+    confiance: >
+      Élevée — le correctif décrit dans REFERENTIEL.md §7 (suppression
+      de CONTRACT_EXPIRING/STALE_PROJECT/expiringContracts, PROJECT_CRITICAL
+      réellement poussé dans risks[]) est confirmé présent dans le code
+      actuel : server/src/repositories/executiveMetrics.repository.ts
+      (type RiskItem ne déclare plus que INVOICE_OVERDUE |
+      APPROVAL_BLOCKED | PROJECT_CRITICAL | LEAD_HOT, 4 types, pas 6) et
+      server/test/executiveMetricsProjectRisks.test.ts existe
+      réellement (vérifié par lecture directe, pas supposé).
+    note: >
+      Sujet original (pour mémoire, déjà résolu à l'époque selon
+      REFERENTIEL.md §7 du 2026-07-17) : executiveMetricsRepository.getAll
+      déclarait 6 types de RiskItem mais n'en produisait réellement que
+      3 — PROJECT_CRITICAL/STALE_PROJECT calculés (criticalCount/
+      watchCount) sans jamais devenir des lignes de risks[],
+      CONTRACT_EXPIRING/alerts.expiringContracts alimentés par une
+      requête sur Approval sans aucun rapport avec un contrat (aucun
+      champ d'expiration n'existe sur Document ni ailleurs dans le
+      schéma). CONTRACT_EXPIRING/expiringContracts/STALE_PROJECT
+      supprimés, PROJECT_CRITICAL réellement poussé dans risks[].
+      Nouveau test server/test/executiveMetricsProjectRisks.test.ts à
+      l'époque. Cette anomalie SEC-109 ne documente PAS ce bug lui-même
+      (déjà clos avant l'existence du registre éclaté actuel) mais
+      seulement la collision d'ID découverte en le retrouvant.
+    critere_de_resolution: >
+      La collision est levée par l'attribution d'un ID propre (SEC-109)
+      à ce sujet — REFERENTIEL.md §7 garde son texte historique inchangé
+      (il documentait une décision réelle du porteur à l'époque, avec sa
+      date et son motif, non altérée), mais toute référence future à ce
+      bug précis doit citer SEC-109, pas "SEC-024" (ambigu depuis cette
+      découverte).
+    declencheur_reexamen: >
+      Sans objet — resolu. Toute autre collision d'ID découverte entre
+      REFERENTIEL.md et anomalies/*.yaml suivrait le même traitement
+      (nouvel ID dédié), pas une réouverture de celui-ci.
+
   - id: SEC-069
     titre: >
       server/test/executiveKpiSnapshotGrowth.test.ts (2e cas, SEC-031) crée

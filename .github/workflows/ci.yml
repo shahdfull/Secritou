@@ -317,6 +317,16 @@ jobs:
           node-version: 24
       - run: node scripts/check-contrast.mjs
 
+  ssh-known-hosts-check:
+    # SEC-024: backup.yml has no production server to run against yet (SEC-217) — this proves the
+    # UserKnownHostsFile/SSH_KNOWN_HOSTS mechanism it relies on fails closed against a local sshd,
+    # so the "not yet configured" state stays safe by construction rather than by assumption.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq openssh-server
+      - run: bash scripts/check-ssh-known-hosts-failclosed.sh
+
   e2e:
     runs-on: ubuntu-latest
     services:

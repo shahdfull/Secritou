@@ -12,8 +12,28 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-108
+dernier_id: SEC-109
 anomalies:
+  - id: SEC-109
+    titre: >
+      Collision d'ID découverte le 2026-08-12 : REFERENTIEL.md §7
+      (entrée du 2026-07-17) documente sous "SEC-024" un bug
+      executiveMetricsRepository.getAll (RiskItem déclarait 6 types mais
+      n'en produisait réellement que 3 — PROJECT_CRITICAL/STALE_PROJECT
+      jamais poussés dans risks[], CONTRACT_EXPIRING sans base réelle
+      dans le schéma), déjà résolu à l'époque (commit de la session du
+      2026-07-17). Ce sujet est totalement distinct du SEC-024 du
+      registre anomalies/*.yaml actuel (SSH backup.yml,
+      StrictHostKeyChecking, ouvert depuis le 2026-07-30) et n'existait
+      sous aucun ID dans anomalies/*.yaml — probablement un reliquat
+      d'une numérotation antérieure à l'éclatement du registre
+      (2026-07-27) jamais reporté. Enregistré ici sous un ID propre pour
+      lever l'ambiguïté, sans toucher au texte de REFERENTIEL.md §7 (qui
+      reste la source historique de la décision du porteur à l'époque).
+    perimetre: 4.8-analytics
+    statut: resolu
+    gravite: mineure
+    classe: registre-collision-id-referentiel
   - id: SEC-108
     titre: >
       19 fichiers appelaient chacun indépendamment
@@ -1702,7 +1722,10 @@ anomalies:
       volontairement laissé `ouvert` : le critère de résolution exige
       une vérification de bout en bout contre un vrai hôte SSH,
       impossible tant que SEC-217 reste vraie (aucun serveur de
-      production). Détail complet dans anomalies/transverse.yaml#SEC-024.
+      production). 2026-08-12 : job CI ssh-known-hosts-check ajouté
+      (preuve fail-closed sans serveur réel) + checklist dupliquée dans
+      REFERENTIEL.md §8.1 — statut inchangé. Détail complet dans
+      anomalies/transverse.yaml#SEC-024.
     declencheur_reexamen: >
       Existence d'un vrai serveur de production (activation de
       SEC-217) permettant un run réel du step SSH de backup.yml —

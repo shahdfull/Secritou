@@ -2841,6 +2841,25 @@ anomalies:
       un vrai hôte SSH, impossible tant que SEC-217 reste vraie (aucun
       serveur de production). Ne pas repasser `resolu` sur la seule lecture
       du YAML — attendre l'activation réelle du workflow.
+
+      PRÉPARATION SANS SERVEUR RÉEL (2026-08-12, demande explicite du
+      porteur) : ajout d'un job CI dédié `ssh-known-hosts-check`
+      (.github/workflows/ci.yml,
+      scripts/check-ssh-known-hosts-failclosed.sh) qui prouve, contre un
+      sshd local démarré pour ce seul test (pas backup.yml lui-même, pas
+      de dépendance réseau externe), que le mécanisme
+      UserKnownHostsFile échoue bien fermé (exit non nul, "Host key
+      verification failed") quand known_hosts est vide — confirmant que
+      l'état actuel (secret non défini) est sûr par construction, pas par
+      supposition. Vérifié réellement 3 fois de suite dans un conteneur
+      Ubuntu proche de l'environnement ubuntu-latest (utilisateur non-root
+      + sudo, comme le vrai runner) avant intégration au workflow.
+      Checklist opérationnelle du jour J dupliquée dans
+      REFERENTIEL.md §8.1 (nouvelle section, créée dans la même passe) —
+      ne remplace pas le commentaire déjà présent dans backup.yml, le
+      complète pour être visible sans ouvrir le YAML. Aucun de ces ajouts
+      ne change le statut de cette anomalie : le critère de résolution
+      reste une vérification de bout en bout contre un vrai hôte SSH.
     declencheur_reexamen: >
       Existence d'un vrai serveur de production (activation de SEC-217)
       permettant un run réel du step SSH de backup.yml, confirmant la
