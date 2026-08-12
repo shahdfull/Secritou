@@ -317,6 +317,23 @@ jobs:
           node-version: 24
       - run: node scripts/check-contrast.mjs
 
+  anomaly-registry-check:
+    # SEC-101: no automated check ever caught 5 separate cases in this project's history of a
+    # "resolu" status left inconsistent between anomalies/_index.yaml and its matching detail
+    # file, or a cited commit SHA that doesn't exist — always found later by manual re-reading.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # Full history required: the script verifies commit SHAs cited anywhere in the
+          # registry's text against git history, not just the most recent commit.
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: node scripts/check-anomaly-registry.mjs
+
   ssh-known-hosts-check:
     # SEC-024: backup.yml has no production server to run against yet (SEC-217) — this proves the
     # UserKnownHostsFile/SSH_KNOWN_HOSTS mechanism it relies on fails closed against a local sshd,
