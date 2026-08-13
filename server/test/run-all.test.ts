@@ -181,3 +181,4 @@ import "./redisClientResilienceConfig.test.ts";
 import "./gdprEraseClientPreservesOnboarding.test.ts";
 import "./aiConversationConcurrentTurns.test.ts";
 import "./aiConversationStreamCancellation.test.ts";
+import "./aiConversationRawNetworkDrop.test.ts";

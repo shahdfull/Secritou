@@ -60,6 +60,18 @@ export const addMessage: RequestHandler = async (req, res, next) => {
   }
 };
 
+// SEC-110: a raw network drop (Wi-Fi cutoff, ISP path failure — no FIN/RST reaches this process,
+// unlike a client-initiated close or a locally destroyed socket) leaves res.on("close") silent
+// forever if nothing ever attempts to write to the dead socket again: TCP only surfaces the failure
+// on the next write attempt, and a stretch of the model "thinking" between chunks (or between tool
+// round trips) can span many seconds with no onChunk call to force one. Verified empirically before
+// this fix: without a periodic write, close/error stayed silent for the whole 10s of a test gap;
+// with a write every HEARTBEAT_INTERVAL_MS, the dead socket surfaced within one interval. `: ping\n\n`
+// is an SSE comment line (leading colon) — ignored by the spec and by this app's own parser
+// (aiConversations.api.ts only reacts to "event:"/"data:" lines), so it's invisible to a healthy
+// client and only exists to force Node to notice a dead one.
+const HEARTBEAT_INTERVAL_MS = 5_000;
+
 // SEC-059 follow-up: SSE variant of addMessage — same auth/scope/persistence contract, but the
 // final round trip streams to the client as it's generated instead of waiting for the whole reply.
 // Once headers are flushed, an error can no longer go through the normal next(error) path (Express
@@ -78,6 +90,13 @@ export const addMessageStream: RequestHandler = async (req, res, next) => {
   res.on("close", () => {
     if (headersSent) abortController.abort();
   });
+  // SEC-110: a write to a socket that died via a raw network drop can surface as an "error" event
+  // on the response stream rather than (or in addition to) "close" — listening for both is what
+  // actually catches the heartbeat write's failure promptly.
+  res.on("error", () => {
+    if (headersSent) abortController.abort();
+  });
+  let heartbeat: ReturnType<typeof setInterval> | undefined;
   try {
     const callerContext = await buildServiceScope(req);
     res.writeHead(200, {
@@ -87,6 +106,13 @@ export const addMessageStream: RequestHandler = async (req, res, next) => {
       "X-Accel-Buffering": "no",
     });
     headersSent = true;
+    heartbeat = setInterval(() => {
+      if (res.writableEnded || res.destroyed) {
+        clearInterval(heartbeat);
+        return;
+      }
+      res.write(": ping\n\n");
+    }, HEARTBEAT_INTERVAL_MS);
 
     const result = await aiConversationService.addMessageStreaming(
       req.params.id as string,
@@ -118,6 +144,8 @@ export const addMessageStream: RequestHandler = async (req, res, next) => {
     const errorMessage = error instanceof Error ? error.message : "Ollama provider error";
     res.write(`event: error\ndata: ${JSON.stringify({ message: errorMessage })}\n\n`);
     res.end();
+  } finally {
+    if (heartbeat) clearInterval(heartbeat);
   }
 };
 
