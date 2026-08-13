@@ -12,8 +12,27 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-110
+dernier_id: SEC-111
 anomalies:
+  - id: SEC-111
+    titre: >
+      Job CI e2e rouge (run 31735502093, 2026-08-13, commit cd49909) sur
+      e2e/ai-assistant-action-proposal.spec.ts — timeout 220s sur
+      l'apparition du bouton "Confirmer" après une proposition de tâche
+      par l'assistant IA (qwen2.5:3b-instruct sur runner CPU-only
+      partagé), échoué à la fois au run initial et au retry automatique.
+      Écarté comme régression du commit lui-même : le commit cd49909 ne
+      touche que anomalies/_index.yaml et anomalies/transverse.yaml
+      (contenu YAML de documentation, aucun fichier applicatif) — le run
+      précédent immédiat (31719896982, commit 3e90945, changements
+      applicatifs réels sur les mêmes zones du produit) avait ce même
+      job e2e vert. Le fichier de test documente lui-même sa propre
+      fragilité (commentaire : modèle 3B peu fiable pour enchaîner deux
+      appels d'outils, "deliberately NOT part of a shared parallel run").
+    perimetre: 4.11-ia
+    statut: ouvert
+    gravite: mineure
+    classe: e2e-flaky-llm-reel-timing-ci
   - id: SEC-110
     titre: >
       Distinct de SEC-082 (résolu) : SEC-082 vérifie qu'un abandon

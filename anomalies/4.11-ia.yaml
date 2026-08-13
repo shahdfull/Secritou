@@ -151,6 +151,71 @@ anomalies:
       connexion. Aucune corruption de donnée dans les deux cas (SEC-035
       tient) — les deux anomalies partagent cette même garantie sans être
       la même classe de défaut.
+
+  - id: SEC-111
+    titre: >
+      Job CI e2e rouge (run 31735502093, 2026-08-13, commit cd49909) sur
+      e2e/ai-assistant-action-proposal.spec.ts — timeout 220s sur
+      l'apparition du bouton "Confirmer" après une proposition de tâche
+      par l'assistant IA (qwen2.5:3b-instruct sur runner CPU-only
+      partagé), échoué à la fois au run initial (3.7min) et au retry
+      automatique (51.8s, échec plus rapide donc pas un simple manque de
+      budget temps). Écarté comme régression du commit lui-même : le
+      commit cd49909 ne touche que anomalies/_index.yaml et
+      anomalies/transverse.yaml (contenu YAML de documentation, aucun
+      fichier applicatif, en particulier rien dans client/src/features/
+      ai/ ni server/src/services/aiConversation*.ts) — le run précédent
+      immédiat (31719896982, commit 3e90945, changements applicatifs
+      réels sur home/tasks/projects) avait ce même job e2e vert.
+    perimetre: 4.11-ia
+    regle_violee: >
+      Aucune règle métier — fiabilité d'infrastructure de test. Le
+      fichier de test documente lui-même sa propre fragilité connue
+      (commentaire ai-assistant-action-proposal.spec.ts lignes 4-9) :
+      qwen2.5:3b (modèle CI, choisi pour tenir sur un runner CPU-only)
+      "isn't reliable at chaining two tool calls in one turn", et le
+      fichier est délibérément exclu de la suite e2e par défaut partagée
+      pour cette raison — mais reste exécuté seul dans le job e2e CI, où
+      il peut échouer sous charge/latence variable du runner sans lien
+      avec le code applicatif changé.
+    classe: e2e-flaky-llm-reel-timing-ci
+    gravite: mineure
+    statut: ouvert
+    detecte_le: "2026-08-13"
+    source: >
+      Constat incident pendant la vérification post-push des correctifs
+      SEC-096/SEC-097 (session du 2026-08-13) — le commit documentation
+      cd49909 a fait échouer le job e2e alors que le commit applicatif
+      immédiatement précédent (3e90945) l'avait passé au vert. Enregistré
+      immédiatement conformément à CLAUDE.md (tout écart constaté hors
+      d'un audit formel s'enregistre dans la même session).
+    confiance: >
+      Haute sur le fait que ce commit précis n'est pas la cause (diff
+      vérifié : 2 fichiers YAML uniquement). Moyenne sur la cause
+      exacte de l'échec lui-même (latence Ollama variable sur runner
+      CI partagé la plus probable, non confirmée par une seconde
+      reproduction dans cette session — pas de re-run déclenché pour ne
+      pas consommer de minutes CI sur un diagnostic non demandé).
+    critere_de_resolution: >
+      Soit (a) ce test repasse vert sur un re-run sans changement de
+      code (confirmant la nature flaky et non une régression réelle),
+      soit (b) une cause déterministe est identifiée et corrigée (ex.
+      timeout structurellement insuffisant sous charge CI réelle, pas
+      seulement en local). Ne pas clore sur la seule base d'un unique
+      re-run vert sans avoir noté combien de tentatives ont été
+      nécessaires — un flaky qui repasse vert au 2e essai reste un
+      flaky, pas un non-problème.
+    note: >
+      Aucune action prise dans cette session au-delà de l'enregistrement
+      — pas de re-run CI déclenché, pas de modification du test ni du
+      timeout, conformément à la doctrine "réparer n'est pas développer"
+      et à l'absence de mandat explicite du porteur pour ce chantier
+      précis. Les commits cd49909 (registre) et 0422728/3e90945
+      (correctifs SEC-096, docs SEC-097/SEC-110) restent valides malgré
+      ce job rouge : leur propre run (31719896982) avait déjà confirmé
+      e2e vert avant que ce job instable ne réapparaisse sur un commit
+      sans rapport.
+
   - id: SEC-110
     titre: >
       Distinct de SEC-082 (résolu) : SEC-082 vérifie qu'un abandon
