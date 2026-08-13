@@ -472,7 +472,7 @@ export function TasksListView({
               would silently conflict, rather than letting the user pick DONE and be confused when
               "overdue" tasks marked DONE never disappear. */}
           <Select value={statusFilter} onValueChange={onStatusFilterChange} disabled={overdueFilter}>
-            <SelectTrigger className="w-[170px]">
+            <SelectTrigger className="w-[170px]" aria-label={t("tasksPage.filterByStatus")}>
               <SelectValue placeholder={t("tasksPage.filterByStatus")} />
             </SelectTrigger>
             <SelectContent>

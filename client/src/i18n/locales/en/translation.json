@@ -1345,6 +1345,7 @@
     "subtitle": "Manage your client projects",
     "noNewProjectButtonNotice": "A project is created from an accepted proposal — there's no direct \"create\" button here.",
     "clientSelectorTruncatedNotice": "Only the first {{shown}} of {{total}} clients are loaded in the filter — a more recent client may not be found.",
+    "progressLabel": "Project {{name}} progress: {{percent}}%",
     "newProject": "New Project",
     "createProject": "Create Project",
     "createProjectDesc": "Add a new project to your list",

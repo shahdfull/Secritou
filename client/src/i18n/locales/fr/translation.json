@@ -1345,6 +1345,7 @@
     "subtitle": "Gérez vos projets clients",
     "noNewProjectButtonNotice": "Un projet naît de l'acceptation d'une proposition — il n'y a pas de bouton de création directe ici.",
     "clientSelectorTruncatedNotice": "Seuls les {{shown}} premiers clients sur {{total}} sont chargés dans le filtre — un client plus récent peut être introuvable.",
+    "progressLabel": "Avancement du projet {{name}} : {{percent}}%",
     "newProject": "Nouveau projet",
     "createProject": "Créer un projet",
     "createProjectDesc": "Ajoutez un nouveau projet à votre liste",

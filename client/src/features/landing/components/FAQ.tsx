@@ -39,7 +39,7 @@ export function FAQ() {
     <section id="faq" className="bg-surface-warm/40 py-14 sm:py-20">
       <div className="container-page grid gap-12 lg:grid-cols-[1fr_1.4fr]">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{subtitle}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary-strong">{subtitle}</p>
           <h2 className="mt-3 font-display text-3xl font-bold text-ink sm:text-4xl">{title}</h2>
           <p className="mt-4 text-sm text-muted-foreground">{description}</p>
         </div>

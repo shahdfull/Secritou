@@ -29,7 +29,7 @@ export const PRIORITY_OPTIONS: Task["priority"][] = [...TASK_PRIORITIES];
 
 export const PRIORITY_BADGE: Record<Task["priority"], string> = {
   LOW: "bg-gray-100 text-gray-600",
-  NORMAL: "bg-blue-100 text-blue-600",
+  NORMAL: "bg-blue-100 text-blue-700",
   HIGH: "bg-orange-100 text-orange-700",
   URGENT: "bg-red-100 text-red-700 font-semibold",
 };

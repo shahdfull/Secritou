@@ -153,7 +153,11 @@ function ProjectGrid({
                   </span>
                   <span className="text-sm font-medium">{project.progress}%</span>
                 </div>
-                <Progress value={project.progress} className="h-2 bg-primary-soft [&>div]:bg-primary" />
+                <Progress
+                  value={project.progress}
+                  className="h-2 bg-primary-soft [&>div]:bg-primary"
+                  aria-label={t("projectsPage.progressLabel", { name: project.name, percent: project.progress })}
+                />
                 <p className="text-[11px] text-muted-foreground">
                   {t("projectsPage.basedOnCompletedTasks", { done: project.taskDone, total: project.taskTotal })}
                 </p>
@@ -379,7 +383,7 @@ export function ProjectsPage() {
                 updateParams({ orderBy: col, orderDir: dir, page: 1 });
               }}
             >
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-[200px]" aria-label={t("common.sortBy")}>
                 <SelectValue placeholder={t("common.sortBy")} />
               </SelectTrigger>
               <SelectContent>

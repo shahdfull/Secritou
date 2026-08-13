@@ -28,7 +28,7 @@ export function SolutionsTeaser() {
     <section id="solutions" className="bg-surface-warm/40 py-14 sm:py-20">
       <div className="container-page">
         <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{subtitle}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary-strong">{subtitle}</p>
           <h2 className="mt-3 font-display text-3xl font-bold text-ink sm:text-4xl lg:text-5xl">{title}</h2>
         </div>
 
