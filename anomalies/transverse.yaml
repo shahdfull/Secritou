@@ -612,8 +612,9 @@ anomalies:
   - id: SEC-096
     titre: >
       Dette technique — Aucune mesure formelle de contraste WCAG via un
-      outil dédié (axe-core ou équivalent), REGELÉE le 2026-08-04 après
-      avoir produit un correctif concret. scripts/check-contrast.mjs
+      outil dédié (axe-core ou équivalent). Historique de statut :
+      gelée le 2026-08-04, repassée OUVERTE le 2026-08-13 (voir
+      note_degel pour le détail). scripts/check-contrast.mjs
       (étape CI contrast-check) vérifie un contrôle de contraste couleur
       ciblé, pas un audit WCAG complet (ne couvre pas navigation clavier,
       ARIA, focus visible, lecteurs d'écran). Le dégel du 2026-08-03 a
@@ -632,14 +633,27 @@ anomalies:
       formelle avant lancement — backlog explicite, pas un manquement.
     classe: dette-technique
     gravite: mineure
-    statut: gelé
+    statut: ouvert
     note_degel: >
       Dégelé le 2026-08-03 (demande explicite du porteur), a produit un
       scan axe-core réel qui a mené à SEC-098/099/100 (tous resolu, CI
       verte confirmée). Regelé le 2026-08-04 (demande explicite du
       porteur) : le dégel a produit ce qu'il pouvait produire, l'audit
       exhaustif complet (axe-core en continu à la CI) n'a pas de valeur
-      ajoutée immédiate identifiée.
+      ajoutée immédiate identifiée. Repassé de gelé à OUVERT le
+      2026-08-13 (demande explicite du porteur, dégel du 2026-08-10) :
+      "garde SEC-096 ouvert après ces 4 correctifs" est un statut
+      technique précis du registre, pas une description informelle du
+      chantier. Erreur de la session précédente corrigée ici : les
+      commits 3e90945/cd49909 avaient laissé le champ statut à "gelé"
+      sans le modifier, confondant "chantier qui reste actif"
+      (l'intention réelle du porteur) avec le statut gelé du registre
+      (audit reporté, ce que ce chantier n'est plus après une session de
+      correction réelle menée sur demande explicite, résultats vérifiés
+      individuellement par re-scan). "Gelé" = audit reporté avec
+      déclencheur de réexamen ; "ouvert" = anomalie active non résolue —
+      ce dernier correspond à l'état réel : critère de résolution (CI
+      continue) non atteint, mais plus un backlog non touché.
     declencheur_reexamen: >
       Premier des deux : (1) un incident réel d'accessibilité remonté
       après lancement, ou (2) demande explicite du porteur d'intégrer
