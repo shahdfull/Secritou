@@ -12,8 +12,29 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-109
+dernier_id: SEC-110
 anomalies:
+  - id: SEC-110
+    titre: >
+      Distinct de SEC-082 (résolu) : SEC-082 vérifie qu'un abandon
+      client PROPRE (fetch AbortController.abort(), ex. bouton annuler
+      SEC-092) coupe bien le tour Ollama via res.on("close"). Testé
+      réellement le 2026-08-13 avec une coupure RÉSEAU BRUTE (proxy TCP
+      local, socket.destroy() sur la connexion déjà établie, sans fetch
+      abort côté client) pendant un tour SSE IA en cours : le tour
+      Ollama continue jusqu'à sa fin naturelle et le message ASSISTANT
+      complet (2100 caractères) est persisté normalement, comme si la
+      connexion n'avait jamais été coupée — res.on("close") ne s'est
+      pas déclenché sur ce type de coupure précis. Aucune corruption de
+      donnée (même garantie que SEC-082 : persistance atomique et
+      tardive), mais gaspillage du seul worker Ollama disponible sur
+      une réponse qu'aucun client ne recevra, et incohérence UX
+      (réponse existante en base, invisible pour l'utilisateur qui a
+      perdu sa connexion)
+    perimetre: 4.11-ia
+    statut: ouvert
+    gravite: moyenne
+    classe: sse-sans-annulation-liee-a-la-connexion
   - id: SEC-109
     titre: >
       Collision d'ID découverte le 2026-08-12 : REFERENTIEL.md §7
@@ -356,9 +377,16 @@ anomalies:
       trouvées et résolues, commits 01cbc1e/d249f93/570f949/1e0035c, CI
       verte confirmée sur chacun). Ce n'est donc plus "colonne H à null
       partout" — le regel porte sur un reliquat nommé, pas sur l'absence
-      totale d'audit d'origine.
+      totale d'audit d'origine. Les 3 sous-points ont été testés
+      réellement le 2026-08-13 (voir anomalies/transverse.yaml pour le
+      détail par sous-point) : PWA non implémentée (fait), notifications
+      annoncées via <section aria-live="polite"> de Sonner (nuance
+      assertive/polite documentée, non retenue comme anomalie), offline
+      pendant un stream SSE IA (aucune corruption de donnée, mais
+      res.on("close") ne se déclenche pas sur une coupure TCP brute —
+      anomalie distincte ouverte sous SEC-110).
     perimetre: transverse
-    statut: gelé
+    statut: resolu
     note_degel: >
       Dégelé le 2026-08-03 (demande explicite du porteur), a produit
       3 correctifs réels (SEC-098/099/100, tous resolu avec CI verte).

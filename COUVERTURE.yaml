@@ -335,6 +335,18 @@ derniere_maj: "2026-07-30"
 # publique correctement limitée à key→value sans fuite de label/section/
 # type internes). Aucune anomalie trouvée. G non balayée (pas de calcul
 # financier) ; C/D/E/F/H/I/J laissées à null.
+# transverse : H balayée le 2026-08-13 (dégel explicite SEC-096/SEC-097,
+# session du 2026-08-10/13) — extension ponctuelle du scan axe-core à 7
+# pages (SEC-096, reste gelé : critère CI continue non atteint par ce
+# scan) + les 3 sous-points SEC-097 testés réellement (PWA non
+# implémentée — fait ; notifications déjà annoncées via aria-live=polite
+# de Sonner — limite documentée, pas une anomalie ; offline pendant un
+# stream SSE IA — aucune corruption de donnée, mais res.on("close") ne se
+# déclenche pas sur une coupure TCP brute, anomalie ouverte sous SEC-110).
+# 5 défauts WCAG trouvés et corrigés (contraste text-primary sur fond
+# surface-warm ×4 fichiers, combobox sans nom ×2, progressbar sans nom
+# ×12, badge priorité NORMAL sous le seuil). SEC-097 passe resolu ;
+# SEC-096 reste gelé (son critère propre n'est pas atteint par ce scan).
 
 modules:
   "4.1-crm":
@@ -530,6 +542,6 @@ modules:
     E: null
     F: null
     G: "sans_objet"
-    H: null
+    H: "2026-08-13"
     I: null
     J: null

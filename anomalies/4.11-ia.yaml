@@ -151,6 +151,57 @@ anomalies:
       connexion. Aucune corruption de donnée dans les deux cas (SEC-035
       tient) — les deux anomalies partagent cette même garantie sans être
       la même classe de défaut.
+  - id: SEC-110
+    titre: >
+      Distinct de SEC-082 (résolu) : SEC-082 vérifie qu'un abandon
+      client PROPRE (fetch AbortController.abort(), ex. bouton annuler
+      SEC-092) coupe bien le tour Ollama via res.on("close"). Testé
+      réellement le 2026-08-13 avec une coupure RÉSEAU BRUTE (proxy TCP
+      local, socket.destroy() sur la connexion déjà établie, sans fetch
+      abort côté client) pendant un tour SSE IA en cours : le tour
+      Ollama continue jusqu'à sa fin naturelle et le message ASSISTANT
+      complet (2100 caractères) est persisté normalement, comme si la
+      connexion n'avait jamais été coupée — res.on("close") ne s'est
+      pas déclenché sur ce type de coupure précis. Aucune corruption de
+      donnée (même garantie que SEC-082 : persistance atomique et
+      tardive), mais gaspillage du seul worker Ollama disponible sur
+      une réponse qu'aucun client ne recevra, et incohérence UX
+      (réponse existante en base, invisible pour l'utilisateur qui a
+      perdu sa connexion)
+    perimetre: 4.11-ia
+    regle_violee: >
+      Aucune règle métier écrite — même doctrine de fiabilité
+      opérationnelle que SEC-082 : sur une machine CPU-only où chaque
+      tour Ollama coûte des dizaines de secondes de calcul réel,
+      laisser tourner un tour pour un client dont la connexion réseau a
+      été coupée brutalement (pas juste abandonnée proprement) gaspille
+      la même ressource rare.
+    classe: sse-sans-annulation-liee-a-la-connexion
+    gravite: moyenne
+    statut: ouvert
+    critere_de_resolution: >
+      Un test reproductible (proxy TCP local + socket.destroy() sur la
+      connexion déjà établie, pas un fetch AbortController.abort() côté
+      client — ce cas-là est déjà couvert par SEC-082) pendant un tour
+      SSE IA en cours doit montrer que res.on("close") (ou un mécanisme
+      équivalent détectant la coupure réelle du socket TCP sous-jacent)
+      se déclenche, que abortController.signal s'active, et qu'aucun
+      nouveau message ASSISTANT n'est persisté après la coupure —
+      contrairement au comportement actuel où le tour se termine et se
+      persiste normalement malgré la coupure.
+    detecte_le: "2026-08-13"
+    source: "Audit SEC-097.3 (dégel explicite du porteur, session du 2026-08-10/13) — test réel demandé par le porteur (coupure réseau réelle pendant un tour SSE IA), la première tentative via Playwright context.setOffline(true) n'ayant pas permis de trancher (setOffline ne coupe pas une connexion déjà établie vers localhost, seulement le trafic sortant futur du navigateur) ; second test via proxy TCP local avec socket.destroy() a permis une coupure réelle et a révélé ce résultat."
+    confiance: haute
+    note: >
+      Ne pas fusionner avec SEC-082 malgré la classe partagée : critère
+      de résolution différent (type de coupure testé), et SEC-082 reste
+      valide tel quel pour son propre scénario (vérifié réellement avec
+      preuve reproductible à l'époque). Gravité fixée à moyenne (plutôt
+      que mineure comme SEC-082) car ce scénario est plus probable en
+      usage réel (coupure réseau/wifi, pas seulement un clic volontaire
+      sur annuler) et le gaspillage de ressource touche le seul worker
+      Ollama disponible sur ce host CPU-only.
+
   - id: SEC-082
     titre: >
       addMessageStream (aiConversation.controller.ts) et

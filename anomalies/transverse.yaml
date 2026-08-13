@@ -526,22 +526,21 @@ anomalies:
       les 3 sous-points restants.
     classe: dette-technique
     gravite: mineure
-    statut: gelé
+    statut: resolu
     note_degel: >
       Dégelé le 2026-08-03 (demande explicite du porteur), a produit
       3 correctifs réels (SEC-098/099/100, tous resolu avec CI verte
       confirmée sur chaque commit). Regelé le 2026-08-04 (demande
       explicite du porteur) : le périmètre qui avait motivé le dégel
-      (impact réel, mesurable, corrigeable) est traité. Le regel porte
+      (impact réel, mesurable, corrigeable) est traité. Le regel portait
       sur les 3 sous-points jamais audités listés dans le titre — pas
       sur la catégorie H entière ni sur les 14 autres périmètres §4.
+      Dégelé une seconde fois le 2026-08-10 (demande explicite du
+      porteur) spécifiquement pour traiter ces 3 sous-points.
     declencheur_reexamen: >
-      Identique aux entrées voisines de ce backlog (SEC-095/096) :
-      premier des deux — (1) un incident réel remonté par un
-      utilisateur/testeur après lancement sur l'un des 3 sous-points
-      (offline, PWA, notifications non-contraste), ou (2) une nouvelle
-      demande explicite du porteur — jamais de date automatique, jamais
-      "pour compléter la matrice".
+      N/A — résolu. Un futur signal fort (incident réel post-lancement
+      sur offline/PWA/notifications) rouvrirait un nouvel ID, pas
+      celui-ci (cf. interdiction de reformulation, CLAUDE.md).
     critere_de_resolution: >
       Pour chacun des 3 sous-points restants : un test réel (pas une
       lecture de code statique) tranchant la question factuelle avant
@@ -554,6 +553,42 @@ anomalies:
       Anomalies trouvées enregistrées sous leurs propres IDs, cellule
       (transverse, H) de COUVERTURE.yaml mise à jour avec la date réelle
       du jour où ces 3 sous-points auront été effectivement testés.
+    resultat_par_sous_point: >
+      Testé réellement le 2026-08-13 (session dégel du 2026-08-10) :
+      (1) PWA — aucun manifest.json/manifest.webmanifest,
+      aucun navigator.serviceWorker.register, aucune dépendance
+      vite-plugin-pwa/workbox, aucun objectif produit documenté dans
+      REFERENTIEL.md. Fait : PWA non implémentée, jamais un objectif —
+      pas une anomalie, aucun ID ouvert. (2) Notifications — toast.error
+      réellement déclenché (échec de connexion) et inspecté en DOM live :
+      le toast lui-même n'a ni role ni aria-live propre, mais Sonner
+      l'encapsule dans <section aria-live="polite" aria-atomic="false"
+      aria-relevant="additions text" aria-label="Notifications alt+T">
+      confirmée contenant le texte réel de l'erreur — le message EST
+      annoncé à un lecteur d'écran. Nuance WCAG non retenue comme
+      anomalie (décision du porteur, 2026-08-13) : la politesse est
+      "polite" et non "assertive" pour les erreurs, mais aucune prop
+      ToasterProps ne permet de la configurer (câblé en dur dans
+      node_modules/sonner/dist/index.mjs) — patcher une librairie tierce
+      pour ce gain marginal jugé disproportionné, documenté ici comme
+      limite connue, aucun ID ouvert. (3) Offline pendant un stream SSE
+      IA — testé avec coupure réseau réelle (proxy TCP local +
+      socket.destroy() sur la connexion déjà établie, méthode plus
+      fiable que context.setOffline(true) de Playwright qui ne coupe pas
+      une connexion déjà établie vers localhost) pendant un tour IA en
+      cours : aucune corruption de donnée constatée (persistance
+      atomique et tardive, cf. SEC-035/SEC-082), mais le tour Ollama
+      continue jusqu'à sa fin naturelle et se persiste malgré la
+      coupure — res.on("close") ne se déclenche pas sur ce type de
+      coupure précis, contrairement au cas déjà couvert par SEC-082
+      (abandon propre via fetch AbortController.abort()). Anomalie
+      distincte ouverte sous SEC-110 (gravité moyenne, même classe que
+      SEC-082, critère de résolution propre). Comportement hors contexte
+      IA (navigation générale pendant une coupure) : non vérifiable,
+      aucun signal existant dans le code (pas d'indicateur de connexion
+      global) — non documenté comme anomalie faute de preuve.
+      Cellule (transverse, H) de COUVERTURE.yaml à mettre à jour avec la
+      date du jour.
   - id: SEC-096
     titre: >
       Dette technique — Aucune mesure formelle de contraste WCAG via un
@@ -593,7 +628,34 @@ anomalies:
       axe-core (ou équivalent) intégré à la CI sur les écrans principaux,
       0 violation de niveau critique/sérieux non justifiée par une
       exception documentée (même doctrine que l'exception
-      react-refresh/only-export-components de CLAUDE.md).
+      react-refresh/only-export-components de CLAUDE.md). Ce critère
+      exige une intégration CI continue — un scan ponctuel supplémentaire
+      (même réel et correctif) ne le satisfait pas et ne clôt pas
+      SEC-096 à lui seul.
+    extension_scan_2026_08_13: >
+      Dégel du 2026-08-10 (demande explicite du porteur) : extension
+      ponctuelle du scan axe-core à 7 pages non couvertes par le scan du
+      2026-08-03 (priorisées par exposition réelle — pages publiques
+      d'abord) : /, /case-studies, /mentions-legales, /confidentialite,
+      /forgot-password, /app/tasks, /app/projects. 0 violation sur
+      case-studies/mentions-legales/confidentialite/forgot-password.
+      5 violations réelles trouvées et corrigées le 2026-08-13 : (1)
+      contraste 3 libellés home (Problems.tsx/SolutionsTeaser.tsx/
+      FAQ.tsx, text-primary #4f7a87 sur #f5f0ed à 4.15:1) — remplacé par
+      text-primary-strong (5.03:1), même token déjà utilisé pour ce cas
+      exact sur les badges (styles.css commentaire ligne 65-67) ; (2)
+      combobox sans nom (/app/tasks, filtre statut, SelectTrigger sans
+      aria-label — Radix ajoute role="combobox" automatiquement via
+      ui/select.tsx) — aria-label ajouté ; (3) combobox sans nom
+      identique (/app/projects, tri liste) — aria-label ajouté ; (4)
+      12 barres de progression sans nom (/app/projects, une par carte
+      projet, ui/progress.tsx spreadant déjà ...props vers Radix) —
+      aria-label interpolé (nom projet + %) ajouté, clé i18n
+      projectsPage.progressLabel (FR+EN). Ce scan ponctuel ne change pas
+      le statut de SEC-096 (reste gelé — critère CI continue non
+      atteint), documenté ici comme contenu réel au lieu de rester
+      seulement dans la conversation (cf. CLAUDE.md — enregistrement
+      immédiat de tout écart constaté).
   - id: SEC-108
     titre: >
       19 fichiers appelaient chacun indépendamment
