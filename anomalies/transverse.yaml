@@ -143,16 +143,17 @@ anomalies:
 
   - id: SEC-101
     titre: >
-      Le registre n'a aucune vérification automatique qui rapproche un
-      statut "resolu" déclaré d'une preuve réelle (commit cité, CI verte
-      associée) au moment où le statut change — la seule garantie
-      actuelle est la discipline manuelle de l'agent qui fait l'édition
-      YAML, dans les deux fichiers (anomalies/_index.yaml et le fichier
-      de détail par périmètre) qui doivent pourtant se livrer ensemble
-      selon CLAUDE.md. Rien dans le dépôt (CI, script, hook) ne détecte
-      une divergence entre les deux, ni ne vérifie qu'un commit_id cité
-      comme preuve existe réellement dans l'historique git avant
-      d'accepter un statut "resolu".
+      Le registre n'avait aucune vérification automatique qui rapproche
+      un statut "resolu" déclaré d'une preuve réelle (commit cité, CI
+      verte associée) au moment où le statut change — la seule garantie
+      était la discipline manuelle de l'agent qui fait l'édition YAML,
+      dans les deux fichiers (anomalies/_index.yaml et le fichier de
+      détail par périmètre) qui doivent pourtant se livrer ensemble
+      selon CLAUDE.md. Rien dans le dépôt (CI, script, hook) ne
+      détectait une divergence entre les deux, ni ne vérifiait qu'un
+      commit_id cité comme preuve existait réellement dans l'historique
+      git avant d'accepter un statut "resolu". CORRIGÉ (2026-08-13,
+      commit 62b8bb4) — voir critere_de_resolution ci-dessous.
     perimetre: transverse
     regle_violee: >
       CLAUDE.md « Cohérence obligatoire REFERENTIEL.md ↔ anomalies/*.yaml »
@@ -163,20 +164,29 @@ anomalies:
       jour-là.
     classe: registre-statut-resolu-sans-verification-automatique
     gravite: moyenne
-    statut: ouvert
+    statut: resolu
     critere_de_resolution: >
-      NON TRANCHÉ À CE STADE — rapport seul, décision du porteur
-      attendue avant toute implémentation (voir proposition dans
-      `note` ci-dessous). Provisoirement : un mécanisme (script CI ou
-      hook) existe qui, pour toute anomalie passée à `resolu` dans un
-      commit, vérifie automatiquement que (a) `_index.yaml` et le
-      fichier de détail du périmètre portent le même statut pour cet ID
-      (pas de divergence), et (b) tout commit cité comme preuve dans le
-      texte de l'anomalie existe réellement dans l'historique git
-      (`git cat-file -e <sha>` ou équivalent) — sans vérifier le
-      contenu du commit ni la substance de la preuve, seulement son
-      existence matérielle.
+      Un mécanisme (script CI ou hook) existe qui, pour toute anomalie
+      passée à `resolu` dans un commit, vérifie automatiquement que (a)
+      `_index.yaml` et le fichier de détail du périmètre portent le même
+      statut pour cet ID (pas de divergence), et (b) tout commit cité
+      comme preuve dans le texte de l'anomalie existe réellement dans
+      l'historique git (`git cat-file -e <sha>` ou équivalent) — sans
+      vérifier le contenu du commit ni la substance de la preuve,
+      seulement son existence matérielle. — SATISFAIT le 2026-08-13 :
+      job CI `anomaly-registry-check` (option "job CI dédié" choisie par
+      le porteur, plutôt que le hook pre-commit local envisagé comme
+      alternative en `note`), `scripts/check-anomaly-registry.mjs`.
+      Testé localement contre les 2 régressions ciblées avant de
+      committer (divergence de statut créée puis restaurée, SHA
+      halluciné puis restauré, ID manquant dans chaque sens puis
+      restauré — 3 scénarios, tous détectés). Commit `62b8bb4`, CI verte
+      confirmée (run
+      https://github.com/shahdfull/Secritou/actions/runs/31650058307,
+      job `anomaly-registry-check: success` explicitement vérifié, pas
+      seulement le run global).
     detecte_le: "2026-08-04"
+    resolu_le: "2026-08-13"
     source: >
       Demande explicite du porteur après la vérification SEC-066 (session
       du 2026-08-04, avant le traitement du lot des 17 anomalies
