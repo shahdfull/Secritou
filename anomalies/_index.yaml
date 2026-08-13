@@ -378,13 +378,18 @@ anomalies:
       verte confirmée sur chacun). Ce n'est donc plus "colonne H à null
       partout" — le regel porte sur un reliquat nommé, pas sur l'absence
       totale d'audit d'origine. Les 3 sous-points ont été testés
-      réellement le 2026-08-13 (voir anomalies/transverse.yaml pour le
-      détail par sous-point) : PWA non implémentée (fait), notifications
-      annoncées via <section aria-live="polite"> de Sonner (nuance
-      assertive/polite documentée, non retenue comme anomalie), offline
-      pendant un stream SSE IA (aucune corruption de donnée, mais
-      res.on("close") ne se déclenche pas sur une coupure TCP brute —
-      anomalie distincte ouverte sous SEC-110).
+      réellement le 2026-08-13, statuts distincts par sous-point (voir
+      anomalies/transverse.yaml#statut_par_sous_point pour le détail) :
+      PWA non implémentée (fait, clos, aucun suivi) ; notifications déjà
+      annoncées via <section aria-live="polite"> de Sonner mais pas en
+      "assertive" pour les erreurs — statut SURVEILLANCE (même modèle
+      que SEC-107), patch de librairie tierce jugé disproportionné pour
+      l'instant, déclencheur de réexamen = future prop native Sonner
+      pour configurer aria-live par toast ; offline pendant un stream
+      SSE IA — clos pour ce sous-point (aucune corruption de donnée),
+      mais le constat technique distinct (res.on("close") ne se
+      déclenche pas sur une coupure TCP brute) vit sous SEC-110, qui
+      reste ouvert.
     perimetre: transverse
     statut: resolu
     note_degel: >

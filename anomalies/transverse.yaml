@@ -574,21 +574,41 @@ anomalies:
       limite connue, aucun ID ouvert. (3) Offline pendant un stream SSE
       IA — testé avec coupure réseau réelle (proxy TCP local +
       socket.destroy() sur la connexion déjà établie, méthode plus
-      fiable que context.setOffline(true) de Playwright qui ne coupe pas
-      une connexion déjà établie vers localhost) pendant un tour IA en
-      cours : aucune corruption de donnée constatée (persistance
-      atomique et tardive, cf. SEC-035/SEC-082), mais le tour Ollama
-      continue jusqu'à sa fin naturelle et se persiste malgré la
-      coupure — res.on("close") ne se déclenche pas sur ce type de
-      coupure précis, contrairement au cas déjà couvert par SEC-082
-      (abandon propre via fetch AbortController.abort()). Anomalie
-      distincte ouverte sous SEC-110 (gravité moyenne, même classe que
-      SEC-082, critère de résolution propre). Comportement hors contexte
-      IA (navigation générale pendant une coupure) : non vérifiable,
-      aucun signal existant dans le code (pas d'indicateur de connexion
-      global) — non documenté comme anomalie faute de preuve.
-      Cellule (transverse, H) de COUVERTURE.yaml à mettre à jour avec la
-      date du jour.
+      fiable que context.setOffline(true) de Playwright, qui ne coupe
+      PAS une connexion HTTP déjà établie vers localhost — seulement le
+      trafic sortant futur du navigateur ; limite de méthode de test à
+      connaître pour quiconque relira cette anomalie et voudrait
+      reproduire un test offline similaire avec cet outil) pendant un
+      tour IA en cours : aucune corruption de donnée constatée
+      (persistance atomique et tardive, cf. SEC-035/SEC-082), mais le
+      tour Ollama continue jusqu'à sa fin naturelle et se persiste
+      malgré la coupure — res.on("close") ne se déclenche pas sur ce
+      type de coupure précis, contrairement au cas déjà couvert par
+      SEC-082 (abandon propre via fetch AbortController.abort()).
+      Anomalie distincte ouverte sous SEC-110 (gravité moyenne, même
+      classe que SEC-082, critère de résolution propre) — décision du
+      porteur (2026-08-13) : documenter la limite de méthode ici, pas de
+      test supplémentaire dans l'immédiat (SEC-110 reste le porteur du
+      suivi technique). Comportement hors contexte IA (navigation
+      générale pendant une coupure) : non vérifiable, aucun signal
+      existant dans le code (pas d'indicateur de connexion global) — non
+      documenté comme anomalie faute de preuve.
+    statut_par_sous_point: >
+      Décision du porteur (2026-08-13), les 3 sous-points ne se
+      referment pas au même statut : (1) PWA — clos, fait documenté,
+      aucun suivi. (2) Notifications — statut SURVEILLANCE (même modèle
+      que SEC-107, pas "clos silencieusement") : patcher Sonner pour
+      passer les toasts d'erreur en aria-live="assertive" jugé
+      disproportionné pour ce gain (le message est déjà annoncé en
+      "polite"), mais le sujet reste suivi. Déclencheur de réexamen :
+      une future version de Sonner expose nativement une prop de
+      configuration du niveau aria-live par toast (à vérifier au
+      changelog lors d'un futur upgrade de la dépendance) — jamais par
+      date automatique ni par simple doute. (3) Offline SSE IA — clos
+      pour SEC-097 (aucune corruption de donnée, le risque métier
+      couvert par ce sous-point est écarté), mais le constat technique
+      distinct vit sous SEC-110, qui reste ouvert. Cellule (transverse,
+      H) de COUVERTURE.yaml mise à jour avec la date du jour.
   - id: SEC-096
     titre: >
       Dette technique — Aucune mesure formelle de contraste WCAG via un
@@ -639,20 +659,41 @@ anomalies:
       d'abord) : /, /case-studies, /mentions-legales, /confidentialite,
       /forgot-password, /app/tasks, /app/projects. 0 violation sur
       case-studies/mentions-legales/confidentialite/forgot-password.
-      5 violations réelles trouvées et corrigées le 2026-08-13 : (1)
-      contraste 3 libellés home (Problems.tsx/SolutionsTeaser.tsx/
-      FAQ.tsx, text-primary #4f7a87 sur #f5f0ed à 4.15:1) — remplacé par
-      text-primary-strong (5.03:1), même token déjà utilisé pour ce cas
-      exact sur les badges (styles.css commentaire ligne 65-67) ; (2)
-      combobox sans nom (/app/tasks, filtre statut, SelectTrigger sans
-      aria-label — Radix ajoute role="combobox" automatiquement via
-      ui/select.tsx) — aria-label ajouté ; (3) combobox sans nom
-      identique (/app/projects, tri liste) — aria-label ajouté ; (4)
+      6 violations réelles trouvées et corrigées le 2026-08-13, dans
+      l'ordre de priorité demandé par le porteur (gravité axe-core
+      critical d'abord) : (1) combobox sans nom, 2 occurrences —
+      /app/tasks (filtre statut) et /app/projects (tri liste) : même
+      composant source (ui/select.tsx#SelectTrigger, SelectPrimitive.
+      Trigger de Radix qui génère role="combobox" automatiquement),
+      confirmé avant correctif qu'il s'agissait bien d'un seul composant
+      partagé — mais aria-label ajouté séparément à chaque site d'appel
+      (contexte différent : filtre vs tri, un label centralisé dans le
+      composant source aurait été faux pour l'un des deux usages) ; (2)
       12 barres de progression sans nom (/app/projects, une par carte
       projet, ui/progress.tsx spreadant déjà ...props vers Radix) —
-      aria-label interpolé (nom projet + %) ajouté, clé i18n
-      projectsPage.progressLabel (FR+EN). Ce scan ponctuel ne change pas
-      le statut de SEC-096 (reste gelé — critère CI continue non
+      aria-label interpolé et contextuel (nom réel du projet + %, pas
+      générique — ex. "Avancement du projet SEC-072 rrn project
+      1786108048104-wpg1g2 : 100%"), clé i18n projectsPage.progressLabel
+      (FR+EN) ; (3) contraste badge priorité NORMAL (/app/tasks, AG
+      Grid, taskUtils.ts#PRIORITY_BADGE, text-blue-600 à 4.30:1 sur
+      bg-blue-100) — remplacé par text-blue-700 (5.49:1), aligné sur le
+      pattern déjà utilisé pour HIGH/URGENT (variantes -700) ; (4)
+      contraste 4 libellés (Problems.tsx/SolutionsTeaser.tsx/FAQ.tsx/
+      Services.tsx — Services.tsx découvert lors de la vérification,
+      absent du scan initial à 3 nœuds, text-primary #4f7a87 sur
+      #f5f0ed/surface-warm à 4.15:1) — remplacé par text-primary-strong
+      (5.03:1), même token déjà utilisé pour ce cas exact sur les
+      badges (styles.css commentaire ligne 65-67). Vérifié par re-scan
+      axe-core réel après chaque correctif, puis re-vérifié une seconde
+      fois le 2026-08-13 après la validation explicite du porteur (test
+      indépendant du commit, pas une relecture du rapport) : 0 violation
+      sur home (/), /app/tasks, /app/projects. Aucun nouvel ID ouvert
+      pour "axe-core en continu à la CI" — ce chantier EST déjà le
+      critere_de_resolution actuel de SEC-096 lui-même (ci-dessus) ; en
+      ouvrir un second sur le même critère aurait été le doublon exact
+      que la règle "un ID = un critère de résolution" (CLAUDE.md)
+      interdit. Ce scan ponctuel et ses 6 correctifs ne changent donc
+      pas le statut de SEC-096 (reste gelé — critère CI continue non
       atteint), documenté ici comme contenu réel au lieu de rester
       seulement dans la conversation (cf. CLAUDE.md — enregistrement
       immédiat de tout écart constaté).
