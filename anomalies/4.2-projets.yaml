@@ -295,3 +295,12 @@ anomalies:
       sur plusieurs runs CI réels avant clôture, même doctrine que
       SEC-111 (compter les tentatives, pas se satisfaire d'un seul run
       vert après ajustement).
+
+      Suivi runs CI post-correctif (compte de tentatives, pas une seule
+      observation) :
+      1. Run 31844490243 (commits 007734e+4b54999) : server success
+         du premier coup, aucun re-run nécessaire — première fois de
+         toute la session du 2026-08-14 que ce job passe sans
+         intervention. Statut laissé ouvert : 1 run vert ne suffit pas
+         à conclure une stabilité durable, à continuer d'observer sur
+         les prochains commits de la session avant de repasser resolu.
