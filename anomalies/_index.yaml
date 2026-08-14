@@ -1120,8 +1120,12 @@ anomalies:
       notes/descriptions présent en production) n'est pas commencée,
       volontairement, sur décision du porteur. Ne pas rouvrir Phase B
       sans signal fort explicite (volume réel atteint, ou demande directe
-      du porteur) — jamais par défaut. Détail complet dans
-      anomalies/4.11-ia.yaml#SEC-070 (note).
+      du porteur) — jamais par défaut. Phase B tentée le 2026-08-14
+      (demande explicite du porteur, déclencheur valide) — volume réel
+      reconfirmé toujours critique (0 SearchEmbedding indexé, 0/156
+      leads et 0/151 projects ≥200 caractères), Phase B business
+      impossible à mener honnêtement, reste en_cours. Détail complet
+      dans anomalies/4.11-ia.yaml#SEC-070 (note).
 
   - id: SEC-069
     titre: >

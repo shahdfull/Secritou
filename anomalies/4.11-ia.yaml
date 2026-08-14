@@ -554,6 +554,68 @@ anomalies:
       explicite du porteur : ne pas clôturer tant que Phase B n'est pas
       traitée, même si Phase A est complète et vérifiée.
 
+      TENTATIVE PHASE B, 2026-08-14 (demande explicite du porteur,
+      déclencheur valide au sens de declencheur_reexamen dans
+      _index.yaml — indépendant du seuil de volumétrie).
+
+      Étape 1 — re-mesure directe du volume réel (requête Prisma
+      directe, pas une supposition) : leads total 156 (0 ≥200 car.),
+      projects total 151 (0 ≥200 car.), tasks total 48 (0 ≥200 car.,
+      25/48 ≥50 car. mais aucune n'atteint 100). Le nombre de LIGNES a
+      augmenté depuis le 2026-08-09 (156 vs 12 leads, 151 vs 25
+      projects — accumulation de données de test/seed), mais la
+      PROPORTION de texte substantiel reste à zéro : constat identique
+      en substance à celui du 2026-08-09, pas une amélioration. Vérifié
+      aussi : 0 ligne dans SearchEmbedding — aucune donnée n'a jamais
+      été indexée depuis le déploiement de Phase A, cohérent avec
+      l'absence de texte substantiel écrit depuis (le job d'indexation
+      n'a pas de seuil de longueur, donc ce n'est pas un filtre qui
+      bloque, c'est l'absence de contenu à indexer).
+
+      Étape 2 — le volume reste critique, donc Phase B business (juger
+      la pertinence de résultats réels en production) est restée
+      impossible à mener honnêtement : aucune conclusion de pertinence
+      n'a été tirée sur des données réelles, conformément à l'interdiction
+      explicite de fabriquer une preuve sur un corpus quasi inexistant.
+
+      Vérification MÉCANISME SEUL menée à la place (explicitement
+      distincte d'une preuve de pertinence business — ne compte pas
+      comme Phase B) : 3 leads + 2 projects synthétiques créés,
+      clairement préfixés "SEC-070-TEST" dans leur champ name, indexés
+      via le vrai processSearchEmbeddingJob (maintenance.processor.ts),
+      puis 7 requêtes de recherche appelées contre le vrai tool
+      searchSemantic (runAiTool réel, aiTools.ts, pas une
+      réimplémentation). Résultat : les 7/7 requêtes ont retourné
+      l'entité la plus sémantiquement pertinente en position #1 du
+      classement (ex. "site pour avocats juridique" -> project cabinet
+      d'avocats en premier ; "application mobile livraison" -> lead
+      livraison de repas en premier). Toutes les données et embeddings
+      synthétiques supprimés immédiatement après (SearchEmbedding
+      confirmé à 0 ligne après nettoyage) — rien n'a été laissé en
+      base. Ce résultat prouve que le pipeline technique (indexation ->
+      recherche vectorielle -> scoping RBAC -> retour au tool IA)
+      fonctionne de bout en bout sur des données propres et bien
+      formées — il ne dit RIEN sur la pertinence réelle en production,
+      où le texte est absent, pas juste différent du jeu synthétique.
+
+      Chiffrage de ce qu'il faudrait pour rendre Phase B mesurable :
+      un volume substantiel (≥200 caractères, seuil déjà utilisé pour
+      les mesures précédentes) sur au moins quelques dizaines de leads/
+      projects réels — ce que le seed/les tests ne produisent pas et
+      que seule une utilisation réelle du CRM par de vrais utilisateurs
+      (0 client actif à ce jour) peut apporter. Aucun chiffre précis
+      n'est fixé arbitrairement ici : le bon seuil de "substantiel"
+      dépend de la longueur réelle des besoins clients une fois qu'ils
+      existent, pas d'un nombre choisi maintenant sans donnée pour le
+      justifier.
+
+      Conclusion : SEC-070 reste en_cours. Phase A confirmée
+      opérationnelle (vérification mécanisme). Phase B business non
+      réalisable aujourd'hui, honnêtement documentée comme telle plutôt
+      que fabriquée. Ne pas retenter Phase B business sans un nouveau
+      signal réel (volume atteint) ou une nouvelle demande explicite du
+      porteur.
+
   - id: SEC-066
     titre: >
       Le message d'erreur aiAssistant.errors.unavailable
