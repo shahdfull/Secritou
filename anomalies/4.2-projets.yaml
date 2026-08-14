@@ -214,15 +214,29 @@ anomalies:
       sans changer la méthode de mesure — c'est déjà ce qui a été fait une
       fois (2026-07-23) et le problème est revenu.
     note: >
-      Le commentaire du test (ligne 187) cite "SEC-097" comme origine du
-      premier élargissement de marge (2026-07-23) — cet ID appartient
-      aujourd'hui à une tout autre anomalie du registre actuel
-      (transverse.yaml#SEC-097, dette technique WCAG, resolu le
-      2026-08-14). Ce n'est pas une erreur de frappe : le registre a été
-      remis à zéro le 2026-07-27 (voir l'en-tête de _index.yaml), et ce
-      commentaire de code, écrit avant cette date, cite un ID de l'ancien
-      registre (archivé sur la branche archive/anomalies-avant-reset,
-      commit 3c03297) jamais mis à jour après le reset. Signalé ici pour
-      qu'un futur lecteur ne confonde pas les deux — ne pas corriger le
-      commentaire du test dans le cadre de cette anomalie (hors mandat,
-      pas le sujet de ce constat).
+      Le commentaire du test citait "SEC-097" comme origine du premier
+      élargissement de marge (2026-07-23) — cet ID appartient aujourd'hui
+      à une tout autre anomalie du registre actuel (transverse.yaml#
+      SEC-097, dette technique WCAG, resolu le 2026-08-14). Ce n'est pas
+      une erreur de frappe : le registre a été remis à zéro le
+      2026-07-27 (voir l'en-tête de _index.yaml), et ce commentaire de
+      code, écrit avant cette date, citait un ID de l'ancien registre
+      (archivé sur la branche archive/anomalies-avant-reset, commit
+      3c03297) jamais mis à jour après le reset. Corrigé depuis (mandat
+      explicite et séparé du porteur, pas une initiative dans le cadre
+      de cette anomalie) : commit af005f7, le describe et le commentaire
+      référencent désormais SEC-112 — seuil et logique du test
+      inchangés.
+
+      2026-08-14, preuves supplémentaires de récurrence : le commit
+      44e7ca4 (registre uniquement, SEC-070) a déclenché 2 nouveaux
+      échecs consécutifs de ce même test avant de repasser vert au 3e
+      essai — ratios 6.8x puis 7.0x (ce dernier dépasse même le seuil
+      alors en vigueur de 6x, contrairement aux 3 premiers échecs qui
+      restaient juste en dessous). 6 échecs au total le 2026-08-14 sur
+      3 commits successifs sans rapport avec le module tâches
+      (fbfa5b9, 46227b8, 44e7ca4), confirmant que la marge actuelle
+      n'offre plus de garantie fiable, pas seulement un bruit
+      occasionnel. Renforce critere_de_resolution ci-dessus : élargir la
+      marge une troisième fois ne suffira probablement pas non plus
+      sans changer la méthode de mesure elle-même.

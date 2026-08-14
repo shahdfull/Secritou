@@ -31,6 +31,12 @@ anomalies:
     statut: ouvert
     gravite: mineure
     classe: test-timing-relatif-marge-insuffisante-ci-partage
+    note_2026_08_14: >
+      2 échecs supplémentaires le même jour (commit 44e7ca4, sans
+      rapport), ratios 6.8x puis 7.0x — ce dernier dépasse même le
+      seuil de 6x, pas juste en dessous comme les 4 premiers échecs.
+      6 échecs au total le 2026-08-14 sur 3 commits successifs. Détail
+      complet dans anomalies/4.2-projets.yaml.
   - id: SEC-111
     titre: >
       Job CI e2e rouge (run 31735502093, 2026-08-13, commit cd49909) sur
