@@ -707,7 +707,7 @@ anomalies:
       ouvrir un second sur le même critère aurait été le doublon exact
       que la règle "un ID = un critère de résolution" (CLAUDE.md)
       interdit. Ce scan ponctuel et ses 6 correctifs ne changent donc
-      pas le statut de SEC-096 (reste gelé — critère CI continue non
+      pas le statut de SEC-096 (reste ouvert — critère CI continue non
       atteint), documenté ici comme contenu réel au lieu de rester
       seulement dans la conversation (cf. CLAUDE.md — enregistrement
       immédiat de tout écart constaté).
