@@ -7,8 +7,9 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : 4.2 Gestion de projet
-# 2 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
+# 3 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
+# +1 le 2026-08-14 (SEC-112, flaky test timing constaté hors audit formel).
 
 anomalies:
   - id: SEC-020
@@ -156,3 +157,72 @@ anomalies:
       server/test/documentUpdateVersionScopeManager.test.ts (5 cas,
       appelle réellement documentService contre une base migrée),
       enregistré dans test/run-all.test.ts. `verifie: test`.
+
+  - id: SEC-112
+    titre: >
+      test/taskBulkActions.test.ts#"processes tasks concurrently, not
+      sequentially" échoue de façon récurrente en CI sur des commits sans
+      rapport avec le module tâches — 4 échecs consécutifs observés le
+      2026-08-14 sur 2 commits successifs (31834991818, 31835959744),
+      tous avec le même symptôme : ratio juste au-dessus du seuil 6x
+      (6.1x/6.2x/6.5x), jamais un écart massif. Le seuil avait déjà été
+      élargi une fois (4x -> 6x, 2026-07-23, cf. commentaire du test qui
+      cite "SEC-097" — un ID appartenant en réalité à une tout autre
+      anomalie transverse dans le registre actuel, cf. note) après un
+      flake réel similaire — la marge actuelle reste insuffisante face
+      au bruit réel du runner GitHub Actions partagé.
+    perimetre: 4.2-projets
+    regle_violee: >
+      Aucune règle métier — fiabilité d'infrastructure de test. Le test
+      mesure un ratio entre deux durées observées (batchDuration /
+      singleDuration), où singleDuration est une unique requête de
+      quelques millisecondes (8-10ms observés) — hautement sensible au
+      moindre jitter réseau/DB du runner CI partagé, contrairement à une
+      mesure moyennée sur plusieurs appels.
+    classe: test-timing-relatif-marge-insuffisante-ci-partage
+    gravite: mineure
+    statut: ouvert
+    detecte_le: "2026-08-14"
+    source: >
+      Constat incident pendant la vérification post-push de SEC-096
+      (intégration axe-core continue) — 2 commits successifs et sans
+      rapport avec le module tâches (fbfa5b9 : client/i18n/e2e uniquement ;
+      46227b8 : anomalies/*.yaml uniquement) ont chacun déclenché un échec
+      de ce test précis en CI, nécessitant respectivement 1 et 2 re-runs
+      pour repasser vert. Enregistré immédiatement conformément à
+      CLAUDE.md (tout écart constaté hors d'un audit formel s'enregistre
+      dans la même session).
+    confiance: >
+      Haute sur le fait qu'aucun des deux commits déclencheurs n'est la
+      cause (diffs vérifiés directement). Haute aussi sur la nature du
+      défaut (marge de timing relative insuffisante face au bruit CI,
+      pas une régression de concurrence réelle) : le commentaire du test
+      lui-même (lignes 186-192) documente déjà un précédent identique
+      (flake réel confirmé sous contention du pool de connexions, code
+      Promise.allSettled vérifié inchangé) qui avait déjà motivé un premier
+      élargissement de marge (4x -> 6x) — ce nouvel épisode montre que ce
+      premier élargissement n'a pas suffi durablement.
+    critere_de_resolution: >
+      Soit (a) la marge de comparaison est rendue moins sensible au bruit
+      (ex. moyenne de plusieurs appels single au lieu d'un seul, ou seuil
+      absolu en ms plutôt qu'un ratio contre une mesure elle-même
+      bruitée), avec preuve d'une stabilité réelle sur plusieurs runs CI
+      consécutifs — pas une seule observation ; soit (b) le test est
+      restructuré pour ne plus dépendre du timing réel (ex. compter les
+      appels concurrents réellement émis plutôt que mesurer une durée
+      totale). Ne pas se contenter d'élargir la marge une seconde fois
+      sans changer la méthode de mesure — c'est déjà ce qui a été fait une
+      fois (2026-07-23) et le problème est revenu.
+    note: >
+      Le commentaire du test (ligne 187) cite "SEC-097" comme origine du
+      premier élargissement de marge (2026-07-23) — cet ID appartient
+      aujourd'hui à une tout autre anomalie du registre actuel
+      (transverse.yaml#SEC-097, dette technique WCAG, resolu le
+      2026-08-14). Ce n'est pas une erreur de frappe : le registre a été
+      remis à zéro le 2026-07-27 (voir l'en-tête de _index.yaml), et ce
+      commentaire de code, écrit avant cette date, cite un ID de l'ancien
+      registre (archivé sur la branche archive/anomalies-avant-reset,
+      commit 3c03297) jamais mis à jour après le reset. Signalé ici pour
+      qu'un futur lecteur ne confonde pas les deux — ne pas corriger le
+      commentaire du test dans le cadre de cette anomalie (hors mandat,
+      pas le sujet de ce constat).

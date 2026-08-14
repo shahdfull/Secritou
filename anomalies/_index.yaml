@@ -12,8 +12,25 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-111
+dernier_id: SEC-112
 anomalies:
+  - id: SEC-112
+    titre: >
+      test/taskBulkActions.test.ts#"processes tasks concurrently, not
+      sequentially" échoue de façon récurrente en CI sur des commits sans
+      rapport avec le module tâches — 4 échecs consécutifs observés le
+      2026-08-14 sur 2 commits successifs (31834991818, 31835959744),
+      tous avec le même symptôme : ratio juste au-dessus du seuil 6x
+      (6.1x/6.2x/6.5x), jamais un écart massif. Le seuil avait déjà été
+      élargi une fois (4x -> 6x, 2026-07-23, cf. commentaire du test qui
+      cite "SEC-097" — un ID appartenant en réalité à une tout autre
+      anomalie transverse dans le registre actuel, cf. note) après un
+      flake réel similaire — la marge actuelle reste insuffisante face
+      au bruit réel du runner GitHub Actions partagé.
+    perimetre: 4.2-projets
+    statut: ouvert
+    gravite: mineure
+    classe: test-timing-relatif-marge-insuffisante-ci-partage
   - id: SEC-111
     titre: >
       Job CI e2e rouge (run 31735502093, 2026-08-13, commit cd49909) sur
