@@ -180,7 +180,7 @@ anomalies:
       avec le code applicatif changé.
     classe: e2e-flaky-llm-reel-timing-ci
     gravite: mineure
-    statut: ouvert
+    statut: resolu
     detecte_le: "2026-08-13"
     source: >
       Constat incident pendant la vérification post-push des correctifs
@@ -215,6 +215,31 @@ anomalies:
       ce job rouge : leur propre run (31719896982) avait déjà confirmé
       e2e vert avant que ce job instable ne réapparaisse sur un commit
       sans rapport.
+    resolution_2026_08_14: >
+      Résolu par la voie (a) du critere_de_resolution ci-dessus : « ce test
+      repasse vert sur un re-run sans changement de code ». Le run/commit
+      d'origine (31735502093, commit cd49909) a été relancé réellement via
+      `gh run rerun 31735502093 --failed` puis `gh run rerun 31735502093
+      --job <id du job e2e>` — pas un nouveau commit, le même code exact
+      qui avait échoué le 2026-08-13. 2 tentatives distinctes exécutées
+      (minimum exigé par la note ci-dessus — « un flaky qui repasse vert
+      au 2e essai reste un flaky, pas un non-problème », donc compté
+      explicitement plutôt que de s'arrêter à la première) :
+      - Tentative 1 : job e2e conclusion=success, 2026-08-14T18:41:54Z →
+        18:50:07Z (~8min13s).
+      - Tentative 2 : job e2e conclusion=success, 2026-08-14T18:50:42Z →
+        18:57:11Z (~6min29s).
+      Les deux tentatives vertes sans exception. Conclusion globale du run
+      31735502093 après ces re-runs : success (8/8 jobs).
+      Corroboration additionnelle (insuffisante seule, mentionnée pour
+      mémoire) : 4 runs déjà verts sur des commits ultérieurs avec du code
+      applicatif réel changé entre-temps (31736741864, 31740433668,
+      31784610142, 31785320569) — utile comme signal convergent mais pas
+      la preuve exigée par le critère, qui porte spécifiquement sur un
+      re-run du run/commit ayant échoué, pas sur des commits différents.
+      Voie (b) (cause déterministe identifiée et corrigée) non traitée —
+      hors mandat de cette clôture, non nécessaire puisque la voie (a) a
+      suffi.
 
   - id: SEC-110
     titre: >

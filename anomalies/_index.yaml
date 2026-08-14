@@ -30,9 +30,22 @@ anomalies:
       fragilité (commentaire : modèle 3B peu fiable pour enchaîner deux
       appels d'outils, "deliberately NOT part of a shared parallel run").
     perimetre: 4.11-ia
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: e2e-flaky-llm-reel-timing-ci
+    note_resolution: >
+      Résolu le 2026-08-14 par la voie (a) du critere_de_resolution : re-run
+      réel du job e2e en échec sur le run/commit d'origine (run 31735502093,
+      commit cd49909, aucun changement de code), 2 tentatives distinctes,
+      toutes deux vertes — tentative 1 : success, 2026-08-14T18:41:54Z à
+      18:50:07Z (~8min13s) ; tentative 2 : success, 2026-08-14T18:50:42Z à
+      18:57:11Z (~6min29s). Conforme à l'exigence de la note existante
+      ("un flaky qui repasse vert au 2e essai reste un flaky, pas un
+      non-problème") : 2 tentatives comptées, pas une seule. Corroboré
+      (sans que cela ait suffi seul) par les 4 runs déjà verts sur des
+      commits ultérieurs avec code applicatif réel changé
+      (31736741864, 31740433668, 31784610142, 31785320569). Détail complet
+      dans anomalies/4.11-ia.yaml.
   - id: SEC-110
     titre: >
       Distinct de SEC-082 (résolu) : SEC-082 vérifie qu'un abandon
