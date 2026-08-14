@@ -243,7 +243,8 @@ anomalies:
       la même ressource rare.
     classe: sse-sans-annulation-liee-a-la-connexion
     gravite: moyenne
-    statut: ouvert
+    statut: resolu
+    verifie: test
     critere_de_resolution: >
       Un test reproductible (proxy TCP local + socket.destroy() sur la
       connexion déjà établie, pas un fetch AbortController.abort() côté
@@ -266,6 +267,43 @@ anomalies:
       usage réel (coupure réseau/wifi, pas seulement un clic volontaire
       sur annuler) et le gaspillage de ressource touche le seul worker
       Ollama disponible sur ce host CPU-only.
+    resolution_2026_08_14: >
+      Investigation empirique avant correctif (scripts jetables, non
+      commités) : reproduit le mécanisme exact — sans écriture régulière
+      sur le socket après la coupure, res.on("close")/res.on("error")
+      restent silencieux indéfiniment (testé jusqu'à 10s d'écart sans
+      déclenchement) ; TCP ne surface l'échec qu'à la prochaine tentative
+      d'écriture, qui peut ne jamais survenir avant la fin naturelle du
+      tour si le modèle "réfléchit" longtemps entre deux chunks ou deux
+      appels d'outils. Correctif : heartbeat SSE (": ping\n\n", commentaire
+      SSE — ligne commençant par ":", ignorée par la spec et par le
+      parser client réel, aiConversations.api.ts, qui ne réagit qu'aux
+      lignes "event:"/"data:") toutes les HEARTBEAT_INTERVAL_MS (5s,
+      aiConversation.controller.ts) pendant tout tour en cours, forçant
+      une tentative d'écriture régulière — la coupure est donc détectée
+      en un intervalle plutôt qu'à la prochaine écriture naturelle.
+      res.on("error") ajouté en plus de res.on("close") : l'échec
+      d'écriture du heartbeat peut surfacer via l'un ou l'autre event
+      selon le timing exact. Test réel (verifie: test, pas une
+      réimplémentation) dans
+      server/test/aiConversationRawNetworkDrop.test.ts : serveur Express
+      réel sur port éphémère, proxy TCP local (module net) relayant
+      octet à octet, socket.destroy() côté proxy→serveur uniquement
+      (jamais côté proxy→client) pour simuler une coupure sans FIN/RST
+      vers le serveur — distinct de SEC-082 qui détruit le socket
+      CLIENT réel, ce qui envoie un FIN/RST immédiatement détecté.
+      Prouve abortController.signal.aborted === true après un délai
+      borné (7s, un intervalle heartbeat + marge) et 0 message ASSISTANT
+      persisté en base pour la conversation après la coupure. Ajouté à
+      server/test/run-all.test.ts (agrégateur CI). Vert dans la suite
+      complète (test:coverage, 801 tests, 0 fail, exit 0) et en CI
+      (commit eef6dbf, run GitHub Actions 31784610142, 8/8 jobs dont
+      server/e2e). Note de méthode pour un futur audit similaire :
+      context.setOffline(true) de Playwright (déjà écarté pour SEC-097.3)
+      et req.abort() de supertest/superagent (déjà écarté pour SEC-082)
+      ne reproduisent PAS une coupure réseau brute réelle — seul un
+      proxy TCP local avec destruction du socket serveur, sans notifier
+      le client, le fait.
 
   - id: SEC-082
     titre: >

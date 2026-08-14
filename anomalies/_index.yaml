@@ -51,9 +51,23 @@ anomalies:
       (réponse existante en base, invisible pour l'utilisateur qui a
       perdu sa connexion)
     perimetre: 4.11-ia
-    statut: ouvert
+    statut: resolu
     gravite: moyenne
     classe: sse-sans-annulation-liee-a-la-connexion
+    note_resolution: >
+      Résolu le 2026-08-14 (commit eef6dbf, CI verte confirmée run
+      31784610142, 8/8 jobs dont server/e2e). Correctif : heartbeat SSE
+      (": ping\n\n" toutes les 5s, aiConversation.controller.ts) force
+      une tentative d'écriture régulière pendant un tour en cours, ce
+      qui fait surfacer une coupure TCP brute en un intervalle plutôt
+      qu'à la prochaine écriture naturelle (potentiellement jamais avant
+      la fin du tour). res.on("error") écouté en plus de res.on("close").
+      Test réel dans server/test/aiConversationRawNetworkDrop.test.ts
+      (verifie: test — proxy TCP local + socket.destroy() sur la
+      connexion déjà établie, sans FIN/RST vers le serveur, pendant un
+      vrai tour SSE) : prouve abortController.signal.aborted === true et
+      0 message ASSISTANT persisté après la coupure. Détail complet dans
+      anomalies/4.11-ia.yaml.
   - id: SEC-109
     titre: >
       Collision d'ID découverte le 2026-08-12 : REFERENTIEL.md §7
