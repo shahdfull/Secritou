@@ -159,7 +159,7 @@ describe("taskService.bulkDelete — SEC-060", () => {
   });
 });
 
-describe("taskService.bulkUpdateStatus concurrency — SEC-097", () => {
+describe("taskService.bulkUpdateStatus concurrency — SEC-112", () => {
   test("processes tasks concurrently, not sequentially — total time stays close to a single task's time, not N times it", async (t) => {
     if (!dbAvailable) return t.skip("no database available");
     const project = await makeProject(serviceA);
@@ -184,12 +184,14 @@ describe("taskService.bulkUpdateStatus concurrency — SEC-097", () => {
 
     assert.ok(results.every((r) => r.success));
     // A sequential implementation would take roughly 10x singleDuration; a concurrent one stays
-    // in the same ballpark as a single call. Margin widened 4x -> 6x (SEC-097, 2026-07-23) after
-    // a real flake on the shared GitHub Actions runner (batchDuration briefly exceeded 4x under
+    // in the same ballpark as a single call. Margin widened 4x -> 6x (2026-07-23) after a real
+    // flake on the shared GitHub Actions runner (batchDuration briefly exceeded 4x under
     // connection-pool contention despite the real code confirmed still using
     // Promise.allSettled — task.service.ts#bulkUpdateStatus). 6x still clearly distinguishes
     // concurrent (~1x) from sequential (~10x) execution; only the noise margin changed, not the
-    // property being proven.
+    // property being proven. This margin still wasn't enough — see SEC-112
+    // (anomalies/4.2-projets.yaml) for a recurring flake on this same assertion after the 2026-07-23
+    // widening, not yet resolved by a second widening alone (see SEC-112's own resolution criteria).
     assert.ok(
       batchDuration < singleDuration * 6,
       `expected concurrent batch (${batchDuration}ms) to stay well under 10x a single call (${singleDuration}ms), got ratio ${(batchDuration / singleDuration).toFixed(1)}x`
