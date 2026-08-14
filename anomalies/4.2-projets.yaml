@@ -285,7 +285,7 @@ anomalies:
       de la marge relative (interdit par le mandat), la voie (a) du
       critere_de_resolution est appliquée sous sa variante "seuil absolu
       en ms plutôt qu'un ratio contre une mesure elle-même bruitée" :
-      commit [à renseigner après commit] remplace l'assertion par une
+      commit 007734e remplace l'assertion par une
       borne absolue généreuse (batchDuration < 500ms, ~8x la pire valeur
       jamais observée en CI à ce jour, 61ms) — retire aussi le warm-up
       updateTask() désormais inutile (plus de ratio à calculer). Résultat
