@@ -240,3 +240,58 @@ anomalies:
       occasionnel. Renforce critere_de_resolution ci-dessus : élargir la
       marge une troisième fois ne suffira probablement pas non plus
       sans changer la méthode de mesure elle-même.
+
+    investigation_2026_08_14: >
+      Investigation de cause réelle menée (demande explicite du porteur,
+      sur mandat d'interdire un 3e élargissement silencieux de la marge).
+
+      Étape 1 — lecture complète du test (server/test/
+      taskBulkActions.test.ts) : singleDuration mesurait une SEULE requête
+      updateTask() d'échauffement (~8-10ms observés) ; batchDuration
+      mesurait bulkUpdateStatus() sur 10 tâches concurrentes ; seuil
+      batchDuration < singleDuration * 6.
+
+      Étape 2 — lecture du code réel de l'action bulk (task.service.ts) :
+      bulkUpdateStatus utilise bien Promise.allSettled (concurrence réelle
+      confirmée, aucun N+1 séquentiel). Mais updateTask() lui-même appelle
+      inconditionnellement invalidateTags() (cacheService.ts) en fin de
+      parcours, dont l'implémentation itère les tags SÉQUENTIELLEMENT
+      (une boucle for, chaque itération faisant sMembers puis del contre
+      Redis — 2-3 aller-retours par tag). Les 10 tâches du test partagent
+      TOUTES le même project (makeProject appelé une seule fois), donc
+      les 10 appels concurrents à invalidateTags ciblent exactement les
+      mêmes clés Redis (company/dashboard/project) — un mécanisme de
+      contention plausible et cohérent avec le commentaire historique du
+      test ("connection-pool contention" déjà noté en 2026-07-23).
+
+      Étape 3 — isolation : le test relancé seul 10 fois de suite (2
+      passes de 5) sur cette machine locale, 0/10 échec, batchDuration
+      systématiquement 52-158ms selon la mesure, largement sous tout
+      seuil testé. MAIS : le Redis local de cette machine s'est avéré
+      répondre en erreur (SocketTimeoutError) à chaque invocation
+      d'invalidateTags pendant ces runs — invalidateTags avale l'erreur
+      en interne (try/catch, log warn) sans jamais la remonter au test,
+      donc le vrai coût Redis n'a PU être mesuré en isolation locale
+      sur cette machine. Le mécanisme de contention identifié à l'étape 2
+      reste une explication plausible et structurellement cohérente des
+      échecs CI (où Redis répond normalement), mais n'a pas pu être
+      confirmé empiriquement en reproduction locale faute d'un Redis
+      local fonctionnel pour comparer.
+
+      Étape 4 — décision (demande explicite du porteur) : ni cause
+      déterministe strictement confirmée (pas de reproduction locale
+      possible), ni absence de piste (mécanisme plausible identifié et
+      documenté) — situation intermédiaire. Plutôt qu'un 3e élargissement
+      de la marge relative (interdit par le mandat), la voie (a) du
+      critere_de_resolution est appliquée sous sa variante "seuil absolu
+      en ms plutôt qu'un ratio contre une mesure elle-même bruitée" :
+      commit [à renseigner après commit] remplace l'assertion par une
+      borne absolue généreuse (batchDuration < 500ms, ~8x la pire valeur
+      jamais observée en CI à ce jour, 61ms) — retire aussi le warm-up
+      updateTask() désormais inutile (plus de ratio à calculer). Résultat
+      fonctionnel (10/10 succès) toujours vérifié en plus du timing.
+      Vérifié stable sur 10 exécutions isolées locales consécutives
+      (0/10 échec, 101-144ms observés) avant commit — reste à confirmer
+      sur plusieurs runs CI réels avant clôture, même doctrine que
+      SEC-111 (compter les tentatives, pas se satisfaire d'un seul run
+      vert après ajustement).
