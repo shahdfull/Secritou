@@ -308,7 +308,7 @@ export function DocumentsPage() {
             updateParams({ status: value === ALL_TYPES_VALUE ? undefined : value, page: 1 })
           }
         >
-          <SelectTrigger className="max-w-sm">
+          <SelectTrigger className="max-w-sm" aria-label={t("documents.filterByType")}>
             <SelectValue placeholder={t("documents.filterByType")} />
           </SelectTrigger>
           <SelectContent>

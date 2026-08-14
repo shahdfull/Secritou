@@ -1752,6 +1752,7 @@
       "outstandingBalance": "Solde dû",
       "nextDueInvoice": "Prochaine échéance",
       "projectProgress": "Avancement du projet",
+      "progressLabel": "Avancement du projet {{name}} : {{percent}}%",
       "myDocuments": "Mes documents",
       "noDocuments": "Aucun document pour le moment.",
       "documentTypes": {

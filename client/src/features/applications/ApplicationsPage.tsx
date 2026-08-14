@@ -377,7 +377,7 @@ export function ApplicationsPage() {
             updateParams({ status: value === ALL_STATUSES_VALUE ? undefined : value, page: 1 })
           }
         >
-          <SelectTrigger className="max-w-sm">
+          <SelectTrigger className="max-w-sm" aria-label={t("applications.filterByStatus")}>
             <SelectValue placeholder={t("applications.filterByStatus")} />
           </SelectTrigger>
           <SelectContent>

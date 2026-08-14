@@ -186,7 +186,14 @@ export function ClientDashboardPage() {
             ) : summary?.currentProject ? (
               <div className="space-y-2">
                 <div className="text-2xl font-bold">{summary.currentProject.progress}%</div>
-                <Progress value={summary.currentProject.progress} className="h-1.5" />
+                <Progress
+                  value={summary.currentProject.progress}
+                  className="h-1.5"
+                  aria-label={t("clientPortal.dashboard.progressLabel", {
+                    name: summary.currentProject.projectName,
+                    percent: summary.currentProject.progress,
+                  })}
+                />
                 <p className="text-xs text-muted-foreground truncate">{summary.currentProject.projectName}</p>
               </div>
             ) : (

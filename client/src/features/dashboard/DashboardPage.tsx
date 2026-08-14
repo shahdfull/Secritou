@@ -79,7 +79,7 @@ function GrowthBadge({ pct }: { pct: number }) {
   if (pct === 0) return <span className="text-xs text-muted-foreground">—</span>;
   const positive = pct > 0;
   return (
-    <span className={`flex items-center text-xs font-semibold ${positive ? "text-emerald-600" : "text-red-600"}`}>
+    <span className={`flex items-center text-xs font-semibold ${positive ? "text-emerald-700" : "text-red-700"}`}>
       {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
       {positive ? "+" : ""}{pct}%
     </span>
@@ -341,9 +341,9 @@ function ExecutiveSummary() {
             <div className="space-y-2">
               {clients.topClients.slice(0, 5).map((c) => {
                 const healthColor: Record<string, string> = {
-                  champion: "text-emerald-600 bg-emerald-50",
-                  good: "text-blue-600 bg-blue-50",
-                  "at-risk": "text-red-600 bg-red-50",
+                  champion: "text-emerald-700 bg-emerald-50",
+                  good: "text-blue-700 bg-blue-50",
+                  "at-risk": "text-red-700 bg-red-50",
                   lost: "text-gray-500 bg-gray-100",
                 };
                 return (

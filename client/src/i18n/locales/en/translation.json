@@ -1752,6 +1752,7 @@
       "outstandingBalance": "Outstanding Balance",
       "nextDueInvoice": "Next Due Date",
       "projectProgress": "Project Progress",
+      "progressLabel": "Project {{name}} progress: {{percent}}%",
       "myDocuments": "My Documents",
       "noDocuments": "No documents yet.",
       "documentTypes": {
