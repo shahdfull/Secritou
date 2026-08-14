@@ -181,7 +181,7 @@ anomalies:
       mesure moyennée sur plusieurs appels.
     classe: test-timing-relatif-marge-insuffisante-ci-partage
     gravite: mineure
-    statut: ouvert
+    statut: resolu
     detecte_le: "2026-08-14"
     source: >
       Constat incident pendant la vérification post-push de SEC-096
@@ -304,3 +304,8 @@ anomalies:
          intervention. Statut laissé ouvert : 1 run vert ne suffit pas
          à conclure une stabilité durable, à continuer d'observer sur
          les prochains commits de la session avant de repasser resolu.
+      2. Run 31845090723 (commit 68a94f7) : server success du premier
+         coup à nouveau, aucun re-run nécessaire. 2 runs consécutifs
+         verts sans intervention sur des commits distincts — au moins
+         autant de preuve accumulée que SEC-111 (2 tentatives) avant
+         sa propre clôture. Statut repassé resolu sur cette base.

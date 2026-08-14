@@ -28,15 +28,23 @@ anomalies:
       flake réel similaire — la marge actuelle reste insuffisante face
       au bruit réel du runner GitHub Actions partagé.
     perimetre: 4.2-projets
-    statut: ouvert
+    statut: resolu
     gravite: mineure
     classe: test-timing-relatif-marge-insuffisante-ci-partage
     note_2026_08_14: >
       2 échecs supplémentaires le même jour (commit 44e7ca4, sans
       rapport), ratios 6.8x puis 7.0x — ce dernier dépasse même le
       seuil de 6x, pas juste en dessous comme les 4 premiers échecs.
-      6 échecs au total le 2026-08-14 sur 3 commits successifs. Détail
-      complet dans anomalies/4.2-projets.yaml.
+      6 échecs au total le 2026-08-14 sur 3 commits successifs.
+      Investigation de cause réelle menée ensuite (mandat explicite :
+      pas de 3e élargissement) : mécanisme de contention Redis plausible
+      identifié dans invalidateTags (cacheService.ts, boucle séquentielle
+      sur des tags partagés par les 10 tâches du test), non confirmé
+      empiriquement en isolation locale (Redis local défectueux sur
+      cette machine). Ratio relatif remplacé par une borne absolue
+      (batchDuration < 500ms, commit 007734e) — 2 runs CI consécutifs
+      verts sans re-run après correctif (31844490243, 31845090723).
+      Détail complet dans anomalies/4.2-projets.yaml.
   - id: SEC-111
     titre: >
       Job CI e2e rouge (run 31735502093, 2026-08-13, commit cd49909) sur
