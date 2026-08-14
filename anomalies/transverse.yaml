@@ -633,7 +633,7 @@ anomalies:
       formelle avant lancement — backlog explicite, pas un manquement.
     classe: dette-technique
     gravite: mineure
-    statut: ouvert
+    statut: resolu
     note_degel: >
       Dégelé le 2026-08-03 (demande explicite du porteur), a produit un
       scan axe-core réel qui a mené à SEC-098/099/100 (tous resolu, CI
@@ -711,6 +711,82 @@ anomalies:
       atteint), documenté ici comme contenu réel au lieu de rester
       seulement dans la conversation (cf. CLAUDE.md — enregistrement
       immédiat de tout écart constaté).
+    resolution_2026_08_14: >
+      Résolu par demande explicite du porteur d'intégrer axe-core en
+      continu à la CI — déclencheur (2) exact du declencheur_reexamen
+      ci-dessus, pas une clôture par défaut ni un scan ponctuel
+      supplémentaire (le critere_de_resolution exigeait explicitement une
+      intégration CI continue, jamais satisfaite par un scan ponctuel
+      seul, cf. extension_scan_2026_08_13 ci-dessus qui l'a explicitement
+      exclu).
+
+      Nouveau fichier e2e/a11y-continuous.spec.ts, 15 tests, exécuté par
+      le job e2e existant à chaque run CI (npx playwright test sans
+      filtre de fichier — testDir: "./e2e" dans playwright.config.ts
+      inclut automatiquement tout *.spec.ts, aucun nouveau job CI dédié
+      nécessaire). scripts/check-contrast.mjs (étape contrast-check)
+      inchangé, reste complémentaire (tokens statiques, pas de pages
+      rendues).
+
+      15 écrans couverts, sélection proportionnée (pas les ~35 routes
+      internes de AppRoutes.tsx) :
+      - 5 publics, déjà scannés le 2026-08-13, gardés comme garde de
+        non-régression : /, /case-studies, /mentions-legales,
+        /confidentialite, /forgot-password.
+      - 8 ADMIN/MANAGER structurants : /app (dashboard), /app/crm,
+        /app/tasks, /app/projects, /app/talent, /app/documents,
+        /app/settings, /app/ai.
+      - 2 CLIENT (portail jamais couvert avant) : /client (dashboard),
+        /client/invoices.
+      Exclus explicitement (raison documentée dans le fichier de test
+      lui-même) : pages de détail paramétrées (/projects/:id,
+      /clients/:id — entité seedée requise, visuellement proches de leur
+      liste déjà couverte), sous-pages analytics (proches du dashboard
+      déjà scanné, backlog sur signal), /contact et /rejoindre (moins
+      structurants), /login et /reset-password (exercés indirectement par
+      chaque login du fichier), portail FREELANCER (non prioritaire pour
+      ce premier passage).
+
+      Mécanisme d'exception documenté (même principe que l'exception
+      react-refresh/only-export-components de CLAUDE.md) : tableau
+      KNOWN_EXCEPTIONS nommé dans le fichier, chaque entrée porte une
+      justification écrite et l'id de règle axe couvert — jamais un
+      .skip() silencieux ni un filtre de tag élargi. Liste vide à ce
+      jour : aucune violation trouvée n'a nécessité d'exception, toutes
+      ont été corrigées.
+
+      4 violations réelles trouvées au premier run (2026-08-14) et
+      corrigées, vérifiées par re-scan réel après correctif (15/15 tests
+      verts) :
+      1. Dashboard admin (/app) — 3 nœuds color-contrast (serious) :
+         GrowthBadge (client/src/features/dashboard/DashboardPage.tsx)
+         text-emerald-600 sur blanc/fdfbfa (3.65:1 / 3.54:1) et badge
+         santé client "at-risk" text-red-600 bg-red-50 (4.36:1), tous
+         < 4.5:1 — remplacés par les variantes -700
+         (emerald-700/red-700/blue-700 sur les 3 tons du même
+         healthColor map, pas seulement celui flaggé, pour cohérence).
+      2. Combobox filtre statut sans nom accessible, /app/talent —
+         ApplicationsPage.tsx (onglet par défaut de TalentPage, même
+         famille SelectTrigger/Radix déjà rencontrée le 2026-08-13) —
+         aria-label ajouté (clé applications.filterByStatus déjà
+         existante, réutilisée comme label).
+      3. Même pattern combobox, /app/documents — DocumentsPage.tsx —
+         aria-label ajouté (clé documents.filterByType déjà existante).
+      4. Barre de progression sans nom accessible, /client (portail
+         CLIENT, jamais scanné avant) — ClientDashboardPage.tsx —
+         aria-label interpolé nom réel du projet + %, nouvelle clé i18n
+         clientPortal.dashboard.progressLabel (FR+EN), même schéma que
+         projectsPage.progressLabel du 2026-08-13 mais namespace propre
+         au portail client (pas de réutilisation cross-module).
+
+      Commit fbfa5b9. CI verte confirmée run GitHub Actions 31834991818
+      — incluant le job e2e avec les 15 nouveaux tests, vert dès le
+      premier passage. Le job server a échoué une première fois sur ce
+      même run (flaky préexistant de timing, test/taskBulkActions.test.ts
+      — SEC-097, seuil < 6x, ratio 6.5x obtenu — sans rapport avec ce
+      commit, qui ne touche aucun fichier server/) ; re-run réel du seul
+      job server (gh run rerun --failed), vert au 2e essai, conclusion
+      globale du run success (8/8 jobs).
   - id: SEC-108
     titre: >
       19 fichiers appelaient chacun indépendamment

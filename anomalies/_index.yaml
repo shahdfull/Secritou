@@ -474,7 +474,38 @@ anomalies:
       de valeur ajoutée immédiate identifiée et ne rejoint pas le critère
       de clôture du projet — reste en backlog.
     perimetre: transverse
-    statut: ouvert
+    statut: resolu
+    note_resolution: >
+      Résolu le 2026-08-14 (demande explicite du porteur, déclencheur (2)
+      exact — « demande explicite du porteur d'intégrer axe-core à la CI »).
+      Nouveau fichier e2e/a11y-continuous.spec.ts (15 tests, exécuté par le
+      job e2e existant à chaque run CI, npx playwright test sans filtre —
+      aucun nouveau job dédié nécessaire) scanne en continu 15 écrans :
+      5 publics (/, /case-studies, /mentions-legales, /confidentialite,
+      /forgot-password — déjà scannés le 2026-08-13, gardés comme garde
+      de non-régression) + 8 ADMIN (/app, /app/crm, /app/tasks,
+      /app/projects, /app/talent, /app/documents, /app/settings, /app/ai)
+      + 2 CLIENT (/client, /client/invoices). Exclus explicitement (raison
+      documentée dans le fichier) : pages de détail paramétrées, sous-pages
+      analytics, /contact, /rejoindre, /login, /reset-password, portail
+      FREELANCER. Mécanisme d'exception documenté (KNOWN_EXCEPTIONS,
+      liste vide à ce jour — aucune violation n'a nécessité d'exception).
+      4 violations réelles trouvées et corrigées : (1) dashboard admin,
+      contraste text-emerald-600/text-red-600 sous 4.5:1 (3 nœuds) —
+      remplacé par -700, DashboardPage.tsx ; (2) combobox filtre statut
+      sans nom accessible, /app/talent (ApplicationsPage.tsx, onglet par
+      défaut de TalentPage) ; (3) même pattern combobox, /app/documents
+      (DocumentsPage.tsx) ; (4) barre de progression sans nom accessible,
+      /client (ClientDashboardPage.tsx), aria-label interpolé nom+%,
+      nouvelle clé i18n clientPortal.dashboard.progressLabel (FR+EN).
+      Vérifié par re-scan réel après correctifs : 15/15 tests verts.
+      Commit fbfa5b9, CI verte confirmée run GitHub Actions 31834991818
+      (job server rouge une première fois sur ce run — flaky préexistant
+      de taskBulkActions.test.ts, SEC-097, seuil < 6x, ratio 6.5x obtenu,
+      sans rapport avec ce commit qui ne touche aucun fichier server/ —
+      re-run réel du seul job server, vert au 2e essai, run redevenu
+      success dans son ensemble). Détail complet dans
+      anomalies/transverse.yaml.
     note_degel: >
       Dégelé le 2026-08-03 (demande explicite du porteur), a produit un
       scan axe-core réel qui a mené à SEC-098/099/100 (tous resolu, CI
