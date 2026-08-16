@@ -12,8 +12,263 @@
 # archive/anomalies-avant-reset (commit 3c03297), pas perdu — seulement
 # retiré de ce fichier pour repartir avec un registre vide.
 
-dernier_id: SEC-112
+dernier_id: SEC-122
 anomalies:
+  - id: SEC-122
+    titre: >
+      client/scripts/check-bundle-budgets.ts:43 compare un total agrégé de
+      tous les chunks JS (229 fichiers, architecture à code-splitting par
+      route) contre un seuil pensé pour un seul chunk (totalBytes >
+      maxBytes*4) — échoue structurellement sur ce dépôt quel que soit
+      l'état réel du build, ce qui explique pourquoi il n'est jamais
+      appelé en CI malgré son existence. Distinct du fait que 4 chunks
+      (AG Grid 702.6 KiB, viewer PDF 411.9 KiB, jsPDF 370.6 KiB, Recharts
+      368.3 KiB) dépassent réellement le budget par-fichier de 350 KiB —
+      tous confirmés lazy (absents du bundle initial, index.html ne
+      charge qu'un seul script de 326.4 KiB).
+    perimetre: transverse
+    statut: ouvert
+    gravite: mineure
+    classe: seuil-agrege-incoherent-architecture-code-splitting
+  - id: SEC-121
+    titre: >
+      scripts/check-contrast.mjs rapporte 100% de réussite (36 paires de
+      tokens à leur opacité déclarée à 100%) alors qu'une page réellement
+      rendue contient une violation de contraste mesurée par axe-core
+      (3.26:1 vs 4.5:1 requis, FreelancerDashboardPage.tsx:264,
+      text-muted-foreground/70) — le script ne connaît pas les
+      modificateurs d'opacité Tailwind appliqués au-delà des tokens de
+      base qu'il vérifie. « Le design system passe AA » et « la page
+      rendue passe AA » ne sont pas des affirmations équivalentes ; seule
+      la seconde a été vérifiée par une mesure réelle sur page rendue.
+    perimetre: transverse
+    statut: ouvert
+    gravite: mineure
+    classe: contraste-modificateur-opacite-non-couvert-par-outillage
+  - id: SEC-120
+    titre: >
+      Avatar d'en-tête FreelancerLayout.tsx:147-151 (<Avatar
+      className="h-8 w-8 cursor-pointer" onClick={...}>) n'a ni
+      role="button", ni tabIndex, ni onKeyDown — contrairement à son
+      équivalent AdminLayout.tsx:336-341 (role="button" + tabIndex={0} +
+      onKeyDown gérant Enter/Space) et à ClientLayout.tsx:218-234. Confirmé
+      par un test clavier réel (40 appuis Tab consécutifs sur
+      /app/freelancer-dashboard) : un rôle button reste atteignable
+      ailleurs sur la page, mais cet avatar précis reste hors de portée du
+      clavier par construction du code — un scan axe-core seul ne détecte
+      pas cette classe de défaut (rien à signaler là où un élément est
+      simplement absent de l'ordre de tabulation).
+    perimetre: transverse
+    statut: ouvert
+    gravite: mineure
+    classe: garde-clavier-absente-composant-partage-incoherent
+  - id: SEC-119
+    titre: >
+      Le <Switch> de disponibilité freelance
+      (FreelancerDashboardPage.tsx:424-428) n'a ni aria-label, ni
+      aria-labelledby, ni texte interne — le texte "Disponible"/
+      "Indisponible" adjacent (lignes 414-417) est un <span> dans un
+      TooltipTrigger, jamais associé programmatiquement au switch (pas de
+      id+htmlFor, pas de aria-labelledby). Confirmé par exécution réelle
+      axe-core sur /app/freelancer-dashboard : violation button-name,
+      impact critical. Un utilisateur de lecteur d'écran qui atteint ce
+      contrôle entend "interrupteur, coché" sans savoir ce qu'il active,
+      sur un champ dont l'effet réel (se rendre indisponible aux yeux des
+      managers/clients) est significatif pour l'activité du freelance.
+    perimetre: transverse
+    statut: ouvert
+    gravite: eleve
+    classe: controle-interactif-sans-nom-accessible
+  - id: SEC-118
+    titre: >
+      isValidTunisianPhone (shared/src/constants/phone.ts) n'est appliqué
+      que dans 3 validateurs serveur (contact.validator.ts,
+      freelancerApplication.validator.ts, booking.validator.ts — les 3
+      formulaires publics) — jamais dans lead.validator.ts/
+      client.validator.ts (qui étendent directement sharedLeadBase/
+      sharedClientBase, phone: z.string().max(50).optional(), borne de
+      longueur seule) ni dans user.validator.ts#updateMeSchema. Un
+      ADMIN/MANAGER créant ou modifiant un lead/client dans le CRM peut
+      saisir n'importe quelle chaîne de 50 caractères dans le champ
+      téléphone, alors que la même colonne Lead.phone/Client.phone reçoit
+      un numéro strictement validé quand elle vient du formulaire public
+      /contact — même champ métier, deux niveaux de rigueur selon la voie
+      d'entrée.
+    perimetre: 4.1-crm
+    statut: ouvert
+    gravite: mineure
+    classe: validation-format-incoherente-entre-voies-entree
+  - id: SEC-117
+    titre: >
+      CaseStudiesSection (landing/components/CaseStudies.tsx, pilotée par
+      CMS via useLandingCms/cms("caseStudies.*"), jamais montée) et
+      CaseStudiesPage.tsx (la vraie page /case-studies, montée et
+      fonctionnelle, mais avec des données codées en dur — extendedCases
+      — plutôt que pilotées par le CMS) résolvent le même besoin métier
+      ("études de cas clients") par deux mécanismes différents et
+      incompatibles. Un admin peut éditer le contenu "études de cas" via
+      SettingsSiteContentTab (listFieldSchemas.ts#"caseStudies.items")
+      sans que cette édition n'affecte jamais ce qu'un visiteur voit sur
+      /case-studies. Statut « en attente de décision produit » (nouveau
+      statut, cf. note ci-dessous) : le critère de résolution dépend
+      d'une direction produit non encore tranchée par le porteur (unifier
+      sur le CMS, ou retirer CaseStudiesSection comme code mort).
+    perimetre: 4.12-site-public
+    statut: en_attente_decision_produit
+    gravite: mineure
+    classe: double-mecanisme-cms-vs-code-en-dur-meme-besoin
+    note_statut: >
+      Statut introduit ici pour la première fois dans ce registre (même
+      principe que SEC-107's "surveillance") — distinct de "ouvert" (un
+      correctif de code peut être écrit dès maintenant) : ici aucun
+      critère de résolution objectif n'existe tant que le porteur n'a pas
+      choisi une direction produit. Passera à "ouvert" avec un
+      critere_de_resolution concret dès que la décision sera écrite dans
+      REFERENTIEL.md §7, conformément à CLAUDE.md.
+  - id: SEC-116
+    titre: >
+      4 composants IHM écrits, stylés, fonctionnels (chaîne complète
+      route→controller→service→hook→composant confirmée), mais jamais
+      montés dans aucun arbre React réel : RevenueForecastSection
+      (dashboard/RevenueForecastSection.tsx, alimente /dashboard/
+      revenue-forecast), CaseStudiesSection, BusinessImpact, FutureProduct
+      (les 3 derniers dans landing/components/, HomePage.tsx ne monte que
+      9 des 12 composants disponibles dans ce dossier). Confirmé par grep
+      exhaustif (import.*{ *NomComposant *}) : aucune occurrence hors du
+      fichier de définition lui-même, pour les 4 composants. Le CMS
+      marketing référence explicitement des sections (BUSINESS_IMPACT,
+      CASE_STUDIES dans listFieldSchemas.ts) qui alimentent 2 de ces
+      composants orphelins — un admin peut éditer ce contenu aujourd'hui
+      sans qu'il ne soit jamais affiché à un visiteur, ce qui renforce
+      l'hypothèse qu'ils étaient prévus pour être montés plutôt que du
+      code mort jamais connecté dès l'origine.
+    perimetre: 4.12-site-public
+    statut: en_attente_decision_produit
+    gravite: mineure
+    classe: composant-ihm-orphelin-jamais-monte
+    note_statut: >
+      Même principe que SEC-117 ci-dessus — le critère de résolution
+      dépend d'une décision produit non encore tranchée (intégrer ces 4
+      composants quelque part dans l'arbre, ou les retirer comme code
+      mort). Passera à "ouvert" avec un critere_de_resolution concret dès
+      que la décision sera écrite dans REFERENTIEL.md §7.
+  - id: SEC-115
+    titre: >
+      Sur 144 appels useMutation répartis dans 38 fichiers
+      client/src/hooks/*.ts, seuls 11 fichiers gèrent onError — les hooks
+      les plus centraux du CRM (useTasks.ts, useLeads.ts, useClients.ts,
+      useInvoices.ts, useProjects.ts) n'en ont aucun, et
+      services/queryClient.ts (le QueryClient global réel) ne définit ni
+      MutationCache.onError ni defaultOptions.mutations.onError — seul
+      retry:0 y est configuré. Confirmé jusqu'au point d'appel réel :
+      useTaskActions.ts:87-95 (création de tâche) et
+      useTaskActions.ts:100-108 (édition de tâche) n'attachent onSuccess
+      qu'à leur .mutate(...), sans onError, et le composant appelant ne
+      consulte jamais mutation.isError/error en secours — un échec de
+      création/édition de tâche (permission insuffisante, conflit de
+      statut, validation serveur) ne produit aucun signal visible : pas de
+      toast, pas de message inline, la boîte de dialogue reste simplement
+      ouverte. getServerErrorMessage() (apiError.ts, né de SEC-095 déjà
+      résolu) extrait pourtant le vrai message serveur — mais n'est
+      utilisé que dans 14 fichiers sur toute l'application, les endroits
+      où quelqu'un a déjà buté sur ce défaut et corrigé son propre coin du
+      code, pas une politique appliquée uniformément.
+    perimetre: transverse
+    statut: ouvert
+    gravite: moyenne
+    classe: mutation-echec-silencieux-sans-retour-utilisateur
+  - id: SEC-114
+    titre: >
+      auditLogService.record() (auditLog.service.ts:16-37) écrit dans un
+      vrai modèle Prisma AuditLog (actorId, actorRole, action, entityType,
+      entityId, before/after en JSON, ipAddress) — append only, appelé
+      depuis 9 fichiers de service réels sur des actions parmi les plus
+      sensibles de l'application (task.service.ts, project.service.ts,
+      invoice.service.ts — create/update/cancel/delete/restore/send/
+      payment —, gdpr.service.ts, creditNote.service.ts,
+      approval.service.ts, user.service.ts,
+      managerPermission.service.ts, plus
+      maintenance.processor.ts#markOverdueInvoices). Confirmé par grep
+      exhaustif sur client/src et server/src/routes : zéro occurrence
+      d'auditLog/AuditLog en dehors des fichiers d'écriture eux-mêmes —
+      aucun endpoint, aucune page, pas même un accès ADMIN-only non
+      exposé côté UI ne permet de consulter cet historique. Une capacité
+      de traçabilité complète et fonctionnelle du point de vue de
+      l'écriture, orpheline du point de vue de la lecture — personne, y
+      compris un ADMIN, ne peut aujourd'hui consulter les données déjà
+      accumulées en base à chaque facture créée/modifiée/annulée, chaque
+      tâche/projet modifié, chaque changement de permission.
+    perimetre: transverse
+    statut: resolu
+    gravite: moyenne
+    classe: capacite-ecriture-sans-point-dentree-lecture
+    note_resolution: >
+      Résolu le 2026-08-16 (commit 97e5514, CI verte confirmée run
+      31959049918, 8/8 jobs success au premier essai : e2e, server,
+      ssh-known-hosts-check, anomaly-registry-check, client,
+      contrast-check, restore-smoke-test, i18n-check). Correctif :
+      nouveau endpoint paginé/filtrable GET /audit-log (+ /audit-log/
+      entity-types), ADMIN-only (authorize("ADMIN"), même patron que
+      permissionProfile.routes.ts), résolvant les noms d'acteur
+      côté service (auditLog.service.ts#findAll, AuditLog.actorId
+      n'ayant pas de relation Prisma vers User). Nouvel onglet
+      "Journal d'audit" dans Paramètres (SettingsAuditLogTab.tsx),
+      ADMIN-only, filtrable par type d'entité/identifiant, avec un
+      détail before/after par ligne. Vérifié par exécution réelle : (1)
+      server/test/auditLogRead.http.test.ts (nouveau, HTTP réel via
+      supertest contre app.js — 401 sans token, 403 pour un MANAGER, 200
+      pour un ADMIN, puis un flux bout-en-bout réel : création d'une
+      tâche, DELETE /tasks/:id réel, l'entrée task.delete retrouvée via
+      GET /audit-log?entityType=Task&entityId=... avec le bon
+      actorName) ; (2) vérification manuelle contre le serveur de dev
+      réel : 1603 entrées AuditLog réellement accumulées en base,
+      auparavant totalement inaccessibles, désormais lisibles via le
+      nouvel endpoint ; (3) capture d'écran réelle du nouvel onglet
+      rendu dans un navigateur (Playwright), 20 lignes visibles dans la
+      grille. Suite complète (npm run test:coverage) : 806 tests, 768
+      pass, 0 fail sur le serveur ; 142/142 sur le client. Lint et
+      typecheck propres sur les deux workspaces (0 error, 0 warning).
+  - id: SEC-113
+    titre: >
+      POST /projects/:id/time-entries rejette systématiquement toute
+      requête valide — timeEntry.validator.ts:3-8 définit
+      createTimeEntrySchema sans l'enveloppe z.object({ body: ... }) que
+      les 33 autres fichiers validateurs utilisent (ses champs taskId/
+      description/minutes/date sont déclarés directement au niveau
+      racine), alors que validate.middleware.ts:7-11 appelle
+      systématiquement schema.parse({ body: req.body, params: req.params,
+      query: req.query }) quel que soit le schéma. minutes et date
+      (requis) sont donc recherchés sur un objet où ils n'existent jamais
+      (imbriqués un niveau plus bas, dans .body). Confirmé par une requête
+      HTTP réelle contre le serveur de dev (payload valide, minutes:90,
+      date:"2026-01-01") : HTTP 422, "minutes":["Required"],
+      "date":["Invalid date"]. Confirmé atteignable et branché côté
+      client (timeEntryApi.create appelé depuis
+      TimeTrackingTab.tsx, onglet réel de la fiche projet, 3 rôles
+      autorisés ADMIN/MANAGER/FREELANCER) — aucun utilisateur ne peut
+      actuellement saisir de temps passé via l'IHM. server/test/
+      timeEntryScope.test.ts (existant, vert) appelle
+      timeEntryService.create(...) directement, contournant entièrement
+      la route/le middleware cassés — son fait d'être vert ne dit rien de
+      l'état de la route réelle, et aucun autre test n'exerce cette route
+      HTTP. Prive en pratique la génération de lignes de facture depuis le
+      temps passé (POST /invoices/:id/items/from-time-entries, déjà
+      documentée comme automatisation en place) de toute donnée réelle à
+      consommer.
+    perimetre: 4.2-projets
+    statut: ouvert
+    gravite: bloquant
+    classe: schema-validation-enveloppe-manquante-rejet-systematique
+    critere_de_resolution: >
+      Une requête HTTP réelle POST /projects/:id/time-entries avec un
+      payload valide (minutes, date, description/taskId optionnels)
+      retourne 201 avec l'entrée créée, pour les 3 rôles autorisés
+      (ADMIN/MANAGER/FREELANCER staffé sur le projet). Le correctif
+      attendu enveloppe createTimeEntrySchema dans z.object({ body: ... })
+      comme les 33 autres validateurs — un test réel qui appelle la route
+      HTTP (pas seulement timeEntryService directement, cf. la faille de
+      couverture documentée ci-dessus) doit accompagner le correctif pour
+      empêcher une régression future silencieuse au même endroit.
   - id: SEC-112
     titre: >
       test/taskBulkActions.test.ts#"processes tasks concurrently, not

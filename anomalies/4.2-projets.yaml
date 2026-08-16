@@ -10,8 +10,71 @@
 # 3 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
 # archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
 # +1 le 2026-08-14 (SEC-112, flaky test timing constaté hors audit formel).
+# +1 le 2026-08-16 (SEC-113, bug bloquant réel constaté pendant l'audit
+# IHM/UX exhaustif — voir audit-ihm-ux/07-qualite-donnees.md §1).
 
 anomalies:
+  - id: SEC-113
+    titre: >
+      POST /projects/:id/time-entries rejette systématiquement toute
+      requête valide — timeEntry.validator.ts:3-8 définit
+      createTimeEntrySchema sans l'enveloppe z.object({ body: ... }) que
+      les 33 autres fichiers validateurs utilisent (ses champs taskId/
+      description/minutes/date sont déclarés directement au niveau
+      racine), alors que validate.middleware.ts:7-11 appelle
+      systématiquement schema.parse({ body: req.body, params: req.params,
+      query: req.query }) quel que soit le schéma. minutes et date
+      (requis) sont donc recherchés sur un objet où ils n'existent jamais
+      (imbriqués un niveau plus bas, dans .body).
+    perimetre: 4.2-projets
+    regle_violee: >
+      Aucune règle métier au sens strict — défaut de forme du contrat de
+      validation lui-même : le schéma Zod ne reflète pas l'enveloppe
+      réellement construite par le middleware qui l'invoque, contrairement
+      aux 33 autres validateurs du dépôt qui suivent tous la même
+      convention z.object({ body, params, query }).
+    classe: schema-validation-enveloppe-manquante-rejet-systematique
+    gravite: bloquant
+    statut: ouvert
+    critere_de_resolution: >
+      Une requête HTTP réelle POST /projects/:id/time-entries avec un
+      payload valide (minutes, date, description/taskId optionnels)
+      retourne 201 avec l'entrée créée, pour les 3 rôles autorisés
+      (ADMIN/MANAGER/FREELANCER staffé sur le projet). Le correctif
+      attendu enveloppe createTimeEntrySchema dans z.object({ body: ... })
+      comme les 33 autres validateurs — un test réel qui appelle la route
+      HTTP (POST /projects/:id/time-entries en conditions réelles, pas
+      seulement timeEntryService directement) doit accompagner le
+      correctif pour empêcher une régression future silencieuse au même
+      endroit, puisque c'est précisément l'angle mort qui a laissé ce bug
+      passer inaperçu jusqu'ici.
+    detecte_le: "2026-08-16"
+    source: >
+      Audit IHM/UX exhaustif, axe 7 (Qualité des données & cohérence),
+      session 6 — lecture intégrale de
+      server/src/validators/timeEntry.validator.ts et
+      server/src/middlewares/validate.middleware.ts, confirmé par une
+      requête HTTP réelle contre le serveur de dev local (script jetable
+      créé, exécuté une fois, supprimé immédiatement après — aucune trace
+      dans le dépôt, aucune ligne créée en base puisque la requête a été
+      rejetée avant d'atteindre la couche service). Détail complet :
+      audit-ihm-ux/07-qualite-donnees.md §1.
+    confiance: >
+      Maximale — reproduit par une requête HTTP réelle contre un serveur
+      réellement démarré, réponse HTTP 422 observée directement, pas une
+      déduction depuis la lecture du code seule.
+    note: >
+      server/test/timeEntryScope.test.ts (existant, vert) appelle
+      timeEntryService.create(...) directement, contournant entièrement
+      la route/le middleware cassés — son fait d'être vert ne dit rien de
+      l'état de la route réelle (il protège correctement le scoping RBAC
+      SEC-020/SEC-021, son objet déclaré, mais n'a jamais eu pour objet
+      de couvrir la couche HTTP). Aucun autre test (*.http.test.ts ou
+      équivalent) n'exerce cette route, confirmé par grep. Prive en
+      pratique la génération de lignes de facture depuis le temps passé
+      (POST /invoices/:id/items/from-time-entries, déjà documentée comme
+      automatisation en place dans audit-ihm-ux/01-fonctionnalites.md) de
+      toute donnée réelle à consommer via l'IHM.
   - id: SEC-020
     titre: >
       timeEntry.service.ts (create/list/summary/mySummary) ne vérifie jamais

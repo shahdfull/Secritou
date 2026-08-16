@@ -7,7 +7,94 @@
 # Ne jamais reformuler un titre existant — citer l'ID.
 #
 # Périmètre : 4.12 Contenu du site public
-# 0 anomalie(s) — registre remis à zéro le 2026-07-27, historique réel
-# archivé sur la branche locale archive/anomalies-avant-reset (commit 3c03297).
+# 2 anomalie(s) — les 2 constatées le 2026-08-16 pendant l'audit IHM/UX
+# exhaustif (voir audit-ihm-ux/01-fonctionnalites.md §2/§3ter). Statut
+# "en_attente_decision_produit" pour les deux : aucun critère de
+# résolution objectif tant que le porteur n'a pas choisi une direction
+# produit (intégrer les composants orphelins, ou les retirer). Nouveau
+# statut introduit ici, même principe que "surveillance" (SEC-107) —
+# distinct de "ouvert" où un correctif de code peut être écrit dès
+# maintenant sans attendre de décision externe.
 
-anomalies: []
+anomalies:
+  - id: SEC-116
+    titre: >
+      4 composants IHM écrits, stylés, fonctionnels (chaîne complète
+      route→controller→service→hook→composant confirmée), mais jamais
+      montés dans aucun arbre React réel : RevenueForecastSection
+      (dashboard/RevenueForecastSection.tsx, alimente /dashboard/
+      revenue-forecast), CaseStudiesSection, BusinessImpact, FutureProduct
+      (les 3 derniers dans landing/components/, HomePage.tsx ne monte que
+      9 des 12 composants disponibles dans ce dossier). Confirmé par grep
+      exhaustif (import.*{ *NomComposant *}) : aucune occurrence hors du
+      fichier de définition lui-même, pour les 4 composants. Le CMS
+      marketing référence explicitement des sections (BUSINESS_IMPACT,
+      CASE_STUDIES dans listFieldSchemas.ts) qui alimentent 2 de ces
+      composants orphelins — un admin peut éditer ce contenu aujourd'hui
+      sans qu'il ne soit jamais affiché à un visiteur, ce qui renforce
+      l'hypothèse qu'ils étaient prévus pour être montés plutôt que du
+      code mort jamais connecté dès l'origine.
+    perimetre: 4.12-site-public
+    classe: composant-ihm-orphelin-jamais-monte
+    gravite: mineure
+    statut: en_attente_decision_produit
+    detecte_le: "2026-08-16"
+    source: >
+      Audit IHM/UX exhaustif, axe 1 (Fonctionnalités), sessions 2-3 —
+      RevenueForecastSection identifié session 2
+      (audit-ihm-ux/01-fonctionnalites.md §2), les 3 composants marketing
+      identifiés session 3 (§3ter), renforcé session 5 par la découverte
+      que listFieldSchemas.ts modélise intégralement les champs d'édition
+      CMS de businessImpact.items/caseStudies.items (§3sexies). Détail
+      complet : audit-ihm-ux/01-fonctionnalites.md §2, §3ter, §3sexies.
+    confiance: >
+      Haute — chaîne complète vérifiée fonctionnelle pour chacun des 4
+      composants (route→controller→service→hook→composant existe et
+      fonctionne), absence de montage confirmée par grep exhaustif sur
+      tout client/src, pas une lecture partielle.
+    note_statut: >
+      Le critère de résolution dépend d'une décision produit non encore
+      tranchée par le porteur (intégrer ces 4 composants quelque part
+      dans l'arbre React, ou les retirer comme code mort). Passera à
+      "ouvert" avec un critere_de_resolution concret dès que la décision
+      sera écrite dans REFERENTIEL.md §7, conformément à CLAUDE.md
+      ("Toute décision du porteur s'écrit dans §7 dans la même passe").
+  - id: SEC-117
+    titre: >
+      CaseStudiesSection (landing/components/CaseStudies.tsx, pilotée par
+      CMS via useLandingCms/cms("caseStudies.*"), jamais montée — cf.
+      SEC-116) et CaseStudiesPage.tsx (la vraie page /case-studies, montée
+      et fonctionnelle, mais avec des données codées en dur —
+      extendedCases — plutôt que pilotées par le CMS) résolvent le même
+      besoin métier ("études de cas clients") par deux mécanismes
+      différents et incompatibles. Un admin peut éditer le contenu
+      "études de cas" via SettingsSiteContentTab
+      (listFieldSchemas.ts#"caseStudies.items") sans que cette édition
+      n'affecte jamais ce qu'un visiteur voit sur /case-studies.
+    perimetre: 4.12-site-public
+    classe: double-mecanisme-cms-vs-code-en-dur-meme-besoin
+    gravite: mineure
+    statut: en_attente_decision_produit
+    detecte_le: "2026-08-16"
+    source: >
+      Audit IHM/UX exhaustif, axe 1 (Fonctionnalités), session 3 —
+      identifié en même temps que SEC-116 en lisant
+      client/src/features/landing/components/CaseStudies.tsx et
+      client/src/features/landing/pages/CaseStudiesPage.tsx côte à côte.
+      Détail complet : audit-ihm-ux/01-fonctionnalites.md §3ter.
+    confiance: >
+      Haute — les deux fichiers lus directement et comparés, le mécanisme
+      de données de chacun (CMS vs extendedCases codé en dur) confirmé
+      par lecture, pas supposé.
+    note_statut: >
+      Même principe que SEC-116 — le critère de résolution dépend d'une
+      direction produit non encore tranchée (unifier /case-studies sur le
+      CMS, ou retirer CaseStudiesSection comme code mort si
+      /case-studies doit rester en données codées en dur). Distinct de
+      SEC-116 : même famille de défaut (composant orphelin lié au même
+      module marketing), mais un critère de résolution différent —
+      SEC-116 se résout en montant-ou-retirant 4 composants indépendants,
+      SEC-117 se résout en choisissant LEQUEL des deux mécanismes déjà
+      existants devient la source de vérité unique pour "études de cas".
+      Passera à "ouvert" dès que la décision sera écrite dans
+      REFERENTIEL.md §7.

@@ -50,8 +50,372 @@
 # +1 le 2026-08-04 (échec CI réel découvert en poussant le correctif
 # SEC-075/077 — SEC-102, authRateLimit partagé sans échappatoire test,
 # résolu le même jour par un flag distinct E2E_RELAXED_AUTH_RATE_LIMIT).
+# +6 le 2026-08-16 (audit IHM/UX exhaustif, sessions 5-8 — SEC-114 audit
+# trail orpheline, SEC-115 mutations sans retour d'erreur, SEC-119 switch
+# sans nom accessible, SEC-120 avatar FreelancerLayout non focusable,
+# SEC-121 angle mort de check-contrast.mjs, SEC-122 seuil incohérent de
+# check-bundle-budgets.ts).
 
 anomalies:
+  - id: SEC-122
+    titre: >
+      client/scripts/check-bundle-budgets.ts:43 (if (totalBytes >
+      budget.maxBytes * 4 || oversized.length > 0)) compare un total
+      agrégé de tous les chunks JS produits par le build (229 fichiers,
+      mesuré directement — architecture à code-splitting par route,
+      cf. AppRoutes.tsx) contre un seuil (maxBytes*4 = 1400 KiB)
+      manifestement pensé pour plafonner un seul chunk anormalement gros,
+      pas la somme de l'application entière splittée en dizaines de
+      chunks par route. Un total agrégé de 229 fichiers dépassera presque
+      toujours 1400 KiB dans cette architecture, indépendamment de la
+      santé réelle du build — confirmé par exécution réelle :
+      npm run bundle:check échoue sur un build de production propre
+      (4501.5 KiB agrégé JS, 132.4 KiB agrégé CSS). Indépendamment de ce
+      bug de seuil, 4 chunks dépassent réellement le budget par-fichier
+      de 350 KiB (agGridModules 702.6 KiB, TextLayer/viewer PDF
+      411.9 KiB, jspdf.es.min 370.6 KiB, generateCategoricalChart/
+      Recharts 368.3 KiB) — tous confirmés lazy (absents du bundle
+      initial : dist/index.html ne référence qu'un seul script,
+      326.4 KiB, sous le budget).
+    perimetre: transverse
+    regle_violee: >
+      Aucune règle métier — défaut de conception de l'outil de mesure
+      lui-même : son seuil ne correspond pas à l'architecture réelle du
+      build qu'il est censé vérifier.
+    classe: seuil-agrege-incoherent-architecture-code-splitting
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      npm run bundle:check (client) passe sur un build de production
+      propre sans régression réelle de taille — le script vérifie soit
+      le poids de chaque chunk individuellement contre un budget
+      par-fichier réaliste (ce qu'il fait déjà bien via
+      oversized.length > 0), soit un budget agrégé du SEULEMENT bundle
+      initial (dist/index.html) plutôt que la somme de tous les chunks
+      lazy. Une fois corrigé, npm run bundle:check devient candidat à
+      être câblé dans .github/workflows/ci.yml (actuellement absent,
+      confirmé par grep — aucune occurrence de "bundle" hors d'une
+      vérification de secret sans rapport), ce qui n'a aucun sens tant
+      que le script échoue structurellement.
+    detecte_le: "2026-08-16"
+    source: >
+      Audit IHM/UX exhaustif, axe 5 (Performance), session 6 — exécution
+      réelle de npm run bundle:check depuis client/ contre un build de
+      production fraîchement généré (npm run build --workspace=client),
+      puis diagnostic précis via un script Node jetable comptant les
+      chunks réellement produits et leur taille. Détail complet :
+      audit-ihm-ux/05-performance.md §1.
+    confiance: >
+      Maximale — reproduit par exécution réelle de la commande npm
+      documentée dans package.json, pas une lecture de code seule.
+    note: >
+      4 chunks oversized (AG Grid/PDF/Recharts) sont un fait réel sur
+      l'application, distinct du bug de seuil ci-dessus — mais leur
+      sévérité pratique reste limitée : tous confirmés lazy, aucun ne
+      pénalise le premier chargement de l'application.
+  - id: SEC-121
+    titre: >
+      scripts/check-contrast.mjs rapporte 100% de réussite (36 paires de
+      tokens vérifiées, toutes à leur opacité déclarée à 100% —
+      "✓ Contrast check passed — all 36 pairs meet WCAG AA", exécution
+      réelle confirmée) alors qu'une page réellement rendue contient une
+      violation de contraste mesurée par axe-core sur un scan réel :
+      3.26:1 (FreelancerDashboardPage.tsx:264, texte d'aide sous le KPI
+      "Taux de complétion", classe text-muted-foreground/70) contre
+      4.5:1 requis pour du texte normal. Le script ne connaît que les
+      combinaisons de tokens qu'on lui déclare explicitement
+      (muted-foreground sur card/muted/background à 100% d'opacité) —
+      il ne sait pas qu'un composant réel applique un modificateur
+      d'opacité Tailwind (/70, potentiellement /60 ailleurs — cf.
+      FreelancerDashboardPage.tsx:416, icône Info) qui réduit le
+      contraste effectif au rendu.
+    perimetre: transverse
+    regle_violee: >
+      WCAG 1.4.3 (contraste texte 4.5:1) — mais la violation elle-même
+      porte l'ID SEC-119 pour ce cas précis si numéroté séparément ;
+      cette anomalie-ci porte sur l'angle mort de l'outillage de
+      vérification, distinct de la violation ponctuelle qu'il a laissée
+      passer.
+    classe: contraste-modificateur-opacite-non-couvert-par-outillage
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      scripts/check-contrast.mjs couvre soit les combinaisons de tokens
+      avec leurs modificateurs d'opacité réellement utilisés dans le
+      dépôt (grep systématique des classes text-*-foreground/NN sur
+      client/src, pas seulement les tokens à 100%), soit un mécanisme
+      complémentaire (scan sur DOM rendu, comme e2e/a11y-continuous.spec.ts
+      le fait déjà pour d'autres règles WCAG) couvre ce cas — vérifié en
+      re-exécutant node scripts/check-contrast.mjs après correctif et en
+      confirmant qu'il détecterait la violation citée ci-dessus si elle
+      n'était pas déjà corrigée par ailleurs.
+    detecte_le: "2026-08-16"
+    source: >
+      Audit IHM/UX exhaustif, axe 3 (Accessibilité), session 5 —
+      extension réelle de e2e/a11y-continuous.spec.ts au rôle FREELANCER
+      (5 nouveaux écrans scannés par axe-core), violation trouvée sur
+      /app/freelancer-dashboard, puis exécution réelle de node
+      scripts/check-contrast.mjs pour confirmer l'angle mort ("✓ Contrast
+      check passed — all 36 pairs meet WCAG AA" malgré la violation
+      réelle). Détail complet : audit-ihm-ux/03-accessibilite.md §1.2.
+    confiance: >
+      Maximale — les deux mesures (axe-core sur page rendue, script
+      statique sur tokens) exécutées réellement dans la même session,
+      résultats contradictoires observés directement, pas déduits.
+    note: >
+      Distinct de SEC-119 (la violation de contraste elle-même) : cette
+      anomalie porte sur le fait que l'outil censé prévenir ce genre de
+      régression ne l'aurait pas détectée avant mise en production, pas
+      sur la violation ponctuelle.
+  - id: SEC-120
+    titre: >
+      Avatar d'en-tête FreelancerLayout.tsx:147-151 (<Avatar
+      className="h-8 w-8 cursor-pointer" onClick={...}>) n'a ni
+      role="button", ni tabIndex, ni onKeyDown — contrairement à son
+      équivalent AdminLayout.tsx:336-341 (role="button" + tabIndex={0} +
+      aria-label + onKeyDown gérant Enter/Space) et à
+      ClientLayout.tsx:218-234, qui suivent tous deux le même patron
+      accessible. Confirmé par un test clavier réel (Playwright, 40
+      appuis Tab consécutifs sur /app/freelancer-dashboard, connecté en
+      FREELANCER réel) : un rôle button reste atteignable ailleurs sur la
+      page (liens de sidebar, bouton de bascule), mais cet avatar précis
+      reste hors de portée du clavier par construction du code — un scan
+      axe-core seul ne détecte pas cette classe de défaut (rien à
+      signaler là où un élément est simplement absent de l'ordre de
+      tabulation, contrairement à un élément mal étiqueté).
+    perimetre: transverse
+    regle_violee: >
+      WCAG 2.1.1 (Keyboard) — toute fonctionnalité opérable à la souris
+      doit l'être aussi au clavier ; ici l'avatar ouvre les paramètres de
+      compte au clic mais n'a aucun chemin clavier équivalent.
+    classe: garde-clavier-absente-composant-partage-incoherent
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      FreelancerLayout.tsx:147-151 reçoit le même patron que
+      AdminLayout.tsx:336-341 (role="button", tabIndex={0}, aria-label,
+      onKeyDown gérant Enter/Space, navigate vers /app/settings) — vérifié
+      par un test Playwright réel qui focus l'élément et confirme
+      qu'Entrée déclenche la navigation, symétrique au test de contrôle
+      déjà écrit pour AdminLayout dans
+      e2e/a11y-continuous.spec.ts#"AdminLayout: header avatar IS
+      reachable by Tab and activatable with Enter (control case)".
+    detecte_le: "2026-08-16"
+    source: >
+      Repéré par lecture statique en session 0
+      (audit-ihm-ux/02-navigation.md §6), confirmé par exécution réelle
+      en session 5 : 2 tests Playwright ajoutés à
+      e2e/a11y-continuous.spec.ts (cas de contrôle AdminLayout vert de
+      bout en bout — focus + Entrée navigue réellement vers
+      /app/settings ; cas FreelancerLayout confirmant l'absence via un
+      parcours de 40 Tab). Détail complet :
+      audit-ihm-ux/03-accessibilite.md §2.
+    confiance: >
+      Maximale — confirmé par exécution Playwright réelle contre le
+      serveur de dev, avec un cas de contrôle qui prouve que le patron
+      alternatif (AdminLayout) fonctionne réellement de bout en bout, pas
+      seulement dans le balisage.
+    note: >
+      Le skip link ("Accessibilité" → #main) est présent identiquement
+      dans les 4 layouts y compris FreelancerLayout — l'écart est
+      localisé à cet avatar précis, pas un défaut généralisé du layout.
+  - id: SEC-119
+    titre: >
+      Le <Switch> de disponibilité freelance
+      (FreelancerDashboardPage.tsx:424-428) n'a ni aria-label, ni
+      aria-labelledby, ni texte interne — le texte "Disponible"/
+      "Indisponible" adjacent (lignes 414-417) est un <span> dans un
+      TooltipTrigger, jamais associé programmatiquement au switch (pas de
+      id+htmlFor, pas de aria-labelledby pointant vers ce span). Confirmé
+      par exécution réelle axe-core sur /app/freelancer-dashboard :
+      violation button-name, impact critical — "<button type="button"
+      role="switch" aria-checked="true" ...>" sans nom accessible détecté
+      par aucune des 7 heuristiques axe-core standard (aria-label,
+      aria-labelledby, title, label implicite/explicite, etc.).
+    perimetre: transverse
+    regle_violee: >
+      WCAG 4.1.2 (Name, Role, Value) — tout composant d'interface doit
+      exposer un nom programmatiquement déterminable.
+    classe: controle-interactif-sans-nom-accessible
+    gravite: eleve
+    statut: ouvert
+    critere_de_resolution: >
+      Le <Switch> de FreelancerDashboardPage.tsx:424-428 reçoit un
+      aria-label explicite (ex. dérivé de
+      t("freelancerDashboard.available")/t("freelancerDashboard.unavailable")
+      selon l'état courant) — vérifié par un re-scan axe-core réel sur
+      /app/freelancer-dashboard confirmant 0 violation button-name sur
+      cet écran, symétrique à la méthode de détection initiale.
+    detecte_le: "2026-08-16"
+    source: >
+      Audit IHM/UX exhaustif, axe 3 (Accessibilité), session 5 —
+      extension réelle de e2e/a11y-continuous.spec.ts au rôle FREELANCER,
+      exécutée contre le serveur de dev réel avec un compte seedé ayant
+      de vraies données (yassine.dev@freelance.tn). Détail complet :
+      audit-ihm-ux/03-accessibilite.md §1.1.
+    confiance: >
+      Maximale — violation axe-core capturée directement sur une requête
+      de scan réelle contre une page rendue, avec le HTML exact du nœud
+      fautif dans le rapport.
+    note: >
+      Un utilisateur de lecteur d'écran qui atteint ce contrôle entend
+      "interrupteur, coché" sans savoir ce qu'il active, sur un champ
+      dont l'effet réel (se rendre indisponible aux yeux des managers/
+      clients pour l'attribution de nouvelles missions) est significatif
+      pour l'activité du freelance — pas un contrôle cosmétique.
+  - id: SEC-115
+    titre: >
+      Sur 144 appels useMutation répartis dans 38 fichiers
+      client/src/hooks/*.ts (mesuré par grep exhaustif, pas une
+      estimation), seuls 11 fichiers gèrent onError — les hooks les plus
+      centraux du CRM (useTasks.ts, useLeads.ts, useClients.ts,
+      useInvoices.ts, useProjects.ts) n'en ont aucun. Aucun filet de
+      sécurité global non plus : client/src/services/queryClient.ts (le
+      QueryClient singleton réel de l'app, confirmé par grep — c'est
+      celui utilisé partout, pas un des nombreux QueryClient de test) ne
+      définit ni MutationCache.onError ni
+      defaultOptions.mutations.onError, seulement retry:0. Confirmé
+      jusqu'au point d'appel réel : useTaskActions.ts:87-95 (création de
+      tâche) et useTaskActions.ts:100-108 (édition de tâche) — les deux
+      chemins les plus fréquents du module Tâches — n'attachent
+      onSuccess qu'à leur .mutate(...), sans onError ; le composant
+      appelant ne consulte jamais mutation.isError/error en secours
+      (grep confirmé sur tout le fichier).
+    perimetre: transverse
+    regle_violee: >
+      Aucune règle métier — principe d'ergonomie de base : toute action
+      utilisateur qui échoue doit produire un signal perceptible,
+      contrairement à un succès silencieux qui n'a pas besoin de
+      confirmation explicite dans certains cas.
+    classe: mutation-echec-silencieux-sans-retour-utilisateur
+    gravite: moyenne
+    statut: ouvert
+    critere_de_resolution: >
+      Une tentative de création/édition de tâche qui échoue côté serveur
+      (ex. 403 permission insuffisante, 409 conflit de statut) affiche un
+      message visible à l'utilisateur (toast ou inline) contenant le
+      message serveur réel via getServerErrorMessage() quand disponible
+      — vérifié par un test réel qui simule un rejet serveur (mock de la
+      réponse HTTP ou compte sans permission réelle) et observe le
+      message affiché, pas seulement l'absence de crash. Le correctif le
+      plus robuste attache un MutationCache.onError par défaut sur
+      queryClient.ts (fallback global), les onError spécifiques par hook
+      restant prioritaires quand ils existent déjà (ex. useTimeEntries.ts,
+      useDocuments.ts) plutôt que dupliqués.
+    detecte_le: "2026-08-16"
+    source: >
+      Audit IHM/UX exhaustif, axe 9 (Aide & accompagnement), session 8 —
+      grep exhaustif de onError/useMutation sur les 38 fichiers
+      client/src/hooks/*.ts, lecture intégrale de
+      client/src/services/queryClient.ts,
+      client/src/features/tasks/hooks/useTaskActions.ts,
+      client/src/utils/apiError.ts. Détail complet :
+      audit-ihm-ux/09-aide-accompagnement.md §1.
+    confiance: >
+      Haute — mesure exhaustive par grep sur l'intégralité des fichiers
+      concernés (pas un échantillon), confirmée jusqu'au point d'appel
+      réel dans le fichier le plus représentatif (useTaskActions.ts).
+    note: >
+      getServerErrorMessage() (client/src/utils/apiError.ts, né de
+      SEC-095 déjà résolu) extrait le vrai message d'erreur serveur —
+      bien conçu, mais utilisé dans seulement 14 fichiers sur toute
+      l'application, les endroits où quelqu'un a déjà rencontré ce défaut
+      et corrigé son propre coin du code, pas une politique appliquée
+      uniformément. Le chemin de succès n'est pas affecté (toasts de
+      succès systématiques et traduits confirmés sur les hooks lus) —
+      seul le chemin d'échec est silencieux.
+  - id: SEC-114
+    titre: >
+      auditLogService.record() (server/src/services/auditLog.service.ts:16-37)
+      écrit dans un vrai modèle Prisma AuditLog (actorId, actorRole,
+      action, entityType, entityId, before/after en JSON, ipAddress) —
+      append only, échec de journalisation jamais bloquant pour l'action
+      elle-même (catch + logger.error). Appelé depuis 9 fichiers de
+      service réels sur des actions parmi les plus sensibles de
+      l'application : task.service.ts, project.service.ts,
+      invoice.service.ts (create/update/cancel/delete/restore/send/
+      payment — diffs before/after réels sur montant/statut/paiements),
+      gdpr.service.ts, creditNote.service.ts, approval.service.ts,
+      user.service.ts, managerPermission.service.ts, plus
+      maintenance.processor.ts#markOverdueInvoices (transition
+      cron-déclenchée, actorId:null documenté comme volontaire). Confirmé
+      par grep exhaustif sur client/src et server/src/routes : zéro
+      occurrence d'auditLog/AuditLog en dehors des 9 fichiers d'écriture
+      eux-mêmes — aucun endpoint, aucune page, pas même un accès
+      ADMIN-only non exposé côté UI ne permet de consulter cet
+      historique.
+    perimetre: transverse
+    regle_violee: >
+      Aucune règle métier explicite — capacité de traçabilité construite
+      mais jamais reliée à un point de consultation, contrairement à
+      l'attente implicite qu'un audit trail existe pour être consulté en
+      cas de litige/incident, pas seulement accumulé.
+    classe: capacite-ecriture-sans-point-dentree-lecture
+    gravite: moyenne
+    statut: resolu
+    critere_de_resolution: >
+      Un utilisateur ADMIN peut consulter l'historique AuditLog d'une
+      entité donnée (au minimum : filtré par entityType+entityId,
+      idéalement aussi par actorId/plage de dates) via un endpoint réel
+      et un écran réel — vérifié par un parcours réel (créer/modifier une
+      facture, puis consulter son historique via l'écran, observer les
+      champs before/after affichés correctement). Alternative valide si
+      le porteur décide de ne pas construire cet écran maintenant :
+      documenter explicitement dans REFERENTIEL.md §7 que la capacité
+      reste volontairement en réserve, avec la date et le motif — ce qui
+      ferait aussi passer cette anomalie à un statut différent
+      d'"ouvert" une fois la décision écrite.
+    detecte_le: "2026-08-16"
+    source: >
+      Audit IHM/UX exhaustif, axe 8 (Workflow & traçabilité), session 7 —
+      lecture intégrale de server/src/services/auditLog.service.ts, grep
+      exhaustif de auditLogService.record sur server/src (9 fichiers
+      trouvés) et de auditLog/AuditLog sur client/src et
+      server/src/routes (0 occurrence en dehors des writers). Détail
+      complet : audit-ihm-ux/08-workflow.md §1.
+    confiance: >
+      Maximale — les 9 sites d'appel confirmés par grep exhaustif,
+      l'absence de tout consommateur confirmée par le même moyen sur
+      l'intégralité de client/src et server/src/routes, pas un
+      échantillon.
+    note: >
+      Même famille de défaut que SEC-116 (composants IHM orphelins) mais
+      côté données plutôt que côté composant React : écrit, fonctionnel,
+      jamais raccordé à une lecture. Plus le nombre de writers augmente
+      sans qu'aucun lecteur n'existe, plus le risque grandit qu'un futur
+      refactor supprime ces appels comme "code mort apparent" — alors que
+      ce n'est pas du code mort, seulement une capacité à moitié
+      construite.
+    note_resolution: >
+      Résolu le 2026-08-16 (commit 97e5514, CI verte confirmée run
+      31959049918 — 8/8 jobs success au premier essai : e2e, server,
+      ssh-known-hosts-check, anomaly-registry-check, client,
+      contrast-check, restore-smoke-test, i18n-check). Le critère de
+      résolution ci-dessus est satisfait par la voie "endpoint réel +
+      écran réel" (pas l'alternative "documenter en réserve") :
+      GET /audit-log (+ /audit-log/entity-types) paginé et filtrable par
+      entityType/entityId/actorId/action, ADMIN-only
+      (authorize("ADMIN"), même patron que
+      permissionProfile.routes.ts) ; auditLog.service.ts#findAll résout
+      les noms d'acteur côté service (AuditLog.actorId n'a pas de
+      relation Prisma vers User, cf. schema.prisma) ; nouvel onglet
+      "Journal d'audit" dans Paramètres
+      (client/src/features/settings/tabs/SettingsAuditLogTab.tsx),
+      filtrable, avec un détail before/after par ligne. Vérifié par le
+      parcours réel exigé par le critère : nouveau
+      server/test/auditLogRead.http.test.ts exerce la vraie pile HTTP
+      (app.ts -> authenticate -> authorize -> route) via supertest — 401
+      sans token, 403 pour un MANAGER, 200 pour un ADMIN, puis un flux
+      bout-en-bout réel (création d'une tâche, DELETE /tasks/:id réel,
+      l'entrée task.delete retrouvée via GET /audit-log?entityType=Task&
+      entityId=... avec before/actorName corrects). Confirmé
+      manuellement contre le serveur de dev réel : 1603 entrées AuditLog
+      réellement accumulées en base, auparavant inaccessibles,
+      désormais lisibles ; capture d'écran réelle (Playwright) du nouvel
+      onglet rendu dans un navigateur, 20 lignes visibles. Suite
+      complète (npm run test:coverage) : 806 tests server (768 pass, 0
+      fail), 142/142 client. Lint et typecheck propres sur les deux
+      workspaces (0 error, 0 warning).
   - id: SEC-102
     titre: >
       authRateLimit (server/src/middlewares/rateLimit.middleware.ts, 30

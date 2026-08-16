@@ -9,8 +9,62 @@
 # Périmètre : 4.1 CRM & Pipeline commercial
 # 2 anomalie(s) — premier audit réel de ce périmètre dans le registre remis
 # à zéro le 2026-07-27, session du 2026-07-29.
+# +1 le 2026-08-16 (SEC-118, constatée pendant l'audit IHM/UX exhaustif —
+# voir audit-ihm-ux/07-qualite-donnees.md §2).
 
 anomalies:
+  - id: SEC-118
+    titre: >
+      isValidTunisianPhone (shared/src/constants/phone.ts) n'est appliqué
+      que dans 3 validateurs serveur (contact.validator.ts,
+      freelancerApplication.validator.ts, booking.validator.ts — les 3
+      formulaires publics) — jamais dans lead.validator.ts/
+      client.validator.ts (qui étendent directement sharedLeadBase/
+      sharedClientBase, phone: z.string().max(50).optional(), borne de
+      longueur seule) ni dans user.validator.ts#updateMeSchema. Un
+      ADMIN/MANAGER créant ou modifiant un lead/client dans le CRM peut
+      saisir n'importe quelle chaîne de 50 caractères dans le champ
+      téléphone, alors que la même colonne Lead.phone/Client.phone reçoit
+      un numéro strictement validé quand elle vient du formulaire public
+      /contact — même champ métier, deux niveaux de rigueur selon la voie
+      d'entrée.
+    perimetre: 4.1-crm
+    regle_violee: >
+      Aucune règle métier explicite du référentiel ne l'impose — constat
+      de cohérence de qualité de donnée : un même champ physique (colonne
+      Lead.phone/Client.phone) devrait recevoir le même niveau de
+      validation quelle que soit la voie d'entrée (formulaire public vs
+      création/édition directe par le staff), pour que le champ ait un
+      sens uniforme partout où il est affiché/utilisé ensuite (ex. un
+      futur appel automatisé, un export, une intégration SMS).
+    classe: validation-format-incoherente-entre-voies-entree
+    gravite: mineure
+    statut: ouvert
+    critere_de_resolution: >
+      lead.validator.ts et client.validator.ts (et
+      user.validator.ts#updateMeSchema) appliquent isValidTunisianPhone
+      au champ phone, avec le même message d'erreur que les 3 validateurs
+      publics déjà conformes — vérifié par un test réel qui soumet un
+      numéro invalide via POST /leads ou POST /clients (ou PATCH
+      correspondant) avec un token ADMIN/MANAGER réel et observe un rejet
+      422, symétrique au comportement déjà existant sur POST /contact.
+    detecte_le: "2026-08-16"
+    source: >
+      Audit IHM/UX exhaustif, axe 7 (Qualité des données & cohérence),
+      session 6 — lecture intégrale de shared/src/constants/phone.ts,
+      shared/src/schemas/lead.schema.ts, shared/src/schemas/client.schema.ts,
+      des 34 fichiers server/src/validators/*.ts, grep exhaustif de
+      isValidTunisianPhone sur tout le dépôt. Détail complet :
+      audit-ihm-ux/07-qualite-donnees.md §2.
+    confiance: >
+      Haute — confirmé par lecture directe des définitions de schéma des
+      deux côtés (validateurs publics avec le refine, validateurs CRM
+      sans), pas une déduction indirecte.
+    note: >
+      Pas un bug qui casse une fonctionnalité existante — une incohérence
+      de qualité de donnée réelle mais silencieuse tant qu'aucune
+      fonctionnalité avale (SMS automatisé, export, intégration
+      téléphonie) ne dépend d'un format de téléphone garanti valide.
   - id: SEC-018
     titre: >
       lead.validator.ts écrase status: z.nativeEnum(LeadStatus).optional()
