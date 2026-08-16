@@ -23,6 +23,7 @@ import {
 import {
   Loader2,
   Globe,
+  History,
 } from "lucide-react";
 import i18n from "@/i18n";
 import { toast } from "sonner";
@@ -35,6 +36,9 @@ const SettingsJoinRequestsTab = lazy(() =>
 );
 const SettingsSiteContentTab = lazy(() =>
   import("./tabs/SettingsSiteContentTab").then((m) => ({ default: m.SettingsSiteContentTab }))
+);
+const SettingsAuditLogTab = lazy(() =>
+  import("./tabs/SettingsAuditLogTab").then((m) => ({ default: m.SettingsAuditLogTab }))
 );
 import { SettingsProfileTab } from "./tabs/SettingsProfileTab";
 import { SettingsAppearanceTab } from "./tabs/SettingsAppearanceTab";
@@ -80,7 +84,7 @@ export function SettingsPage() {
       </div>
 
       <Tabs defaultValue={tabParam ?? "profile"}>
-        <TabsList className={`grid w-full ${isAdmin ? "grid-cols-3 md:grid-cols-5" : isFreelancer ? "grid-cols-3" : "grid-cols-2"}`}>
+        <TabsList className={`grid w-full ${isAdmin ? "grid-cols-3 md:grid-cols-6" : isFreelancer ? "grid-cols-3" : "grid-cols-2"}`}>
           <TabsTrigger value="profile">{t("settingsTabs.profile")}</TabsTrigger>
           {isAdmin && (
             <>
@@ -89,6 +93,10 @@ export function SettingsPage() {
               <TabsTrigger value="site-content" className="gap-1.5">
                 <Globe className="h-3.5 w-3.5" />
                 {t("settingsTabs.siteContent")}
+              </TabsTrigger>
+              <TabsTrigger value="audit-log" className="gap-1.5">
+                <History className="h-3.5 w-3.5" />
+                {t("settingsTabs.auditLog")}
               </TabsTrigger>
             </>
           )}
@@ -176,6 +184,23 @@ export function SettingsPage() {
               }
             >
               <SettingsSiteContentTab />
+            </Suspense>
+          </TabsContent>
+        )}
+
+        {/* Audit Log Tab (ADMIN only — SEC-114) */}
+        {isAdmin && (
+          <TabsContent value="audit-log" className="space-y-4">
+            <Suspense
+              fallback={
+                <Card>
+                  <CardContent className="py-10 flex items-center justify-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </CardContent>
+                </Card>
+              }
+            >
+              <SettingsAuditLogTab />
             </Suspense>
           </TabsContent>
         )}

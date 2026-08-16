@@ -172,6 +172,7 @@ import "./aiToolRouter.test.ts";
 import "./bullBoardAdminOnly.http.test.ts";
 import "./appSetting.repository.test.ts";
 import "./approvalAuditLog.test.ts";
+import "./auditLogRead.http.test.ts";
 import "./meetingRecurrence.test.ts";
 import "./rating.service.test.ts";
 import "./ratingRequestNotification.test.ts";

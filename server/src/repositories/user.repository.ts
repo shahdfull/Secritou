@@ -37,6 +37,17 @@ export const userRepository = {
     return user?.serviceId ?? null;
   },
 
+  // Lightweight batch lookup of display names — used to resolve actorId -> name for read-only
+  // views (e.g. audit log) without a Prisma relation on the source table.
+  async findNamesByIds(ids: string[]): Promise<Map<string, { name: string; email: string }>> {
+    if (ids.length === 0) return new Map();
+    const users = await prismaRead.user.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, name: true, email: true },
+    });
+    return new Map(users.map((u) => [u.id, { name: u.name, email: u.email }]));
+  },
+
   async countByRole(role: Role): Promise<number> {
     return prismaRead.user.count({ where: { role } });
   },

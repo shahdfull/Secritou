@@ -31,6 +31,7 @@ import aiConversationRoutes from "./aiConversation.routes.js";
 import customQuestionRoutes from "./customQuestion.routes.js";
 import permissionProfileRoutes from "./permissionProfile.routes.js";
 import managerPermissionRoutes from "./managerPermission.routes.js";
+import auditLogRoutes from "./auditLog.routes.js";
 import ratingRoutes from "./rating.routes.js";
 import portfolioRoutes from "./portfolio.routes.js";
 import { siteContentPublicRoutes, siteContentAdminRoutes } from "./siteContent.routes.js";
@@ -204,6 +205,9 @@ apiRoutes.use("/custom-questions", customQuestionRoutes);
 // Permission routes
 apiRoutes.use("/permission-profiles", permissionProfileRoutes);
 apiRoutes.use("/manager-permissions", managerPermissionRoutes);
+
+// Audit log routes (ADMIN only — see SEC-114, REFERENTIEL.md §7)
+apiRoutes.use("/audit-log", auditLogRoutes);
 
 // Rating routes
 apiRoutes.use("/ratings", ratingRoutes);

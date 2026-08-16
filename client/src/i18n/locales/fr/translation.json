@@ -1615,11 +1615,34 @@
     "requests": "Demandes d'adhésion",
     "siteContent": "Site vitrine",
     "freelancerProfile": "Mon profil",
-    "appearance": "Apparence"
+    "appearance": "Apparence",
+    "auditLog": "Journal d'audit"
   },
   "settingsPage": {
     "title": "Paramètres",
     "description": "Configurez votre entreprise, utilisateurs, facturation et contrôles d'accès."
+  },
+  "auditLog": {
+    "systemActor": "Système (automatique)",
+    "viewDetail": "Détail",
+    "columns": {
+      "createdAt": "Date",
+      "actor": "Acteur",
+      "action": "Action",
+      "entityType": "Type",
+      "entityId": "Identifiant",
+      "detail": "Détail"
+    },
+    "filters": {
+      "entityType": "Type d'entité",
+      "allEntityTypes": "Tous les types",
+      "entityId": "Filtrer par identifiant..."
+    },
+    "detail": {
+      "before": "Avant",
+      "after": "Après",
+      "ipAddress": "Adresse IP"
+    }
   },
   "solutionsTeaser": {
     "subtitle": "Construit autour de qui vous êtes",

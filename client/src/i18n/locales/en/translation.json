@@ -1615,11 +1615,34 @@
     "requests": "Join requests",
     "siteContent": "Showcase site",
     "freelancerProfile": "My profile",
-    "appearance": "Appearance"
+    "appearance": "Appearance",
+    "auditLog": "Audit log"
   },
   "settingsPage": {
     "title": "Settings",
     "description": "Configure your company, users, billing and access controls."
+  },
+  "auditLog": {
+    "systemActor": "System (automatic)",
+    "viewDetail": "Detail",
+    "columns": {
+      "createdAt": "Date",
+      "actor": "Actor",
+      "action": "Action",
+      "entityType": "Type",
+      "entityId": "ID",
+      "detail": "Detail"
+    },
+    "filters": {
+      "entityType": "Entity type",
+      "allEntityTypes": "All types",
+      "entityId": "Filter by ID..."
+    },
+    "detail": {
+      "before": "Before",
+      "after": "After",
+      "ipAddress": "IP address"
+    }
   },
   "solutionsTeaser": {
     "subtitle": "Built around who you are",
